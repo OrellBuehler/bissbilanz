@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.SyncConflictBanner
@@ -165,90 +167,99 @@ fun AppNavigation() {
                         ) { it / 5 }
                 },
             ) {
-                composable(Screen.Dashboard.route) {
-                    com.bissbilanz.android.ui.screens
-                        .DashboardScreen(navController)
-                }
-                composable(Screen.Foods.route) {
-                    com.bissbilanz.android.ui.screens
-                        .FoodSearchScreen(navController)
-                }
-                composable(Screen.Favorites.route) {
-                    com.bissbilanz.android.ui.screens
-                        .FavoritesScreen(navController)
-                }
-                composable(Screen.Insights.route) {
-                    com.bissbilanz.android.ui.screens
-                        .InsightsScreen(navController)
-                }
-                composable(Screen.Settings.route) {
-                    com.bissbilanz.android.ui.screens
-                        .SettingsScreen(navController)
-                }
-                composable("food/{foodId}") { backStackEntry ->
-                    val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
-                    com.bissbilanz.android.ui.screens
-                        .FoodDetailScreen(foodId, navController)
-                }
-                composable("daylog/{date}") { backStackEntry ->
-                    val date = backStackEntry.arguments?.getString("date") ?: return@composable
-                    com.bissbilanz.android.ui.screens
-                        .DayLogScreen(date, navController)
-                }
-                composable("scanner") {
-                    com.bissbilanz.android.ui.screens
-                        .BarcodeScannerScreen(navController)
-                }
-                composable("recipes") {
-                    com.bissbilanz.android.ui.screens
-                        .RecipeListScreen(navController)
-                }
-                composable("recipe/{recipeId}") { backStackEntry ->
-                    val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
-                    com.bissbilanz.android.ui.screens
-                        .RecipeDetailScreen(recipeId, navController)
-                }
-                composable("weight") {
-                    com.bissbilanz.android.ui.screens
-                        .WeightScreen(navController)
-                }
-                composable("sleep") {
-                    com.bissbilanz.android.ui.screens
-                        .SleepScreen(navController)
-                }
-                composable("supplements") {
-                    com.bissbilanz.android.ui.screens
-                        .SupplementsScreen(navController)
-                }
-                composable("supplement-history") {
-                    com.bissbilanz.android.ui.screens
-                        .SupplementHistoryScreen(navController)
-                }
-                composable("calendar") {
-                    com.bissbilanz.android.ui.screens
-                        .CalendarScreen(navController)
-                }
-                composable("health") {
-                    com.bissbilanz.android.ui.screens
-                        .HealthConnectScreen(navController)
-                }
-                composable("fasting") {
-                    com.bissbilanz.android.ui.screens
-                        .FastingScreen(navController)
-                }
-                composable("pending-sync") {
-                    com.bissbilanz.android.ui.screens
-                        .PendingSyncScreen(navController)
-                }
-                composable("maintenance") {
-                    com.bissbilanz.android.ui.screens
-                        .MaintenanceScreen(navController)
-                }
-                composable("ai-tasks") {
-                    com.bissbilanz.android.ui.screens
-                        .AiTasksScreen(navController)
-                }
+                bissbilanzDestinations(navController)
             }
         }
+    }
+}
+
+/**
+ * Every destination the app can reach. Kept apart from [AppNavigation] so the graph can
+ * be built without the Compose shell — the launcher shortcuts name routes as plain
+ * strings, and a test has to be able to check they still resolve to something.
+ */
+internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostController) {
+    composable(Screen.Dashboard.route) {
+        com.bissbilanz.android.ui.screens
+            .DashboardScreen(navController)
+    }
+    composable(Screen.Foods.route) {
+        com.bissbilanz.android.ui.screens
+            .FoodSearchScreen(navController)
+    }
+    composable(Screen.Favorites.route) {
+        com.bissbilanz.android.ui.screens
+            .FavoritesScreen(navController)
+    }
+    composable(Screen.Insights.route) {
+        com.bissbilanz.android.ui.screens
+            .InsightsScreen(navController)
+    }
+    composable(Screen.Settings.route) {
+        com.bissbilanz.android.ui.screens
+            .SettingsScreen(navController)
+    }
+    composable("food/{foodId}") { backStackEntry ->
+        val foodId = backStackEntry.arguments?.getString("foodId") ?: return@composable
+        com.bissbilanz.android.ui.screens
+            .FoodDetailScreen(foodId, navController)
+    }
+    composable("daylog/{date}") { backStackEntry ->
+        val date = backStackEntry.arguments?.getString("date") ?: return@composable
+        com.bissbilanz.android.ui.screens
+            .DayLogScreen(date, navController)
+    }
+    composable("scanner") {
+        com.bissbilanz.android.ui.screens
+            .BarcodeScannerScreen(navController)
+    }
+    composable("recipes") {
+        com.bissbilanz.android.ui.screens
+            .RecipeListScreen(navController)
+    }
+    composable("recipe/{recipeId}") { backStackEntry ->
+        val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
+        com.bissbilanz.android.ui.screens
+            .RecipeDetailScreen(recipeId, navController)
+    }
+    composable("weight") {
+        com.bissbilanz.android.ui.screens
+            .WeightScreen(navController)
+    }
+    composable("sleep") {
+        com.bissbilanz.android.ui.screens
+            .SleepScreen(navController)
+    }
+    composable("supplements") {
+        com.bissbilanz.android.ui.screens
+            .SupplementsScreen(navController)
+    }
+    composable("supplement-history") {
+        com.bissbilanz.android.ui.screens
+            .SupplementHistoryScreen(navController)
+    }
+    composable("calendar") {
+        com.bissbilanz.android.ui.screens
+            .CalendarScreen(navController)
+    }
+    composable("health") {
+        com.bissbilanz.android.ui.screens
+            .HealthConnectScreen(navController)
+    }
+    composable("fasting") {
+        com.bissbilanz.android.ui.screens
+            .FastingScreen(navController)
+    }
+    composable("pending-sync") {
+        com.bissbilanz.android.ui.screens
+            .PendingSyncScreen(navController)
+    }
+    composable("maintenance") {
+        com.bissbilanz.android.ui.screens
+            .MaintenanceScreen(navController)
+    }
+    composable("ai-tasks") {
+        com.bissbilanz.android.ui.screens
+            .AiTasksScreen(navController)
     }
 }
