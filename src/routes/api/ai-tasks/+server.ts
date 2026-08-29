@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const queryResult = aiTaskListQuerySchema.safeParse({
 			status: url.searchParams.get('status') ?? undefined,
+			acknowledged: url.searchParams.get('acknowledged') ?? undefined,
 			limit: url.searchParams.get('limit'),
 			offset: url.searchParams.get('offset')
 		});
@@ -24,8 +25,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			return validationError(queryResult.error);
 		}
 
-		const { status, limit, offset } = queryResult.data;
-		const { tasks, total } = await listAiTasks(userId, { status, limit, offset });
+		const { status, acknowledged, limit, offset } = queryResult.data;
+		const { tasks, total } = await listAiTasks(userId, { status, acknowledged, limit, offset });
 		return json({ tasks, total });
 	} catch (error) {
 		return handleApiError(error);

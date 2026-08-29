@@ -1172,7 +1172,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List AI Tasks',
 			description:
-				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes the meal photo if present) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary.",
+				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes the meal photo if present) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary. Always close out every task you pick up: if you cannot log one, call dismiss_ai_task with a reason. Both outcomes show your text to the user in their AI Tasks list, and a dismissal also raises a notification, so never resolve a task silently.",
 			inputSchema: {
 				status: z
 					.enum(aiTaskStatusValues)
@@ -1219,7 +1219,12 @@ export function createMcpServer(userId: string): McpServer {
 				"Mark an AI task as completed after logging its food entries with log_food. Pass the created entry IDs so the task's history links back to the diary.",
 			inputSchema: {
 				id: z.string().uuid().describe('ID of the AI task to complete'),
-				resultSummary: z.string().describe('Short human-readable summary of what was logged'),
+				resultSummary: z
+					.string()
+					.min(1)
+					.describe(
+						'Short summary of what you logged, written for the user to read. Shown to them verbatim in their AI Tasks list, so address them directly and name the foods and amounts you entered.'
+					),
 				entryIds: z
 					.array(z.string())
 					.optional()
@@ -1235,10 +1240,15 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Dismiss AI Task',
 			description:
-				'Dismiss an AI task without logging any entries, e.g. if it is a duplicate or not actionable.',
+				'Dismiss an AI task without logging any entries, e.g. if it is a duplicate or not actionable. The user is notified of every dismissal, so a reason is required.',
 			inputSchema: {
 				id: z.string().uuid().describe('ID of the AI task to dismiss'),
-				reason: z.string().optional().describe('Optional reason for dismissing the task')
+				reason: z
+					.string()
+					.min(1)
+					.describe(
+						'Why you could not log this task, written for the user to read. They are notified with this text and it stays on the task in their AI Tasks list, so address them directly and say what you would need in order to log it.'
+					)
 			},
 			annotations: UPDATE
 		},

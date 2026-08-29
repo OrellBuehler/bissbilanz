@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
 	import { page } from '$app/stores';
 	import { beforeNavigate } from '$app/navigation';
 	import { getNavGroups } from '$lib/config/navigation';
@@ -123,9 +124,17 @@
 									{#snippet child({ props })}
 										<a href={item.href} {...withMobileCloseClick(props)}>
 											<span
-												class="{item.badgeColor} flex size-8 shrink-0 items-center justify-center rounded-lg"
+												class="{item.badgeColor} relative flex size-8 shrink-0 items-center justify-center rounded-lg"
 											>
 												<item.icon class="size-4.5 md:size-4" />
+												{#if item.href === '/ai-tasks' && aiTaskService.unreadCount > 0}
+													<span
+														class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white"
+														aria-label={m.ai_tasks_unread()}
+													>
+														{aiTaskService.unreadCount}
+													</span>
+												{/if}
 											</span>
 											<span class="truncate font-semibold">{item.title()}</span>
 										</a>

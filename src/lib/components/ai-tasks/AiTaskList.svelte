@@ -15,9 +15,13 @@
 	let { tasks, onDismiss, onDelete }: Props = $props();
 
 	const pending = $derived(tasks.filter((t) => t.status === 'pending'));
-	const completed = $derived(tasks.filter((t) => t.status !== 'pending'));
+	const dismissed = $derived(tasks.filter((t) => t.status === 'dismissed'));
+	const completed = $derived(tasks.filter((t) => t.status === 'completed'));
+	const hasUnread = $derived(dismissed.some((t) => !t.acknowledgedAt));
 
 	let completedOpen = $state(false);
+	// A dismissal is news; it should not be hidden behind a closed section.
+	let dismissedOpen = $state(true);
 </script>
 
 {#if tasks.length === 0}
@@ -49,6 +53,24 @@
 			{/if}
 		</div>
 
+		{#if dismissed.length > 0}
+			<Collapsible.Root bind:open={dismissedOpen}>
+				<Collapsible.Trigger
+					class="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-sm font-medium hover:bg-accent {hasUnread
+						? 'text-violet-700 dark:text-violet-300'
+						: 'text-muted-foreground'}"
+				>
+					<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
+					{m.ai_tasks_dismissed_title({ count: String(dismissed.length) })}
+				</Collapsible.Trigger>
+				<Collapsible.Content class="space-y-2 pt-2">
+					{#each dismissed as task (task.id)}
+						<AiTaskCard {task} {onDelete} />
+					{/each}
+				</Collapsible.Content>
+			</Collapsible.Root>
+		{/if}
+
 		{#if completed.length > 0}
 			<Collapsible.Root bind:open={completedOpen}>
 				<Collapsible.Trigger
@@ -59,7 +81,7 @@
 				</Collapsible.Trigger>
 				<Collapsible.Content class="space-y-2 pt-2">
 					{#each completed as task (task.id)}
-						<AiTaskCard {task} {onDismiss} {onDelete} />
+						<AiTaskCard {task} {onDelete} />
 					{/each}
 				</Collapsible.Content>
 			</Collapsible.Root>

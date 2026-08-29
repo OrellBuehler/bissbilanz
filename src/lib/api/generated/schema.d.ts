@@ -677,11 +677,28 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description List AI task queue entries, optionally filtered by status. */
+		/** @description List AI task queue entries, optionally filtered by status and unread state. */
 		get: operations['listAiTasks'];
 		put?: never;
 		/** @description Capture a new AI task (description and/or photo) for later processing. */
 		post: operations['createAiTask'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/ai-tasks/acknowledge': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. */
+		post: operations['acknowledgeAiTasks'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -719,7 +736,7 @@ export interface paths {
 		delete: operations['deleteAiTask'];
 		options?: never;
 		head?: never;
-		/** @description Update an AI task (status, result, description, date, or meal type). */
+		/** @description Update an AI task (status, result, description, date, meal type, or seen state). */
 		patch: operations['updateAiTask'];
 		trace?: never;
 	};
@@ -1332,6 +1349,9 @@ export interface components {
 			/** @enum {string} */
 			source?: 'web' | 'ios' | 'android';
 		};
+		AiTaskAcknowledge: {
+			ids?: string[];
+		};
 		AiTaskUpdate: {
 			/** @enum {string} */
 			status?: 'pending' | 'completed' | 'dismissed';
@@ -1340,6 +1360,7 @@ export interface components {
 			description?: string | null;
 			date?: string;
 			mealType?: string;
+			acknowledged?: boolean;
 		};
 		SleepCreate: {
 			durationMinutes: number;
@@ -2049,11 +2070,16 @@ export interface components {
 			resultSummary: string | null;
 			createdEntryIds: string[] | null;
 			completedAt: string | null;
+			dismissedAt: string | null;
+			acknowledgedAt: string | null;
 			createdAt?: string;
 			updatedAt?: string;
 		};
 		AiTaskResponse: {
 			task: components['schemas']['AiTask'];
+		};
+		AiTaskAcknowledgeResponse: {
+			acknowledged: number;
 		};
 		AiTaskPhotoResponse: {
 			photoUrl: string;
@@ -3625,6 +3651,7 @@ export interface operations {
 				limit?: number;
 				offset?: number;
 				status?: 'pending' | 'completed' | 'dismissed';
+				acknowledged?: string;
 			};
 			header?: never;
 			path?: never;
@@ -3664,6 +3691,32 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	acknowledgeAiTasks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				'application/json': components['schemas']['AiTaskAcknowledge'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskAcknowledgeResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];

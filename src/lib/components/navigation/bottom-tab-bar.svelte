@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { getBottomNavTabs, DEFAULT_NAV_TABS } from '$lib/config/navigation';
+	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	const tabs = getBottomNavTabs(DEFAULT_NAV_TABS);
 
@@ -29,6 +31,14 @@
 					: ''}"
 			>
 				<tab.icon class="size-5" />
+				{#if tab.href === '/ai-tasks' && aiTaskService.unreadCount > 0}
+					<span
+						class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white"
+						aria-label={m.ai_tasks_unread()}
+					>
+						{aiTaskService.unreadCount}
+					</span>
+				{/if}
 			</div>
 			<span class="text-[10px] font-semibold">{tab.title()}</span>
 		</a>

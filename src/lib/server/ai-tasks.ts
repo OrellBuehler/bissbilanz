@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { aiTasks, aiTaskStatusValues } from '$lib/server/schema';
 import { aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, inArray, lt } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { ApiError } from '$lib/server/errors';
@@ -26,15 +26,28 @@ const unlinkPhoto = async (photoUrl: string | null | undefined): Promise<void> =
 
 export const listAiTasks = async (
 	userId: string,
-	options?: { status?: (typeof aiTaskStatusValues)[number]; limit?: number; offset?: number }
+	options?: {
+		status?: (typeof aiTaskStatusValues)[number];
+		acknowledged?: boolean;
+		limit?: number;
+		offset?: number;
+	}
 ) => {
 	const db = getDB();
 	const limit = options?.limit ?? 100;
 	const offset = options?.offset ?? 0;
 
+	const acknowledgedClause =
+		options?.acknowledged === undefined
+			? undefined
+			: options.acknowledged
+				? isNotNull(aiTasks.acknowledgedAt)
+				: isNull(aiTasks.acknowledgedAt);
+
 	const whereClause = and(
 		eq(aiTasks.userId, userId),
-		options?.status ? eq(aiTasks.status, options.status) : undefined
+		options?.status ? eq(aiTasks.status, options.status) : undefined,
+		acknowledgedClause
 	);
 
 	const [items, countResult] = await Promise.all([
@@ -117,13 +130,25 @@ export const updateAiTask = async (
 		};
 	}
 
+	// `acknowledged` is a read receipt, not a column — translate it before the spread.
+	const { acknowledged, ...columns } = result.data;
+
 	try {
 		const db = getDB();
 		const [updated] = await db
 			.update(aiTasks)
 			.set({
-				...result.data,
-				...(result.data.status === 'completed' ? { completedAt: new Date() } : {}),
+				...columns,
+				...(columns.status === 'completed'
+					? { completedAt: new Date(), acknowledgedAt: new Date() }
+					: {}),
+				// A dismissal arriving here came from the user's own tap in the web or
+				// mobile UI, so there is nothing to tell them about. Only the MCP path
+				// (dismissAiTaskByAgent) leaves acknowledgedAt null.
+				...(columns.status === 'dismissed'
+					? { dismissedAt: new Date(), acknowledgedAt: new Date() }
+					: {}),
+				...(acknowledged === undefined ? {} : { acknowledgedAt: acknowledged ? new Date() : null }),
 				updatedAt: lwwStamp(clientEditedAt)
 			})
 			.where(
@@ -138,6 +163,57 @@ export const updateAiTask = async (
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
+};
+
+/**
+ * The MCP dismissal path. Unlike a user-initiated dismiss this leaves
+ * `acknowledgedAt` null, which is what marks the task unread so each device can
+ * notify the user once with the agent's reason.
+ */
+export const dismissAiTaskByAgent = async (
+	userId: string,
+	id: string,
+	reason: string
+): Promise<Result<typeof aiTasks.$inferSelect | undefined>> => {
+	try {
+		const db = getDB();
+		const now = new Date();
+		const [updated] = await db
+			.update(aiTasks)
+			.set({
+				status: 'dismissed',
+				resultSummary: reason,
+				dismissedAt: now,
+				acknowledgedAt: null,
+				updatedAt: now
+			})
+			.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
+			.returning();
+		return { success: true, data: updated };
+	} catch (error) {
+		return { success: false, error: error as Error };
+	}
+};
+
+/**
+ * Marks resolved tasks as seen. Deliberately skips the LWW guard — a read receipt
+ * is not a content edit and must never lose to a concurrent update.
+ */
+export const acknowledgeAiTasks = async (userId: string, ids?: string[]): Promise<number> => {
+	if (ids && ids.length === 0) return 0;
+	const db = getDB();
+	const updated = await db
+		.update(aiTasks)
+		.set({ acknowledgedAt: new Date() })
+		.where(
+			and(
+				eq(aiTasks.userId, userId),
+				isNull(aiTasks.acknowledgedAt),
+				ids ? inArray(aiTasks.id, ids) : undefined
+			)
+		)
+		.returning({ id: aiTasks.id });
+	return updated.length;
 };
 
 export const deleteAiTask = async (userId: string, id: string): Promise<boolean> => {

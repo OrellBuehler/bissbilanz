@@ -2016,7 +2016,7 @@
 			"get": {
 				"operationId": "listAiTasks",
 				"tags": ["AiTasks"],
-				"description": "List AI task queue entries, optionally filtered by status.",
+				"description": "List AI task queue entries, optionally filtered by status and unread state.",
 				"parameters": [
 					{
 						"in": "query",
@@ -2044,6 +2044,13 @@
 						"schema": {
 							"type": "string",
 							"enum": ["pending", "completed", "dismissed"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "acknowledged",
+						"schema": {
+							"type": "string"
 						}
 					}
 				],
@@ -2084,6 +2091,41 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/AiTaskResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/ai-tasks/acknowledge": {
+			"post": {
+				"operationId": "acknowledgeAiTasks",
+				"tags": ["AiTasks"],
+				"description": "Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.",
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AiTaskAcknowledge"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskAcknowledgeResponse"
 								}
 							}
 						}
@@ -2143,7 +2185,7 @@
 			"patch": {
 				"operationId": "updateAiTask",
 				"tags": ["AiTasks"],
-				"description": "Update an AI task (status, result, description, date, or meal type).",
+				"description": "Update an AI task (status, result, description, date, meal type, or seen state).",
 				"parameters": [
 					{
 						"in": "path",
@@ -5593,6 +5635,20 @@
 				},
 				"required": ["date"]
 			},
+			"AiTaskAcknowledge": {
+				"type": "object",
+				"properties": {
+					"ids": {
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					}
+				}
+			},
 			"AiTaskUpdate": {
 				"type": "object",
 				"properties": {
@@ -5645,6 +5701,9 @@
 						"type": "string",
 						"minLength": 1,
 						"maxLength": 50
+					},
+					"acknowledged": {
+						"type": "boolean"
 					}
 				}
 			},
@@ -9502,6 +9561,26 @@
 							}
 						]
 					},
+					"dismissedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"acknowledgedAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -9520,7 +9599,9 @@
 					"source",
 					"resultSummary",
 					"createdEntryIds",
-					"completedAt"
+					"completedAt",
+					"dismissedAt",
+					"acknowledgedAt"
 				],
 				"additionalProperties": false
 			},
@@ -9532,6 +9613,18 @@
 					}
 				},
 				"required": ["task"],
+				"additionalProperties": false
+			},
+			"AiTaskAcknowledgeResponse": {
+				"type": "object",
+				"properties": {
+					"acknowledged": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["acknowledged"],
 				"additionalProperties": false
 			},
 			"AiTaskPhotoResponse": {

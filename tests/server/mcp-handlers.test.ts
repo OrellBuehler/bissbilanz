@@ -78,6 +78,7 @@ let mockListAiTasksArgs: any = null;
 let mockAiTask: any = null;
 let mockUpdateAiTaskResult: any = null;
 let mockUpdateAiTaskCalls: any[] = [];
+let mockDismissAiTaskByAgentCalls: any[] = [];
 
 const TEST_AI_TASK = {
 	id: 'ai-task-1',
@@ -231,6 +232,10 @@ const mockDeps = {
 	updateAiTask: async (userId: string, id: string, payload: any) => {
 		mockUpdateAiTaskCalls.push({ userId, id, payload });
 		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
+	},
+	dismissAiTaskByAgent: async (userId: string, id: string, reason: string) => {
+		mockDismissAiTaskByAgentCalls.push({ userId, id, reason });
+		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
 	}
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
@@ -364,6 +369,7 @@ describe('MCP handlers', () => {
 		mockAiTask = null;
 		mockUpdateAiTaskResult = null;
 		mockUpdateAiTaskCalls = [];
+		mockDismissAiTaskByAgentCalls = [];
 	});
 
 	describe('handleSearchFoods', () => {
@@ -1611,7 +1617,7 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleDismissAiTask', () => {
-		test('stamps status dismissed with the given reason', async () => {
+		test('dismisses through the agent path with the given reason', async () => {
 			mockUpdateAiTaskResult = {
 				...TEST_AI_TASK,
 				status: 'dismissed',
@@ -1624,22 +1630,26 @@ describe('MCP handlers', () => {
 			expect(result.success).toBe(true);
 			expect(result.task.status).toBe('dismissed');
 			expect(result.task.resultSummary).toBe('Duplicate task');
-			expect(mockUpdateAiTaskCalls[0].payload).toEqual({
-				status: 'dismissed',
-				resultSummary: 'Duplicate task'
-			});
+			expect(mockDismissAiTaskByAgentCalls).toEqual([
+				{ userId: TEST_USER.id, id: TEST_AI_TASK.id, reason: 'Duplicate task' }
+			]);
 		});
 
-		test('dismisses without a reason', async () => {
+		test('never routes through updateAiTask, which would mark the task as seen', async () => {
 			mockUpdateAiTaskResult = { ...TEST_AI_TASK, status: 'dismissed' };
-			const result: any = await handleDismissAiTask(TEST_USER.id, { id: TEST_AI_TASK.id });
-			expect(result.success).toBe(true);
-			expect(mockUpdateAiTaskCalls[0].payload.status).toBe('dismissed');
+			await handleDismissAiTask(TEST_USER.id, {
+				id: TEST_AI_TASK.id,
+				reason: 'Photo is too blurry to identify'
+			});
+			expect(mockUpdateAiTaskCalls).toHaveLength(0);
 		});
 
 		test('returns error when task not found', async () => {
 			mockUpdateAiTaskResult = null;
-			const result: any = await handleDismissAiTask(TEST_USER.id, { id: 'nonexistent' });
+			const result: any = await handleDismissAiTask(TEST_USER.id, {
+				id: 'nonexistent',
+				reason: 'Duplicate task'
+			});
 			expect(result.error).toBe('AI task not found');
 		});
 	});

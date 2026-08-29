@@ -90,7 +90,12 @@ import type {
 	getFastingDays
 } from '$lib/server/day-properties';
 import type { getCalendarStats } from '$lib/server/stats';
-import type { listAiTasks, getAiTask, updateAiTask } from '$lib/server/ai-tasks';
+import type {
+	listAiTasks,
+	getAiTask,
+	updateAiTask,
+	dismissAiTaskByAgent
+} from '$lib/server/ai-tasks';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import { isZodError } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
@@ -180,6 +185,7 @@ export type HandlerDeps = {
 	listAiTasks: typeof listAiTasks;
 	getAiTask: typeof getAiTask;
 	updateAiTask: typeof updateAiTask;
+	dismissAiTaskByAgent: typeof dismissAiTaskByAgent;
 	// Utils
 	formatDailyStatus: typeof formatDailyStatus;
 	// Resolves "today" in the user's stored timezone (server-side day bucketing).
@@ -1126,7 +1132,8 @@ export function createHandlers(d: HandlerDeps) {
 		resultSummary: task.resultSummary,
 		createdEntryIds: task.createdEntryIds,
 		createdAt: task.createdAt,
-		completedAt: task.completedAt
+		completedAt: task.completedAt,
+		dismissedAt: task.dismissedAt
 	});
 
 	const handleListAiTasks = async (
@@ -1201,12 +1208,11 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleDismissAiTask = async (userId: string, args: { id: string; reason?: string }) => {
+	const handleDismissAiTask = async (userId: string, args: { id: string; reason: string }) => {
 		try {
-			const result = await d.updateAiTask(userId, args.id, {
-				status: 'dismissed',
-				resultSummary: args.reason
-			});
+			// Not updateAiTask: an agent dismissal must stay unacknowledged so the user
+			// gets told about it, whereas a dismissal they tapped themselves does not.
+			const result = await d.dismissAiTaskByAgent(userId, args.id, args.reason);
 			if (!result.success) return errorPayload(result.error);
 			if (!result.data) return { error: 'AI task not found' };
 			return { success: true, task: serializeAiTask(result.data) };
