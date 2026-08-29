@@ -128,21 +128,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
-      # Reporting-only for now: the test host crashes nondeterministically
-      # ("Restarting after unexpected exit") at drifting points — reproduced
-      # on unmodified main (baseline probe PR #500), so it predates the suite
-      # ever running and is not tied to any one test. xcodebuild marks a
-      # crashed run failed even when every retried test passes, so no retry
-      # count can green it; the host is the full app (BissbilanzApp.init runs
-      # under the tests), which makes the crash a macOS-debugger problem.
-      # Blocking this step is deferred until it is root-caused from the
-      # xcresult bundle uploaded below — tracked in issue #501.
+      # Blocking. It was reporting-only until the "Restarting after unexpected
+      # exit" host crashes were root-caused (issue #501) from the xcresult
+      # bundle uploaded below: every one of them was the debounced
+      # WidgetSnapshotWriter task fetching through a finished test's
+      # deallocated in-memory container, which is why the victim test drifted.
       #
       # Serial: every test is @MainActor and StubURLProtocol keys its stubs
       # and recorded requests in process-wide statics.
       - name: Run iOS unit tests
         working-directory: mobile/iosApp
-        continue-on-error: true
         run: |
           xcodebuild test-without-building \
             -project Bissbilanz.xcodeproj \
@@ -156,8 +151,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
-      # The host crashes leave nothing in stdout — the signal, thread and
-      # backtrace only exist in the result bundle.
+      # A host crash leaves nothing in stdout — the signal, thread and
+      # backtrace only exist in the result bundle, which is how #501 was
+      # traced. Keep uploading it so the next one is diagnosable too.
       - name: Upload iOS test results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

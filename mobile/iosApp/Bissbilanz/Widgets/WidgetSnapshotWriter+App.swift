@@ -25,7 +25,28 @@ extension WidgetSnapshotWriter {
     /// inside this.
     private static let recentsScanLimit = 300
 
+    /// Whether the debounced refresh below actually runs. Off under XCTest.
+    ///
+    /// The debounce puts the fetch 500 ms after the `save()` that scheduled it
+    /// — long after the test that owned the store returned, so its per-test
+    /// in-memory container is gone and fetching through it traps inside
+    /// SwiftData (EXC_BREAKPOINT), killing the whole test host. That was the
+    /// nondeterministic "Restarting after unexpected exit" that kept the suite
+    /// off the CI gate (issue #501): one test schedules the task, whichever
+    /// test happens to be running 500 ms later dies with it, so the victim
+    /// drifted every run and never looked related to any one test.
+    ///
+    /// Both signals are needed: the environment variable is set on the test
+    /// host from launch (the app's own activation refresh runs that early),
+    /// while the XCTest class only exists once the bundle is injected.
+    /// Nothing in the suite asserts on the snapshot, and `write(context:)`
+    /// stays callable directly for anything that wants it synchronously.
+    private static let isRunningTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+
     static func scheduleUpdate(context: ModelContext) {
+        guard !isRunningTests else { return }
         pendingTask?.cancel()
         pendingTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
