@@ -117,8 +117,10 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// Fallback to Bearer token auth for API routes
-	if (!event.locals.user && pathname.startsWith('/api/')) {
+	// Fallback to Bearer token auth for API routes, plus /uploads/: the mobile
+	// apps are Bearer-only (no session cookie), and without this every image they
+	// render from an upload — AI task meal photos are always one — 401s.
+	if (!event.locals.user && (pathname.startsWith('/api/') || pathname.startsWith('/uploads/'))) {
 		const authHeader = event.request.headers.get('authorization');
 		if (authHeader?.startsWith('Bearer ')) {
 			const token = authHeader.slice(7);
