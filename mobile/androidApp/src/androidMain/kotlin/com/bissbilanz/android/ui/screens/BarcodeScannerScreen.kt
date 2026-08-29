@@ -31,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -83,8 +82,14 @@ fun BarcodeScannerScreen(navController: NavController) {
     var scanState by remember { mutableStateOf(ScanState.SCANNING) }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var cameraError by remember { mutableStateOf(false) }
     var torchOn by remember { mutableStateOf(false) }
     val haptic = rememberHaptic()
+
+    // Only the bound camera knows whether there is a torch to switch on, so the
+    // button stays hidden until it does — it did nothing before the camera was
+    // ready, and nothing at all on a device without a flash unit.
+    val hasFlash = camera?.cameraInfo?.hasFlashUnit() == true
 
     LaunchedEffect(camera, torchOn) {
         camera?.cameraControl?.enableTorch(torchOn)
@@ -111,7 +116,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                     }
                 },
                 actions = {
-                    if (hasPermission) {
+                    if (hasFlash) {
                         IconButton(onClick = { torchOn = !torchOn }) {
                             Icon(
                                 if (torchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
@@ -127,7 +132,10 @@ fun BarcodeScannerScreen(navController: NavController) {
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
+                        // The bar floats over the preview, so it needs a scrim of
+                        // its own: fully transparent left white text sitting on the
+                        // light surface colour whenever the camera is not showing.
+                        containerColor = Color.Black.copy(alpha = 0.6f),
                         titleContentColor = Color.White,
                         navigationIconContentColor = Color.White,
                         actionIconContentColor = Color.White,
@@ -135,12 +143,18 @@ fun BarcodeScannerScreen(navController: NavController) {
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (hasPermission) {
+        // The preview deliberately runs full-bleed behind the top bar, which is
+        // why the bar carries its own scrim rather than a solid background.
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (hasPermission && !cameraError) {
                 CameraPreview(
                     lifecycleOwner = lifecycleOwner,
                     isScanning = { scanState == ScanState.SCANNING },
                     onCameraReady = { camera = it },
+                    onCameraError = { e ->
+                        errorReporter.captureException(e)
+                        cameraError = true
+                    },
                     onBarcodeScanned = { barcode ->
                         if (scanState == ScanState.SCANNING) {
                             haptic(HapticFeedbackType.LongPress)
@@ -173,15 +187,29 @@ fun BarcodeScannerScreen(navController: NavController) {
                     val rectHeight = rectWidth * 0.6f
                     val left = (size.width - rectWidth) / 2
                     val top = (size.height - rectHeight) / 2
+                    val dim = Color.Black.copy(alpha = 0.5f)
 
-                    // Dim outside viewfinder
-                    drawRect(color = Color.Black.copy(alpha = 0.5f))
-                    drawRoundRect(
-                        color = Color.Transparent,
-                        topLeft = Offset(left, top),
-                        size = ComposeSize(rectWidth, rectHeight),
-                        cornerRadius = CornerRadius(16f, 16f),
-                        blendMode = BlendMode.Clear,
+                    // Dim around the viewfinder with four solid rects. Filling the
+                    // whole screen and punching the hole with BlendMode.Clear only
+                    // works while the preview lives in its own SurfaceView layer
+                    // underneath the window; where PreviewView draws into the view
+                    // hierarchy instead, Clear erased the camera image and left the
+                    // viewfinder as a black rectangle.
+                    drawRect(color = dim, size = ComposeSize(size.width, top))
+                    drawRect(
+                        color = dim,
+                        topLeft = Offset(0f, top + rectHeight),
+                        size = ComposeSize(size.width, size.height - top - rectHeight),
+                    )
+                    drawRect(
+                        color = dim,
+                        topLeft = Offset(0f, top),
+                        size = ComposeSize(left, rectHeight),
+                    )
+                    drawRect(
+                        color = dim,
+                        topLeft = Offset(left + rectWidth, top),
+                        size = ComposeSize(size.width - left - rectWidth, rectHeight),
                     )
 
                     // Viewfinder border
@@ -206,7 +234,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                         Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = 80.dp),
+                            .padding(bottom = 80.dp + padding.calculateBottomPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     when (scanState) {
@@ -272,16 +300,27 @@ fun BarcodeScannerScreen(navController: NavController) {
                     }
                 }
             } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            stringResource(R.string.scan_barcode_permission_required),
+                            stringResource(
+                                if (cameraError) {
+                                    R.string.scan_barcode_camera_error
+                                } else {
+                                    R.string.scan_barcode_permission_required
+                                },
+                            ),
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                            Text(stringResource(R.string.scan_barcode_grant_permission))
+                        if (!cameraError) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                                Text(stringResource(R.string.scan_barcode_grant_permission))
+                            }
                         }
                     }
                 }
@@ -297,6 +336,7 @@ private fun CameraPreview(
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
     isScanning: () -> Boolean,
     onCameraReady: (Camera) -> Unit,
+    onCameraError: (Exception) -> Unit,
     onBarcodeScanned: (String) -> Unit,
 ) {
     val analyzerExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
@@ -346,93 +386,119 @@ private fun CameraPreview(
 
     AndroidView(
         factory = { ctx ->
-            val previewView = PreviewView(ctx)
+            val previewView =
+                PreviewView(ctx).apply {
+                    // COMPATIBLE draws the preview into the view hierarchy with a
+                    // TextureView instead of a separate SurfaceView layer behind the
+                    // window. That is the mode Compose overlays composite against
+                    // predictably, and it is what the viewfinder dimming assumes.
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                }
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
                 if (disposed.get() || lifecycleOwner.lifecycle.currentState == Lifecycle.State.DESTROYED) {
                     return@addListener
                 }
-                val cameraProvider = cameraProviderFuture.get()
-                cameraProviderRef[0] = cameraProvider
+                try {
+                    val cameraProvider = cameraProviderFuture.get()
+                    cameraProviderRef[0] = cameraProvider
 
-                val preview =
-                    Preview.Builder().build().also {
-                        it.surfaceProvider = previewView.surfaceProvider
-                    }
+                    val preview =
+                        Preview.Builder().build().also {
+                            it.surfaceProvider = previewView.surfaceProvider
+                        }
 
-                val resolutionSelector =
-                    ResolutionSelector
-                        .Builder()
-                        .setResolutionStrategy(
-                            ResolutionStrategy(
-                                Size(1280, 720),
-                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
-                            ),
-                        ).build()
+                    val resolutionSelector =
+                        ResolutionSelector
+                            .Builder()
+                            .setResolutionStrategy(
+                                ResolutionStrategy(
+                                    Size(1280, 720),
+                                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                                ),
+                            ).build()
 
-                val imageAnalysis =
-                    ImageAnalysis
-                        .Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .setResolutionSelector(resolutionSelector)
-                        .build()
-                imageAnalysisRef[0] = imageAnalysis
+                    val imageAnalysis =
+                        ImageAnalysis
+                            .Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .setResolutionSelector(resolutionSelector)
+                            .build()
+                    imageAnalysisRef[0] = imageAnalysis
 
-                imageAnalysis.setAnalyzer(analyzerExecutor) { imageProxy ->
-                    if (disposed.get() || !isScanning()) {
-                        imageProxy.close()
-                        return@setAnalyzer
-                    }
-                    val mediaImage = imageProxy.image
-                    if (mediaImage == null) {
-                        imageProxy.close()
-                        return@setAnalyzer
-                    }
-                    val image =
-                        InputImage.fromMediaImage(
-                            mediaImage,
-                            imageProxy.imageInfo.rotationDegrees,
-                        )
-                    try {
-                        scanner
-                            .process(image)
-                            .addOnSuccessListener(analyzerExecutor) { barcodes ->
-                                if (!disposed.get()) {
-                                    barcodes.firstOrNull()?.rawValue?.let { value ->
-                                        mainHandler.post { onBarcodeScanned(value) }
+                    imageAnalysis.setAnalyzer(analyzerExecutor) { imageProxy ->
+                        if (disposed.get() || !isScanning()) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
+                        val mediaImage = imageProxy.image
+                        if (mediaImage == null) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
+                        val image =
+                            InputImage.fromMediaImage(
+                                mediaImage,
+                                imageProxy.imageInfo.rotationDegrees,
+                            )
+                        try {
+                            scanner
+                                .process(image)
+                                .addOnSuccessListener(analyzerExecutor) { barcodes ->
+                                    if (!disposed.get()) {
+                                        barcodes.firstOrNull()?.rawValue?.let { value ->
+                                            mainHandler.post { onBarcodeScanned(value) }
+                                        }
                                     }
-                                }
-                            }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
-                    } catch (_: Exception) {
-                        imageProxy.close()
+                                }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
+                        } catch (_: Exception) {
+                            imageProxy.close()
+                        }
                     }
-                }
 
-                cameraProvider.unbindAll()
-                val cam =
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        imageAnalysis,
-                    )
-                onCameraReady(cam)
+                    // A device (or emulator) with no back camera would otherwise fail
+                    // the bind and leave nothing but a black screen behind.
+                    val selector =
+                        when {
+                            cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) ->
+                                CameraSelector.DEFAULT_BACK_CAMERA
 
-                previewView.setOnTouchListener { view, event ->
-                    if (event.action == MotionEvent.ACTION_UP) {
-                        val point = previewView.meteringPointFactory.createPoint(event.x, event.y)
-                        val action =
-                            FocusMeteringAction
-                                .Builder(point)
-                                .setAutoCancelDuration(3, TimeUnit.SECONDS)
-                                .build()
-                        cam.cameraControl.startFocusAndMetering(action)
-                        view.performClick()
-                        true
-                    } else {
-                        false
+                            cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) ->
+                                CameraSelector.DEFAULT_FRONT_CAMERA
+
+                            else -> throw IllegalStateException("No camera available to bind")
+                        }
+
+                    cameraProvider.unbindAll()
+                    val cam =
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            selector,
+                            preview,
+                            imageAnalysis,
+                        )
+                    onCameraReady(cam)
+
+                    previewView.setOnTouchListener { view, event ->
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            val point = previewView.meteringPointFactory.createPoint(event.x, event.y)
+                            val action =
+                                FocusMeteringAction
+                                    .Builder(point)
+                                    .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                                    .build()
+                            cam.cameraControl.startFocusAndMetering(action)
+                            view.performClick()
+                            true
+                        } else {
+                            false
+                        }
                     }
+                } catch (e: Exception) {
+                    // Losing the camera used to surface as a permanently black
+                    // viewfinder with a dead flash button and nothing in Sentry.
+                    onCameraError(e)
                 }
             }, ContextCompat.getMainExecutor(ctx))
 

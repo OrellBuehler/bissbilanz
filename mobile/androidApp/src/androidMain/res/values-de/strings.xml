@@ -218,6 +218,7 @@
     <string name="scan_barcode_permission_required">Kameraberechtigung erforderlich</string>
     <string name="scan_barcode_grant_permission">Berechtigung erteilen</string>
     <string name="scan_barcode_unavailable">Barcode-Scannen ist auf diesem Gerät nicht verfügbar</string>
+    <string name="scan_barcode_camera_error">Kamera konnte nicht gestartet werden</string>
 
     <!-- Common actions -->
     <string name="app_name">Bissbilanz</string>
