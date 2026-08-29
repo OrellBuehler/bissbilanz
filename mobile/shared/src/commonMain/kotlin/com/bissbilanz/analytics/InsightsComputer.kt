@@ -155,6 +155,9 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
     val weightSeries = weightFoodData.map { Pair(it.date, it.weightKg) }
     val calorieSeries = weightFoodData.map { Pair(it.date, it.calories) }
     val tdee = computeAdaptiveTDEE(weightSeries, calorieSeries)
+    // The weight tab's timing card and the sleep tab's pre-sleep card show the
+    // same summary.
+    val mealTiming = mealTimingOf(timingData, tz)
     val sodiumAvg =
         extByDate.values
             .map { rows -> rows.sumOf { it.sodium ?: 0.0 } }
@@ -211,7 +214,7 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
                 dailyData.map { Pair(it.date, macroMapOf(it.protein, it.carbs, it.fat, it.fiber)) },
                 weightFoodData.mapNotNull { p -> p.weightKg?.let { Pair(p.date, it) } },
             ),
-        mealTiming = mealTimingOf(timingData, tz),
+        mealTiming = mealTiming,
         nutrientAdequacy = computeNutrientAdequacy(extData),
         foodSleep =
             detectFoodSleepPatterns(
@@ -233,7 +236,7 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
                 },
                 sleepFoodData.map { Pair(it.date, it.sleepQuality.toDouble()) },
             ),
-        preSleepTiming = mealTimingOf(timingData, tz),
+        preSleepTiming = mealTiming,
         caffeineSleep =
             computeCaffeineSleepCutoff(
                 extData.filter { (it.caffeine ?: 0.0) > 0.0 }.map { CaffeineEntry(it.date, it.eatenAt, it.caffeine!!) },
