@@ -122,7 +122,7 @@ Then:
 > and 89 / 160 g protein for the day.
 
 Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,
-`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 50 more.
+`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 50 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
 
 ## Tech stack
 

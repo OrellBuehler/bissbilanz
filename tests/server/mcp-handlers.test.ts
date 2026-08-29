@@ -58,6 +58,7 @@ let mockSleepEntries: any[] = [];
 let mockLatestSleep: any = null;
 let mockUpdateSleepResult: any = null;
 let mockDeleteSleepResult: any = true;
+let mockRangeWeights: any[] = [];
 let mockSupplementHistory: any[] = [];
 let mockFoodDiversity: any = null;
 let mockMealTiming: any = null;
@@ -220,6 +221,7 @@ const mockDeps = {
 	getCalendarStats: async () => mockCalendarStats,
 	computeAverages: () => mockComputedAverages,
 	listEntriesByDateRange: async () => mockDateRangeEntries,
+	getWeightEntriesByDateRange: async () => mockRangeWeights,
 	getFastingDays: async () => mockFastingDays,
 	listAiTasks: async (userId: string, options: any) => {
 		mockListAiTasksArgs = options;
@@ -262,6 +264,7 @@ const {
 	handleGetMealBreakdown,
 	handleGetTopFoods,
 	handleGetStreaks,
+	handleGetMaintenanceCalories,
 	handleCopyEntries,
 	handleFindFoodByBarcode,
 	handleGetSupplementStatus,
@@ -1639,5 +1642,62 @@ describe('MCP handlers', () => {
 			const result: any = await handleDismissAiTask(TEST_USER.id, { id: 'nonexistent' });
 			expect(result.error).toBe('AI task not found');
 		});
+	});
+});
+
+describe('handleGetMaintenanceCalories', () => {
+	beforeEach(() => {
+		mockRangeWeights = [];
+		mockDateRangeEntries = [];
+		mockFastingDays = new Set();
+	});
+
+	test('returns insufficient_data with fewer than two weights', async () => {
+		mockRangeWeights = [{ entryDate: '2026-02-01', weightKg: 80 }];
+		const result = await handleGetMaintenanceCalories(TEST_USER.id, {
+			startDate: '2026-02-01',
+			endDate: '2026-02-28'
+		});
+		expect(result).toMatchObject({ error: 'insufficient_data' });
+	});
+
+	test('computes a report from weights and entries', async () => {
+		mockRangeWeights = [
+			{ entryDate: '2026-02-01', weightKg: 80 },
+			{ entryDate: '2026-02-28', weightKg: 79 }
+		];
+		mockDateRangeEntries = [
+			{ date: '2026-02-01', calories: 2000, protein: 0, carbs: 0, fat: 0, fiber: 0, servings: 1 },
+			{ date: '2026-02-02', calories: 2000, protein: 0, carbs: 0, fat: 0, fiber: 0, servings: 1 }
+		];
+		const result = await handleGetMaintenanceCalories(TEST_USER.id, {
+			startDate: '2026-02-01',
+			endDate: '2026-02-28'
+		});
+		expect(result).toMatchObject({
+			result: { weightChangeKg: -1, days: 27 },
+			meta: { weightEntries: 2, foodEntryDays: 2, totalDays: 28 }
+		});
+	});
+
+	test('defaults to the 28 days ending today', async () => {
+		mockRangeWeights = [
+			{ entryDate: '2026-02-01', weightKg: 80 },
+			{ entryDate: '2026-02-28', weightKg: 79 }
+		];
+		mockDateRangeEntries = [
+			{ date: '2026-02-10', calories: 2000, protein: 0, carbs: 0, fat: 0, fiber: 0, servings: 1 }
+		];
+		const result = (await handleGetMaintenanceCalories(TEST_USER.id, {})) as any;
+		expect(result.meta.totalDays).toBe(28);
+		expect(result.meta.endDate).toBe(await mockDeps.todayForUser(TEST_USER.id));
+	});
+
+	test('rejects an inverted range', async () => {
+		const result = await handleGetMaintenanceCalories(TEST_USER.id, {
+			startDate: '2026-03-01',
+			endDate: '2026-02-01'
+		});
+		expect(result).toMatchObject({ error: 'startDate must be before endDate' });
 	});
 });

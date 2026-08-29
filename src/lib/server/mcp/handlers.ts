@@ -29,7 +29,8 @@ import {
 	updateWeightEntry,
 	deleteWeightEntry,
 	getLatestWeight,
-	getWeightWithTrend
+	getWeightWithTrend,
+	getWeightEntriesByDateRange
 } from '$lib/server/weight';
 import {
 	getWeeklyStats,
@@ -123,6 +124,7 @@ export const {
 	handleGetMealBreakdown,
 	handleGetTopFoods,
 	handleGetStreaks,
+	handleGetMaintenanceCalories,
 	handleSearchOpenFoodFacts,
 	handleLogSleep,
 	handleGetSleep,
@@ -198,6 +200,7 @@ export const {
 	getLogsForRange,
 	computeAverages,
 	listEntriesByDateRange,
+	getWeightEntriesByDateRange,
 	getFastingDays,
 	getFoodDiversityData,
 	getMealTimingData,

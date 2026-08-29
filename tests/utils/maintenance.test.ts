@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	buildMaintenanceReport,
 	calculateMaintenance,
 	KCAL_PER_KG_FAT,
 	KCAL_PER_KG_MUSCLE
@@ -100,5 +101,62 @@ describe('calculateMaintenance', () => {
 	test('energy constants are correct', () => {
 		expect(KCAL_PER_KG_FAT).toBe(7700);
 		expect(KCAL_PER_KG_MUSCLE).toBe(1800);
+	});
+});
+
+describe('buildMaintenanceReport', () => {
+	const entry = (date: string, calories: number) => ({
+		date,
+		calories,
+		protein: 0,
+		carbs: 0,
+		fat: 0,
+		fiber: 0,
+		servings: 1
+	});
+	const base = {
+		weights: [{ weightKg: 80 }, { weightKg: 79 }],
+		fastingDays: [] as string[],
+		startDate: '2026-02-01',
+		endDate: '2026-02-28'
+	};
+
+	test('needs two weights', () => {
+		const report = buildMaintenanceReport({ ...base, weights: [{ weightKg: 80 }], entries: [] });
+		expect(report).toMatchObject({ error: 'insufficient_data' });
+	});
+
+	test('needs at least one logged day', () => {
+		const report = buildMaintenanceReport({ ...base, entries: [] });
+		expect(report).toMatchObject({ error: 'insufficient_data' });
+	});
+
+	test('rejects a zero-length range', () => {
+		const report = buildMaintenanceReport({
+			...base,
+			endDate: base.startDate,
+			entries: [entry('2026-02-01', 2000)]
+		});
+		expect(report).toMatchObject({ error: 'invalid_range' });
+	});
+
+	test('averages intake over the inclusive day count and counts fasting days', () => {
+		const report = buildMaintenanceReport({
+			...base,
+			fastingDays: ['2026-02-03'],
+			entries: [entry('2026-02-01', 2800), entry('2026-02-01', 1400), entry('2026-02-02', 1400)]
+		});
+		if ('error' in report) throw new Error(report.message);
+		expect(report.meta).toMatchObject({
+			weightEntries: 2,
+			foodEntryDays: 3,
+			totalDays: 28,
+			firstWeight: 80,
+			lastWeight: 79
+		});
+		expect(report.meta.coverage).toBeCloseTo(3 / 28);
+		expect(report.result.avgDailyCalories).toBe(Math.round(5600 / 28));
+		expect(report.result.weightChangeKg).toBe(-1);
+		expect(report.result.days).toBe(27);
 	});
 });

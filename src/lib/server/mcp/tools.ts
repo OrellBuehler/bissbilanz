@@ -35,6 +35,7 @@ export const toolNames = [
 	'get_meal_breakdown',
 	'get_top_foods',
 	'get_streaks',
+	'get_maintenance_calories',
 	'copy_entries',
 	'find_food_by_barcode',
 	'search_openfoodfacts',

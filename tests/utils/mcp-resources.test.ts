@@ -45,6 +45,7 @@ vi.mock('$lib/server/mcp/handlers', () => ({
 	handleGetMealBreakdown: vi.fn(),
 	handleGetTopFoods: vi.fn(),
 	handleGetStreaks: vi.fn(),
+	handleGetMaintenanceCalories: vi.fn(),
 	handleCopyEntries: vi.fn(),
 	handleFindFoodByBarcode: vi.fn()
 }));
