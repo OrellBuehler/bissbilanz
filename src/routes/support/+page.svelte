@@ -9,23 +9,58 @@
 	<h1 class="mb-8 text-3xl font-bold">Bissbilanz support</h1>
 
 	<p class="mb-6">
-		Bissbilanz is built by a solo hobbyist developer. There is no support hotline — but every email
+		Bissbilanz is built by a solo hobbyist developer. There is no support hotline — but every report
 		is read and answered personally, usually within a few days.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Get in touch</h2>
-	<p class="mb-6">
-		Email <a href="mailto:me@orellbuehler.ch" class="underline">me@orellbuehler.ch</a> in English or German.
-		To make a bug report easy to act on, please include:
+	<p class="mb-3">
+		Bug reports and feature requests are best filed on GitHub. The forms ask for everything needed
+		to act on them, and you can follow what happens to your report afterwards:
 	</p>
-	<ul class="mb-6 list-disc space-y-1 pl-6">
-		<li>Which app you used — web, Android, iOS or the Apple Watch app</li>
-		<li>The app version (shown at the bottom of the Settings screen) and your OS version</li>
-		<li>What you did, what you expected, and what happened instead</li>
-		<li>A screenshot, if the problem is visible</li>
+	<ul class="mb-6 list-disc space-y-2 pl-6">
+		<li>
+			<a
+				href="https://github.com/OrellBuehler/bissbilanz/issues/new?template=bug_report.yml"
+				class="underline">Report a bug</a
+			> — something is broken or behaves unexpectedly.
+		</li>
+		<li>
+			<a
+				href="https://github.com/OrellBuehler/bissbilanz/issues/new?template=feature_request.yml"
+				class="underline">Request a feature</a
+			> — something is missing or could work better.
+		</li>
 	</ul>
+	<p class="mb-3">
+		The forms ask for the app you used, its version (shown at the bottom of the Settings screen),
+		your device and OS version, what you did, what you expected, what happened instead, and a
+		screenshot if the problem is visible. Issues are public, so please leave credentials and
+		personal details out of them.
+	</p>
+	<p class="mb-6">
+		Opening an issue needs a GitHub account. Without one — or for anything about your own account,
+		your data or a privacy request, which does not belong in a public issue — email
+		<a href="mailto:me@orellbuehler.ch" class="underline">me@orellbuehler.ch</a> in English or German.
+	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Common questions</h2>
+	<h3 class="mb-2 mt-6 font-semibold">Why is there no big built-in food database?</h3>
+	<p class="mb-3">
+		That is on purpose. Bissbilanz does not ship a catalogue of millions of half-correct entries —
+		you build your own food database instead. Every food you add once is yours, with your serving
+		sizes and the values from the packaging you actually bought, and it is a tap away from then on.
+		Barcode scanning, label scanning and the Open Food Facts lookup are there to fill in that first
+		entry for you, not to replace it.
+	</p>
+	<p class="mb-6">
+		The quickest way to build it up is an AI assistant connected over MCP (Settings → MCP in the web
+		app): describe what you ate in plain language and the assistant creates the foods and recipes
+		and logs the entries for you. After a couple of weeks of normal use, most of what you eat
+		regularly is already in your own list — and it is more accurate than a generic database, because
+		the values are the ones you entered.
+	</p>
+
 	<h3 class="mb-2 mt-6 font-semibold">A food I scanned has wrong nutrition values</h3>
 	<p class="mb-6">
 		Barcode lookups come from the open Open Food Facts database. You can correct the values when you

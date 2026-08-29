@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Account, data or privacy request
+    url: https://bissbilanz.orellbuehler.ch/support
+    about: Anything about your own account or data belongs in an email, not in a public issue — the support page has the address.
+  - name: Common questions
+    url: https://bissbilanz.orellbuehler.ch/support
+    about: Syncing, health integrations, wrong barcode values and account deletion are answered on the support page.
