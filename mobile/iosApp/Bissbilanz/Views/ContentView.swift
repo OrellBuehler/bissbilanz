@@ -59,9 +59,7 @@ struct ContentView: View {
     @State private var reauthSession: ASWebAuthenticationSession?
 
     private var selectedTabs: [NavigableTab] {
-        let tabs = selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
-        // Insights are server-computed stats — the tab is hidden in Local mode.
-        return appModeManager.isLocal ? tabs.filter { $0 != .insights } : tabs
+        selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
     }
 
     var body: some View {

@@ -1,8 +1,18 @@
 import Charts
+import shared
 import SwiftUI
 
 struct InsightsView: View {
+    /// The four tabs, mirroring Android's grouping so a card lives in the same
+    /// place on both platforms.
+    private enum Tab: Hashable {
+        case overview, nutrition, weight, sleep
+    }
+
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(\.modelContext) private var modelContext
+    @Environment(EntryRepository.self) private var entryRepository
+    @Environment(FoodRepository.self) private var foodRepository
 
     @State private var weeklyStats: MacroTotals?
     @State private var monthlyStats: MacroTotals?
@@ -15,20 +25,25 @@ struct InsightsView: View {
     @State private var selectedRange = 7
     @State private var isLoading = true
     @State private var calendarMonth = Date()
+    @State private var selectedTab: Tab = .overview
+    @State private var analytics = InsightsAnalyticsModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                // Streaks are overall, not range-dependent, so they sit above
-                // the period switcher instead of scrolling inside each range.
-                streaksCard
-                    .padding(.horizontal)
-
                 dateRangePicker
                     .padding(.horizontal)
 
-                rangeContent
+                tabPicker
+                    .padding(.horizontal)
+
+                switch selectedTab {
+                case .overview: overviewContent
+                case .nutrition: analyticsTab { NutritionInsightsTab(bundle: $0) }
+                case .weight: analyticsTab { WeightInsightsTab(bundle: $0) }
+                case .sleep: analyticsTab { SleepInsightsTab(bundle: $0) }
+                }
             }
             .padding(.top, 8)
             .navigationTitle(L10n.insights)
@@ -36,16 +51,55 @@ struct InsightsView: View {
         }
     }
 
+    private var tabPicker: some View {
+        Picker(L10n.insights, selection: $selectedTab.animation(reduceMotion ? nil : .default)) {
+            Text(L10n.insightsTabOverview).tag(Tab.overview)
+            Text(L10n.insightsTabNutrition).tag(Tab.nutrition)
+            Text(L10n.weightWidgetTitle).tag(Tab.weight)
+            Text(L10n.sleepSectionTitle).tag(Tab.sleep)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    /// The analytics tabs all share one bundle; whichever is opened first pays
+    /// for the computation and the rest read the memoised result.
+    private func analyticsTab<Content: View>(
+        @ViewBuilder content: @escaping (InsightsBundle) -> Content
+    ) -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if let bundle = analytics.bundle {
+                    content(bundle)
+                } else if analytics.isLoading {
+                    LoadingView()
+                } else {
+                    CardView { InsightEmptyState() }
+                }
+            }
+            .padding()
+        }
+        .task(id: selectedRange) {
+            analytics.range = InsightsAnalyticsModel.Window(rawValue: selectedRange) ?? .month
+            await analytics.load(context: modelContext, entries: entryRepository, foods: foodRepository)
+        }
+        .refreshable {
+            await analytics.refresh(context: modelContext, entries: entryRepository, foods: foodRepository)
+        }
+    }
+
     /// A single scrolling page of range-dependent cards. This used to be a
     /// 3-page paging TabView rendering the same heavy charts three times, which
     /// dropped frames on every swipe; the segmented picker already switches the
     /// range, so one page is enough and scrolls smoothly.
-    private var rangeContent: some View {
+    private var overviewContent: some View {
         ScrollView {
             VStack(spacing: 16) {
                 if isLoading {
                     LoadingView()
                 } else {
+                    // Streaks are overall rather than range-dependent, but they
+                    // belong to the overview rather than above the tab picker.
+                    streaksCard
                     calorieTrendChart
                     macroTrendsCard
                     macroRadarCard

@@ -13,7 +13,7 @@ import SwiftData
 @MainActor
 @Observable
 final class InsightsAnalyticsModel {
-    enum Range: Int, CaseIterable, Identifiable {
+    enum Window: Int, CaseIterable, Identifiable {
         case week = 7
         case month = 30
         case quarter = 90
@@ -25,7 +25,7 @@ final class InsightsAnalyticsModel {
     private(set) var bundle: InsightsBundle?
     private(set) var isLoading = false
 
-    var range: Range = .month {
+    var range: Window = .month {
         didSet { if range != oldValue { backfilledRanges.removeAll() } }
     }
 
