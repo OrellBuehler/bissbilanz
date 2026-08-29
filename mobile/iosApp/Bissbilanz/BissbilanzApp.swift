@@ -51,6 +51,7 @@ struct BissbilanzApp: App {
     @State private var deepLinkRouter: DeepLinkRouter
     @State private var mealEstimator: MealEstimator
     @State private var fastingManager: FastingTimerManager
+    @State private var aiTaskStore: AiTaskStore
     private let modelContainer: ModelContainer
 
     init() {
@@ -106,6 +107,8 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
+        let aiTasks = AiTaskStore(api: api, appMode: appMode)
+        _aiTaskStore = State(wrappedValue: aiTasks)
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -197,7 +200,8 @@ struct BissbilanzApp: App {
             weightRepository: weightRepo,
             sleepRepository: sleepRepo,
             foodRepository: foodRepo,
-            supplementRepository: supplementRepo
+            supplementRepository: supplementRepo,
+            aiTaskStore: aiTasks
         ))
 
         // Supplement reminders. The category costs nothing and must be registered before
@@ -240,6 +244,7 @@ struct BissbilanzApp: App {
             .environment(deepLinkRouter)
             .environment(mealEstimator)
             .environment(fastingManager)
+            .environment(aiTaskStore)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {
@@ -324,6 +329,11 @@ struct BissbilanzApp: App {
         // Top up the rolling reminder window (iOS caps pending requests at 64)
         // and re-resolve wall-clock times against the current timezone.
         await SupplementReminderScheduler.refill(repository: supplementRepository)
+        // A dismissal is the one AI task outcome the user has to hear about — the meal
+        // never got logged. No push channel exists, so this and the background pull are
+        // the only chances to tell them.
+        try? await aiTaskStore.refresh()
+        await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
         // Surface any widget-extension quick-add failures (the extension has no
         // Sentry of its own — see QuickAddDiagnostics).
         for entry in QuickAddDiagnostics.drain() {

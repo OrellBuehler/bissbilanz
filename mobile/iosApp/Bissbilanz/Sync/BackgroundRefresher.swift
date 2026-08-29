@@ -28,6 +28,7 @@ enum BackgroundRefresher {
         let sleepRepository: SleepRepository
         let foodRepository: FoodRepository
         let supplementRepository: SupplementRepository
+        let aiTaskStore: AiTaskStore
     }
 
     private static var dependencies: Dependencies?
@@ -108,5 +109,10 @@ enum BackgroundRefresher {
         // delivered-but-untouched notification does not wake the app.
         try? await deps.supplementRepository.refresh()
         await SupplementReminderScheduler.refill(repository: deps.supplementRepository)
+        // Not widget data either: a dismissed AI task means a meal the user asked the
+        // assistant to log never got logged, and with no push channel a background pull
+        // is the only way they hear about it before opening the app.
+        try? await deps.aiTaskStore.refresh()
+        await AiTaskNotifier.notifyNewDismissals(deps.aiTaskStore.tasks)
     }
 }

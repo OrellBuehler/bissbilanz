@@ -12,6 +12,8 @@ enum DeepLink: Equatable, Identifiable {
     case recipe(String)
     /// Tapping a supplement reminder's body.
     case supplements
+    /// Tapping a dismissed-AI-task notification's body.
+    case aiTasks
 
     var id: String {
         switch self {
@@ -21,6 +23,7 @@ enum DeepLink: Equatable, Identifiable {
         case let .food(foodId): "food-\(foodId)"
         case let .recipe(recipeId): "recipe-\(recipeId)"
         case .supplements: "supplements"
+        case .aiTasks: "ai-tasks"
         }
     }
 
