@@ -2016,11 +2016,16 @@ export interface components {
 		};
 		AccountResponse: {
 			user: components['schemas']['AccountUser'];
+			dataRange: components['schemas']['AccountDataRange'];
 		};
 		AccountUser: {
 			email: string | null;
 			name: string | null;
 			createdAt: string | null;
+		};
+		AccountDataRange: {
+			earliest: string | null;
+			latest: string | null;
 		};
 		ImageUploadResponse: {
 			imageUrl: string;

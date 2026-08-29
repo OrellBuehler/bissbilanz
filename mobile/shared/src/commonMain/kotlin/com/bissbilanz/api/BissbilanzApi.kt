@@ -1,7 +1,6 @@
 package com.bissbilanz.api
 
 import com.bissbilanz.api.generated.model.AccountResponse
-import com.bissbilanz.api.generated.model.AccountUser
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
@@ -258,10 +257,7 @@ class BissbilanzApi(
     }
 
     // Account
-    suspend fun getAccount(): AccountUser {
-        val response: AccountResponse = get("/api/account")
-        return response.user
-    }
+    suspend fun getAccount(): AccountResponse = get("/api/account")
 
     suspend fun deleteAccount() = delete("/api/account")
 

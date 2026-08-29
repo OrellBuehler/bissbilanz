@@ -342,6 +342,17 @@ final class LocalDataMigrator {
             guard let entry = row.toEntry() else {
                 throw MigrationError.unreadableRow("entry from \(row.date)")
             }
+            if entry.supplementId != nil {
+                // A supplement's ingredient entries (downloaded by a downgrade).
+                // `uploadSupplementLogs` re-logs the supplement, which recreates
+                // them server-side — uploading them here as well would double
+                // every macro on those days.
+                context.delete(row)
+                try? context.save()
+                done += 1
+                progress(done, total, .entries)
+                continue
+            }
             let server = try await api.createEntry(
                 Self.entryCreate(from: entry, date: row.date),
                 idempotencyKey: Self.migrationKey("entry", row.id)

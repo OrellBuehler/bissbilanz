@@ -314,6 +314,7 @@ final class EntryRepository {
             notes: server.notes ?? local.notes,
             foodId: server.foodId ?? local.foodId,
             recipeId: server.recipeId ?? local.recipeId,
+            supplementId: server.supplementId ?? local.supplementId,
             quickName: server.quickName ?? local.quickName,
             quickCalories: server.quickCalories ?? local.quickCalories,
             quickProtein: server.quickProtein ?? local.quickProtein,

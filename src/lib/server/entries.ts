@@ -212,7 +212,48 @@ export const deleteEntry = async (userId: string, id: string) => {
 	return deleted ?? null;
 };
 
+const dateRangeWhere = (userId: string, startDate: string, endDate: string) =>
+	and(
+		eq(foodEntries.userId, userId),
+		gte(foodEntries.date, startDate),
+		lte(foodEntries.date, endDate)
+	);
+
+/**
+ * Macro-only projection for stats, insights, history and maintenance. Keep it
+ * lean: these callers only aggregate, and several of them serialize the result
+ * into a page payload. Use `listEntriesByDateRangeDetailed` when the full entry
+ * shape is actually needed.
+ */
 export const listEntriesByDateRange = async (
+	userId: string,
+	startDate: string,
+	endDate: string
+) => {
+	const db = getDB();
+	const recipeMacrosCte = buildRecipeMacrosCte(db, userId);
+	const rows = await db
+		.with(recipeMacrosCte)
+		.select({
+			id: foodEntries.id,
+			date: foodEntries.date,
+			mealType: foodEntries.mealType,
+			servings: foodEntries.servings,
+			notes: foodEntries.notes,
+			foodId: foodEntries.foodId,
+			recipeId: foodEntries.recipeId,
+			...entryMacroColumns(recipeMacrosCte)
+		})
+		.from(foodEntries)
+		.leftJoin(foods, and(eq(foodEntries.foodId, foods.id), eq(foods.userId, userId)))
+		.leftJoin(recipes, and(eq(foodEntries.recipeId, recipes.id), eq(recipes.userId, userId)))
+		.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
+		.where(dateRangeWhere(userId, startDate, endDate));
+	return roundNutrition(rows);
+};
+
+/** Full entry shape — the mobile account download (`/api/entries/range`). */
+export const listEntriesByDateRangeDetailed = async (
 	userId: string,
 	startDate: string,
 	endDate: string
@@ -246,13 +287,7 @@ export const listEntriesByDateRange = async (
 		.leftJoin(foods, and(eq(foodEntries.foodId, foods.id), eq(foods.userId, userId)))
 		.leftJoin(recipes, and(eq(foodEntries.recipeId, recipes.id), eq(recipes.userId, userId)))
 		.leftJoin(recipeMacrosCte, eq(recipeMacrosCte.recipeId, foodEntries.recipeId))
-		.where(
-			and(
-				eq(foodEntries.userId, userId),
-				gte(foodEntries.date, startDate),
-				lte(foodEntries.date, endDate)
-			)
-		);
+		.where(dateRangeWhere(userId, startDate, endDate));
 	return roundNutrition(rows);
 };
 

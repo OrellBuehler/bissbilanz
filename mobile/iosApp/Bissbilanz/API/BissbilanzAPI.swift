@@ -358,8 +358,13 @@ final class BissbilanzAPI {
 
     // MARK: - Supplements
 
-    func getSupplements() async throws -> [Supplement] {
-        let response: SupplementsResponse = try await get("/api/supplements")
+    /// `all: true` also returns archived supplements — the default list is
+    /// active-only, which silently loses rows in a full account download.
+    func getSupplements(all: Bool = false) async throws -> [Supplement] {
+        let response: SupplementsResponse = try await get(
+            "/api/supplements",
+            params: all ? ["all": "true"] : [:]
+        )
         return response.supplements
     }
 
@@ -735,9 +740,8 @@ final class BissbilanzAPI {
         return body
     }
 
-    func getAccount() async throws -> AccountUser {
-        let response: AccountResponse = try await get("/api/account")
-        return response.user
+    func getAccount() async throws -> AccountResponse {
+        try await get("/api/account")
     }
 
     func deleteAccount() async throws {

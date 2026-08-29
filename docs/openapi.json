@@ -9309,9 +9309,12 @@
 				"properties": {
 					"user": {
 						"$ref": "#/components/schemas/AccountUser"
+					},
+					"dataRange": {
+						"$ref": "#/components/schemas/AccountDataRange"
 					}
 				},
-				"required": ["user"],
+				"required": ["user", "dataRange"],
 				"additionalProperties": false
 			},
 			"AccountUser": {
@@ -9349,6 +9352,33 @@
 					}
 				},
 				"required": ["email", "name", "createdAt"],
+				"additionalProperties": false
+			},
+			"AccountDataRange": {
+				"type": "object",
+				"properties": {
+					"earliest": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"latest": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["earliest", "latest"],
 				"additionalProperties": false
 			},
 			"ImageUploadResponse": {

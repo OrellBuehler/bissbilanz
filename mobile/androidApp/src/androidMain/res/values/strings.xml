@@ -644,6 +644,8 @@
     <string name="settings_downgrade_done">Done — your data now lives on this device only.</string>
     <string name="settings_downgrade_confirm">Download &amp; delete account</string>
     <string name="settings_downgrade_close">Close</string>
+    <string name="settings_downgrade_error_pending">Some changes could not be uploaded yet. Check pending changes and try again.</string>
+    <string name="settings_downgrade_error_failed">Switching to local-only failed. Your account was not deleted.</string>
     <string name="settings_delete_account">Delete account</string>
     <string name="settings_delete_account_title">Delete your account?</string>
     <string name="settings_delete_account_message">Your account and all data on the server will be permanently deleted — food log, foods, recipes, weight, sleep and settings. This cannot be undone.</string>

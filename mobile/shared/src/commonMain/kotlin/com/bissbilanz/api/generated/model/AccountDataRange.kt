@@ -15,8 +15,6 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.AccountDataRange
-import com.bissbilanz.api.generated.model.AccountUser
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -24,11 +22,11 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param user
- * @param dataRange
+ * @param earliest
+ * @param latest
  */
 @Serializable
-data class AccountResponse(
-    @SerialName(value = "user") @Required val user: AccountUser,
-    @SerialName(value = "dataRange") @Required val dataRange: AccountDataRange,
+data class AccountDataRange(
+    @SerialName(value = "earliest") @Required val earliest: kotlin.String?,
+    @SerialName(value = "latest") @Required val latest: kotlin.String?,
 )

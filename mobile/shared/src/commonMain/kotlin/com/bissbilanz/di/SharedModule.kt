@@ -39,6 +39,9 @@ val sharedModule =
                 syncQueue = get(),
                 errorReporter = get(),
                 localDataWiper = get(),
+                // Platform-provided (Android only today) — reads back photos a
+                // downgrade stored on-device so they can be re-uploaded.
+                localPhotoReader = getOrNull(),
             )
         }
         single {

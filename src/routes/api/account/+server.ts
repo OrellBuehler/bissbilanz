@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
-import { deleteAccount } from '$lib/server/account';
+import { deleteAccount, getAccountDataRange } from '$lib/server/account';
 import { getDB, users } from '$lib/server/db';
 import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
@@ -10,16 +10,19 @@ export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		const userId = requireAuth(locals);
 		const db = getDB();
-		const [user] = await db
-			.select({
-				email: users.email,
-				name: users.name,
-				createdAt: users.createdAt
-			})
-			.from(users)
-			.where(eq(users.id, userId));
+		const [[user], dataRange] = await Promise.all([
+			db
+				.select({
+					email: users.email,
+					name: users.name,
+					createdAt: users.createdAt
+				})
+				.from(users)
+				.where(eq(users.id, userId)),
+			getAccountDataRange(userId)
+		]);
 		if (!user) throw new ApiError(404, 'User not found');
-		return json({ user });
+		return json({ user, dataRange });
 	} catch (error) {
 		return handleApiError(error);
 	}

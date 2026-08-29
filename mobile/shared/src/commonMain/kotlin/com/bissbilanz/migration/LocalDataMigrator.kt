@@ -120,7 +120,17 @@ class LocalDataMigrator(
     private val syncQueue: SyncQueue,
     private val errorReporter: ErrorReporter,
     private val localDataWiper: LocalDataWiper,
+    private val localPhotoReader: LocalPhotoReader? = null,
 ) {
+    /**
+     * Reads back a photo that [AccountDowngrader.PhotoLocalizer] stored on-device
+     * during a downgrade, so it can be re-uploaded on the way back into an account.
+     */
+    fun interface LocalPhotoReader {
+        /** File name and bytes for a local (e.g. `file://`) image URL, or null if unreadable. */
+        suspend fun read(imageUrl: String): Pair<String, ByteArray>?
+    }
+
     private val _state = MutableStateFlow<MigrationState>(MigrationState.Idle)
     val state: StateFlow<MigrationState> = _state.asStateFlow()
 
@@ -480,7 +490,7 @@ class LocalDataMigrator(
             val cached =
                 json.decodeOrNull<Food>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local food \"${row.name}\"")
-            val server = api.createFood(cached.toFoodCreate())
+            val server = api.createFood(cached.toFoodCreate().copy(imageUrl = uploadableImageUrl(cached.imageUrl)))
             queries.transaction {
                 queries.deleteFood(row.id)
                 queries.insertFood(
@@ -538,7 +548,7 @@ class LocalDataMigrator(
                     totalServings = cached.totalServings,
                     ingredients = ingredients,
                     isFavorite = cached.isFavorite,
-                    imageUrl = cached.imageUrl,
+                    imageUrl = uploadableImageUrl(cached.imageUrl),
                 )
             val server = api.createRecipe(create)
             queries.transaction {
@@ -572,6 +582,15 @@ class LocalDataMigrator(
             val cached =
                 json.decodeOrNull<Entry>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local entry from ${row.date}")
+            if (cached.supplementId != null) {
+                // A supplement's ingredient entries (downloaded by a downgrade).
+                // `uploadSupplementLogs` re-logs the supplement, which recreates
+                // them server-side — uploading them here as well would double
+                // every macro on those days.
+                queries.deleteEntry(row.id)
+                progress(++done, total, STEP_ENTRIES)
+                continue
+            }
             val server = api.createEntry(cached.toEntryCreate())
             val updated =
                 cached.copy(
@@ -810,6 +829,30 @@ class LocalDataMigrator(
             brand = brand,
             ingredientsText = ingredientsText,
         )
+
+    /**
+     * The server's `imageUrlSchema` only accepts a `/`-relative path or an http(s)
+     * URL. A downgrade rewrites photos to on-device `file://` URLs, and sending one
+     * back is a 400 that no retry can clear — it would strand the migration forever.
+     * Re-upload the local file instead, and drop the reference if that is impossible.
+     */
+    private suspend fun uploadableImageUrl(imageUrl: String?): String? {
+        if (imageUrl == null) return null
+        val alreadyValid =
+            (imageUrl.startsWith("/") && !imageUrl.startsWith("//")) ||
+                imageUrl.startsWith("http://") ||
+                imageUrl.startsWith("https://")
+        if (alreadyValid) return imageUrl
+        val photo = localPhotoReader?.read(imageUrl) ?: return null
+        return try {
+            api.uploadImage(photo.first, photo.second)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // The photo is a nice-to-have; the food/recipe row is not.
+            errorReporter.captureException(e)
+            null
+        }
+    }
 
     private fun Food.toFoodCreate(): FoodCreate =
         FoodCreate(
