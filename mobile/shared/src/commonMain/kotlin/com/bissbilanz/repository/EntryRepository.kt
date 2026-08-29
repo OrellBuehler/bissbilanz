@@ -223,27 +223,7 @@ class EntryRepository(
     }
 
     private fun cacheEntry(entry: Entry) {
-        val foodName = entry.food?.name ?: entry.recipe?.name ?: entry.foodName ?: entry.quickName
-        val calories = entry.food?.calories ?: entry.calories ?: entry.quickCalories ?: 0.0
-        val protein = entry.food?.protein ?: entry.protein ?: entry.quickProtein ?: 0.0
-        val carbs = entry.food?.carbs ?: entry.carbs ?: entry.quickCarbs ?: 0.0
-        val fat = entry.food?.fat ?: entry.fat ?: entry.quickFat ?: 0.0
-        val fiber = entry.food?.fiber ?: entry.fiber ?: entry.quickFiber ?: 0.0
-        db.userDataDatabaseQueries.insertEntry(
-            id = entry.id,
-            date = entry.date,
-            mealType = entry.mealType,
-            servings = entry.servings,
-            foodId = entry.foodId,
-            recipeId = entry.recipeId,
-            foodName = foodName,
-            calories = calories,
-            protein = protein,
-            carbs = carbs,
-            fat = fat,
-            fiber = fiber,
-            jsonData = json.encodeToString(entry),
-        )
+        db.userDataDatabaseQueries.cacheEntryRow(entry, json)
     }
 
     private suspend fun cacheEntries(
@@ -258,14 +238,19 @@ class EntryRepository(
         // still has a queued (or in-flight) sync operation.
         val pendingIds = pendingEntryIds()
         val queries = db.userDataDatabaseQueries
-        // Local rows to keep after wiping the day: optimistic temp-id creates and
-        // rows carrying a queued update (a queued delete already removed its row,
-        // so it simply isn't present here).
+        // Local rows to keep after wiping the day: optimistic temp-id creates whose
+        // upload is still queued or in flight, and rows carrying a queued update (a
+        // queued delete already removed its row, so it simply isn't present here).
+        // `pendingIds` holds the temp id of every queued create, so a temp row that
+        // isn't in it has no operation left to run: its create already uploaded (the
+        // sync manager swapped the row for the server record) or was dead-lettered.
+        // Keeping those would re-add the local copy of an entry the server list
+        // already carries, duplicating it in the day log on every refresh.
         val preserved =
             queries
                 .selectEntriesByDate(date)
                 .executeAsList()
-                .filter { it.id.isTempId() || it.id in pendingIds }
+                .filter { it.id in pendingIds }
                 .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
         queries.transaction {
             queries.deleteEntriesByDate(date)

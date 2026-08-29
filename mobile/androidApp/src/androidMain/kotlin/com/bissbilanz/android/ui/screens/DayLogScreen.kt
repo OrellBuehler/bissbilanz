@@ -39,6 +39,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.mealTypes
+import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
@@ -90,7 +91,7 @@ fun DayLogScreen(
         remember(entries, pendingDeleteIds) {
             entries.filter { it.id !in pendingDeleteIds }
         }
-    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { it.mealType.lowercase() } }
+    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { normalizeMealType(it.mealType) } }
     val sortedMeals =
         remember(mealGroups) {
             mealTypes.filter { mealGroups.containsKey(it) } +

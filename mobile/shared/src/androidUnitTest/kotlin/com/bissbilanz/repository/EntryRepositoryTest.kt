@@ -180,4 +180,23 @@ class EntryRepositoryTest {
 
             assertTrue(repository.entriesByDateOnce("2024-01-15").none { it.id == "e1" })
         }
+
+    @Test
+    fun refreshDropsTempRowWhoseCreateAlreadyUploaded() =
+        runTest {
+            coEvery { syncQueue.all() } returns emptyList()
+            val temp =
+                repository.createEntry(
+                    EntryCreate(foodId = "f1", mealType = "Lunch", servings = 1.0, date = "2024-01-15"),
+                )
+            // The create drained: no queued operation references the temp id any more and
+            // the server list carries the same entry under its real id. Keeping the local
+            // copy would show the entry twice.
+            coEvery { api.getEntries("2024-01-15") } returns listOf(TestFixtures.entry(id = "srv-1"))
+
+            repository.refresh("2024-01-15")
+
+            assertEquals(listOf("srv-1"), repository.entriesByDateOnce("2024-01-15").map { it.id })
+            assertTrue(repository.entriesByDateOnce("2024-01-15").none { it.id == temp.id })
+        }
 }

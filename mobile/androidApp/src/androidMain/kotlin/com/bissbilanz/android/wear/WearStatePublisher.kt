@@ -9,6 +9,7 @@ import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
+import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
@@ -137,7 +138,7 @@ class WearStatePublisher(
                 ),
             // Learned from the synced log rather than hardcoded, so custom meal
             // types reach the watch too.
-            mealTypes = (mealTypes + entries.map { it.mealType.lowercase() }).distinct(),
+            mealTypes = (mealTypes + entries.map { normalizeMealType(it.mealType) }).distinct(),
             favorites = favorites.take(FAVORITES_LIMIT).map { it.toRef() },
             recents = recents.take(RECENTS_LIMIT).map { it.toRef() },
             weight = weights.toWeightInfo(today),

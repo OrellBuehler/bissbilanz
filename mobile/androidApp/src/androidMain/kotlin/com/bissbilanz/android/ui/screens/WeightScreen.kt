@@ -102,15 +102,15 @@ fun WeightScreen(navController: NavController) {
         )
     }
 
-    if (entryToEdit != null) {
+    entryToEdit?.let { entry ->
         EditWeightDialog(
-            entry = entryToEdit!!,
+            entry = entry,
             onDismiss = { entryToEdit = null },
             onSave = { weight, notes ->
                 scope.launch {
                     try {
                         weightRepo.updateEntry(
-                            entryToEdit!!.id,
+                            entry.id,
                             WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
                         )
                         viewModel.refresh()
@@ -126,17 +126,17 @@ fun WeightScreen(navController: NavController) {
         )
     }
 
-    if (entryToDelete != null) {
+    entryToDelete?.let { entry ->
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
             title = { Text(stringResource(R.string.weight_delete_title)) },
-            text = { Text(stringResource(R.string.weight_delete_text, entryToDelete!!.entryDate)) },
+            text = { Text(stringResource(R.string.weight_delete_text, entry.entryDate)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         scope.launch {
                             try {
-                                weightRepo.deleteEntry(entryToDelete!!.id)
+                                weightRepo.deleteEntry(entry.id)
                                 viewModel.refresh()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
