@@ -1,6 +1,7 @@
 package com.bissbilanz.android.sync
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
@@ -22,6 +23,7 @@ class RefreshManager(
     private val weightRepo: WeightRepository,
     private val supplementRepo: SupplementRepository,
     private val prefsRepo: PreferencesRepository,
+    private val aiTaskRepo: AiTaskRepository,
     private val errorReporter: ErrorReporter,
 ) {
     suspend fun refreshAll(date: String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
@@ -36,6 +38,7 @@ class RefreshManager(
             launch { safeRefresh { supplementRepo.refresh() } }
             launch { safeRefresh { prefsRepo.refresh() } }
             launch { safeRefresh { prefsRepo.reportTimeZone(TimeZone.currentSystemDefault().id) } }
+            launch { safeRefresh { aiTaskRepo.refresh() } }
         }
     }
 

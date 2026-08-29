@@ -2,9 +2,12 @@ package com.bissbilanz.api
 
 import com.bissbilanz.api.generated.model.AccountResponse
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskAcknowledge
+import com.bissbilanz.api.generated.model.AiTaskAcknowledgeResponse
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
 import com.bissbilanz.api.generated.model.AiTaskResponse
+import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.api.generated.model.CalendarResponse
 import com.bissbilanz.api.generated.model.DailyStatsResponse
@@ -995,12 +998,50 @@ class BissbilanzApi(
 
     suspend fun listAiTasks(
         status: String? = null,
+        acknowledged: Boolean? = null,
         limit: Int? = null,
+        offset: Int? = null,
     ): AiTasksResponse =
         get("/api/ai-tasks") {
             status?.let { parameter("status", it) }
+            acknowledged?.let { parameter("acknowledged", it.toString()) }
             limit?.let { parameter("limit", it) }
+            offset?.let { parameter("offset", it) }
         }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun updateAiTask(
+        id: String,
+        update: AiTaskUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): AiTask {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: AiTaskResponse = patch("/api/ai-tasks/$id", update, key, editedAt)
+        return response.task
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteAiTask(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/ai-tasks/$id", key, editedAt)
+    }
+
+    /**
+     * Clears the unread state on resolved tasks. Pass null to acknowledge every
+     * unacknowledged task, which is what opening the list does.
+     */
+    suspend fun acknowledgeAiTasks(ids: List<String>? = null): Int {
+        val response: AiTaskAcknowledgeResponse =
+            post("/api/ai-tasks/acknowledge", AiTaskAcknowledge(ids = ids), null, null)
+        return response.acknowledged
+    }
 
     suspend fun uploadAiTaskPhoto(
         fileName: String,

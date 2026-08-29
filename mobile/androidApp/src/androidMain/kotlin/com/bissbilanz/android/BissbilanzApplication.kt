@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
+import com.bissbilanz.android.aitasks.AiTaskNotifier
+import com.bissbilanz.android.aitasks.AiTaskPollWorker
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -17,6 +20,7 @@ import com.bissbilanz.android.sync.AndroidLocalPhotoReader
 import com.bissbilanz.android.sync.AndroidPhotoLocalizer
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
+import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
@@ -88,7 +92,7 @@ class BissbilanzApplication : Application() {
                 // cancelled halfway through by the user leaving Settings.
                 single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
                 single<LocalDataMigrator.LocalPhotoReader> { AndroidLocalPhotoReader(androidContext()) }
-                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
+                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(
                         api = get(),
@@ -113,10 +117,12 @@ class BissbilanzApplication : Application() {
                 single { HealthConnectService(androidContext()) }
                 single { HealthSyncPreferences(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }
+                single { AiTaskNotificationPreferences(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }
 
+                viewModelOf(::AiTasksViewModel)
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DayLogViewModel)
                 viewModelOf(::InsightsViewModel)
@@ -196,6 +202,24 @@ class BissbilanzApplication : Application() {
         // Alarms do not survive a reboot, an app update, or an OEM task-killer, so arm
         // them from a known-good state on every start.
         RescheduleRemindersWorker.enqueue(this)
+
+        // The assistant dismissing a task is the one AI task outcome the user has to
+        // hear about — the meal never got logged. Acknowledgement happens when the list
+        // is opened, not when a notification is posted, so repeat suppression is local.
+        val aiTaskNotificationPrefs = koin.get<AiTaskNotificationPreferences>()
+        koin.get<AiTaskRepository>().onUnreadDismissals = { unread ->
+            val fresh = aiTaskNotificationPrefs.unnotified(unread.map { it.id })
+            if (fresh.isNotEmpty()) {
+                AiTaskNotifier.showDismissed(
+                    this@BissbilanzApplication,
+                    unread.filter { it.id in fresh },
+                )
+            }
+            aiTaskNotificationPrefs.markNotified(fresh, unread.map { it.id }.toSet())
+        }
+        // Nothing else pulls AI tasks while the app is closed — there is no push
+        // channel, and the only other periodic work exists solely for the widgets.
+        AiTaskPollWorker.enqueue(this)
 
         val refreshManager = koin.get<RefreshManager>()
         // A conflict means the local row lost to a newer change; pull the server state

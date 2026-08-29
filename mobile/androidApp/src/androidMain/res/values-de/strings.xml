@@ -143,6 +143,26 @@
     <string name="ai_task_remove_photo">Foto entfernen</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
 
+    <!-- KI-Aufgabenliste -->
+    <string name="ai_tasks_title">KI-Aufgaben</string>
+    <string name="ai_tasks_filter_open">Offen</string>
+    <string name="ai_tasks_filter_completed">Erledigt</string>
+    <string name="ai_tasks_filter_dismissed">Verworfen</string>
+    <string name="ai_tasks_empty_open">Keine offenen Aufgaben — alles erledigt</string>
+    <string name="ai_tasks_empty_completed">Noch nichts erledigt</string>
+    <string name="ai_tasks_empty_dismissed">Nichts verworfen</string>
+    <string name="ai_tasks_photo_only">Nur Foto, keine Beschreibung</string>
+    <string name="ai_tasks_agent_comment">Von deinem Assistenten</string>
+    <string name="ai_tasks_unread">Neu</string>
+    <string name="ai_tasks_delete">Aufgabe löschen</string>
+    <string name="ai_tasks_delete_confirm">Diese KI-Aufgabe löschen? Das kann nicht rückgängig gemacht werden.</string>
+    <string name="ai_tasks_load_failed">KI-Aufgaben konnten nicht geladen werden</string>
+    <string name="ai_tasks_notification_channel">KI-Aufgaben</string>
+    <string name="ai_tasks_notification_channel_desc">Meldet, wenn der Assistent eine gesendete Mahlzeit nicht erfassen konnte.</string>
+    <string name="ai_tasks_notification_title">KI-Aufgabe verworfen</string>
+    <string name="ai_tasks_notification_body_fallback">Dein Assistent konnte diese Mahlzeit nicht erfassen.</string>
+    <string name="ai_tasks_notification_summary">Verworfene KI-Aufgaben</string>
+
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connected">Verbunden</string>

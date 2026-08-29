@@ -110,6 +110,7 @@ fun AppNavigation() {
                         "pending-sync",
                         "fasting",
                         "health",
+                        "ai-tasks",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -249,6 +250,10 @@ fun AppNavigation() {
                 composable("maintenance") {
                     com.bissbilanz.android.ui.screens
                         .MaintenanceScreen(navController)
+                }
+                composable("ai-tasks") {
+                    com.bissbilanz.android.ui.screens
+                        .AiTasksScreen(navController)
                 }
             }
         }
