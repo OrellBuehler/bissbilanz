@@ -6,23 +6,9 @@ import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { ApiError } from '$lib/server/errors';
 import { validateMealType } from '$lib/server/entries';
-import { UPLOAD_DIR } from '$lib/server/images';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { unlinkUpload } from '$lib/server/images';
 
-const PHOTO_FILENAME_RE = /^[a-f0-9-]+\.webp$/;
 const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-const unlinkPhoto = async (photoUrl: string | null | undefined): Promise<void> => {
-	if (!photoUrl) return;
-	const filename = photoUrl.replace(/^\/uploads\//, '');
-	if (!PHOTO_FILENAME_RE.test(filename)) return;
-	try {
-		await unlink(join(UPLOAD_DIR, filename));
-	} catch {
-		// Best-effort — file may already be gone.
-	}
-};
 
 export const listAiTasks = async (
 	userId: string,
@@ -222,7 +208,7 @@ export const deleteAiTask = async (userId: string, id: string): Promise<boolean>
 		.delete(aiTasks)
 		.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
 		.returning();
-	if (deleted) await unlinkPhoto(deleted.photoUrl);
+	if (deleted) await unlinkUpload(deleted.photoUrl);
 	return !!deleted;
 };
 
@@ -233,5 +219,5 @@ export const cleanupAiTasks = async (): Promise<void> => {
 		.delete(aiTasks)
 		.where(and(inArray(aiTasks.status, ['completed', 'dismissed']), lt(aiTasks.updatedAt, cutoff)))
 		.returning({ photoUrl: aiTasks.photoUrl });
-	await Promise.all(deleted.map((row) => unlinkPhoto(row.photoUrl)));
+	await Promise.all(deleted.map((row) => unlinkUpload(row.photoUrl)));
 };

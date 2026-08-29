@@ -5,6 +5,7 @@ import { ApiError } from '$lib/server/errors';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import type { Result } from '$lib/server/types';
+import { unlinkUploads } from '$lib/server/images';
 
 type Food = typeof foods.$inferSelect;
 
@@ -193,10 +194,21 @@ export async function mergeFoods(userId: string, input: MergeFoodsInput): Promis
 			if (!updated) {
 				throw new ApiError(500, 'Failed to update keeper food after merge');
 			}
-			return updated;
+
+			// Source rows are gone and the keeper may have adopted a different
+			// image (from a source, or from an override), so every image the merge
+			// dropped is now unreferenced. Collect here, unlink after the commit.
+			const orphaned = [
+				...sources.map((source) => source.imageUrl),
+				keeper.imageUrl === updated.imageUrl ? null : keeper.imageUrl
+			].filter((url) => url !== updated.imageUrl);
+
+			return { updated, orphaned };
 		});
 
-		return { success: true, data: roundNutrition(result) };
+		await unlinkUploads(result.orphaned);
+
+		return { success: true, data: roundNutrition(result.updated) };
 	} catch (error) {
 		if (error instanceof ApiError) return { success: false, error };
 		return { success: false, error: error as Error };
