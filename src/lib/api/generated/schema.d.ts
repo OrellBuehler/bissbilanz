@@ -91,6 +91,41 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/labels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep. */
+		post: operations['setFoodLabelsBatch'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/{id}/labels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List a food's labels with their source and confidence. */
+		get: operations['getFoodLabels'];
+		/** @description Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. */
+		put: operations['setFoodLabels'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/{id}': {
 		parameters: {
 			query?: never;
@@ -1122,6 +1157,23 @@ export interface components {
 				imageUrl?: string | null;
 			};
 		};
+		FoodLabelsBatch: {
+			/** @enum {string} */
+			source?: 'user' | 'llm' | 'external' | 'catalog';
+			confidence?: number | null;
+			items: components['schemas']['FoodLabelsBatchItem'][];
+		};
+		FoodLabelsBatchItem: {
+			/** Format: uuid */
+			foodId: string;
+			labels: string[];
+		};
+		FoodLabelsSet: {
+			labels: string[];
+			/** @enum {string} */
+			source?: 'user' | 'llm' | 'external' | 'catalog';
+			confidence?: number | null;
+		};
 		FoodUpdate: {
 			name?: string;
 			brand?: string | null;
@@ -1480,6 +1532,7 @@ export interface components {
 			additives: string[] | null;
 			ingredientsText: string | null;
 			imageUrl: string | null;
+			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
 		};
@@ -1526,6 +1579,26 @@ export interface components {
 			name: string;
 			brand: string | null;
 			barcode: string | null;
+		};
+		FoodLabelsBatchResponse: {
+			results: components['schemas']['FoodLabelsBatchItemResult'][];
+		};
+		FoodLabelsBatchItemResult: {
+			/** Format: uuid */
+			foodId: string;
+			ok: boolean;
+			labels?: string[];
+			error?: string;
+		};
+		FoodLabelsResponse: {
+			labels: components['schemas']['FoodLabelDetail'][];
+		};
+		FoodLabelDetail: {
+			label: string;
+			/** @enum {string} */
+			source: 'user' | 'llm' | 'external' | 'catalog';
+			confidence: number | null;
+			createdAt: string | null;
 		};
 		ConflictErrorResponse: {
 			error: string;
@@ -1987,6 +2060,7 @@ export interface components {
 			additives: string[] | null;
 			ingredientsText: string | null;
 			imageUrl: string | null;
+			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
 			logCount: number;
@@ -2277,6 +2351,15 @@ export interface components {
 				'application/json': components['schemas']['ValidationErrorResponse'];
 			};
 		};
+		/** @description Not found */
+		NotFoundResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
 		/** @description Deleted */
 		DeletedResponse: {
 			headers: {
@@ -2291,15 +2374,6 @@ export interface components {
 			};
 			content: {
 				'application/json': components['schemas']['ConflictErrorResponse'];
-			};
-		};
-		/** @description Not found */
-		NotFoundResponse: {
-			headers: {
-				[name: string]: unknown;
-			};
-			content: {
-				'application/json': components['schemas']['ErrorResponse'];
 			};
 		};
 	};
@@ -2362,6 +2436,7 @@ export interface operations {
 			query?: {
 				q?: string;
 				barcode?: string;
+				unlabeled?: boolean;
 				limit?: number;
 				offset?: number;
 			};
@@ -2475,6 +2550,87 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	setFoodLabelsBatch: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodLabelsBatch'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodLabelsBatchResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getFoodLabels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodLabelsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	setFoodLabels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodLabelsSet'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						labels: string[];
+					};
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	getFood: {

@@ -93,6 +93,13 @@
 					},
 					{
 						"in": "query",
+						"name": "unlabeled",
+						"schema": {
+							"type": "boolean"
+						}
+					},
+					{
+						"in": "query",
 						"name": "limit",
 						"schema": {
 							"default": 100,
@@ -237,6 +244,136 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/labels": {
+			"post": {
+				"operationId": "setFoodLabelsBatch",
+				"tags": ["Foods"],
+				"description": "Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodLabelsBatch"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodLabelsBatchResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/{id}/labels": {
+			"get": {
+				"operationId": "getFoodLabels",
+				"tags": ["Foods"],
+				"description": "List a food's labels with their source and confidence.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodLabelsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			},
+			"put": {
+				"operationId": "setFoodLabels",
+				"tags": ["Foods"],
+				"description": "Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodLabelsSet"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"labels": {
+											"type": "array",
+											"items": {
+												"type": "string"
+											}
+										}
+									},
+									"required": ["labels"],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -4231,6 +4368,87 @@
 				},
 				"required": ["keeperId", "sourceIds"]
 			},
+			"FoodLabelsBatch": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"enum": ["user", "llm", "external", "catalog"]
+					},
+					"confidence": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0,
+								"maximum": 1
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"items": {
+						"minItems": 1,
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodLabelsBatchItem"
+						}
+					}
+				},
+				"required": ["items"]
+			},
+			"FoodLabelsBatchItem": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"labels": {
+						"maxItems": 20,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					}
+				},
+				"required": ["foodId", "labels"]
+			},
+			"FoodLabelsSet": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"maxItems": 20,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					},
+					"source": {
+						"type": "string",
+						"enum": ["user", "llm", "external", "catalog"]
+					},
+					"confidence": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0,
+								"maximum": 1
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["labels"]
+			},
 			"FoodUpdate": {
 				"type": "object",
 				"properties": {
@@ -6522,6 +6740,19 @@
 							}
 						]
 					},
+					"labels": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -6740,6 +6971,90 @@
 					}
 				},
 				"required": ["id", "name", "brand", "barcode"],
+				"additionalProperties": false
+			},
+			"FoodLabelsBatchResponse": {
+				"type": "object",
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodLabelsBatchItemResult"
+						}
+					}
+				},
+				"required": ["results"],
+				"additionalProperties": false
+			},
+			"FoodLabelsBatchItemResult": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"ok": {
+						"type": "boolean"
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"error": {
+						"type": "string"
+					}
+				},
+				"required": ["foodId", "ok"],
+				"additionalProperties": false
+			},
+			"FoodLabelsResponse": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodLabelDetail"
+						}
+					}
+				},
+				"required": ["labels"],
+				"additionalProperties": false
+			},
+			"FoodLabelDetail": {
+				"type": "object",
+				"properties": {
+					"label": {
+						"type": "string"
+					},
+					"source": {
+						"type": "string",
+						"enum": ["user", "llm", "external", "catalog"]
+					},
+					"confidence": {
+						"anyOf": [
+							{
+								"type": "number"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"createdAt": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["label", "source", "confidence", "createdAt"],
 				"additionalProperties": false
 			},
 			"ConflictErrorResponse": {
@@ -9146,6 +9461,19 @@
 							}
 						]
 					},
+					"labels": {
+						"anyOf": [
+							{
+								"type": "array",
+								"items": {
+									"type": "string"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -10887,6 +11215,16 @@
 					}
 				}
 			},
+			"NotFoundResponse": {
+				"description": "Not found",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
+			},
 			"DeletedResponse": {
 				"description": "Deleted"
 			},
@@ -10896,16 +11234,6 @@
 					"application/json": {
 						"schema": {
 							"$ref": "#/components/schemas/ConflictErrorResponse"
-						}
-					}
-				}
-			},
-			"NotFoundResponse": {
-				"description": "Not found",
-				"content": {
-					"application/json": {
-						"schema": {
-							"$ref": "#/components/schemas/ErrorResponse"
 						}
 					}
 				}

@@ -51,6 +51,14 @@ let mockSupplementById: any = null;
 let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
 let mockCreateFoodError: any = null;
+let mockListFoodsArgs: any = null;
+let mockSetLabelCalls: Array<{
+	userId: string;
+	foodId: string;
+	labels: string[];
+	source: string;
+}> = [];
+let mockLabelFoodMissing = false;
 let mockOFFProduct: any = null;
 let mockOFFSearchResults: any[] = [];
 let mockCreateSleepResult: any = null;
@@ -97,7 +105,10 @@ const TEST_AI_TASK = {
 };
 
 const mockDeps = {
-	listFoods: async () => ({ items: mockFoods, total: mockFoods.length }),
+	listFoods: async (userId: string, options: any) => {
+		mockListFoodsArgs = options;
+		return { items: mockFoods, total: mockFoods.length };
+	},
 	createFood: async () =>
 		mockCreateFoodResult
 			? { success: true, data: mockCreateFoodResult }
@@ -236,10 +247,23 @@ const mockDeps = {
 	dismissAiTaskByAgent: async (userId: string, id: string, reason: string) => {
 		mockDismissAiTaskByAgentCalls.push({ userId, id, reason });
 		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
+	},
+	setFoodLabels: async (userId: string, foodId: string, labels: string[], source: string) => {
+		mockSetLabelCalls.push({ userId, foodId, labels, source });
+		return mockLabelFoodMissing ? null : labels;
+	},
+	setFoodLabelsBatch: async (userId: string, items: any[], source: string) => {
+		for (const item of items) {
+			mockSetLabelCalls.push({ userId, foodId: item.foodId, labels: item.labels, source });
+		}
+		return items.map((item, i) => ({ foodId: item.foodId, ok: i === 0, labels: item.labels }));
 	}
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
+	handleListUnlabeledFoods,
+	handleSetFoodLabels,
+	handleSetFoodLabelsBatch,
 	handleSearchFoods,
 	handleCreateFood,
 	handleUpdateFood,
@@ -305,6 +329,9 @@ const {
 describe('MCP handlers', () => {
 	beforeEach(() => {
 		mockFoods = [];
+		mockListFoodsArgs = null;
+		mockSetLabelCalls = [];
+		mockLabelFoodMissing = false;
 		mockCreateFoodResult = null;
 		mockCreateFoodError = null;
 		mockUpdateFoodResult = null;
@@ -1709,5 +1736,68 @@ describe('handleGetMaintenanceCalories', () => {
 			endDate: '2026-02-01'
 		});
 		expect(result).toMatchObject({ error: 'startDate must be before endDate' });
+	});
+});
+
+describe('food label handlers', () => {
+	beforeEach(() => {
+		mockFoods = [];
+		mockListFoodsArgs = null;
+		mockSetLabelCalls = [];
+		mockLabelFoodMissing = false;
+	});
+
+	test('list_unlabeled_foods asks for unlabeled foods only', async () => {
+		mockFoods = [
+			{
+				...TEST_FOOD,
+				brand: 'Chiquita',
+				ingredientsText: 'x'.repeat(500)
+			}
+		];
+		const result: any = await handleListUnlabeledFoods(TEST_USER.id, { limit: 10, offset: 5 });
+
+		expect(mockListFoodsArgs).toMatchObject({ unlabeled: true, limit: 10, offset: 5 });
+		expect(result.total).toBe(1);
+		// Only what the model needs to identify the food — not the full nutrition row.
+		expect(Object.keys(result.foods[0]).sort()).toEqual(['brand', 'id', 'ingredientsText', 'name']);
+		expect(result.foods[0].ingredientsText).toHaveLength(200);
+	});
+
+	test('list_unlabeled_foods defaults to a page of 50', async () => {
+		await handleListUnlabeledFoods(TEST_USER.id, {});
+		expect(mockListFoodsArgs.limit).toBe(50);
+	});
+
+	test('set_food_labels forces source llm — a client cannot write as the user', async () => {
+		const result: any = await handleSetFoodLabels(TEST_USER.id, {
+			foodId: TEST_FOOD.id,
+			labels: ['banana']
+		});
+		expect(mockSetLabelCalls).toEqual([
+			{ userId: TEST_USER.id, foodId: TEST_FOOD.id, labels: ['banana'], source: 'llm' }
+		]);
+		expect(result).toEqual({ success: true, foodId: TEST_FOOD.id, labels: ['banana'] });
+	});
+
+	test('set_food_labels reports a missing food instead of throwing', async () => {
+		mockLabelFoodMissing = true;
+		const result: any = await handleSetFoodLabels(TEST_USER.id, {
+			foodId: TEST_FOOD.id,
+			labels: ['banana']
+		});
+		expect(result).toEqual({ error: 'Food not found' });
+	});
+
+	test('set_food_labels_batch forces source llm and counts the successes', async () => {
+		const result: any = await handleSetFoodLabelsBatch(TEST_USER.id, {
+			items: [
+				{ foodId: TEST_FOOD.id, labels: ['banana'] },
+				{ foodId: TEST_RECIPE.id, labels: ['ghost'] }
+			]
+		});
+		expect(mockSetLabelCalls.every((c) => c.source === 'llm')).toBe(true);
+		expect(result.labeled).toBe(1);
+		expect(result.results).toHaveLength(2);
 	});
 });

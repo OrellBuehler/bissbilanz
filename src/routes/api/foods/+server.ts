@@ -33,9 +33,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const query = url.searchParams.get('q') ?? undefined;
+		// Lets a labeller find its work instead of paging everything and diffing
+		// client-side.
+		const unlabeled = url.searchParams.get('unlabeled') === 'true';
 		const { offset } = paginationResult.data;
 		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
-		const { items: foods, total } = await listFoods(userId, { query, limit, offset });
+		const { items: foods, total } = await listFoods(userId, { query, limit, offset, unlabeled });
 		return json({ foods, total });
 	} catch (error) {
 		return handleApiError(error);

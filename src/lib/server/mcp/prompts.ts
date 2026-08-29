@@ -79,6 +79,47 @@ export function registerPrompts(server: McpServer) {
 	);
 
 	server.registerPrompt(
+		'label_foods',
+		{
+			title: 'Label foods for Visual Intelligence',
+			description:
+				'Sweep the food database and give every unlabelled food general en_US nouns, so pointing a camera at a banana finds it.',
+			argsSchema: {
+				limit: z
+					.string()
+					.regex(/^\d+$/)
+					.optional()
+					.describe('How many foods to label. Leave empty to label everything.')
+			}
+		},
+		({ limit }) =>
+			user(
+				[
+					limit
+						? `Label up to ${limit} of my unlabelled Bissbilanz foods.`
+						: 'Label all of my unlabelled Bissbilanz foods.',
+					'',
+					'Labels let my phone find a food when I point the camera at it, so they must describe what the food physically IS, not what it is called.',
+					'',
+					'Rules for every label:',
+					'- 3 to 8 general English (en_US) nouns per food, singular and lowercase: banana, bread, cheese, bottle, salad.',
+					'- Always English, whatever language the food is named in. A food called "Banane" is still labelled "banana" — a German label can never match.',
+					'- No brand names, product names, nutrition terms, cuisines or adjectives.',
+					'- Prefer the concrete object, but include one broader term where it is natural (banana, fruit).',
+					'',
+					'Steps:',
+					`1. Call list_unlabeled_foods${limit ? ` with limit=${Math.min(Number(limit), 200)}` : ' (page it with limit/offset)'}. Use the name, brand and ingredient snippet to work out what each food is.`,
+					'2. Write the labels back with set_food_labels_batch, up to 100 foods per call.',
+					'3. Repeat until list_unlabeled_foods comes back empty' +
+						(limit ? ' or you have labelled the requested number.' : '.'),
+					'4. Finish with one line: how many foods you labelled, and any you skipped because the name was too vague to tell what it is.',
+					'',
+					'Do not ask me about individual foods — skip anything you cannot identify and list those at the end.'
+				].join('\n')
+			)
+	);
+
+	server.registerPrompt(
 		'weekly_review',
 		{
 			title: 'Weekly review',

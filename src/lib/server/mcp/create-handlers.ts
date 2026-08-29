@@ -96,6 +96,7 @@ import type {
 	updateAiTask,
 	dismissAiTaskByAgent
 } from '$lib/server/ai-tasks';
+import type { setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import { isZodError } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
@@ -112,6 +113,9 @@ export type HandlerDeps = {
 	getFood: typeof getFood;
 	findFoodByBarcode: typeof findFoodByBarcode;
 	listRecentFoods: typeof listRecentFoods;
+	// Food labels
+	setFoodLabels: typeof setFoodLabels;
+	setFoodLabelsBatch: typeof setFoodLabelsBatch;
 	// Recipes
 	createRecipe: typeof createRecipe;
 	updateRecipe: typeof updateRecipe;
@@ -1221,6 +1225,59 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	// ── Food labels ────────────────────────────────────────────────
+	// The model cannot see the food, so it gets the name, brand and a snippet of
+	// the ingredient list — enough to decide that "Chiquita Banane" is a banana.
+	const handleListUnlabeledFoods = async (
+		userId: string,
+		args: { limit?: number; offset?: number }
+	) => {
+		try {
+			const { items, total } = await d.listFoods(userId, {
+				unlabeled: true,
+				limit: args.limit ?? 50,
+				offset: args.offset
+			});
+			return {
+				total,
+				foods: items.map((food) => ({
+					id: food.id,
+					name: food.name,
+					brand: food.brand,
+					ingredientsText: food.ingredientsText?.slice(0, 200) ?? null
+				}))
+			};
+		} catch (e) {
+			wrapError('list unlabeled foods', e);
+		}
+	};
+
+	const handleSetFoodLabels = async (
+		userId: string,
+		args: { foodId: string; labels: string[] }
+	) => {
+		try {
+			// Source is forced server-side: an MCP client cannot write as 'user'.
+			const labels = await d.setFoodLabels(userId, args.foodId, args.labels, 'llm');
+			if (labels === null) return { error: 'Food not found' };
+			return { success: true, foodId: args.foodId, labels };
+		} catch (e) {
+			wrapError('set food labels', e);
+		}
+	};
+
+	const handleSetFoodLabelsBatch = async (
+		userId: string,
+		args: { items: Array<{ foodId: string; labels: string[] }> }
+	) => {
+		try {
+			const results = await d.setFoodLabelsBatch(userId, args.items, 'llm');
+			return { results, labeled: results.filter((r) => r.ok).length };
+		} catch (e) {
+			wrapError('set food labels batch', e);
+		}
+	};
+
 	return {
 		handleGetDailyStatus,
 		handleSearchFoods,
@@ -1278,6 +1335,9 @@ export function createHandlers(d: HandlerDeps) {
 		handleSetDayProperties,
 		handleDeleteDayProperties,
 		handleGetCalendarStats,
+		handleListUnlabeledFoods,
+		handleSetFoodLabels,
+		handleSetFoodLabelsBatch,
 		handleListAiTasks,
 		handleGetAiTask,
 		handleCompleteAiTask,

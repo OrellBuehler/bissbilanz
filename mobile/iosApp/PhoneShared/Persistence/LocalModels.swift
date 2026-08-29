@@ -108,6 +108,10 @@ final class LocalFood {
     var fiber: Double = 0
     var isFavorite: Bool = false
     var barcode: String?
+    /// Stored alongside `jsonData` rather than only inside it: matching a camera
+    /// label against the local store has to be a fetch, and a predicate cannot
+    /// reach into the encoded blob. Defaulted so the store migrates lightly.
+    var labels: [String] = []
     var jsonData: Data = Data()
 
     init(food: Food) {
@@ -121,6 +125,7 @@ final class LocalFood {
         fiber = food.fiber
         isFavorite = food.isFavorite
         barcode = food.barcode
+        labels = food.labels ?? []
         jsonData = LocalStoreCoding.encode(food)
     }
 
@@ -134,6 +139,7 @@ final class LocalFood {
         fiber = food.fiber
         isFavorite = food.isFavorite
         barcode = food.barcode
+        labels = food.labels ?? []
         jsonData = LocalStoreCoding.encode(food)
     }
 

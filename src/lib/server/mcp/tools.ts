@@ -60,6 +60,10 @@ export const toolNames = [
 	'delete_day_properties',
 	// Calendar stats
 	'get_calendar_stats',
+	// Food labels
+	'list_unlabeled_foods',
+	'set_food_labels',
+	'set_food_labels_batch',
 	// AI task queue
 	'list_ai_tasks',
 	'get_ai_task',

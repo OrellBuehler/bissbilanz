@@ -31,6 +31,10 @@ const passthrough = {
 export const allValidationSchemas = {
 	foodCreateSchema: passthrough,
 	foodUpdateSchema: passthrough,
+	foodLabelsSetSchema: passthrough,
+	foodLabelsBatchSchema: passthrough,
+	foodLabelsBatchItemSchema: passthrough,
+	labelSourceSchema: passthrough,
 	entryCreateSchema: passthrough,
 	entryUpdateSchema: passthrough,
 	goalsSchema: passthrough,

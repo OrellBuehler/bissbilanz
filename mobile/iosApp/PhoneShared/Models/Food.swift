@@ -62,6 +62,10 @@ struct Food: Codable, Identifiable, Hashable {
     let additives: [String]?
     let ingredientsText: String?
     let imageUrl: String?
+    /// General en_US nouns for what the food physically is ("banana", "bottle"),
+    /// always English whatever the food is named in — the vocabulary Visual
+    /// Intelligence matches against. Server-aggregated; absent on older servers.
+    let labels: [String]?
     let createdAt: String?
     let updatedAt: String?
 

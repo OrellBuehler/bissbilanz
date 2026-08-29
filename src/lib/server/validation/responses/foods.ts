@@ -2,6 +2,7 @@ import 'zod-openapi';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
+import { labelSourceValues } from '$lib/server/schema';
 
 const optNutrient = z.number().nullable().optional();
 const nutrientFields = Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, optNutrient]));
@@ -27,6 +28,12 @@ export const foodSchema = z
 		additives: z.array(z.string()).nullable(),
 		ingredientsText: z.string().nullable(),
 		imageUrl: z.string().nullable(),
+		// General en_US nouns describing what the food physically is, as a camera
+		// would see it. Flattened server-side from the food_labels table (sorted,
+		// deduped, sources collapsed) so clients see one more scalar-ish field.
+		// Optional rather than required: not every food-returning path aggregates
+		// them, and a missing key must not break a generated client's decode.
+		labels: z.array(z.string()).nullable().optional(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})
@@ -97,3 +104,33 @@ export const foodDuplicatesResponseSchema = z
 		groups: z.array(foodDuplicateGroupSchema)
 	})
 	.meta({ id: 'FoodDuplicatesResponse' });
+
+export const foodLabelDetailSchema = z
+	.object({
+		label: z.string(),
+		source: z.enum(labelSourceValues),
+		confidence: z.number().nullable(),
+		createdAt: z.string().nullable()
+	})
+	.meta({ id: 'FoodLabelDetail' });
+
+export const foodLabelsResponseSchema = z
+	.object({
+		labels: z.array(foodLabelDetailSchema)
+	})
+	.meta({ id: 'FoodLabelsResponse' });
+
+export const foodLabelsBatchItemResultSchema = z
+	.object({
+		foodId: z.string().uuid(),
+		ok: z.boolean(),
+		labels: z.array(z.string()).optional(),
+		error: z.string().optional()
+	})
+	.meta({ id: 'FoodLabelsBatchItemResult' });
+
+export const foodLabelsBatchResponseSchema = z
+	.object({
+		results: z.array(foodLabelsBatchItemResultSchema)
+	})
+	.meta({ id: 'FoodLabelsBatchResponse' });

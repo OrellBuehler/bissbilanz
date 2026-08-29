@@ -77,7 +77,9 @@ describe('foods-db', () => {
 			const result = await createFood(TEST_USER.id, VALID_FOOD_PAYLOAD);
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data).toEqual(newFood);
+				// A food that was just inserted cannot have labels yet, but the field
+				// still has to be there — clients cache the create response.
+				expect(result.data).toEqual({ ...newFood, labels: [] });
 			}
 		});
 

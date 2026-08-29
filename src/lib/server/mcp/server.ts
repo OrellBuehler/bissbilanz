@@ -13,6 +13,7 @@ import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/w
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { scheduleTypeValues } from '$lib/supplement-units';
 import { aiTaskStatusValues } from '$lib/server/schema';
+import { MAX_BATCH_ITEMS, MAX_LABELS_PER_FOOD } from '$lib/server/labels';
 import {
 	handleCreateFood,
 	handleUpdateFood,
@@ -70,6 +71,9 @@ import {
 	handleSetDayProperties,
 	handleDeleteDayProperties,
 	handleGetCalendarStats,
+	handleListUnlabeledFoods,
+	handleSetFoodLabels,
+	handleSetFoodLabelsBatch,
 	handleListAiTasks,
 	handleGetAiTask,
 	handleCompleteAiTask,
@@ -100,7 +104,17 @@ Conventions that apply to every tool:
 - Search before you create. Check search_foods (and find_food_by_barcode or search_openfoodfacts for packaged products) before create_food, and prefer logging an existing foodId or recipeId over a quick log. Use quickName/quickCalories only for one-off estimates such as restaurant meals.
 - Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes.
 - Supplements: timeOfDay ("morning", "noon", "evening", or omitted for anytime) and reminderTimes (local "HH:MM") are scheduling preferences only. log_supplement marks a supplement taken for the whole day and creates the matching food entries; there are no per-slot logs. Check get_supplement_status before logging to avoid duplicates.
-- log_food and delete_entry return the updated daily status, so a follow-up get_daily_status is unnecessary after logging.`;
+- log_food and delete_entry return the updated daily status, so a follow-up get_daily_status is unnecessary after logging.
+- Food labels are general en_US nouns for what a food physically is ("banana", "bottle", "sandwich"), always English whatever the food is named in. Write them with set_food_labels_batch after paging list_unlabeled_foods; the label_foods prompt does the whole sweep.`;
+
+/**
+ * The labelling contract. This text is the product: it is what steers a model
+ * into emitting labels that match what Visual Intelligence hands the app.
+ * Labels are always en_US regardless of the user's locale — see the comment on
+ * the `foodLabels` table.
+ */
+const LABEL_CONTRACT =
+	'Return 3-8 general English (en_US) nouns describing what the food physically IS or visibly contains, as a camera would see it. Use singular, lowercase, everyday terms - banana, bread, cheese, bottle, salad. Do NOT use brand names, product names, nutrition terms, cuisines, or adjectives. Prefer the concrete object over the category, but include one broader term where it is natural (banana, fruit). Always English, whatever language the food is named in: a food called "Banane" is still labelled "banana".';
 
 export function createMcpServer(userId: string): McpServer {
 	const server = new McpServer(
@@ -1167,6 +1181,71 @@ export function createMcpServer(userId: string): McpServer {
 	);
 
 	// AI task queue
+	server.registerTool(
+		'list_unlabeled_foods',
+		{
+			title: 'List Unlabeled Foods',
+			description:
+				"List foods in the user's database that carry no labels yet, so a labelling sweep can find its work. Returns the name, brand and a snippet of the ingredient list — you cannot see the food, so label from those.",
+			inputSchema: {
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(200)
+					.optional()
+					.describe('Maximum number of foods to return. Defaults to 50.'),
+				offset: z
+					.number()
+					.int()
+					.min(0)
+					.optional()
+					.describe('Number of foods to skip for pagination.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleListUnlabeledFoods(userId, args))
+	);
+
+	server.registerTool(
+		'set_food_labels',
+		{
+			title: 'Set Food Labels',
+			description: `Replace the labels you previously wrote for one food. ${LABEL_CONTRACT} Labels are normalized server-side (lowercased, singularized), and your write never touches labels the user set by hand. Prefer set_food_labels_batch when labelling more than one food.`,
+			inputSchema: {
+				foodId: z.string().uuid().describe('ID of the food to label'),
+				labels: z
+					.array(z.string())
+					.max(MAX_LABELS_PER_FOOD)
+					.describe('General en_US nouns for what the food is. Pass an empty array to clear.')
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleSetFoodLabels(userId, args))
+	);
+
+	server.registerTool(
+		'set_food_labels_batch',
+		{
+			title: 'Set Food Labels (Batch)',
+			description: `Label many foods in one call — the normal way to run a labelling sweep. ${LABEL_CONTRACT} Results are per-item, so one unknown id does not fail the batch.`,
+			inputSchema: {
+				items: z
+					.array(
+						z.object({
+							foodId: z.string().uuid().describe('ID of the food to label'),
+							labels: z.array(z.string()).max(MAX_LABELS_PER_FOOD)
+						})
+					)
+					.min(1)
+					.max(MAX_BATCH_ITEMS)
+					.describe(`Up to ${MAX_BATCH_ITEMS} foods with their labels.`)
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleSetFoodLabelsBatch(userId, args))
+	);
+
 	server.registerTool(
 		'list_ai_tasks',
 		{
