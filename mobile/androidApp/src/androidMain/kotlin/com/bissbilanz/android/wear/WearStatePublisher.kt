@@ -20,6 +20,8 @@ import com.bissbilanz.wear.WearPaths
 import com.bissbilanz.wear.WearSleepInfo
 import com.bissbilanz.wear.WearState
 import com.bissbilanz.wear.WearWeightInfo
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CancellationException
@@ -31,6 +33,24 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
+
+/**
+ * True when the failure is Play services saying it has no Wearable API — the normal
+ * state of a phone that never supported Wear, not something to report. The cause chain
+ * is walked because the Data Layer wraps the [ApiException] before it reaches us.
+ *
+ * The code to match is [CommonStatusCodes.API_NOT_CONNECTED] (17). The message reads
+ * "statusCode=API_UNAVAILABLE", but that is the nested `ConnectionResult`'s label —
+ * there is no `API_UNAVAILABLE` on [CommonStatusCodes] to compare against.
+ */
+internal fun Throwable.isWearableApiUnavailable(): Boolean {
+    var current: Throwable? = this
+    while (current != null) {
+        if (current is ApiException && current.statusCode == CommonStatusCodes.API_NOT_CONNECTED) return true
+        current = current.cause
+    }
+    return false
+}
 
 /**
  * Builds the watch's view of today and pushes it over the Data Layer.
@@ -50,7 +70,20 @@ class WearStatePublisher(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Set once the Data Layer reports API_NOT_CONNECTED — a phone whose Play services
+     * has no Wearable module, where every publish is doomed. `publish()` runs on each
+     * entry change, so without this latch such a device rebuilds the whole day's state
+     * from six repositories and then reports an expected failure, over and over.
+     *
+     * Deliberately process-scoped rather than persisted: installing the Wear OS
+     * companion app makes the API appear, and a restart is enough to pick it up.
+     */
+    @Volatile
+    private var wearableUnavailable = false
+
     suspend fun publish() {
+        if (wearableUnavailable) return
         try {
             val state = buildState()
             val request =
@@ -66,6 +99,10 @@ class WearStatePublisher(
                 .await()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (e.isWearableApiUnavailable()) {
+                wearableUnavailable = true
+                return
+            }
             errorReporter.captureException(e)
         }
     }
