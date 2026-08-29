@@ -140,6 +140,29 @@ final class FoodRepository {
         save()
     }
 
+    /// Caches the user's whole food database, page by page.
+    ///
+    /// Foods are otherwise cached opportunistically — favorites, recents, search
+    /// hits, scanned barcodes — which is enough to log with but not to analyse
+    /// with: resolving a 90-day window's extended nutrients (sodium, caffeine,
+    /// omega-3/6, NOVA group…) needs the food behind every entry, including ones
+    /// logged months ago and never opened since.
+    ///
+    /// Paging stops on the first short page. Rows with an un-uploaded queued
+    /// write are skipped, as everywhere else.
+    func mirrorAll(pageSize: Int = 200, maxPages: Int = 50) async throws {
+        guard !appMode.isLocal else { return }
+        let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+        for page in 0 ..< maxPages {
+            let foods = try await api.getFoods(limit: pageSize, offset: page * pageSize)
+            for food in foods where !pendingIds.contains(food.id) {
+                upsert(food)
+            }
+            save()
+            if foods.count < pageSize { return }
+        }
+    }
+
     /// Server-ordered recents (trimmed foods, not cached — mirrors Android);
     /// falls back to the locally derived list offline and in Local mode.
     func refreshRecentFoods(limit: Int = 20) async -> [Food] {
