@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Also used as android:initialLayout, so every element here must be a class
+     RemoteViews accepts (@RemoteView-annotated). A plain <View> is not one, and
+     the host silently falls back to its "Problem loading widget" error view. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,39 +10,44 @@
     android:orientation="horizontal"
     android:padding="12dp">
 
-    <View
+    <ImageView
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_margin="4dp"
         android:background="@drawable/widget_preview_ring"
-        android:backgroundTint="#3B82F6" />
+        android:backgroundTint="#3B82F6"
+        android:importantForAccessibility="no" />
 
-    <View
+    <ImageView
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_margin="4dp"
         android:background="@drawable/widget_preview_ring"
-        android:backgroundTint="#EF4444" />
+        android:backgroundTint="#EF4444"
+        android:importantForAccessibility="no" />
 
-    <View
+    <ImageView
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_margin="4dp"
         android:background="@drawable/widget_preview_ring"
-        android:backgroundTint="#F97316" />
+        android:backgroundTint="#F97316"
+        android:importantForAccessibility="no" />
 
-    <View
+    <ImageView
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_margin="4dp"
         android:background="@drawable/widget_preview_ring"
-        android:backgroundTint="#EAB308" />
+        android:backgroundTint="#EAB308"
+        android:importantForAccessibility="no" />
 
-    <View
+    <ImageView
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_margin="4dp"
         android:background="@drawable/widget_preview_ring"
-        android:backgroundTint="#22C55E" />
+        android:backgroundTint="#22C55E"
+        android:importantForAccessibility="no" />
 
 </LinearLayout>

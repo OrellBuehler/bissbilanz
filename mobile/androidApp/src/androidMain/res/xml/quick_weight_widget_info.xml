@@ -9,5 +9,6 @@
     android:updatePeriodMillis="0"
     android:description="@string/weight_widget_description"
     android:previewImage="@mipmap/ic_launcher"
+    android:initialLayout="@layout/quick_weight_widget_loading"
     android:previewLayout="@layout/quick_weight_widget_preview"
     android:widgetCategory="home_screen" />

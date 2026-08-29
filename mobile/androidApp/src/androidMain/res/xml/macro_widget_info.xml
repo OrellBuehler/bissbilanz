@@ -11,6 +11,7 @@
     android:configure="com.bissbilanz.android.widget.MacroWidgetConfigActivity"
     android:description="@string/widget_description"
     android:previewImage="@mipmap/ic_launcher"
+    android:initialLayout="@layout/macro_widget_preview"
     android:previewLayout="@layout/macro_widget_preview"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable" />

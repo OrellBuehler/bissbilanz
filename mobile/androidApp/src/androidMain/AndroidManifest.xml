@@ -64,7 +64,8 @@
         </activity>
         <receiver
             android:name=".widget.MacroWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/macro_widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -84,7 +85,8 @@
 
         <receiver
             android:name=".widget.QuickScanWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/scan_widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -95,7 +97,8 @@
 
         <receiver
             android:name=".widget.QuickWeightWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/weight_widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -111,7 +114,8 @@
 
         <receiver
             android:name=".widget.FavoritesWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/favorites_widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

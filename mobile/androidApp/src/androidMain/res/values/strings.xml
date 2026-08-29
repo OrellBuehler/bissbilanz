@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Widget picker labels: without android:label on the receiver every widget
+         shows up as "Bissbilanz", so they are indistinguishable in the list. -->
+    <string name="macro_widget_title">Macro Rings</string>
+    <string name="scan_widget_title">Scan Barcode</string>
+    <string name="favorites_widget_title">Favorites</string>
     <string name="widget_description">Daily macro progress rings showing calories, protein, carbs, fat, and fiber</string>
     <string name="scan_widget_description">Tap to open the barcode scanner</string>
     <string name="scan_widget_content_desc">Scan barcode</string>
