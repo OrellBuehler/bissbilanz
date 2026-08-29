@@ -37,14 +37,17 @@ final class InsightsAnalyticsModel {
     /// Recomputes from whatever is cached, then backfills and recomputes if this
     /// window has not been pulled yet this session.
     func load(context: ModelContext, entries: EntryRepository, foods: FoodRepository) async {
-        isLoading = bundle == nil
+        let needsBackfill = !backfilledRanges.contains(range.days)
         compute(context: context)
-        isLoading = false
+        // On a first open the store can be empty while the pull is still in
+        // flight; show the spinner rather than a premature "not enough data".
+        isLoading = bundle == nil && needsBackfill
+        guard needsBackfill else { return }
 
-        guard !backfilledRanges.contains(range.days) else { return }
         backfilledRanges.insert(range.days)
         await backfill(entries: entries, foods: foods)
         compute(context: context)
+        isLoading = false
     }
 
     /// Pull-to-refresh: always refetches the window, even if already backfilled.

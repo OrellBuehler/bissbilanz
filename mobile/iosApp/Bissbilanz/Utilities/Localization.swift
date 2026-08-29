@@ -2264,6 +2264,14 @@ enum L10n {
         localized("sleep_section_title", en: "Sleep", de: "Schlaf")
     }
 
+    static var insightsMoreWithAccount: String {
+        localized(
+            "insights_more_with_account",
+            en: "More insights available with an account",
+            de: "Weitere Auswertungen mit einem Konto verfügbar"
+        )
+    }
+
     // MARK: - Insights (analytics cards)
 
     // Mirrors the insights_* keys in the Android app's strings.xml one-for-one,

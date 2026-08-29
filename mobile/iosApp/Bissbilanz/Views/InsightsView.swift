@@ -13,6 +13,7 @@ struct InsightsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(AppModeManager.self) private var appModeManager
 
     @State private var weeklyStats: MacroTotals?
     @State private var monthlyStats: MacroTotals?
@@ -97,6 +98,12 @@ struct InsightsView: View {
                 if isLoading {
                     LoadingView()
                 } else {
+                    if appModeManager.isLocal {
+                        // Weekly/monthly stats, streaks, top foods and the meal
+                        // breakdown are all server-computed; the analytics tabs
+                        // are not, and work offline.
+                        CardView { InsightEmptyState(message: L10n.insightsMoreWithAccount) }
+                    }
                     // Streaks are overall rather than range-dependent, but they
                     // belong to the overview rather than above the tab picker.
                     streaksCard
