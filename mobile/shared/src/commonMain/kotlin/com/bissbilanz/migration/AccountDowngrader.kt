@@ -91,27 +91,19 @@ class AccountDowngrader(
      * Deletes the server account and flips the app to Local mode. The local
      * database is left untouched — it is now the primary store.
      *
-     * The mode flip happens BEFORE the irreversible delete: if the delete
-     * succeeds but the process dies (or a later step throws) the app must never
-     * be left in [AppMode.SYNCED] talking to an account that no longer exists —
-     * from there the user's obvious next move, signing out, wipes the very data
-     * the download just rescued. A failed delete restores the previous mode, so
-     * the only state that survives an error is the one the user started in.
+     * Step order is load-bearing and must not be "improved": Authenticated +
+     * [AppMode.LOCAL] is what routes the app to the migration screen, so the
+     * mode may only flip once the session is gone. Everything after the delete
+     * is therefore isolated instead of reordered — the account no longer
+     * exists, and an app left in [AppMode.SYNCED] against it is how the user
+     * ends up signing out and wiping the data this download just rescued. A
+     * stale queue row or session token is recoverable; that is not.
      */
     suspend fun finalize() {
-        val previousMode = appModeManager.mode.value
-        appModeManager.setMode(AppMode.LOCAL)
-        try {
-            api.deleteAccount()
-        } catch (e: Throwable) {
-            if (previousMode == null) appModeManager.clear() else appModeManager.setMode(previousMode)
-            throw e
-        }
-        // The account is gone; the local store is now primary. Nothing below may
-        // fail the downgrade — a stale queue row or session token is recoverable,
-        // reporting failure here is not.
+        api.deleteAccount()
         runCatching { syncQueue.clear() }
         runCatching { authManager.logout() }
+        appModeManager.setMode(AppMode.LOCAL)
     }
 
     enum class DownloadStep { FOODS, RECIPES, SUPPLEMENTS, ENTRIES, MEASUREMENTS, SETTINGS }

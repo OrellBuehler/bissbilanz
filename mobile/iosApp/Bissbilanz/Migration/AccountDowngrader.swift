@@ -159,27 +159,17 @@ final class AccountDowngrader {
 
     /// Deletes the server account and switches the app to Local mode.
     ///
-    /// The mode flip happens BEFORE the irreversible delete: if the delete
-    /// succeeds but anything after it fails, the app must never be left in
-    /// `.synced` talking to an account that no longer exists — from there the
-    /// user's obvious next move, signing out, wipes the very data the download
-    /// just rescued. A failed delete restores the previous mode, so the only
-    /// state that survives an error is the one the user started in.
+    /// Step order is load-bearing and must not be "improved": authenticated +
+    /// `.local` is what routes the app to the migration screen, so the mode may
+    /// only flip once the session is gone. Everything after the delete is
+    /// therefore ordered so it cannot leave the app in `.synced` against an
+    /// account that no longer exists — that state is how the user ends up
+    /// signing out and wiping the data this download just rescued.
     private func finalizeDowngrade() async throws {
-        let previousMode = appModeManager.mode
-        appModeManager.setMode(.local)
-        do {
-            try await api.deleteAccount()
-        } catch {
-            if let previousMode {
-                appModeManager.setMode(previousMode)
-            } else {
-                appModeManager.clear()
-            }
-            throw error
-        }
+        try await api.deleteAccount()
         syncManager.clearQueue()
         authManager.logout()
+        appModeManager.setMode(.local)
     }
 
     private func insert<T, M: PersistentModel>(_ items: [T], _ make: (T) -> M) async {
