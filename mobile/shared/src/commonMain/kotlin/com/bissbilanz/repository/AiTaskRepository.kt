@@ -29,18 +29,26 @@ class AiTaskRepository(
      * Android turns these into local notifications; suppressing repeats is the
      * caller's job, since acknowledgement only happens when the list is opened.
      */
-    var onUnreadDismissals: ((List<AiTask>) -> Unit)? = null
+    var onUnreadDismissals: ((unread: List<AiTask>, knownIds: Set<String>) -> Unit)? = null
 
+    /**
+     * Rethrows after reporting so callers can react — the list screen shows a failure
+     * instead of an empty "you're all caught up", and the poll worker can retry.
+     * Fan-out callers wrap this in their own catch.
+     */
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         try {
             val response = api.listAiTasks(limit = 100)
             _tasks.value = response.tasks
             val unread = response.tasks.filter { it.isUnreadDismissal() }
-            if (unread.isNotEmpty()) onUnreadDismissals?.invoke(unread)
+            if (unread.isNotEmpty()) {
+                onUnreadDismissals?.invoke(unread, response.tasks.mapTo(mutableSetOf()) { it.id })
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
+            throw e
         }
     }
 

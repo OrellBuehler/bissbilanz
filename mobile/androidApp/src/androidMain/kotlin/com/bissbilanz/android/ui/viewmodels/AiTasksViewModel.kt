@@ -56,22 +56,41 @@ class AiTasksViewModel(
         savedStateHandle[KEY_FILTER] = value.name
     }
 
+    private val _loadFailed = MutableStateFlow(false)
+    val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
+
     /** Initial load: pull, then clear the unread badge because the user is looking at it. */
     fun load() {
         viewModelScope.launch {
             _isLoading.value = true
+            _loadFailed.value = false
             runCatching {
                 aiTaskRepo.refresh()
+                // Show the tab holding what the user came here for. Opening from a
+                // dismissal notification would otherwise land on Open, which by
+                // definition cannot contain the task they just tapped.
+                if (savedStateHandle.get<String>(KEY_FILTER) == null &&
+                    aiTaskRepo.unreadCount() > 0
+                ) {
+                    savedStateHandle[KEY_FILTER] = Filter.DISMISSED.name
+                }
                 aiTaskRepo.acknowledgeAll()
-            }.onFailure { errorReporter.captureException(it as? Exception ?: Exception(it)) }
+            }.onFailure {
+                _loadFailed.value = true
+                errorReporter.captureException(it as? Exception ?: Exception(it))
+            }
             _isLoading.value = false
         }
     }
 
-    fun refresh() {
-        viewModelScope.launch {
+    /** Suspends so pull-to-refresh keeps its spinner up until the pull actually ends. */
+    suspend fun refresh() {
+        runCatching {
             aiTaskRepo.refresh()
             aiTaskRepo.acknowledgeAll()
+        }.onFailure {
+            _loadFailed.value = true
+            errorReporter.captureException(it as? Exception ?: Exception(it))
         }
     }
 

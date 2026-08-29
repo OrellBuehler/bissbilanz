@@ -47,6 +47,9 @@ fun AiTasksScreen(navController: NavController) {
     val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle(emptyList())
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
     var taskToDelete by remember { mutableStateOf<AiTask?>(null) }
 
     val filters =
@@ -61,6 +64,10 @@ fun AiTasksScreen(navController: NavController) {
     // out-of-app notification is missing.
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(loadFailed) {
+        if (loadFailed) snackbarHostState.showSnackbar(loadFailedMessage)
+    }
+
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !AiTaskNotifier.hasPermission(context)
@@ -102,6 +109,7 @@ fun AiTasksScreen(navController: NavController) {
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             SingleChoiceSegmentedButtonRow(

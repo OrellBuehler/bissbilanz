@@ -74,6 +74,8 @@ fun AppNavigation() {
 
     LaunchedEffect(Unit) {
         MainActivity.navigationEvent.collect { route ->
+            // Replayed, so drop it once handled or every recomposition re-navigates.
+            MainActivity.consumeNavigationEvent()
             navController.navigate(route) {
                 launchSingleTop = true
             }

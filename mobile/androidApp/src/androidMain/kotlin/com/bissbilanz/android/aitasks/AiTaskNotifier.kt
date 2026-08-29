@@ -30,14 +30,21 @@ object AiTaskNotifier {
     /** Clear of FastingNotifier's 4201 and the supplement summary's 4300. */
     private const val SUMMARY_NOTIFICATION_ID = 4400
 
-    // The POST_NOTIFICATIONS guard is the `hasPermission` early return below;
-    // lint cannot follow it through the helper, hence the suppression.
+    /**
+     * Returns whether the notifications were actually posted. Callers must not record
+     * these tasks as announced when it returns false: without POST_NOTIFICATIONS
+     * nothing was shown, and marking them would mean the user is never told once they
+     * grant the permission.
+     *
+     * The POST_NOTIFICATIONS guard is the `hasPermission` early return below; lint
+     * cannot follow it through the helper, hence the suppression.
+     */
     @SuppressLint("MissingPermission")
     fun showDismissed(
         context: Context,
         tasks: List<AiTask>,
-    ) {
-        if (tasks.isEmpty() || !hasPermission(context)) return
+    ): Boolean {
+        if (tasks.isEmpty() || !hasPermission(context)) return false
         ensureChannel(context)
 
         val manager = NotificationManagerCompat.from(context)
@@ -63,6 +70,7 @@ object AiTaskNotifier {
         // Several tasks can be dismissed in one assistant session; the summary keeps
         // them collapsed into one row instead of flooding the shade.
         manager.notify(SUMMARY_NOTIFICATION_ID, summaryNotification(context))
+        return true
     }
 
     fun notificationId(taskId: String): Int = taskId.hashCode() and 0x0FFF_FFFF

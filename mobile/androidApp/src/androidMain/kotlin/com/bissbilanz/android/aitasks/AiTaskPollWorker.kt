@@ -29,15 +29,15 @@ class AiTaskPollWorker(
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val koin = KoinJavaComponent.getKoin()
-        if (koin.get<AppModeManager>().isLocal) return Result.success()
         return try {
+            if (koin.get<AppModeManager>().isLocal) return Result.success()
             // The repository's onUnreadDismissals hook, wired in BissbilanzApplication,
             // posts the notification.
             koin.get<AiTaskRepository>().refresh()
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            koin.get<ErrorReporter>().captureException(e)
+            runCatching { koin.get<ErrorReporter>().captureException(e) }
             Result.retry()
         }
     }

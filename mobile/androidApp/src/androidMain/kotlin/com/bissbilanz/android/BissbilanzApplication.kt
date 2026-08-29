@@ -207,15 +207,18 @@ class BissbilanzApplication : Application() {
         // hear about — the meal never got logged. Acknowledgement happens when the list
         // is opened, not when a notification is posted, so repeat suppression is local.
         val aiTaskNotificationPrefs = koin.get<AiTaskNotificationPreferences>()
-        koin.get<AiTaskRepository>().onUnreadDismissals = { unread ->
+        koin.get<AiTaskRepository>().onUnreadDismissals = { unread, knownIds ->
             val fresh = aiTaskNotificationPrefs.unnotified(unread.map { it.id })
-            if (fresh.isNotEmpty()) {
-                AiTaskNotifier.showDismissed(
-                    this@BissbilanzApplication,
-                    unread.filter { it.id in fresh },
-                )
-            }
-            aiTaskNotificationPrefs.markNotified(fresh, unread.map { it.id }.toSet())
+            val shown =
+                fresh.isNotEmpty() &&
+                    AiTaskNotifier.showDismissed(
+                        this@BissbilanzApplication,
+                        unread.filter { it.id in fresh },
+                    )
+            // Only ids we actually put on screen, and pruned against every id the
+            // server returned — pruning against just the unread ones would drop an
+            // id a concurrent refresh had already recorded, re-alerting the user.
+            aiTaskNotificationPrefs.markNotified(if (shown) fresh else emptyList(), knownIds)
         }
         // Nothing else pulls AI tasks while the app is closed — there is no push
         // channel, and the only other periodic work exists solely for the widgets.
