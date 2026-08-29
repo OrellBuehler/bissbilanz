@@ -1,0 +1,67 @@
+name: Feature request
+description: Suggest a new feature or an improvement to an existing one
+title: 'feat: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bissbilanz is a small hobby project, so not every idea can be built — but all of them are
+        read. Describing the problem you are trying to solve helps more than describing only a
+        solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do today, and where does the app get in the way?
+      placeholder: I eat the same breakfast every morning and have to search for each food again.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like the app to do?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Which apps should this cover?
+      multiple: true
+      options:
+        - Web app
+        - Android app
+        - iPhone app
+        - Apple Watch app
+        - Wear OS app
+        - Home screen widget
+        - AI assistant / MCP
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: How do you handle this today, in Bissbilanz or in another app?
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Mockups, screenshots from other apps, or an example of how you would use it.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate
+          required: true

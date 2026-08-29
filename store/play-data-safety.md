@@ -12,17 +12,19 @@ privacy policy (`/privacy`). Update this file and the policy together.
 **Do you provide a way for users to request that their data is deleted?** Yes —
 in-app (Settings → Delete account) and https://bissbilanz.orellbuehler.ch/account-deletion
 
-| Data type                                   | Collected | Shared | Optional         | Purpose                                               |
-| ------------------------------------------- | --------- | ------ | ---------------- | ----------------------------------------------------- |
-| Personal info → Name                        | Yes       | No     | Yes (local mode) | Account management                                    |
-| Personal info → Email address               | Yes       | No     | Yes (local mode) | Account management                                    |
-| Health & fitness → Health info              | Yes       | No     | Yes (local mode) | App functionality (food/weight/sleep logs)            |
-| Photos & videos → Photos                    | Yes       | No     | Yes              | App functionality (food/recipe photos, AI estimation) |
-| App activity → Other user-generated content | Yes       | No     | Yes (local mode) | App functionality (foods, recipes, notes)             |
-| App info & performance → Crash logs         | Yes       | No     | No               | Analytics (Sentry crash reporting)                    |
-| App info & performance → Diagnostics        | Yes       | No     | No               | Analytics (Sentry)                                    |
+| Data type                                   | Collected | Shared | Optional         | Purpose                                                   |
+| ------------------------------------------- | --------- | ------ | ---------------- | --------------------------------------------------------- |
+| Personal info → Name                        | Yes       | No     | Yes (local mode) | Account management                                        |
+| Personal info → Email address               | Yes       | No     | Yes (local mode) | Account management                                        |
+| Personal info → User IDs                    | Yes       | No     | Yes (local mode) | Account management (identifier from the sign-in provider) |
+| Health & fitness → Health info              | Yes       | No     | Yes (local mode) | App functionality (food/weight/sleep logs)                |
+| Photos & videos → Photos                    | Yes       | No     | Yes              | App functionality (food/recipe photos, AI estimation)     |
+| App activity → Other user-generated content | Yes       | No     | Yes (local mode) | App functionality (foods, recipes, notes)                 |
+| App info & performance → Crash logs         | Yes       | No     | No               | Analytics (Sentry crash reporting)                        |
+| App info & performance → Diagnostics        | Yes       | No     | No               | Analytics (Sentry)                                        |
 
-Everything else (location, contacts, identifiers, financial info, browsing, …): **not collected**.
+Everything else (location, contacts, device or advertising identifiers, financial info, browsing, …):
+**not collected**.
 
 Notes:
 
@@ -31,6 +33,12 @@ Notes:
   advertising.
 - Umami analytics runs only on the web app, not in the Android app — it does
   not belong on this form.
+- Sign-in providers: Infomaniak, Google, Microsoft and Apple. Only the provider
+  the user picks is involved, and none of them receives app data — so they are
+  not "sharing" either.
+- Health Connect: values the user imports become normal entries and are covered
+  by the Health & fitness row; nothing read from Health Connect is shared or
+  sent to Sentry.
 - Data deletion: account deletion removes all server data immediately.
 
 ## Content rating questionnaire (IARC)
@@ -52,8 +60,10 @@ user-entered data, gives no advice).
   sign-in.
 - **Ads:** No ads.
 - **Data safety:** see above.
-- **Health apps declaration:** not applicable — the Android app has no Health
-  Connect integration (removed) and makes no health claims.
+- **Health apps declaration:** applies — the Android app integrates Health
+  Connect (read and write weight and sleep, write nutrition). The declaration
+  was submitted and approved on 2026-08-29. The app still makes no health
+  claims. If the permissions change, the declaration has to be refiled.
 - **Target audience:** 18+ (or 13+; do NOT include under-13 — avoids Families
   policy requirements).
 - **News app:** No. **COVID-19 app:** No. **Government app:** No.
