@@ -91,7 +91,7 @@ export async function assertNoOverlappingInteractiveElements(page: Page) {
 }
 
 export async function assertBottomNavDoesNotOverlapContent(page: Page) {
-	const result = await page.evaluate(() => {
+	const result = await page.evaluate(async () => {
 		const nav = document.querySelector('nav.fixed.bottom-0');
 		const main = document.querySelector('main');
 		if (!nav || !main) return null;
@@ -102,23 +102,32 @@ export async function assertBottomNavDoesNotOverlapContent(page: Page) {
 		});
 		if (mainChildren.length === 0) return null;
 
-		// Scroll to bottom to check the worst case
-		main.scrollTop = main.scrollHeight;
-		window.scrollTo(0, document.body.scrollHeight);
+		// Scroll to bottom to check the worst case. `scroll-behavior: smooth` is set
+		// globally, so the jump has to be forced instant and given a frame to settle —
+		// otherwise every below-the-fold element still measures as behind the nav.
+		main.scrollTo({ top: main.scrollHeight, behavior: 'instant' });
+		window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
+		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
 		const navRect = nav.getBoundingClientRect();
 		const overlapping: string[] = [];
 
 		for (const el of mainChildren) {
 			const rect = el.getBoundingClientRect();
-			if (rect.bottom > navRect.top + 2 && rect.top < navRect.bottom - 2) {
+			const style = getComputedStyle(el);
+			// Bottom padding is how the layout reserves room for the fixed nav, so a
+			// container whose padding reaches under it still shows all of its content.
+			const contentBottom =
+				rect.bottom -
+				parseFloat(style.paddingBottom || '0') -
+				parseFloat(style.borderBottomWidth || '0');
+			if (contentBottom > navRect.top + 2 && rect.top < navRect.bottom - 2) {
 				// Check if element is actually visible (not clipped by overflow)
-				const style = getComputedStyle(el);
 				if (style.visibility !== 'hidden' && style.opacity !== '0') {
 					const tag = el.tagName.toLowerCase();
 					const text = el.textContent?.trim().slice(0, 30) ?? '';
 					overlapping.push(
-						`${tag}("${text}") bottom:${Math.round(rect.bottom)} nav-top:${Math.round(navRect.top)}`
+						`${tag}("${text}") bottom:${Math.round(contentBottom)} nav-top:${Math.round(navRect.top)}`
 					);
 				}
 			}
@@ -132,7 +141,15 @@ export async function assertBottomNavDoesNotOverlapContent(page: Page) {
 	}
 }
 
+export async function assertSingleMainLandmark(page: Page) {
+	const count = await page.evaluate(() => document.querySelectorAll('main').length);
+	// The app layout must render its children once — a per-breakpoint copy of the
+	// content tree mounts every page component (and its effects) twice.
+	expect(count, 'the page should render exactly one <main> landmark').toBe(1);
+}
+
 export async function assertMobileLayout(page: Page) {
+	await assertSingleMainLandmark(page);
 	await assertNoHorizontalOverflow(page);
 	await assertNoElementsOverflowingViewport(page);
 	await assertNoOverlappingInteractiveElements(page);
