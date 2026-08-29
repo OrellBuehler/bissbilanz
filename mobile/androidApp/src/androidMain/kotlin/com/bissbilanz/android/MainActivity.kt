@@ -75,7 +75,19 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_NAVIGATE_TO = "navigate_to"
         const val EXTRA_FOOD_ID = "food_id"
-        private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+        // replay = 1: handleIntent runs in onCreate, before setContent, so on a cold
+        // start from a notification tap the route is emitted before AppNavigation's
+        // collector subscribes. With no replay a zero-subscriber emission is dropped
+        // and the user lands on the dashboard instead of the destination.
+        private val _navigationEvent =
+            MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
         val navigationEvent = _navigationEvent.asSharedFlow()
+
+        /** Clears a replayed route so it is not re-delivered on the next recomposition. */
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        fun consumeNavigationEvent() {
+            _navigationEvent.resetReplayCache()
+        }
     }
 }

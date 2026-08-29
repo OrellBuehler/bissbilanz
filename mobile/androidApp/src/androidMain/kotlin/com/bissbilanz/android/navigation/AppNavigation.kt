@@ -74,6 +74,8 @@ fun AppNavigation() {
 
     LaunchedEffect(Unit) {
         MainActivity.navigationEvent.collect { route ->
+            // Replayed, so drop it once handled or every recomposition re-navigates.
+            MainActivity.consumeNavigationEvent()
             navController.navigate(route) {
                 launchSingleTop = true
             }
@@ -110,6 +112,7 @@ fun AppNavigation() {
                         "pending-sync",
                         "fasting",
                         "health",
+                        "ai-tasks",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -249,6 +252,10 @@ fun AppNavigation() {
                 composable("maintenance") {
                     com.bissbilanz.android.ui.screens
                         .MaintenanceScreen(navController)
+                }
+                composable("ai-tasks") {
+                    com.bissbilanz.android.ui.screens
+                        .AiTasksScreen(navController)
                 }
             }
         }

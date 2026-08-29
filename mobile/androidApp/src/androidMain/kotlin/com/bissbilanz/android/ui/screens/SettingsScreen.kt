@@ -331,6 +331,12 @@ fun SettingsScreen(navController: NavController) {
                             SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
                                 navController.navigate("maintenance")
                             }
+                            // The queue only exists server-side — the assistant reaches it
+                            // over MCP — so it has no meaning in Local mode.
+                            HorizontalDivider()
+                            SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) {
+                                navController.navigate("ai-tasks")
+                            }
                         }
                         HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) {
