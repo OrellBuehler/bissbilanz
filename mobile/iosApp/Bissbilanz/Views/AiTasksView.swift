@@ -6,6 +6,7 @@ struct AiTasksView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var selectedFilter: Filter = .open
+    @State private var hasChosenFilter = false
     @State private var errorMessage: String?
 
     private enum Filter: Int, CaseIterable, Identifiable {
@@ -54,6 +55,7 @@ struct AiTasksView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 8)
+            .onChange(of: selectedFilter) { _, _ in hasChosenFilter = true }
 
             Group {
                 if isLoading {
@@ -105,8 +107,15 @@ struct AiTasksView: View {
     private func load() async {
         error = nil
         isLoading = store.tasks.isEmpty
+        await AiTaskNotifier.requestAuthorizationIfNeeded()
         do {
             try await store.refresh()
+            // Show the tab holding what the user came here for. Arriving from a
+            // dismissal notification would otherwise land on Open, which by
+            // definition cannot contain the task they just tapped.
+            if !hasChosenFilter, !store.unreadDismissals.isEmpty {
+                selectedFilter = .dismissed
+            }
             // Opening the list is what marks the outcomes as read — posting a
             // notification does not, so the user's other devices still get to tell them.
             await store.acknowledgeAll()

@@ -33,6 +33,14 @@ enum AiTaskNotifier {
     /// Server-side acknowledgement is what clears the badge, and that only happens when
     /// the user opens the list — so without this local record every refresh in between
     /// would re-raise the same notification.
+    /// Asks for notification permission at the moment of intent — when the user opens
+    /// the AI Tasks list. Without this the feature is silent for anyone who never added
+    /// a supplement reminder, which is the only other place the app asks.
+    @discardableResult
+    static func requestAuthorizationIfNeeded() async -> Bool {
+        await SupplementReminderScheduler.requestAuthorizationIfNeeded()
+    }
+
     static func notifyNewDismissals(_ tasks: [AiTask]) async {
         let unread = tasks.filter(\.isUnreadDismissal)
         guard !unread.isEmpty else {
@@ -78,7 +86,15 @@ enum AiTaskNotifier {
 
     /// Drops ids the server no longer returns so the list cannot grow without bound as
     /// resolved tasks are cleaned up after 30 days.
+    ///
+    /// Pruning is skipped when `knownIds` is empty: a failed or not-yet-run refresh
+    /// looks identical to "no tasks exist", and pruning against that would clear the
+    /// whole record and re-announce every dismissal on the next successful pull.
     private static func store(_ ids: [String], knownIds: Set<String>) {
+        guard !knownIds.isEmpty else {
+            UserDefaults.standard.set(Array(ids.suffix(notifiedCap)), forKey: notifiedKey)
+            return
+        }
         let kept = Array(ids.filter { knownIds.contains($0) }.suffix(notifiedCap))
         UserDefaults.standard.set(kept, forKey: notifiedKey)
     }
