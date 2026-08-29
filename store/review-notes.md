@@ -26,15 +26,13 @@ PRIVACY POLICY: https://bissbilanz.orellbuehler.ch/privacy
 
 ## Demo account
 
-Any of the offered providers works; the demo account below is an Infomaniak one.
+A dedicated Infomaniak store-review account exists, seeded with entries so the
+dashboard isn't empty. Any of the offered providers works for review; this one
+is Infomaniak.
 
-> **TODO (manual):** create a dedicated demo user in Infomaniak and fill in:
->
-> - Email: `store-review@…`
-> - Password: (store in 1Password, paste into both consoles)
->
-> Seed it with a few days of entries so the dashboard isn't empty.
-> Do not reuse a personal account.
+Its credentials live in 1Password and are pasted into both consoles — they are
+deliberately not in this repo, which is public. Keep the two consoles in sync
+if the password is ever rotated.
 
 ## iOS-specific
 
