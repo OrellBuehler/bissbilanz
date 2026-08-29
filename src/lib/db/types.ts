@@ -73,6 +73,9 @@ export type DexieFood = {
 	additives: string[] | null;
 	ingredientsText: string | null;
 	imageUrl: string | null;
+	// General en_US nouns for what the food physically is ("banana", "bottle").
+	// Server-aggregated; no index needed, so no Dexie version bump.
+	labels?: string[] | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 };

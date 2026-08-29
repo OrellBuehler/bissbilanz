@@ -5,6 +5,8 @@ import { ApiError } from '$lib/server/errors';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import type { Result } from '$lib/server/types';
+import { foodColumnsWithLabels } from '$lib/server/food-labels';
+import type { FoodWithLabels } from '$lib/server/foods';
 
 type Food = typeof foods.$inferSelect;
 
@@ -112,7 +114,10 @@ export type MergeFoodsInput = {
  * partial-unique (user_id, barcode) index conflicting when the keeper adopts a
  * source's barcode.
  */
-export async function mergeFoods(userId: string, input: MergeFoodsInput): Promise<Result<Food>> {
+export async function mergeFoods(
+	userId: string,
+	input: MergeFoodsInput
+): Promise<Result<FoodWithLabels>> {
 	const { keeperId, sourceIds, overrides } = input;
 
 	if (sourceIds.length === 0) {
@@ -188,7 +193,7 @@ export async function mergeFoods(userId: string, input: MergeFoodsInput): Promis
 				.update(foods)
 				.set({ ...merged, updatedAt: new Date() })
 				.where(and(eq(foods.id, keeperId), eq(foods.userId, userId)))
-				.returning();
+				.returning(foodColumnsWithLabels);
 
 			if (!updated) {
 				throw new ApiError(500, 'Failed to update keeper food after merge');

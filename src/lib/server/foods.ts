@@ -1,7 +1,24 @@
 import { getDB } from '$lib/server/db';
-import { foods, foodEntries, recipeIngredients, supplementIngredients } from '$lib/server/schema';
+import {
+	foods,
+	foodEntries,
+	foodLabels,
+	recipeIngredients,
+	supplementIngredients
+} from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, getTableColumns, ilike, isNotNull, or } from 'drizzle-orm';
+import { foodColumnsWithLabels } from '$lib/server/food-labels';
+import {
+	and,
+	count,
+	desc,
+	eq,
+	getTableColumns,
+	ilike,
+	isNotNull,
+	notExists,
+	or
+} from 'drizzle-orm';
 import { ApiError, withValidation } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -55,10 +72,12 @@ export const toFoodInsert = (userId: string, input: FoodCreateInput) => {
 	} as typeof foods.$inferInsert;
 };
 
+export type FoodWithLabels = typeof foods.$inferSelect & { labels: string[] };
+
 export const getFood = async (userId: string, id: string) => {
 	const db = getDB();
 	const [food] = await db
-		.select()
+		.select(foodColumnsWithLabels)
 		.from(foods)
 		.where(and(eq(foods.id, id), eq(foods.userId, userId)));
 	return food ? roundNutrition(food) : null;
@@ -66,7 +85,13 @@ export const getFood = async (userId: string, id: string) => {
 
 export const listFoods = async (
 	userId: string,
-	options?: { query?: string; limit?: number; offset?: number; includeSupplements?: boolean }
+	options?: {
+		query?: string;
+		limit?: number;
+		offset?: number;
+		includeSupplements?: boolean;
+		unlabeled?: boolean;
+	}
 ) => {
 	const db = getDB();
 	const offset = options?.offset ?? 0;
@@ -82,12 +107,19 @@ export const listFoods = async (
 	const matchClause = pattern
 		? or(ilike(foods.name, pattern), ilike(foods.brand, pattern))
 		: undefined;
-	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter);
+	// A labeller needs to find its work without paging the whole database and
+	// diffing client-side, so "has no labels at all" is a server-side filter.
+	const unlabeledFilter = options?.unlabeled
+		? notExists(
+				db.select({ one: foodLabels.id }).from(foodLabels).where(eq(foodLabels.foodId, foods.id))
+			)
+		: undefined;
+	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter, unlabeledFilter);
 
 	// `foods.id` is the tiebreaker, not decoration: names are not unique, and an
 	// offset-paginated client (the account download) skips or repeats rows when
 	// equal-name rows come back in a different order between page queries.
-	const q = db.select().from(foods).where(whereClause);
+	const q = db.select(foodColumnsWithLabels).from(foods).where(whereClause);
 	if (pattern) {
 		q.orderBy(desc(ilike(foods.name, pattern)), foods.name, foods.id);
 	} else {
@@ -107,7 +139,7 @@ export const createFood = (
 	userId: string,
 	payload: unknown,
 	dbOverride?: ReturnType<typeof getDB>
-): Promise<Result<typeof foods.$inferSelect>> =>
+): Promise<Result<FoodWithLabels>> =>
 	withValidation(foodCreateSchema, payload, async (data) => {
 		try {
 			const db = dbOverride ?? getDB();
@@ -115,7 +147,8 @@ export const createFood = (
 			if (!created) {
 				throw new Error('Failed to create food');
 			}
-			return roundNutrition(created);
+			// A food that was just inserted cannot have labels yet.
+			return roundNutrition({ ...created, labels: [] as string[] });
 		} catch (error) {
 			const conflict = await handleBarcodeConflict(error, userId, data.barcode, dbOverride);
 			throw conflict ?? error;
@@ -135,7 +168,7 @@ export const updateFood = (
 	id: string,
 	payload: unknown,
 	clientEditedAt?: Date | null
-): Promise<Result<typeof foods.$inferSelect | undefined>> =>
+): Promise<Result<FoodWithLabels | undefined>> =>
 	withValidation(foodUpdateSchema, payload, async (data) => {
 		try {
 			const db = getDB();
@@ -145,7 +178,7 @@ export const updateFood = (
 				.where(
 					and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
 				)
-				.returning();
+				.returning(foodColumnsWithLabels);
 			return updated ? roundNutrition(updated) : updated;
 		} catch (error) {
 			const conflict = await handleBarcodeConflict(error, userId, data.barcode);
@@ -211,7 +244,7 @@ export const findFoodByBarcode = async (
 ) => {
 	const db = dbOverride ?? getDB();
 	const [food] = await db
-		.select()
+		.select(foodColumnsWithLabels)
 		.from(foods)
 		.where(and(eq(foods.userId, userId), eq(foods.barcode, barcode)));
 	return food ?? null;

@@ -1,6 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods, foodEntries, recipes, recipeIngredients } from '$lib/server/schema';
-import { eq, sql, and, count, getTableColumns } from 'drizzle-orm';
+import { eq, sql, and, count } from 'drizzle-orm';
+import { foodColumnsWithLabels } from '$lib/server/food-labels';
 import { macroAggregations } from '$lib/server/recipes';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 
@@ -9,7 +10,7 @@ export const listFavoriteFoods = async (userId: string, limit = 50) => {
 
 	const results = await db
 		.select({
-			...getTableColumns(foods),
+			...foodColumnsWithLabels,
 			logCount: count(foodEntries.id)
 		})
 		.from(foods)

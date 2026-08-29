@@ -513,7 +513,7 @@ private func makeNutrientFood(
         vitaminB5: nil, vitaminB6: nil, vitaminB7: nil, vitaminB9: nil,
         vitaminB12: nil, caffeine: nil, alcohol: nil, water: nil, salt: nil,
         barcode: nil, isFavorite: false, nutriScore: nil, novaGroup: nil,
-        additives: nil, ingredientsText: nil, imageUrl: nil,
+        additives: nil, ingredientsText: nil, imageUrl: nil, labels: nil,
         createdAt: nil, updatedAt: nil
     )
 }

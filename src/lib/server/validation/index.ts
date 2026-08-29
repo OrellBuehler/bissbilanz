@@ -10,3 +10,4 @@ export * from './weight';
 export * from './maintenance';
 export * from './day-properties';
 export * from './ai-tasks';
+export * from './labels';

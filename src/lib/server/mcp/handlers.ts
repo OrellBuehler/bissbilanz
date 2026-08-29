@@ -72,6 +72,7 @@ import {
 	getExtendedNutrientEntries,
 	getDailyNutrientTotals
 } from '$lib/server/analytics';
+import { setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import { listMealTypes } from '$lib/server/meal-types';
 import {
 	getDayProperties,
@@ -142,6 +143,9 @@ export const {
 	handleSetDayProperties,
 	handleDeleteDayProperties,
 	handleGetCalendarStats,
+	handleListUnlabeledFoods,
+	handleSetFoodLabels,
+	handleSetFoodLabelsBatch,
 	handleListAiTasks,
 	handleGetAiTask,
 	handleCompleteAiTask,
@@ -154,6 +158,8 @@ export const {
 	getFood,
 	findFoodByBarcode,
 	listRecentFoods,
+	setFoodLabels,
+	setFoodLabelsBatch,
 	createRecipe,
 	updateRecipe,
 	deleteRecipe,

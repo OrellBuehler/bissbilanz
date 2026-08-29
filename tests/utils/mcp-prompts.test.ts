@@ -14,11 +14,16 @@ async function connect() {
 }
 
 describe('MCP prompts', () => {
-	test('lists the three workflow prompts with titles', async () => {
+	test('lists the workflow prompts with titles', async () => {
 		const client = await connect();
 		const { prompts } = await client.listPrompts();
 		const byName = Object.fromEntries(prompts.map((p) => [p.name, p]));
-		expect(Object.keys(byName).sort()).toEqual(['daily_review', 'log_meal', 'weekly_review']);
+		expect(Object.keys(byName).sort()).toEqual([
+			'daily_review',
+			'label_foods',
+			'log_meal',
+			'weekly_review'
+		]);
 		for (const p of prompts) expect(p.title, `${p.name} title`).toBeTruthy();
 		const logMealArgs = byName.log_meal.arguments ?? [];
 		expect(logMealArgs.find((a) => a.name === 'description')?.required).toBe(true);
@@ -45,6 +50,26 @@ describe('MCP prompts', () => {
 		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
 		expect(text).toContain('for today');
 		expect(text).toContain('get_daily_status');
+	});
+
+	test('label_foods states the en_US rule and names both tools', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({ name: 'label_foods', arguments: {} });
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('list_unlabeled_foods');
+		expect(text).toContain('set_food_labels_batch');
+		// The whole feature hinges on this: a German user's "Banane" must still
+		// carry the label "banana", or the camera can never match it.
+		expect(text).toContain('Banane');
+		expect(text).toContain('English');
+	});
+
+	test('label_foods scopes the sweep when a limit is given', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({ name: 'label_foods', arguments: { limit: '25' } });
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('up to 25');
+		expect(text).toContain('limit=25');
 	});
 
 	test('mealType completes from the default meal types', async () => {

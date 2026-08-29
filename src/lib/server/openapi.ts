@@ -21,8 +21,12 @@ import {
 	foodsListResponseSchema,
 	foodResponseSchema,
 	foodsRecentResponseSchema,
-	foodDuplicatesResponseSchema
+	foodDuplicatesResponseSchema,
+	foodLabelsResponseSchema,
+	foodLabelsSetResponseSchema,
+	foodLabelsBatchResponseSchema
 } from './validation/responses/foods';
+import { foodLabelsSetSchema, foodLabelsBatchSchema } from './validation/labels';
 import {
 	entriesListResponseSchema,
 	entryResponseSchema,
@@ -190,6 +194,7 @@ export function generateSpec() {
 						query: z.object({
 							q: z.string().optional(),
 							barcode: z.string().optional(),
+							unlabeled: z.boolean().optional(),
 							...paginationSchema.shape
 						})
 					},
@@ -264,6 +269,62 @@ export function generateSpec() {
 						},
 						'400': res400,
 						'401': res401
+					}
+				}
+			},
+			'/api/foods/labels': {
+				post: {
+					operationId: 'setFoodLabelsBatch',
+					tags: ['Foods'],
+					description:
+						'Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodLabelsBatchSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodLabelsBatchResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/{id}/labels': {
+				get: {
+					operationId: 'getFoodLabels',
+					tags: ['Foods'],
+					description: "List a food's labels with their source and confidence.",
+					requestParams: { path: uuidPathId },
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodLabelsResponseSchema } }
+						},
+						'401': res401,
+						'404': res404
+					}
+				},
+				put: {
+					operationId: 'setFoodLabels',
+					tags: ['Foods'],
+					description:
+						"Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is.",
+					requestParams: { path: uuidPathId },
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodLabelsSetSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodLabelsSetResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'404': res404
 					}
 				}
 			},

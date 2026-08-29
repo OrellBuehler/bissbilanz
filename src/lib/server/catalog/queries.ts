@@ -1,7 +1,7 @@
 import { and, eq, ilike, asc } from 'drizzle-orm';
 import type { getDB } from '$lib/server/db';
-import { catalogFoods, catalogDatasets, catalogAccess, foods } from '$lib/server/schema';
-import { createFood } from '$lib/server/foods';
+import { catalogFoods, catalogDatasets, catalogAccess } from '$lib/server/schema';
+import { createFood, type FoodWithLabels } from '$lib/server/foods';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result } from '$lib/server/types';
 
@@ -71,7 +71,7 @@ export async function instantiateCatalogFood(
 	db: DB,
 	userId: string,
 	catalogFoodId: string
-): Promise<Result<typeof foods.$inferSelect> | null> {
+): Promise<Result<FoodWithLabels> | null> {
 	const rows = await db
 		.select({ cf: catalogFoods })
 		.from(catalogFoods)

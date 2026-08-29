@@ -54,7 +54,7 @@ tool follows — dates as `YYYY-MM-DD` in your timezone (omit for "today"), capi
 types (`Breakfast`, `Lunch`, `Dinner`, `Snacks`), search-before-create, amounts in servings,
 supplement logging semantics. Clients pass these to the model once.
 
-### Tools (60)
+### Tools (63)
 
 | Area          | Tools                                                                                                                                                                      |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,6 +69,7 @@ supplement logging semantics. Clients pass these to the model once.
 | Stats         | `get_weekly_stats`, `get_monthly_stats`, `get_daily_breakdown`, `get_meal_breakdown`, `get_top_foods`, `get_streaks`, `get_calendar_stats`                                 |
 | Analytics     | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                           |
 | AI task queue | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos/descriptions queued from the mobile apps for an agent to process                       |
+| Food labels   | `list_unlabeled_foods`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                       |
 
 Every tool carries `readOnlyHint`/`destructiveHint`/`idempotentHint` annotations and a
 display `title`. Results are returned as a JSON text block plus `structuredContent`; tools
@@ -85,9 +86,32 @@ with a stable object contract (`get_daily_status`, `log_food`, `delete_entry`,
 | `log_meal`      | `description`, `mealType?`, `date?` | Free-text meal → search / create / `log_food` → summary with remaining budget      |
 | `daily_review`  | `date?`                             | Totals vs goals, gaps, untaken supplements, one or two foods to close the gap      |
 | `weekly_review` | `endDate?`                          | Seven-day averages, consistency, weight trend, top foods, one change for next week |
+| `label_foods`   | `limit?`                            | Sweep the food database and label every unlabelled food (see below)                |
 
 Claude Desktop and Claude Code surface these as slash commands (`/bissbilanz:log_meal …`).
 `mealType` offers completions for the default meal types.
+
+### Food labels
+
+Labels are general **en_US** nouns for what a food physically _is_, as a camera would see
+it — `banana`, `bread`, `bottle`. They exist so a phone can find a food from a camera
+frame, which is matched against that vocabulary and nothing else. **Labels stay English
+whatever the food is named in:** a food called `Banane` must still carry `banana`, or it
+can never be matched.
+
+The server ships the socket, not the labeller: run `label_foods` from any client with an
+LLM subscription and it pages `list_unlabeled_foods`, applies the contract above, and
+writes back with `set_food_labels_batch` until the database is labelled. The same thing is
+reachable over REST (`GET /api/foods?unlabeled=true`, `PUT /api/foods/{id}/labels`,
+`POST /api/foods/labels`) for a local classifier or a third-party tool.
+
+Writes are **replace-by-source**: a write for one source replaces exactly that source's
+rows. MCP writes are forced to source `llm`, so an agent can never delete or overwrite a
+label the user set by hand — while an explicit user write takes ownership of a label an
+agent had claimed. Labels are normalized server-side (lowercased, accent-folded,
+singularized, deduped, max 3 words / 40 characters, max 20 per food); anything that cannot
+be a general en_US noun is dropped rather than stored. Every food read carries the result
+back as a flat `labels` array.
 
 ### Resources
 

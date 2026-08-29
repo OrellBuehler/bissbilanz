@@ -35,6 +35,10 @@ export const aiTaskStatusValues = ['pending', 'completed', 'dismissed'] as const
 export type AiTaskStatus = (typeof aiTaskStatusValues)[number];
 export const aiTaskStatusEnum = pgEnum('ai_task_status', aiTaskStatusValues);
 
+export const labelSourceValues = ['user', 'llm', 'external', 'catalog'] as const;
+export type LabelSource = (typeof labelSourceValues)[number];
+export const labelSourceEnum = pgEnum('label_source', labelSourceValues);
+
 // Users (identified via one or more linked OIDC identities)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -200,6 +204,49 @@ export const foods = pgTable(
 		check(
 			'foods_nova_group_valid',
 			sql`${table.novaGroup} IS NULL OR (${table.novaGroup} >= 1 AND ${table.novaGroup} <= 4)`
+		)
+	]
+);
+
+// Food Labels — general en_US nouns describing what a food physically is, as a
+// camera would see it ("banana", "bottle", "sandwich"). Kept apart from
+// `foods.name`, which is user-authored and locale-dependent: a German user's
+// "Banane" must still carry the label "banana".
+//
+// LABELS ARE ALWAYS en_US, whatever the user's locale. Apple's Visual
+// Intelligence hands an app general en_US nouns and nothing else, so a localized
+// label can never match — and localizing this column later would silently break
+// every match rather than fail loudly.
+//
+// One row per (food, label) rather than a text[] on `foods` so several labellers
+// (the user, an LLM, an external classifier) can coexist and a re-run can be
+// scoped to its own source. See src/lib/server/labels.ts for the write rules.
+export const foodLabels = pgTable(
+	'food_labels',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		foodId: uuid('food_id')
+			.notNull()
+			.references(() => foods.id, { onDelete: 'cascade' }),
+		// Denormalized as elsewhere in this schema, so "which of my foods are
+		// labelled banana" is one index scan on (user_id, label) with no join.
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		label: text('label').notNull(),
+		source: labelSourceEnum('source').notNull(),
+		confidence: real('confidence'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		// Makes every write idempotent: a labeller re-run cannot duplicate.
+		uniqueIndex('idx_food_labels_food_label').on(table.foodId, table.label),
+		index('idx_food_labels_user_label').on(table.userId, table.label),
+		index('idx_food_labels_food_id').on(table.foodId),
+		check(
+			'food_labels_confidence_range',
+			sql`${table.confidence} IS NULL OR (${table.confidence} >= 0 AND ${table.confidence} <= 1)`
 		)
 	]
 );
@@ -833,6 +880,8 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
+export type FoodLabel = typeof foodLabels.$inferSelect;
+export type NewFoodLabel = typeof foodLabels.$inferInsert;
 export type FoodEntry = typeof foodEntries.$inferSelect;
 export type NewFoodEntry = typeof foodEntries.$inferInsert;
 export type UserGoal = typeof userGoals.$inferSelect;
