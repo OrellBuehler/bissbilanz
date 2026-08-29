@@ -91,6 +91,17 @@ struct RecipeDetailView: View {
 
     private func recipeContent(_ recipe: Recipe) -> some View {
         List {
+            if recipe.imageUrl != nil {
+                Section {
+                    FoodImageView(imageUrl: recipe.imageUrl)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+
             Section {
                 HStack {
                     Text(L10n.totalServings)

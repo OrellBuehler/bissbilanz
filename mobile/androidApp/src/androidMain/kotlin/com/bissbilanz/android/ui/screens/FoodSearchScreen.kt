@@ -23,18 +23,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -46,14 +45,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import org.koin.core.qualifier.named
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
-    val baseUrl: String = koinInject(named("baseUrl"))
     val refreshManager: RefreshManager = koinInject()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
@@ -197,7 +194,6 @@ fun FoodSearchScreen(navController: NavController) {
                                 items(searchResults, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
-                                        baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
                                         onQuickLog = {
                                             haptic(HapticFeedbackType.LongPress)
@@ -249,7 +245,6 @@ fun FoodSearchScreen(navController: NavController) {
                                 items(recentFoods, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
-                                        baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
                                         onQuickLog = {
                                             haptic(HapticFeedbackType.LongPress)
@@ -270,7 +265,6 @@ fun FoodSearchScreen(navController: NavController) {
                                 items(allFoods, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
-                                        baseUrl = baseUrl,
                                         onClick = { navController.navigate("food/${food.id}") },
                                         onQuickLog = {
                                             haptic(HapticFeedbackType.LongPress)
@@ -304,7 +298,6 @@ fun FoodSearchScreen(navController: NavController) {
 @Composable
 fun FoodListItem(
     food: Food,
-    baseUrl: String,
     onClick: () -> Unit,
     onQuickLog: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
@@ -320,15 +313,13 @@ fun FoodListItem(
         leadingContent =
             food.imageUrl?.let { url ->
                 {
-                    val imageUrl = if (url.startsWith("/")) "$baseUrl$url" else url
-                    AsyncImage(
-                        model = imageUrl,
+                    FoodImage(
+                        imageUrl = url,
                         contentDescription = food.name,
                         modifier =
                             Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop,
                     )
                 }
             },

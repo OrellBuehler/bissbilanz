@@ -51,6 +51,7 @@ struct BissbilanzApp: App {
     @State private var deepLinkRouter: DeepLinkRouter
     @State private var mealEstimator: MealEstimator
     @State private var fastingManager: FastingTimerManager
+    @State private var foodImageLoader: FoodImageLoader
     private let modelContainer: ModelContainer
 
     init() {
@@ -106,6 +107,7 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
+        _foodImageLoader = State(wrappedValue: FoodImageLoader(api: api))
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -240,6 +242,7 @@ struct BissbilanzApp: App {
             .environment(deepLinkRouter)
             .environment(mealEstimator)
             .environment(fastingManager)
+            .environment(foodImageLoader)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {

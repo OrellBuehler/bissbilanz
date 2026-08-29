@@ -171,6 +171,14 @@
     <string name="shortcut_fasting_short">Fasten</string>
     <string name="shortcut_fasting_long">Fasten starten oder beenden</string>
 
+    <!-- Food image -->
+    <string name="food_image_label">Lebensmittelfoto</string>
+    <string name="food_image_remove">Foto entfernen</string>
+    <string name="food_image_upload_failed">Foto konnte nicht gespeichert werden.</string>
+    <string name="food_image_crop_cancel">Abbrechen</string>
+    <string name="food_image_crop_confirm">Foto verwenden</string>
+    <string name="food_image_crop_hint">Zum Zoomen zwei Finger, zum Verschieben ziehen. Gespeichert wird der quadratische Ausschnitt.</string>
+
     <!-- Nutrition label scanner -->
     <string name="scan_label">Etikett scannen</string>
     <string name="scan_label_footer">Nährwerte aus einem Foto des Etiketts übernehmen.</string>

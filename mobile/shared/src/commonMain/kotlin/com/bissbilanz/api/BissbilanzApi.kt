@@ -337,6 +337,31 @@ class BissbilanzApi(
         return response.food
     }
 
+    /**
+     * The image URL alone. `imageUrl` carries a `= null` default on [FoodCreate]
+     * and `encodeDefaults = false`, so a removal sent through that body is simply
+     * dropped and the old image stays. This property has no default, so its null
+     * is always written — which is what makes removal reach the server.
+     */
+    @kotlinx.serialization.Serializable
+    private data class ImagePatch(
+        val imageUrl: String?,
+    )
+
+    /** Attaches or (with a null [imageUrl]) removes a food's image. */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun setFoodImage(
+        id: String,
+        imageUrl: String?,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Food {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse = patch("/api/foods/$id", ImagePatch(imageUrl), key, editedAt)
+        return response.food
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteFood(
         id: String,
@@ -1046,8 +1071,10 @@ class BissbilanzApi(
                 url = "/api/images/upload",
                 formData =
                     formData {
+                        // The route reads `formData.get('image')` — a mismatched
+                        // field name is a 400 the client can't tell from a real one.
                         append(
-                            "file",
+                            "image",
                             fileBytes,
                             Headers.build {
                                 append(HttpHeaders.ContentType, contentType)

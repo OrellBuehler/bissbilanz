@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,11 +29,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodEditSheet
+import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -51,7 +50,6 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
-import org.koin.core.qualifier.named
 
 private val NutriScoreA = Color(0xFF038141)
 private val NutriScoreB = Color(0xFF85BB2F)
@@ -72,7 +70,6 @@ fun FoodDetailScreen(
 ) {
     val foodRepo: FoodRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
-    val baseUrl: String = koinInject(named("baseUrl"))
     val refreshManager: RefreshManager = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
@@ -282,17 +279,14 @@ fun FoodDetailScreen(
                                 .padding(16.dp),
                     ) {
                         f.imageUrl?.let { url ->
-                            val imageUrl = if (url.startsWith("/")) "$baseUrl$url" else url
-                            AsyncImage(
-                                model = imageUrl,
+                            FoodImage(
+                                imageUrl = url,
                                 contentDescription = f.name,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
                                         .heightIn(max = 200.dp)
                                         .clip(RoundedCornerShape(12.dp)),
-                                contentScale = ContentScale.Crop,
-                                alignment = Alignment.Center,
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                         }

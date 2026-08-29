@@ -20,6 +20,13 @@ class LocalDataWiper(
     private val cacheDb: BissbilanzDatabase,
     private val syncQueue: SyncQueue,
 ) {
+    /**
+     * Runs after the tables are cleared. Images live on the file system, not in
+     * SQLDelight, so the platform has to remove its own copies — a logout that
+     * left them behind would carry one account's photos into the next.
+     */
+    var onWiped: (suspend () -> Unit)? = null
+
     suspend fun wipeAll() {
         withContext(Dispatchers.IO) {
             syncQueue.clear()
@@ -42,5 +49,6 @@ class LocalDataWiper(
                 cacheQueries.clearAllSyncMeta()
             }
         }
+        onWiped?.invoke()
     }
 }

@@ -204,6 +204,11 @@ struct FoodSearchView: View {
             selectedFood = food
         } label: {
             HStack {
+                if food.imageUrl != nil {
+                    FoodImageView(imageUrl: food.imageUrl)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(food.name)
                         .font(.body)

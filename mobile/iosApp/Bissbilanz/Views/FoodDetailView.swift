@@ -109,6 +109,17 @@ struct FoodDetailView: View {
 
     private func foodContent(_ food: Food) -> some View {
         List {
+            if food.imageUrl != nil {
+                Section {
+                    FoodImageView(imageUrl: food.imageUrl)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
+
             Section {
                 if let brand = food.brand {
                     HStack {

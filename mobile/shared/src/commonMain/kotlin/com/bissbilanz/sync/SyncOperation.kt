@@ -52,6 +52,18 @@ sealed class SyncOperation {
         override val description get() = "toggle favorite $id"
     }
 
+    /** Attaches or removes a food's image; a null [imageUrl] is a removal. */
+    @Serializable
+    @SerialName("set_food_image")
+    data class SetFoodImage(
+        val id: String,
+        val imageUrl: String? = null,
+    ) : SyncOperation() {
+        override val affectedTable = "foods"
+        override val affectedId get() = id
+        override val description get() = "set food image $id"
+    }
+
     @Serializable
     @SerialName("create_entry")
     data class CreateEntry(

@@ -217,7 +217,39 @@ final class FoodRepository {
         return optimistic
     }
 
+    /// Attaches or removes a food's image, as a partial PATCH — same reasoning
+    /// as `toggleFavorite`: the edit form's `FoodCreate` omits nil optionals,
+    /// so a removal sent through it would never reach the server. The
+    /// superseded image is dropped from the device, which for a Local-mode
+    /// `file://` photo is the only copy there is.
+    @discardableResult
+    func setImage(id: String, imageUrl: String?) async throws -> Food {
+        // NSNull, not a nil Optional: JSONSerialization rejects the latter, and
+        // an omitted key would read as "leave the image alone" rather than
+        // "remove it".
+        let patch: [String: Any] = ["imageUrl": imageUrl.map { $0 as Any } ?? NSNull()]
+        guard let row = fetchRow(id: id), let current = row.toFood(),
+              let patched = try? JSONPatch.merged(Food.self, base: current, patch: patch)
+        else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        if LocalStore.isTempId(id) {
+            coalesceQueuedCreate(tempId: id) { body in
+                (try? JSONPatch.merged(FoodCreate.self, base: body, patch: patch)) ?? body
+            }
+        } else {
+            syncManager.enqueue(.setFoodImage(id: id, imageUrl: imageUrl))
+        }
+        if let previous = current.imageUrl, previous != imageUrl {
+            LocalImageStore.evict(previous)
+        }
+        return patched
+    }
+
     func deleteFood(id: String) async throws {
+        LocalImageStore.evict(food(id: id)?.imageUrl)
         deleteRow(id: id)
         save()
         if LocalStore.isTempId(id) {

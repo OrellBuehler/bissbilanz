@@ -9,6 +9,8 @@ enum SyncOperation: Codable {
     case updateFood(id: String, body: FoodCreate)
     case deleteFood(id: String)
     case toggleFavorite(id: String, isFavorite: Bool)
+    /// Attaches or, with a nil `imageUrl`, removes a food's image.
+    case setFoodImage(id: String, imageUrl: String?)
     case createEntry(body: EntryCreate, localId: String)
     case updateEntry(id: String, body: EntryUpdate)
     case deleteEntry(id: String)
@@ -38,6 +40,7 @@ enum SyncOperation: Codable {
         case .updateFood: "update_food"
         case .deleteFood: "delete_food"
         case .toggleFavorite: "toggle_favorite"
+        case .setFoodImage: "set_food_image"
         case .createEntry: "create_entry"
         case .updateEntry: "update_entry"
         case .deleteEntry: "delete_entry"
@@ -64,7 +67,7 @@ enum SyncOperation: Codable {
 
     var affectedTable: String? {
         switch self {
-        case .createFood, .updateFood, .deleteFood, .toggleFavorite: "foods"
+        case .createFood, .updateFood, .deleteFood, .toggleFavorite, .setFoodImage: "foods"
         case .createEntry, .updateEntry, .deleteEntry: "entries"
         case .createRecipe, .updateRecipe, .deleteRecipe: "recipes"
         case .setGoals: "goals"
@@ -84,6 +87,7 @@ enum SyncOperation: Codable {
              let .createSleep(_, localId), let .createSupplement(_, localId):
             localId
         case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
+             let .setFoodImage(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
              let .updateRecipe(id, _), let .deleteRecipe(id),
              let .updateWeight(id, _), let .deleteWeight(id),
@@ -116,6 +120,9 @@ enum SyncOperation: Codable {
 
         case let .toggleFavorite(id, isFavorite) where id == oldId:
             return .toggleFavorite(id: newId, isFavorite: isFavorite)
+
+        case let .setFoodImage(id, imageUrl) where id == oldId:
+            return .setFoodImage(id: newId, imageUrl: imageUrl)
 
         case let .createEntry(body, localId) where body.foodId == oldId || body.recipeId == oldId:
             var patched = body
@@ -238,6 +245,7 @@ enum SyncOperation: Codable {
         case let .updateFood(id, _): "update food \(id)"
         case let .deleteFood(id): "delete food \(id)"
         case let .toggleFavorite(id, _): "toggle favorite \(id)"
+        case let .setFoodImage(id, _): "set food image \(id)"
         case .createEntry: "create entry"
         case let .updateEntry(id, _): "update entry \(id)"
         case let .deleteEntry(id): "delete entry \(id)"

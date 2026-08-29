@@ -66,6 +66,8 @@ fun FoodEditSheet(
     var fiber by remember { mutableStateOf("") }
     var barcode by remember { mutableStateOf(initialBarcode ?: "") }
     var isFavorite by remember { mutableStateOf(false) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+    var originalImageUrl by remember { mutableStateOf<String?>(null) }
 
     // Extended nutrients
     var saturatedFat by remember { mutableStateOf("") }
@@ -106,6 +108,8 @@ fun FoodEditSheet(
                 fiber = food.fiber.formatNutrient()
                 barcode = food.barcode ?: ""
                 isFavorite = food.isFavorite
+                imageUrl = food.imageUrl
+                originalImageUrl = food.imageUrl
                 saturatedFat = food.saturatedFat?.formatNutrient() ?: ""
                 sugar = food.sugar?.formatNutrient() ?: ""
                 sodium = food.sodium?.formatNutrient() ?: ""
@@ -178,8 +182,14 @@ fun FoodEditSheet(
                 if (isEditing) {
                     val id = foodId ?: return@launch
                     foodRepo.updateFood(id, withExtras)
+                    // Separate from the body: `imageUrl` defaults to null on
+                    // FoodCreate and the client omits defaults, so a removal sent
+                    // that way would be dropped and the old image would stay.
+                    if (imageUrl != originalImageUrl) foodRepo.setImage(id, imageUrl)
                 } else {
-                    foodRepo.createFood(withExtras)
+                    // No id yet, so the already-uploaded URL rides along on the
+                    // create body — `foodCreateSchema` accepts it.
+                    foodRepo.createFood(withExtras.copy(imageUrl = imageUrl))
                 }
                 sheetState.hide()
                 onSaved()
@@ -248,6 +258,12 @@ fun FoodEditSheet(
                     if (isEditing) stringResource(R.string.food_edit_title) else stringResource(R.string.food_create_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                )
+
+                FoodImageField(
+                    imageUrl = imageUrl,
+                    onImageUrlChange = { imageUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 if (!isEditing) {

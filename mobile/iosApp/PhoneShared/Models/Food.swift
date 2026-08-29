@@ -219,6 +219,23 @@ struct FoodCreate: Codable {
     var imageUrl: String?
 }
 
+/// `POST /api/images/upload` — the stored `/uploads/<uuid>.webp` path.
+struct ImageUploadResponse: Codable {
+    let imageUrl: String
+}
+
+/// Partial food PATCH carrying only the image. Distinct from `FoodCreate`
+/// because that struct omits nil optionals, which would silently swallow a
+/// removal; here `imageUrl` is encoded even when nil.
+struct ImagePatch: Codable {
+    let imageUrl: String?
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(imageUrl, forKey: .imageUrl)
+    }
+}
+
 struct FoodsResponse: Codable {
     let foods: [Food]
 }

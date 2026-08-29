@@ -37,6 +37,9 @@ class RecipeRepository(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
+    /** See `FoodRepository.onImageOrphaned`. */
+    var onImageOrphaned: (suspend (String) -> Unit)? = null
+
     fun allRecipes(): Flow<List<RecipeDetail>> =
         db.userDataDatabaseQueries
             .selectAllRecipes()
@@ -179,12 +182,19 @@ class RecipeRepository(
     }
 
     suspend fun deleteRecipe(id: String) {
+        val imageUrl =
+            db.userDataDatabaseQueries
+                .selectRecipeById(id)
+                .executeAsOneOrNull()
+                ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                ?.imageUrl
         db.userDataDatabaseQueries.deleteRecipe(id)
         if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
         }
+        imageUrl?.let { onImageOrphaned?.invoke(it) }
     }
 
     /**

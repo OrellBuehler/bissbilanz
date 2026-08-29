@@ -641,6 +641,57 @@ final class BissbilanzAPI {
         return response.photoUrl
     }
 
+    // MARK: - Images
+
+    /// Uploads a food or recipe image and returns its `/uploads/<uuid>.webp` URL.
+    /// The route reads the `image` form field; `postMultipart` sets the `Origin`
+    /// header the server's CSRF check requires of any native multipart POST.
+    func uploadImage(_ data: Data, filename: String = "food.jpg") async throws -> String {
+        let response: ImageUploadResponse = try await postMultipart(
+            "/api/images/upload", data: data, fieldName: "image", filename: filename
+        )
+        return response.imageUrl
+    }
+
+    /// Attaches or, with a nil `imageUrl`, removes a food's image.
+    ///
+    /// A partial PATCH rather than a full `FoodCreate` body: that struct's
+    /// optional fields are omitted when nil, so a removal sent that way would
+    /// never reach the server and the old image would stay.
+    func setFoodImage(
+        id: String,
+        imageUrl: String?,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Food {
+        let response: FoodResponse = try await patch(
+            "/api/foods/\(id)", body: ImagePatch(imageUrl: imageUrl),
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+        return response.food
+    }
+
+    /// Whether a URL points at our own API. Used to keep the account's bearer
+    /// token off every other host — scheme, host and port must all match, since
+    /// a plaintext or different-port variant of the same name is a different
+    /// origin.
+    func isOwnHost(_ url: URL) -> Bool {
+        guard let base = URL(string: baseURL) else { return false }
+        return url.scheme == base.scheme && url.host() == base.host() && url.port == base.port
+    }
+
+    /// Raw bytes of a server-hosted image. Takes a server-relative path only, so
+    /// the account's bearer token cannot be sent anywhere but our own host.
+    func downloadImage(path: String) async throws -> Data {
+        guard path.hasPrefix("/") else { throw APIError.badRequest("Not a server path") }
+        let request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        let (data, httpResponse) = try await executeRequestData(request)
+        if httpResponse.statusCode >= 400 {
+            throw APIError.serverError(httpResponse.statusCode, nil)
+        }
+        return data
+    }
+
     // MARK: - HTTP helpers
 
     private func get<T: Decodable>(_ path: String, params: [String: String] = [:]) async throws -> T {

@@ -117,6 +117,7 @@ final class RecipeRepository {
     }
 
     func deleteRecipe(id: String) async throws {
+        LocalImageStore.evict(recipe(id: id)?.imageUrl)
         deleteRow(id: id)
         save()
         if LocalStore.isTempId(id) {

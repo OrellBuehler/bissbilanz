@@ -440,6 +440,14 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .setFoodImage(id, imageUrl):
+            _ = try await api.setFoodImage(
+                id: id,
+                imageUrl: imageUrl,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
         case let .createEntry(body, localId):
             let server = try await api.createEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry() else {
