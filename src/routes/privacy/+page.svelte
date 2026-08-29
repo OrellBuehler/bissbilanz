@@ -29,9 +29,9 @@
 	<ul class="mb-6 list-disc space-y-1 pl-6">
 		<li>
 			<strong>Account information:</strong> Your name, email address and profile picture, provided by
-			the sign-in provider you choose (Infomaniak, Google, Microsoft or Apple). For every provider you
-			connect, the app also stores the account identifier that provider uses for you, so it can recognize
-			you on the next sign-in.
+			the sign-in provider you choose (Infomaniak, Google or Apple). For every provider you connect, the
+			app also stores the account identifier that provider uses for you, so it can recognize you on the
+			next sign-in.
 		</li>
 		<li>
 			<strong>Food entries:</strong> What you ate, including calories, macronutrients (protein, carbs,
@@ -164,14 +164,6 @@
 			address and profile picture to the app. No other Google service is used, and the app never
 			accesses your Gmail, Drive or contacts. Their privacy policy is available at
 			<a href="https://policies.google.com/privacy" class="underline">policies.google.com</a>.
-		</li>
-		<li>
-			<strong>Microsoft (sign-in):</strong> Sign in with a personal Microsoft account. Microsoft
-			provides your name and email address to the app; no profile picture is requested. Their
-			privacy statement is available at
-			<a href="https://privacy.microsoft.com/privacystatement" class="underline"
-				>privacy.microsoft.com</a
-			>.
 		</li>
 		<li>
 			<strong>Apple (sign-in):</strong> Sign in with Apple. Apple provides your email address, and

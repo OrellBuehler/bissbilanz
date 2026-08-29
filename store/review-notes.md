@@ -11,8 +11,8 @@ SIGN-IN: The app offers two modes on first launch:
 1. "Local mode" — works WITHOUT any account. All features except
    cross-device sync are available. You can review the entire app this way.
 2. Sign in with an account, used for sync with the web app. Infomaniak,
-   Google, Microsoft and Sign in with Apple are offered; on iOS, Sign in
-   with Apple runs natively. Demo account credentials are provided below.
+   Google and Sign in with Apple are offered; on iOS, Sign in with Apple
+   runs natively. Demo account credentials are provided below.
 
 CAMERA: used only for barcode scanning and on-device nutrition-label OCR
 (Settings → add food → scan). Frames are processed on device; only the
@@ -40,7 +40,7 @@ if the password is ever rotated.
   phone's data.
 - Apple Health prompts appear only when toggled in Settings → Apple Health.
 - Sign in with Apple **is** offered, natively on the sign-in screen. Since the
-  app also offers Google and Microsoft sign-in, guideline 4.8 applies and Sign
-  in with Apple is the equivalent option it asks for: it collects only name and
-  email, supports Hide My Email, and is not used for advertising. Local-only
-  mode is a further no-account path if review asks.
+  app also offers Google sign-in, guideline 4.8 applies and Sign in with Apple
+  is the equivalent option it asks for: it collects only name and email,
+  supports Hide My Email, and is not used for advertising. Local-only mode is a
+  further no-account path if review asks.

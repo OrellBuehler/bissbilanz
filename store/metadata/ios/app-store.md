@@ -69,9 +69,9 @@ Data linked to you:
 | Photos (user photos) | App Functionality | Food/recipe photos, AI meal estimation                                |
 | User content         | App Functionality | Foods, recipes, notes                                                 |
 
-Sign-in providers: Infomaniak, Google, Microsoft and Sign in with Apple. Only the one the user picks
-is involved; where the provider supplies a profile picture (Infomaniak, Google), its URL is stored
-with the account.
+Sign-in providers: Infomaniak, Google and Sign in with Apple. Only the one the user picks is
+involved; where the provider supplies a profile picture (Infomaniak, Google), its URL is stored with
+the account.
 
 Data not linked to you:
 
