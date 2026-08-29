@@ -62,8 +62,7 @@
 		// The link flow returns here from the provider with its outcome in the URL.
 		const linked = page.url.searchParams.get('linked');
 		const linkError = page.url.searchParams.get('link_error');
-		// The app layout renders its children twice (desktop + mobile branches), so this
-		// component mounts twice — a stable id keeps the outcome to a single toast.
+		// A stable id collapses repeats into one toast if the outcome is handled twice.
 		if (linked)
 			toast.success(m.connected_accounts_connected({ provider: label(linked) }), {
 				id: LINK_TOAST_ID

@@ -26,9 +26,9 @@ function collectPageFiles(dir: string): string[] {
 }
 
 describe('mobile page padding', () => {
-	test('app layout uses compact mobile padding in the shared main container', () => {
+	test('app layout uses compact mobile padding in the shared content container', () => {
 		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
-		expect(layout).toMatch(/<main class="flex-1 p[x-]/);
+		expect(layout).toMatch(/class="\s*min-h-0 flex-1 px-3 py-3\b/);
 	});
 
 	test('mobile main padding accounts for safe-area-inset-bottom', () => {
@@ -47,5 +47,15 @@ describe('mobile page padding', () => {
 			.map(({ file }) => file.replace(`${process.cwd()}/`, ''));
 
 		expect(offenders).toEqual([]);
+	});
+});
+
+describe('app layout structure', () => {
+	test('renders its children exactly once', () => {
+		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
+		// Two breakpoint branches each rendering `children` mounts every page
+		// component twice, so all of its effects and onMount work run twice.
+		const renders = layout.match(/\{@render children\(\)\}/g) ?? [];
+		expect(renders).toHaveLength(1);
 	});
 });

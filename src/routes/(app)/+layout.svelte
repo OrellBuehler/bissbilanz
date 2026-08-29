@@ -85,36 +85,29 @@
 
 <InstallBanner />
 <div use:edgeSwipeAction class="contents">
-	<!-- Desktop: sidebar layout -->
-	<div class="hidden md:contents">
-		<Sidebar.Provider
-			style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
-		>
-			<AppSidebar variant="inset" />
-			<Sidebar.Inset class="h-[calc(100svh-1rem)] overflow-hidden">
-				<SiteHeader />
-				<OfflineIndicator />
-				<SyncErrorBanner />
-				<SyncConflictBanner />
-				<div class="flex min-h-0 flex-1 flex-col overflow-auto">
-					<main class="flex-1 p-4 lg:p-6">
-						{@render children()}
-					</main>
-				</div>
-			</Sidebar.Inset>
-		</Sidebar.Provider>
-	</div>
-
-	<!-- Mobile: bottom tab bar layout -->
-	<div class="flex min-h-dvh flex-col md:hidden">
-		<MobileHeader />
-		<OfflineIndicator />
-		<SyncErrorBanner />
-		<SyncConflictBanner />
-		<main class="flex-1 px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))]">
-			{@render children()}
-		</main>
-		<BottomTabBar />
-	</div>
+	<!--
+		One shared tree for both breakpoints. The chrome (sidebar, headers, tab bar)
+		swaps via CSS, but `children` is rendered exactly once so page components
+		mount once — rendering it per breakpoint ran every page effect twice.
+	-->
+	<Sidebar.Provider
+		class="min-h-dvh"
+		style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
+	>
+		<AppSidebar variant="inset" />
+		<Sidebar.Inset class="md:h-[calc(100svh-1rem)] md:overflow-hidden">
+			<SiteHeader />
+			<MobileHeader />
+			<OfflineIndicator />
+			<SyncErrorBanner />
+			<SyncConflictBanner />
+			<div
+				class="min-h-0 flex-1 px-3 py-3 pb-[calc(5rem+env(safe-area-inset-bottom))] md:overflow-auto md:p-4 md:pb-4 lg:p-6"
+			>
+				{@render children()}
+			</div>
+		</Sidebar.Inset>
+	</Sidebar.Provider>
+	<BottomTabBar />
 </div>
 <UpdateToast />
