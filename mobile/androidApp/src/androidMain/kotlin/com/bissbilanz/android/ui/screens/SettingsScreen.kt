@@ -31,6 +31,7 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -189,9 +190,9 @@ fun SettingsScreen(navController: NavController) {
 
     if (showDowngradeDialog) {
         val downgradeInProgress =
-            downgradeState == SettingsViewModel.DowngradeState.Syncing ||
-                downgradeState == SettingsViewModel.DowngradeState.Downloading ||
-                downgradeState == SettingsViewModel.DowngradeState.Deleting
+            downgradeState == AccountDowngradeController.State.Syncing ||
+                downgradeState == AccountDowngradeController.State.Downloading ||
+                downgradeState == AccountDowngradeController.State.Deleting
         AlertDialog(
             onDismissRequest = {
                 if (!downgradeInProgress) {
@@ -203,14 +204,14 @@ fun SettingsScreen(navController: NavController) {
             text = {
                 Column {
                     when (val state = downgradeState) {
-                        SettingsViewModel.DowngradeState.Idle ->
+                        AccountDowngradeController.State.Idle ->
                             Text(stringResource(R.string.settings_downgrade_message))
-                        is SettingsViewModel.DowngradeState.Failed -> {
+                        is AccountDowngradeController.State.Failed -> {
                             Text(stringResource(R.string.settings_downgrade_message))
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text(state.message, color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(state.messageRes), color = MaterialTheme.colorScheme.error)
                         }
-                        SettingsViewModel.DowngradeState.Done ->
+                        AccountDowngradeController.State.Done ->
                             Text(stringResource(R.string.settings_downgrade_done))
                         else ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -222,9 +223,9 @@ fun SettingsScreen(navController: NavController) {
                                 Text(
                                     stringResource(
                                         when (downgradeState) {
-                                            SettingsViewModel.DowngradeState.Syncing ->
+                                            AccountDowngradeController.State.Syncing ->
                                                 R.string.settings_downgrade_progress_sync
-                                            SettingsViewModel.DowngradeState.Deleting ->
+                                            AccountDowngradeController.State.Deleting ->
                                                 R.string.settings_downgrade_progress_delete
                                             else -> R.string.settings_downgrade_progress_download
                                         },
@@ -236,7 +237,7 @@ fun SettingsScreen(navController: NavController) {
             },
             confirmButton = {
                 when {
-                    downgradeState == SettingsViewModel.DowngradeState.Done ->
+                    downgradeState == AccountDowngradeController.State.Done ->
                         TextButton(onClick = {
                             showDowngradeDialog = false
                             viewModel.resetDowngrade()
@@ -249,7 +250,7 @@ fun SettingsScreen(navController: NavController) {
                 }
             },
             dismissButton = {
-                if (!downgradeInProgress && downgradeState != SettingsViewModel.DowngradeState.Done) {
+                if (!downgradeInProgress && downgradeState != AccountDowngradeController.State.Done) {
                     TextButton(onClick = {
                         showDowngradeDialog = false
                         viewModel.resetDowngrade()

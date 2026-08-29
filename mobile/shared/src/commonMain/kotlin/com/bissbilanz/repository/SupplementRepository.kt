@@ -14,6 +14,7 @@ import com.bissbilanz.api.generated.model.SupplementIngredientInput
 import com.bissbilanz.api.generated.model.SupplementLog
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.model.Entry
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -185,7 +186,28 @@ class SupplementRepository(
         date: String,
     ) {
         db.userDataDatabaseQueries.deleteSupplementLog(supplementId, date)
+        deleteCachedSupplementEntries(supplementId, date)
         syncQueue.enqueue(SyncOperation.UnlogSupplement(supplementId, date))
+    }
+
+    /**
+     * Drops the ingredient entries the server created for this log. They only
+     * exist locally after an account downgrade downloaded them; without this the
+     * day keeps counting a supplement the user just un-ticked, and in Local mode
+     * nothing would ever clean them up.
+     */
+    private fun deleteCachedSupplementEntries(
+        supplementId: String,
+        date: String,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        val orphans =
+            queries
+                .selectEntriesByDate(date)
+                .executeAsList()
+                .filter { json.decodeOrNull<Entry>(it.jsonData)?.supplementId == supplementId }
+        if (orphans.isEmpty()) return
+        queries.transaction { orphans.forEach { queries.deleteEntry(it.id) } }
     }
 
     suspend fun getHistory(

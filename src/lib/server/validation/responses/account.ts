@@ -8,6 +8,12 @@ export const accountResponseSchema = z
 				name: z.string().nullable(),
 				createdAt: z.string().nullable()
 			})
-			.meta({ id: 'AccountUser' })
+			.meta({ id: 'AccountUser' }),
+		dataRange: z
+			.object({
+				earliest: z.string().nullable(),
+				latest: z.string().nullable()
+			})
+			.meta({ id: 'AccountDataRange' })
 	})
 	.meta({ id: 'AccountResponse' });

@@ -84,11 +84,14 @@ export const listFoods = async (
 		: undefined;
 	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter);
 
+	// `foods.id` is the tiebreaker, not decoration: names are not unique, and an
+	// offset-paginated client (the account download) skips or repeats rows when
+	// equal-name rows come back in a different order between page queries.
 	const q = db.select().from(foods).where(whereClause);
 	if (pattern) {
-		q.orderBy(desc(ilike(foods.name, pattern)), foods.name);
+		q.orderBy(desc(ilike(foods.name, pattern)), foods.name, foods.id);
 	} else {
-		q.orderBy(foods.name);
+		q.orderBy(foods.name, foods.id);
 	}
 	if (options?.limit !== undefined) q.limit(options.limit);
 

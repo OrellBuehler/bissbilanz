@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.auth.AuthManager
@@ -18,6 +19,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,8 +100,12 @@ class SettingsViewModelTest {
             errorReporter,
             appModeManager,
             localDataWiper,
-            accountDowngrader,
-            syncManager,
+            AccountDowngradeController(
+                accountDowngrader = accountDowngrader,
+                syncManager = syncManager,
+                errorReporter = errorReporter,
+                scope = CoroutineScope(testDispatcher),
+            ),
         )
 
     @Test

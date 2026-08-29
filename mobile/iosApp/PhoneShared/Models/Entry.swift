@@ -11,6 +11,11 @@ struct Entry: Codable, Identifiable {
     let notes: String?
     let foodId: String?
     let recipeId: String?
+    /// Set on the ingredient entries the server creates for a logged supplement.
+    /// Carried locally so the migration back up doesn't re-upload them on top of
+    /// the ones `logSupplement` recreates server-side. `var` with a default so
+    /// the memberwise init stays source-compatible with existing call sites.
+    var supplementId: String? = nil
     let quickName: String?
     let quickCalories: Double?
     let quickProtein: Double?
