@@ -120,6 +120,12 @@ export const foodLabelsResponseSchema = z
 	})
 	.meta({ id: 'FoodLabelsResponse' });
 
+export const foodLabelsSetResponseSchema = z
+	.object({
+		labels: z.array(z.string())
+	})
+	.meta({ id: 'FoodLabelsSetResponse' });
+
 export const foodLabelsBatchItemResultSchema = z
 	.object({
 		foodId: z.string().uuid(),

@@ -23,6 +23,7 @@ import {
 	foodsRecentResponseSchema,
 	foodDuplicatesResponseSchema,
 	foodLabelsResponseSchema,
+	foodLabelsSetResponseSchema,
 	foodLabelsBatchResponseSchema
 } from './validation/responses/foods';
 import { foodLabelsSetSchema, foodLabelsBatchSchema } from './validation/labels';
@@ -319,9 +320,7 @@ export function generateSpec() {
 					responses: {
 						'200': {
 							description: 'Success',
-							content: {
-								'application/json': { schema: z.object({ labels: z.array(z.string()) }) }
-							}
+							content: { 'application/json': { schema: foodLabelsSetResponseSchema } }
 						},
 						'400': res400,
 						'401': res401,

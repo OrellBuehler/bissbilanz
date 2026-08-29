@@ -25,6 +25,6 @@ import kotlinx.serialization.encoding.*
  * @param labels
  */
 @Serializable
-data class SetFoodLabels200Response(
+data class FoodLabelsSetResponse(
     @SerialName(value = "labels") @Required val labels: kotlin.collections.List<kotlin.String>,
-) : kotlin.collections.HashMap<String, kotlin.Any>()
+)

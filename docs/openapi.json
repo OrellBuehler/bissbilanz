@@ -351,17 +351,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"type": "object",
-									"properties": {
-										"labels": {
-											"type": "array",
-											"items": {
-												"type": "string"
-											}
-										}
-									},
-									"required": ["labels"],
-									"additionalProperties": false
+									"$ref": "#/components/schemas/FoodLabelsSetResponse"
 								}
 							}
 						}
@@ -7055,6 +7045,19 @@
 					}
 				},
 				"required": ["label", "source", "confidence", "createdAt"],
+				"additionalProperties": false
+			},
+			"FoodLabelsSetResponse": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				},
+				"required": ["labels"],
 				"additionalProperties": false
 			},
 			"ConflictErrorResponse": {

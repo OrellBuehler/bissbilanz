@@ -1600,6 +1600,9 @@ export interface components {
 			confidence: number | null;
 			createdAt: string | null;
 		};
+		FoodLabelsSetResponse: {
+			labels: string[];
+		};
 		ConflictErrorResponse: {
 			error: string;
 			entryCount?: number;
@@ -2623,9 +2626,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': {
-						labels: string[];
-					};
+					'application/json': components['schemas']['FoodLabelsSetResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];
