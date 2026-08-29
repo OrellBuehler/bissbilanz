@@ -21,7 +21,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
-import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
@@ -72,15 +71,7 @@ fun AppNavigation() {
         onDispose { tabPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
-    LaunchedEffect(Unit) {
-        MainActivity.navigationEvent.collect { route ->
-            // Replayed, so drop it once handled or every recomposition re-navigates.
-            MainActivity.consumeNavigationEvent()
-            navController.navigate(route) {
-                launchSingleTop = true
-            }
-        }
-    }
+    PendingNavigationHandler(navController)
 
     val middleTabs = allMiddleTabs.filter { it.route in selectedTabRoutes }
     val bottomNavItems = listOf(Screen.Dashboard) + middleTabs + listOf(Screen.Settings)
