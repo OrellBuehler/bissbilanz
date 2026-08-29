@@ -31,7 +31,9 @@ extension Double {
 extension [KotlinInt: KotlinDouble] {
     /// Unboxes a Kotlin `Map<Int, Double>` into native Swift types.
     var swiftDoubles: [Int: Double] {
-        Dictionary(uniqueKeysWithValues: map { (Int(truncating: $0.key), $0.value.doubleValue) })
+        var unboxed: [Int: Double] = [:]
+        for (key, value) in self { unboxed[Int(truncating: key)] = value.doubleValue }
+        return unboxed
     }
 }
 

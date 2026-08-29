@@ -53,7 +53,7 @@ enum LocalInsights {
         let recipes = recipeInputs(context: context)
 
         return InsightsComputerKt.computeInsights(
-            input: InsightsInput(
+            input: InsightsComputerKt.defaultInsightsInput(
                 entries: entries,
                 foods: foodInputs(context: context),
                 recipes: recipes,
@@ -72,7 +72,6 @@ enum LocalInsights {
                     }
                 },
                 timeZoneId: timeZoneId
-                // eveningCutoffHour / lateMealCutoffHour keep their shared defaults.
             )
         )
     }

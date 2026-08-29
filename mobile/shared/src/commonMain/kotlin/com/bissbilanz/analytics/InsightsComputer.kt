@@ -103,6 +103,30 @@ data class InsightsBundle(
  */
 private val ADEQUACY_KEYS = setOf("vitaminC", "vitaminD", "vitaminE", "sodium", "omega3", "omega6", "fiber")
 
+/**
+ * [InsightsInput] with the standard cutoffs applied.
+ *
+ * Exists for Swift: Kotlin/Native does not carry a data class's default arguments
+ * into the generated memberwise initialiser, so iOS would otherwise have to name
+ * the two cutoff hours itself and could drift from Android.
+ */
+fun defaultInsightsInput(
+    entries: List<AggEntry>,
+    foods: List<AggFood>,
+    recipes: List<AggRecipe>,
+    weights: List<WeightRow>,
+    sleep: List<InsightsSleepRow>,
+    timeZoneId: String,
+): InsightsInput =
+    InsightsInput(
+        entries = entries,
+        foods = foods,
+        recipes = recipes,
+        weights = weights,
+        sleep = sleep,
+        timeZoneId = timeZoneId,
+    )
+
 /** Runs every insights analytic over [input]. Pure: same input, same bundle. */
 fun computeInsights(input: InsightsInput): InsightsBundle {
     val entries = input.entries
