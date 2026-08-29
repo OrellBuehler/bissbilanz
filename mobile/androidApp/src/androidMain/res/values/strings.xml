@@ -734,7 +734,7 @@
     <string name="insights_lighter_evening_correlation">Lighter evening meals correlate with better sleep quality (+%.1f)</string>
     <string name="insights_heavier_evening_correlation">Heavier evening meals correlate with better sleep quality (+%.1f)</string>
     <string name="insights_need_more_evening_data">Need more data with evening food entries to show correlations.</string>
-    <string name="insights_meal_pct_format">%1$s kcal (%2$d%%)</string>
+    <string name="insights_meal_pct_format">%1$s kcal (%2$s%%)</string>
     <string name="insights_goal_adherence">Goal Adherence</string>
     <string name="insights_days_within_goal_range">Days within goal range (%1$d day period)</string>
     <string name="insights_goal_pct">%1$s%%</string>
