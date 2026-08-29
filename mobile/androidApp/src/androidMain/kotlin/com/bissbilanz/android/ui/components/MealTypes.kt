@@ -17,6 +17,6 @@ fun mealTypeDisplayName(mealType: String): String =
         "breakfast" -> stringResource(R.string.meal_type_breakfast)
         "lunch" -> stringResource(R.string.meal_type_lunch)
         "dinner" -> stringResource(R.string.meal_type_dinner)
-        "snack" -> stringResource(R.string.meal_type_snack)
+        "snack", "snacks" -> stringResource(R.string.meal_type_snack)
         else -> mealType.replaceFirstChar { it.uppercase() }
     }

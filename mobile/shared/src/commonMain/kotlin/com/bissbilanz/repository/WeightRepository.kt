@@ -175,17 +175,20 @@ class WeightRepository(
     private suspend fun cacheWeightEntries(entries: List<WeightEntry>) {
         val pendingIds = pendingWeightIds()
         val queries = db.userDataDatabaseQueries
-        // Keep optimistic temp-id creates and rows carrying a queued update (a queued
-        // delete already removed its row). A forced refresh right after a weight
-        // create/edit/delete (the UI calls refresh() on save) races the async
-        // sync-queue upload; without this, the still-stale server list would revert
-        // the edit, drop the just-logged entry, or resurrect a deleted one until the
-        // next manual refresh.
+        // Keep optimistic temp-id creates whose upload is still queued or in flight,
+        // and rows carrying a queued update (a queued delete already removed its row).
+        // A forced refresh right after a weight create/edit/delete (the UI calls
+        // refresh() on save) races the async sync-queue upload; without this, the
+        // still-stale server list would revert the edit, drop the just-logged entry,
+        // or resurrect a deleted one until the next manual refresh. A temp row that is
+        // no longer in `pendingIds` has nothing left to upload — the sync manager
+        // already swapped it for the server record — so it must not be kept, or the
+        // list shows the same weight twice.
         val preserved =
             queries
                 .selectAllWeightEntries()
                 .executeAsList()
-                .filter { it.id.isTempId() || it.id in pendingIds }
+                .filter { it.id in pendingIds }
                 .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
         queries.transaction {
             queries.deleteAllWeightEntries()

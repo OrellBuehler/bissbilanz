@@ -25,6 +25,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
@@ -65,7 +66,7 @@ fun EntryEditSheet(
 
     // Form state
     var servings by remember { mutableStateOf("1") }
-    var mealType by remember { mutableStateOf("lunch") }
+    var mealType by remember { mutableStateOf("Lunch") }
     var notes by remember { mutableStateOf("") }
     var eatenHour by remember { mutableStateOf<Int?>(null) }
     var eatenMinute by remember { mutableStateOf<Int?>(null) }
@@ -90,7 +91,7 @@ fun EntryEditSheet(
             if (found != null) {
                 entry = found
                 servings = found.servings.toDisplayString()
-                mealType = found.mealType
+                mealType = normalizeMealType(found.mealType)
                 notes = found.notes ?: ""
                 val seed =
                     (found.eatenAt ?: found.createdAt)

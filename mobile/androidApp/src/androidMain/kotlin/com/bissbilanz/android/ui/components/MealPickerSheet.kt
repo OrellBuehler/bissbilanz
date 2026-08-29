@@ -23,7 +23,7 @@ fun MealPickerSheet(
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedMeal by remember { mutableStateOf("lunch") }
+    var selectedMeal by remember { mutableStateOf("Lunch") }
     var servingsText by remember { mutableStateOf("1") }
 
     ModalBottomSheet(

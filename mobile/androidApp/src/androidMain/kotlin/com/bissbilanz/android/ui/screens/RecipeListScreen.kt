@@ -62,7 +62,7 @@ fun RecipeListScreen(navController: NavController) {
         isLoading = false
     }
 
-    if (recipeToLog != null) {
+    recipeToLog?.let { recipe ->
         MealPickerSheet(
             onDismiss = { recipeToLog = null },
             onConfirm = { meal, servings ->
@@ -70,10 +70,10 @@ fun RecipeListScreen(navController: NavController) {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         entryRepo.createEntry(
-                            EntryCreate(recipeId = recipeToLog!!.id, mealType = meal, servings = servings, date = today),
-                            recipe = recipeToLog,
+                            EntryCreate(recipeId = recipe.id, mealType = meal, servings = servings, date = today),
+                            recipe = recipe,
                         )
-                        snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipeToLog!!.name))
+                        snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipe.name))
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)

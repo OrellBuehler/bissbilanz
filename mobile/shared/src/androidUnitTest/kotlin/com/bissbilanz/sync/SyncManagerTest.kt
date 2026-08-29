@@ -14,6 +14,8 @@ import com.bissbilanz.api.generated.model.RecipeIngredientInput
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
+import com.bissbilanz.api.generated.model.WeightCreate
+import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
@@ -362,6 +364,68 @@ class SyncManagerTest {
         }
 
     @Test
+    fun createEntryDrainReplacesLocalTempRowWithServerRecord() =
+        runTest {
+            val temp = serverEntry("temp_e1")
+            userDb.userDataDatabaseQueries.insertEntry(
+                id = temp.id,
+                date = temp.date,
+                mealType = temp.mealType,
+                servings = temp.servings,
+                foodId = temp.foodId,
+                recipeId = temp.recipeId,
+                foodName = "Rice",
+                calories = 130.0,
+                protein = 2.7,
+                carbs = 28.0,
+                fat = 0.3,
+                fiber = 0.4,
+                jsonData = json.encodeToString(temp),
+            )
+            syncQueue.enqueue(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(EntryCreate(mealType = "Lunch", servings = 1.0, date = "2024-01-15")),
+                    localId = "temp_e1",
+                ),
+            )
+            coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1")
+
+            manager.syncPendingQueue()
+
+            // The optimistic row must go, or the next refresh adds the server copy
+            // alongside it and the day log shows the entry twice.
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("temp_e1").executeAsOneOrNull())
+            val server = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull()
+            assertNotNull(server)
+            assertEquals("srv-entry-1", json.decodeFromString<Entry>(server.jsonData).id)
+        }
+
+    @Test
+    fun createWeightDrainReplacesLocalTempRowWithServerRecord() =
+        runTest {
+            val temp = weightEntry("temp_w1")
+            userDb.userDataDatabaseQueries.insertWeightEntry(
+                id = temp.id,
+                entryDate = temp.entryDate,
+                weightKg = temp.weightKg,
+                loggedAt = temp.loggedAt,
+                jsonData = json.encodeToString(temp),
+            )
+            syncQueue.enqueue(
+                SyncOperation.CreateWeight(
+                    json.encodeToString(WeightCreate(weightKg = 80.5, entryDate = "2024-01-15")),
+                    localId = "temp_w1",
+                ),
+            )
+            coEvery { api.createWeightEntry(any(), any(), any()) } returns weightEntry("srv-weight-1")
+
+            manager.syncPendingQueue()
+
+            val rows = userDb.userDataDatabaseQueries.selectAllWeightEntries().executeAsList()
+            assertEquals(listOf("srv-weight-1"), rows.map { it.id })
+        }
+
+    @Test
     fun createFoodDrainRemapsQueuedUpdateDeleteAndRecipeIngredientReferences() =
         runTest {
             enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
@@ -498,6 +562,16 @@ class SyncManagerTest {
         mealType = "lunch",
         servings = 1.0,
     )
+
+    private fun weightEntry(id: String) =
+        WeightEntry(
+            id = id,
+            userId = "user-1",
+            weightKg = 80.5,
+            entryDate = "2024-01-15",
+            notes = null,
+            loggedAt = "2024-01-15T08:00:00Z",
+        )
 
     private fun recipeDetail(
         id: String,

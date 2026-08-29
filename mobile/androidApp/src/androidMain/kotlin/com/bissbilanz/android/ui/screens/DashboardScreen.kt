@@ -48,6 +48,7 @@ import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
 import com.bissbilanz.util.mealTypes
+import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
@@ -342,7 +343,7 @@ fun DashboardScreen(navController: NavController) {
                         DashboardSkeleton()
                     } else {
                         Column {
-                            val mealGroups = remember(entries) { entries.groupBy { it.mealType.lowercase() } }
+                            val mealGroups = remember(entries) { entries.groupBy { normalizeMealType(it.mealType) } }
 
                             mealTypes.forEach { meal ->
                                 val mealEntries = mealGroups[meal] ?: emptyList()

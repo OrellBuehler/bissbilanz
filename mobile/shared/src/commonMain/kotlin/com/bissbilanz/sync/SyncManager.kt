@@ -6,6 +6,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.repository.cacheEntryRow
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.isTempId
 import io.ktor.serialization.ContentConvertException
@@ -25,6 +26,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.min
+import com.bissbilanz.model.Entry as LocalEntry
 
 data class SyncState(
     val isSyncing: Boolean = false,
@@ -323,7 +325,11 @@ class SyncManager(
             }
 
             is SyncOperation.CreateEntry -> {
-                api.createEntry(json.decodeFromString<EntryCreate>(op.body), idempotencyKey, clientEditedAt)
+                val server = api.createEntry(json.decodeFromString<EntryCreate>(op.body), idempotencyKey, clientEditedAt)
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
+                    replaceLocalEntry(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateEntry -> {
@@ -356,7 +362,16 @@ class SyncManager(
             }
 
             is SyncOperation.CreateWeight -> {
-                api.createWeightEntry(json.decodeFromString<WeightCreate>(op.body), idempotencyKey, clientEditedAt)
+                val server =
+                    api.createWeightEntry(
+                        json.decodeFromString<WeightCreate>(op.body),
+                        idempotencyKey,
+                        clientEditedAt,
+                    )
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
+                    replaceLocalWeight(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateWeight -> {
@@ -492,6 +507,34 @@ class SyncManager(
         val base = BACKOFF_BASE_MS * (1L shl retryCount.coerceAtMost(20).toInt())
         val jitter = (id % BACKOFF_JITTER_MS)
         return min(base + jitter, BACKOFF_CAP_MS)
+    }
+
+    private fun replaceLocalEntry(
+        tempId: String,
+        server: LocalEntry,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteEntry(tempId)
+            queries.cacheEntryRow(server, json)
+        }
+    }
+
+    private fun replaceLocalWeight(
+        tempId: String,
+        server: WeightEntry,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteWeightEntry(tempId)
+            queries.insertWeightEntry(
+                id = server.id,
+                entryDate = server.entryDate,
+                weightKg = server.weightKg,
+                loggedAt = server.loggedAt,
+                jsonData = json.encodeToString(server),
+            )
+        }
     }
 
     private fun replaceLocalFood(
