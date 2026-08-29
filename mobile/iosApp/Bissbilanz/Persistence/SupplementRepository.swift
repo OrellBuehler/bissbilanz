@@ -181,6 +181,7 @@ final class SupplementRepository {
 
     func unlogSupplement(id: String, date: String) async throws {
         deleteLog(supplementId: id, date: date)
+        deleteCachedSupplementEntries(supplementId: id, date: date)
         save()
         if LocalStore.isTempId(id) {
             // The supplement isn't on the server — cancel the queued log instead.
@@ -394,6 +395,17 @@ final class SupplementRepository {
             row.update(from: log)
         } else {
             context.insert(LocalSupplementLog(log: log))
+        }
+    }
+
+    /// Drops the ingredient entries the server created for this log. They only
+    /// exist locally after an account downgrade downloaded them; without this the
+    /// day keeps counting a supplement the user just un-ticked, and in Local mode
+    /// nothing would ever clean them up.
+    private func deleteCachedSupplementEntries(supplementId: String, date: String) {
+        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == date })
+        for row in (try? context.fetch(descriptor)) ?? [] where row.toEntry()?.supplementId == supplementId {
+            context.delete(row)
         }
     }
 

@@ -12,6 +12,8 @@ import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.sync.AccountDowngradeController
+import com.bissbilanz.android.sync.AndroidLocalPhotoReader
 import com.bissbilanz.android.sync.AndroidPhotoLocalizer
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
@@ -34,6 +36,7 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.migration.AccountDowngrader
+import com.bissbilanz.migration.LocalDataMigrator
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.repository.FoodRepository
@@ -41,6 +44,9 @@ import com.bissbilanz.storage.PlainStorage
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import io.sentry.android.core.SentryAndroid
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -78,6 +84,10 @@ class BissbilanzApplication : Application() {
                 single { DatabaseDriverFactory(androidContext()) }
                 single { ConnectivityProvider(androidContext()) }
                 single<ErrorReporter> { SentryErrorReporter() }
+                // Outlives every screen: the account downgrade must not be
+                // cancelled halfway through by the user leaving Settings.
+                single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+                single<LocalDataMigrator.LocalPhotoReader> { AndroidLocalPhotoReader(androidContext()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(
@@ -88,6 +98,14 @@ class BissbilanzApplication : Application() {
                         appModeManager = get(),
                         json = get(),
                         photoLocalizer = AndroidPhotoLocalizer(androidContext(), get()),
+                    )
+                }
+                single {
+                    AccountDowngradeController(
+                        accountDowngrader = get(),
+                        syncManager = get(),
+                        errorReporter = get(),
+                        scope = get(),
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }

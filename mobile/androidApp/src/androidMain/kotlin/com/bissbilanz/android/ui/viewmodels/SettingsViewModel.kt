@@ -3,12 +3,12 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.LocalDataWiper
-import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Goals
@@ -17,7 +17,6 @@ import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
-import com.bissbilanz.sync.SyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,25 +34,8 @@ class SettingsViewModel(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
     private val localDataWiper: LocalDataWiper,
-    private val accountDowngrader: AccountDowngrader,
-    private val syncManager: SyncManager,
+    private val downgradeController: AccountDowngradeController,
 ) : ViewModel() {
-    sealed interface DowngradeState {
-        data object Idle : DowngradeState
-
-        data object Syncing : DowngradeState
-
-        data object Downloading : DowngradeState
-
-        data object Deleting : DowngradeState
-
-        data object Done : DowngradeState
-
-        data class Failed(
-            val message: String,
-        ) : DowngradeState
-    }
-
     val mode: StateFlow<AppMode?> = appModeManager.mode
 
     val goals: StateFlow<Goals?> =
@@ -218,42 +200,13 @@ class SettingsViewModel(
         _exportedFile.value = null
     }
 
-    private val _downgradeState = MutableStateFlow<DowngradeState>(DowngradeState.Idle)
-    val downgradeState: StateFlow<DowngradeState> = _downgradeState.asStateFlow()
+    // Owned by the application-scoped controller: the downgrade must outlive
+    // this screen, and its state must too.
+    val downgradeState: StateFlow<AccountDowngradeController.State> = downgradeController.state
 
-    fun downgradeToLocal() {
-        val current = _downgradeState.value
-        if (current != DowngradeState.Idle && current !is DowngradeState.Failed) return
-        viewModelScope.launch {
-            try {
-                _downgradeState.value = DowngradeState.Syncing
-                syncManager.syncPendingQueue()
-                if (accountDowngrader.pendingOps() > 0L) {
-                    _downgradeState.value =
-                        DowngradeState.Failed(
-                            "Some changes could not be uploaded yet. Check pending changes and try again.",
-                        )
-                    return@launch
-                }
-                _downgradeState.value = DowngradeState.Downloading
-                accountDowngrader.downloadAll()
-                // Past this point the server account is deleted — the local
-                // database is now the primary store.
-                _downgradeState.value = DowngradeState.Deleting
-                accountDowngrader.finalize()
-                _downgradeState.value = DowngradeState.Done
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _downgradeState.value =
-                    DowngradeState.Failed("Switching to local-only failed. Your account was not deleted.")
-            }
-        }
-    }
+    fun downgradeToLocal() = downgradeController.start()
 
-    fun resetDowngrade() {
-        _downgradeState.value = DowngradeState.Idle
-    }
+    fun resetDowngrade() = downgradeController.reset()
 
     fun deleteAccount() {
         viewModelScope.launch {

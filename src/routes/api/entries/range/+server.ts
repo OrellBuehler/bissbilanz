@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listEntriesByDateRange } from '$lib/server/entries';
+import { listEntriesByDateRangeDetailed } from '$lib/server/entries';
 import { handleApiError, requireAuth, requireDate, ApiError } from '$lib/server/errors';
 import { daysBetween } from '$lib/utils/dates';
 
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'Date range must not exceed 366 days');
 		}
 
-		const entries = await listEntriesByDateRange(userId, start, end);
+		const entries = await listEntriesByDateRangeDetailed(userId, start, end);
 		return json({ entries });
 	} catch (error) {
 		return handleApiError(error);

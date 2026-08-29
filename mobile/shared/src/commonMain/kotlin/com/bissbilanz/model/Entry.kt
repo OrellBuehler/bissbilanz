@@ -10,6 +10,10 @@ data class Entry(
     val userId: String = "",
     val foodId: String? = null,
     val recipeId: String? = null,
+    // Set on the ingredient entries the server creates for a logged supplement.
+    // Carried locally so the migration back up doesn't re-upload them as ordinary
+    // entries on top of the ones `logSupplement` recreates server-side.
+    val supplementId: String? = null,
     val date: String = "",
     val mealType: String,
     val servings: Double,
