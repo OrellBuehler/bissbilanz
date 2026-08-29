@@ -28,6 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param description
  * @param date
  * @param mealType
+ * @param acknowledged
  */
 @Serializable
 data class AiTaskUpdate(
@@ -37,6 +38,7 @@ data class AiTaskUpdate(
     @SerialName(value = "description") val description: kotlin.String? = null,
     @SerialName(value = "date") val date: kotlin.String? = null,
     @SerialName(value = "mealType") val mealType: kotlin.String? = null,
+    @SerialName(value = "acknowledged") val acknowledged: kotlin.Boolean? = null,
 ) {
     /**
      *

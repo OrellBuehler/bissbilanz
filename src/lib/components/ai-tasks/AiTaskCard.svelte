@@ -6,6 +6,7 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import X from '@lucide/svelte/icons/x';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import { formatDateLabel } from '$lib/utils/dates';
 	import type { AiTask } from '$lib/services/ai-task-service.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -18,6 +19,8 @@
 
 	let { task, onDismiss, onDelete }: Props = $props();
 
+	const isUnread = $derived(task.status === 'dismissed' && !task.acknowledgedAt);
+
 	const statusLabel = $derived(
 		task.status === 'completed'
 			? m.ai_tasks_status_completed()
@@ -27,7 +30,7 @@
 	);
 </script>
 
-<Card.Root>
+<Card.Root class={isUnread ? 'ring-2 ring-violet-300/80 dark:ring-violet-700/80' : undefined}>
 	<Card.Content class="flex gap-3 py-3">
 		{#if task.photoUrl}
 			<img src={task.photoUrl} alt="" class="size-16 shrink-0 rounded-lg border object-cover" />
@@ -54,6 +57,13 @@
 				{:else if task.status === 'dismissed'}
 					<Badge variant="outline" class="text-muted-foreground">{statusLabel}</Badge>
 				{/if}
+				{#if isUnread}
+					<Badge
+						class="border-transparent bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+					>
+						{m.ai_tasks_unread()}
+					</Badge>
+				{/if}
 			</div>
 
 			{#if task.description}
@@ -63,7 +73,19 @@
 			{/if}
 
 			{#if task.resultSummary}
-				<p class="line-clamp-2 text-xs text-muted-foreground">{task.resultSummary}</p>
+				{#if task.status === 'dismissed'}
+					<div class="rounded-md border border-border/70 bg-muted/40 p-2">
+						<p
+							class="flex items-center gap-1 text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase"
+						>
+							<MessageSquareText class="size-3" />
+							{m.ai_tasks_agent_comment()}
+						</p>
+						<p class="mt-1 text-sm break-words">{task.resultSummary}</p>
+					</div>
+				{:else}
+					<p class="line-clamp-2 text-xs text-muted-foreground">{task.resultSummary}</p>
+				{/if}
 			{/if}
 		</div>
 

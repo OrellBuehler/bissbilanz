@@ -33,6 +33,8 @@ import kotlinx.serialization.encoding.*
  * @param resultSummary
  * @param createdEntryIds
  * @param completedAt
+ * @param dismissedAt
+ * @param acknowledgedAt
  * @param createdAt
  * @param updatedAt
  */
@@ -49,6 +51,8 @@ data class AiTask(
     @SerialName(value = "resultSummary") @Required val resultSummary: kotlin.String?,
     @SerialName(value = "createdEntryIds") @Required val createdEntryIds: kotlin.collections.List<kotlin.String>?,
     @SerialName(value = "completedAt") @Required val completedAt: kotlin.String?,
+    @SerialName(value = "dismissedAt") @Required val dismissedAt: kotlin.String?,
+    @SerialName(value = "acknowledgedAt") @Required val acknowledgedAt: kotlin.String?,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {

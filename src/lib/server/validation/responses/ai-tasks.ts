@@ -1,7 +1,8 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { aiTaskStatusValues } from '$lib/server/schema';
 
-const aiTaskStatusSchema = z.enum(['pending', 'completed', 'dismissed']);
+const aiTaskStatusSchema = z.enum(aiTaskStatusValues);
 
 const aiTaskSchema = z
 	.object({
@@ -16,6 +17,8 @@ const aiTaskSchema = z
 		resultSummary: z.string().nullable(),
 		createdEntryIds: z.array(z.string()).nullable(),
 		completedAt: z.string().nullable(),
+		dismissedAt: z.string().nullable(),
+		acknowledgedAt: z.string().nullable(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})
@@ -39,3 +42,9 @@ export const aiTaskPhotoResponseSchema = z
 		photoUrl: z.string()
 	})
 	.meta({ id: 'AiTaskPhotoResponse' });
+
+export const aiTaskAcknowledgeResponseSchema = z
+	.object({
+		acknowledged: z.number().int()
+	})
+	.meta({ id: 'AiTaskAcknowledgeResponse' });

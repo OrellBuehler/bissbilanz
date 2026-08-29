@@ -8,9 +8,87 @@ type AiTasksResponse =
 export type AiTask = AiTasksResponse['tasks'][number];
 export type AiTaskStatus = AiTask['status'];
 
+// Which dismissals this browser has already announced. Server-side
+// acknowledgement is what clears the badge, and it only happens when the user
+// actually opens the list — so without a device-local record every refresh in
+// the meantime would re-raise the same notification.
+const NOTIFIED_KEY = 'ai-task-notified';
+
 let tasks = $state<AiTask[]>([]);
 let loading = $state(false);
 let loaded = $state(false);
+
+const isUnread = (task: AiTask) => task.status === 'dismissed' && !task.acknowledgedAt;
+
+function readNotified(): Set<string> {
+	if (!browser) return new Set();
+	try {
+		const raw = localStorage.getItem(NOTIFIED_KEY);
+		return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+	} catch {
+		return new Set();
+	}
+}
+
+function writeNotified(ids: Set<string>): void {
+	if (!browser) return;
+	try {
+		localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...ids]));
+	} catch {
+		// Private mode or blocked storage — worst case a notification repeats.
+	}
+}
+
+function syncAppBadge(): void {
+	if (!browser) return;
+	const count = tasks.filter(isUnread).length;
+	try {
+		if (count > 0) void navigator.setAppBadge?.(count);
+		else void navigator.clearAppBadge?.();
+	} catch {
+		// Unsupported or denied — the in-app badge still shows the count.
+	}
+}
+
+async function showSystemNotification(title: string, body: string): Promise<boolean> {
+	if (!browser || !('Notification' in window) || Notification.permission !== 'granted') {
+		return false;
+	}
+	try {
+		// Chrome on Android forbids the Notification constructor for installed
+		// PWAs, so go through the service worker registration where we can.
+		if ('serviceWorker' in navigator) {
+			const registration = await navigator.serviceWorker.getRegistration();
+			if (registration) {
+				await registration.showNotification(title, { body, tag: 'ai-task-dismissed' });
+				return true;
+			}
+		}
+		new Notification(title, { body, tag: 'ai-task-dismissed' });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Announces dismissals this browser has not shown yet. Returns the tasks that
+ * were announced so callers can also surface them in-app.
+ */
+async function collectNewDismissals(): Promise<AiTask[]> {
+	if (!browser) return [];
+
+	const notified = readNotified();
+	const fresh = tasks.filter((t) => isUnread(t) && !notified.has(t.id));
+
+	// Drop ids the server no longer returns so the set cannot grow forever.
+	const known = new Set(tasks.map((t) => t.id));
+	const pruned = new Set([...notified].filter((id) => known.has(id)));
+	for (const task of fresh) pruned.add(task.id);
+	writeNotified(pruned);
+
+	return fresh;
+}
 
 async function refresh(): Promise<void> {
 	if (!browser) return;
@@ -23,6 +101,7 @@ async function refresh(): Promise<void> {
 	} finally {
 		loading = false;
 		loaded = true;
+		syncAppBadge();
 	}
 }
 
@@ -83,6 +162,20 @@ async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 		throw new Error('update_failed');
 	}
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
+	syncAppBadge();
+}
+
+async function acknowledgeAll(): Promise<void> {
+	if (!browser || !tasks.some(isUnread)) return;
+	try {
+		await api.POST('/api/ai-tasks/acknowledge', { body: {} });
+		const seenAt = new Date().toISOString();
+		tasks = tasks.map((t) => (isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t));
+	} catch {
+		// Leave the badge up rather than pretending it was read.
+	} finally {
+		syncAppBadge();
+	}
 }
 
 async function remove(id: string): Promise<void> {
@@ -93,6 +186,7 @@ async function remove(id: string): Promise<void> {
 		throw new Error('delete_failed');
 	}
 	tasks = tasks.filter((t) => t.id !== id);
+	syncAppBadge();
 }
 
 export const aiTaskService = {
@@ -105,8 +199,15 @@ export const aiTaskService = {
 	get loaded() {
 		return loaded;
 	},
+	get unreadCount() {
+		return tasks.filter(isUnread).length;
+	},
+	isUnread,
 	refresh,
 	create,
 	updateStatus,
+	acknowledgeAll,
+	collectNewDismissals,
+	showSystemNotification,
 	remove
 };

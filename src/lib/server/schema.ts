@@ -563,12 +563,18 @@ export const aiTasks = pgTable(
 		// doesn't need to touch completed task history.
 		createdEntryIds: text('created_entry_ids').array(),
 		completedAt: timestamp('completed_at', { withTimezone: true }),
+		dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+		// Null means the user has not yet seen how this task ended. Only agent-side
+		// dismissals leave it null — that is what drives the unread badge and the
+		// local notification each device raises on its next refresh.
+		acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
 		index('idx_ai_tasks_user_status').on(table.userId, table.status),
 		index('idx_ai_tasks_created_at').on(table.createdAt),
+		index('idx_ai_tasks_unacknowledged').on(table.userId, table.acknowledgedAt),
 		check(
 			'ai_tasks_has_content',
 			sql`${table.description} IS NOT NULL OR ${table.photoUrl} IS NOT NULL`

@@ -86,12 +86,14 @@ import { paginationSchema } from './validation/pagination';
 import {
 	aiTaskCreateSchema,
 	aiTaskUpdateSchema,
-	aiTaskListQuerySchema
+	aiTaskListQuerySchema,
+	aiTaskAcknowledgeSchema
 } from './validation/ai-tasks';
 import {
 	aiTaskResponseSchema,
 	aiTasksResponseSchema,
-	aiTaskPhotoResponseSchema
+	aiTaskPhotoResponseSchema,
+	aiTaskAcknowledgeResponseSchema
 } from './validation/responses/ai-tasks';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
@@ -1151,7 +1153,8 @@ export function generateSpec() {
 				get: {
 					operationId: 'listAiTasks',
 					tags: ['AiTasks'],
-					description: 'List AI task queue entries, optionally filtered by status.',
+					description:
+						'List AI task queue entries, optionally filtered by status and unread state.',
 					requestParams: {
 						query: aiTaskListQuerySchema
 					},
@@ -1175,6 +1178,26 @@ export function generateSpec() {
 						'201': {
 							description: 'Created',
 							content: { 'application/json': { schema: aiTaskResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/ai-tasks/acknowledge': {
+				post: {
+					operationId: 'acknowledgeAiTasks',
+					tags: ['AiTasks'],
+					description:
+						'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.',
+					requestBody: {
+						required: false,
+						content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: aiTaskAcknowledgeResponseSchema } }
 						},
 						'400': res400,
 						'401': res401
@@ -1214,7 +1237,8 @@ export function generateSpec() {
 				patch: {
 					operationId: 'updateAiTask',
 					tags: ['AiTasks'],
-					description: 'Update an AI task (status, result, description, date, or meal type).',
+					description:
+						'Update an AI task (status, result, description, date, meal type, or seen state).',
 					requestParams: { path: uuidPathId },
 					requestBody: {
 						required: true,

@@ -2,7 +2,8 @@ import { describe, test, expect } from 'vitest';
 import {
 	aiTaskCreateSchema,
 	aiTaskUpdateSchema,
-	aiTaskListQuerySchema
+	aiTaskListQuerySchema,
+	aiTaskAcknowledgeSchema
 } from '../../src/lib/server/validation';
 
 describe('aiTaskCreateSchema', () => {
@@ -197,6 +198,48 @@ describe('aiTaskUpdateSchema', () => {
 		const result = aiTaskUpdateSchema.safeParse({ date: 'bad-date' });
 		expect(result.success).toBe(false);
 	});
+
+	test.each([true, false])('accepts acknowledged %s', (acknowledged) => {
+		const result = aiTaskUpdateSchema.safeParse({ acknowledged });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.acknowledged).toBe(acknowledged);
+		}
+	});
+
+	test('rejects a non-boolean acknowledged', () => {
+		const result = aiTaskUpdateSchema.safeParse({ acknowledged: 'yes' });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe('aiTaskAcknowledgeSchema', () => {
+	test('allows an empty body, meaning acknowledge everything unread', () => {
+		const result = aiTaskAcknowledgeSchema.safeParse({});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.ids).toBeUndefined();
+		}
+	});
+
+	test('accepts a list of task ids', () => {
+		const result = aiTaskAcknowledgeSchema.safeParse({
+			ids: ['10000000-0000-4000-8000-000000000001']
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('rejects non-uuid ids', () => {
+		const result = aiTaskAcknowledgeSchema.safeParse({ ids: ['not-a-uuid'] });
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects more than 100 ids', () => {
+		const result = aiTaskAcknowledgeSchema.safeParse({
+			ids: Array.from({ length: 101 }, () => '10000000-0000-4000-8000-000000000001')
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('aiTaskListQuerySchema', () => {
@@ -225,6 +268,25 @@ describe('aiTaskListQuerySchema', () => {
 		if (result.success) {
 			expect(result.data.limit).toBe(10);
 			expect(result.data.offset).toBe(5);
+		}
+	});
+
+	test.each([
+		['true', true],
+		['false', false]
+	])('coerces the acknowledged query param %s', (raw, expected) => {
+		const result = aiTaskListQuerySchema.safeParse({ acknowledged: raw });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.acknowledged).toBe(expected);
+		}
+	});
+
+	test('leaves acknowledged undefined when the param is absent', () => {
+		const result = aiTaskListQuerySchema.safeParse({});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.acknowledged).toBeUndefined();
 		}
 	});
 });

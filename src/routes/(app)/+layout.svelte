@@ -12,6 +12,7 @@
 	import SyncErrorBanner from '$lib/components/pwa/SyncErrorBanner.svelte';
 	import SyncConflictBanner from '$lib/components/pwa/SyncConflictBanner.svelte';
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
+	import AiTaskWatcher from '$lib/components/ai-tasks/AiTaskWatcher.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
 	import { onMount } from 'svelte';
@@ -111,3 +112,4 @@
 	<BottomTabBar />
 </div>
 <UpdateToast />
+<AiTaskWatcher />
