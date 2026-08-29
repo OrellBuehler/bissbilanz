@@ -2185,6 +2185,66 @@ enum L10n {
         )
     }
 
+    static var aiTasks: String {
+        localized("ai_tasks", en: "AI Tasks", de: "KI-Aufgaben")
+    }
+
+    static var aiTasksFilterOpen: String {
+        localized("ai_tasks_filter_open", en: "Open", de: "Offen")
+    }
+
+    static var aiTasksFilterCompleted: String {
+        localized("ai_tasks_filter_completed", en: "Completed", de: "Erledigt")
+    }
+
+    static var aiTasksFilterDismissed: String {
+        localized("ai_tasks_filter_dismissed", en: "Dismissed", de: "Verworfen")
+    }
+
+    static var aiTasksEmptyOpen: String {
+        localized(
+            "ai_tasks_empty_open",
+            en: "No open tasks — you're all caught up",
+            de: "Keine offenen Aufgaben — alles erledigt"
+        )
+    }
+
+    static var aiTasksEmptyCompleted: String {
+        localized("ai_tasks_empty_completed", en: "Nothing completed yet", de: "Noch nichts erledigt")
+    }
+
+    static var aiTasksEmptyDismissed: String {
+        localized("ai_tasks_empty_dismissed", en: "Nothing dismissed", de: "Nichts verworfen")
+    }
+
+    static var aiTasksPhotoOnly: String {
+        localized(
+            "ai_tasks_photo_only",
+            en: "Photo only, no description",
+            de: "Nur Foto, keine Beschreibung"
+        )
+    }
+
+    static var aiTasksAgentComment: String {
+        localized("ai_tasks_agent_comment", en: "From your assistant", de: "Von deinem Assistenten")
+    }
+
+    static var aiTasksUnread: String {
+        localized("ai_tasks_unread", en: "New", de: "Neu")
+    }
+
+    static var aiTaskDismissedTitle: String {
+        localized("ai_task_dismissed_title", en: "AI task dismissed", de: "KI-Aufgabe verworfen")
+    }
+
+    static var aiTaskDismissedBodyFallback: String {
+        localized(
+            "ai_task_dismissed_body_fallback",
+            en: "Your assistant could not log this meal.",
+            de: "Dein Assistent konnte diese Mahlzeit nicht erfassen."
+        )
+    }
+
     // MARK: - Weekday Abbreviations
 
     static var weekdayHeaders: [String] {

@@ -40,8 +40,10 @@ final class BissbilanzAPI {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
+    nonisolated static let defaultBaseURL = "https://bissbilanz.orellbuehler.ch"
+
     init(
-        baseURL: String = "https://bissbilanz.orellbuehler.ch",
+        baseURL: String = BissbilanzAPI.defaultBaseURL,
         authManager: AuthManager,
         session: URLSession = .shared
     ) {
@@ -619,6 +621,14 @@ final class BissbilanzAPI {
 
     // MARK: - AI Tasks
 
+    /// Resolves a server-relative upload path (`/uploads/...`) against the API host.
+    /// The photo endpoint is session-authenticated, so `AsyncImage` can load it directly.
+    nonisolated static func absoluteURL(for path: String) -> URL? {
+        guard path.hasPrefix("/") else { return URL(string: path) }
+        return URL(string: "\(defaultBaseURL)\(path)")
+    }
+
+
     func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
         let response: AiTaskResponse = try await post(
             "/api/ai-tasks", body: task, idempotencyKey: idempotencyKey
@@ -626,12 +636,53 @@ final class BissbilanzAPI {
         return response.task
     }
 
-    func listAiTasks(status: String? = nil, limit: Int? = nil) async throws -> (tasks: [AiTask], total: Int) {
+    func listAiTasks(
+        status: String? = nil,
+        acknowledged: Bool? = nil,
+        limit: Int? = nil,
+        offset: Int? = nil
+    ) async throws -> (tasks: [AiTask], total: Int) {
         var params: [String: String] = [:]
         if let status { params["status"] = status }
+        if let acknowledged { params["acknowledged"] = acknowledged ? "true" : "false" }
         if let limit { params["limit"] = "\(limit)" }
+        if let offset { params["offset"] = "\(offset)" }
         let response: AiTasksResponse = try await get("/api/ai-tasks", params: params)
         return (response.tasks, response.total)
+    }
+
+    func updateAiTask(
+        id: String,
+        _ update: AiTaskUpdate,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> AiTask {
+        let response: AiTaskResponse = try await patch(
+            "/api/ai-tasks/\(id)", body: update,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+        return response.task
+    }
+
+    func deleteAiTask(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/ai-tasks/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+    }
+
+    /// Clears the unread state on resolved tasks. Pass nil to acknowledge everything
+    /// unacknowledged, which is what opening the list does.
+    @discardableResult
+    func acknowledgeAiTasks(ids: [String]? = nil) async throws -> Int {
+        let response: AiTaskAcknowledgeResponse = try await post(
+            "/api/ai-tasks/acknowledge", body: AiTaskAcknowledge(ids: ids)
+        )
+        return response.acknowledged
     }
 
     func uploadAiTaskPhoto(_ data: Data, filename: String) async throws -> String {

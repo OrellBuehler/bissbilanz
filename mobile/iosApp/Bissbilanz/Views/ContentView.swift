@@ -113,6 +113,10 @@ struct ContentView: View {
                 NavigationStack {
                     SupplementsView()
                 }
+            case .aiTasks:
+                NavigationStack {
+                    AiTasksView()
+                }
             }
         }
         // Only users who signed in initially are prompted — Local mode is
