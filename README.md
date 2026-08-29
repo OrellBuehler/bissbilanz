@@ -100,7 +100,7 @@ Android and iOS clients can't silently drift from the server.
 
 ## Talk to your food log
 
-Bissbilanz exposes a remote MCP server at `/api/mcp` (streamable HTTP; OAuth 2.1 with PKCE and dynamic client registration,
+Bissbilanz exposes a remote MCP server at `/api/mcp` (streamable HTTP; OAuth 2.1 with PKCE; clients are provisioned in Settings → MCP,
 scope `mcp:access`):
 
 ```json

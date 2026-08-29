@@ -2,8 +2,12 @@ import { ResultValidationError } from '$lib/server/errors';
 
 export type McpResult = {
 	content: ({ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string })[];
+	structuredContent?: Record<string, unknown>;
 	isError?: true;
 };
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export const asText = (payload: unknown): McpResult => ({
 	content: [
@@ -11,7 +15,8 @@ export const asText = (payload: unknown): McpResult => ({
 			type: 'text' as const,
 			text: JSON.stringify(payload, null, 2)
 		}
-	]
+	],
+	...(isPlainObject(payload) ? { structuredContent: payload } : {})
 });
 
 export const safe = <T extends unknown[], R>(fn: (...args: T) => Promise<R>) => {
