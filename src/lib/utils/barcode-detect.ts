@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
+import { BrowserMultiFormatOneDReader, type IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType, NotFoundException } from '@zxing/library';
 
 const FORMATS = [
@@ -17,7 +17,7 @@ export async function createBarcodeScanner(
 	const hints = new Map<DecodeHintType, unknown>();
 	hints.set(DecodeHintType.POSSIBLE_FORMATS, FORMATS);
 
-	const reader = new BrowserMultiFormatReader(hints);
+	const reader = new BrowserMultiFormatOneDReader(hints);
 
 	let lastBarcode = '';
 	let lastTime = 0;

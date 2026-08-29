@@ -19,7 +19,7 @@ vi.mock('@sentry/sveltekit', () => ({
 }));
 
 vi.mock('@zxing/browser', () => ({
-	BrowserMultiFormatReader: class {
+	BrowserMultiFormatOneDReader: class {
 		constructor() {}
 		decodeFromVideoElement(_video: unknown, cb: (result: unknown, err: unknown) => void) {
 			if (state.shouldReject) return Promise.reject(new Error('video element unavailable'));
