@@ -52,6 +52,22 @@ jobs:
             GIT_HASH=${{ github.sha }}
             BUILD_TIMESTAMP=${{ github.event.pull_request.updated_at }}
 
+      # fflate's async zip() (account export) runs in a Worker; it silently
+      # received undefined payloads on Bun 1.3.x, so exercise it on the image's
+      # exact runtime rather than under vitest/Node.
+      - name: Check fflate async zip on the image runtime
+        run: |
+          docker run --rm --entrypoint bun "$IMAGE_TAG" --smol -e '
+            const { zip, strToU8 } = await import("fflate");
+            // Small payloads pass even on the broken runtime; an export-sized one (many files, stored images) does not.
+            const files = { "bissbilanz.json": strToU8(JSON.stringify(Array.from({ length: 20000 }, (_, i) => ({ id: i, name: "food " + i })))) };
+            for (let i = 0; i < 8; i++) files["csv/" + i + ".csv"] = strToU8("a,b,c\n".repeat(5000));
+            for (let i = 0; i < 12; i++) files["images/" + i + ".webp"] = [new Uint8Array(200000).map(() => Math.random() * 255), { level: 0 }];
+            const out = await new Promise((res, rej) => zip(files, { level: 6 }, (e, d) => (e ? rej(e) : res(d))));
+            if (!(out.length > 0)) throw new Error("empty zip");
+            console.log("fflate async zip ok:", out.length, "bytes");
+          '
+
       - name: Start container
         run: |
           docker run -d --name bissbilanz-smoke --network host \
