@@ -43,18 +43,24 @@ struct FoodImageField: View {
                             Button {
                                 showCamera = true
                             } label: {
-                                Label(L10n.takePhoto, systemImage: "camera")
-                                    .labelStyle(.iconOnly)
+                                Image(systemName: "camera")
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityLabel(L10n.takePhoto)
                             .disabled(isSaving)
                         }
 
+                        // A bare Image rather than an icon-only Label: the
+                        // PhotosPicker label closure is @Sendable, and
+                        // `LabelStyle.iconOnly` is main-actor isolated in the
+                        // iOS 18 SDK, so referencing it there fails to compile
+                        // (the CodeQL job builds against that SDK even though
+                        // the newer one the build job uses accepts it).
                         PhotosPicker(selection: $photoItem, matching: .images) {
-                            Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
-                                .labelStyle(.iconOnly)
+                            Image(systemName: "photo.on.rectangle")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityLabel(L10n.choosePhoto)
                         .disabled(isSaving)
                     }
 
