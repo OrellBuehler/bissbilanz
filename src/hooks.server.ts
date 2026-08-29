@@ -16,9 +16,12 @@ import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
 import { env } from '$env/dynamic/public';
 
-if (env.PUBLIC_SENTRY_DSN) {
+// Both must be set: a DSN alone would make any local run of the built server
+// (default environment "production") report into the live Sentry project.
+if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
 	Sentry.init({
 		dsn: env.PUBLIC_SENTRY_DSN,
+		environment: env.PUBLIC_SENTRY_ENVIRONMENT,
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
 		enableLogs: import.meta.env.DEV
 	});

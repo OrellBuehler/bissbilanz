@@ -303,17 +303,33 @@ private fun CameraPreview(
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     val scanner =
         remember {
-            BarcodeScanning.getClient(
-                BarcodeScannerOptions
-                    .Builder()
-                    .setBarcodeFormats(
-                        Barcode.FORMAT_EAN_13,
-                        Barcode.FORMAT_EAN_8,
-                        Barcode.FORMAT_UPC_A,
-                        Barcode.FORMAT_UPC_E,
-                    ).build(),
+            // ML Kit's unbundled scanner resolves through Google Play services; on
+            // devices without a working GMS it can throw from getClient() itself.
+            try {
+                BarcodeScanning.getClient(
+                    BarcodeScannerOptions
+                        .Builder()
+                        .setBarcodeFormats(
+                            Barcode.FORMAT_EAN_13,
+                            Barcode.FORMAT_EAN_8,
+                            Barcode.FORMAT_UPC_A,
+                            Barcode.FORMAT_UPC_E,
+                        ).build(),
+                )
+            } catch (_: Exception) {
+                null
+            }
+        }
+    if (scanner == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.scan_barcode_unavailable),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
             )
         }
+        return
+    }
     val disposed = remember { AtomicBoolean(false) }
     val cameraProviderRef = remember { arrayOfNulls<ProcessCameraProvider>(1) }
     val imageAnalysisRef = remember { arrayOfNulls<ImageAnalysis>(1) }

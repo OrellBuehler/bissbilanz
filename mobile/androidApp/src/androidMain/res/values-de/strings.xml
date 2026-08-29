@@ -197,6 +197,7 @@
     <string name="scan_barcode_create_food">Lebensmittel erstellen</string>
     <string name="scan_barcode_permission_required">Kameraberechtigung erforderlich</string>
     <string name="scan_barcode_grant_permission">Berechtigung erteilen</string>
+    <string name="scan_barcode_unavailable">Barcode-Scannen ist auf diesem Gerät nicht verfügbar</string>
 
     <!-- Common actions -->
     <string name="app_name">Bissbilanz</string>
