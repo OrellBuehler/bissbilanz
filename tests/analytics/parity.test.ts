@@ -12,6 +12,18 @@ import { extractMealTimingPatterns } from '../../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../../src/lib/analytics/calorie-patterns';
 import { computeCaffeineSleepCutoff } from '../../src/lib/analytics/caffeine-sleep';
 import { computeMealRegularity } from '../../src/lib/analytics/meal-regularity';
+import { computeNOVAScore, computeOmegaRatio } from '../../src/lib/analytics/food-quality';
+import { computeFoodDiversity } from '../../src/lib/analytics/food-diversity';
+import { computeCalorieCycling } from '../../src/lib/analytics/calorie-patterns';
+import { computeCaloricLag } from '../../src/lib/analytics/caloric-lag';
+import { computeProteinDistribution } from '../../src/lib/analytics/protein-distribution';
+import { computeSodiumWeightCorrelation } from '../../src/lib/analytics/sodium-weight';
+import { computeWeekdayWeekendSplit } from '../../src/lib/analytics/weekday-weekend';
+import { computeNutrientOutcomeCorrelations } from '../../src/lib/analytics/nutrient-correlation';
+import { detectFoodSleepPatterns } from '../../src/lib/analytics/food-sleep';
+import { getConfidenceLevel } from '../../src/lib/analytics/correlation';
+import { localMinutesOfDay } from '../../src/lib/analytics/local-time';
+import { nullDiv, nullSum } from '../../src/lib/analytics/aggregation';
 
 /**
  * Cross-language golden-vector parity. The same frozen fixtures are asserted by
@@ -62,6 +74,38 @@ function runFn(fn: string, input: any): unknown {
 			return computeCaffeineSleepCutoff(input.caffeineEntries, input.sleepData, input.timeZone);
 		case 'computeMealRegularity':
 			return computeMealRegularity(input.entries, input.timeZone);
+		case 'computeNOVAScore':
+			return computeNOVAScore(input.entries);
+		case 'computeOmegaRatio':
+			return computeOmegaRatio(input.dailyNutrients);
+		case 'computeFoodDiversity':
+			return computeFoodDiversity(input.entries);
+		case 'computeCalorieCycling':
+			return computeCalorieCycling(input.dailyNutrients);
+		case 'computeCaloricLag':
+			return computeCaloricLag(input.dailyCalories, input.dailyWeight, input.maxLag);
+		case 'computeProteinDistribution':
+			return computeProteinDistribution(input.entries, input.threshold);
+		case 'computeSodiumWeightCorrelation':
+			return computeSodiumWeightCorrelation(input.dailyNutrients, input.weightSeries);
+		case 'computeWeekdayWeekendSplit':
+			return computeWeekdayWeekendSplit(input.dailyNutrients);
+		case 'computeNutrientOutcomeCorrelations':
+			return computeNutrientOutcomeCorrelations(
+				input.dailyNutrients,
+				input.outcomes,
+				input.lagDays
+			);
+		case 'detectFoodSleepPatterns':
+			return detectFoodSleepPatterns(input.eveningFoods, input.sleepData, input.minOccurrences);
+		case 'getConfidenceLevel':
+			return getConfidenceLevel(input.sampleSize);
+		case 'localMinutesOfDay':
+			return localMinutesOfDay(input.isoString, input.timeZone);
+		case 'nullDiv':
+			return nullDiv(input.a, input.b);
+		case 'nullSum':
+			return nullSum(input.values);
 		default:
 			throw new Error(`Unknown fn in fixtures: ${fn}`);
 	}

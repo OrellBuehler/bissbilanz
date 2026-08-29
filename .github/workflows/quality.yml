@@ -43,6 +43,9 @@ jobs:
       - name: Shared analytics constants up to date
         run: bun run constants:check
 
+      - name: Analytics golden vectors up to date
+        run: bun run analytics:check
+
       - name: Unit tests
         run: bun run test
 

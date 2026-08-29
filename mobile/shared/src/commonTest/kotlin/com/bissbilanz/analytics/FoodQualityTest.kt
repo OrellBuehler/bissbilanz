@@ -77,7 +77,7 @@ class FoodQualityTest {
             )
         val result = computeOmegaRatio(days)
         assertEquals("critical", result.status)
-        assertTrue(result.ratio > 20.0)
+        assertTrue(result.ratio!! > 20.0)
     }
 
     @Test
@@ -205,7 +205,7 @@ class FoodQualityTest {
     @Test
     fun omegaSingleDay() {
         val result = computeOmegaRatio(listOf(Triple("2024-01-01", 2.0, 8.0)))
-        assertEquals(4.0, result.ratio, 1e-9)
+        assertEquals(4.0, result.ratio!!, 1e-9)
         assertEquals("optimal", result.status)
         assertEquals(1, result.sampleSize)
     }

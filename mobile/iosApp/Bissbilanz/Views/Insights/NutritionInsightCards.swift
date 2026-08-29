@@ -96,7 +96,7 @@ struct OmegaRatioCard: View {
             } else {
                 HStack(alignment: .top) {
                     InsightHeadline(
-                        value: "\(result.ratio.rounded1):1",
+                        value: result.ratio.map { "\($0.doubleValue.rounded1):1" } ?? "—",
                         caption: L10n.insightsOmegaRatioLabel,
                         tint: statusTint
                     )
