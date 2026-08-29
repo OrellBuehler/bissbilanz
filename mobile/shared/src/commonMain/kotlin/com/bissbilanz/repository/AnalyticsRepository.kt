@@ -1,6 +1,7 @@
 package com.bissbilanz.repository
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.InsightsBundle
 import com.bissbilanz.model.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +51,16 @@ class AnalyticsRepository(
         startDate: String,
         endDate: String,
     ): SleepFoodCorrelationResponse? = compute { local.sleepFood(startDate, endDate) }
+
+    /**
+     * Every insights card for the range in one pass, computed by the shared
+     * [com.bissbilanz.analytics.computeInsights] that iOS also calls.
+     */
+    suspend fun getInsights(
+        startDate: String,
+        endDate: String,
+        timeZoneId: String,
+    ): InsightsBundle? = compute { local.insights(startDate, endDate, timeZoneId) }
 
     /** Null when the range lacks the inputs (fewer than two weight entries or no logged days). */
     suspend fun getMaintenance(
