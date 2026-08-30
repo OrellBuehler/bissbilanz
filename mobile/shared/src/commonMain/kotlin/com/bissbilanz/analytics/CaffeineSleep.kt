@@ -1,5 +1,7 @@
 package com.bissbilanz.analytics
 
+import kotlin.math.min
+
 data class HourlyImpact(
     val hour: Int,
     val avgQuality: Double,
@@ -8,7 +10,14 @@ data class HourlyImpact(
 )
 
 data class CaffeineSleepResult(
+    /** A personal cutoff, only when the split survives a multiplicity-corrected test. */
     val estimatedCutoffHour: Int?,
+    /** Literature default to fall back on (~9 h before a 23:00 bedtime; Drake 2013, Gardiner 2023). */
+    val defaultCutoffHour: Int,
+    /** Bonferroni-corrected p-value of the best split, null when nothing was testable. */
+    val pValue: Double?,
+    /** Number of candidate cutoffs that had enough nights on both sides to test. */
+    val comparisons: Int,
     val hourlyImpact: List<HourlyImpact>,
     val confidence: ConfidenceLevel,
     val sampleSize: Int,
@@ -26,6 +35,17 @@ data class SleepDataPoint(
     val sleepDurationMinutes: Double?,
 )
 
+private const val MIN_NIGHTS_PER_SIDE = 5
+private const val MIN_QUALITY_DELTA = 0.5
+private const val SIGNIFICANCE = 0.05
+
+/**
+ * Buckets nights by the hour of the day's last caffeine and scans cutoffs
+ * 12:00–20:00 for the split with the strongest quality drop. Nine candidate
+ * split points searched for a maximum is a maximally-selected statistic, so the
+ * winner's Welch p-value is Bonferroni-corrected over the candidates that were
+ * actually testable before it may replace the literature default.
+ */
 fun computeCaffeineSleepCutoff(
     caffeineEntries: List<CaffeineEntry>,
     sleepData: List<SleepDataPoint>,
@@ -56,39 +76,45 @@ fun computeCaffeineSleepCutoff(
         bucket.second.add(sleep.second)
     }
 
+    val sortedBuckets = hourBuckets.entries.sortedBy { it.key }
     val hourlyImpact =
-        hourBuckets.entries.sortedBy { it.key }.map { (hour, pair) ->
-            val quality = pair.first
-            val duration = pair.second
+        sortedBuckets.map { (hour, pair) ->
             HourlyImpact(
                 hour = hour,
-                avgQuality = quality.sum() / quality.size,
-                avgDuration = duration.sum() / duration.size,
-                count = quality.size,
+                avgQuality = mean(pair.first),
+                avgDuration = mean(pair.second),
+                count = pair.first.size,
             )
         }
 
     val sampleSize = hourlyImpact.sumOf { it.count }
 
-    var estimatedCutoffHour: Int? = null
-    var bestDelta = 0.0
+    var comparisons = 0
+    var bestCandidate: Int? = null
+    var bestP = 1.0
     for (candidate in 12..20) {
-        val before = hourlyImpact.filter { it.hour < candidate && it.count >= 1 }
-        val after = hourlyImpact.filter { it.hour >= candidate && it.count >= 1 }
-        val beforeCount = before.sumOf { it.count }
-        val afterCount = after.sumOf { it.count }
-        if (beforeCount < 3 || afterCount < 3) continue
-        val beforeQuality = before.sumOf { it.avgQuality * it.count } / beforeCount
-        val afterQuality = after.sumOf { it.avgQuality * it.count } / afterCount
-        val delta = beforeQuality - afterQuality
-        if (delta > 0.5 && delta > bestDelta) {
-            bestDelta = delta
-            estimatedCutoffHour = candidate
+        val before = sortedBuckets.filter { it.key < candidate }.flatMap { it.value.first }
+        val after = sortedBuckets.filter { it.key >= candidate }.flatMap { it.value.first }
+        if (before.size < MIN_NIGHTS_PER_SIDE || after.size < MIN_NIGHTS_PER_SIDE) continue
+        comparisons++
+        val delta = mean(before) - mean(after)
+        if (delta <= MIN_QUALITY_DELTA) continue
+        val pValue = welchTTest(before, after).pValue
+        if (pValue < bestP) {
+            bestP = pValue
+            bestCandidate = candidate
         }
     }
 
+    val correctedP = if (comparisons > 0) min(1.0, bestP * comparisons) else null
+    val estimatedCutoffHour =
+        if (bestCandidate != null && correctedP != null && correctedP < SIGNIFICANCE) bestCandidate else null
+
     return CaffeineSleepResult(
         estimatedCutoffHour = estimatedCutoffHour,
+        defaultCutoffHour = DEFAULT_CAFFEINE_CUTOFF_HOUR,
+        pValue = correctedP,
+        comparisons = comparisons,
         hourlyImpact = hourlyImpact,
         confidence = getConfidenceLevel(sampleSize),
         sampleSize = sampleSize,

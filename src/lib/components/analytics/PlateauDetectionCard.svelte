@@ -4,56 +4,26 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
-	type NutrientEntry = {
-		date: string;
-		sodium: number | null;
-		[key: string]: unknown;
-	};
-
 	let {
 		weightFoodData,
-		nutrientData,
 		loading
 	}: {
 		weightFoodData: WeightFoodPoint[];
-		nutrientData: NutrientEntry[];
 		loading: boolean;
 	} = $props();
-
-	const sodiumAvg = $derived.by(() => {
-		const byDate = new Map<string, number>();
-		for (const entry of nutrientData) {
-			if (entry.sodium === null) continue;
-			const prev = byDate.get(entry.date) ?? 0;
-			byDate.set(entry.date, prev + entry.sodium);
-		}
-		const days = [...byDate.values()];
-		if (days.length === 0) return null;
-		return days.reduce((s, v) => s + v, 0) / days.length;
-	});
 
 	const plateau = $derived.by(() => {
 		if (weightFoodData.length === 0) return null;
 		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
 		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
 		const tdee = computeAdaptiveTDEE(weightSeries, calorieSeries, 14);
-		return detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE, sodiumAvg);
+		return detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE);
 	});
 
 	const headline = $derived.by(() => {
 		const p = plateau;
-		if (!p) return m.analytics_plateau_none();
-		if (!p.isPlateaued) return m.analytics_plateau_none();
+		if (!p || !p.isPlateaued) return m.analytics_plateau_none();
 		return m.analytics_plateau_detected({ days: p.plateauDays.toString() });
-	});
-
-	const causeText = $derived.by(() => {
-		const p = plateau;
-		if (!p || !p.isPlateaued) return null;
-		if (p.cause === 'adaptive_metabolism') return m.analytics_plateau_cause_metabolism();
-		if (p.cause === 'intake_variance') return m.analytics_plateau_cause_variance();
-		if (p.cause === 'water_retention') return m.analytics_plateau_cause_water();
-		return null;
 	});
 </script>
 
@@ -77,8 +47,8 @@
 						</span>
 					</div>
 
-					{#if causeText}
-						<p class="text-sm text-foreground">{causeText}</p>
+					{#if plateau.cause === 'intake_variance'}
+						<p class="text-sm text-foreground">{m.analytics_plateau_cause_variance()}</p>
 					{/if}
 
 					{#if plateau.estimatedDeficit !== null}
@@ -89,6 +59,8 @@
 							</span>
 						</div>
 					{/if}
+
+					<p class="text-[11px] text-muted-foreground">{m.analytics_plateau_span_note()}</p>
 				{:else}
 					<div class="flex items-center gap-2">
 						<span

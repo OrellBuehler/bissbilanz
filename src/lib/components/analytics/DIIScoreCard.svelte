@@ -1,11 +1,13 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
-	import { computeDIIScore } from '$lib/analytics/food-quality';
+	import { computeDIIScore, type DIINutrient } from '$lib/analytics/food-quality';
+	import { aggregateEntriesByDay } from '$lib/analytics/daily-coverage';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
 		date: string;
+		calories: number;
 		fiber?: number | null;
 		omega3?: number | null;
 		vitaminC?: number | null;
@@ -15,7 +17,6 @@
 		transFat?: number | null;
 		alcohol?: number | null;
 		caffeine?: number | null;
-		sodium?: number | null;
 	};
 
 	let {
@@ -26,56 +27,30 @@
 		loading: boolean;
 	} = $props();
 
-	type DailyAggregate = {
-		date: string;
-		fiber: number;
-		omega3: number;
-		vitaminC: number;
-		vitaminD: number;
-		vitaminE: number;
-		saturatedFat: number;
-		transFat: number;
-		alcohol: number;
-		caffeine: number;
-		sodium: number;
-	};
+	const DII_KEYS = [
+		'fiber',
+		'omega3',
+		'vitaminC',
+		'vitaminD',
+		'vitaminE',
+		'saturatedFat',
+		'transFat',
+		'alcohol',
+		'caffeine'
+	] as const satisfies readonly DIINutrient[];
 
-	const dailyAggregates = $derived.by(() => {
-		const byDate = new Map<string, DailyAggregate>();
-		for (const entry of nutrientEntries) {
-			if (!byDate.has(entry.date)) {
-				byDate.set(entry.date, {
-					date: entry.date,
-					fiber: 0,
-					omega3: 0,
-					vitaminC: 0,
-					vitaminD: 0,
-					vitaminE: 0,
-					saturatedFat: 0,
-					transFat: 0,
-					alcohol: 0,
-					caffeine: 0,
-					sodium: 0
-				});
-			}
-			const day = byDate.get(entry.date)!;
-			day.fiber += entry.fiber ?? 0;
-			day.omega3 += entry.omega3 ?? 0;
-			day.vitaminC += entry.vitaminC ?? 0;
-			day.vitaminD += entry.vitaminD ?? 0;
-			day.vitaminE += entry.vitaminE ?? 0;
-			day.saturatedFat += entry.saturatedFat ?? 0;
-			day.transFat += entry.transFat ?? 0;
-			day.alcohol += entry.alcohol ?? 0;
-			day.caffeine += entry.caffeine ?? 0;
-			day.sodium += entry.sodium ?? 0;
-		}
-		return [...byDate.values()];
-	});
+	// Days keep null where no food carried the nutrient, plus the calorie share
+	// that did — the analytic gates each nutrient on that coverage.
+	const dailyInputs = $derived.by(() =>
+		aggregateEntriesByDay(nutrientEntries, DII_KEYS).map((day) => ({
+			...day.values,
+			coverage: day.coverage
+		}))
+	);
 
 	const result = $derived.by(() => {
-		if (dailyAggregates.length === 0) return null;
-		return computeDIIScore(dailyAggregates);
+		if (dailyInputs.length === 0) return null;
+		return computeDIIScore(dailyInputs);
 	});
 
 	const classLabel = $derived.by(() => {
@@ -98,7 +73,7 @@
 	{loading}
 	title={m.analytics_dii()}
 	headline={m.analytics_dii_headline({
-		score: (Math.round((result?.score ?? 0) * 10) / 10).toFixed(1)
+		score: (Math.round((result?.score ?? 0) * 100) / 100).toFixed(2)
 	})}
 	confidence={result?.confidence ?? 'insufficient'}
 	sampleSize={result?.sampleSize ?? 0}
@@ -131,6 +106,12 @@
 						</div>
 					</div>
 				{/if}
+				<p class="text-[11px] text-muted-foreground">
+					{m.analytics_dii_coverage({
+						pct: Math.round(result.coverageFraction * 100).toString(),
+						band: result.neutralBand.toFixed(2)
+					})} · {m.analytics_dii_source()}
+				</p>
 			</div>
 		{/if}
 	{/snippet}

@@ -60,9 +60,9 @@ class FoodQualityTest {
     fun omegaRatioOptimal() {
         val days =
             listOf(
-                Triple("2024-01-01", 2.0, 4.0),
-                Triple("2024-01-02", 2.0, 4.0),
-                Triple("2024-01-03", 2.0, 4.0),
+                OmegaDay("2024-01-01", 2.0, 4.0),
+                OmegaDay("2024-01-02", 2.0, 4.0),
+                OmegaDay("2024-01-03", 2.0, 4.0),
             )
         val result = computeOmegaRatio(days)
         assertEquals("optimal", result.status)
@@ -70,59 +70,59 @@ class FoodQualityTest {
     }
 
     @Test
-    fun omegaRatioCritical() {
-        val days =
-            listOf(
-                Triple("2024-01-01", 0.5, 15.0),
-            )
+    fun omegaRatioHighAbove20() {
+        val days = listOf(OmegaDay("2024-01-01", 0.5, 15.0))
         val result = computeOmegaRatio(days)
-        assertEquals("critical", result.status)
+        assertEquals("high", result.status)
         assertTrue(result.ratio!! > 20.0)
     }
 
     @Test
+    fun omegaRatioAtTheAdequateIntakeProportionsIsOptimal() {
+        // 17 g n-6 / 1.6 g n-3 (male AI) ≈ 10.6:1 — the app's own reference table.
+        assertEquals("optimal", computeOmegaRatio(listOf(OmegaDay("2024-01-01", 1.6, 17.0))).status)
+    }
+
+    @Test
     fun omegaRatioElevated() {
-        val days = listOf(Triple("2024-01-01", 1.0, 8.0))
+        val days = listOf(OmegaDay("2024-01-01", 1.0, 15.0))
         assertEquals("elevated", computeOmegaRatio(days).status)
     }
 
     @Test
-    fun omegaRatioHigh() {
-        val days = listOf(Triple("2024-01-01", 1.0, 15.0))
-        assertEquals("high", computeOmegaRatio(days).status)
-    }
-
-    @Test
-    fun omegaRatioFiltersZeroValues() {
+    fun omegaRatioFiltersZeroValuesAndLowCoverage() {
         val days =
             listOf(
-                Triple("2024-01-01", 0.0, 8.0),
-                Triple("2024-01-02", 1.0, 4.0),
+                OmegaDay("2024-01-01", 0.0, 8.0),
+                OmegaDay("2024-01-02", 1.0, 4.0),
+                OmegaDay("2024-01-03", 0.2, 20.0, coverage = 0.3),
             )
         val result = computeOmegaRatio(days)
         assertEquals(1, result.sampleSize)
+        assertEquals(4.0, result.ratio!!, 1e-9)
     }
 
     @Test
-    fun diiScoreAtGlobalMeanIsNearZero() {
+    fun diiScoreAtGlobalMeanIsZero() {
+        // Shivappa et al. 2014 Table 2 means; caffeine is tabulated in g (8.05 g = 8050 mg).
         val days =
             (1..10).map {
                 DIIInput(
                     fiber = 18.8,
-                    omega3 = 1.3,
-                    vitaminC = 108.0,
-                    vitaminD = 6.0,
-                    vitaminE = 8.7,
+                    omega3 = 1.06,
+                    vitaminC = 118.2,
+                    vitaminD = 6.26,
+                    vitaminE = 8.73,
                     saturatedFat = 28.6,
                     transFat = 3.15,
                     alcohol = 13.98,
-                    caffeine = 220.0,
-                    sodium = 3446.0,
+                    caffeine = 8050.0,
                 )
             }
         val result = computeDIIScore(days)
-        assertTrue(abs(result.score) < 0.01, "Score at global mean should be near 0, got ${result.score}")
+        assertTrue(abs(result.score) < 1e-6, "Score at global mean should be 0, got ${result.score}")
         assertEquals("neutral", result.classification)
+        assertEquals(3.378 / 13.152, result.coverageFraction, 1e-9)
     }
 
     @Test
@@ -139,11 +139,10 @@ class FoodQualityTest {
                     transFat = 0.5,
                     alcohol = 0.0,
                     caffeine = 50.0,
-                    sodium = 1500.0,
                 )
             }
         val result = computeDIIScore(days)
-        assertTrue(result.score < -1.0, "Expected anti-inflammatory, got score=${result.score}")
+        assertTrue(result.score < -result.neutralBand, "Expected anti-inflammatory, got score=${result.score}")
         assertEquals("anti-inflammatory", result.classification)
     }
 
@@ -159,14 +158,34 @@ class FoodQualityTest {
                     vitaminE = 2.0,
                     saturatedFat = 50.0,
                     transFat = 8.0,
-                    alcohol = 40.0,
+                    alcohol = 0.0,
                     caffeine = 500.0,
-                    sodium = 6000.0,
                 )
             }
         val result = computeDIIScore(days)
-        assertTrue(result.score > 1.0, "Expected pro-inflammatory, got score=${result.score}")
+        assertTrue(result.score > result.neutralBand, "Expected pro-inflammatory, got score=${result.score}")
         assertEquals("pro-inflammatory", result.classification)
+    }
+
+    @Test
+    fun diiContributionsAreBoundedAndAlcoholIsAntiInflammatory() {
+        val extreme = computeDIIScore((1..7).map { DIIInput(fiber = 5000.0) })
+        assertEquals(-0.663, extreme.contributors[0].impact, 1e-6)
+        val moderate = computeDIIScore((1..7).map { DIIInput(alcohol = 13.98 + 3.72) })
+        assertTrue(moderate.contributors[0].impact < 0)
+    }
+
+    @Test
+    fun diiSkipsDaysUnderTheCoverageFloor() {
+        val days =
+            (0 until 10).map { i ->
+                DIIInput(
+                    fiber = if (i < 5) 40.0 else 5.0,
+                    coverage = mapOf("fiber" to if (i < 5) 1.0 else 0.3),
+                )
+            }
+        val result = computeDIIScore(days)
+        assertTrue(result.contributors[0].impact < -0.6)
     }
 
     @Test
@@ -204,7 +223,7 @@ class FoodQualityTest {
 
     @Test
     fun omegaSingleDay() {
-        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 2.0, 8.0)))
+        val result = computeOmegaRatio(listOf(OmegaDay("2024-01-01", 2.0, 8.0)))
         assertEquals(4.0, result.ratio!!, 1e-9)
         assertEquals("optimal", result.status)
         assertEquals(1, result.sampleSize)
@@ -212,14 +231,14 @@ class FoodQualityTest {
 
     @Test
     fun omegaBothZeroFiltered() {
-        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 0.0, 0.0)))
+        val result = computeOmegaRatio(listOf(OmegaDay("2024-01-01", 0.0, 0.0)))
         assertEquals(0, result.sampleSize)
         assertEquals("insufficient", result.status)
     }
 
     @Test
     fun omegaOnlyOmega3ZeroFiltered() {
-        val result = computeOmegaRatio(listOf(Triple("2024-01-01", 0.0, 10.0)))
+        val result = computeOmegaRatio(listOf(OmegaDay("2024-01-01", 0.0, 10.0)))
         assertEquals(0, result.sampleSize)
     }
 
@@ -250,6 +269,21 @@ class FoodQualityTest {
         assertEquals(1, result.sampleSize)
         assertEquals(201.6, result.avgTEF, 1e-9)
         assertEquals(201.6 / 2000.0 * 100.0, result.avgTEFPct, 1e-9)
+    }
+
+    @Test
+    fun tefAlcoholAddsItsOwnThermicCost() {
+        val dry = computeTEF(listOf(TEFInput(100.0, 200.0, 70.0, 2000.0)))
+        val wet = computeTEF(listOf(TEFInput(100.0, 200.0, 70.0, 2280.0, alcohol = 40.0)))
+        assertEquals(40.0 * 7.0 * 0.2, wet.avgTEF - dry.avgTEF, 1e-9)
+    }
+
+    @Test
+    fun novaReportsUntaggedCaloriesAsUnknownOverTheTotal() {
+        val result = computeNOVAScore(listOf(Pair(200.0, 4), Pair(800.0, null)))
+        assertEquals(20.0, result.ultraProcessedPct, 1e-9)
+        assertEquals(80.0, result.unknownPct, 1e-9)
+        assertEquals(20.0, result.coveragePct, 1e-9)
     }
 
     @Test

@@ -9,6 +9,7 @@
 		carbs: number;
 		fat: number;
 		calories: number;
+		alcohol?: number | null;
 	};
 
 	let {
@@ -22,17 +23,32 @@
 	const dailyAggregates = $derived.by(() => {
 		const byDate = new Map<
 			string,
-			{ date: string; protein: number; carbs: number; fat: number; calories: number }
+			{
+				date: string;
+				protein: number;
+				carbs: number;
+				fat: number;
+				calories: number;
+				alcohol: number;
+			}
 		>();
 		for (const entry of nutrientEntries) {
 			if (!byDate.has(entry.date)) {
-				byDate.set(entry.date, { date: entry.date, protein: 0, carbs: 0, fat: 0, calories: 0 });
+				byDate.set(entry.date, {
+					date: entry.date,
+					protein: 0,
+					carbs: 0,
+					fat: 0,
+					calories: 0,
+					alcohol: 0
+				});
 			}
 			const day = byDate.get(entry.date)!;
 			day.protein += entry.protein;
 			day.carbs += entry.carbs;
 			day.fat += entry.fat;
 			day.calories += entry.calories;
+			day.alcohol += entry.alcohol ?? 0;
 		}
 		return [...byDate.values()];
 	});

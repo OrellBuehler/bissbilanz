@@ -4,6 +4,7 @@ import com.bissbilanz.analytics.AggEntry
 import com.bissbilanz.analytics.AggFood
 import com.bissbilanz.analytics.AggRecipe
 import com.bissbilanz.analytics.AggRecipeIngredient
+import com.bissbilanz.analytics.DatedWeight
 import com.bissbilanz.analytics.EVENING_CUTOFF_HOUR
 import com.bissbilanz.analytics.InsightsBundle
 import com.bissbilanz.analytics.InsightsInput
@@ -20,6 +21,7 @@ import com.bissbilanz.analytics.localMinutesOfDay
 import com.bissbilanz.analytics.mealTimingRows
 import com.bissbilanz.analytics.shiftDate
 import com.bissbilanz.analytics.sleepFoodCorrelation
+import com.bissbilanz.analytics.smoothedWeightChange
 import com.bissbilanz.analytics.weightFoodSeries
 import com.bissbilanz.api.generated.model.DailyNutrients
 import com.bissbilanz.api.generated.model.DailyWeightFood
@@ -256,16 +258,19 @@ class LocalAnalytics(
         val days = LocalDate.parse(startDate).daysUntil(LocalDate.parse(endDate))
         if (days <= 0) return null
 
-        // The food window is inclusive of both endpoints, so it covers days + 1
-        // calendar days; average intake over that inclusive count. The weight-change
-        // rate (passed as `days` to calculateMaintenance) stays per-interval.
+        // Mean intake is over the days that were actually logged (fasting days
+        // are explicit zeros); an unlogged day is unknown, not a zero-calorie
+        // day. The inclusive calendar count only feeds the coverage figure; the
+        // weight-change rate (passed as `days` to calculateMaintenance) stays
+        // per-interval. Endpoints are 7-day smoothed anchors, as on the server.
         val inclusiveDays = days + 1
         val totalCalories = dailyTotals.values.sum()
-        val avgDailyCalories = totalCalories / inclusiveDays
+        val avgDailyCalories = totalCalories / dailyTotals.size
         val coverage = dailyTotals.size.toDouble() / inclusiveDays
-        val firstWeight = weights.first().weightKg
-        val lastWeight = weights.last().weightKg
-        val weightChangeKg = lastWeight - firstWeight
+        val change = smoothedWeightChange(weights.map { DatedWeight(it.weightKg, it.entryDate) }, days)
+        val firstWeight = change.firstWeight
+        val lastWeight = change.lastWeight
+        val weightChangeKg = change.weightChangeKg
 
         val result =
             calculateMaintenance(

@@ -1,6 +1,11 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
-	import { computeProteinDistribution } from '$lib/analytics/protein-distribution';
+	import {
+		computeProteinDistribution,
+		proteinPerMealThreshold
+	} from '$lib/analytics/protein-distribution';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { weightService } from '$lib/services/weight-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
@@ -17,9 +22,14 @@
 		loading: boolean;
 	} = $props();
 
+	// The per-meal bar scales with body weight (~0.4 g/kg); the latest logged
+	// weight stands in for it, falling back to a flat 20 g.
+	const latestWeight = useLiveQuery(() => weightService.latest(), undefined);
+	const threshold = $derived(proteinPerMealThreshold(latestWeight.value?.weightKg ?? null));
+
 	const result = $derived.by(() => {
 		if (nutrientEntries.length === 0) return null;
-		return computeProteinDistribution(nutrientEntries);
+		return computeProteinDistribution(nutrientEntries, threshold);
 	});
 
 	const scoreWidth = $derived.by(() => Math.min(100, Math.max(0, result?.score ?? 0)));
@@ -70,7 +80,7 @@
 						<p class="text-[11px] text-muted-foreground uppercase tracking-wide">
 							{m.analytics_protein_dist_below({
 								count: result.mealsBelowThreshold.toString(),
-								threshold: '20'
+								threshold: Math.round(result.threshold).toString()
 							})}
 						</p>
 						<p class="text-sm font-semibold tabular-nums">
@@ -78,6 +88,9 @@
 						</p>
 					</div>
 				</div>
+				<p class="text-[11px] text-muted-foreground">
+					{m.analytics_protein_dist_target({ threshold: Math.round(result.threshold).toString() })}
+				</p>
 			</div>
 		{/if}
 	{/snippet}

@@ -116,8 +116,30 @@ describe('detectPlateau', () => {
 		const result = detectPlateau(weights, calories, 2200);
 
 		expect(result.isPlateaued).toBe(true);
+		expect(result.plateauDays).toBe(14);
 		expect(result.estimatedDeficit).toBeCloseTo(400);
-		expect(result.cause).toBe('adaptive_metabolism');
+		// A deficit with a flat scale is not evidence of adaptation; no cause is asserted.
+		expect(result.cause).toBe('none');
+	});
+
+	test('does not call a short window a plateau', () => {
+		const weights = makeWeightSeries(6, 80, 0);
+		const calories = makeCalorieSeries(14, 1800);
+
+		const result = detectPlateau(weights, calories, 2200);
+
+		expect(result.isPlateaued).toBe(false);
+	});
+
+	test('sparse weigh-ins are regressed on the date, not the row index', () => {
+		// Four points over 13 days losing 0.05 kg/day: a row-index fit would see
+		// the same drop compressed into three steps and report ~4x the rate.
+		const dense = makeWeightSeries(14, 80, -0.05);
+		const sparse = [dense[0], dense[1], dense[2], dense[13]];
+		const calories = makeCalorieSeries(14, 2000);
+
+		const tdee = computeAdaptiveTDEE([...sparse, dense[5]], calories, 14);
+		expect(tdee.weeklyRate).toBeCloseTo(-0.35, 5);
 	});
 
 	test('does not flag plateau during normal weight loss', () => {
@@ -154,30 +176,37 @@ describe('detectPlateau', () => {
 		expect(result.isPlateaued).toBe(true);
 		expect(result.cause).toBe('intake_variance');
 	});
-
-	test('classifies cause as water_retention when sodium is high', () => {
-		const weights = makeWeightSeries(14, 80, 0);
-		const calories = makeCalorieSeries(14, 1800);
-
-		const result = detectPlateau(weights, calories, 2000, 3500);
-
-		expect(result.isPlateaued).toBe(true);
-		expect(result.cause).toBe('water_retention');
-	});
 });
 
 describe('projectWeight', () => {
-	test('projects weight forward correctly', () => {
+	test('projects from the smoothed anchor along a decelerating curve', () => {
 		const weights = makeWeightSeries(22, 80, -0.07);
 		const weeklyRate = -0.5;
 
 		const result = projectWeight(weights, weeklyRate);
 
-		expect(result.currentWeight).not.toBeNull();
-		expect(result.day30).toBeCloseTo(result.currentWeight! + (weeklyRate * 30) / 7, 5);
-		expect(result.day60).toBeCloseTo(result.currentWeight! + (weeklyRate * 60) / 7, 5);
-		expect(result.day90).toBeCloseTo(result.currentWeight! + (weeklyRate * 90) / 7, 5);
+		// Anchor is the trailing 7-day mean, not the last (noisy) raw point.
+		const lastSeven = weights.slice(-7).map((w) => w.weightKg);
+		expect(result.currentWeight).toBeCloseTo(lastSeven.reduce((s, v) => s + v, 0) / 7, 9);
+
+		// Linear extrapolation is the upper bound on the change; the curve bends
+		// as expenditure falls with mass (τ = 7700 / 22 = 350 days).
+		const tau = 7700 / 22;
+		const expected = (days: number) =>
+			result.currentWeight! + (weeklyRate / 7) * tau * (1 - Math.exp(-days / tau));
+		expect(result.day30).toBeCloseTo(expected(30), 9);
+		expect(result.day60).toBeCloseTo(expected(60), 9);
+		expect(result.day90).toBeCloseTo(expected(90), 9);
+		const linear90 = result.currentWeight! + (weeklyRate * 90) / 7;
+		expect(result.day90!).toBeGreaterThan(linear90);
+		expect(result.day90!).toBeLessThan(result.currentWeight!);
 		expect(result.confidence).toBe('high');
+	});
+
+	test("carries the rate estimate's confidence when given", () => {
+		const weights = makeWeightSeries(22, 80, -0.07);
+		const result = projectWeight(weights, -0.5, 'low');
+		expect(result.confidence).toBe('low');
 	});
 
 	test('returns null projections when no weight data', () => {

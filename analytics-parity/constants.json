@@ -1,31 +1,70 @@
 {
-	"description": "Single source of truth for the analytics constants shared by the TypeScript server/web and the Kotlin mobile analytics. Edit this file, then run `bun run constants:generate` to regenerate src/lib/analytics/constants.generated.ts and mobile/shared/.../analytics/GeneratedAnalyticsConstants.kt. CI fails if the generated files drift (constants:check).",
+	"description": "Single source of truth for the analytics constants shared by the TypeScript server/web and the Kotlin mobile analytics. Edit this file, then run `bun run constants:generate` to regenerate src/lib/analytics/constants.generated.ts and mobile/shared/.../analytics/GeneratedAnalyticsConstants.kt. CI fails if the generated files drift (constants:check). DII rows are the overall inflammatory effect score, global daily mean intake and SD from Table 2 of Shivappa et al. 2014 (PMC3925198); caffeine is tabulated in g there, so mg intakes are divided by caffeineMgPerTableUnit before scoring. fullIndexAbsCoefficientSum is the sum of |effect score| over all 45 published parameters, used to scale the +/-1 classification cut-points to the subset this app measures. RDA rows carry the IOM RDA (or AI/CDRR where no RDA exists, see referenceType) and the EAR where one is defined, adults 19-50; fiber is the 14 g/1000 kcal AI.",
 	"energy": {
 		"kcalPerKgFat": 7700,
 		"kcalPerKgMuscle": 1800,
-		"defaultMuscleRatio": 0.3
+		"defaultMuscleRatio": 0.3,
+		"expenditurePerKgKcalPerDay": 22
 	},
 	"tdee": {
-		"plateauThresholdKgPerWeek": 0.1
+		"plateauThresholdKgPerWeek": 0.1,
+		"minPlateauSpanDays": 10
 	},
 	"omegaRatio": {
-		"optimalMax": 4,
-		"elevatedMax": 10,
-		"highMax": 20
+		"optimalMax": 11,
+		"elevatedMax": 20
 	},
 	"dii": {
 		"zeroValidNutrients": ["alcohol", "transFat", "caffeine"],
+		"neutralCutpoint": 1.0,
+		"fullIndexAbsCoefficientSum": 13.152,
+		"caffeineMgPerTableUnit": 1000,
 		"nutrients": {
-			"fiber": { "coefficient": -0.663, "globalMean": 18.8, "globalSd": 8.0 },
-			"omega3": { "coefficient": -0.436, "globalMean": 1.3, "globalSd": 1.0 },
-			"vitaminC": { "coefficient": -0.299, "globalMean": 108, "globalSd": 85 },
-			"vitaminD": { "coefficient": -0.446, "globalMean": 6, "globalSd": 5.0 },
-			"vitaminE": { "coefficient": -0.419, "globalMean": 8.7, "globalSd": 5.0 },
-			"saturatedFat": { "coefficient": 0.373, "globalMean": 28.6, "globalSd": 12 },
-			"transFat": { "coefficient": 0.229, "globalMean": 3.15, "globalSd": 2.0 },
-			"alcohol": { "coefficient": 0.407, "globalMean": 13.98, "globalSd": 20 },
-			"caffeine": { "coefficient": -0.11, "globalMean": 220, "globalSd": 150 },
-			"sodium": { "coefficient": 0.269, "globalMean": 3446, "globalSd": 1200 }
+			"fiber": {
+				"coefficient": -0.663,
+				"globalMean": 18.8,
+				"globalSd": 4.9
+			},
+			"omega3": {
+				"coefficient": -0.436,
+				"globalMean": 1.06,
+				"globalSd": 1.06
+			},
+			"vitaminC": {
+				"coefficient": -0.424,
+				"globalMean": 118.2,
+				"globalSd": 43.46
+			},
+			"vitaminD": {
+				"coefficient": -0.446,
+				"globalMean": 6.26,
+				"globalSd": 2.21
+			},
+			"vitaminE": {
+				"coefficient": -0.419,
+				"globalMean": 8.73,
+				"globalSd": 1.49
+			},
+			"saturatedFat": {
+				"coefficient": 0.373,
+				"globalMean": 28.6,
+				"globalSd": 8.0
+			},
+			"transFat": {
+				"coefficient": 0.229,
+				"globalMean": 3.15,
+				"globalSd": 3.75
+			},
+			"alcohol": {
+				"coefficient": -0.278,
+				"globalMean": 13.98,
+				"globalSd": 3.72
+			},
+			"caffeine": {
+				"coefficient": -0.11,
+				"globalMean": 8.05,
+				"globalSd": 6.67
+			}
 		}
 	},
 	"rda": [
@@ -34,6 +73,10 @@
 			"unit": "µg",
 			"rdaMale": 900,
 			"rdaFemale": 700,
+			"earMale": 625,
+			"earFemale": 500,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin A"
 		},
 		{
@@ -41,6 +84,10 @@
 			"unit": "mg",
 			"rdaMale": 90,
 			"rdaFemale": 75,
+			"earMale": 75,
+			"earFemale": 60,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin C"
 		},
 		{
@@ -48,6 +95,10 @@
 			"unit": "µg",
 			"rdaMale": 15,
 			"rdaFemale": 15,
+			"earMale": 10,
+			"earFemale": 10,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin D"
 		},
 		{
@@ -55,6 +106,10 @@
 			"unit": "mg",
 			"rdaMale": 15,
 			"rdaFemale": 15,
+			"earMale": 12,
+			"earFemale": 12,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin E"
 		},
 		{
@@ -62,6 +117,10 @@
 			"unit": "µg",
 			"rdaMale": 120,
 			"rdaFemale": 90,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Vitamin K"
 		},
 		{
@@ -69,6 +128,10 @@
 			"unit": "mg",
 			"rdaMale": 1.2,
 			"rdaFemale": 1.1,
+			"earMale": 1.0,
+			"earFemale": 0.9,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Thiamin (B1)"
 		},
 		{
@@ -76,6 +139,10 @@
 			"unit": "mg",
 			"rdaMale": 1.3,
 			"rdaFemale": 1.1,
+			"earMale": 1.1,
+			"earFemale": 0.9,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Riboflavin (B2)"
 		},
 		{
@@ -83,6 +150,10 @@
 			"unit": "mg",
 			"rdaMale": 16,
 			"rdaFemale": 14,
+			"earMale": 12,
+			"earFemale": 11,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Niacin (B3)"
 		},
 		{
@@ -90,6 +161,10 @@
 			"unit": "mg",
 			"rdaMale": 5,
 			"rdaFemale": 5,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Pantothenic Acid (B5)"
 		},
 		{
@@ -97,6 +172,10 @@
 			"unit": "mg",
 			"rdaMale": 1.3,
 			"rdaFemale": 1.3,
+			"earMale": 1.1,
+			"earFemale": 1.1,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin B6"
 		},
 		{
@@ -104,6 +183,10 @@
 			"unit": "µg",
 			"rdaMale": 30,
 			"rdaFemale": 30,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Biotin (B7)"
 		},
 		{
@@ -111,6 +194,10 @@
 			"unit": "µg",
 			"rdaMale": 400,
 			"rdaFemale": 400,
+			"earMale": 320,
+			"earFemale": 320,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Folate (B9)"
 		},
 		{
@@ -118,6 +205,10 @@
 			"unit": "µg",
 			"rdaMale": 2.4,
 			"rdaFemale": 2.4,
+			"earMale": 2.0,
+			"earFemale": 2.0,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Vitamin B12"
 		},
 		{
@@ -125,14 +216,32 @@
 			"unit": "mg",
 			"rdaMale": 1000,
 			"rdaFemale": 1000,
+			"earMale": 800,
+			"earFemale": 800,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Calcium"
 		},
-		{ "nutrientKey": "iron", "unit": "mg", "rdaMale": 8, "rdaFemale": 18, "label": "Iron" },
+		{
+			"nutrientKey": "iron",
+			"unit": "mg",
+			"rdaMale": 8,
+			"rdaFemale": 18,
+			"earMale": 6,
+			"earFemale": 8.1,
+			"referenceType": "rda",
+			"per1000Kcal": null,
+			"label": "Iron"
+		},
 		{
 			"nutrientKey": "magnesium",
 			"unit": "mg",
 			"rdaMale": 420,
 			"rdaFemale": 320,
+			"earMale": 350,
+			"earFemale": 265,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Magnesium"
 		},
 		{
@@ -140,6 +249,10 @@
 			"unit": "mg",
 			"rdaMale": 700,
 			"rdaFemale": 700,
+			"earMale": 580,
+			"earFemale": 580,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Phosphorus"
 		},
 		{
@@ -147,6 +260,10 @@
 			"unit": "mg",
 			"rdaMale": 3400,
 			"rdaFemale": 2600,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Potassium"
 		},
 		{
@@ -154,15 +271,43 @@
 			"unit": "mg",
 			"rdaMale": 2300,
 			"rdaFemale": 2300,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "cdrr",
+			"per1000Kcal": null,
 			"label": "Sodium"
 		},
-		{ "nutrientKey": "zinc", "unit": "mg", "rdaMale": 11, "rdaFemale": 8, "label": "Zinc" },
-		{ "nutrientKey": "copper", "unit": "mg", "rdaMale": 0.9, "rdaFemale": 0.9, "label": "Copper" },
+		{
+			"nutrientKey": "zinc",
+			"unit": "mg",
+			"rdaMale": 11,
+			"rdaFemale": 8,
+			"earMale": 9.4,
+			"earFemale": 6.8,
+			"referenceType": "rda",
+			"per1000Kcal": null,
+			"label": "Zinc"
+		},
+		{
+			"nutrientKey": "copper",
+			"unit": "mg",
+			"rdaMale": 0.9,
+			"rdaFemale": 0.9,
+			"earMale": 0.7,
+			"earFemale": 0.7,
+			"referenceType": "rda",
+			"per1000Kcal": null,
+			"label": "Copper"
+		},
 		{
 			"nutrientKey": "manganese",
 			"unit": "mg",
 			"rdaMale": 2.3,
 			"rdaFemale": 1.8,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Manganese"
 		},
 		{
@@ -170,14 +315,32 @@
 			"unit": "µg",
 			"rdaMale": 55,
 			"rdaFemale": 55,
+			"earMale": 45,
+			"earFemale": 45,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Selenium"
 		},
-		{ "nutrientKey": "iodine", "unit": "µg", "rdaMale": 150, "rdaFemale": 150, "label": "Iodine" },
+		{
+			"nutrientKey": "iodine",
+			"unit": "µg",
+			"rdaMale": 150,
+			"rdaFemale": 150,
+			"earMale": 95,
+			"earFemale": 95,
+			"referenceType": "rda",
+			"per1000Kcal": null,
+			"label": "Iodine"
+		},
 		{
 			"nutrientKey": "chromium",
 			"unit": "µg",
 			"rdaMale": 35,
 			"rdaFemale": 25,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Chromium"
 		},
 		{
@@ -185,18 +348,77 @@
 			"unit": "µg",
 			"rdaMale": 45,
 			"rdaFemale": 45,
+			"earMale": 34,
+			"earFemale": 34,
+			"referenceType": "rda",
+			"per1000Kcal": null,
 			"label": "Molybdenum"
 		},
-		{ "nutrientKey": "fluoride", "unit": "mg", "rdaMale": 4, "rdaFemale": 3, "label": "Fluoride" },
+		{
+			"nutrientKey": "fluoride",
+			"unit": "mg",
+			"rdaMale": 4,
+			"rdaFemale": 3,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
+			"label": "Fluoride"
+		},
 		{
 			"nutrientKey": "chloride",
 			"unit": "mg",
 			"rdaMale": 2300,
 			"rdaFemale": 2300,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
 			"label": "Chloride"
 		},
-		{ "nutrientKey": "omega3", "unit": "g", "rdaMale": 1.6, "rdaFemale": 1.1, "label": "Omega-3" },
-		{ "nutrientKey": "omega6", "unit": "g", "rdaMale": 17, "rdaFemale": 12, "label": "Omega-6" },
-		{ "nutrientKey": "fiber", "unit": "g", "rdaMale": 38, "rdaFemale": 25, "label": "Fiber" }
-	]
+		{
+			"nutrientKey": "omega3",
+			"unit": "g",
+			"rdaMale": 1.6,
+			"rdaFemale": 1.1,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
+			"label": "Omega-3"
+		},
+		{
+			"nutrientKey": "omega6",
+			"unit": "g",
+			"rdaMale": 17,
+			"rdaFemale": 12,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": null,
+			"label": "Omega-6"
+		},
+		{
+			"nutrientKey": "fiber",
+			"unit": "g",
+			"rdaMale": 38,
+			"rdaFemale": 25,
+			"earMale": null,
+			"earFemale": null,
+			"referenceType": "ai",
+			"per1000Kcal": 14,
+			"label": "Fiber"
+		}
+	],
+	"coverage": {
+		"minDayFraction": 0.7
+	},
+	"caffeine": {
+		"defaultCutoffHour": 14
+	},
+	"protein": {
+		"targetFeedingsPerDay": 3,
+		"perMealGramsPerKg": 0.4,
+		"defaultPerMealGrams": 20
+	}
 }

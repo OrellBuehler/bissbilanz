@@ -61,10 +61,16 @@ data class InsightsInput(
     val lateMealCutoffHour: Int = LATE_MEAL_CUTOFF_HOUR,
 )
 
-/** One nutrient's average intake against its RDA. [ratio] is 1.0 at target. */
+/**
+ * One nutrient's average intake against its reference. [ratio] is 1.0 at target;
+ * for sodium the target is the CDRR ceiling, so a ratio above 1.0 means over it.
+ * [coveredDays] is how many logged days actually carried a value for the
+ * nutrient — an unmeasured day is not a zero-intake day.
+ */
 data class NutrientAdequacyItem(
     val rda: RdaEntry,
     val ratio: Double,
+    val coveredDays: Int = 0,
 )
 
 /** Every result the insights screen renders, grouped the way the UI groups them. */
@@ -149,8 +155,6 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
     val sleepRows = input.sleep.map { SleepRow(it.entryDate, it.durationMinutes, it.quality.toInt()) }
     val sleepFoodData = sleepFoodCorrelation(eveningEntries, foods, recipes, sleepRows)
 
-    val extByDate = extData.groupBy { it.date }
-
     // TDEE feeds the plateau and forecast cards too, so estimate it once.
     val weightSeries = weightFoodData.map { Pair(it.date, it.weightKg) }
     val calorieSeries = weightFoodData.map { Pair(it.date, it.calories) }
@@ -158,39 +162,53 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
     // The weight tab's timing card and the sleep tab's pre-sleep card show the
     // same summary.
     val mealTiming = mealTimingOf(timingData, tz)
-    val sodiumAvg =
-        extByDate.values
-            .map { rows -> rows.sumOf { it.sodium ?: 0.0 } }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
+    // Nutrient/weight screens correlate against the day-over-day weight *change*:
+    // intake and body weight both trend, and two trending levels correlate
+    // spuriously.
+    val weightDeltas = weightDeltasOf(weightFoodData)
+    val latestWeightKg = input.weights.maxByOrNull { it.entryDate }?.weightKg
 
     return InsightsBundle(
         nova = computeNOVAScore(extData.map { Pair(it.calories, it.novaGroup) }),
         omega =
             computeOmegaRatio(
-                extByDate.map { (date, rows) ->
-                    Triple(date, rows.sumOf { it.omega3 ?: 0.0 }, rows.sumOf { it.omega6 ?: 0.0 })
+                dailyData.map {
+                    OmegaDay(it.date, it.omega3 ?: 0.0, it.omega6 ?: 0.0, minOf(it.omega3Coverage, it.omega6Coverage))
                 },
             ),
         dii =
             computeDIIScore(
-                extByDate.map { (_, rows) ->
+                dailyData.map {
                     DIIInput(
-                        fiber = rows.sumOf { it.fiber },
-                        omega3 = rows.sumOf { it.omega3 ?: 0.0 },
-                        vitaminC = rows.sumOf { it.vitaminC ?: 0.0 },
-                        vitaminD = rows.sumOf { it.vitaminD ?: 0.0 },
-                        vitaminE = rows.sumOf { it.vitaminE ?: 0.0 },
-                        saturatedFat = rows.sumOf { it.saturatedFat ?: 0.0 },
-                        transFat = rows.sumOf { it.transFat ?: 0.0 },
-                        alcohol = rows.sumOf { it.alcohol ?: 0.0 },
-                        caffeine = rows.sumOf { it.caffeine ?: 0.0 },
-                        sodium = rows.sumOf { it.sodium ?: 0.0 },
+                        fiber = it.fiber,
+                        omega3 = it.omega3,
+                        vitaminC = it.vitaminC,
+                        vitaminD = it.vitaminD,
+                        vitaminE = it.vitaminE,
+                        saturatedFat = it.saturatedFat,
+                        transFat = it.transFat,
+                        alcohol = it.alcohol,
+                        caffeine = it.caffeine,
+                        coverage =
+                            mapOf(
+                                "omega3" to it.omega3Coverage,
+                                "vitaminC" to it.vitaminCCoverage,
+                                "vitaminD" to it.vitaminDCoverage,
+                                "vitaminE" to it.vitaminECoverage,
+                                "saturatedFat" to it.saturatedFatCoverage,
+                                "transFat" to it.transFatCoverage,
+                                "alcohol" to it.alcoholCoverage,
+                                "caffeine" to it.caffeineCoverage,
+                            ),
                     )
                 },
             ),
-        tef = computeTEF(dailyData.map { TEFInput(it.protein, it.carbs, it.fat, it.calories) }),
-        proteinDistribution = computeProteinDistribution(extData.map { Triple(it.date, it.mealType, it.protein) }),
+        tef = computeTEF(dailyData.map { TEFInput(it.protein, it.carbs, it.fat, it.calories, it.alcohol) }),
+        proteinDistribution =
+            computeProteinDistribution(
+                extData.map { Triple(it.date, it.mealType, it.protein) },
+                proteinPerMealThreshold(latestWeightKg),
+            ),
         frontLoading = computeCalorieFrontLoading(extData.map { Triple(it.date, it.eatenAt, it.calories) }, tz),
         calorieCycling = computeCalorieCycling(dailyData.map { Pair(it.date, it.calories) }),
         weekdayWeekend =
@@ -201,21 +219,21 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
             computeMealRegularity(timingData.map { RegularityInputEntry(it.date, it.mealType, it.eatenAt) }, tz),
         foodDiversity = computeFoodDiversity(divData.map { FoodEntry(it.date, it.foodId, it.recipeId, it.foodName) }),
         tdee = tdee,
-        plateau = detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE, sodiumAvg),
-        weightForecast = projectWeight(weightSeries, tdee.weeklyRate),
+        plateau = detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE),
+        weightForecast = projectWeight(weightSeries, tdee.weeklyRate, tdee.confidence),
         sodiumWeight =
             computeSodiumWeightCorrelation(
-                extByDate.map { (date, rows) -> Pair(date, rows.sumOf { it.sodium ?: 0.0 }) },
+                dailyData.mapNotNull { day -> day.sodium?.let { SodiumDay(day.date, it, day.sodiumCoverage) } },
                 weightSeries,
             ),
         caloricLag = computeCaloricLag(calorieSeries, weightSeries),
         macroImpact =
             computeNutrientOutcomeCorrelations(
                 dailyData.map { Pair(it.date, macroMapOf(it.protein, it.carbs, it.fat, it.fiber)) },
-                weightFoodData.mapNotNull { p -> p.weightKg?.let { Pair(p.date, it) } },
+                weightDeltas,
             ),
         mealTiming = mealTiming,
-        nutrientAdequacy = computeNutrientAdequacy(extData),
+        nutrientAdequacy = computeNutrientAdequacy(dailyData),
         foodSleep =
             detectFoodSleepPatterns(
                 lateMealFoods(extData, tz, input.lateMealCutoffHour),
@@ -223,17 +241,7 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
             ),
         nutrientSleep =
             computeNutrientOutcomeCorrelations(
-                extByDate.map { (date, rows) ->
-                    Pair(
-                        date,
-                        macroMapOf(
-                            rows.sumOf { it.protein },
-                            rows.sumOf { it.carbs },
-                            rows.sumOf { it.fat },
-                            rows.sumOf { it.fiber },
-                        ),
-                    )
-                },
+                dailyData.map { Pair(it.date, macroMapOf(it.protein, it.carbs, it.fat, it.fiber)) },
                 sleepFoodData.map { Pair(it.date, it.sleepQuality.toDouble()) },
             ),
         preSleepTiming = mealTiming,
@@ -247,37 +255,57 @@ fun computeInsights(input: InsightsInput): InsightsBundle {
 }
 
 /**
- * Average intake per tracked nutrient over the logged days, as a fraction of its RDA.
+ * Average intake per tracked nutrient, as a fraction of its reference.
  *
- * Sex is not available in the user model, so the more conservative (higher) of the
- * male/female RDA is used — under-reporting adequacy is the safer error here.
+ * Only days whose food actually carried a value for the nutrient (at or above
+ * the coverage floor) enter the mean — an unmeasured day is unknown, not zero.
+ * Sex is not available in the user model, so the more conservative (higher) of
+ * the male/female values is used; fiber follows the 14 g / 1000 kcal AI scaled
+ * to the mean logged intake. Sodium's reference is the 2300 mg CDRR ceiling.
  */
-fun computeNutrientAdequacy(entries: List<ExtendedNutrientEntry>): List<NutrientAdequacyItem> {
-    val dayCount =
-        entries
-            .map { it.date }
-            .distinct()
-            .size
-            .takeIf { it > 0 } ?: 1
-    val sumByKey =
+fun computeNutrientAdequacy(days: List<DailyNutrientTotals>): List<NutrientAdequacyItem> {
+    val avgCalories = days.map { it.calories }.takeIf { it.isNotEmpty() }?.average()
+
+    fun covered(
+        value: (DailyNutrientTotals) -> Double?,
+        coverage: (DailyNutrientTotals) -> Double,
+    ): List<Double> = days.filter { coverage(it) >= MIN_NUTRIENT_COVERAGE }.mapNotNull(value)
+
+    val valuesByKey =
         mapOf(
-            "vitaminC" to entries.sumOf { it.vitaminC ?: 0.0 },
-            "vitaminD" to entries.sumOf { it.vitaminD ?: 0.0 },
-            "vitaminE" to entries.sumOf { it.vitaminE ?: 0.0 },
-            "sodium" to entries.sumOf { it.sodium ?: 0.0 },
-            "omega3" to entries.sumOf { it.omega3 ?: 0.0 },
-            "omega6" to entries.sumOf { it.omega6 ?: 0.0 },
-            "fiber" to entries.sumOf { it.fiber },
+            "vitaminC" to covered({ it.vitaminC }, { it.vitaminCCoverage }),
+            "vitaminD" to covered({ it.vitaminD }, { it.vitaminDCoverage }),
+            "vitaminE" to covered({ it.vitaminE }, { it.vitaminECoverage }),
+            "sodium" to covered({ it.sodium }, { it.sodiumCoverage }),
+            "omega3" to covered({ it.omega3 }, { it.omega3Coverage }),
+            "omega6" to covered({ it.omega6 }, { it.omega6Coverage }),
+            "fiber" to days.map { it.fiber },
         )
     return RDA_VALUES
         .filter { it.nutrientKey in ADEQUACY_KEYS }
         .map { rda ->
-            val avg = (sumByKey[rda.nutrientKey] ?: 0.0) / dayCount
-            NutrientAdequacyItem(rda, avg / maxOf(rda.rdaMale, rda.rdaFemale))
+            val values = valuesByKey[rda.nutrientKey] ?: emptyList()
+            val avg = if (values.isNotEmpty()) values.sum() / values.size else 0.0
+            val per1000 = rda.per1000Kcal
+            val target =
+                if (per1000 != null && avgCalories != null && avgCalories > 0) {
+                    per1000 * avgCalories / 1000.0
+                } else {
+                    maxOf(rda.rdaMale, rda.rdaFemale)
+                }
+            NutrientAdequacyItem(rda, if (target > 0) avg / target else 0.0, values.size)
         }
 }
 
 // --- internals --------------------------------------------------------------
+
+/** Day-over-day weight change on every date with a weight the day before. */
+private fun weightDeltasOf(series: List<WeightFoodPoint>): List<Pair<String, Double>> {
+    val byDate = series.mapNotNull { p -> p.weightKg?.let { Pair(p.date, it) } }.toMap()
+    return byDate.mapNotNull { (date, kg) ->
+        byDate[shiftDate(date, -1)]?.let { prev -> Pair(date, kg - prev) }
+    }
+}
 
 private fun macroMapOf(
     protein: Double,

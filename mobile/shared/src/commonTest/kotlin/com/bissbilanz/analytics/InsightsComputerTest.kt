@@ -128,20 +128,20 @@ class InsightsComputerTest {
         val series = weightFoodSeries(entries, foods, emptyList(), weights)
         val weightSeries = series.map { Pair(it.date, it.weightKg) }
         val calorieSeries = series.map { Pair(it.date, it.calories) }
-        val extByDate = ext.groupBy { it.date }
 
         assertEquals(computeNOVAScore(ext.map { Pair(it.calories, it.novaGroup) }), b.nova)
         assertEquals(
             computeOmegaRatio(
-                extByDate.map { (date, rows) ->
-                    Triple(date, rows.sumOf { it.omega3 ?: 0.0 }, rows.sumOf { it.omega6 ?: 0.0 })
-                },
+                daily.map { OmegaDay(it.date, it.omega3 ?: 0.0, it.omega6 ?: 0.0, minOf(it.omega3Coverage, it.omega6Coverage)) },
             ),
             b.omega,
         )
-        assertEquals(computeTEF(daily.map { TEFInput(it.protein, it.carbs, it.fat, it.calories) }), b.tef)
+        assertEquals(computeTEF(daily.map { TEFInput(it.protein, it.carbs, it.fat, it.calories, it.alcohol) }), b.tef)
         assertEquals(
-            computeProteinDistribution(ext.map { Triple(it.date, it.mealType, it.protein) }),
+            computeProteinDistribution(
+                ext.map { Triple(it.date, it.mealType, it.protein) },
+                proteinPerMealThreshold(weights.last().weightKg),
+            ),
             b.proteinDistribution,
         )
         assertEquals(
@@ -166,11 +166,12 @@ class InsightsComputerTest {
 
         val tdee = computeAdaptiveTDEE(weightSeries, calorieSeries)
         assertEquals(tdee, b.tdee)
-        assertEquals(projectWeight(weightSeries, tdee.weeklyRate), b.weightForecast)
+        assertEquals(projectWeight(weightSeries, tdee.weeklyRate, tdee.confidence), b.weightForecast)
+        assertEquals(detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE), b.plateau)
         assertEquals(computeCaloricLag(calorieSeries, weightSeries), b.caloricLag)
         assertEquals(
             computeSodiumWeightCorrelation(
-                extByDate.map { (date, rows) -> Pair(date, rows.sumOf { it.sodium ?: 0.0 }) },
+                daily.mapNotNull { day -> day.sodium?.let { SodiumDay(day.date, it, day.sodiumCoverage) } },
                 weightSeries,
             ),
             b.sodiumWeight,
@@ -184,25 +185,9 @@ class InsightsComputerTest {
     }
 
     @Test
-    fun plateauUsesTheSharedTdeeEstimateAndAverageSodium() {
+    fun theForecastCarriesTheRateEstimatesConfidence() {
         val b = computeInsights(input())
-        val series = weightFoodSeries(entries, foods, emptyList(), weights)
-        val sodiumAvg =
-            extendedNutrientEntries(entries, foods, emptyList())
-                .groupBy { it.date }
-                .values
-                .map { rows -> rows.sumOf { it.sodium ?: 0.0 } }
-                .average()
-
-        assertEquals(
-            detectPlateau(
-                series.map { Pair(it.date, it.weightKg) },
-                series.map { Pair(it.date, it.calories) },
-                b.tdee.estimatedTDEE,
-                sodiumAvg,
-            ),
-            b.plateau,
-        )
+        assertEquals(b.tdee.confidence, b.weightForecast.confidence)
     }
 
     @Test
@@ -228,22 +213,66 @@ class InsightsComputerTest {
         )
     }
 
-    @Test
-    fun theTwoEveningCutoffsAreIndependent() {
-        // Dinner is at 20:00 UTC, so it is late by both defaults.
-        assertTrue(computeInsights(input()).foodSleep.foodImpacts.isNotEmpty())
-
-        // Raising only the late-meal cutoff past 20:00 empties the food/sleep card
-        // without touching the evening-calories correlation the server also computes.
-        val lateRaised = computeInsights(input(lateMealCutoffHour = 22))
-        assertTrue(lateRaised.foodSleep.foodImpacts.isEmpty())
-        assertEquals(computeInsights(input()).nutrientSleep, lateRaised.nutrientSleep)
+    /**
+     * Pizza on even days only, and those nights sleep badly, so the food/sleep
+     * screen has a real, testable effect to find (the FDR-controlled screen
+     * needs nights with *and* without the food).
+     */
+    private fun pizzaNightsInput(
+        timeZoneId: String = "UTC",
+        lateMealCutoffHour: Int = LATE_MEAL_CUTOFF_HOUR,
+    ): InsightsInput {
+        val days = 1..28
+        val pizzaEntries =
+            days.flatMap { day ->
+                val date = "2026-03-${day.toString().padStart(2, '0')}"
+                listOfNotNull(
+                    AggEntry(date, "Breakfast", 1.0, foodId = "oats", eatenAt = "${date}T07:30:00Z", foodName = "Oats"),
+                    if (day % 2 == 0) {
+                        AggEntry(date, "Dinner", 1.0, foodId = "pizza", eatenAt = "${date}T20:00:00Z", foodName = "Pizza")
+                    } else {
+                        null
+                    },
+                )
+            }
+        val pizzaSleep =
+            days.map { day ->
+                val poor = day % 2 == 0
+                // Whole-point spread: the food/sleep path truncates quality to an Int,
+                // and the Welch test needs variance on both sides.
+                InsightsSleepRow(
+                    "2026-03-${day.toString().padStart(2, '0')}",
+                    420,
+                    (if (poor) 2.0 else 7.0) + (day % 3),
+                )
+            }
+        return InsightsInput(
+            entries = pizzaEntries,
+            foods = foods,
+            recipes = emptyList(),
+            weights = weights,
+            sleep = pizzaSleep,
+            timeZoneId = timeZoneId,
+            lateMealCutoffHour = lateMealCutoffHour,
+        )
     }
 
     @Test
-    fun nutrientAdequacyAveragesOverLoggedDaysAgainstTheConservativeRda() {
-        val ext = extendedNutrientEntries(entries, foods, emptyList())
-        val items = computeNutrientAdequacy(ext)
+    fun theTwoEveningCutoffsAreIndependent() {
+        // Dinner is at 20:00 UTC, so it is late by both defaults.
+        assertTrue(computeInsights(pizzaNightsInput()).foodSleep.foodImpacts.isNotEmpty())
+
+        // Raising only the late-meal cutoff past 20:00 empties the food/sleep card
+        // without touching the evening-calories correlation the server also computes.
+        val lateRaised = computeInsights(pizzaNightsInput(lateMealCutoffHour = 22))
+        assertTrue(lateRaised.foodSleep.foodImpacts.isEmpty())
+        assertEquals(computeInsights(pizzaNightsInput()).nutrientSleep, lateRaised.nutrientSleep)
+    }
+
+    @Test
+    fun nutrientAdequacyAveragesOverCoveredDaysAgainstTheConservativeReference() {
+        val daily = aggregateDailyNutrientTotals(entries, foods, emptyList())
+        val items = computeNutrientAdequacy(daily)
 
         assertEquals(
             setOf("vitaminC", "vitaminD", "vitaminE", "sodium", "omega3", "omega6", "fiber"),
@@ -251,12 +280,25 @@ class InsightsComputerTest {
         )
 
         val fiber = items.first { it.rda.nutrientKey == "fiber" }
-        // 4 g (oats) + 6 g (pizza) per day, every day.
-        assertClose(10.0 / maxOf(fiber.rda.rdaMale, fiber.rda.rdaFemale), fiber.ratio)
+        // 4 g (oats) + 6 g (pizza) per day against the 14 g / 1000 kcal AI at 1005 kcal/day.
+        assertClose(10.0 / (14.0 * 1005.0 / 1000.0), fiber.ratio)
+        assertEquals(28, fiber.coveredDays)
 
         val sodium = items.first { it.rda.nutrientKey == "sodium" }
-        // 3 mg (oats) + 5 mg (coffee) + 1900 mg (pizza), against the 2300 mg RDA.
+        // 3 mg (oats) + 5 mg (coffee) + 1900 mg (pizza), against the 2300 mg CDRR ceiling.
         assertClose(1908.0 / 2300.0, sodium.ratio)
+        assertEquals(28, sodium.coveredDays)
+    }
+
+    @Test
+    fun nutrientAdequacyTreatsAnUnmeasuredDayAsUnknownNotZero() {
+        // Vitamin D is only on oats (150 of 1005 kcal), so every day falls under the
+        // coverage floor and the nutrient reports no covered days rather than a
+        // near-zero intake.
+        val items = computeNutrientAdequacy(aggregateDailyNutrientTotals(entries, foods, emptyList()))
+        val vitaminD = items.first { it.rda.nutrientKey == "vitaminD" }
+        assertEquals(0, vitaminD.coveredDays)
+        assertEquals(0.0, vitaminD.ratio)
     }
 
     @Test
@@ -267,10 +309,15 @@ class InsightsComputerTest {
     }
 
     @Test
-    fun macroImpactCorrelatesDailyMacrosAgainstWeight() {
+    fun macroImpactCorrelatesDailyMacrosAgainstWeightChange() {
         val b = computeInsights(input())
         val daily = aggregateDailyNutrientTotals(entries, foods, emptyList())
         val series = weightFoodSeries(entries, foods, emptyList(), weights)
+        val byDate = series.mapNotNull { p -> p.weightKg?.let { Pair(p.date, it) } }.toMap()
+        val deltas =
+            byDate.mapNotNull { (date, kg) ->
+                byDate[shiftDate(date, -1)]?.let { prev -> Pair(date, kg - prev) }
+            }
 
         assertEquals(
             computeNutrientOutcomeCorrelations(
@@ -285,7 +332,7 @@ class InsightsComputerTest {
                         ),
                     )
                 },
-                series.mapNotNull { p -> p.weightKg?.let { Pair(p.date, it) } },
+                deltas,
             ),
             b.macroImpact,
         )
@@ -319,8 +366,8 @@ class InsightsComputerTest {
     fun theTimeZoneReachesTheTimeSensitiveAnalytics() {
         // 20:00 UTC is 21:00 in Zurich but 15:00 in New York, so the dinner entry
         // falls outside the late-meal window there.
-        val zurich = computeInsights(input(timeZoneId = "Europe/Zurich"))
-        val newYork = computeInsights(input(timeZoneId = "America/New_York"))
+        val zurich = computeInsights(pizzaNightsInput(timeZoneId = "Europe/Zurich"))
+        val newYork = computeInsights(pizzaNightsInput(timeZoneId = "America/New_York"))
 
         assertTrue(zurich.foodSleep.foodImpacts.isNotEmpty())
         assertTrue(newYork.foodSleep.foodImpacts.isEmpty())

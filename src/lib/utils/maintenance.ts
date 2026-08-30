@@ -74,7 +74,8 @@ export type MaintenanceReportInput = {
 		fiber: number | null;
 		servings: number;
 	}>;
-	weights: Array<{ weightKg: number }>;
+	/** Sorted ascending by date. `entryDate` enables endpoint smoothing. */
+	weights: Array<{ weightKg: number; entryDate?: string }>;
 	fastingDays: Iterable<string>;
 	startDate: string;
 	endDate: string;
@@ -88,6 +89,7 @@ export type MaintenanceReport = {
 		foodEntryDays: number;
 		totalDays: number;
 		coverage: number;
+		/** Smoothed start/end anchors (7-day means around the endpoints) when dates are known. */
 		firstWeight: number;
 		lastWeight: number;
 		startDate: string;
@@ -99,6 +101,54 @@ export type MaintenanceReportError = {
 	error: 'insufficient_data' | 'invalid_range' | 'calculation_failed';
 	message: string;
 };
+
+const ANCHOR_WINDOW_DAYS = 7;
+
+function epochDay(date: string): number {
+	return Math.floor(Date.parse(date + 'T00:00:00Z') / 86_400_000);
+}
+
+/**
+ * Weight change over the interval from smoothed endpoints. A single raw
+ * measurement carries up to ~2 kg of fluid noise, which over 30 days is ~500
+ * kcal/day of maintenance error, so each endpoint is the mean of the weights in
+ * the first / last seven days. The two anchors sit inside the interval, so
+ * their difference is scaled up to the full `days` by the anchors' actual
+ * separation (their mean dates). Falls back to raw endpoints when the weights
+ * carry no dates or the anchors overlap.
+ */
+export function smoothedWeightChange(
+	weights: Array<{ weightKg: number; entryDate?: string }>,
+	days: number
+): { firstWeight: number; lastWeight: number; weightChangeKg: number } {
+	const raw = {
+		firstWeight: weights[0].weightKg,
+		lastWeight: weights[weights.length - 1].weightKg,
+		weightChangeKg: weights[weights.length - 1].weightKg - weights[0].weightKg
+	};
+	if (!weights.every((w) => w.entryDate)) return raw;
+
+	const dated = weights
+		.map((w) => ({ day: epochDay(w.entryDate as string), weightKg: w.weightKg }))
+		.sort((a, b) => a.day - b.day);
+	const firstDay = dated[0].day;
+	const lastDay = dated[dated.length - 1].day;
+	const head = dated.filter((w) => w.day < firstDay + ANCHOR_WINDOW_DAYS);
+	const tail = dated.filter((w) => w.day > lastDay - ANCHOR_WINDOW_DAYS);
+	const meanOf = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
+	const headDay = meanOf(head.map((w) => w.day));
+	const tailDay = meanOf(tail.map((w) => w.day));
+	const separation = tailDay - headDay;
+	if (separation <= 0) return raw;
+
+	const firstWeight = meanOf(head.map((w) => w.weightKg));
+	const lastWeight = meanOf(tail.map((w) => w.weightKg));
+	return {
+		firstWeight,
+		lastWeight,
+		weightChangeKg: ((lastWeight - firstWeight) * days) / separation
+	};
+}
 
 export function buildMaintenanceReport(
 	input: MaintenanceReportInput
@@ -131,17 +181,17 @@ export function buildMaintenanceReport(
 		return { error: 'invalid_range', message: 'End date must be after start date' };
 	}
 
-	// The food query is inclusive of both endpoints, so it covers `days + 1`
-	// calendar days; average intake over that inclusive count. The weight-change
-	// *rate* (calculateMaintenance) is per-interval, so it keeps `days`.
+	// Mean intake is over the days that were actually logged (fasting days are
+	// explicit zeros above). An unlogged day is unknown, not a zero-calorie day —
+	// dividing by every calendar day understated intake, and therefore
+	// maintenance, by the user's non-logging rate. The inclusive calendar count
+	// only feeds the coverage figure; the weight-change *rate* keeps `days`.
 	const inclusiveDays = days + 1;
 	const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
-	const avgDailyCalories = totalCalories / inclusiveDays;
+	const avgDailyCalories = totalCalories / daysWithEntries.length;
 	const coverage = daysWithEntries.length / inclusiveDays;
 
-	const firstWeight = weights[0];
-	const lastWeight = weights[weights.length - 1];
-	const weightChangeKg = lastWeight.weightKg - firstWeight.weightKg;
+	const { firstWeight, lastWeight, weightChangeKg } = smoothedWeightChange(weights, days);
 
 	const result = calculateMaintenance({ weightChangeKg, avgDailyCalories, days, muscleRatio });
 	if (!result) {
@@ -155,8 +205,8 @@ export function buildMaintenanceReport(
 			foodEntryDays: daysWithEntries.length,
 			totalDays: inclusiveDays,
 			coverage,
-			firstWeight: firstWeight.weightKg,
-			lastWeight: lastWeight.weightKg,
+			firstWeight,
+			lastWeight,
 			startDate,
 			endDate
 		}

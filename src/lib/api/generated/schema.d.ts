@@ -1377,6 +1377,7 @@ export interface components {
 			/** @enum {string} */
 			locale?: 'en' | 'de';
 			caloricLagDaysOverride?: number | null;
+			biologicalSex?: ('male' | 'female') | null;
 			timeZone?: string;
 		};
 		FavoriteMealTimeframeInput: {
@@ -1962,6 +1963,7 @@ export interface components {
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
 			caloricLagDaysOverride?: number | null;
+			biologicalSex?: ('male' | 'female') | null;
 			locale: string | null;
 			timeZone: string;
 			updatedAt?: string;

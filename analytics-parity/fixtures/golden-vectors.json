@@ -34,6 +34,8 @@
       "expected": {
         "r": 1,
         "pValue": 3.1249999991797647e-31,
+        "ciLow": 0.9999942278610777,
+        "ciHigh": 0.9999998267543383,
         "sampleSize": 8,
         "confidence": "low",
         "constantInput": false
@@ -67,6 +69,8 @@
       "expected": {
         "r": -1,
         "pValue": 3.1249999991797647e-31,
+        "ciLow": -0.9999998267543383,
+        "ciHigh": -0.9999942278610777,
         "sampleSize": 8,
         "confidence": "low",
         "constantInput": false
@@ -106,6 +110,8 @@
       "expected": {
         "r": 0.81642051634484,
         "pValue": 0.0021696288710180995,
+        "ciLow": 0.424391208911755,
+        "ciHigh": 0.9506932543122851,
         "sampleSize": 11,
         "confidence": "low",
         "constantInput": false
@@ -137,6 +143,8 @@
       "expected": {
         "r": 0,
         "pValue": 1,
+        "ciLow": 0,
+        "ciHigh": 0,
         "sampleSize": 7,
         "confidence": "insufficient",
         "constantInput": true
@@ -158,6 +166,8 @@
       "expected": {
         "r": 1,
         "pValue": 1,
+        "ciLow": -1,
+        "ciHigh": 1,
         "sampleSize": 2,
         "confidence": "insufficient",
         "constantInput": false
@@ -931,7 +941,7 @@
     },
     {
       "fn": "detectPlateau",
-      "name": "plateau_adaptive",
+      "name": "plateau_flat",
       "input": {
         "weightSeries": [
           {
@@ -1049,8 +1059,7 @@
             "calories": 2200
           }
         ],
-        "estimatedTDEE": 2200,
-        "sodiumAvg": null
+        "estimatedTDEE": 2200
       },
       "expected": {
         "isPlateaued": true,
@@ -1181,8 +1190,7 @@
             "calories": 2900
           }
         ],
-        "estimatedTDEE": 2300,
-        "sodiumAvg": null
+        "estimatedTDEE": 2300
       },
       "expected": {
         "isPlateaued": true,
@@ -1313,8 +1321,7 @@
             "calories": 2000
           }
         ],
-        "estimatedTDEE": 2400,
-        "sodiumAvg": null
+        "estimatedTDEE": 2400
       },
       "expected": {
         "isPlateaued": false,
@@ -1323,6 +1330,168 @@
         "cause": "none",
         "confidence": "medium",
         "sampleSize": 14
+      }
+    },
+    {
+      "fn": "detectPlateau",
+      "name": "too_short_to_call",
+      "input": {
+        "weightSeries": [
+          {
+            "date": "2025-01-01",
+            "weightKg": 78
+          },
+          {
+            "date": "2025-01-02",
+            "weightKg": 78
+          },
+          {
+            "date": "2025-01-03",
+            "weightKg": 78
+          },
+          {
+            "date": "2025-01-04",
+            "weightKg": 78
+          },
+          {
+            "date": "2025-01-05",
+            "weightKg": 78
+          },
+          {
+            "date": "2025-01-06",
+            "weightKg": 78
+          }
+        ],
+        "calorieSeries": [
+          {
+            "date": "2025-01-01",
+            "calories": 2200
+          },
+          {
+            "date": "2025-01-02",
+            "calories": 2200
+          },
+          {
+            "date": "2025-01-03",
+            "calories": 2200
+          },
+          {
+            "date": "2025-01-04",
+            "calories": 2200
+          },
+          {
+            "date": "2025-01-05",
+            "calories": 2200
+          },
+          {
+            "date": "2025-01-06",
+            "calories": 2200
+          }
+        ],
+        "estimatedTDEE": 2300
+      },
+      "expected": {
+        "isPlateaued": false,
+        "plateauDays": 0,
+        "estimatedDeficit": null,
+        "cause": "none",
+        "confidence": "insufficient",
+        "sampleSize": 6
+      }
+    },
+    {
+      "fn": "computeAdaptiveTDEE",
+      "name": "sparse_weighins_on_date_axis",
+      "input": {
+        "weightSeries": [
+          {
+            "date": "2025-01-01",
+            "weightKg": 80
+          },
+          {
+            "date": "2025-01-02",
+            "weightKg": 79.95
+          },
+          {
+            "date": "2025-01-03",
+            "weightKg": 79.9
+          },
+          {
+            "date": "2025-01-06",
+            "weightKg": 79.75
+          },
+          {
+            "date": "2025-01-14",
+            "weightKg": 79.35
+          }
+        ],
+        "calorieSeries": [
+          {
+            "date": "2025-01-01",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-02",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-03",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-04",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-05",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-06",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-07",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-08",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-09",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-10",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-11",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-12",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-13",
+            "calories": 2000
+          },
+          {
+            "date": "2025-01-14",
+            "calories": 2000
+          }
+        ],
+        "windowDays": 14
+      },
+      "expected": {
+        "estimatedTDEE": 2385.000000000005,
+        "trend": "loss",
+        "avgIntake": 2000,
+        "weeklyRate": -0.35000000000000453,
+        "confidence": "low",
+        "sampleSize": 5
       }
     },
     {
@@ -1414,11 +1583,11 @@
         "weeklyRate": -0.49
       },
       "expected": {
-        "currentWeight": 88.67,
+        "currentWeight": 88.88000000000001,
         "weeklyRate": -0.49,
-        "day30": 86.57000000000001,
-        "day60": 84.47,
-        "day90": 82.37,
+        "day30": 86.86748274219387,
+        "day60": 85.0202808196109,
+        "day90": 83.32481464183817,
         "sampleSize": 20,
         "confidence": "medium"
       }
@@ -1459,6 +1628,105 @@
         "day90": 70,
         "sampleSize": 5,
         "confidence": "insufficient"
+      }
+    },
+    {
+      "fn": "projectWeight",
+      "name": "rate_confidence_carried",
+      "input": {
+        "weightSeries": [
+          {
+            "date": "2025-01-01",
+            "weightKg": 90
+          },
+          {
+            "date": "2025-01-02",
+            "weightKg": 89.93
+          },
+          {
+            "date": "2025-01-03",
+            "weightKg": 89.86
+          },
+          {
+            "date": "2025-01-04",
+            "weightKg": 89.79
+          },
+          {
+            "date": "2025-01-05",
+            "weightKg": 89.72
+          },
+          {
+            "date": "2025-01-06",
+            "weightKg": 89.65
+          },
+          {
+            "date": "2025-01-07",
+            "weightKg": 89.58
+          },
+          {
+            "date": "2025-01-08",
+            "weightKg": 89.51
+          },
+          {
+            "date": "2025-01-09",
+            "weightKg": 89.44
+          },
+          {
+            "date": "2025-01-10",
+            "weightKg": 89.37
+          },
+          {
+            "date": "2025-01-11",
+            "weightKg": 89.3
+          },
+          {
+            "date": "2025-01-12",
+            "weightKg": 89.23
+          },
+          {
+            "date": "2025-01-13",
+            "weightKg": 89.16
+          },
+          {
+            "date": "2025-01-14",
+            "weightKg": 89.09
+          },
+          {
+            "date": "2025-01-15",
+            "weightKg": 89.02
+          },
+          {
+            "date": "2025-01-16",
+            "weightKg": 88.95
+          },
+          {
+            "date": "2025-01-17",
+            "weightKg": 88.88
+          },
+          {
+            "date": "2025-01-18",
+            "weightKg": 88.81
+          },
+          {
+            "date": "2025-01-19",
+            "weightKg": 88.74
+          },
+          {
+            "date": "2025-01-20",
+            "weightKg": 88.67
+          }
+        ],
+        "weeklyRate": -0.49,
+        "rateConfidence": "low"
+      },
+      "expected": {
+        "currentWeight": 88.88000000000001,
+        "weeklyRate": -0.49,
+        "day30": 86.86748274219387,
+        "day60": 85.0202808196109,
+        "day90": 83.32481464183817,
+        "sampleSize": 20,
+        "confidence": "low"
       }
     },
     {
@@ -1562,6 +1830,90 @@
         "muscleRatio": 0.3
       },
       "expected": null
+    },
+    {
+      "fn": "smoothedWeightChange",
+      "name": "seven_day_anchors",
+      "input": {
+        "weights": [
+          {
+            "entryDate": "2026-02-01",
+            "weightKg": 80.6
+          },
+          {
+            "entryDate": "2026-02-02",
+            "weightKg": 79.8
+          },
+          {
+            "entryDate": "2026-02-03",
+            "weightKg": 80.2
+          },
+          {
+            "entryDate": "2026-02-26",
+            "weightKg": 79.4
+          },
+          {
+            "entryDate": "2026-02-27",
+            "weightKg": 78.6
+          },
+          {
+            "entryDate": "2026-02-28",
+            "weightKg": 79
+          }
+        ],
+        "days": 27
+      },
+      "expected": {
+        "firstWeight": 80.19999999999999,
+        "lastWeight": 79,
+        "weightChangeKg": -1.2959999999999878
+      }
+    },
+    {
+      "fn": "smoothedWeightChange",
+      "name": "overlapping_anchors_fall_back",
+      "input": {
+        "weights": [
+          {
+            "entryDate": "2026-03-01",
+            "weightKg": 80
+          },
+          {
+            "entryDate": "2026-03-02",
+            "weightKg": 79.5
+          },
+          {
+            "entryDate": "2026-03-04",
+            "weightKg": 79.8
+          }
+        ],
+        "days": 3
+      },
+      "expected": {
+        "firstWeight": 80,
+        "lastWeight": 79.8,
+        "weightChangeKg": -0.20000000000000284
+      }
+    },
+    {
+      "fn": "smoothedWeightChange",
+      "name": "undated_raw_endpoints",
+      "input": {
+        "weights": [
+          {
+            "weightKg": 82
+          },
+          {
+            "weightKg": 81.1
+          }
+        ],
+        "days": 14
+      },
+      "expected": {
+        "firstWeight": 82,
+        "lastWeight": 81.1,
+        "weightChangeKg": -0.9000000000000057
+      }
     },
     {
       "fn": "aggregateDailyNutrientTotals",
@@ -1695,7 +2047,18 @@
           "vitaminD": 12.375,
           "vitaminE": null,
           "alcohol": null,
-          "addedSugars": null
+          "addedSugars": null,
+          "omega3Coverage": 0.5274102079395085,
+          "omega6Coverage": 0,
+          "sodiumCoverage": 0.5274102079395085,
+          "caffeineCoverage": 0,
+          "saturatedFatCoverage": 0,
+          "transFatCoverage": 0,
+          "vitaminCCoverage": 0,
+          "vitaminDCoverage": 0.5274102079395085,
+          "vitaminECoverage": 0,
+          "alcoholCoverage": 0,
+          "addedSugarsCoverage": 0
         },
         {
           "date": "2025-03-02",
@@ -1714,7 +2077,18 @@
           "vitaminD": 22,
           "vitaminE": null,
           "alcohol": null,
-          "addedSugars": null
+          "addedSugars": null,
+          "omega3Coverage": 1,
+          "omega6Coverage": 0,
+          "sodiumCoverage": 1,
+          "caffeineCoverage": 0,
+          "saturatedFatCoverage": 0,
+          "transFatCoverage": 0,
+          "vitaminCCoverage": 0,
+          "vitaminDCoverage": 1,
+          "vitaminECoverage": 0,
+          "alcoholCoverage": 0,
+          "addedSugarsCoverage": 0
         }
       ]
     },
@@ -1746,14 +2120,21 @@
             "carbs": 0,
             "fat": 40,
             "calories": 0
+          },
+          {
+            "protein": 110,
+            "carbs": 220,
+            "fat": 60,
+            "calories": 2300,
+            "alcohol": 30
           }
         ]
       },
       "expected": {
-        "avgDailyTEF": 193.45,
-        "avgTEFPercent": 7.6148476660401,
+        "avgDailyTEF": 202.48,
+        "avgTEFPercent": 8.166660741527732,
         "confidence": "insufficient",
-        "sampleSize": 4
+        "sampleSize": 5
       }
     },
     {
@@ -1778,7 +2159,6 @@
             "fiber": 14,
             "omega3": 0.6,
             "saturatedFat": 22,
-            "sodium": 2800,
             "vitaminC": 60,
             "vitaminD": 4.5,
             "vitaminE": 8.7,
@@ -1790,7 +2170,6 @@
             "fiber": 17,
             "omega3": 1,
             "saturatedFat": 26,
-            "sodium": 3150,
             "vitaminC": 70,
             "vitaminD": 4.5,
             "vitaminE": 8.7,
@@ -1801,7 +2180,6 @@
             "fiber": 20,
             "omega3": 1.4,
             "saturatedFat": 30,
-            "sodium": 3500,
             "vitaminC": 80,
             "vitaminD": 4.5,
             "vitaminE": 8.7,
@@ -1813,7 +2191,6 @@
             "fiber": 23,
             "omega3": 0.6,
             "saturatedFat": 34,
-            "sodium": 3850,
             "vitaminC": 90,
             "vitaminE": 8.7,
             "alcohol": 0,
@@ -1823,7 +2200,6 @@
             "fiber": 14,
             "omega3": 1,
             "saturatedFat": 38,
-            "sodium": 2800,
             "vitaminC": 100,
             "vitaminE": 0,
             "alcohol": 0,
@@ -1834,7 +2210,6 @@
             "fiber": 17,
             "omega3": 1.4,
             "saturatedFat": 22,
-            "sodium": 3150,
             "vitaminC": 110,
             "vitaminE": 0,
             "alcohol": 0,
@@ -1844,7 +2219,6 @@
             "fiber": 20,
             "omega3": 0.6,
             "saturatedFat": 26,
-            "sodium": 3500,
             "vitaminE": 0,
             "alcohol": 0,
             "transFat": 0,
@@ -1854,7 +2228,6 @@
             "fiber": 23,
             "omega3": 1,
             "saturatedFat": 30,
-            "sodium": 3850,
             "vitaminE": 0,
             "alcohol": 0,
             "transFat": 0
@@ -1863,7 +2236,6 @@
             "fiber": 14,
             "omega3": 1.4,
             "saturatedFat": 34,
-            "sodium": 2800,
             "vitaminE": 0,
             "alcohol": 15,
             "transFat": 0,
@@ -1873,7 +2245,6 @@
             "fiber": 17,
             "omega3": 0.6,
             "saturatedFat": 38,
-            "sodium": 3150,
             "vitaminE": 0,
             "alcohol": 15,
             "transFat": 0
@@ -1881,44 +2252,132 @@
         ]
       },
       "expected": {
-        "score": -0.29435045098039203,
-        "classification": "neutral",
+        "score": 0.639912438428011,
+        "classification": "pro-inflammatory",
         "contributors": [
           {
-            "nutrient": "transFat",
-            "impact": -0.360675
-          },
-          {
             "nutrient": "alcohol",
-            "impact": -0.223443
-          },
-          {
-            "nutrient": "omega3",
-            "impact": 0.14824000000000004
+            "impact": 0.27712115116211145
           },
           {
             "nutrient": "vitaminC",
-            "impact": 0.08090588235294117
+            "impact": 0.23535634494677815
+          },
+          {
+            "nutrient": "transFat",
+            "impact": -0.13719200220234887
           },
           {
             "nutrient": "fiber",
-            "impact": 0.07458750000000018
-          },
-          {
-            "nutrient": "saturatedFat",
-            "impact": 0.04351666666666662
-          },
-          {
-            "nutrient": "sodium",
-            "impact": -0.04281583333333334
+            "impact": 0.09661922403673356
           },
           {
             "nutrient": "caffeine",
-            "impact": -0.014666666666666666
+            "impact": 0.08342034248627236
+          },
+          {
+            "nutrient": "saturatedFat",
+            "impact": 0.05181729320258804
+          },
+          {
+            "nutrient": "omega3",
+            "impact": 0.03277008479587629
           }
         ],
+        "coverageFraction": 0.191073600973236,
+        "neutralBand": 0.191073600973236,
         "confidence": "low",
         "sampleSize": 10
+      }
+    },
+    {
+      "fn": "computeDIIScore",
+      "name": "coverage_gated_and_bounded",
+      "input": {
+        "dailyNutrients": [
+          {
+            "fiber": 30,
+            "saturatedFat": 20,
+            "coverage": {
+              "fiber": 1,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 30,
+            "saturatedFat": 21,
+            "coverage": {
+              "fiber": 1,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 30,
+            "saturatedFat": 22,
+            "coverage": {
+              "fiber": 1,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 30,
+            "saturatedFat": 23,
+            "coverage": {
+              "fiber": 1,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 8,
+            "saturatedFat": 24,
+            "coverage": {
+              "fiber": 0.4,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 8,
+            "saturatedFat": 25,
+            "coverage": {
+              "fiber": 0.4,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 8,
+            "saturatedFat": 26,
+            "coverage": {
+              "fiber": 0.4,
+              "saturatedFat": 0.9
+            }
+          },
+          {
+            "fiber": 5000,
+            "saturatedFat": 27,
+            "coverage": {
+              "fiber": 1,
+              "saturatedFat": 0.9
+            }
+          }
+        ]
+      },
+      "expected": {
+        "score": -0.8406229390179387,
+        "classification": "anti-inflammatory",
+        "contributors": [
+          {
+            "nutrient": "fiber",
+            "impact": -0.663
+          },
+          {
+            "nutrient": "saturatedFat",
+            "impact": -0.17762293901793869
+          }
+        ],
+        "coverageFraction": 0.0787712895377129,
+        "neutralBand": 0.0787712895377129,
+        "confidence": "low",
+        "sampleSize": 8
       }
     },
     {
@@ -1931,6 +2390,8 @@
         "score": 0,
         "classification": "neutral",
         "contributors": [],
+        "coverageFraction": 0,
+        "neutralBand": 0,
         "confidence": "insufficient",
         "sampleSize": 0
       }
@@ -1998,17 +2459,17 @@
           {
             "date": "2025-03-29",
             "firstMealTime": "08:30",
-            "lastMealTime": "21:15",
-            "windowMinutes": 765,
-            "mealCount": 3,
-            "lateNightMeals": 1
+            "lastMealTime": "01:30",
+            "windowMinutes": 1020,
+            "mealCount": 4,
+            "lateNightMeals": 2
           },
           {
             "date": "2025-03-30",
-            "firstMealTime": "01:30",
+            "firstMealTime": "08:30",
             "lastMealTime": "21:45",
-            "windowMinutes": 1215,
-            "mealCount": 3,
+            "windowMinutes": 795,
+            "mealCount": 2,
             "lateNightMeals": 1
           },
           {
@@ -2020,9 +2481,9 @@
             "lateNightMeals": 0
           }
         ],
-        "avgWindowMinutes": 907.3333333333334,
-        "avgFirstMealTime": "05:59",
-        "avgLastMealTime": "21:07",
+        "avgWindowMinutes": 852.3333333333334,
+        "avgFirstMealTime": "08:19",
+        "avgLastMealTime": "22:28",
         "lateNightFrequency": 66.66666666666666,
         "hourlyDistribution": [
           0,
@@ -2094,6 +2555,90 @@
       }
     },
     {
+      "fn": "extractMealTimingPatterns",
+      "name": "post_midnight_snack",
+      "input": {
+        "entries": [
+          {
+            "date": "2025-05-01",
+            "eatenAt": "2025-05-01T06:00:00Z",
+            "calories": 400
+          },
+          {
+            "date": "2025-05-01",
+            "eatenAt": "2025-05-01T18:00:00Z",
+            "calories": 700
+          },
+          {
+            "date": "2025-05-02",
+            "eatenAt": "2025-05-01T22:30:00Z",
+            "calories": 150
+          },
+          {
+            "date": "2025-05-02",
+            "eatenAt": "2025-05-02T06:00:00Z",
+            "calories": 400
+          },
+          {
+            "date": "2025-05-02",
+            "eatenAt": "2025-05-02T17:00:00Z",
+            "calories": 700
+          }
+        ],
+        "timeZone": "Europe/Zurich"
+      },
+      "expected": {
+        "dailyWindows": [
+          {
+            "date": "2025-05-01",
+            "firstMealTime": "08:00",
+            "lastMealTime": "00:30",
+            "windowMinutes": 990,
+            "mealCount": 3,
+            "lateNightMeals": 1
+          },
+          {
+            "date": "2025-05-02",
+            "firstMealTime": "08:00",
+            "lastMealTime": "19:00",
+            "windowMinutes": 660,
+            "mealCount": 2,
+            "lateNightMeals": 0
+          }
+        ],
+        "avgWindowMinutes": 825,
+        "avgFirstMealTime": "08:00",
+        "avgLastMealTime": "21:45",
+        "lateNightFrequency": 50,
+        "hourlyDistribution": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
       "fn": "computeCalorieFrontLoading",
       "name": "zurich_default_cutoff",
       "input": {
@@ -2142,6 +2687,37 @@
         "totalDays": 3,
         "confidence": "insufficient",
         "sampleSize": 3
+      }
+    },
+    {
+      "fn": "computeCalorieFrontLoading",
+      "name": "post_midnight_not_morning",
+      "input": {
+        "entries": [
+          {
+            "date": "2025-03-10",
+            "eatenAt": "2025-03-10T00:00:00Z",
+            "calories": 500
+          },
+          {
+            "date": "2025-03-10",
+            "eatenAt": "2025-03-10T08:00:00Z",
+            "calories": 500
+          },
+          {
+            "date": "2025-03-10",
+            "eatenAt": "2025-03-10T18:00:00Z",
+            "calories": 500
+          }
+        ],
+        "timeZone": "Europe/Zurich"
+      },
+      "expected": {
+        "avgMorningPct": 25,
+        "daysAbove50Pct": 0,
+        "totalDays": 2,
+        "confidence": "insufficient",
+        "sampleSize": 2
       }
     },
     {
@@ -2212,6 +2788,16 @@
             "caffeine": 60
           },
           {
+            "date": "2025-03-14",
+            "eatenAt": "2025-03-14T08:10:00Z",
+            "caffeine": 70
+          },
+          {
+            "date": "2025-03-15",
+            "eatenAt": "2025-03-15T09:50:00Z",
+            "caffeine": 70
+          },
+          {
             "date": "2025-03-07",
             "eatenAt": "2025-03-07T15:30:00Z",
             "caffeine": 90
@@ -2224,6 +2810,16 @@
           {
             "date": "2025-03-09",
             "eatenAt": "2025-03-09T17:10:00Z",
+            "caffeine": 100
+          },
+          {
+            "date": "2025-03-16",
+            "eatenAt": "2025-03-16T16:20:00Z",
+            "caffeine": 100
+          },
+          {
+            "date": "2025-03-17",
+            "eatenAt": "2025-03-17T18:05:00Z",
             "caffeine": 100
           },
           {
@@ -2269,6 +2865,16 @@
             "sleepDurationMinutes": 445
           },
           {
+            "date": "2025-03-15",
+            "sleepQuality": 8.4,
+            "sleepDurationMinutes": 465
+          },
+          {
+            "date": "2025-03-16",
+            "sleepQuality": 7.7,
+            "sleepDurationMinutes": 450
+          },
+          {
             "date": "2025-03-08",
             "sleepQuality": 6.1,
             "sleepDurationMinutes": 380
@@ -2282,6 +2888,16 @@
             "date": "2025-03-10",
             "sleepQuality": 6.4,
             "sleepDurationMinutes": 395
+          },
+          {
+            "date": "2025-03-17",
+            "sleepQuality": 5.9,
+            "sleepDurationMinutes": 370
+          },
+          {
+            "date": "2025-03-18",
+            "sleepQuality": 6.2,
+            "sleepDurationMinutes": 385
           },
           {
             "date": "2025-04-01",
@@ -2298,12 +2914,21 @@
       },
       "expected": {
         "estimatedCutoffHour": 14,
+        "defaultCutoffHour": 14,
+        "pValue": 0.0000017052952995167653,
+        "comparisons": 5,
         "hourlyImpact": [
           {
-            "hour": 10,
-            "avgQuality": 8.5,
-            "avgDuration": 470,
+            "hour": 9,
+            "avgQuality": 8.4,
+            "avgDuration": 465,
             "count": 1
+          },
+          {
+            "hour": 10,
+            "avgQuality": 8.1,
+            "avgDuration": 460,
+            "count": 2
           },
           {
             "hour": 11,
@@ -2331,9 +2956,9 @@
           },
           {
             "hour": 17,
-            "avgQuality": 5.8,
-            "avgDuration": 365,
-            "count": 1
+            "avgQuality": 5.85,
+            "avgDuration": 367.5,
+            "count": 2
           },
           {
             "hour": 18,
@@ -2343,13 +2968,13 @@
           },
           {
             "hour": 19,
-            "avgQuality": 5.5,
-            "avgDuration": 350,
-            "count": 1
+            "avgQuality": 5.85,
+            "avgDuration": 367.5,
+            "count": 2
           }
         ],
         "confidence": "low",
-        "sampleSize": 8
+        "sampleSize": 12
       }
     },
     {
@@ -2374,6 +2999,9 @@
       },
       "expected": {
         "estimatedCutoffHour": null,
+        "defaultCutoffHour": 14,
+        "pValue": null,
+        "comparisons": 0,
         "hourlyImpact": [
           {
             "hour": 9,
@@ -2453,24 +3081,24 @@
         "meals": [
           {
             "mealType": "Breakfast",
-            "avgMinute": 460,
-            "stddevMinutes": 8.16496580927726,
+            "avgMinute": 459.99999999999994,
+            "stddevMinutes": 8.165613667694744,
             "regularity": "high"
           },
           {
             "mealType": "Lunch",
-            "avgMinute": 755,
-            "stddevMinutes": 28.577380332470412,
+            "avgMinute": 754.9999999999999,
+            "stddevMinutes": 28.60523107578527,
             "regularity": "high"
           },
           {
             "mealType": "Dinner",
-            "avgMinute": 1185,
-            "stddevMinutes": 85.73214099741124,
+            "avgMinute": 1183.644003060713,
+            "stddevMinutes": 86.49244196262362,
             "regularity": "low"
           }
         ],
-        "overallScore": 65.97930912801141,
+        "overallScore": 65.76019813719344,
         "confidence": "insufficient",
         "sampleSize": 3
       }
@@ -2529,27 +3157,28 @@
         ]
       },
       "expected": {
-        "ultraProcessedPct": 39.473684210526315,
+        "ultraProcessedPct": 31.645569620253166,
+        "unknownPct": 19.831223628691987,
         "byGroup": [
           {
             "group": 1,
             "kcal": 650,
-            "pct": 34.21052631578947
+            "pct": 27.42616033755274
           },
           {
             "group": 2,
             "kcal": 200,
-            "pct": 10.526315789473683
+            "pct": 8.438818565400844
           },
           {
             "group": 3,
             "kcal": 300,
-            "pct": 15.789473684210526
+            "pct": 12.658227848101266
           },
           {
             "group": 4,
             "kcal": 750,
-            "pct": 39.473684210526315
+            "pct": 31.645569620253166
           }
         ],
         "coveragePct": 80.16877637130801,
@@ -2605,12 +3234,13 @@
         ]
       },
       "expected": {
-        "ultraProcessedPct": 100,
+        "ultraProcessedPct": 5.263157894736842,
+        "unknownPct": 94.73684210526316,
         "byGroup": [
           {
             "group": 4,
             "kcal": 100,
-            "pct": 100
+            "pct": 5.263157894736842
           }
         ],
         "coveragePct": 5.263157894736842,
@@ -2634,12 +3264,13 @@
         ]
       },
       "expected": {
-        "ultraProcessedPct": 100,
+        "ultraProcessedPct": 10,
+        "unknownPct": 90,
         "byGroup": [
           {
             "group": 4,
             "kcal": 100,
-            "pct": 100
+            "pct": 10
           }
         ],
         "coveragePct": 10,
@@ -2655,6 +3286,7 @@
       },
       "expected": {
         "ultraProcessedPct": 0,
+        "unknownPct": 0,
         "byGroup": [],
         "coveragePct": 0,
         "confidence": "insufficient",
@@ -2663,7 +3295,7 @@
     },
     {
       "fn": "computeOmegaRatio",
-      "name": "elevated_with_dropped_days",
+      "name": "optimal_with_dropped_days",
       "input": {
         "dailyNutrients": [
           {
@@ -2690,6 +3322,12 @@
             "date": "2025-02-05",
             "omega3": 1.2,
             "omega6": 0
+          },
+          {
+            "date": "2025-02-06",
+            "omega3": 0.2,
+            "omega6": 20,
+            "coverage": 0.3
           }
         ]
       },
@@ -2697,55 +3335,63 @@
         "ratio": 6.444444444444444,
         "avgOmega3": 1.5,
         "avgOmega6": 9.666666666666666,
-        "status": "elevated",
+        "status": "optimal",
         "confidence": "insufficient",
         "sampleSize": 3
       }
     },
     {
       "fn": "computeOmegaRatio",
-      "name": "critical",
+      "name": "high",
       "input": {
         "dailyNutrients": [
           {
             "date": "2025-01-01",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-02",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-03",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-04",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-05",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-06",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-07",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           },
           {
             "date": "2025-01-08",
             "omega3": 0.5,
-            "omega6": 15
+            "omega6": 15,
+            "coverage": 1
           }
         ]
       },
@@ -2753,7 +3399,63 @@
         "ratio": 30,
         "avgOmega3": 0.5,
         "avgOmega6": 15,
-        "status": "critical",
+        "status": "high",
+        "confidence": "low",
+        "sampleSize": 8
+      }
+    },
+    {
+      "fn": "computeOmegaRatio",
+      "name": "elevated",
+      "input": {
+        "dailyNutrients": [
+          {
+            "date": "2025-01-01",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-02",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-03",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-04",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-05",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-06",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-07",
+            "omega3": 1,
+            "omega6": 15
+          },
+          {
+            "date": "2025-01-08",
+            "omega3": 1,
+            "omega6": 15
+          }
+        ]
+      },
+      "expected": {
+        "ratio": 15,
+        "avgOmega3": 1,
+        "avgOmega6": 15,
+        "status": "elevated",
         "confidence": "low",
         "sampleSize": 8
       }
@@ -3228,273 +3930,355 @@
         "dailyCalories": [
           {
             "date": "2025-01-01",
-            "value": 2000
+            "value": 2248
           },
           {
             "date": "2025-01-02",
-            "value": 2288
+            "value": 1664
           },
           {
             "date": "2025-01-03",
-            "value": 2505
+            "value": 2056
           },
           {
             "date": "2025-01-04",
-            "value": 2598
+            "value": 2384
           },
           {
             "date": "2025-01-05",
-            "value": 2546
+            "value": 1848
           },
           {
             "date": "2025-01-06",
-            "value": 2359
+            "value": 1712
           },
           {
             "date": "2025-01-07",
-            "value": 2085
+            "value": 2176
           },
           {
             "date": "2025-01-08",
-            "value": 1790
+            "value": 2352
           },
           {
             "date": "2025-01-09",
-            "value": 1546
+            "value": 1960
           },
           {
             "date": "2025-01-10",
-            "value": 1413
+            "value": 1624
           },
           {
             "date": "2025-01-11",
-            "value": 1425
+            "value": 2104
           },
           {
             "date": "2025-01-12",
-            "value": 1577
+            "value": 2304
           },
           {
             "date": "2025-01-13",
-            "value": 1832
+            "value": 1768
           },
           {
             "date": "2025-01-14",
-            "value": 2129
+            "value": 2016
           },
           {
             "date": "2025-01-15",
-            "value": 2394
+            "value": 2368
           },
           {
             "date": "2025-01-16",
-            "value": 2563
+            "value": 1912
           },
           {
             "date": "2025-01-17",
-            "value": 2594
+            "value": 1680
           },
           {
             "date": "2025-01-18",
-            "value": 2479
+            "value": 2216
           },
           {
             "date": "2025-01-19",
-            "value": 2247
+            "value": 2280
           },
           {
             "date": "2025-01-20",
-            "value": 1955
+            "value": 1808
           },
           {
             "date": "2025-01-21",
-            "value": 1674
+            "value": 2072
           },
           {
             "date": "2025-01-22",
-            "value": 1472
+            "value": 1640
           },
           {
             "date": "2025-01-23",
-            "value": 1400
+            "value": 2328
           },
           {
             "date": "2025-01-24",
-            "value": 1475
+            "value": 1872
+          },
+          {
+            "date": "2025-01-25",
+            "value": 2144
+          },
+          {
+            "date": "2025-01-26",
+            "value": 1736
+          },
+          {
+            "date": "2025-01-27",
+            "value": 2392
+          },
+          {
+            "date": "2025-01-28",
+            "value": 1936
+          },
+          {
+            "date": "2025-01-29",
+            "value": 2200
+          },
+          {
+            "date": "2025-01-30",
+            "value": 1696
+          },
+          {
+            "date": "2025-01-31",
+            "value": 2120
+          },
+          {
+            "date": "2025-02-01",
+            "value": 2032
+          },
+          {
+            "date": "2025-02-02",
+            "value": 1832
           }
         ],
         "dailyWeight": [
           {
-            "date": "2025-01-01",
-            "value": 80
-          },
-          {
-            "date": "2025-01-02",
-            "value": 80
-          },
-          {
-            "date": "2025-01-03",
-            "value": 80
-          },
-          {
             "date": "2025-01-04",
-            "value": 80
+            "value": 80.0124
           },
           {
             "date": "2025-01-05",
-            "value": 80.1918
+            "value": 79.9956
           },
           {
             "date": "2025-01-06",
-            "value": 80.3366
+            "value": 79.9984
           },
           {
             "date": "2025-01-07",
-            "value": 80.399
+            "value": 80.0176
           },
           {
             "date": "2025-01-08",
-            "value": 80.3637
+            "value": 80.01
           },
           {
             "date": "2025-01-09",
-            "value": 80.2394
+            "value": 79.9956
           },
           {
             "date": "2025-01-10",
-            "value": 80.0564
+            "value": 80.0044
           },
           {
             "date": "2025-01-11",
-            "value": 79.8597
+            "value": 80.022
           },
           {
             "date": "2025-01-12",
-            "value": 79.6973
+            "value": 80.02
           },
           {
             "date": "2025-01-13",
-            "value": 79.609
+            "value": 80.0012
           },
           {
             "date": "2025-01-14",
-            "value": 79.6164
+            "value": 80.0064
           },
           {
             "date": "2025-01-15",
-            "value": 79.7178
+            "value": 80.0216
           },
           {
             "date": "2025-01-16",
-            "value": 79.8882
+            "value": 80.01
           },
           {
             "date": "2025-01-17",
-            "value": 80.086
+            "value": 80.0108
           },
           {
             "date": "2025-01-18",
-            "value": 80.2628
+            "value": 80.0292
           },
           {
             "date": "2025-01-19",
-            "value": 80.3752
+            "value": 80.0248
           },
           {
             "date": "2025-01-20",
-            "value": 80.3957
+            "value": 80.0088
           },
           {
             "date": "2025-01-21",
-            "value": 80.3194
+            "value": 80.0196
           },
           {
             "date": "2025-01-22",
-            "value": 80.1648
+            "value": 80.0336
           },
           {
             "date": "2025-01-23",
-            "value": 79.9699
+            "value": 80.024
           },
           {
             "date": "2025-01-24",
-            "value": 79.7824
+            "value": 80.0276
+          },
+          {
+            "date": "2025-01-25",
+            "value": 80.0096
+          },
+          {
+            "date": "2025-01-26",
+            "value": 80.026
+          },
+          {
+            "date": "2025-01-27",
+            "value": 80.0196
+          },
+          {
+            "date": "2025-01-28",
+            "value": 80.0268
+          },
+          {
+            "date": "2025-01-29",
+            "value": 80.0136
+          },
+          {
+            "date": "2025-01-30",
+            "value": 80.0332
+          },
+          {
+            "date": "2025-01-31",
+            "value": 80.03
+          },
+          {
+            "date": "2025-02-01",
+            "value": 80.04
+          },
+          {
+            "date": "2025-02-02",
+            "value": 80.0248
           }
         ],
         "maxLag": 7
       },
       "expected": {
         "bestLag": 3,
+        "comparisons": 7,
         "results": [
           {
             "lag": 1,
             "correlation": {
-              "r": 0.5322961369116698,
-              "pValue": 0.008932524875686226,
-              "sampleSize": 23,
+              "r": -0.3248160792593586,
+              "pValue": 0.0855752104803897,
+              "ciLow": -0.6177772675600147,
+              "ciHigh": 0.047323294522438566,
+              "sampleSize": 29,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.09983774556045465
           },
           {
             "lag": 2,
             "correlation": {
-              "r": 0.8654077334368958,
-              "pValue": 1.996699341411931e-7,
-              "sampleSize": 22,
+              "r": -0.3549358077205248,
+              "pValue": 0.05884469072504954,
+              "ciLow": -0.638395214826322,
+              "ciHigh": 0.01330001886206682,
+              "sampleSize": 29,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.09983774556045465
           },
           {
             "lag": 3,
             "correlation": {
-              "r": 0.9999997162500949,
-              "pValue": 8.308552377576803e-61,
-              "sampleSize": 21,
+              "r": 1,
+              "pValue": 1.5213805210611198e-136,
+              "ciLow": 0.9999978429090084,
+              "ciHigh": 0.9999995364128386,
+              "sampleSize": 29,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 1.0649663647427838e-135
           },
           {
             "lag": 4,
             "correlation": {
-              "r": 0.8574944145643049,
-              "pValue": 0.0000013562939475159682,
-              "sampleSize": 20,
+              "r": -0.3746261710792188,
+              "pValue": 0.04525538389119871,
+              "ciLow": -0.651657561209698,
+              "ciHigh": -0.009412907468654613,
+              "sampleSize": 29,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.09983774556045465
           },
           {
             "lag": 5,
             "correlation": {
-              "r": 0.5062857821854729,
-              "pValue": 0.02697544424028903,
-              "sampleSize": 19,
+              "r": -0.3369685575903876,
+              "pValue": 0.07952116076154797,
+              "ciLow": -0.630750559074585,
+              "ciHigh": 0.0413004703798098,
+              "sampleSize": 28,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.09983774556045465
           },
           {
             "lag": 6,
             "correlation": {
-              "r": 0.07021718568132479,
-              "pValue": 0.7818870985172338,
-              "sampleSize": 18,
+              "r": -0.05322588841147085,
+              "pValue": 0.792034488235501,
+              "ciLow": -0.4246506266288125,
+              "ciHigh": 0.3335343395005779,
+              "sampleSize": 27,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.792034488235501
           },
           {
             "lag": 7,
             "correlation": {
-              "r": -0.377417575110468,
-              "pValue": 0.13531002653613677,
-              "sampleSize": 17,
+              "r": 0.6291905650292898,
+              "pValue": 0.0005745011318021848,
+              "ciLow": 0.3197731576210709,
+              "ciHigh": 0.8173415145614475,
+              "sampleSize": 26,
               "confidence": "medium",
               "constantInput": false
-            }
+            },
+            "qValue": 0.002010753961307647
           }
         ]
       }
@@ -3506,87 +4290,95 @@
         "dailyCalories": [
           {
             "date": "2025-01-01",
-            "value": 2000
+            "value": 2248
           },
           {
             "date": "2025-01-02",
-            "value": 2288
+            "value": 1664
           },
           {
             "date": "2025-01-03",
-            "value": 2505
+            "value": 2056
           },
           {
             "date": "2025-01-04",
-            "value": 2598
+            "value": 2384
           },
           {
             "date": "2025-01-05",
-            "value": 2546
+            "value": 1848
           },
           {
             "date": "2025-01-06",
-            "value": 2359
+            "value": 1712
           }
         ],
         "dailyWeight": [
           {
-            "date": "2025-01-01",
-            "value": 80
-          },
-          {
-            "date": "2025-01-02",
-            "value": 80
-          },
-          {
-            "date": "2025-01-03",
-            "value": 80
-          },
-          {
             "date": "2025-01-04",
-            "value": 80
+            "value": 80.0124
           },
           {
             "date": "2025-01-05",
-            "value": 80.1918
+            "value": 79.9956
           },
           {
             "date": "2025-01-06",
-            "value": 80.3366
+            "value": 79.9984
+          },
+          {
+            "date": "2025-01-07",
+            "value": 80.0176
+          },
+          {
+            "date": "2025-01-08",
+            "value": 80.01
+          },
+          {
+            "date": "2025-01-09",
+            "value": 79.9956
           }
         ],
         "maxLag": 7
       },
       "expected": {
         "bestLag": null,
+        "comparisons": 0,
         "results": [
           {
             "lag": 1,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 2,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 3,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 4,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 5,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 6,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           },
           {
             "lag": 7,
-            "correlation": null
+            "correlation": null,
+            "qValue": null
           }
         ]
       }
@@ -3650,6 +4442,7 @@
         "mealsPerDay": 3,
         "mealsBelowThreshold": 2,
         "totalMeals": 9,
+        "threshold": 20,
         "confidence": "insufficient",
         "sampleSize": 3
       }
@@ -3667,6 +4460,7 @@
         "mealsPerDay": 0,
         "mealsBelowThreshold": 0,
         "totalMeals": 0,
+        "threshold": 20,
         "confidence": "insufficient",
         "sampleSize": 0
       }
@@ -3812,9 +4606,11 @@
         "correlation": {
           "r": 0.8257228238447675,
           "pValue": 0.00014944419850379724,
+          "ciLow": 0.5432460696670455,
+          "ciHigh": 0.9402654794179993,
           "sampleSize": 15
         },
-        "avgSodium": 2400,
+        "avgSodium": 2440,
         "highSodiumDays": 4,
         "avgWeightDeltaAfterHighSodium": 0.6099999999999994,
         "confidence": "medium",
@@ -3874,9 +4670,11 @@
         "correlation": {
           "r": 0,
           "pValue": null,
+          "ciLow": null,
+          "ciHigh": null,
           "sampleSize": 4
         },
-        "avgSodium": 2760,
+        "avgSodium": 2400,
         "highSodiumDays": 1,
         "avgWeightDeltaAfterHighSodium": null,
         "confidence": "insufficient",
@@ -4077,7 +4875,8 @@
         },
         "calorieDelta": 600,
         "calorieDeltaPct": 30,
-        "confidence": "medium",
+        "pValue": 1,
+        "confidence": "insufficient",
         "sampleSize": 21
       }
     },
@@ -4106,6 +4905,7 @@
         },
         "calorieDelta": 0,
         "calorieDeltaPct": 0,
+        "pValue": null,
         "confidence": "insufficient",
         "sampleSize": 0
       }
@@ -4386,20 +5186,28 @@
           "correlation": {
             "r": 1,
             "pValue": 1.8547058089611245e-91,
+            "ciLow": 0.9999974124243527,
+            "ciHigh": 0.9999996135380567,
             "sampleSize": 20,
             "confidence": "medium",
             "constantInput": false
-          }
+          },
+          "qValue": 2.782058713441687e-91,
+          "comparisons": 3
         },
         {
           "nutrientKey": "fat",
           "correlation": {
             "r": -1,
             "pValue": 1.8547058089611245e-91,
+            "ciLow": -0.9999996135380567,
+            "ciHigh": -0.9999974124243527,
             "sampleSize": 20,
             "confidence": "medium",
             "constantInput": false
-          }
+          },
+          "qValue": 2.782058713441687e-91,
+          "comparisons": 3
         }
       ]
     },
@@ -4679,20 +5487,28 @@
           "correlation": {
             "r": 1,
             "pValue": 1.906920488517985e-86,
+            "ciLow": 0.9999973355939351,
+            "ciHigh": 0.9999996246820283,
             "sampleSize": 19,
             "confidence": "medium",
             "constantInput": false
-          }
+          },
+          "qValue": 2.8603807327769773e-86,
+          "comparisons": 3
         },
         {
           "nutrientKey": "fat",
           "correlation": {
             "r": -1,
             "pValue": 1.906920488517985e-86,
+            "ciLow": -0.9999996246820283,
+            "ciHigh": -0.9999973355939351,
             "sampleSize": 19,
             "confidence": "medium",
             "constantInput": false
-          }
+          },
+          "qValue": 2.8603807327769773e-86,
+          "comparisons": 3
         }
       ]
     },
@@ -4808,6 +5624,230 @@
             }
           },
           {
+            "date": "2025-01-13",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-14",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-15",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-16",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-17",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-18",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-19",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-20",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-21",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-22",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-23",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-24",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-25",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-26",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-27",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-28",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-29",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-30",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-31",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-01",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-02",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-03",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-04",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-05",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-06",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-07",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-08",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-09",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
             "date": "2025-01-02",
             "foodId": "tea",
             "foodName": "Tea",
@@ -4827,54 +5867,166 @@
         "sleepData": [
           {
             "date": "2025-01-01",
-            "quality": 4.5
+            "quality": 4.7
           },
           {
             "date": "2025-01-02",
-            "quality": 8
+            "quality": 7.8
           },
           {
             "date": "2025-01-03",
-            "quality": 8
+            "quality": 8.2
           },
           {
             "date": "2025-01-04",
-            "quality": 4.5
+            "quality": 4.3
           },
           {
             "date": "2025-01-05",
-            "quality": 8
+            "quality": 8.2
           },
           {
             "date": "2025-01-06",
-            "quality": 8
+            "quality": 7.8
           },
           {
             "date": "2025-01-07",
-            "quality": 4.5
+            "quality": 4.7
           },
           {
             "date": "2025-01-08",
-            "quality": 8
+            "quality": 7.8
           },
           {
             "date": "2025-01-09",
-            "quality": 8
+            "quality": 8.2
           },
           {
             "date": "2025-01-10",
-            "quality": 4.5
+            "quality": 4.3
           },
           {
             "date": "2025-01-11",
-            "quality": 8
+            "quality": 8.2
           },
           {
             "date": "2025-01-12",
-            "quality": 8
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-13",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-14",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-15",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-16",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-17",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-18",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-19",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-20",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-21",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-22",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-23",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-24",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-25",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-26",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-27",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-28",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-29",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-30",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-31",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-02-01",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-02",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-03",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-02-04",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-05",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-06",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-02-07",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-08",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-09",
+            "quality": 4.3
           }
         ],
-        "minOccurrences": 3
+        "minOccurrences": 5
       },
       "expected": {
         "foodImpacts": [
@@ -4884,7 +6036,9 @@
             "avgQualityWith": 4.5,
             "avgQualityWithout": 8,
             "delta": -3.5,
-            "occurrences": 4
+            "occurrences": 14,
+            "pValue": 6.765341605361209e-28,
+            "qValue": 6.765341605361209e-28
           },
           {
             "foodName": "Salad",
@@ -4892,10 +6046,594 @@
             "avgQualityWith": 8,
             "avgQualityWithout": 4.5,
             "delta": 3.5,
-            "occurrences": 8
+            "occurrences": 26,
+            "pValue": 6.765341605361209e-28,
+            "qValue": 6.765341605361209e-28
           }
         ],
-        "overallAvgQuality": 6.833333333333333
+        "overallAvgQuality": 6.775,
+        "comparisons": 2
+      }
+    },
+    {
+      "fn": "detectFoodSleepPatterns",
+      "name": "no_effect_food_filtered",
+      "input": {
+        "eveningFoods": [
+          {
+            "date": "2025-01-01",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-02",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-03",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-04",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-05",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-06",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-07",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-08",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-09",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-10",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-11",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-12",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-13",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-14",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-15",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-16",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-17",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-18",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-19",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-20",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-21",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-22",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-23",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-24",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-25",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-26",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-27",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-28",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-29",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-30",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-01-31",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-01",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-02",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-03",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-04",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-05",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-06",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-02-07",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-08",
+            "foodId": "salad",
+            "foodName": "Salad",
+            "nutrients": {
+              "calories": 200
+            }
+          },
+          {
+            "date": "2025-02-09",
+            "foodId": "pizza",
+            "foodName": "Pizza",
+            "nutrients": {
+              "calories": 900
+            }
+          },
+          {
+            "date": "2025-01-02",
+            "foodId": "tea",
+            "foodName": "Tea",
+            "nutrients": {
+              "calories": 5
+            }
+          },
+          {
+            "date": "2025-01-03",
+            "foodId": "tea",
+            "foodName": "Tea",
+            "nutrients": {
+              "calories": 5
+            }
+          },
+          {
+            "date": "2025-01-02",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-01-07",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-01-12",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-01-17",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-01-22",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-01-27",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-02-01",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          },
+          {
+            "date": "2025-02-06",
+            "foodId": "toast",
+            "foodName": "Toast",
+            "nutrients": {}
+          }
+        ],
+        "sleepData": [
+          {
+            "date": "2025-01-01",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-02",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-03",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-04",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-05",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-06",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-07",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-08",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-09",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-10",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-11",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-12",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-13",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-14",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-15",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-16",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-17",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-18",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-19",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-20",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-21",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-22",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-23",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-24",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-25",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-01-26",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-27",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-28",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-01-29",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-01-30",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-01-31",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-02-01",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-02",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-03",
+            "quality": 4.3
+          },
+          {
+            "date": "2025-02-04",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-05",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-06",
+            "quality": 4.7
+          },
+          {
+            "date": "2025-02-07",
+            "quality": 7.8
+          },
+          {
+            "date": "2025-02-08",
+            "quality": 8.2
+          },
+          {
+            "date": "2025-02-09",
+            "quality": 4.3
+          }
+        ],
+        "minOccurrences": 5
+      },
+      "expected": {
+        "foodImpacts": [
+          {
+            "foodName": "Pizza",
+            "foodId": "pizza",
+            "avgQualityWith": 4.5,
+            "avgQualityWithout": 8,
+            "delta": -3.5,
+            "occurrences": 14,
+            "pValue": 6.765341605361209e-28,
+            "qValue": 1.0148012408041814e-27
+          },
+          {
+            "foodName": "Salad",
+            "foodId": "salad",
+            "avgQualityWith": 8,
+            "avgQualityWithout": 4.5,
+            "delta": 3.5,
+            "occurrences": 26,
+            "pValue": 6.765341605361209e-28,
+            "qValue": 1.0148012408041814e-27
+          }
+        ],
+        "overallAvgQuality": 6.775,
+        "comparisons": 3
       }
     },
     {
@@ -4904,11 +6642,12 @@
       "input": {
         "eveningFoods": [],
         "sleepData": [],
-        "minOccurrences": 3
+        "minOccurrences": 5
       },
       "expected": {
         "foodImpacts": [],
-        "overallAvgQuality": 0
+        "overallAvgQuality": 0,
+        "comparisons": 0
       }
     },
     {
@@ -5022,6 +6761,435 @@
     },
     {
       "fn": "localMinutesOfDay",
+      "name": "sample_5",
+      "input": {
+        "isoString": "not-a-timestamp",
+        "timeZone": "UTC"
+      },
+      "expected": null
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_-3",
+      "input": {
+        "z": -3
+      },
+      "expected": 0.0013499672813147567
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_-1.96",
+      "input": {
+        "z": -1.96
+      },
+      "expected": 0.024997826108223875
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_-0.5",
+      "input": {
+        "z": -0.5
+      },
+      "expected": 0.3085375372760062
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_0",
+      "input": {
+        "z": 0
+      },
+      "expected": 0.5000000005
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_0.3",
+      "input": {
+        "z": 0.3
+      },
+      "expected": 0.6179113539151762
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_1",
+      "input": {
+        "z": 1
+      },
+      "expected": 0.8413447361676363
+    },
+    {
+      "fn": "normalCdf",
+      "name": "z_2.5",
+      "input": {
+        "z": 2.5
+      },
+      "expected": 0.993790319888562
+    },
+    {
+      "fn": "studentTwoSidedP",
+      "name": "t2.228_df10",
+      "input": {
+        "t": 2.228,
+        "df": 10
+      },
+      "expected": 0.05001177100934319
+    },
+    {
+      "fn": "studentTwoSidedP",
+      "name": "t0_df5",
+      "input": {
+        "t": 0,
+        "df": 5
+      },
+      "expected": 1
+    },
+    {
+      "fn": "studentTwoSidedP",
+      "name": "df0",
+      "input": {
+        "t": 1,
+        "df": 0
+      },
+      "expected": 1
+    },
+    {
+      "fn": "welchTTest",
+      "name": "separated",
+      "input": {
+        "a": [
+          8,
+          8.2,
+          7.9,
+          8.1,
+          8.3,
+          7.8
+        ],
+        "b": [
+          5,
+          5.2,
+          4.9,
+          5.1,
+          5.3,
+          4.8
+        ]
+      },
+      "expected": {
+        "t": 27.774602993176536,
+        "df": 9.999999999999996,
+        "pValue": 8.491469152910318e-11
+      }
+    },
+    {
+      "fn": "welchTTest",
+      "name": "identical",
+      "input": {
+        "a": [
+          8,
+          8.2,
+          7.9,
+          8.1,
+          8.3,
+          7.8
+        ],
+        "b": [
+          8,
+          8.2,
+          7.9,
+          8.1,
+          8.3,
+          7.8
+        ]
+      },
+      "expected": {
+        "t": 0,
+        "df": 9.999999999999998,
+        "pValue": 1
+      }
+    },
+    {
+      "fn": "welchTTest",
+      "name": "too_small",
+      "input": {
+        "a": [
+          1
+        ],
+        "b": [
+          2,
+          3
+        ]
+      },
+      "expected": {
+        "t": 0,
+        "df": 0,
+        "pValue": 1
+      }
+    },
+    {
+      "fn": "welchTTest",
+      "name": "unequal_sizes",
+      "input": {
+        "a": [
+          6,
+          7,
+          6.5,
+          7.2,
+          6.8,
+          7.1,
+          6.9,
+          7.3
+        ],
+        "b": [
+          5.5,
+          6.1,
+          5.8
+        ]
+      },
+      "expected": {
+        "t": 4.582575694955841,
+        "df": 5.2769230769230795,
+        "pValue": 0.0051918972716556875
+      }
+    },
+    {
+      "fn": "benjaminiHochberg",
+      "name": "six",
+      "input": {
+        "pValues": [
+          0.01,
+          0.04,
+          0.03,
+          0.5,
+          0.2,
+          0.001
+        ]
+      },
+      "expected": [
+        0.03,
+        0.06,
+        0.06,
+        0.5,
+        0.24000000000000005,
+        0.006
+      ]
+    },
+    {
+      "fn": "benjaminiHochberg",
+      "name": "empty",
+      "input": {
+        "pValues": []
+      },
+      "expected": []
+    },
+    {
+      "fn": "fisherCI95",
+      "name": "r0.5_n30",
+      "input": {
+        "r": 0.5,
+        "n": 30
+      },
+      "expected": [
+        0.1704313622229543,
+        0.7289585577826239
+      ]
+    },
+    {
+      "fn": "fisherCI95",
+      "name": "r-0.8_n8",
+      "input": {
+        "r": -0.8,
+        "n": 8
+      },
+      "expected": [
+        -0.9622280710929751,
+        -0.218508931755409
+      ]
+    },
+    {
+      "fn": "fisherCI95",
+      "name": "n3",
+      "input": {
+        "r": 0.5,
+        "n": 3
+      },
+      "expected": [
+        -1,
+        1
+      ]
+    },
+    {
+      "fn": "fisherCI95",
+      "name": "r1",
+      "input": {
+        "r": 1,
+        "n": 20
+      },
+      "expected": [
+        0.9999974124243527,
+        0.9999996135380567
+      ]
+    },
+    {
+      "fn": "circularMeanMinutes",
+      "name": "straddles_midnight",
+      "input": {
+        "values": [
+          1380,
+          60
+        ]
+      },
+      "expected": 6.585505004421915e-15
+    },
+    {
+      "fn": "circularStdMinutes",
+      "name": "straddles_midnight",
+      "input": {
+        "values": [
+          1380,
+          60
+        ]
+      },
+      "expected": 60.34808165261931
+    },
+    {
+      "fn": "circularMeanMinutes",
+      "name": "tight",
+      "input": {
+        "values": [
+          480,
+          490,
+          470,
+          485
+        ]
+      },
+      "expected": 481.25055796479376
+    },
+    {
+      "fn": "circularStdMinutes",
+      "name": "tight",
+      "input": {
+        "values": [
+          480,
+          490,
+          470,
+          485
+        ]
+      },
+      "expected": 7.395470079503752
+    },
+    {
+      "fn": "circularMeanMinutes",
+      "name": "dispersed",
+      "input": {
+        "values": [
+          0,
+          720
+        ]
+      },
+      "expected": null
+    },
+    {
+      "fn": "circularStdMinutes",
+      "name": "dispersed",
+      "input": {
+        "values": [
+          0,
+          720
+        ]
+      },
+      "expected": 720
+    },
+    {
+      "fn": "circularMeanMinutes",
+      "name": "empty",
+      "input": {
+        "values": []
+      },
+      "expected": null
+    },
+    {
+      "fn": "circularStdMinutes",
+      "name": "empty",
+      "input": {
+        "values": []
+      },
+      "expected": 0
+    },
+    {
+      "fn": "circularStdMinutes",
+      "name": "single",
+      "input": {
+        "values": [
+          600
+        ]
+      },
+      "expected": 0
+    },
+    {
+      "fn": "eatingDayOf",
+      "name": "sample_0",
+      "input": {
+        "isoString": "2024-03-10T00:30:00Z",
+        "timeZone": "UTC"
+      },
+      "expected": {
+        "date": "2024-03-09",
+        "minutes": 1230,
+        "clockMinutes": 30
+      }
+    },
+    {
+      "fn": "eatingDayOf",
+      "name": "sample_1",
+      "input": {
+        "isoString": "2024-03-10T03:59:00Z",
+        "timeZone": "UTC"
+      },
+      "expected": {
+        "date": "2024-03-09",
+        "minutes": 1439,
+        "clockMinutes": 239
+      }
+    },
+    {
+      "fn": "eatingDayOf",
+      "name": "sample_2",
+      "input": {
+        "isoString": "2024-03-10T04:00:00Z",
+        "timeZone": "UTC"
+      },
+      "expected": {
+        "date": "2024-03-10",
+        "minutes": 0,
+        "clockMinutes": 240
+      }
+    },
+    {
+      "fn": "eatingDayOf",
+      "name": "sample_3",
+      "input": {
+        "isoString": "2025-03-30T00:30:00Z",
+        "timeZone": "Europe/Zurich"
+      },
+      "expected": {
+        "date": "2025-03-29",
+        "minutes": 1290,
+        "clockMinutes": 90
+      }
+    },
+    {
+      "fn": "eatingDayOf",
+      "name": "sample_4",
+      "input": {
+        "isoString": "2025-01-15T02:15:00Z",
+        "timeZone": "America/New_York"
+      },
+      "expected": {
+        "date": "2025-01-14",
+        "minutes": 1035,
+        "clockMinutes": 1275
+      }
+    },
+    {
+      "fn": "eatingDayOf",
       "name": "sample_5",
       "input": {
         "isoString": "not-a-timestamp",

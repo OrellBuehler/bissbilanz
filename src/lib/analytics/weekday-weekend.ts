@@ -1,4 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
+import { welchTTest } from './stats';
 
 export type DayStats = {
 	avgCalories: number;
@@ -14,6 +15,8 @@ export type WeekdayWeekendResult = {
 	weekend: DayStats;
 	calorieDelta: number;
 	calorieDeltaPct: number;
+	/** Welch t-test of weekend vs weekday calories; null with fewer than two days on a side. */
+	pValue: number | null;
 	confidence: ConfidenceLevel;
 	sampleSize: number;
 };
@@ -61,13 +64,23 @@ export function computeWeekdayWeekendSplit(dailyNutrients: DayEntry[]): WeekdayW
 	const weekend = computeStats(weekends);
 	const calorieDelta = weekend.avgCalories - weekday.avgCalories;
 	const calorieDeltaPct = weekday.avgCalories > 0 ? (calorieDelta / weekday.avgCalories) * 100 : 0;
+	const pValue =
+		weekdays.length >= 2 && weekends.length >= 2
+			? welchTTest(
+					weekends.map((d) => d.calories),
+					weekdays.map((d) => d.calories)
+				).pValue
+			: null;
 
 	return {
 		weekday,
 		weekend,
 		calorieDelta,
 		calorieDeltaPct,
-		confidence: getConfidenceLevel(dailyNutrients.length),
+		pValue,
+		// Only ~2/7 of the days are weekend days, so the badge reflects the
+		// smaller group, not the total.
+		confidence: getConfidenceLevel(Math.min(weekdays.length, weekends.length)),
 		sampleSize: dailyNutrients.length
 	};
 }

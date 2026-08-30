@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import kotlinx.datetime.plus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -128,6 +129,21 @@ class WeekdayWeekendTest {
         assertEquals(0, result.weekday.days)
         assertEquals(1, result.weekend.days)
         assertEquals(2500.0, result.weekend.avgCalories)
+    }
+
+    @Test
+    fun badgeUsesTheSmallerGroupAndTestsTheDelta() {
+        val days =
+            (0 until 21).map { i ->
+                val date = kotlinx.datetime.LocalDate(2025, 1, 1).plus(i, kotlinx.datetime.DateTimeUnit.DAY)
+                val weekend =
+                    date.dayOfWeek == kotlinx.datetime.DayOfWeek.SATURDAY || date.dayOfWeek == kotlinx.datetime.DayOfWeek.SUNDAY
+                entry(date.toString(), (if (weekend) 2600.0 else 2000.0) + (i % 3) * 20)
+            }
+        val result = computeWeekdayWeekendSplit(days)
+        assertEquals(6, result.weekend.days)
+        assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
+        assertTrue(result.pValue!! < 0.001)
     }
 
     @Test

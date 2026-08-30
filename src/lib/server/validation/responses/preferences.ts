@@ -30,6 +30,7 @@ const preferencesSchema = z
 		favoriteMealAssignmentMode: z.string(),
 		visibleNutrients: z.array(z.string()),
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
+		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
 		locale: z.string().nullable(),
 		timeZone: z.string(),
 		updatedAt: z.string().optional(),

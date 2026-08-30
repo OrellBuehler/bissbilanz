@@ -40,6 +40,7 @@ import kotlinx.serialization.encoding.*
  * @param timeZone
  * @param favoriteMealTimeframes
  * @param caloricLagDaysOverride
+ * @param biologicalSex
  * @param updatedAt
  */
 @Serializable
@@ -61,5 +62,22 @@ data class Preferences(
     @SerialName(value = "timeZone") @Required val timeZone: kotlin.String,
     @SerialName(value = "favoriteMealTimeframes") @Required val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframe>,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
+    @SerialName(value = "biologicalSex") val biologicalSex: Preferences.BiologicalSex? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
-)
+) {
+    /**
+     *
+     *
+     * Values: male,female
+     */
+    @Serializable
+    enum class BiologicalSex(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "male")
+        male("male"),
+
+        @SerialName(value = "female")
+        female("female"),
+    }
+}

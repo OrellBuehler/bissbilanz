@@ -5732,6 +5732,17 @@
 							}
 						]
 					},
+					"biologicalSex": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["male", "female"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"timeZone": {
 						"type": "string",
 						"maxLength": 64
@@ -8743,6 +8754,17 @@
 								"type": "integer",
 								"minimum": 1,
 								"maximum": 7
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"biologicalSex": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["male", "female"]
 							},
 							{
 								"type": "null"

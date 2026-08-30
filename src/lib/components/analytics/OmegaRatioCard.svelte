@@ -1,11 +1,13 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeOmegaRatio } from '$lib/analytics/food-quality';
+	import { aggregateEntriesByDay } from '$lib/analytics/daily-coverage';
 	import { formatNutrient } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
 	type NutrientEntry = {
 		date: string;
+		calories: number;
 		omega3: number | null;
 		omega6: number | null;
 	};
@@ -18,17 +20,14 @@
 		loading: boolean;
 	} = $props();
 
-	const dailyAggregates = $derived.by(() => {
-		const byDate = new Map<string, { date: string; omega3: number; omega6: number }>();
-		for (const entry of nutrientEntries) {
-			if (!byDate.has(entry.date))
-				byDate.set(entry.date, { date: entry.date, omega3: 0, omega6: 0 });
-			const day = byDate.get(entry.date)!;
-			day.omega3 += entry.omega3 ?? 0;
-			day.omega6 += entry.omega6 ?? 0;
-		}
-		return [...byDate.values()];
-	});
+	const dailyAggregates = $derived.by(() =>
+		aggregateEntriesByDay(nutrientEntries, ['omega3', 'omega6'] as const).map((day) => ({
+			date: day.date,
+			omega3: day.values.omega3 ?? 0,
+			omega6: day.values.omega6 ?? 0,
+			coverage: Math.min(day.coverage.omega3, day.coverage.omega6)
+		}))
+	);
 
 	const result = $derived.by(() => {
 		if (dailyAggregates.length === 0) return null;
@@ -40,7 +39,6 @@
 		if (s === 'optimal') return m.analytics_omega_optimal();
 		if (s === 'elevated') return m.analytics_omega_elevated();
 		if (s === 'high') return m.analytics_omega_high();
-		if (s === 'critical') return m.analytics_omega_critical();
 		return '';
 	});
 
@@ -50,9 +48,7 @@
 			return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
 		if (s === 'elevated')
 			return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-		if (s === 'high')
-			return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-		return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+		return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
 	});
 </script>
 

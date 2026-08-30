@@ -3,6 +3,7 @@
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
 	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import { pearsonCorrelation, getConfidenceLevel } from '$lib/analytics/correlation';
+	import { shiftDate } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint, MealEntry } from './types';
 
@@ -25,36 +26,27 @@
 		return Math.round(analysis.avgWindowMinutes / 60);
 	});
 
+	// Day d's eating window is paired with the weight change that *ends the
+	// following morning* (weight(d+1) − weight(d)); pairing it with the change
+	// ending on d's own weigh-in would put most of the predictor after the outcome.
 	const correlationResult = $derived.by(() => {
 		const analysis = timingAnalysis;
-		if (!analysis || analysis.dailyWindows.length < 3) return null;
+		if (!analysis || analysis.dailyWindows.length < 7) return null;
 
 		const weightByDate = new Map(
 			weightFoodData.filter((d) => d.weightKg !== null).map((d) => [d.date, d.weightKg as number])
 		);
-		const dates = [...weightByDate.keys()].sort();
-		if (dates.length < 3) return null;
-
-		const weightChanges = new Map<string, number>();
-		for (let i = 1; i < dates.length; i++) {
-			const prev = weightByDate.get(dates[i - 1]);
-			const curr = weightByDate.get(dates[i]);
-			if (prev !== undefined && curr !== undefined) {
-				weightChanges.set(dates[i], curr - prev);
-			}
-		}
-
-		const windowByDate = new Map(analysis.dailyWindows.map((w) => [w.date, w.windowMinutes]));
+		if (weightByDate.size < 7) return null;
 
 		const pairs: { windowHours: number; weightChange: number }[] = [];
-		for (const [date, change] of weightChanges) {
-			const windowMin = windowByDate.get(date);
-			if (windowMin !== undefined) {
-				pairs.push({ windowHours: windowMin / 60, weightChange: change });
-			}
+		for (const w of analysis.dailyWindows) {
+			const start = weightByDate.get(w.date);
+			const end = weightByDate.get(shiftDate(w.date, 1));
+			if (start === undefined || end === undefined) continue;
+			pairs.push({ windowHours: w.windowMinutes / 60, weightChange: end - start });
 		}
 
-		if (pairs.length < 3) return null;
+		if (pairs.length < 7) return null;
 
 		return pearsonCorrelation(
 			pairs.map((p) => p.windowHours),
@@ -76,7 +68,8 @@
 	const lastMealHour = $derived.by(() => {
 		const analysis = timingAnalysis;
 		if (!analysis) return 20;
-		return parseInt(analysis.avgLastMealTime.split(':')[0]);
+		const h = parseInt(analysis.avgLastMealTime.split(':')[0]);
+		return h < firstMealHour ? h + 24 : h;
 	});
 </script>
 
@@ -99,7 +92,7 @@
 					<div class="relative h-6 bg-muted/40 rounded overflow-hidden">
 						<div
 							class="absolute h-full rounded bg-amber-400/70 dark:bg-amber-600/50"
-							style="left: {startPct}%; width: {Math.max(widthPct, 2)}%"
+							style="left: {startPct}%; width: {Math.min(100 - startPct, Math.max(widthPct, 2))}%"
 						></div>
 					</div>
 					<div class="flex justify-between text-[10px] text-muted-foreground tabular-nums">
@@ -113,21 +106,30 @@
 				</div>
 
 				{#if correlationResult}
-					<div class="rounded-lg bg-muted/30 p-3 text-xs">
-						<span class="text-muted-foreground">{m.analytics_window_vs_weight()}</span>
-						<span
-							class="font-semibold tabular-nums {correlationResult!.r < 0
-								? 'text-green-600 dark:text-green-400'
-								: 'text-red-600 dark:text-red-400'}"
-						>
-							r = {correlationResult!.r.toFixed(2)}
-						</span>
-						<span class="text-muted-foreground ml-1 text-[10px]">
-							{m.analytics_window_vs_weight_hint()}
-						</span>
+					<div class="rounded-lg bg-muted/30 p-3 text-xs space-y-0.5">
+						<div>
+							<span class="text-muted-foreground">{m.analytics_window_vs_weight()}</span>
+							<span
+								class="font-semibold tabular-nums {correlationResult.r < 0
+									? 'text-green-600 dark:text-green-400'
+									: 'text-red-600 dark:text-red-400'}"
+							>
+								r = {correlationResult.r.toFixed(2)}
+							</span>
+							<span class="text-muted-foreground ml-1 text-[10px]">
+								{m.analytics_window_vs_weight_hint()}
+							</span>
+						</div>
+						<p class="text-[10px] text-muted-foreground tabular-nums">
+							{m.analytics_ci95({
+								low: correlationResult.ciLow.toFixed(2),
+								high: correlationResult.ciHigh.toFixed(2)
+							})} · {m.analytics_p_value({ p: correlationResult.pValue.toFixed(3) })}
+						</p>
 					</div>
 				{/if}
 
+				<p class="text-[11px] text-muted-foreground">{m.analytics_meal_timing_evidence()}</p>
 				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
 			</div>
 		{:else}

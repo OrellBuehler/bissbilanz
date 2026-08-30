@@ -49,6 +49,7 @@ export const preferencesUpdateSchema = z
 			.optional(),
 		locale: z.enum(['en', 'de']).optional(),
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
+		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
 		// IANA timezone reported by the client (e.g. 'Europe/Zurich'). Validated
 		// against Intl so a bad value can't break server-side AT TIME ZONE queries.
 		timeZone: z

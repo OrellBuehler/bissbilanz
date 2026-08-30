@@ -6,7 +6,19 @@ import { pearsonCorrelation } from '../../src/lib/analytics/correlation';
 import { movingAverage, weightMovingAverage } from '../../src/lib/analytics/moving-average';
 import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '../../src/lib/analytics/tdee';
 import { aggregateDailyNutrientTotals } from '../../src/lib/analytics/aggregation';
-import { calculateMaintenance } from '../../src/lib/utils/maintenance';
+import { calculateMaintenance, smoothedWeightChange } from '../../src/lib/utils/maintenance';
+import {
+	normalCdf,
+	studentTwoSidedP,
+	welchTTest,
+	benjaminiHochberg,
+	fisherCI95
+} from '../../src/lib/analytics/stats';
+import {
+	circularMeanMinutes,
+	circularStdMinutes,
+	eatingDayOf
+} from '../../src/lib/analytics/local-time';
 import { computeTEF, computeDIIScore } from '../../src/lib/analytics/food-quality';
 import { extractMealTimingPatterns } from '../../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../../src/lib/analytics/calorie-patterns';
@@ -50,16 +62,29 @@ function runFn(fn: string, input: any): unknown {
 		case 'computeAdaptiveTDEE':
 			return computeAdaptiveTDEE(input.weightSeries, input.calorieSeries, input.windowDays);
 		case 'detectPlateau':
-			return detectPlateau(
-				input.weightSeries,
-				input.calorieSeries,
-				input.estimatedTDEE,
-				input.sodiumAvg
-			);
+			return detectPlateau(input.weightSeries, input.calorieSeries, input.estimatedTDEE);
 		case 'projectWeight':
-			return projectWeight(input.weightSeries, input.weeklyRate);
+			return projectWeight(input.weightSeries, input.weeklyRate, input.rateConfidence);
 		case 'calculateMaintenance':
 			return calculateMaintenance(input);
+		case 'smoothedWeightChange':
+			return smoothedWeightChange(input.weights, input.days);
+		case 'normalCdf':
+			return normalCdf(input.z);
+		case 'studentTwoSidedP':
+			return studentTwoSidedP(input.t, input.df);
+		case 'welchTTest':
+			return welchTTest(input.a, input.b);
+		case 'benjaminiHochberg':
+			return benjaminiHochberg(input.pValues);
+		case 'fisherCI95':
+			return fisherCI95(input.r, input.n);
+		case 'circularMeanMinutes':
+			return circularMeanMinutes(input.values);
+		case 'circularStdMinutes':
+			return circularStdMinutes(input.values);
+		case 'eatingDayOf':
+			return eatingDayOf(input.isoString, input.timeZone);
 		case 'aggregateDailyNutrientTotals':
 			return aggregateDailyNutrientTotals(input.entries, input.foods, input.recipes);
 		case 'computeTEF':
