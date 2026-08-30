@@ -5,6 +5,15 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    ignore:
+      # TypeScript 7 dropped the classic JS compiler API, so tools that embed it
+      # break: openapi-typescript (openapi-ts/openapi-typescript#2841) and
+      # svelte-check, which still requires a TS 6 install next to TS 7. TS 7 is
+      # wired up separately as the @typescript/native alias and drives
+      # svelte-check via --tsgo; drop this ignore once both support TS 7 directly.
+      - dependency-name: 'typescript'
+        update-types:
+          - 'version-update:semver-major'
     groups:
       # testcontainers core and its modules share types — bumping one
       # without the other breaks svelte-check (duplicate nested copies)
