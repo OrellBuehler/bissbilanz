@@ -139,10 +139,14 @@ fun DashboardScreen(navController: NavController) {
                             Text(stringResource(R.string.dashboard_go_to_today))
                         }
                     }
-                    IconButton(onClick = {
-                        haptic(HapticFeedbackType.LongPress)
-                        viewModel.nextDay()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            haptic(HapticFeedbackType.LongPress)
+                            viewModel.nextDay()
+                        },
+                        // No future days — today is the last one.
+                        enabled = selectedDate < today,
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             stringResource(R.string.dashboard_next_day),
