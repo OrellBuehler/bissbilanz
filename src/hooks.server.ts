@@ -13,6 +13,8 @@ import { config, validateEnv } from '$lib/server/env';
 import { isCrossOriginEndpoint, isFormPostCallback, isOriginMismatch } from '$lib/server/csrf';
 import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
+import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
+import { acceptsBearerAuth } from '$lib/server/auth-paths';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
 import { env } from '$env/dynamic/public';
 
@@ -54,6 +56,7 @@ export async function init() {
 		cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
 		cleanupIdempotencyKeys().catch((err) => console.error('[idempotency-cleanup] Error:', err));
 		cleanupAiTasks().catch((err) => console.error('[ai-tasks-cleanup] Error:', err));
+		cleanupOrphanedImages().catch((err) => console.error('[image-cleanup] Error:', err));
 	};
 	runCleanup();
 	setInterval(runCleanup, 3600000);
@@ -120,7 +123,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	// Fallback to Bearer token auth for API routes, plus /uploads/: the mobile
 	// apps are Bearer-only (no session cookie), and without this every image they
 	// render from an upload — AI task meal photos are always one — 401s.
-	if (!event.locals.user && (pathname.startsWith('/api/') || pathname.startsWith('/uploads/'))) {
+	if (!event.locals.user && acceptsBearerAuth(pathname)) {
 		const authHeader = event.request.headers.get('authorization');
 		if (authHeader?.startsWith('Bearer ')) {
 			const token = authHeader.slice(7);

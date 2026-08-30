@@ -1318,6 +1318,32 @@ enum L10n {
         localized("choose_photo", en: "Choose Photo", de: "Foto auswählen")
     }
 
+    // MARK: - Food image
+
+    static var foodPhoto: String {
+        localized("food_photo", en: "Food photo", de: "Lebensmittelfoto")
+    }
+
+    static var removePhoto: String {
+        localized("remove_photo", en: "Remove photo", de: "Foto entfernen")
+    }
+
+    static var cropPhoto: String {
+        localized("crop_photo", en: "Crop photo", de: "Foto zuschneiden")
+    }
+
+    static var useThisPhoto: String {
+        localized("use_this_photo", en: "Use photo", de: "Foto verwenden")
+    }
+
+    static var photoSaveFailed: String {
+        localized(
+            "photo_save_failed",
+            en: "Couldn't save the photo.",
+            de: "Das Foto konnte nicht gespeichert werden."
+        )
+    }
+
     static var scanLabelNoData: String {
         localized(
             "scan_label_no_data",

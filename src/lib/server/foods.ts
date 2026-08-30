@@ -24,6 +24,7 @@ import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { unlinkUpload } from '$lib/server/images';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
@@ -172,6 +173,13 @@ export const updateFood = (
 	withValidation(foodUpdateSchema, payload, async (data) => {
 		try {
 			const db = getDB();
+			const [previous] =
+				data.imageUrl !== undefined
+					? await db
+							.select({ imageUrl: foods.imageUrl })
+							.from(foods)
+							.where(and(eq(foods.id, id), eq(foods.userId, userId)))
+					: [];
 			const [updated] = await db
 				.update(foods)
 				.set({ ...toFoodUpdate(data), updatedAt: lwwStamp(clientEditedAt) })
@@ -179,6 +187,11 @@ export const updateFood = (
 					and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
 				)
 				.returning(foodColumnsWithLabels);
+			// Only once the write actually landed, and only when the image really
+			// changed — an LWW-rejected update leaves the old URL in place.
+			if (updated && previous?.imageUrl && previous.imageUrl !== updated.imageUrl) {
+				await unlinkUpload(previous.imageUrl);
+			}
 			return updated ? roundNutrition(updated) : updated;
 		} catch (error) {
 			const conflict = await handleBarcodeConflict(error, userId, data.barcode);
@@ -193,7 +206,7 @@ export const deleteFood = async (
 ): Promise<DeleteResult> => {
 	const db = getDB();
 
-	return db.transaction(async (tx) => {
+	const result = await db.transaction(async (tx) => {
 		const [entries, ingredients, supplementIngs] = await Promise.all([
 			tx
 				.select({ count: count() })
@@ -215,15 +228,21 @@ export const deleteFood = async (
 		// not override this (we'd leave dangling supplements otherwise).
 		if (supplementIngredientCount > 0) {
 			return {
-				blocked: true,
-				entryCount,
-				ingredientCount,
-				supplementIngredientCount
-			} as DeleteResult;
+				deleted: {
+					blocked: true,
+					entryCount,
+					ingredientCount,
+					supplementIngredientCount
+				} as DeleteResult,
+				imageUrl: null
+			};
 		}
 
 		if ((entryCount > 0 || ingredientCount > 0) && !force) {
-			return { blocked: true, entryCount, ingredientCount } as DeleteResult;
+			return {
+				deleted: { blocked: true, entryCount, ingredientCount } as DeleteResult,
+				imageUrl: null
+			};
 		}
 
 		if (entryCount > 0) {
@@ -231,10 +250,17 @@ export const deleteFood = async (
 				.delete(foodEntries)
 				.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId)));
 		}
-		await tx.delete(foods).where(and(eq(foods.id, id), eq(foods.userId, userId)));
+		const [deleted] = await tx
+			.delete(foods)
+			.where(and(eq(foods.id, id), eq(foods.userId, userId)))
+			.returning({ imageUrl: foods.imageUrl });
 
-		return { blocked: false } as DeleteResult;
+		return { deleted: { blocked: false } as DeleteResult, imageUrl: deleted?.imageUrl ?? null };
 	});
+
+	// After commit, so a rolled-back delete never destroys the file.
+	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl);
+	return result.deleted;
 };
 
 export const findFoodByBarcode = async (

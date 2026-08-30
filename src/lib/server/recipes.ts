@@ -7,6 +7,7 @@ import { withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwned } from '$lib/server/ownership';
+import { unlinkUpload } from '$lib/server/images';
 
 type RecipeInput = {
 	name: string;
@@ -182,7 +183,7 @@ export const deleteRecipe = async (
 ): Promise<DeleteResult> => {
 	const db = getDB();
 
-	return db.transaction(async (tx) => {
+	const result = await db.transaction(async (tx) => {
 		const entries = await tx
 			.select({ count: count() })
 			.from(foodEntries)
@@ -190,7 +191,7 @@ export const deleteRecipe = async (
 		const entryCount = entries[0].count;
 
 		if (entryCount > 0 && !force) {
-			return { blocked: true, entryCount } as DeleteResult;
+			return { deleted: { blocked: true, entryCount } as DeleteResult, imageUrl: null };
 		}
 
 		if (entryCount > 0) {
@@ -198,8 +199,15 @@ export const deleteRecipe = async (
 				.delete(foodEntries)
 				.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
 		}
-		await tx.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
+		const [deleted] = await tx
+			.delete(recipes)
+			.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+			.returning({ imageUrl: recipes.imageUrl });
 
-		return { blocked: false } as DeleteResult;
+		return { deleted: { blocked: false } as DeleteResult, imageUrl: deleted?.imageUrl ?? null };
 	});
+
+	// After commit, so a rolled-back delete never destroys the file.
+	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl);
+	return result.deleted;
 };

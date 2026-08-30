@@ -141,6 +141,7 @@ android {
         implementation(libs.browser)
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
+        implementation(libs.okhttp)
         implementation(libs.glance.appwidget)
         implementation(libs.health.connect)
         implementation(libs.play.services.wearable)

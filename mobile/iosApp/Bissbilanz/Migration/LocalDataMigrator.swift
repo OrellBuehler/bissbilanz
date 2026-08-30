@@ -182,6 +182,10 @@ final class LocalDataMigrator {
         try? context.delete(model: LocalPreferences.self)
         try? context.delete(model: LocalDayProperties.self)
         try? context.save()
+        // Images live on the file system, not in SwiftData, so they survive the
+        // deletes above — a sign-out that left them behind would carry one
+        // account's photos into the next.
+        LocalImageStore.clear()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
     }
 
@@ -286,15 +290,30 @@ final class LocalDataMigrator {
         "migrate-\(scope)-\(localId)"
     }
 
+    /// The server's `imageUrlSchema` only accepts a `/`-relative path or an
+    /// http(s) URL. A Local-mode photo — and a downgrade's localized one — is a
+    /// `file://` URL, and sending one back is a 400 no retry can clear, which
+    /// would strand the migration forever. Re-upload the local file instead,
+    /// and drop the reference if that is impossible.
+    private func uploadableImageUrl(_ imageUrl: String?) async -> String? {
+        guard let imageUrl else { return nil }
+        if imageUrl.hasPrefix("http://") || imageUrl.hasPrefix("https://") { return imageUrl }
+        if imageUrl.hasPrefix("/"), !imageUrl.hasPrefix("//") { return imageUrl }
+        guard let photo = LocalImageStore.localPhoto(for: imageUrl) else { return nil }
+        // The photo is a nice-to-have; the food/recipe row is not.
+        return try? await api.uploadImage(photo.data, filename: photo.filename)
+    }
+
     private func uploadFoods(done startDone: Int, total: Int) async throws -> Int {
         var done = startDone
         progress(done, total, .foods)
         for row in fetchAll(LocalFood.self) where LocalStore.isTempId(row.id) {
             guard let food = row.toFood(),
-                  let create = try? JSONPatch.decode(FoodCreate.self, from: JSONPatch.dictionary(of: food))
+                  var create = try? JSONPatch.decode(FoodCreate.self, from: JSONPatch.dictionary(of: food))
             else {
                 throw MigrationError.unreadableRow("food \"\(row.name)\"")
             }
+            create.imageUrl = await uploadableImageUrl(food.imageUrl)
             let server = try await api.createFood(
                 create,
                 idempotencyKey: Self.migrationKey("food", row.id)
@@ -322,7 +341,7 @@ final class LocalDataMigrator {
                     .map { RecipeIngredientInput(foodId: $0.foodId, quantity: $0.quantity, servingUnit: $0.servingUnit)
                     },
                 isFavorite: recipe.isFavorite,
-                imageUrl: recipe.imageUrl
+                imageUrl: await uploadableImageUrl(recipe.imageUrl)
             )
             let server = try await api.createRecipe(
                 create,

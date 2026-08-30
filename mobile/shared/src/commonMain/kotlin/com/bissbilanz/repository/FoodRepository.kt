@@ -45,6 +45,13 @@ class FoodRepository(
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     var onFoodChanged: (suspend () -> Unit)? = null
+
+    /**
+     * Called with the `imageUrl` of a row that has just been deleted, so the
+     * platform can drop its on-device copy. For a Local-mode `file://` image
+     * that copy is the only one there is, so nothing else would ever remove it.
+     */
+    var onImageOrphaned: (suspend (String) -> Unit)? = null
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
@@ -200,7 +207,34 @@ class FoodRepository(
         return updated
     }
 
+    /**
+     * Attaches or removes a food's image, as a partial PATCH — the same reasoning
+     * as [toggleFavorite]: a full [FoodCreate] body would rewrite every nutrient
+     * from whatever the cache happens to hold. The previous image is evicted from
+     * the device once it can no longer be referenced.
+     */
+    suspend fun setImage(
+        id: String,
+        imageUrl: String?,
+    ): Food? {
+        val previous = getFoodCached(id)
+        val updated = previous?.copy(imageUrl = imageUrl)?.also { cacheFood(it) }
+        if (id.isTempId()) {
+            syncQueue.rewriteQueuedCreate("foods", id) { op ->
+                val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
+                val body = json.decodeOrNull<FoodCreate>(create.body) ?: return@rewriteQueuedCreate null
+                create.copy(body = json.encodeToString(body.copy(imageUrl = imageUrl)))
+            }
+        } else {
+            syncQueue.enqueue(SyncOperation.SetFoodImage(id, imageUrl))
+        }
+        previous?.imageUrl?.takeIf { it != imageUrl }?.let { onImageOrphaned?.invoke(it) }
+        onFoodChanged?.invoke()
+        return updated
+    }
+
     suspend fun deleteFood(id: String) {
+        val imageUrl = getFoodCached(id)?.imageUrl
         db.userDataDatabaseQueries.deleteFood(id)
         if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
@@ -208,6 +242,7 @@ class FoodRepository(
             syncQueue.enqueue(SyncOperation.DeleteFood(id))
         }
         onFoodChanged?.invoke()
+        imageUrl?.let { onImageOrphaned?.invoke(it) }
     }
 
     /**

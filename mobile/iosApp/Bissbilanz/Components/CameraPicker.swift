@@ -54,6 +54,18 @@ extension UIImage {
     /// to at most `maxDimension` on the longest side, so a full-resolution
     /// photo doesn't balloon the upload for a task the assistant only needs to
     /// glance at.
+    /// Redraws the image with `.up` orientation. `CGImage` ignores EXIF
+    /// orientation, so anything that works in pixel space — cropping, above all
+    /// — sees a rotated photo unless it is normalized first.
+    func uprightened() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
     func downscaledJPEGData(maxDimension: CGFloat, quality: CGFloat) -> Data? {
         let longestSide = max(size.width, size.height)
         let scale = longestSide > maxDimension ? maxDimension / longestSide : 1

@@ -77,8 +77,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
-import org.koin.core.qualifier.named
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +87,6 @@ fun AddFoodSheet(
     onLogged: () -> Unit,
 ) {
     val viewModel: AddFoodViewModel = koinViewModel()
-    val baseUrl: String = koinInject(named("baseUrl"))
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(Unit) { viewModel.reset() }
@@ -317,7 +314,6 @@ fun AddFoodSheet(
                         0 -> {
                             SearchTab(
                                 viewModel,
-                                baseUrl,
                                 query,
                                 searchResults,
                                 isSearching,
@@ -329,14 +325,13 @@ fun AddFoodSheet(
                             FavoritesTab(
                                 favoriteFoods,
                                 favoriteRecipes,
-                                baseUrl,
                                 onSelectFood = { selectedFood = it },
                                 onSelectRecipe = { selectedRecipe = it },
                             )
                         }
 
                         2 -> {
-                            RecentTab(recentFoods, baseUrl, onSelect = { selectedFood = it })
+                            RecentTab(recentFoods, onSelect = { selectedFood = it })
                         }
 
                         3 -> {
@@ -391,7 +386,6 @@ fun AddFoodSheet(
 @Composable
 private fun SearchTab(
     viewModel: AddFoodViewModel,
-    baseUrl: String,
     query: String,
     searchResults: List<Food>,
     isSearching: Boolean,
@@ -418,7 +412,6 @@ private fun SearchTab(
                     items(searchResults, key = { it.id }) { food ->
                         FoodListItem(
                             food = food,
-                            baseUrl = baseUrl,
                             onClick = { onSelect(food) },
                             onQuickLog = { onSelect(food) },
                         )
@@ -433,7 +426,6 @@ private fun SearchTab(
 private fun FavoritesTab(
     favoriteFoods: List<Food>,
     favoriteRecipes: List<Recipe>,
-    baseUrl: String,
     onSelectFood: (Food) -> Unit,
     onSelectRecipe: (Recipe) -> Unit,
 ) {
@@ -444,7 +436,6 @@ private fun FavoritesTab(
             items(favoriteFoods, key = { "food-${it.id}" }) { food ->
                 FoodListItem(
                     food = food,
-                    baseUrl = baseUrl,
                     onClick = { onSelectFood(food) },
                     onQuickLog = { onSelectFood(food) },
                 )
@@ -463,7 +454,6 @@ private fun FavoritesTab(
 @Composable
 private fun RecentTab(
     recentFoods: List<Food>,
-    baseUrl: String,
     onSelect: (Food) -> Unit,
 ) {
     if (recentFoods.isEmpty()) {
@@ -473,7 +463,6 @@ private fun RecentTab(
             items(recentFoods, key = { it.id }) { food ->
                 FoodListItem(
                     food = food,
-                    baseUrl = baseUrl,
                     onClick = { onSelect(food) },
                     onQuickLog = { onSelect(food) },
                 )

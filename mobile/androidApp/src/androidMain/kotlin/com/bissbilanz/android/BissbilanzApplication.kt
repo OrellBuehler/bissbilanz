@@ -3,6 +3,8 @@ package com.bissbilanz.android
 import android.app.Application
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
@@ -13,6 +15,10 @@ import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthExporter
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.images.ApiHostAuthInterceptor
+import com.bissbilanz.android.images.FoodImageResolver
+import com.bissbilanz.android.images.FoodImageUploader
+import com.bissbilanz.android.images.LocalImageStore
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.AccountDowngradeController
@@ -38,6 +44,7 @@ import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
+import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.di.sharedModule
 import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.migration.LocalDataMigrator
@@ -54,6 +61,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -61,7 +69,9 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.io.IOException
 
-class BissbilanzApplication : Application() {
+class BissbilanzApplication :
+    Application(),
+    ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
@@ -92,6 +102,8 @@ class BissbilanzApplication : Application() {
                 // cancelled halfway through by the user leaving Settings.
                 single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
                 single<LocalDataMigrator.LocalPhotoReader> { AndroidLocalPhotoReader(androidContext()) }
+                single { FoodImageResolver(androidContext(), get(), get(named("baseUrl"))) }
+                single { FoodImageUploader(androidContext(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(
@@ -171,6 +183,18 @@ class BissbilanzApplication : Application() {
         koin.get<EntryRepository>().onEntriesRefreshed = { date ->
             healthExporter.exportNutrition(date)
         }
+        // Images live on the file system, so a deleted row leaves its copy behind
+        // unless something removes it — and for a Local-mode `file://` image that
+        // copy is the only one there is.
+        val evictImage: suspend (String) -> Unit = { url ->
+            LocalImageStore.evict(this@BissbilanzApplication, url)
+        }
+        koin.get<FoodRepository>().onImageOrphaned = evictImage
+        koin.get<RecipeRepository>().onImageOrphaned = evictImage
+        koin.get<LocalDataWiper>().onWiped = {
+            LocalImageStore.clear(this@BissbilanzApplication)
+        }
+
         koin.get<FoodRepository>().onFoodChanged = {
             WorkManager
                 .getInstance(this@BissbilanzApplication)
@@ -239,6 +263,27 @@ class BissbilanzApplication : Application() {
                         .build(),
                 )
         }
+    }
+
+    /**
+     * Coil loads both our own `/uploads/` images and public Open Food Facts
+     * product photos. The token is attached by host, never blanket — see
+     * [ApiHostAuthInterceptor].
+     */
+    override fun newImageLoader(): ImageLoader {
+        val koin =
+            org.koin.java.KoinJavaComponent
+                .getKoin()
+        val authManager = koin.get<AuthManager>()
+        return ImageLoader
+            .Builder(this)
+            .okHttpClient {
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(
+                        ApiHostAuthInterceptor(BuildConfig.BASE_URL) { authManager.getAccessToken() },
+                    ).build()
+            }.build()
     }
 
     private fun isInstrumentedTest(): Boolean =

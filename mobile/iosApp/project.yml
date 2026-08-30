@@ -66,7 +66,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - bissbilanz
-        NSCameraUsageDescription: 'Bissbilanz needs camera access to scan food barcodes'
+        NSCameraUsageDescription: 'Bissbilanz needs camera access to scan barcodes and nutrition labels, and to photograph your foods'
         NSHealthShareUsageDescription: 'Bissbilanz reads your weight and sleep data to track trends'
         NSHealthUpdateUsageDescription: 'Bissbilanz saves nutrition, weight and sleep data to Health'
         SentryDSN: $(SENTRY_DSN)

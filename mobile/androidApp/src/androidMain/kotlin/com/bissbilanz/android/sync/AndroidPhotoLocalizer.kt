@@ -1,17 +1,19 @@
 package com.bissbilanz.android.sync
 
 import android.content.Context
-import android.net.Uri
+import com.bissbilanz.android.images.LocalImageStore
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.migration.LocalDataMigrator
-import java.io.File
 
 /**
  * Downloads a server-hosted photo into app-private storage during the
  * account downgrade so it survives the server-side deletion. Returns a
  * `file://` URI, which the image loaders pass straight to Coil (only
  * server-relative `/`-prefixed URLs get the base URL prepended).
+ *
+ * Writes into the same [LocalImageStore] directory the offline image cache
+ * uses, so an image already viewed is localized without a second download.
  */
 class AndroidPhotoLocalizer(
     private val context: Context,
@@ -19,10 +21,10 @@ class AndroidPhotoLocalizer(
 ) : AccountDowngrader.PhotoLocalizer {
     override suspend fun localize(imageUrl: String): String? =
         try {
-            val bytes = api.downloadFile(imageUrl)
-            val file = File(localImageDir(context), imageUrl.substringAfterLast('/'))
-            file.writeBytes(bytes)
-            Uri.fromFile(file).toString()
+            val name = imageUrl.substringAfterLast('/')
+            val cached = LocalImageStore.cachedFile(context, imageUrl)
+            val file = cached ?: LocalImageStore.write(context, name, api.downloadFile(imageUrl))
+            LocalImageStore.fileUri(file)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             // A missing photo shouldn't block the downgrade — keep the original URL
@@ -40,10 +42,7 @@ class AndroidLocalPhotoReader(
     private val context: Context,
 ) : LocalDataMigrator.LocalPhotoReader {
     override suspend fun read(imageUrl: String): Pair<String, ByteArray>? {
-        val path = Uri.parse(imageUrl).takeIf { it.scheme == "file" }?.path ?: return null
-        val file = File(path).canonicalFile
-        val dir = localImageDir(context).canonicalFile
-        if (file.parentFile != dir || !file.isFile) return null
+        val file = LocalImageStore.fileFor(context, imageUrl)?.takeIf { it.isFile } ?: return null
         return try {
             file.name to file.readBytes()
         } catch (e: Exception) {
@@ -52,5 +51,3 @@ class AndroidLocalPhotoReader(
         }
     }
 }
-
-private fun localImageDir(context: Context): File = File(context.filesDir, "local-images").apply { mkdirs() }

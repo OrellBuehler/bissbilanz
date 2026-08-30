@@ -57,6 +57,8 @@ struct FoodEditForm: View {
     /// the math themselves.
     @State private var perHundredBasis = false
     @State private var isFavorite = false
+    @State private var imageUrl: String?
+    @State private var originalImageUrl: String?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -89,6 +91,10 @@ struct FoodEditForm: View {
                 } footer: {
                     Text(L10n.scanLabelFooter)
                 }
+            }
+
+            Section(L10n.foodPhoto) {
+                FoodImageField(imageUrl: $imageUrl)
             }
 
             Section {
@@ -234,6 +240,8 @@ struct FoodEditForm: View {
         fat = "\(food.fat)"
         fiber = "\(food.fiber)"
         isFavorite = food.isFavorite
+        imageUrl = food.imageUrl
+        originalImageUrl = food.imageUrl
 
         // Surface any extended nutrients already stored on the food so they can
         // be reviewed and edited alongside newly added ones.
@@ -309,11 +317,21 @@ struct FoodEditForm: View {
             foodData = (try? JSONPatch.merged(FoodCreate.self, base: foodData, patch: patch)) ?? foodData
         }
 
+        // No id yet on a create, so the already-uploaded URL rides along on the
+        // create body — `foodCreateSchema` accepts it.
+        if existingFood == nil { foodData.imageUrl = imageUrl }
+
         do {
-            let saved: Food = if let existing = existingFood {
+            var saved: Food = if let existing = existingFood {
                 try await foodRepository.updateFood(id: existing.id, foodData)
             } else {
                 try await foodRepository.createFood(foodData)
+            }
+            // Separate from the body when editing: `FoodCreate` omits nil
+            // optionals, so a removal sent that way would be dropped and the
+            // old image would stay.
+            if let existing = existingFood, imageUrl != originalImageUrl {
+                saved = try await foodRepository.setImage(id: existing.id, imageUrl: imageUrl)
             }
             onSaved(saved)
         } catch {

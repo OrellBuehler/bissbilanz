@@ -98,6 +98,17 @@ final class AccountDowngrader {
             )
         }
 
+        // Server-hosted photos die with the account, so pull each one into the
+        // App Group image store and repoint the row at the local file. A photo
+        // that can't be fetched loses its reference rather than keeping a URL
+        // that will 404 forever.
+        let localizedFoods = await localizePhotos(foods, url: \.imageUrl) { food, url in
+            try? JSONPatch.merged(Food.self, base: food, patch: ["imageUrl": url as Any])
+        }
+        let localizedRecipes = await localizePhotos(recipes, url: \.imageUrl) { recipe, url in
+            try? JSONPatch.merged(Recipe.self, base: recipe, patch: ["imageUrl": url as Any])
+        }
+
         let weightEntries = try await api.getWeightEntries()
         let goals = try await api.getGoals()
         let preferences = try await api.getPreferences()
@@ -121,8 +132,8 @@ final class AccountDowngrader {
         try context.delete(model: LocalPreferences.self)
         try context.delete(model: LocalDayProperties.self)
 
-        await insert(foods) { LocalFood(food: $0) }
-        await insert(recipes) { LocalRecipe(recipe: $0) }
+        await insert(localizedFoods) { LocalFood(food: $0) }
+        await insert(localizedRecipes) { LocalRecipe(recipe: $0) }
         await insert(supplements) { LocalSupplement(supplement: $0) }
         await insert(entries) { LocalEntry(entry: $0, date: $0.date ?? today) }
         await insert(supplementLogs) {
@@ -170,6 +181,37 @@ final class AccountDowngrader {
         syncManager.clearQueue()
         authManager.logout()
         appModeManager.setMode(.local)
+    }
+
+    /// Downloads every `/uploads/` photo in `items` into `LocalImageStore` and
+    /// rewrites the row's URL to the resulting `file://` path. Rows without a
+    /// server-hosted photo (none, or a public Open Food Facts URL) pass through
+    /// untouched, as do rows whose download fails.
+    private func localizePhotos<T>(
+        _ items: [T],
+        url: KeyPath<T, String?>,
+        rewrite: (T, String) -> T?
+    ) async -> [T] {
+        var result: [T] = []
+        result.reserveCapacity(items.count)
+        for item in items {
+            guard let imageUrl = item[keyPath: url],
+                  let key = LocalImageStore.cacheKey(for: imageUrl)
+            else {
+                result.append(item)
+                continue
+            }
+            var file = LocalImageStore.cachedFile(for: imageUrl)
+            if file == nil, let data = try? await api.downloadImage(path: imageUrl) {
+                file = LocalImageStore.write(data, named: key)
+            }
+            guard let file else {
+                result.append(item)
+                continue
+            }
+            result.append(rewrite(item, file.absoluteString) ?? item)
+        }
+        return result
     }
 
     private func insert<T, M: PersistentModel>(_ items: [T], _ make: (T) -> M) async {

@@ -80,6 +80,7 @@ struct FavoritesView: View {
                                 brand: food.brand,
                                 calories: Int(food.calories),
                                 protein: Int(food.protein),
+                                imageUrl: food.imageUrl,
                                 onTap: {
                                     selectedFood = food
                                 },
@@ -131,6 +132,7 @@ struct FavoritesView: View {
                                 brand: nil,
                                 calories: recipe.calories.map { Int($0) } ?? 0,
                                 protein: recipe.protein.map { Int($0) } ?? 0,
+                                imageUrl: recipe.imageUrl,
                                 onTap: {
                                     selectedRecipe = recipe
                                 },
@@ -211,6 +213,7 @@ struct FavoriteCard: View {
     let brand: String?
     let calories: Int
     let protein: Int
+    var imageUrl: String?
     let onTap: () -> Void
     var onQuickLog: (() -> Void)?
 
@@ -218,6 +221,13 @@ struct FavoriteCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 6) {
+                    if imageUrl != nil {
+                        FoodImageView(imageUrl: imageUrl)
+                            .frame(height: 56)
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
                     Text(name)
                         .font(.subheadline)
                         .fontWeight(.medium)
