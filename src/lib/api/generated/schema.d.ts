@@ -1414,6 +1414,7 @@ export interface components {
 		AiTaskCreate: {
 			description?: string | null;
 			photoUrl?: string | null;
+			photoUrls?: string[] | null;
 			date: string;
 			mealType?: string;
 			/** @enum {string} */
@@ -2160,6 +2161,7 @@ export interface components {
 			status: 'pending' | 'completed' | 'dismissed';
 			description: string | null;
 			photoUrl: string | null;
+			photoUrls: string[];
 			date: string;
 			mealType: string | null;
 			source: string | null;
@@ -2179,6 +2181,7 @@ export interface components {
 		};
 		AiTaskPhotoResponse: {
 			photoUrl: string;
+			photoUrls: string[];
 		};
 		SleepEntriesResponse: {
 			entries: components['schemas']['SleepEntry'][];

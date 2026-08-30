@@ -7,6 +7,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -38,8 +40,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
+/** Mirrors MAX_AI_TASK_PHOTOS on the server. */
+private const val MAX_AI_TASK_PHOTOS = 5
+
 /**
- * Hands a meal to the MCP assistant: a description, an optional photo and the
+ * Hands a meal to the MCP assistant: a description, up to five photos and the
  * target meal are queued as an AI task the assistant logs later. Mirrors the
  * "send to assistant" half of the iOS AIMealSheet; iOS additionally estimates
  * on-device via Apple's Foundation Models, which has no Android counterpart
@@ -61,7 +66,7 @@ fun AiMealSheet(
     var description by remember { mutableStateOf("") }
     var mealType by remember { mutableStateOf(mealTypes.first()) }
     var mealMenuOpen by remember { mutableStateOf(false) }
-    var attached by remember { mutableStateOf<Bitmap?>(null) }
+    val attached = remember { mutableStateListOf<Bitmap>() }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -69,9 +74,18 @@ fun AiMealSheet(
     val sendFailed = stringResource(R.string.ai_task_send_failed)
 
     val pickMedia =
-        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) {
-                scope.launch { attached = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) } }
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.PickMultipleVisualMedia(MAX_AI_TASK_PHOTOS),
+        ) { uris ->
+            if (uris.isNotEmpty()) {
+                scope.launch {
+                    val room = MAX_AI_TASK_PHOTOS - attached.size
+                    val decoded =
+                        withContext(Dispatchers.IO) {
+                            uris.take(room).mapNotNull { decodeUprightBitmap(context, it) }
+                        }
+                    attached.addAll(decoded)
+                }
             }
         }
 
@@ -79,11 +93,14 @@ fun AiMealSheet(
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             val uri = cameraUri
             if (success && uri != null) {
-                scope.launch { attached = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) } }
+                scope.launch {
+                    val decoded = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) }
+                    if (decoded != null && attached.size < MAX_AI_TASK_PHOTOS) attached.add(decoded)
+                }
             }
         }
 
-    val canSend = description.isNotBlank() || attached != null
+    val canSend = description.isNotBlank() || attached.isNotEmpty()
 
     // Swiping the sheet away mid-send would cancel the upload with it, since the
     // send runs in this composable's scope — hold it open until the task is queued.
@@ -147,27 +164,35 @@ fun AiMealSheet(
                 maxLines = 8,
             )
 
-            val bitmap = attached
-            if (bitmap != null) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                    )
-                    FilledTonalIconButton(
-                        onClick = { attached = null },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                    ) {
-                        Icon(Icons.Default.Close, stringResource(R.string.ai_task_remove_photo))
+            if (attached.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(attached) { bitmap ->
+                        Box {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier =
+                                    Modifier
+                                        .size(120.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
+                            )
+                            FilledTonalIconButton(
+                                onClick = { attached.remove(bitmap) },
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    stringResource(R.string.ai_task_remove_photo),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
                     }
                 }
-            } else {
+            }
+
+            if (attached.size < MAX_AI_TASK_PHOTOS) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = {
@@ -196,6 +221,12 @@ fun AiMealSheet(
                 }
             }
 
+            Text(
+                stringResource(R.string.ai_task_photo_hint, MAX_AI_TASK_PHOTOS),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             errorMessage?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
@@ -213,17 +244,24 @@ fun AiMealSheet(
                         scope.launch {
                             try {
                                 // Upload first: the task is only worth creating
-                                // once its photo has a URL to point at.
-                                val photoUrl =
-                                    attached?.let { image ->
-                                        val bytes = withContext(Dispatchers.IO) { image.toJpegBytes() }
-                                        api.uploadAiTaskPhoto("meal.jpg", bytes)
+                                // once its photos have URLs to point at.
+                                val photoUrls =
+                                    if (attached.isEmpty()) {
+                                        null
+                                    } else {
+                                        val parts =
+                                            withContext(Dispatchers.IO) {
+                                                attached.mapIndexed { index, image ->
+                                                    "meal_$index.jpg" to image.toJpegBytes()
+                                                }
+                                            }
+                                        api.uploadAiTaskPhotos(parts)
                                     }
                                 api.createAiTask(
                                     AiTaskCreate(
                                         date = date,
                                         description = description.trim().ifBlank { null },
-                                        photoUrl = photoUrl,
+                                        photoUrls = photoUrls,
                                         mealType = mealType,
                                         source = AiTaskCreate.Source.android,
                                     ),

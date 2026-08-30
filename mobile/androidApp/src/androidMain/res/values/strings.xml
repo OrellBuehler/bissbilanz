@@ -146,6 +146,7 @@
     <string name="ai_task_send_failed">Could not send to the assistant</string>
     <string name="ai_task_queued">Sent to the assistant</string>
     <string name="ai_task_remove_photo">Remove photo</string>
+    <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
 
     <!-- AI task list -->
@@ -157,6 +158,7 @@
     <string name="ai_tasks_empty_completed">Nothing completed yet</string>
     <string name="ai_tasks_empty_dismissed">Nothing dismissed</string>
     <string name="ai_tasks_photo_only">Photo only, no description</string>
+    <string name="ai_tasks_photos_only">%1$d photos, no description</string>
     <string name="ai_tasks_agent_comment">From your assistant</string>
     <string name="ai_tasks_unread">New</string>
     <string name="ai_tasks_delete">Delete task</string>

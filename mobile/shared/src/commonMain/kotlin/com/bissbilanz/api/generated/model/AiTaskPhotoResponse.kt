@@ -23,8 +23,10 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param photoUrl
+ * @param photoUrls
  */
 @Serializable
 data class AiTaskPhotoResponse(
     @SerialName(value = "photoUrl") @Required val photoUrl: kotlin.String,
+    @SerialName(value = "photoUrls") @Required val photoUrls: kotlin.collections.List<kotlin.String>,
 )

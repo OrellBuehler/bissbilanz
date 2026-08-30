@@ -344,6 +344,20 @@
       "when": 1788090647955,
       "tag": "0048_tricky_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1788105678063,
+      "tag": "0049_elite_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1788105686463,
+      "tag": "0050_smart_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

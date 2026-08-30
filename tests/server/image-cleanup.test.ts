@@ -22,7 +22,12 @@ const fakeDB = {
 					where: () =>
 						dbError
 							? Promise.reject(dbError)
-							: Promise.resolve(referenced[key].map((imageUrl) => ({ imageUrl })))
+							: Promise.resolve(
+									key === 'aiTasks'
+										? // ai_tasks holds an array column, one row per task
+											[{ imageUrls: referenced.aiTasks }]
+										: referenced[key].map((imageUrl) => ({ imageUrl }))
+								)
 				};
 			}
 		};

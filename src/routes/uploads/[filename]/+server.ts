@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { UPLOAD_DIR } from '$lib/server/images';
 import { getDB } from '$lib/server/db';
 import { foods, recipes, aiTasks } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, arrayContains, eq } from 'drizzle-orm';
 
 const FILENAME_PATTERN = /^[a-f0-9-]+\.webp$/;
 
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			db
 				.select({ id: aiTasks.id })
 				.from(aiTasks)
-				.where(and(eq(aiTasks.photoUrl, imageUrl), eq(aiTasks.userId, userId)))
+				.where(and(arrayContains(aiTasks.photoUrls, [imageUrl]), eq(aiTasks.userId, userId)))
 		)
 		.limit(1);
 
