@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="macro_widget_title">Makro-Ringe</string>
+    <string name="scan_widget_title">Barcode scannen</string>
+    <string name="favorites_widget_title">Favoriten</string>
     <string name="widget_description">Tägliche Makro-Fortschrittsringe für Kalorien, Protein, Kohlenhydrate, Fett und Ballaststoffe</string>
     <string name="scan_widget_description">Tippen, um den Barcode-Scanner zu öffnen</string>
     <string name="scan_widget_content_desc">Barcode scannen</string>

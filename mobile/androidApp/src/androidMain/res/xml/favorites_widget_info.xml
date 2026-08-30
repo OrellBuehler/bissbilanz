@@ -9,6 +9,7 @@
     android:resizeMode="vertical"
     android:updatePeriodMillis="0"
     android:previewImage="@mipmap/ic_launcher_round"
+    android:initialLayout="@layout/favorites_widget_preview"
     android:previewLayout="@layout/favorites_widget_preview"
     android:description="@string/favorites_widget_description"
     android:widgetCategory="home_screen" />

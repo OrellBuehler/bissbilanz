@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Also used as android:initialLayout, so every element here must be a class
+     RemoteViews accepts (@RemoteView-annotated). A plain <View> is not one, and
+     the host silently falls back to its "Problem loading widget" error view. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -12,40 +15,45 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
     </LinearLayout>
 
@@ -55,40 +63,45 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
-        <View
+        <ImageView
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_margin="4dp"
-            android:background="?android:attr/colorControlNormal" />
+            android:background="?android:attr/colorControlNormal"
+            android:importantForAccessibility="no" />
 
     </LinearLayout>
 
