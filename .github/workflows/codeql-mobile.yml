@@ -75,16 +75,28 @@ jobs:
 
   swift:
     name: Analyze (swift)
-    runs-on: macos-14
-    # CodeQL traces the Swift compiler, so the build runs far slower than a
-    # normal xcodebuild — the untraced iOS job builds the same app in ~10-14 min.
-    # Traced runs have crept up as the app has grown: 35-45 min when the limit
-    # was raised 60 -> 90, then 49 min on 70421a6d and 95 min on c9701126, which
-    # timed out on main before this branch existed. 150 restores headroom.
+    # macos-15, matching mobile-ios.yml and mobile-release.yml — this was the
+    # last iOS job on macos-14, and that label queues far worse (95 min before
+    # the job even started on 2026-08-30). Xcode 16.2 is on both images at the
+    # same build (16C5032a), so the toolchain is unchanged. Note this is a
+    # consistency/queueing fix, not the memory fix: both images are 3-core/7 GB.
+    runs-on: macos-15
+    # CodeQL traces the Swift compiler, and the extractor re-does a full
+    # type-check inside every swift-frontend invocation it wraps. That, not the
+    # code, is the cost: the untraced job in mobile-ios.yml builds the same
+    # scheme and destination in ~2 min, while a traced run takes ~40-50.
     #
-    # This is a ceiling, not a target. If it starts being hit again the fix is to
-    # find what is slow to type-check (`-Xfrontend -warn-long-function-bodies`)
-    # rather than to keep raising the number.
+    # So `-Xfrontend -warn-long-function-bodies` is the wrong tool here — there
+    # is nothing slow to type-check. Measured breakdown of a 49-min traced run
+    # (job 99276431786), for whoever looks next:
+    #
+    #   25m41s  emit-module for Bissbilanz    (one frontend call, 145 files)
+    #   10m03s  SPM fetch of sentry-cocoa     (fixed: now resolved pre-trace)
+    #    7m14s  emit-module for BissbilanzWidgets
+    #    ~4m    everything else incl. queries
+    #
+    # The remaining lever is target count: Widgets/Watch recompile Shared/ and
+    # PhoneShared/, so ~230 file-compiles cover 166 unique files.
     timeout-minutes: 150
     permissions:
       contents: read
@@ -154,11 +166,27 @@ jobs:
         working-directory: mobile/iosApp
         run: xcodegen generate
 
+      # Resolving sentry-cocoa costs ~10 min under CodeQL's tracer, which wraps
+      # every process git spawns, against seconds untraced. Nothing is compiled
+      # here, so doing it before init costs the database nothing.
+      - name: Resolve Swift package dependencies
+        working-directory: mobile/iosApp
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
+            -clonedSourcePackagesDirPath build/SourcePackages
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           languages: swift
           build-mode: manual
+          # The runner has 7 GB. Left to itself CodeQL claims 6144 MB, which
+          # leaves nothing for swift-frontend — the emit-module pass for the app
+          # target then dies with "hosted runner lost communication with the
+          # server" ~90 min in — on PR #539 and on main alike (2026-08-30).
+          ram: 4096
 
       - name: Build iOS app
         working-directory: mobile/iosApp
@@ -170,11 +198,16 @@ jobs:
           # arm64 simulator slice and the runner is arm64, so build arm64-only —
           # otherwise the generic destination also builds x86_64 and can't find a
           # slice. Mirrors the build in mobile-ios.yml.
+          # -disableAutomaticPackageResolution keeps the tracer away from the
+          # package fetch: it fails loudly if the pre-init resolve step did not
+          # take, rather than quietly re-cloning sentry-cocoa for 10 minutes.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -disableAutomaticPackageResolution \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
