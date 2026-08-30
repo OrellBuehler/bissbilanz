@@ -10,6 +10,7 @@
 
 	type NutrientEntry = {
 		date: string;
+		calories: number;
 		sodium: number | null;
 		[key: string]: unknown;
 	};
@@ -52,7 +53,7 @@
 
 <div class="space-y-4">
 	<AdaptiveTDEECard {weightFoodData} {loading} />
-	<PlateauDetectionCard {weightFoodData} {nutrientData} {loading} />
+	<PlateauDetectionCard {weightFoodData} {loading} />
 	<WeightForecastCard {weightFoodData} {loading} />
 	<SodiumWeightCard {weightFoodData} {nutrientData} {loading} />
 </div>

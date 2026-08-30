@@ -3,6 +3,7 @@
 	import InsightCard from './InsightCard.svelte';
 	import { computeCaffeineSleepCutoff } from '$lib/analytics/caffeine-sleep';
 	import { deviceTimeZone } from '$lib/analytics/local-time';
+	import { DEFAULT_CAFFEINE_CUTOFF_HOUR } from '$lib/analytics/constants.generated';
 	import * as m from '$lib/paraglide/messages';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { api } from '$lib/api/client';
@@ -58,7 +59,11 @@
 	});
 
 	const headline = $derived.by(() => {
-		if (!result || result.estimatedCutoffHour === null) return m.analytics_caffeine_no_pattern();
+		if (!result || result.estimatedCutoffHour === null) {
+			return m.analytics_caffeine_no_pattern({
+				hour: (result?.defaultCutoffHour ?? DEFAULT_CAFFEINE_CUTOFF_HOUR).toString()
+			});
+		}
 		return m.analytics_caffeine_cutoff({ hour: result.estimatedCutoffHour.toString() });
 	});
 
@@ -109,6 +114,15 @@
 					</div>
 				{/each}
 				<p class="text-[11px] text-muted-foreground mt-2">
+					{#if result && result.pValue !== null}
+						{m.analytics_caffeine_tested({
+							n: result.comparisons.toString(),
+							p: result.pValue.toFixed(3)
+						})} ·
+					{/if}
+					{m.analytics_caffeine_evidence()}
+				</p>
+				<p class="text-[11px] text-muted-foreground">
 					{m.analytics_correlation_disclaimer()}
 				</p>
 			</div>

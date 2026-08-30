@@ -65,6 +65,10 @@ import {
 	handleGetWeightFoodSeries,
 	handleGetExtendedNutrients,
 	handleGetDailyNutrients,
+	handleGetNutrientGaps,
+	handleFindNutrientSources,
+	handleGetEatingPatterns,
+	handleGetMealPlanContext,
 	handleListMealTypes,
 	handleGetSupplementHistory,
 	handleGetDayProperties,
@@ -1081,6 +1085,193 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: READ_ONLY
 		},
 		safe((args) => handleGetDailyNutrients(userId, args))
+	);
+
+	// Nutrient adequacy & meal planning
+	server.registerTool(
+		'get_nutrient_gaps',
+		{
+			title: 'Get Nutrient Gaps',
+			outputSchema: TOOL_OUTPUT.get_nutrient_gaps,
+			description:
+				'Compare average intake against reference values for all 31 nutrients that have one, worst first. ' +
+				'Verdicts follow the EAR cut-point method, so there is no traffic light at the RDA for an individual: ' +
+				'"likely_adequate" at or above the RDA, "uncertain" between EAR and RDA, "likely_inadequate" below the EAR, ' +
+				'"no_conclusion" below an Adequate Intake, "above_limit" over the sodium ceiling, and "depends_on_sex" when ' +
+				'the male and female references disagree and the user has not set one. ' +
+				'IMPORTANT: nutrients in `unmeasured` are NOT adequate — nothing the user logged carried a value for them ' +
+				'("no_data") or too little of the day did ("low_coverage"). Never report those as fine. ' +
+				'A day whose coverage falls below the threshold is dropped rather than counted as a zero. ' +
+				'`fiberGoal` and `sodiumGoal` from the user\u2019s goals override the reference where set.',
+			inputSchema: {
+				startDate: dateStr
+					.optional()
+					.describe('Start of the window. Defaults to 29 days before endDate.'),
+				endDate: dateStr
+					.optional()
+					.describe('End of the window. Defaults to today in the user timezone.'),
+				biologicalSex: z
+					.enum(['male', 'female'])
+					.optional()
+					.describe(
+						'Overrides the stored preference for this call. Without either, nutrients whose references differ by sex report "depends_on_sex".'
+					),
+				minCoverage: z
+					.number()
+					.min(0)
+					.max(1)
+					.optional()
+					.describe(
+						'Minimum share of a day\u2019s calories that must carry a nutrient for the day to count. Defaults to 0.7.'
+					),
+				includeAdequate: z
+					.boolean()
+					.optional()
+					.describe(
+						'Set false to return only nutrients that are not likely adequate. Defaults to true.'
+					),
+				topContributors: z
+					.number()
+					.int()
+					.min(0)
+					.max(10)
+					.optional()
+					.describe(
+						'How many top contributing foods to list per nutrient. Defaults to 3, 0 to omit.'
+					)
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetNutrientGaps(userId, args))
+	);
+
+	server.registerTool(
+		'find_nutrient_sources',
+		{
+			title: 'Find Nutrient Sources',
+			outputSchema: TOOL_OUTPUT.find_nutrient_sources,
+			description:
+				'Rank the user\u2019s foods and recipes by how much of a daily nutrient shortfall one serving would close. ' +
+				'Score is 0.6 x gap closure (capped at one whole gap) + 0.4 x nutrient density per 100 kcal, judged against ' +
+				'the user\u2019s own average intake, then multiplied by a familiarity bonus (favourite, recently logged, ' +
+				'often logged; at most 1.35) and 0.9 for catalog results, so a food they already eat wins a close call. ' +
+				'Every candidate carries its own numbers — amount per serving, percent of the gap, servings and calories to ' +
+				'close it, and a `practical` flag — so explain a pick from those rather than from the score. ' +
+				'Deficits default to a fresh 30-day gap report. Set `catalogQuery` to also search the base food catalog by ' +
+				'name; those results are not in the user\u2019s database yet and need create_food first.',
+			inputSchema: {
+				nutrients: z
+					.array(z.string())
+					.min(1)
+					.max(6)
+					.describe(
+						'Nutrient keys to close, e.g. ["iron", "vitaminD"]. Use the keys from get_nutrient_gaps.'
+					),
+				deficits: z
+					.record(z.string(), z.number())
+					.optional()
+					.describe('Explicit daily shortfall per nutrient, overriding the computed one.'),
+				includeFoods: z
+					.boolean()
+					.optional()
+					.describe('Include the user\u2019s own foods. Defaults to true.'),
+				includeRecipes: z
+					.boolean()
+					.optional()
+					.describe('Include the user\u2019s recipes. Defaults to true.'),
+				catalogQuery: z
+					.string()
+					.optional()
+					.describe(
+						'Name search against the base food catalog. Required to include catalog results.'
+					),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(30)
+					.optional()
+					.describe('How many candidates to return. Defaults to 10.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleFindNutrientSources(userId, args))
+	);
+
+	server.registerTool(
+		'get_eating_patterns',
+		{
+			title: 'Get Eating Patterns',
+			outputSchema: TOOL_OUTPUT.get_eating_patterns,
+			description:
+				'How the user actually eats: meal timing and eating window, meal regularity, calorie front-loading and ' +
+				'day-to-day cycling, weekday versus weekend, protein distribution across meals, food variety, and a ' +
+				'per-meal-slot breakdown of calories, protein and typical clock time. Use it to fit a plan to existing ' +
+				'habits rather than inventing a schedule. Per-day series are omitted to keep the payload small.',
+			inputSchema: {
+				startDate: dateStr
+					.optional()
+					.describe('Start of the window. Defaults to 89 days before endDate.'),
+				endDate: dateStr
+					.optional()
+					.describe('End of the window. Defaults to today in the user timezone.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetEatingPatterns(userId, args))
+	);
+
+	server.registerTool(
+		'get_meal_plan_context',
+		{
+			title: 'Get Meal Plan Context',
+			outputSchema: TOOL_OUTPUT.get_meal_plan_context,
+			description:
+				'Everything needed to build a meal plan in one call: goals, maintenance calories, latest weight, the ' +
+				'priority nutrient gaps, eating-pattern summary, per-meal-slot calorie split, favourites, most-logged ' +
+				'foods, recipes with per-serving macros, and the available meal types. Start here before planning, then ' +
+				'use find_nutrient_sources for the specific gaps worth closing. Capped for context size: recipes carry ' +
+				'per-serving macros only and there are no per-day series.',
+			inputSchema: {
+				planDays: z
+					.number()
+					.int()
+					.min(1)
+					.max(31)
+					.optional()
+					.describe('How many days the plan will cover. Defaults to 7.'),
+				analysisDays: z
+					.number()
+					.int()
+					.min(7)
+					.max(366)
+					.optional()
+					.describe('How many days of history to summarise. Defaults to 30.'),
+				maxFoods: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.optional()
+					.describe('Cap on most-logged foods. Defaults to 40.'),
+				maxRecipes: z
+					.number()
+					.int()
+					.min(1)
+					.max(50)
+					.optional()
+					.describe('Cap on recipes. Defaults to 20.'),
+				maxGapNutrients: z
+					.number()
+					.int()
+					.min(1)
+					.max(31)
+					.optional()
+					.describe('Cap on priority gap nutrients. Defaults to 8.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetMealPlanContext(userId, args))
 	);
 
 	// Meal types

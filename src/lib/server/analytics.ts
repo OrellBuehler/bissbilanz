@@ -97,6 +97,17 @@ const fiberExpr = (rm: RecipeMacrosCte) =>
 
 const quickNutrientExpr = (key: string) => sql`(${foodEntries.quickNutrients}->>${key})::real`;
 
+/**
+ * Calorie-weighted share of a day's food that carried a value for an extended
+ * nutrient, with the entry-count share as the zero-calorie fallback. Mirrors
+ * `coverageShare` in `$lib/analytics/aggregation`.
+ */
+const coverageExpr = (rm: RecipeMacrosCte, valueExpr: ReturnType<typeof sql>) =>
+	sql<number>`COALESCE(
+		SUM(CASE WHEN ${valueExpr} IS NOT NULL THEN ${caloriesExpr(rm)} ELSE 0 END) / NULLIF(SUM(${caloriesExpr(rm)}), 0),
+		SUM(CASE WHEN ${valueExpr} IS NOT NULL THEN 1 ELSE 0 END)::float / COUNT(*)
+	)`;
+
 export const getWeightFoodSeries = async (userId: string, startDate: string, endDate: string) => {
 	const db = getDB();
 	const rm = buildRecipeMacrosCte(db, userId);
@@ -237,7 +248,51 @@ export const getDailyNutrientTotals = async (
 				number | null
 			>`SUM(COALESCE(${foods.addedSugars}, ${re.reAddedSugars}, ${quickNutrientExpr('addedSugars')}) * ${foodEntries.servings})`.as(
 				'added_sugars'
-			)
+			),
+			omega3Coverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.omega3}, ${re.reOmega3}, ${quickNutrientExpr('omega3')})`
+			).as('omega3_coverage'),
+			omega6Coverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.omega6}, ${re.reOmega6}, ${quickNutrientExpr('omega6')})`
+			).as('omega6_coverage'),
+			sodiumCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.sodium}, ${re.reSodium}, ${quickNutrientExpr('sodium')})`
+			).as('sodium_coverage'),
+			caffeineCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.caffeine}, ${re.reCaffeine}, ${quickNutrientExpr('caffeine')})`
+			).as('caffeine_coverage'),
+			saturatedFatCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.saturatedFat}, ${re.reSaturatedFat}, ${quickNutrientExpr('saturatedFat')})`
+			).as('saturated_fat_coverage'),
+			transFatCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.transFat}, ${re.reTransFat}, ${quickNutrientExpr('transFat')})`
+			).as('trans_fat_coverage'),
+			vitaminCCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.vitaminC}, ${re.reVitaminC}, ${quickNutrientExpr('vitaminC')})`
+			).as('vitamin_c_coverage'),
+			vitaminDCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.vitaminD}, ${re.reVitaminD}, ${quickNutrientExpr('vitaminD')})`
+			).as('vitamin_d_coverage'),
+			vitaminECoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.vitaminE}, ${re.reVitaminE}, ${quickNutrientExpr('vitaminE')})`
+			).as('vitamin_e_coverage'),
+			alcoholCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.alcohol}, ${re.reAlcohol}, ${quickNutrientExpr('alcohol')})`
+			).as('alcohol_coverage'),
+			addedSugarsCoverage: coverageExpr(
+				rm,
+				sql`COALESCE(${foods.addedSugars}, ${re.reAddedSugars}, ${quickNutrientExpr('addedSugars')})`
+			).as('added_sugars_coverage')
 		})
 		.from(foodEntries)
 		.leftJoin(foods, eq(foodEntries.foodId, foods.id))

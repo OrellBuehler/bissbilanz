@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 private fun pad2(n: Int): String = n.toString().padStart(2, '0')
 
@@ -49,22 +50,44 @@ class CaffeineSleepTest {
         val caffeineEntries = mutableListOf<CaffeineEntry>()
         val sleepData = mutableListOf<SleepDataPoint>()
         val baseDate = "2024-01"
-        // 5 days with early caffeine (hour 8-11) -> good sleep
-        for (i in 1..5) {
+        // 8 days with early caffeine (hour 8-11) -> good sleep (with a little spread)
+        for (i in 1..8) {
             val date = "$baseDate-${pad2(i)}"
             val nextDate = "$baseDate-${pad2(i + 1)}"
-            caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T08:00:00Z", caffeine = 100.0))
-            sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 9.0, sleepDurationMinutes = 480.0))
+            caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T${pad2(8 + i % 4)}:00:00Z", caffeine = 100.0))
+            sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 9.0 - (i % 3) * 0.3, sleepDurationMinutes = 480.0))
         }
-        // 5 days with late caffeine (hour 18-19) -> poor sleep
-        for (i in 10..14) {
+        // 8 days with late caffeine (hour 18-21) -> poor sleep
+        for (i in 10..17) {
             val date = "$baseDate-${pad2(i)}"
             val nextDate = "$baseDate-${pad2(i + 1)}"
-            caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T18:00:00Z", caffeine = 100.0))
-            sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 4.0, sleepDurationMinutes = 360.0))
+            caffeineEntries.add(CaffeineEntry(date = date, eatenAt = "${date}T${pad2(18 + i % 4)}:00:00Z", caffeine = 100.0))
+            sleepData.add(SleepDataPoint(date = nextDate, sleepQuality = 4.0 + (i % 3) * 0.3, sleepDurationMinutes = 360.0))
         }
         val result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, "UTC")
         assertNotNull(result.estimatedCutoffHour)
+        assertTrue(result.comparisons > 0)
+        assertTrue(result.pValue!! < 0.05)
+        assertEquals(14, result.defaultCutoffHour)
+    }
+
+    @Test
+    fun threeNightsASideCannotOverrideTheDefault() {
+        val caffeineEntries = mutableListOf<CaffeineEntry>()
+        val sleepData = mutableListOf<SleepDataPoint>()
+        for (i in 1..3) {
+            val date = "2024-01-${pad2(i)}"
+            caffeineEntries.add(CaffeineEntry(date, "${date}T08:00:00Z", 100.0))
+            sleepData.add(SleepDataPoint("2024-01-${pad2(i + 1)}", 9.0, 480.0))
+        }
+        for (i in 10..12) {
+            val date = "2024-01-${pad2(i)}"
+            caffeineEntries.add(CaffeineEntry(date, "${date}T18:00:00Z", 100.0))
+            sleepData.add(SleepDataPoint("2024-01-${pad2(i + 1)}", 4.0, 360.0))
+        }
+        val result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, "UTC")
+        assertNull(result.estimatedCutoffHour)
+        assertEquals(0, result.comparisons)
     }
 
     @Test

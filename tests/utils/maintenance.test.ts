@@ -140,7 +140,7 @@ describe('buildMaintenanceReport', () => {
 		expect(report).toMatchObject({ error: 'invalid_range' });
 	});
 
-	test('averages intake over the inclusive day count and counts fasting days', () => {
+	test('averages intake over the logged days (fasting days as zeros), not the calendar', () => {
 		const report = buildMaintenanceReport({
 			...base,
 			fastingDays: ['2026-02-03'],
@@ -155,8 +155,43 @@ describe('buildMaintenanceReport', () => {
 			lastWeight: 79
 		});
 		expect(report.meta.coverage).toBeCloseTo(3 / 28);
-		expect(report.result.avgDailyCalories).toBe(Math.round(5600 / 28));
+		// 4200 + 1400 + 0 (fasting) over the three logged days; the 25 unlogged
+		// days are unknown, not zero-calorie days.
+		expect(report.result.avgDailyCalories).toBe(Math.round(5600 / 3));
 		expect(report.result.weightChangeKg).toBe(-1);
 		expect(report.result.days).toBe(27);
+	});
+
+	test('smooths the weight endpoints and rescales the change to the full interval', () => {
+		const weights = [
+			{ entryDate: '2026-02-01', weightKg: 80.6 },
+			{ entryDate: '2026-02-02', weightKg: 79.8 },
+			{ entryDate: '2026-02-03', weightKg: 80.2 },
+			{ entryDate: '2026-02-26', weightKg: 79.4 },
+			{ entryDate: '2026-02-27', weightKg: 78.6 },
+			{ entryDate: '2026-02-28', weightKg: 79.0 }
+		];
+		const report = buildMaintenanceReport({
+			...base,
+			weights,
+			entries: [entry('2026-02-01', 2000), entry('2026-02-02', 2000)]
+		});
+		if ('error' in report) throw new Error(report.message);
+		// Anchors are the means of the first and last three days (80.2 and 79.0),
+		// 25 days apart on average, scaled to the 27-day interval.
+		expect(report.meta.firstWeight).toBeCloseTo(80.2, 9);
+		expect(report.meta.lastWeight).toBeCloseTo(79.0, 9);
+		expect(report.result.weightChangeKg).toBeCloseTo((-1.2 * 27) / 25, 9);
+	});
+
+	test('falls back to raw endpoints when the weights carry no dates', () => {
+		const report = buildMaintenanceReport({
+			...base,
+			entries: [entry('2026-02-01', 2000)]
+		});
+		if ('error' in report) throw new Error(report.message);
+		expect(report.meta.firstWeight).toBe(80);
+		expect(report.meta.lastWeight).toBe(79);
+		expect(report.result.weightChangeKg).toBe(-1);
 	});
 });

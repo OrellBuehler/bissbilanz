@@ -1,5 +1,8 @@
 import { describe, test, expect } from 'vitest';
-import { computeProteinDistribution } from '$lib/analytics/protein-distribution';
+import {
+	computeProteinDistribution,
+	proteinPerMealThreshold
+} from '$lib/analytics/protein-distribution';
 
 function makeEntries(days: { date: string; meals: { mealType: string; protein: number }[] }[]) {
 	return days.flatMap(({ date, meals }) =>
@@ -38,13 +41,62 @@ describe('computeProteinDistribution', () => {
 		expect(result.score).toBeLessThan(50);
 	});
 
-	test('single meal per day gives score 0 (CV=0)', () => {
+	test('a single meal per day is the skewed pattern, not a perfect one', () => {
 		const entries = makeEntries([
 			{ date: '2024-01-01', meals: [{ mealType: 'Lunch', protein: 50 }] },
 			{ date: '2024-01-02', meals: [{ mealType: 'Lunch', protein: 60 }] }
 		]);
 		const result = computeProteinDistribution(entries);
-		expect(result.score).toBe(100);
+		// Padded to three feedings [50, 0, 0]: CV = √2 → score floors at 0.
+		expect(result.score).toBe(0);
+		expect(result.mealsPerDay).toBe(1);
+	});
+
+	test('two even meals score below three even meals', () => {
+		const two = computeProteinDistribution(
+			makeEntries([
+				{
+					date: '2024-01-01',
+					meals: [
+						{ mealType: 'Lunch', protein: 45 },
+						{ mealType: 'Dinner', protein: 45 }
+					]
+				}
+			])
+		);
+		const three = computeProteinDistribution(
+			makeEntries([
+				{
+					date: '2024-01-01',
+					meals: [
+						{ mealType: 'Breakfast', protein: 30 },
+						{ mealType: 'Lunch', protein: 30 },
+						{ mealType: 'Dinner', protein: 30 }
+					]
+				}
+			])
+		);
+		expect(three.score).toBe(100);
+		expect(two.score).toBeLessThan(three.score);
+		expect(two.score).toBeGreaterThan(0);
+	});
+
+	test('the per-meal bar scales with body weight', () => {
+		expect(proteinPerMealThreshold(null)).toBe(20);
+		expect(proteinPerMealThreshold(50)).toBe(20);
+		expect(proteinPerMealThreshold(85)).toBeCloseTo(34, 9);
+		const entries = makeEntries([
+			{
+				date: '2024-01-01',
+				meals: [
+					{ mealType: 'Lunch', protein: 25 },
+					{ mealType: 'Dinner', protein: 40 }
+				]
+			}
+		]);
+		const result = computeProteinDistribution(entries, proteinPerMealThreshold(85));
+		expect(result.threshold).toBeCloseTo(34, 9);
+		expect(result.mealsBelowThreshold).toBe(1);
 	});
 
 	test('mealsBelowThreshold counts correctly', () => {

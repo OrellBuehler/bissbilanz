@@ -99,7 +99,6 @@ class AnalyticsParityTest {
                     weightSeriesFrom(input.getValue("weightSeries")),
                     calorieSeriesFrom(input.getValue("calorieSeries")),
                     input["estimatedTDEE"].nullableDouble(),
-                    input["sodiumAvg"].nullableDouble(),
                 ).toJson()
             }
 
@@ -107,11 +106,69 @@ class AnalyticsParityTest {
                 projectWeight(
                     weightSeriesFrom(input.getValue("weightSeries")),
                     input.getValue("weeklyRate").jsonPrimitive.double,
+                    input.optStr("rateConfidence")?.let { ConfidenceLevel.valueOf(it.uppercase()) },
                 ).toJson()
             }
 
             "calculateMaintenance" -> {
                 calculateMaintenance(maintenanceInputFrom(input))?.toJson() ?: JsonNull
+            }
+
+            "smoothedWeightChange" -> {
+                smoothedWeightChange(
+                    input.getValue("weights").jsonArray.map { it.jsonObject }.map { o ->
+                        DatedWeight(weightKg = o.dbl("weightKg"), entryDate = o.optStr("entryDate"))
+                    },
+                    input.getValue("days").jsonPrimitive.int,
+                ).let {
+                    buildJsonObject {
+                        put("firstWeight", it.firstWeight)
+                        put("lastWeight", it.lastWeight)
+                        put("weightChangeKg", it.weightChangeKg)
+                    }
+                }
+            }
+
+            "normalCdf" -> JsonPrimitive(normalCdf(input.dbl("z")))
+
+            "studentTwoSidedP" -> JsonPrimitive(studentTwoSidedP(input.dbl("t"), input.dbl("df")))
+
+            "welchTTest" -> {
+                welchTTest(doubleArrayFrom(input.getValue("a")).toList(), doubleArrayFrom(input.getValue("b")).toList()).let {
+                    buildJsonObject {
+                        put("t", it.t)
+                        put("df", it.df)
+                        put("pValue", it.pValue)
+                    }
+                }
+            }
+
+            "benjaminiHochberg" -> {
+                JsonArray(benjaminiHochberg(doubleArrayFrom(input.getValue("pValues")).toList()).map(::JsonPrimitive))
+            }
+
+            "fisherCI95" -> {
+                fisherCI95(input.dbl("r"), input.getValue("n").jsonPrimitive.int).let { (lo, hi) ->
+                    JsonArray(listOf(JsonPrimitive(lo), JsonPrimitive(hi)))
+                }
+            }
+
+            "circularMeanMinutes" -> {
+                circularMeanMinutes(doubleArrayFrom(input.getValue("values")).toList())?.let(::JsonPrimitive) ?: JsonNull
+            }
+
+            "circularStdMinutes" -> {
+                JsonPrimitive(circularStdMinutes(doubleArrayFrom(input.getValue("values")).toList()))
+            }
+
+            "eatingDayOf" -> {
+                eatingDayOf(input.str("isoString"), input.str("timeZone"))?.let {
+                    buildJsonObject {
+                        put("date", it.date)
+                        put("minutes", it.minutes)
+                        put("clockMinutes", it.clockMinutes)
+                    }
+                } ?: JsonNull
             }
 
             "aggregateDailyNutrientTotals" -> {
@@ -173,7 +230,7 @@ class AnalyticsParityTest {
             "computeOmegaRatio" -> {
                 computeOmegaRatio(
                     input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
-                        Triple(o.str("date"), o.dbl("omega3"), o.dbl("omega6"))
+                        OmegaDay(o.str("date"), o.dbl("omega3"), o.dbl("omega6"), o.optDouble("coverage") ?: 1.0)
                     },
                 ).toJson()
             }
@@ -219,7 +276,7 @@ class AnalyticsParityTest {
             "computeSodiumWeightCorrelation" -> {
                 computeSodiumWeightCorrelation(
                     input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
-                        o.str("date") to o.dbl("sodium")
+                        SodiumDay(o.str("date"), o.dbl("sodium"), o.optDouble("coverage") ?: 1.0)
                     },
                     weightSeriesFrom(input.getValue("weightSeries")),
                 ).toJson()
@@ -267,7 +324,7 @@ class AnalyticsParityTest {
                     input.getValue("sleepData").jsonArray.map { it.jsonObject }.map { o ->
                         SleepQualityPoint(date = o.str("date"), quality = o.dbl("quality"))
                     },
-                    input.optInt("minOccurrences") ?: 3,
+                    input.optInt("minOccurrences") ?: FOOD_SLEEP_MIN_OCCURRENCES,
                 ).toJson()
             }
 
@@ -299,6 +356,8 @@ class AnalyticsParityTest {
         buildJsonObject {
             put("r", r)
             put("pValue", pValue)
+            put("ciLow", ciLow)
+            put("ciHigh", ciHigh)
             put("sampleSize", sampleSize)
             put("confidence", confidence.wire())
             put("constantInput", constantInput)
@@ -369,6 +428,17 @@ class AnalyticsParityTest {
             putNullableDouble("vitaminE", vitaminE)
             putNullableDouble("alcohol", alcohol)
             putNullableDouble("addedSugars", addedSugars)
+            put("omega3Coverage", omega3Coverage)
+            put("omega6Coverage", omega6Coverage)
+            put("sodiumCoverage", sodiumCoverage)
+            put("caffeineCoverage", caffeineCoverage)
+            put("saturatedFatCoverage", saturatedFatCoverage)
+            put("transFatCoverage", transFatCoverage)
+            put("vitaminCCoverage", vitaminCCoverage)
+            put("vitaminDCoverage", vitaminDCoverage)
+            put("vitaminECoverage", vitaminECoverage)
+            put("alcoholCoverage", alcoholCoverage)
+            put("addedSugarsCoverage", addedSugarsCoverage)
         }
 
     // Kotlin TEFResult uses avgTEF/avgTEFPct; the TS wire shape is avgDailyTEF/avgTEFPercent.
@@ -385,6 +455,8 @@ class AnalyticsParityTest {
             put("score", score)
             put("classification", classification)
             put("contributors", JsonArray(contributors.map { it.toJson() }))
+            put("coverageFraction", coverageFraction)
+            put("neutralBand", neutralBand)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
         }
@@ -434,6 +506,9 @@ class AnalyticsParityTest {
     private fun CaffeineSleepResult.toJson() =
         buildJsonObject {
             put("estimatedCutoffHour", estimatedCutoffHour?.let(::JsonPrimitive) ?: JsonNull)
+            put("defaultCutoffHour", defaultCutoffHour)
+            putNullableDouble("pValue", pValue)
+            put("comparisons", comparisons)
             put("hourlyImpact", JsonArray(hourlyImpact.map { it.toJson() }))
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
@@ -464,11 +539,11 @@ class AnalyticsParityTest {
         }
 
     // Kotlin keeps the NOVA split as a Map<Int, Double>; the TS wire shape is a
-    // sorted byGroup array carrying each group's share of the tagged calories.
+    // sorted byGroup array carrying each group's share of all logged calories.
     private fun NOVAResult.toJson() =
         buildJsonObject {
             put("ultraProcessedPct", ultraProcessedPct)
-            val novaKcal = groupDistribution.values.sum()
+            put("unknownPct", unknownPct)
             put(
                 "byGroup",
                 JsonArray(
@@ -476,7 +551,7 @@ class AnalyticsParityTest {
                         buildJsonObject {
                             put("group", group)
                             put("kcal", kcal)
-                            put("pct", if (novaKcal > 0) kcal / novaKcal * 100.0 else 0.0)
+                            put("pct", if (totalKcal > 0) kcal / totalKcal * 100.0 else 0.0)
                         }
                     },
                 ),
@@ -533,6 +608,7 @@ class AnalyticsParityTest {
     private fun CaloricLagResult.toJson() =
         buildJsonObject {
             put("bestLag", bestLag?.let(::JsonPrimitive) ?: JsonNull)
+            put("comparisons", comparisons)
             put(
                 "results",
                 JsonArray(
@@ -540,6 +616,7 @@ class AnalyticsParityTest {
                         buildJsonObject {
                             put("lag", it.lag)
                             put("correlation", it.correlation?.toJson() ?: JsonNull)
+                            putNullableDouble("qValue", it.qValue)
                         }
                     },
                 ),
@@ -553,6 +630,7 @@ class AnalyticsParityTest {
             put("mealsPerDay", mealsPerDay)
             put("mealsBelowThreshold", mealsBelowThreshold)
             put("totalMeals", totalMeals)
+            put("threshold", threshold)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
         }
@@ -564,6 +642,8 @@ class AnalyticsParityTest {
                 buildJsonObject {
                     put("r", correlation.r)
                     putNullableDouble("pValue", correlation.pValue)
+                    putNullableDouble("ciLow", correlation.ciLow)
+                    putNullableDouble("ciHigh", correlation.ciHigh)
                     put("sampleSize", correlation.sampleSize)
                 },
             )
@@ -590,6 +670,7 @@ class AnalyticsParityTest {
             put("weekend", weekend.toJson())
             put("calorieDelta", calorieDelta)
             put("calorieDeltaPct", calorieDeltaPct)
+            putNullableDouble("pValue", pValue)
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
         }
@@ -598,6 +679,8 @@ class AnalyticsParityTest {
         buildJsonObject {
             put("nutrientKey", nutrientKey)
             put("correlation", correlation.toJson())
+            put("qValue", qValue)
+            put("comparisons", comparisons)
         }
 
     private fun FoodSleepResult.toJson() =
@@ -613,11 +696,14 @@ class AnalyticsParityTest {
                             put("avgQualityWithout", it.avgQualityWithout)
                             put("delta", it.delta)
                             put("occurrences", it.occurrences)
+                            put("pValue", it.pValue)
+                            put("qValue", it.qValue)
                         }
                     },
                 ),
             )
             put("overallAvgQuality", overallAvgQuality)
+            put("comparisons", comparisons)
         }
 
     // TS encodes ConfidenceLevel as a lowercase string.
@@ -662,6 +748,7 @@ class AnalyticsParityTest {
                 carbs = o.dbl("carbs"),
                 fat = o.dbl("fat"),
                 calories = o.dbl("calories"),
+                alcohol = o.optDouble("alcohol"),
             )
         }
 
@@ -733,7 +820,10 @@ class AnalyticsParityTest {
                 transFat = o.optDouble("transFat"),
                 alcohol = o.optDouble("alcohol"),
                 caffeine = o.optDouble("caffeine"),
-                sodium = o.optDouble("sodium"),
+                coverage =
+                    o["coverage"]?.let { c ->
+                        if (c is JsonNull) emptyMap() else c.jsonObject.mapValues { (_, v) -> v.jsonPrimitive.double }
+                    } ?: emptyMap(),
             )
         }
 

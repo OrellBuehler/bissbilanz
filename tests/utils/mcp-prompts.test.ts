@@ -22,6 +22,7 @@ describe('MCP prompts', () => {
 			'daily_review',
 			'label_foods',
 			'log_meal',
+			'meal_plan',
 			'weekly_review'
 		]);
 		for (const p of prompts) expect(p.title, `${p.name} title`).toBeTruthy();
@@ -42,6 +43,31 @@ describe('MCP prompts', () => {
 		expect(text).toContain('under "Breakfast"');
 		expect(text).toContain('for 2026-08-01');
 		expect(text).toContain('search_foods');
+	});
+
+	test('meal_plan chains the planning tools and forbids writes', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({
+			name: 'meal_plan',
+			arguments: { startDate: '2026-09-01', days: '5', focus: 'iron' }
+		});
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('5-day');
+		expect(text).toContain('starting 2026-09-01');
+		expect(text).toContain('Focus on: iron.');
+		expect(text).toContain('get_meal_plan_context');
+		expect(text).toContain('get_nutrient_gaps');
+		expect(text).toContain('find_nutrient_sources');
+		expect(text).toContain('Do not log anything');
+	});
+
+	test('meal_plan defaults to seven days from tomorrow', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({ name: 'meal_plan', arguments: {} });
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('seven-day');
+		expect(text).toContain('starting tomorrow');
+		expect(text).not.toContain('Focus on:');
 	});
 
 	test('daily_review defaults to today', async () => {

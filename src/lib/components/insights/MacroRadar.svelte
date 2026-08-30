@@ -13,6 +13,7 @@
 	let data: DayRow[] = $state(initialData?.data ?? []);
 	let goals = $state<Goals | null>(initialData?.goals ?? null);
 	let loading = $state(!initialData);
+	let refreshing = $state(false);
 
 	const rangeDays: Record<RangeKey, number> = { '7d': 6, '30d': 29, '90d': 89 };
 	const rangeLabels: Record<RangeKey, () => string> = {
@@ -54,7 +55,7 @@
 	];
 
 	const fetchData = async (r: RangeKey) => {
-		loading = true;
+		refreshing = true;
 		try {
 			const end = today();
 			const start = shiftDate(end, -rangeDays[r]);
@@ -67,6 +68,7 @@
 			data = [];
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	};
 
@@ -152,7 +154,7 @@
 			{m.insights_no_goals()}
 		</div>
 	{:else}
-		<div class="flex justify-center">
+		<div class="flex justify-center transition-opacity" class:opacity-60={refreshing}>
 			<svg viewBox="0 0 300 320" class="h-[260px] w-[260px] sm:h-[300px] sm:w-[300px]">
 				{#each gridLevels as level}
 					<polygon
@@ -238,7 +240,10 @@
 			</svg>
 		</div>
 
-		<div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+		<div
+			class="grid grid-cols-2 gap-2 sm:grid-cols-5 transition-opacity"
+			class:opacity-60={refreshing}
+		>
 			{#each allAxes as axis (axis.key)}
 				{@const avg = averages}
 				{@const goalVal = goals[axis.goalKey]}

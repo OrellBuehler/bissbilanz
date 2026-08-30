@@ -16,6 +16,7 @@
 	let data: DayRow[] = $state(initialData?.data ?? []);
 	let goals = $state<Goals | null>(initialData?.goals ?? null);
 	let loading = $state(!initialData);
+	let refreshing = $state(false);
 
 	const rangeDays: Record<RangeKey, number> = { '4w': 27, '12w': 83 };
 
@@ -45,7 +46,7 @@
 	);
 
 	const fetchData = async (r: RangeKey) => {
-		loading = true;
+		refreshing = true;
 		try {
 			const end = today();
 			const start = shiftDate(end, -rangeDays[r]);
@@ -58,6 +59,7 @@
 			data = [];
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	};
 
@@ -160,7 +162,7 @@
 			{m.add_food_loading()}
 		</div>
 	{:else if hasData}
-		<div class="h-[220px] sm:h-[260px]">
+		<div class="h-[220px] sm:h-[260px] transition-opacity" class:opacity-60={refreshing}>
 			<ChartContainer {config} class="h-full w-full aspect-auto">
 				<BarChart
 					data={chartData}
@@ -210,7 +212,9 @@
 			</ChartContainer>
 		</div>
 	{:else}
-		<div class="text-muted-foreground flex h-[220px] items-center justify-center text-sm">
+		<div
+			class="text-muted-foreground flex h-[220px] items-center justify-center text-sm sm:h-[260px]"
+		>
 			{m.insights_no_data()}
 		</div>
 	{/if}

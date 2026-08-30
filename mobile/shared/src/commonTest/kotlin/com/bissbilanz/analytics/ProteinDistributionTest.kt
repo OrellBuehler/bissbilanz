@@ -61,8 +61,34 @@ class ProteinDistributionTest {
                 Triple("2024-01-07", "Lunch", 46.0),
             )
         val result = computeProteinDistribution(entries)
-        assertEquals(100.0, result.score, "Single meal per day should have CV=0, score=100")
+        // Padded to three feedings [x, 0, 0]: the skewed pattern, not a perfect one.
+        assertEquals(0.0, result.score, 1e-9)
         assertEquals(1.0, result.mealsPerDay)
+    }
+
+    @Test
+    fun twoEvenMealsScoreBelowThreeEvenMeals() {
+        val two = computeProteinDistribution(listOf(Triple("2024-01-01", "Lunch", 45.0), Triple("2024-01-01", "Dinner", 45.0)))
+        val three =
+            computeProteinDistribution(
+                listOf(
+                    Triple("2024-01-01", "Breakfast", 30.0),
+                    Triple("2024-01-01", "Lunch", 30.0),
+                    Triple("2024-01-01", "Dinner", 30.0),
+                ),
+            )
+        assertEquals(100.0, three.score, 1e-9)
+        assertTrue(two.score < three.score && two.score > 0.0)
+    }
+
+    @Test
+    fun perMealThresholdScalesWithBodyWeight() {
+        assertEquals(20.0, proteinPerMealThreshold(null))
+        assertEquals(20.0, proteinPerMealThreshold(50.0))
+        assertEquals(34.0, proteinPerMealThreshold(85.0), 1e-9)
+        val result = computeProteinDistribution(listOf(Triple("2024-01-01", "Lunch", 25.0)), proteinPerMealThreshold(85.0))
+        assertEquals(34.0, result.threshold, 1e-9)
+        assertEquals(1, result.mealsBelowThreshold)
     }
 
     @Test
@@ -88,7 +114,7 @@ class ProteinDistributionTest {
         val result = computeProteinDistribution(entries)
         assertEquals(1, result.sampleSize)
         assertEquals(1.0, result.mealsPerDay)
-        assertEquals(100.0, result.score, 1e-9)
+        assertEquals(0.0, result.score, 1e-9)
     }
 
     @Test

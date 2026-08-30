@@ -94,6 +94,12 @@
 						result.calorieDeltaPct
 					)}%)
 				</p>
+				<p class="text-[11px] text-muted-foreground tabular-nums">
+					{m.analytics_weekend_days({ n: result.weekend.days.toString() })}
+					{#if result.pValue !== null}
+						· {m.analytics_p_value({ p: result.pValue.toFixed(3) })}
+					{/if}
+				</p>
 			</div>
 		{/if}
 	{/snippet}

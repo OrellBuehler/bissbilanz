@@ -1,10 +1,12 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
-import { localMinutesOfDay } from './local-time';
+import { localMinutesOfDay, circularMeanMinutes, circularStdMinutes } from './local-time';
 
 export type MealRegularityResult = {
 	meals: {
 		mealType: string;
+		/** Circular mean clock time in minutes since midnight. */
 		avgMinute: number;
+		/** Circular standard deviation in minutes. */
 		stddevMinutes: number;
 		regularity: 'high' | 'medium' | 'low';
 	}[];
@@ -13,6 +15,11 @@ export type MealRegularityResult = {
 	sampleSize: number;
 };
 
+/**
+ * How consistently each meal type lands at the same clock time. Clock time is
+ * circular, so the spread is the circular SD: dinners at 23:50 and 00:10 are 20
+ * minutes apart, where a linear SD on minute-of-day would have called it ~710.
+ */
 export function computeMealRegularity(
 	entries: { date: string; mealType: string; eatenAt: string | null }[],
 	timeZone: string
@@ -51,10 +58,8 @@ export function computeMealRegularity(
 	const stddevValues: number[] = [];
 
 	for (const [mealType, minutesList] of byMealType) {
-		const n = minutesList.length;
-		const avgMinute = minutesList.reduce((s, v) => s + v, 0) / n;
-		const variance = minutesList.reduce((s, v) => s + (v - avgMinute) ** 2, 0) / n;
-		const stddevMinutes = Math.sqrt(variance);
+		const avgMinute = circularMeanMinutes(minutesList) ?? 0;
+		const stddevMinutes = circularStdMinutes(minutesList);
 
 		const regularity: 'high' | 'medium' | 'low' =
 			stddevMinutes < 30 ? 'high' : stddevMinutes < 60 ? 'medium' : 'low';

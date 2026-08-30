@@ -99,6 +99,22 @@ data class DailyNutrientTotals(
     val vitaminE: Double?,
     val alcohol: Double?,
     val addedSugars: Double?,
+    /**
+     * Share of the day's calories (0..1) that came from entries carrying a value
+     * for the nutrient — the denominator every extended total was missing. Falls
+     * back to the entry-count share on a zero-calorie day.
+     */
+    val omega3Coverage: Double,
+    val omega6Coverage: Double,
+    val sodiumCoverage: Double,
+    val caffeineCoverage: Double,
+    val saturatedFatCoverage: Double,
+    val transFatCoverage: Double,
+    val vitaminCCoverage: Double,
+    val vitaminDCoverage: Double,
+    val vitaminECoverage: Double,
+    val alcoholCoverage: Double,
+    val addedSugarsCoverage: Double,
 )
 
 /** Per-entry resolved nutrients (the on-device equivalent of `getExtendedNutrientEntries`). */
@@ -196,6 +212,19 @@ internal fun nullSum(values: List<Double?>): Double? {
         }
     }
     return if (any) acc else null
+}
+
+/**
+ * Calorie-weighted share of the rows whose nutrient value is present; entry-count
+ * share on a zero-calorie day. Mirrors the TS `coverageShare`.
+ */
+internal fun coverageShare(rows: List<Pair<Double, Boolean>>): Double {
+    if (rows.isEmpty()) return 0.0
+    val totalKcal = rows.sumOf { it.first }
+    if (totalKcal > 0) {
+        return rows.sumOf { if (it.second) it.first else 0.0 } / totalKcal
+    }
+    return rows.count { it.second }.toDouble() / rows.size
 }
 
 // --- recipe macro resolution (the recipe_macros / recipe_extended CTEs) ------
@@ -324,24 +353,49 @@ fun aggregateDailyNutrientTotals(
                     val recipe = e.recipeId?.let { resolved[it] }
                     EntryNutrients(e, food, recipe)
                 }
+            val kcal = rows.map { it.core({ f -> f.calories }, { r -> r.calories }, it.entry.quickCalories) }
+
+            fun cov(values: List<Double?>): Double = coverageShare(values.mapIndexed { i, v -> Pair(kcal[i], v != null) })
+            val omega3s = rows.map { it.ext({ f -> f.omega3 }, { r -> r.omega3 }) }
+            val omega6s = rows.map { it.ext({ f -> f.omega6 }, { r -> r.omega6 }) }
+            val sodiums = rows.map { it.ext({ f -> f.sodium }, { r -> r.sodium }) }
+            val caffeines = rows.map { it.ext({ f -> f.caffeine }, { r -> r.caffeine }) }
+            val saturatedFats = rows.map { it.ext({ f -> f.saturatedFat }, { r -> r.saturatedFat }) }
+            val transFats = rows.map { it.ext({ f -> f.transFat }, { r -> r.transFat }) }
+            val vitaminCs = rows.map { it.ext({ f -> f.vitaminC }, { r -> r.vitaminC }) }
+            val vitaminDs = rows.map { it.ext({ f -> f.vitaminD }, { r -> r.vitaminD }) }
+            val vitaminEs = rows.map { it.ext({ f -> f.vitaminE }, { r -> r.vitaminE }) }
+            val alcohols = rows.map { it.ext({ f -> f.alcohol }, { r -> r.alcohol }) }
+            val addedSugarsList = rows.map { it.ext({ f -> f.addedSugars }, { r -> r.addedSugars }) }
             DailyNutrientTotals(
                 date = date,
-                calories = rows.sumOf { it.core({ f -> f.calories }, { r -> r.calories }, it.entry.quickCalories) },
+                calories = kcal.sum(),
                 protein = rows.sumOf { it.core({ f -> f.protein }, { r -> r.protein }, it.entry.quickProtein) },
                 carbs = rows.sumOf { it.core({ f -> f.carbs }, { r -> r.carbs }, it.entry.quickCarbs) },
                 fat = rows.sumOf { it.core({ f -> f.fat }, { r -> r.fat }, it.entry.quickFat) },
                 fiber = rows.sumOf { it.core({ f -> f.fiber }, { r -> r.fiber }, it.entry.quickFiber) },
-                omega3 = nullSum(rows.map { it.ext({ f -> f.omega3 }, { r -> r.omega3 }) }),
-                omega6 = nullSum(rows.map { it.ext({ f -> f.omega6 }, { r -> r.omega6 }) }),
-                sodium = nullSum(rows.map { it.ext({ f -> f.sodium }, { r -> r.sodium }) }),
-                caffeine = nullSum(rows.map { it.ext({ f -> f.caffeine }, { r -> r.caffeine }) }),
-                saturatedFat = nullSum(rows.map { it.ext({ f -> f.saturatedFat }, { r -> r.saturatedFat }) }),
-                transFat = nullSum(rows.map { it.ext({ f -> f.transFat }, { r -> r.transFat }) }),
-                vitaminC = nullSum(rows.map { it.ext({ f -> f.vitaminC }, { r -> r.vitaminC }) }),
-                vitaminD = nullSum(rows.map { it.ext({ f -> f.vitaminD }, { r -> r.vitaminD }) }),
-                vitaminE = nullSum(rows.map { it.ext({ f -> f.vitaminE }, { r -> r.vitaminE }) }),
-                alcohol = nullSum(rows.map { it.ext({ f -> f.alcohol }, { r -> r.alcohol }) }),
-                addedSugars = nullSum(rows.map { it.ext({ f -> f.addedSugars }, { r -> r.addedSugars }) }),
+                omega3 = nullSum(omega3s),
+                omega6 = nullSum(omega6s),
+                sodium = nullSum(sodiums),
+                caffeine = nullSum(caffeines),
+                saturatedFat = nullSum(saturatedFats),
+                transFat = nullSum(transFats),
+                vitaminC = nullSum(vitaminCs),
+                vitaminD = nullSum(vitaminDs),
+                vitaminE = nullSum(vitaminEs),
+                alcohol = nullSum(alcohols),
+                addedSugars = nullSum(addedSugarsList),
+                omega3Coverage = cov(omega3s),
+                omega6Coverage = cov(omega6s),
+                sodiumCoverage = cov(sodiums),
+                caffeineCoverage = cov(caffeines),
+                saturatedFatCoverage = cov(saturatedFats),
+                transFatCoverage = cov(transFats),
+                vitaminCCoverage = cov(vitaminCs),
+                vitaminDCoverage = cov(vitaminDs),
+                vitaminECoverage = cov(vitaminEs),
+                alcoholCoverage = cov(alcohols),
+                addedSugarsCoverage = cov(addedSugarsList),
             )
         }
 }

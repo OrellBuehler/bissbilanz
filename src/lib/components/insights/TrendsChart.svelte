@@ -32,6 +32,7 @@
 	let data: DayRow[] = $state(initialData?.data ?? []);
 	let goals = $state<Goals>(initialData?.goals ?? null);
 	let loading = $state(!initialData);
+	let refreshing = $state(false);
 
 	const macroLabels: Record<MacroKey, () => string> = {
 		calories: () => m.macro_calories(),
@@ -63,7 +64,7 @@
 	const goalForMetric = $derived(goalMap[metric]);
 
 	const fetchData = async (r: RangeKey) => {
-		loading = true;
+		refreshing = true;
 		try {
 			const end = today();
 			const start = shiftDate(end, -rangeDays[r]);
@@ -76,6 +77,7 @@
 			data = [];
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	};
 
@@ -165,7 +167,7 @@
 			{m.add_food_loading()}
 		</div>
 	{:else if hasData}
-		<div class="h-[250px] sm:h-[300px]">
+		<div class="h-[250px] sm:h-[300px] transition-opacity" class:opacity-60={refreshing}>
 			<ChartContainer {config} class="h-full w-full aspect-auto">
 				<BarChart
 					data={chartData}
@@ -216,7 +218,9 @@
 			</ChartContainer>
 		</div>
 	{:else}
-		<div class="text-muted-foreground flex h-[250px] items-center justify-center text-sm">
+		<div
+			class="text-muted-foreground flex h-[250px] items-center justify-center text-sm sm:h-[300px]"
+		>
 			{m.insights_no_data()}
 		</div>
 	{/if}

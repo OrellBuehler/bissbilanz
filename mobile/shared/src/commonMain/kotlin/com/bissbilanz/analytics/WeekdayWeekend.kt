@@ -17,6 +17,8 @@ data class WeekdayWeekendResult(
     val weekend: DayStats,
     val calorieDelta: Double,
     val calorieDeltaPct: Double,
+    /** Welch t-test of weekend vs weekday calories; null with fewer than two days on a side. */
+    val pValue: Double?,
     val confidence: ConfidenceLevel,
     val sampleSize: Int,
 )
@@ -68,12 +70,21 @@ fun computeWeekdayWeekendSplit(dailyNutrients: List<DayEntry>): WeekdayWeekendRe
     val weekend = computeStats(weekends)
     val calorieDelta = weekend.avgCalories - weekday.avgCalories
     val calorieDeltaPct = if (weekday.avgCalories > 0) (calorieDelta / weekday.avgCalories) * 100.0 else 0.0
+    val pValue =
+        if (weekdays.size >= 2 && weekends.size >= 2) {
+            welchTTest(weekends.map { it.calories }, weekdays.map { it.calories }).pValue
+        } else {
+            null
+        }
     return WeekdayWeekendResult(
         weekday = weekday,
         weekend = weekend,
         calorieDelta = calorieDelta,
         calorieDeltaPct = calorieDeltaPct,
-        confidence = getConfidenceLevel(dailyNutrients.size),
+        pValue = pValue,
+        // Only ~2/7 of the days are weekend days, so the badge reflects the
+        // smaller group, not the total.
+        confidence = getConfidenceLevel(minOf(weekdays.size, weekends.size)),
         sampleSize = dailyNutrients.size,
     )
 }

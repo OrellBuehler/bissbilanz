@@ -1,3 +1,5 @@
+import { welchTTest, benjaminiHochberg, mean } from './stats';
+
 export type FoodSleepImpact = {
 	foodName: string;
 	foodId: string;
@@ -5,8 +7,31 @@ export type FoodSleepImpact = {
 	avgQualityWithout: number;
 	delta: number;
 	occurrences: number;
+	pValue: number;
+	/** Benjamini–Hochberg adjusted p across every food screened. */
+	qValue: number;
 };
 
+export type FoodSleepResult = {
+	/** Only foods whose effect survives FDR control and the minimum effect size. */
+	foodImpacts: FoodSleepImpact[];
+	overallAvgQuality: number;
+	/** Number of foods that were testable (enough nights with and without). */
+	comparisons: number;
+};
+
+export const FOOD_SLEEP_MIN_OCCURRENCES = 5;
+const MIN_NIGHTS_WITHOUT = 3;
+const MIN_EFFECT = 0.5;
+const FDR_LEVEL = 0.1;
+
+/**
+ * Screens every evening food for a difference in next-night sleep quality.
+ * With fifty foods over thirty nights, ranking raw deltas guarantees the user
+ * sees the largest of many chance differences, so each food's Welch t-test is
+ * adjusted for the number of foods screened and only foods clearing both the
+ * FDR threshold and a half-point minimum effect are returned.
+ */
 export function detectFoodSleepPatterns(
 	eveningFoods: {
 		date: string;
@@ -15,10 +40,10 @@ export function detectFoodSleepPatterns(
 		nutrients: Record<string, number>;
 	}[],
 	sleepData: { date: string; quality: number }[],
-	minOccurrences: number = 3
-): { foodImpacts: FoodSleepImpact[]; overallAvgQuality: number } {
+	minOccurrences: number = FOOD_SLEEP_MIN_OCCURRENCES
+): FoodSleepResult {
 	if (sleepData.length === 0) {
-		return { foodImpacts: [], overallAvgQuality: 0 };
+		return { foodImpacts: [], overallAvgQuality: 0, comparisons: 0 };
 	}
 
 	const sleepMap = new Map<string, number>();
@@ -26,7 +51,7 @@ export function detectFoodSleepPatterns(
 		sleepMap.set(entry.date, entry.quality);
 	}
 
-	const overallAvgQuality = sleepData.reduce((sum, e) => sum + e.quality, 0) / sleepData.length;
+	const overallAvgQuality = mean(sleepData.map((e) => e.quality));
 
 	const foodsByIdName = new Map<string, { name: string; dates: Set<string> }>();
 
@@ -39,7 +64,7 @@ export function detectFoodSleepPatterns(
 		foodsByIdName.get(food.foodId)!.dates.add(food.date);
 	}
 
-	const foodImpacts: FoodSleepImpact[] = [];
+	const candidates: Omit<FoodSleepImpact, 'qValue'>[] = [];
 
 	for (const [foodId, { name, dates }] of foodsByIdName) {
 		if (dates.size < minOccurrences) continue;
@@ -55,27 +80,28 @@ export function detectFoodSleepPatterns(
 			}
 		}
 
-		if (withQuality.length === 0) continue;
+		if (withQuality.length === 0 || withoutQuality.length < MIN_NIGHTS_WITHOUT) continue;
 
-		const avgQualityWith = withQuality.reduce((s, v) => s + v, 0) / withQuality.length;
-		const avgQualityWithout =
-			withoutQuality.length > 0
-				? withoutQuality.reduce((s, v) => s + v, 0) / withoutQuality.length
-				: overallAvgQuality;
+		const avgQualityWith = mean(withQuality);
+		const avgQualityWithout = mean(withoutQuality);
+		const { pValue } = welchTTest(withQuality, withoutQuality);
 
-		const delta = avgQualityWith - avgQualityWithout;
-
-		foodImpacts.push({
+		candidates.push({
 			foodName: name,
 			foodId,
 			avgQualityWith,
 			avgQualityWithout,
-			delta,
-			occurrences: dates.size
+			delta: avgQualityWith - avgQualityWithout,
+			occurrences: dates.size,
+			pValue
 		});
 	}
 
-	foodImpacts.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+	const qValues = benjaminiHochberg(candidates.map((c) => c.pValue));
+	const foodImpacts = candidates
+		.map((c, i) => ({ ...c, qValue: qValues[i] }))
+		.filter((c) => Math.abs(c.delta) >= MIN_EFFECT && c.qValue <= FDR_LEVEL)
+		.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
-	return { foodImpacts, overallAvgQuality };
+	return { foodImpacts, overallAvgQuality, comparisons: candidates.length };
 }

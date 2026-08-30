@@ -17,7 +17,7 @@ repos:
 
       - id: svelte-check
         name: svelte-check
-        entry: bash -c 'bun run paraglide:compile && bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json'
+        entry: bash -c 'bun run paraglide:compile && bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --tsgo'
         language: system
         pass_filenames: false
         types_or:

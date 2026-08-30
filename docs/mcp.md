@@ -54,28 +54,30 @@ tool follows — dates as `YYYY-MM-DD` in your timezone (omit for "today"), capi
 types (`Breakfast`, `Lunch`, `Dinner`, `Snacks`), search-before-create, amounts in servings,
 supplement logging semantics. Clients pass these to the model once.
 
-### Tools (63)
+### Tools (67)
 
-| Area          | Tools                                                                                                                                                                      |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Diary         | `get_daily_status`, `list_entries`, `log_food`, `update_entry`, `delete_entry`, `copy_entries`                                                                             |
-| Foods         | `search_foods`, `get_food`, `create_food`, `update_food`, `delete_food`, `list_recent_foods`, `find_food_by_barcode`, `search_openfoodfacts`                               |
-| Recipes       | `list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`                                                                                            |
-| Goals         | `get_goals`, `update_goals`, `list_favorites`, `list_meal_types`                                                                                                           |
-| Supplements   | `get_supplement_status`, `log_supplement`, `unlog_supplement`, `list_supplements`, `create_supplement`, `update_supplement`, `delete_supplement`, `get_supplement_history` |
-| Weight        | `log_weight`, `get_weight`, `update_weight`, `delete_weight`, `get_maintenance_calories`                                                                                   |
-| Sleep         | `log_sleep`, `get_sleep`, `update_sleep`, `delete_sleep`                                                                                                                   |
-| Day flags     | `get_day_properties`, `set_day_properties`, `delete_day_properties`                                                                                                        |
-| Stats         | `get_weekly_stats`, `get_monthly_stats`, `get_daily_breakdown`, `get_meal_breakdown`, `get_top_foods`, `get_streaks`, `get_calendar_stats`                                 |
-| Analytics     | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                           |
-| AI task queue | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos/descriptions queued from the mobile apps for an agent to process                       |
-| Food labels   | `list_unlabeled_foods`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                       |
+| Area               | Tools                                                                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Diary              | `get_daily_status`, `list_entries`, `log_food`, `update_entry`, `delete_entry`, `copy_entries`                                                                                                                               |
+| Foods              | `search_foods`, `get_food`, `create_food`, `update_food`, `delete_food`, `list_recent_foods`, `find_food_by_barcode`, `search_openfoodfacts`                                                                                 |
+| Recipes            | `list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`                                                                                                                                              |
+| Goals              | `get_goals`, `update_goals`, `list_favorites`, `list_meal_types`                                                                                                                                                             |
+| Supplements        | `get_supplement_status`, `log_supplement`, `unlog_supplement`, `list_supplements`, `create_supplement`, `update_supplement`, `delete_supplement`, `get_supplement_history`                                                   |
+| Weight             | `log_weight`, `get_weight`, `update_weight`, `delete_weight`, `get_maintenance_calories`                                                                                                                                     |
+| Sleep              | `log_sleep`, `get_sleep`, `update_sleep`, `delete_sleep`                                                                                                                                                                     |
+| Day flags          | `get_day_properties`, `set_day_properties`, `delete_day_properties`                                                                                                                                                          |
+| Stats              | `get_weekly_stats`, `get_monthly_stats`, `get_daily_breakdown`, `get_meal_breakdown`, `get_top_foods`, `get_streaks`, `get_calendar_stats`                                                                                   |
+| Analytics          | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                                                                             |
+| Nutrition planning | `get_nutrient_gaps`, `find_nutrient_sources`, `get_eating_patterns`, `get_meal_plan_context` — micronutrient shortfalls against IOM references, the foods that close them, eating habits, and one bundle for building a plan |
+| AI task queue      | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos/descriptions queued from the mobile apps for an agent to process                                                                         |
+| Food labels        | `list_unlabeled_foods`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                                                                         |
 
 Every tool carries `readOnlyHint`/`destructiveHint`/`idempotentHint` annotations and a
 display `title`. Results are returned as a JSON text block plus `structuredContent`; tools
 with a stable object contract (`get_daily_status`, `log_food`, `delete_entry`,
 `list_entries`, `get_goals`, `get_streaks`, `get_weekly_stats`, `get_monthly_stats`,
-`get_supplement_status`, `list_meal_types`, `get_maintenance_calories`) also publish an
+`get_supplement_status`, `list_meal_types`, `get_maintenance_calories`, `get_nutrient_gaps`,
+`find_nutrient_sources`, `get_eating_patterns`, `get_meal_plan_context`) also publish an
 `outputSchema`. Failures come back as `isError` results with `{ "error": "…" }` (plus
 `issues[]` for validation failures), never as JSON-RPC errors.
 
@@ -87,6 +89,7 @@ with a stable object contract (`get_daily_status`, `log_food`, `delete_entry`,
 | `daily_review`  | `date?`                             | Totals vs goals, gaps, untaken supplements, one or two foods to close the gap      |
 | `weekly_review` | `endDate?`                          | Seven-day averages, consistency, weight trend, top foods, one change for next week |
 | `label_foods`   | `limit?`                            | Sweep the food database and label every unlabelled food (see below)                |
+| `meal_plan`     | `startDate?`, `days?`, `focus?`     | Context → gaps → sources → a multi-day plan built around existing habits           |
 
 Claude Desktop and Claude Code surface these as slash commands (`/bissbilanz:log_meal …`).
 `mealType` offers completions for the default meal types.

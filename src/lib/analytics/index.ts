@@ -1,4 +1,7 @@
 export * from './correlation';
+export * from './stats';
+export * from './local-time';
+export * from './daily-coverage';
 export * from './caloric-lag';
 export * from './moving-average';
 export * from './meal-timing';
@@ -14,3 +17,4 @@ export * from './sodium-weight';
 export * from './protein-distribution';
 export * from './weekday-weekend';
 export * from './rda';
+export * from './nutrient-reference';

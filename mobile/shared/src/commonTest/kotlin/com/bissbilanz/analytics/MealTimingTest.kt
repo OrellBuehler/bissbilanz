@@ -139,6 +139,34 @@ class MealTimingTest {
     }
 
     @Test
+    fun postMidnightSnackExtendsThePreviousEatingDay() {
+        val entries =
+            listOf(
+                MealEntry("2024-03-09", "2024-03-09T08:00:00Z", 400.0),
+                MealEntry("2024-03-09", "2024-03-09T20:00:00Z", 700.0),
+                MealEntry("2024-03-10", "2024-03-10T00:30:00Z", 150.0),
+                MealEntry("2024-03-10", "2024-03-10T08:00:00Z", 400.0),
+            )
+        val result = extractMealTimingPatterns(entries, "UTC")
+        assertEquals(2, result.dailyWindows.size)
+        val first = result.dailyWindows[0]
+        assertEquals("2024-03-09", first.date)
+        assertEquals("00:30", first.lastMealTime)
+        assertEquals(16 * 60 + 30, first.windowMinutes)
+        assertEquals(1, first.lateNightMeals)
+        assertEquals(0, result.dailyWindows[1].windowMinutes)
+    }
+
+    @Test
+    fun eatingDayOfAssignsBeforeFourAmToThePreviousDay() {
+        val point = eatingDayOf("2024-03-10T00:30:00Z", "UTC")!!
+        assertEquals("2024-03-09", point.date)
+        assertEquals(20 * 60 + 30, point.minutes)
+        assertEquals(30, point.clockMinutes)
+        assertNull(eatingDayOf("nope", "UTC"))
+    }
+
+    @Test
     fun localMinutesOfDayMidnightExact() {
         val result = localMinutesOfDay("2024-01-01T00:00:00Z", "UTC")
         assertEquals(0, result)

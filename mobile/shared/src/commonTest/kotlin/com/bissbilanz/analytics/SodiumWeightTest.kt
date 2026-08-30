@@ -12,7 +12,7 @@ class SodiumWeightTest {
     private fun makeNutrients(
         dates: List<String>,
         sodiumValues: List<Double>,
-    ): List<Pair<String, Double>> = dates.zip(sodiumValues)
+    ): List<SodiumDay> = dates.zip(sodiumValues).map { (date, sodium) -> SodiumDay(date, sodium) }
 
     private fun makeWeights(
         dates: List<String>,
@@ -55,6 +55,16 @@ class SodiumWeightTest {
     }
 
     @Test
+    fun daysUnderTheCoverageFloorAreIgnoredAndAvgUsesPairedDays() {
+        val weights = (1..10).map { Pair("2024-01-${pad2(it)}", (80.0 + (it % 2) * 0.3) as Double?) }
+        val sodium = (1..10).map { SodiumDay("2024-01-${pad2(it)}", if (it % 2 == 1) 3000.0 else 1500.0, if (it == 1) 0.1 else 1.0) }
+        val result = computeSodiumWeightCorrelation(sodium, weights)
+        assertEquals(8, result.sampleSize)
+        assertEquals((4 * 3000.0 + 4 * 1500.0) / 8, result.avgSodium, 1e-6)
+        assertNotNull(result.correlation.ciLow)
+    }
+
+    @Test
     fun avgSodiumCalculatedFromAllEntries() {
         val dates = (1..10).map { "2024-01-${pad2(it)}" }
         val sodiumValues = (1..10).map { 2000.0 }
@@ -87,7 +97,7 @@ class SodiumWeightTest {
 
     @Test
     fun emptyWeightSeriesReturnsInsufficient() {
-        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0) }
+        val nutrients = (1..10).map { SodiumDay("2024-01-${pad2(it)}", 2000.0) }
         val result = computeSodiumWeightCorrelation(nutrients, emptyList())
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
         assertEquals(0, result.sampleSize)
@@ -95,7 +105,7 @@ class SodiumWeightTest {
 
     @Test
     fun allNullWeightsReturnsInsufficient() {
-        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2000.0) }
+        val nutrients = (1..10).map { SodiumDay("2024-01-${pad2(it)}", 2000.0) }
         val weights = (1..10).map { Pair("2024-01-${pad2(it)}", null as Double?) }
         val result = computeSodiumWeightCorrelation(nutrients, weights)
         assertEquals(ConfidenceLevel.INSUFFICIENT, result.confidence)
@@ -103,7 +113,7 @@ class SodiumWeightTest {
 
     @Test
     fun sodiumExactly2300NotCountedAsHigh() {
-        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2300.0) }
+        val nutrients = (1..10).map { SodiumDay("2024-01-${pad2(it)}", 2300.0) }
         val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
         val result = computeSodiumWeightCorrelation(nutrients, weights)
         assertEquals(0, result.highSodiumDays)
@@ -111,7 +121,7 @@ class SodiumWeightTest {
 
     @Test
     fun sodiumAbove2300CountedAsHigh() {
-        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 2301.0) }
+        val nutrients = (1..10).map { SodiumDay("2024-01-${pad2(it)}", 2301.0) }
         val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
         val result = computeSodiumWeightCorrelation(nutrients, weights)
         assertEquals(10, result.highSodiumDays)
@@ -119,7 +129,7 @@ class SodiumWeightTest {
 
     @Test
     fun sodiumZeroValuesHandled() {
-        val nutrients = (1..10).map { Pair("2024-01-${pad2(it)}", 0.0) }
+        val nutrients = (1..10).map { SodiumDay("2024-01-${pad2(it)}", 0.0) }
         val weights = (1..11).map { Pair("2024-01-${pad2(it)}", 80.0 as Double?) }
         val result = computeSodiumWeightCorrelation(nutrients, weights)
         assertEquals(0.0, result.avgSodium)

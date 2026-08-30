@@ -1,9 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { getWeightEntriesByDateRange } from '$lib/server/weight';
-import { calculateMaintenance, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
-import { calculateEntryMacros } from '$lib/utils/nutrition';
-import { daysBetween, todayInTimeZone, shiftDate } from '$lib/utils/dates';
+import { buildMaintenanceReport, DEFAULT_MUSCLE_RATIO } from '$lib/utils/maintenance';
+import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { getFastingDays } from '$lib/server/day-properties';
 
@@ -11,7 +10,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const startDate = shiftDate(endDate, -27);
-	const muscleRatio = DEFAULT_MUSCLE_RATIO;
 
 	const [entries, weights, fastingDays] = await Promise.all([
 		listEntriesByDateRange(userId, startDate, endDate),
@@ -19,63 +17,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getFastingDays(userId, startDate, endDate)
 	]);
 
-	if (weights.length < 2) {
-		return { initialResult: null, initialMeta: null };
-	}
-
-	const dailyTotals: Record<string, number> = {};
-	for (const entry of entries) {
-		const macros = calculateEntryMacros(entry);
-		dailyTotals[entry.date] = (dailyTotals[entry.date] ?? 0) + macros.calories;
-	}
-
-	for (const fastingDate of fastingDays) {
-		if (!(fastingDate in dailyTotals)) {
-			dailyTotals[fastingDate] = 0;
-		}
-	}
-
-	const daysWithEntries = Object.keys(dailyTotals);
-	if (daysWithEntries.length === 0) {
-		return { initialResult: null, initialMeta: null };
-	}
-
-	const days = daysBetween(startDate, endDate);
-	if (days <= 0) {
-		return { initialResult: null, initialMeta: null };
-	}
-
-	const totalCalories = Object.values(dailyTotals).reduce((sum, cal) => sum + cal, 0);
-	const avgDailyCalories = totalCalories / days;
-
-	const firstWeight = weights[0];
-	const lastWeight = weights[weights.length - 1];
-	const weightChangeKg = lastWeight.weightKg - firstWeight.weightKg;
-
-	const result = calculateMaintenance({
-		weightChangeKg,
-		avgDailyCalories,
-		days,
-		muscleRatio
+	// Same estimator as /api/maintenance and the MCP tool, so the initial render
+	// and the refetch cannot disagree.
+	const report = buildMaintenanceReport({
+		entries,
+		weights,
+		fastingDays,
+		startDate,
+		endDate,
+		muscleRatio: DEFAULT_MUSCLE_RATIO
 	});
 
-	if (!result) {
+	if ('error' in report) {
 		return { initialResult: null, initialMeta: null };
 	}
 
-	const coverage = daysWithEntries.length / days;
-
-	return {
-		initialResult: result,
-		initialMeta: {
-			weightEntries: weights.length,
-			foodEntryDays: daysWithEntries.length,
-			totalDays: days,
-			coverage,
-			firstWeight: firstWeight.weightKg,
-			lastWeight: lastWeight.weightKg,
-			startDate,
-			endDate
-		}
-	};
+	return { initialResult: report.result, initialMeta: report.meta };
 };

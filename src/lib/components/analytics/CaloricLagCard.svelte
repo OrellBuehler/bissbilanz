@@ -116,9 +116,16 @@
 							>
 								{result.correlation ? result.correlation.r.toFixed(2) : '—'}
 							</span>
+							<span class="w-14 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+								{result.qValue !== null ? m.analytics_q_value({ q: result.qValue.toFixed(2) }) : ''}
+							</span>
 						</div>
 					{/each}
 				</div>
+				<p class="text-[11px] text-muted-foreground">
+					{m.analytics_caloric_lag_tested({ n: (lagResult?.comparisons ?? 0).toString() })} ·
+					{m.analytics_caloric_lag_fluid_note()}
+				</p>
 
 				<div class="flex items-center gap-2 pt-1">
 					<span class="text-xs text-muted-foreground">{m.analytics_caloric_lag_override()}</span>

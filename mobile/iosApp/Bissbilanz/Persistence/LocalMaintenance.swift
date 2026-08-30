@@ -52,12 +52,21 @@ enum LocalMaintenance {
         }
         guard !dailyTotals.isEmpty else { return nil }
 
+        // Mean intake is over the days actually logged (fasting days are explicit
+        // zeros); an unlogged day is unknown, not a zero-calorie day. The calendar
+        // count only feeds the coverage figure.
         let totalCalories = dailyTotals.values.reduce(0, +)
-        let avgDailyCalories = totalCalories / Double(days)
+        let avgDailyCalories = totalCalories / Double(dailyTotals.count)
         let coverage = Double(dailyTotals.count) / Double(days)
-        let firstWeight = weights.first!.weightKg
-        let lastWeight = weights.last!.weightKg
-        let weightChange = lastWeight - firstWeight
+        // Endpoints are 7-day smoothed anchors rescaled to the full interval,
+        // the same estimator the server and Android use.
+        let change = MaintenanceKt.smoothedWeightChange(
+            weights: weights.map { DatedWeight(weightKg: $0.weightKg, entryDate: $0.entryDate) },
+            days: Int32(days)
+        )
+        let firstWeight = change.firstWeight
+        let lastWeight = change.lastWeight
+        let weightChange = change.weightChangeKg
 
         guard let result = MaintenanceKt.calculateMaintenance(
             input: MaintenanceInput(

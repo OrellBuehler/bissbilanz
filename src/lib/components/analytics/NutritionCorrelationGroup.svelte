@@ -6,10 +6,12 @@
 	import MealSpacingCard from './MealSpacingCard.svelte';
 	import NutrientAdequacyCard from './NutrientAdequacyCard.svelte';
 	import type { MealEntry, DailyNutrient } from './types';
+	import type { components } from '$lib/api/generated/schema';
 
 	let loading = $state(true);
 	let mealTimingData = $state<MealEntry[]>([]);
 	let nutrientDailyData = $state<DailyNutrient[]>([]);
+	let nutrientGaps = $state<components['schemas']['NutrientGapsResponse'] | null>(null);
 
 	onMount(() => {
 		const controller = new AbortController();
@@ -19,7 +21,7 @@
 
 		(async () => {
 			try {
-				const [mtRes, ndRes] = await Promise.all([
+				const [mtRes, ndRes, gapRes] = await Promise.all([
 					api.GET('/api/analytics/meal-timing', {
 						params: { query: { startDate, endDate } },
 						signal
@@ -27,11 +29,16 @@
 					api.GET('/api/analytics/nutrients-daily', {
 						params: { query: { startDate, endDate } },
 						signal
+					}),
+					api.GET('/api/analytics/nutrient-gaps', {
+						params: { query: { startDate, endDate } },
+						signal
 					})
 				]);
 				if (signal.aborted) return;
 				if (mtRes.data) mealTimingData = mtRes.data.data;
 				if (ndRes.data) nutrientDailyData = ndRes.data.data;
+				if (gapRes.data) nutrientGaps = gapRes.data;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {
@@ -46,5 +53,5 @@
 <div class="space-y-4">
 	<EatingWindowCard {mealTimingData} {loading} />
 	<MealSpacingCard {mealTimingData} {loading} />
-	<NutrientAdequacyCard {nutrientDailyData} {loading} />
+	<NutrientAdequacyCard report={nutrientGaps} {loading} />
 </div>

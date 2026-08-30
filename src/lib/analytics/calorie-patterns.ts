@@ -1,5 +1,5 @@
 import { type ConfidenceLevel, getConfidenceLevel } from './correlation';
-import { localMinutesOfDay } from './local-time';
+import { eatingDayOf, EATING_DAY_BOUNDARY_MINUTES } from './local-time';
 
 export type FrontLoadingResult = {
 	avgMorningPct: number;
@@ -20,22 +20,27 @@ export type CalorieCyclingResult = {
 	sampleSize: number;
 };
 
+/**
+ * Share of each eating day's calories logged before `cutoffHour` local. Days
+ * start at 04:00 (see `eatingDayOf`), so a 01:00 snack lands in the previous
+ * evening rather than counting as "morning" calories for the calendar date.
+ */
 export function computeCalorieFrontLoading(
 	entries: { date: string; eatenAt: string | null; calories: number }[],
 	timeZone: string,
 	cutoffHour = 14
 ): FrontLoadingResult {
 	const byDate = new Map<string, { morning: number; total: number }>();
+	const cutoffMinutes = cutoffHour * 60 - EATING_DAY_BOUNDARY_MINUTES;
 
 	for (const entry of entries) {
 		if (!entry.eatenAt) continue;
-		const minutes = localMinutesOfDay(entry.eatenAt, timeZone);
-		if (minutes === null) continue;
-		const hour = Math.floor(minutes / 60);
-		if (!byDate.has(entry.date)) byDate.set(entry.date, { morning: 0, total: 0 });
-		const day = byDate.get(entry.date)!;
+		const point = eatingDayOf(entry.eatenAt, timeZone);
+		if (point === null) continue;
+		if (!byDate.has(point.date)) byDate.set(point.date, { morning: 0, total: 0 });
+		const day = byDate.get(point.date)!;
 		day.total += entry.calories;
-		if (hour < cutoffHour) day.morning += entry.calories;
+		if (point.minutes < cutoffMinutes) day.morning += entry.calories;
 	}
 
 	const days = [...byDate.values()];

@@ -1,8 +1,19 @@
 import { pearsonCorrelation, getConfidenceLevel, type ConfidenceLevel } from './correlation';
-import { shiftDate } from '$lib/utils/dates';
+import { shiftDate } from './date-utils';
+import { MIN_NUTRIENT_COVERAGE } from './constants.generated';
+
+/** The 2019 IOM Chronic Disease Risk Reduction intake — a policy figure, used only to label days. */
+export const SODIUM_CDRR_MG = 2300;
 
 export type SodiumWeightResult = {
-	correlation: { r: number; pValue: number | null; sampleSize: number };
+	correlation: {
+		r: number;
+		pValue: number | null;
+		ciLow: number | null;
+		ciHigh: number | null;
+		sampleSize: number;
+	};
+	/** Mean sodium over the days that had a next-day weight pair — the same days the correlation used. */
 	avgSodium: number;
 	highSodiumDays: number;
 	avgWeightDeltaAfterHighSodium: number | null;
@@ -11,8 +22,9 @@ export type SodiumWeightResult = {
 };
 
 export function computeSodiumWeightCorrelation(
-	dailyNutrients: { date: string; sodium: number }[],
-	weightSeries: { date: string; weightKg: number | null }[]
+	dailyNutrients: { date: string; sodium: number; coverage?: number }[],
+	weightSeries: { date: string; weightKg: number | null }[],
+	minCoverage = MIN_NUTRIENT_COVERAGE
 ): SodiumWeightResult {
 	const weightMap = new Map<string, number>();
 	for (const e of weightSeries) {
@@ -27,6 +39,7 @@ export function computeSodiumWeightCorrelation(
 	const highSodiumDeltas: number[] = [];
 
 	for (const entry of dailyNutrients) {
+		if ((entry.coverage ?? 1) < minCoverage) continue;
 		const nextDate = shiftDate(entry.date, 1);
 		const w0 = weightMap.get(entry.date);
 		const w1 = weightMap.get(nextDate);
@@ -36,24 +49,20 @@ export function computeSodiumWeightCorrelation(
 		sodiumValues.push(entry.sodium);
 		weightDeltas.push(delta);
 
-		if (entry.sodium > 2300) {
+		if (entry.sodium > SODIUM_CDRR_MG) {
 			highSodiumDays++;
 			highSodiumDeltas.push(delta);
 		}
 	}
 
-	const totalSodium =
-		dailyNutrients.length > 0
-			? dailyNutrients.reduce((s, e) => s + e.sodium, 0) / dailyNutrients.length
-			: 0;
-
 	const sampleSize = sodiumValues.length;
+	const avgSodium = sampleSize > 0 ? sodiumValues.reduce((s, v) => s + v, 0) / sampleSize : 0;
 	const confidence = getConfidenceLevel(sampleSize);
 
 	if (sampleSize < 7) {
 		return {
-			correlation: { r: 0, pValue: null, sampleSize },
-			avgSodium: totalSodium,
+			correlation: { r: 0, pValue: null, ciLow: null, ciHigh: null, sampleSize },
+			avgSodium,
 			highSodiumDays,
 			avgWeightDeltaAfterHighSodium: null,
 			confidence: 'insufficient',
@@ -69,8 +78,14 @@ export function computeSodiumWeightCorrelation(
 			: null;
 
 	return {
-		correlation: { r: result.r, pValue: result.pValue, sampleSize },
-		avgSodium: totalSodium,
+		correlation: {
+			r: result.r,
+			pValue: result.pValue,
+			ciLow: result.ciLow,
+			ciHigh: result.ciHigh,
+			sampleSize
+		},
+		avgSodium,
 		highSodiumDays,
 		avgWeightDeltaAfterHighSodium,
 		confidence,

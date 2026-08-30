@@ -171,6 +171,7 @@ export type DexieUserPreferences = {
 	updatedAt: string | null;
 	locale: string | null;
 	timeZone: string | null;
+	biologicalSex: 'male' | 'female' | null;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 

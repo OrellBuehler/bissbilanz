@@ -1,5 +1,11 @@
 import { type ConfidenceLevel } from './correlation';
-import { KCAL_PER_KG_FAT, PLATEAU_THRESHOLD_KG_PER_WEEK } from './constants.generated';
+import { weightMovingAverage } from './moving-average';
+import {
+	KCAL_PER_KG_FAT,
+	EXPENDITURE_PER_KG_KCAL_PER_DAY,
+	PLATEAU_THRESHOLD_KG_PER_WEEK,
+	PLATEAU_MIN_SPAN_DAYS
+} from './constants.generated';
 
 export type TDEEResult = {
 	estimatedTDEE: number | null;
@@ -12,14 +18,21 @@ export type TDEEResult = {
 
 export type PlateauResult = {
 	isPlateaued: boolean;
+	/** Calendar days spanned by the weights the plateau test ran on. */
 	plateauDays: number;
 	estimatedDeficit: number | null;
-	cause: 'adaptive_metabolism' | 'intake_variance' | 'water_retention' | 'none';
+	/**
+	 * The only "cause" the data can actually show is high day-to-day intake
+	 * variance; metabolic adaptation and sodium-driven water retention are not
+	 * identifiable from a scale plus a food log, so they are no longer asserted.
+	 */
+	cause: 'intake_variance' | 'none';
 	confidence: ConfidenceLevel;
 	sampleSize: number;
 };
 
 export type WeightForecast = {
+	/** Trailing 7-day smoothed weight the projection is anchored on. */
 	currentWeight: number | null;
 	weeklyRate: number;
 	day30: number | null;
@@ -29,18 +42,65 @@ export type WeightForecast = {
 	confidence: ConfidenceLevel;
 };
 
-function linearSlope(values: number[]): number {
-	const n = values.length;
-	const xMean = (n - 1) / 2;
-	const yMean = values.reduce((s, v) => s + v, 0) / n;
+type DatedWeight = { date: string; weightKg: number | null };
+type DatedCalories = { date: string; calories: number | null };
+type SmoothedPoint = { date: string; day: number; value: number };
+
+function epochDay(date: string): number {
+	return Math.floor(Date.parse(date + 'T00:00:00Z') / 86_400_000);
+}
+
+/**
+ * OLS slope of value on calendar day (kg/day). Regressing on the date rather
+ * than the row index keeps sparse logging from compressing time: weigh-ins on
+ * days 1, 2, 3 and 14 are 13 days apart, not three rows.
+ */
+function slopePerDay(points: SmoothedPoint[]): number {
+	const n = points.length;
+	const xMean = points.reduce((s, p) => s + p.day, 0) / n;
+	const yMean = points.reduce((s, p) => s + p.value, 0) / n;
 	let num = 0;
 	let den = 0;
-	for (let i = 0; i < n; i++) {
-		const dx = i - xMean;
-		num += dx * (values[i] - yMean);
+	for (const p of points) {
+		const dx = p.day - xMean;
+		num += dx * (p.value - yMean);
 		den += dx * dx;
 	}
 	return den === 0 ? 0 : num / den;
+}
+
+/**
+ * One weight per measured date (same-date entries collapse to the latest).
+ * The slope is fitted to these raw points: over a window an OLS line is
+ * already the least-squares smoother, and pre-smoothing with a trailing
+ * average would only add lag bias at the window's start plus autocorrelated
+ * residuals.
+ */
+function measuredWeights(series: DatedWeight[]): SmoothedPoint[] {
+	const measured = series
+		.filter((e) => e.weightKg !== null)
+		.map((e) => ({ date: e.date, weightKg: e.weightKg as number }));
+	return weightMovingAverage(measured, 1).map((p) => ({
+		date: p.date,
+		day: epochDay(p.date),
+		value: p.weightKg
+	}));
+}
+
+/**
+ * Trailing 7-calendar-day smoothed weights, one per measured date, for the
+ * projection anchor. A single raw measurement carries ~0.5–2 kg of fluid and
+ * glycogen noise, which the old forecast propagated into all three horizons.
+ */
+function smoothedWeights(series: DatedWeight[]): SmoothedPoint[] {
+	const measured = series
+		.filter((e) => e.weightKg !== null)
+		.map((e) => ({ date: e.date, weightKg: e.weightKg as number }));
+	return weightMovingAverage(measured, 7).map((p) => ({
+		date: p.date,
+		day: epochDay(p.date),
+		value: p.movingAvg
+	}));
 }
 
 function mean(values: number[]): number {
@@ -61,23 +121,26 @@ function cutoffFromData(dates: string[], windowDays: number): string {
 	return d.toISOString().slice(0, 10);
 }
 
-export function computeAdaptiveTDEE(
-	weightSeries: { date: string; weightKg: number | null }[],
-	calorieSeries: { date: string; calories: number | null }[],
-	windowDays = 14
-): TDEEResult {
+function windowInputs(
+	weightSeries: DatedWeight[],
+	calorieSeries: DatedCalories[],
+	windowDays: number
+): { weights: SmoothedPoint[]; calories: number[] } {
 	const allDates = [...weightSeries.map((e) => e.date), ...calorieSeries.map((e) => e.date)];
 	const cutoff = cutoffFromData(allDates, windowDays);
-
-	const weights = weightSeries
-		.filter((e) => e.date >= cutoff && e.weightKg !== null)
-		.sort((a, b) => a.date.localeCompare(b.date))
-		.map((e) => e.weightKg as number);
-
+	const weights = measuredWeights(weightSeries).filter((p) => p.date >= cutoff);
 	const calories = calorieSeries
 		.filter((e) => e.date >= cutoff && e.calories !== null)
 		.map((e) => e.calories as number);
+	return { weights, calories };
+}
 
+export function computeAdaptiveTDEE(
+	weightSeries: DatedWeight[],
+	calorieSeries: DatedCalories[],
+	windowDays = 14
+): TDEEResult {
+	const { weights, calories } = windowInputs(weightSeries, calorieSeries, windowDays);
 	const sampleSize = weights.length;
 
 	if (weights.length < 5 || calories.length < 10) {
@@ -91,8 +154,7 @@ export function computeAdaptiveTDEE(
 		};
 	}
 
-	const slope = linearSlope(weights);
-	const weeklyRate = slope * 7;
+	const weeklyRate = slopePerDay(weights) * 7;
 	const weeklyEnergyBalance = weeklyRate * KCAL_PER_KG_FAT;
 	const avgDailyIntake = mean(calories);
 	let estimatedTDEE = avgDailyIntake - weeklyEnergyBalance / 7;
@@ -111,69 +173,43 @@ export function computeAdaptiveTDEE(
 }
 
 export function detectPlateau(
-	weightSeries: { date: string; weightKg: number | null }[],
-	calorieSeries: { date: string; calories: number | null }[],
-	estimatedTDEE: number | null,
-	sodiumAvg?: number | null
+	weightSeries: DatedWeight[],
+	calorieSeries: DatedCalories[],
+	estimatedTDEE: number | null
 ): PlateauResult {
-	const allDates = [...weightSeries.map((e) => e.date), ...calorieSeries.map((e) => e.date)];
-	const cutoff = cutoffFromData(allDates, 14);
-
-	const weights = weightSeries
-		.filter((e) => e.date >= cutoff && e.weightKg !== null)
-		.sort((a, b) => a.date.localeCompare(b.date))
-		.map((e) => e.weightKg as number);
-
-	const calories = calorieSeries
-		.filter((e) => e.date >= cutoff && e.calories !== null)
-		.map((e) => e.calories as number);
-
+	const { weights, calories } = windowInputs(weightSeries, calorieSeries, 14);
 	const sampleSize = weights.length;
 	const confidence: ConfidenceLevel =
 		sampleSize >= 14 ? 'medium' : sampleSize >= 7 ? 'low' : 'insufficient';
 
-	if (sampleSize < 3) {
-		return {
-			isPlateaued: false,
-			plateauDays: 0,
-			estimatedDeficit: null,
-			cause: 'none',
-			confidence: 'insufficient',
-			sampleSize
-		};
-	}
+	const notPlateaued = (conf: ConfidenceLevel): PlateauResult => ({
+		isPlateaued: false,
+		plateauDays: 0,
+		estimatedDeficit: null,
+		cause: 'none',
+		confidence: conf,
+		sampleSize
+	});
 
-	const slope = linearSlope(weights);
-	const weeklyRate = slope * 7;
-	const isPlateaued = Math.abs(weeklyRate) < PLATEAU_THRESHOLD_KG_PER_WEEK;
+	if (sampleSize < 3) return notPlateaued('insufficient');
 
-	if (!isPlateaued) {
-		return {
-			isPlateaued: false,
-			plateauDays: 0,
-			estimatedDeficit: null,
-			cause: 'none',
-			confidence,
-			sampleSize
-		};
-	}
+	const spanDays = weights[weights.length - 1].day - weights[0].day + 1;
+	// Fewer than seven weigh-ins over fewer than ten days cannot separate
+	// "flat" from "not enough data": with ~0.5 kg of daily noise the slope's
+	// own standard error is of the order of the plateau threshold there.
+	if (sampleSize < 7 || spanDays < PLATEAU_MIN_SPAN_DAYS) return notPlateaued(confidence);
+
+	const weeklyRate = slopePerDay(weights) * 7;
+	if (Math.abs(weeklyRate) >= PLATEAU_THRESHOLD_KG_PER_WEEK) return notPlateaued(confidence);
 
 	const estimatedDeficit =
 		estimatedTDEE !== null && calories.length > 0 ? estimatedTDEE - mean(calories) : null;
-
-	let cause: PlateauResult['cause'] = 'none';
-
-	if (calories.length > 0 && stddev(calories) > 300) {
-		cause = 'intake_variance';
-	} else if (sodiumAvg != null && sodiumAvg > 3000) {
-		cause = 'water_retention';
-	} else if (estimatedDeficit !== null && estimatedDeficit > 200) {
-		cause = 'adaptive_metabolism';
-	}
+	const cause: PlateauResult['cause'] =
+		calories.length > 0 && stddev(calories) > 300 ? 'intake_variance' : 'none';
 
 	return {
 		isPlateaued: true,
-		plateauDays: sampleSize,
+		plateauDays: spanDays,
 		estimatedDeficit,
 		cause,
 		confidence,
@@ -181,23 +217,45 @@ export function detectPlateau(
 	};
 }
 
+/**
+ * Projects the smoothed current weight forward at `weeklyRate`, decelerating as
+ * expenditure falls with mass: dW/dt = (I − TDEE(W)) / ρ with TDEE linear in W
+ * (≈ 22 kcal/kg/day, Hall 2011) gives an exponential approach with time
+ * constant τ = ρ / 22 ≈ 350 days, so a straight line overstates loss by ~12% at
+ * 90 days. `rateConfidence` is the confidence of the rate estimate itself (from
+ * the 14-day TDEE window), which is what the projection actually rests on.
+ */
 export function projectWeight(
-	weightSeries: { date: string; weightKg: number | null }[],
-	weeklyRate: number
+	weightSeries: DatedWeight[],
+	weeklyRate: number,
+	rateConfidence?: ConfidenceLevel
 ): WeightForecast {
-	const sorted = weightSeries
-		.filter((e) => e.weightKg !== null)
-		.sort((a, b) => a.date.localeCompare(b.date));
+	const smoothed = smoothedWeights(weightSeries);
+	const currentWeight = smoothed.length > 0 ? smoothed[smoothed.length - 1].value : null;
 
-	const currentWeight = sorted.length > 0 ? (sorted[sorted.length - 1].weightKg as number) : null;
-
-	const sampleSize = sorted.length;
+	const sampleSize = smoothed.length;
 	const confidence: ConfidenceLevel =
-		sampleSize > 21 ? 'high' : sampleSize > 14 ? 'medium' : sampleSize > 7 ? 'low' : 'insufficient';
+		rateConfidence ??
+		(sampleSize > 21
+			? 'high'
+			: sampleSize > 14
+				? 'medium'
+				: sampleSize > 7
+					? 'low'
+					: 'insufficient');
 
-	const day30 = currentWeight !== null ? currentWeight + (weeklyRate * 30) / 7 : null;
-	const day60 = currentWeight !== null ? currentWeight + (weeklyRate * 60) / 7 : null;
-	const day90 = currentWeight !== null ? currentWeight + (weeklyRate * 90) / 7 : null;
+	const tau = KCAL_PER_KG_FAT / EXPENDITURE_PER_KG_KCAL_PER_DAY;
+	const dailyRate = weeklyRate / 7;
+	const project = (days: number) =>
+		currentWeight !== null ? currentWeight + dailyRate * tau * (1 - Math.exp(-days / tau)) : null;
 
-	return { currentWeight, weeklyRate, day30, day60, day90, sampleSize, confidence };
+	return {
+		currentWeight,
+		weeklyRate,
+		day30: project(30),
+		day60: project(60),
+		day90: project(90),
+		sampleSize,
+		confidence
+	};
 }
