@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import kotlinx.datetime.plus
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,25 +31,56 @@ class CaloricLagTest {
 
     @Test
     fun clearLagPatternSelectsBestLag() {
+        // Weight moves day over day in proportion to intake three days earlier;
+        // intake is a fixed pseudo-random sequence so neighbouring lags do not
+        // correlate with each other.
         val n = 30
-        val calDates = (1..n).map { "2024-01-${pad2(it)}" }
-        val wtDates =
-            (3..(n + 2)).map {
-                val month = if (it <= 31) "2024-01" else "2024-02"
-                val day = if (it <= 31) it else it - 31
-                "$month-${pad2(day)}"
+        val lag = 3
+        var seed = 42L
+
+        fun rand(): Double {
+            seed = (seed * 1664525L + 1013904223L) and 0xFFFFFFFFL
+            return seed.toDouble() / 4294967296.0
+        }
+        val calories = (0 until n + lag).map { Pair(isoDay(it), (2000.0 + (rand() - 0.5) * 800) as Double?) }
+        var w = 80.0
+        val weights =
+            (lag until n + lag).map { i ->
+                w += (calories[i - lag].second!! - 2000.0) / 20000.0
+                Pair(isoDay(i), w as Double?)
             }
-        val baseCalories = (1..n).map { if (it % 5 == 0) 3000.0 else 1800.0 }
-        val calories = makeSeries(calDates, baseCalories.map { it })
-        val shiftedWeights =
-            (1..n).map { i ->
-                val calIdx = i - 3
-                if (calIdx >= 0) 75.0 + (baseCalories[calIdx] - 1800.0) / 7700.0 else 75.0
-            }
-        val weights = makeSeries(wtDates.take(n), shiftedWeights)
         val result = computeCaloricLag(calories, weights, maxLag = 5)
-        assertNotNull(result.bestLag)
+        assertEquals(lag, result.bestLag)
+        assertEquals(5, result.comparisons)
+        val best = result.results.first { it.lag == lag }
+        assertTrue(best.correlation!!.r > 0.99)
+        assertTrue(best.qValue!! < 0.05)
     }
+
+    @Test
+    fun unrelatedRandomWalkYieldsNoBestLag() {
+        var seed = 7L
+
+        fun rand(): Double {
+            seed = (seed * 1664525L + 1013904223L) and 0xFFFFFFFFL
+            return seed.toDouble() / 4294967296.0
+        }
+        val calories = (0 until 40).map { Pair(isoDay(it), (2000.0 + (rand() - 0.5) * 800) as Double?) }
+        var w = 80.0
+        val weights =
+            calories.map { (date, _) ->
+                w += (rand() - 0.5) * 0.4
+                Pair(date, w as Double?)
+            }
+        val result = computeCaloricLag(calories, weights, maxLag = 7)
+        assertNull(result.bestLag)
+    }
+
+    private fun isoDay(i: Int): String =
+        kotlinx.datetime
+            .LocalDate(2024, 1, 1)
+            .plus(i, kotlinx.datetime.DateTimeUnit.DAY)
+            .toString()
 
     @Test
     fun allResultsHaveLagValues() {

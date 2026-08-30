@@ -39,6 +39,7 @@ import kotlinx.serialization.encoding.*
  * @param visibleNutrients
  * @param locale
  * @param caloricLagDaysOverride
+ * @param biologicalSex
  * @param timeZone
  */
 @Serializable
@@ -59,6 +60,7 @@ data class PreferencesUpdate(
     @SerialName(value = "visibleNutrients") val visibleNutrients: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "locale") val locale: PreferencesUpdate.Locale? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
+    @SerialName(value = "biologicalSex") val biologicalSex: PreferencesUpdate.BiologicalSex? = null,
     @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
 ) {
     /**
@@ -163,5 +165,21 @@ data class PreferencesUpdate(
 
         @SerialName(value = "de")
         de("de"),
+    }
+
+    /**
+     *
+     *
+     * Values: male,female
+     */
+    @Serializable
+    enum class BiologicalSex(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "male")
+        male("male"),
+
+        @SerialName(value = "female")
+        female("female"),
     }
 }

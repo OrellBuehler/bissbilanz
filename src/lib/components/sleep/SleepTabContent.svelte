@@ -54,7 +54,7 @@
 	let sleepFoodData = $state<SleepFoodPoint[]>([]);
 	let mealEntries = $state<MealEntry[]>([]);
 	let nutrientSeries = $state<DailyNutrient[]>([]);
-	let sleepWithBedtime = $state<{ bedtime: string }[]>([]);
+	let sleepWithBedtime = $state<{ entryDate: string; bedtime: string }[]>([]);
 
 	onMount(async () => {
 		sleepService.refresh();
@@ -71,9 +71,9 @@
 			if (mRes.data) mealEntries = mRes.data.data;
 			if (nRes.data) nutrientSeries = nRes.data.data;
 			if (sleepRes.data) {
-				sleepWithBedtime = sleepRes.data.entries.filter(
-					(e): e is SleepEntry & { bedtime: string } => e.bedtime !== null
-				);
+				sleepWithBedtime = sleepRes.data.entries
+					.filter((e): e is SleepEntry & { bedtime: string } => e.bedtime !== null)
+					.map((e) => ({ entryDate: e.entryDate, bedtime: e.bedtime }));
 			}
 		} catch {
 			// analytics cards will show no-data state

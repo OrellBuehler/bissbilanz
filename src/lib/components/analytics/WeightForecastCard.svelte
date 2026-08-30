@@ -17,7 +17,7 @@
 		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
 		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
 		const tdee = computeAdaptiveTDEE(weightSeries, calorieSeries, 14);
-		return projectWeight(weightSeries, tdee.weeklyRate);
+		return projectWeight(weightSeries, tdee.weeklyRate, tdee.confidence);
 	});
 
 	const headline = $derived.by(() => {
@@ -105,7 +105,9 @@
 					</span>
 				</div>
 
-				<p class="text-[11px] text-muted-foreground">{m.analytics_forecast_disclaimer()}</p>
+				<p class="text-[11px] text-muted-foreground">
+					{m.analytics_forecast_anchor()} · {m.analytics_forecast_disclaimer()}
+				</p>
 			</div>
 		{/if}
 	{/snippet}

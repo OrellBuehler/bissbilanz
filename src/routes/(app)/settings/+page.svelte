@@ -36,6 +36,7 @@
 
 	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
 	let startPage = $state('dashboard');
+	let biologicalSex = $state('unset');
 	let favoriteMealAssignmentMode = $state<AssignmentMode>('time_based');
 	let favoriteMealTimeframes = $state<TimeframeDraft[]>([]);
 
@@ -75,6 +76,7 @@
 		const p = cachedPrefs.value;
 		if (p) {
 			startPage = p.startPage ?? 'dashboard';
+			biologicalSex = p.biologicalSex ?? 'unset';
 			favoriteMealAssignmentMode = (p.favoriteMealAssignmentMode ?? 'time_based') as AssignmentMode;
 			favoriteMealTimeframes = (p.favoriteMealTimeframes ?? []).map((row) => {
 				const startH = Math.floor(row.startMinute / 60)
@@ -379,6 +381,36 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_biological_sex()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_biological_sex_desc()}</p>
+		</Card.Header>
+		<Card.Content>
+			<RadioGroup.Root
+				value={biologicalSex}
+				onValueChange={(v) => {
+					biologicalSex = v;
+					savePreference('biologicalSex', v === 'unset' ? null : v);
+				}}
+				class="flex flex-col gap-3"
+			>
+				<div class="flex items-center gap-2">
+					<RadioGroup.Item value="female" id="sex-female" />
+					<Label for="sex-female">{m.settings_sex_female()}</Label>
+				</div>
+				<div class="flex items-center gap-2">
+					<RadioGroup.Item value="male" id="sex-male" />
+					<Label for="sex-male">{m.settings_sex_male()}</Label>
+				</div>
+				<div class="flex items-center gap-2">
+					<RadioGroup.Item value="unset" id="sex-unset" />
+					<Label for="sex-unset">{m.settings_sex_unset()}</Label>
+				</div>
+			</RadioGroup.Root>
+		</Card.Content>
+	</Card.Root>
 
 	<Card.Root>
 		<Card.Header>

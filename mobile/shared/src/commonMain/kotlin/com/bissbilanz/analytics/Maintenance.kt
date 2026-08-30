@@ -91,3 +91,56 @@ fun calculateMaintenance(input: MaintenanceInput): MaintenanceResult? {
  * TS server.
  */
 internal fun jsRound(value: Double): Double = floor(value + 0.5)
+
+/** A weight measurement with an optional date, for [smoothedWeightChange]. */
+data class DatedWeight(
+    val weightKg: Double,
+    val entryDate: String? = null,
+)
+
+data class WeightChange(
+    val firstWeight: Double,
+    val lastWeight: Double,
+    val weightChangeKg: Double,
+)
+
+private const val ANCHOR_WINDOW_DAYS = 7
+
+/**
+ * Weight change over the interval from smoothed endpoints. A single raw
+ * measurement carries up to ~2 kg of fluid noise, so each endpoint is the mean
+ * of the weights in the first / last seven days; the anchors sit inside the
+ * interval, so their difference is scaled up to the full [days] by the anchors'
+ * actual separation. Falls back to raw endpoints when the weights carry no
+ * dates or the anchors overlap. Mirrors the TS `smoothedWeightChange`.
+ */
+fun smoothedWeightChange(
+    weights: List<DatedWeight>,
+    days: Int,
+): WeightChange {
+    val raw = WeightChange(weights.first().weightKg, weights.last().weightKg, weights.last().weightKg - weights.first().weightKg)
+    if (weights.any { it.entryDate == null }) return raw
+
+    val dated =
+        weights
+            .map {
+                Pair(
+                    kotlinx.datetime.LocalDate
+                        .parse(it.entryDate!!)
+                        .toEpochDays(),
+                    it.weightKg,
+                )
+            }.sortedBy { it.first }
+    val firstDay = dated.first().first
+    val lastDay = dated.last().first
+    val head = dated.filter { it.first < firstDay + ANCHOR_WINDOW_DAYS }
+    val tail = dated.filter { it.first > lastDay - ANCHOR_WINDOW_DAYS }
+    val headDay = head.sumOf { it.first.toDouble() } / head.size
+    val tailDay = tail.sumOf { it.first.toDouble() } / tail.size
+    val separation = tailDay - headDay
+    if (separation <= 0) return raw
+
+    val firstWeight = head.sumOf { it.second } / head.size
+    val lastWeight = tail.sumOf { it.second } / tail.size
+    return WeightChange(firstWeight, lastWeight, ((lastWeight - firstWeight) * days) / separation)
+}

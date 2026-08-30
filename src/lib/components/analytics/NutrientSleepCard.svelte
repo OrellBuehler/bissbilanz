@@ -24,11 +24,19 @@
 	} = $props();
 
 	const CORE_NUTRIENT_RDAS: typeof RDA_VALUES = [
-		{ nutrientKey: 'calories', unit: 'kcal', rdaMale: 2500, rdaFemale: 2000, label: 'Calories' },
-		{ nutrientKey: 'protein', unit: 'g', rdaMale: 56, rdaFemale: 46, label: 'Protein' },
-		{ nutrientKey: 'carbs', unit: 'g', rdaMale: 325, rdaFemale: 325, label: 'Carbs' },
-		{ nutrientKey: 'fat', unit: 'g', rdaMale: 78, rdaFemale: 78, label: 'Fat' }
-	];
+		{ nutrientKey: 'calories', unit: 'kcal', label: 'Calories' },
+		{ nutrientKey: 'protein', unit: 'g', label: 'Protein' },
+		{ nutrientKey: 'carbs', unit: 'g', label: 'Carbs' },
+		{ nutrientKey: 'fat', unit: 'g', label: 'Fat' }
+	].map((core) => ({
+		...core,
+		rdaMale: 0,
+		rdaFemale: 0,
+		earMale: null,
+		earFemale: null,
+		referenceType: 'ai' as const,
+		per1000Kcal: null
+	}));
 
 	const availableRdas = $derived.by(() => {
 		if (nutrientSeries.length === 0) return [];
@@ -113,7 +121,7 @@
 					</div>
 				{/each}
 				<p class="text-[11px] text-muted-foreground pt-1">
-					{m.analytics_correlation_disclaimer()}
+					{m.analytics_screened({ n: corrs[0].comparisons.toString() })} · {m.analytics_correlation_disclaimer()}
 				</p>
 			</div>
 		{:else}

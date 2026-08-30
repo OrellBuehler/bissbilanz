@@ -87,7 +87,28 @@ class TdeeTest {
         val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0)
         assertTrue(result.isPlateaued)
         assertEquals(14, result.plateauDays)
-        assertEquals("adaptive_metabolism", result.cause)
+        // A deficit with a flat scale is not evidence of adaptation; no cause is asserted.
+        assertEquals("none", result.cause)
+    }
+
+    @Test
+    fun plateauNotCalledOnAShortWindow() {
+        val dates = (1..6).map { "2024-01-${pad2(it)}" }
+        val weights = makeWeights(dates, (1..6).map { 75.0 })
+        val calories = makeCalories(dates, (1..6).map { 1900.0 })
+        val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0)
+        assertTrue(!result.isPlateaued)
+    }
+
+    @Test
+    fun sparseWeighInsAreRegressedOnTheDate() {
+        // Weigh-ins on days 1, 2, 3, 6 and 14 losing 0.05 kg/day: a row-index fit
+        // would compress 13 days into four steps and inflate the rate.
+        val dates = listOf(1, 2, 3, 6, 14).map { "2024-01-${pad2(it)}" }
+        val weights = dates.mapIndexed { _, d -> Pair(d, (80.0 - (d.takeLast(2).toInt() - 1) * 0.05) as Double?) }
+        val calories = (1..14).map { Pair("2024-01-${pad2(it)}", 2000.0 as Double?) }
+        val result = computeAdaptiveTDEE(weights, calories)
+        assertEquals(-0.35, result.weeklyRate, 1e-9)
     }
 
     @Test
@@ -97,16 +118,6 @@ class TdeeTest {
         val calories = makeCalories(dates, (1..14).map { 1600.0 })
         val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0)
         assertTrue(!result.isPlateaued)
-    }
-
-    @Test
-    fun plateauCauseHighSodium() {
-        val dates = (1..14).map { "2024-01-${pad2(it)}" }
-        val weights = makeWeights(dates, (1..14).map { 75.0 })
-        val calories = makeCalories(dates, (1..14).map { 2200.0 })
-        val result = detectPlateau(weights, calories, estimatedTDEE = 2200.0, sodiumAvg = 3500.0)
-        assertTrue(result.isPlateaued)
-        assertEquals("water_retention", result.cause)
     }
 
     @Test
@@ -131,7 +142,16 @@ class TdeeTest {
         assertTrue(result.day30!! < result.currentWeight!!)
         assertTrue(result.day60!! < result.day30)
         assertTrue(result.day90!! < result.day60)
+        // The curve flattens as expenditure falls with mass: 90-day loss is under the linear extrapolation.
+        assertTrue(result.day90 > result.currentWeight + (-0.5 * 90) / 7)
         assertEquals(ConfidenceLevel.HIGH, result.confidence)
+    }
+
+    @Test
+    fun weightForecastCarriesTheRateConfidence() {
+        val dates = (1..25).map { "2024-01-${pad2(it)}" }
+        val weights = makeWeights(dates, (1..25).map { 80.0 - it * 0.1 })
+        assertEquals(ConfidenceLevel.LOW, projectWeight(weights, -0.5, ConfidenceLevel.LOW).confidence)
     }
 
     @Test

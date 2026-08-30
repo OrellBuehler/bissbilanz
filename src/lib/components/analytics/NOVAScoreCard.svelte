@@ -71,7 +71,8 @@
 					{/each}
 				</div>
 				<p class="text-xs text-muted-foreground">
-					{m.analytics_nova_coverage({ pct: Math.round(result.coveragePct).toString() })}
+					{m.analytics_nova_coverage({ pct: Math.round(result.coveragePct).toString() })} ·
+					{m.analytics_nova_unknown({ pct: Math.round(result.unknownPct).toString() })}
 				</p>
 			</div>
 		{/if}

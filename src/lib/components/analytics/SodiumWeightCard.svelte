@@ -1,11 +1,13 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeSodiumWeightCorrelation } from '$lib/analytics/sodium-weight';
+	import { aggregateEntriesByDay } from '$lib/analytics/daily-coverage';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
 	type NutrientEntry = {
 		date: string;
+		calories: number;
 		sodium: number | null;
 		[key: string]: unknown;
 	};
@@ -23,13 +25,13 @@
 	const sodiumResult = $derived.by(() => {
 		if (weightFoodData.length === 0 || nutrientData.length === 0) return null;
 
-		const byDate = new Map<string, number>();
-		for (const entry of nutrientData) {
-			if (entry.sodium === null) continue;
-			const prev = byDate.get(entry.date) ?? 0;
-			byDate.set(entry.date, prev + entry.sodium);
-		}
-		const dailyNutrients = [...byDate.entries()].map(([date, sodium]) => ({ date, sodium }));
+		const dailyNutrients = aggregateEntriesByDay(nutrientData, ['sodium'] as const)
+			.filter((day) => day.values.sodium !== null)
+			.map((day) => ({
+				date: day.date,
+				sodium: day.values.sodium as number,
+				coverage: day.coverage.sodium
+			}));
 		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
 
 		return computeSodiumWeightCorrelation(dailyNutrients, weightSeries);
@@ -88,6 +90,16 @@
 						</span>
 					</div>
 				{/if}
+				{#if sodiumResult.correlation.pValue !== null && sodiumResult.correlation.ciLow !== null && sodiumResult.correlation.ciHigh !== null}
+					<p class="text-[11px] text-muted-foreground tabular-nums">
+						r = {sodiumResult.correlation.r.toFixed(2)} ·
+						{m.analytics_ci95({
+							low: sodiumResult.correlation.ciLow.toFixed(2),
+							high: sodiumResult.correlation.ciHigh.toFixed(2)
+						})} · {m.analytics_p_value({ p: sodiumResult.correlation.pValue.toFixed(3) })}
+					</p>
+				{/if}
+				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
 			</div>
 		{/if}
 	{/snippet}

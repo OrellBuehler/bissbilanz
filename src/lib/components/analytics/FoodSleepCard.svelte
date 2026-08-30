@@ -2,6 +2,7 @@
 	import InsightCard from './InsightCard.svelte';
 	import { detectFoodSleepPatterns } from '$lib/analytics/food-sleep';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
+	import { localMinutesOfDay, deviceTimeZone } from '$lib/analytics/local-time';
 	import * as m from '$lib/paraglide/messages';
 
 	type SleepFoodPoint = {
@@ -40,11 +41,12 @@
 
 		if (sleepData.length === 0) return null;
 
+		const timeZone = deviceTimeZone();
 		const eveningFoods = mealEntries
 			.filter((e) => {
 				if (!e.eatenAt) return false;
-				const hour = new Date(e.eatenAt).getHours();
-				return hour >= 17;
+				const minutes = localMinutesOfDay(e.eatenAt, timeZone);
+				return minutes !== null && minutes >= 17 * 60;
 			})
 			.map((e) => ({
 				date: e.date,
@@ -53,17 +55,19 @@
 				nutrients: {}
 			}));
 
-		return detectFoodSleepPatterns(eveningFoods, sleepData, 3);
+		return detectFoodSleepPatterns(eveningFoods, sleepData);
 	});
 
 	const sampleSize = $derived.by(() => sleepFoodData.filter((d) => d.sleepQuality !== null).length);
 	const confidence = $derived.by(() => getConfidenceLevel(sampleSize));
 
+	// The analytic already applies FDR control and a minimum effect; the card
+	// only splits what survived by direction.
 	const betterSleep = $derived.by(() =>
-		(patterns?.foodImpacts ?? []).filter((f) => f.delta > 0.3).slice(0, 5)
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta > 0).slice(0, 5)
 	);
 	const worseSleep = $derived.by(() =>
-		(patterns?.foodImpacts ?? []).filter((f) => f.delta < -0.3).slice(0, 5)
+		(patterns?.foodImpacts ?? []).filter((f) => f.delta < 0).slice(0, 5)
 	);
 </script>
 
@@ -114,8 +118,16 @@
 						</div>
 					</div>
 				{/if}
+				<p class="text-[11px] text-muted-foreground">
+					{m.analytics_food_sleep_screened({ n: (patterns?.comparisons ?? 0).toString() })}
+				</p>
 				<p class="text-[11px] text-muted-foreground">{m.analytics_correlation_disclaimer()}</p>
 			</div>
+		{:else if patterns && patterns.comparisons > 0}
+			<p class="text-sm text-muted-foreground">{m.analytics_food_sleep_none()}</p>
+			<p class="text-[11px] text-muted-foreground">
+				{m.analytics_food_sleep_screened({ n: patterns.comparisons.toString() })}
+			</p>
 		{:else}
 			<p class="text-sm text-muted-foreground">{m.insights_no_data()}</p>
 		{/if}

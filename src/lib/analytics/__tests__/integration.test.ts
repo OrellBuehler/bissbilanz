@@ -68,20 +68,24 @@ describe('analytics integration', () => {
 			const calories: { date: string; value: number }[] = [];
 			const weight: { date: string; value: number }[] = [];
 			const startDate = '2024-01-01';
+			let seed = 12345;
+			const rand = () => {
+				seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
+				return seed / 2 ** 32;
+			};
 
 			for (let i = 0; i < n + lag; i++) {
 				const d = new Date(startDate + 'T00:00:00Z');
 				d.setUTCDate(d.getUTCDate() + i);
-				const date = d.toISOString().slice(0, 10);
-				const calValue = 2000 + Math.sin(i * 0.5) * 400;
-				calories.push({ date, value: calValue });
+				calories.push({ date: d.toISOString().slice(0, 10), value: 2000 + (rand() - 0.5) * 800 });
 			}
 
+			let w = 75;
 			for (let i = lag; i < n + lag; i++) {
 				const d = new Date(startDate + 'T00:00:00Z');
 				d.setUTCDate(d.getUTCDate() + i);
-				const date = d.toISOString().slice(0, 10);
-				weight.push({ date, value: 75 + calories[i - lag].value / 20000 });
+				w += (calories[i - lag].value - 2000) / 20000;
+				weight.push({ date: d.toISOString().slice(0, 10), value: w });
 			}
 
 			const result = computeCaloricLag(calories, weight, 5);
@@ -130,67 +134,44 @@ describe('analytics integration', () => {
 	});
 
 	describe('food-sleep pattern detection end-to-end', () => {
+		const nights = 40;
+		const sleepData = Array.from({ length: nights }, (_, i) => {
+			const base = i % 4 === 0 ? 8.5 : i % 4 === 2 ? 4.5 : 6.5;
+			return { date: makeDates(nights)[i], quality: base + (i % 2 === 0 ? 0.2 : -0.2) };
+		});
+		const chamomile = sleepData
+			.filter((_, i) => i % 4 === 0)
+			.map((s) => ({
+				date: s.date,
+				foodId: 'chamomile',
+				foodName: 'Chamomile Tea',
+				nutrients: {}
+			}));
+		const coffee = sleepData
+			.filter((_, i) => i % 4 === 2)
+			.map((s) => ({ date: s.date, foodId: 'coffee', foodName: 'Coffee', nutrients: {} }));
+
 		it('detects positive and negative food impacts from realistic data', () => {
-			const sleepData = [
-				{ date: '2024-01-01', quality: 6 },
-				{ date: '2024-01-02', quality: 8 },
-				{ date: '2024-01-03', quality: 9 },
-				{ date: '2024-01-04', quality: 5 },
-				{ date: '2024-01-05', quality: 8 },
-				{ date: '2024-01-06', quality: 4 },
-				{ date: '2024-01-07', quality: 9 },
-				{ date: '2024-01-08', quality: 7 },
-				{ date: '2024-01-09', quality: 3 },
-				{ date: '2024-01-10', quality: 8 }
-			];
+			const { foodImpacts, overallAvgQuality, comparisons } = detectFoodSleepPatterns(
+				[...chamomile, ...coffee],
+				sleepData
+			);
 
-			const eveningFoods = [
-				{ date: '2024-01-02', foodId: 'chamomile', foodName: 'Chamomile Tea', nutrients: {} },
-				{ date: '2024-01-03', foodId: 'chamomile', foodName: 'Chamomile Tea', nutrients: {} },
-				{ date: '2024-01-05', foodId: 'chamomile', foodName: 'Chamomile Tea', nutrients: {} },
-				{ date: '2024-01-07', foodId: 'chamomile', foodName: 'Chamomile Tea', nutrients: {} },
-				{ date: '2024-01-04', foodId: 'coffee', foodName: 'Coffee', nutrients: {} },
-				{ date: '2024-01-06', foodId: 'coffee', foodName: 'Coffee', nutrients: {} },
-				{ date: '2024-01-09', foodId: 'coffee', foodName: 'Coffee', nutrients: {} }
-			];
-
-			const { foodImpacts, overallAvgQuality } = detectFoodSleepPatterns(eveningFoods, sleepData);
-
-			expect(foodImpacts.length).toBeGreaterThan(0);
+			expect(comparisons).toBe(2);
+			expect(foodImpacts.length).toBe(2);
 			expect(overallAvgQuality).toBeCloseTo(
 				sleepData.reduce((s, e) => s + e.quality, 0) / sleepData.length,
 				5
 			);
 
-			const chamomile = foodImpacts.find((f) => f.foodId === 'chamomile');
-			expect(chamomile).toBeDefined();
-			expect(chamomile!.delta).toBeGreaterThan(0);
+			const tea = foodImpacts.find((f) => f.foodId === 'chamomile');
+			expect(tea).toBeDefined();
+			expect(tea!.delta).toBeGreaterThan(0);
+			expect(foodImpacts.find((f) => f.foodId === 'coffee')!.delta).toBeLessThan(0);
 		});
 
 		it('returns sorted results with largest absolute delta first', () => {
-			const sleepData = [
-				{ date: '2024-01-01', quality: 9 },
-				{ date: '2024-01-02', quality: 2 },
-				{ date: '2024-01-03', quality: 9 },
-				{ date: '2024-01-04', quality: 2 },
-				{ date: '2024-01-05', quality: 9 },
-				{ date: '2024-01-06', quality: 5 },
-				{ date: '2024-01-07', quality: 5 },
-				{ date: '2024-01-08', quality: 5 },
-				{ date: '2024-01-09', quality: 5 }
-			];
-			const eveningFoods = [
-				{ date: '2024-01-01', foodId: 'best', foodName: 'Best Food', nutrients: {} },
-				{ date: '2024-01-03', foodId: 'best', foodName: 'Best Food', nutrients: {} },
-				{ date: '2024-01-05', foodId: 'best', foodName: 'Best Food', nutrients: {} },
-				{ date: '2024-01-02', foodId: 'worst', foodName: 'Worst Food', nutrients: {} },
-				{ date: '2024-01-04', foodId: 'worst', foodName: 'Worst Food', nutrients: {} },
-				{ date: '2024-01-06', foodId: 'neutral', foodName: 'Neutral Food', nutrients: {} },
-				{ date: '2024-01-07', foodId: 'neutral', foodName: 'Neutral Food', nutrients: {} },
-				{ date: '2024-01-08', foodId: 'neutral', foodName: 'Neutral Food', nutrients: {} }
-			];
-
-			const { foodImpacts } = detectFoodSleepPatterns(eveningFoods, sleepData);
+			const { foodImpacts } = detectFoodSleepPatterns([...chamomile, ...coffee], sleepData);
 
 			for (let i = 1; i < foodImpacts.length; i++) {
 				expect(Math.abs(foodImpacts[i - 1].delta)).toBeGreaterThanOrEqual(
@@ -264,11 +245,12 @@ describe('analytics integration', () => {
 
 		it('handles foods that do not match any sleep dates', () => {
 			const sleepData = [{ date: '2024-01-01', quality: 7 }];
-			const eveningFoods = [
-				{ date: '2025-06-01', foodId: 'f1', foodName: 'Food', nutrients: {} },
-				{ date: '2025-06-02', foodId: 'f1', foodName: 'Food', nutrients: {} },
-				{ date: '2025-06-03', foodId: 'f1', foodName: 'Food', nutrients: {} }
-			];
+			const eveningFoods = Array.from({ length: 6 }, (_, i) => ({
+				date: `2025-06-0${i + 1}`,
+				foodId: 'f1',
+				foodName: 'Food',
+				nutrients: {}
+			}));
 			const result = detectFoodSleepPatterns(eveningFoods, sleepData);
 			expect(result.foodImpacts).toHaveLength(0);
 		});

@@ -84,7 +84,28 @@ export type DailyNutrientTotals = {
 	vitaminE: number | null;
 	alcohol: number | null;
 	addedSugars: number | null;
+	/**
+	 * Share of the day's calories (0..1) that came from entries carrying a value
+	 * for the nutrient — the denominator every extended total was missing. A
+	 * 3200 mg sodium day at 12% coverage is a different thing from a 400 mg day
+	 * at 100%, and packaged foods carry labels while home cooking does not, so
+	 * the missingness is systematic. Falls back to the entry-count share on a
+	 * zero-calorie day.
+	 */
+	omega3Coverage: number;
+	omega6Coverage: number;
+	sodiumCoverage: number;
+	caffeineCoverage: number;
+	saturatedFatCoverage: number;
+	transFatCoverage: number;
+	vitaminCCoverage: number;
+	vitaminDCoverage: number;
+	vitaminECoverage: number;
+	alcoholCoverage: number;
+	addedSugarsCoverage: number;
 };
+
+export type ExtendedNutrientKey = (typeof EXTENDED_KEYS)[number];
 
 // --- SQL-semantics primitives ----------------------------------------------
 
@@ -106,10 +127,24 @@ export function nullSum(values: (number | null)[]): number | null {
 	return any ? acc : null;
 }
 
+/**
+ * Calorie-weighted share of `rows` whose nutrient value is present. Mirrors the
+ * SQL `SUM(CASE WHEN x IS NOT NULL THEN kcal ELSE 0 END) / NULLIF(SUM(kcal), 0)`
+ * with the entry-count share as the zero-calorie fallback.
+ */
+export function coverageShare(rows: { calories: number; present: boolean }[]): number {
+	if (rows.length === 0) return 0;
+	const totalKcal = rows.reduce((s, r) => s + r.calories, 0);
+	if (totalKcal > 0) {
+		return rows.reduce((s, r) => s + (r.present ? r.calories : 0), 0) / totalKcal;
+	}
+	return rows.filter((r) => r.present).length / rows.length;
+}
+
 // --- recipe macro resolution (recipe_macros / recipe_extended CTEs) ---------
 
 const CORE_KEYS = ['calories', 'protein', 'carbs', 'fat', 'fiber'] as const;
-const EXTENDED_KEYS = [
+export const EXTENDED_KEYS = [
 	'omega3',
 	'omega6',
 	'sodium',
@@ -124,7 +159,7 @@ const EXTENDED_KEYS = [
 ] as const;
 
 type CoreKey = (typeof CORE_KEYS)[number];
-type ExtendedKey = (typeof EXTENDED_KEYS)[number];
+type ExtendedKey = ExtendedNutrientKey;
 type ResolvedRecipe = Record<CoreKey | ExtendedKey, number | null>;
 
 /**
@@ -235,8 +270,12 @@ export function aggregateDailyNutrientTotals(
 		}));
 		const core = (key: CoreKey) =>
 			rows.reduce((sum, r) => sum + entryCore(r.entry, r.food, r.recipe, key), 0);
-		const ext = (key: ExtendedKey) =>
-			nullSum(rows.map((r) => entryExtended(r.entry, r.food, r.recipe, key)));
+		const extValues = (key: ExtendedKey) =>
+			rows.map((r) => entryExtended(r.entry, r.food, r.recipe, key));
+		const ext = (key: ExtendedKey) => nullSum(extValues(key));
+		const kcal = rows.map((r) => entryCore(r.entry, r.food, r.recipe, 'calories'));
+		const cov = (key: ExtendedKey) =>
+			coverageShare(extValues(key).map((v, i) => ({ calories: kcal[i], present: v !== null })));
 		return {
 			date,
 			calories: core('calories'),
@@ -254,7 +293,18 @@ export function aggregateDailyNutrientTotals(
 			vitaminD: ext('vitaminD'),
 			vitaminE: ext('vitaminE'),
 			alcohol: ext('alcohol'),
-			addedSugars: ext('addedSugars')
+			addedSugars: ext('addedSugars'),
+			omega3Coverage: cov('omega3'),
+			omega6Coverage: cov('omega6'),
+			sodiumCoverage: cov('sodium'),
+			caffeineCoverage: cov('caffeine'),
+			saturatedFatCoverage: cov('saturatedFat'),
+			transFatCoverage: cov('transFat'),
+			vitaminCCoverage: cov('vitaminC'),
+			vitaminDCoverage: cov('vitaminD'),
+			vitaminECoverage: cov('vitaminE'),
+			alcoholCoverage: cov('alcohol'),
+			addedSugarsCoverage: cov('addedSugars')
 		};
 	});
 }

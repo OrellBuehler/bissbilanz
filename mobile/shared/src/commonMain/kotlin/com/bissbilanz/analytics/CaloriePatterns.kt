@@ -21,6 +21,11 @@ data class CalorieCyclingResult(
     val sampleSize: Int,
 )
 
+/**
+ * Share of each eating day's calories logged before [cutoffHour] local. Days
+ * start at 04:00 (see [eatingDayOf]), so a 01:00 snack lands in the previous
+ * evening rather than counting as "morning" calories for the calendar date.
+ */
 fun computeCalorieFrontLoading(
     entries: List<Triple<String, String?, Double>>,
     timeZone: String,
@@ -32,13 +37,13 @@ fun computeCalorieFrontLoading(
     )
 
     val byDate = mutableMapOf<String, DayAccum>()
-    for ((date, eatenAt, calories) in entries) {
+    val cutoffMinutes = cutoffHour * 60 - EATING_DAY_BOUNDARY_MINUTES
+    for ((_, eatenAt, calories) in entries) {
         if (eatenAt == null) continue
-        val minutes = localMinutesOfDay(eatenAt, timeZone) ?: continue
-        val hour = minutes / 60
-        val day = byDate.getOrPut(date) { DayAccum() }
+        val point = eatingDayOf(eatenAt, timeZone) ?: continue
+        val day = byDate.getOrPut(point.date) { DayAccum() }
         day.total += calories
-        if (hour < cutoffHour) day.morning += calories
+        if (point.minutes < cutoffMinutes) day.morning += calories
     }
     val days = byDate.values.toList()
     val sampleSize = days.size

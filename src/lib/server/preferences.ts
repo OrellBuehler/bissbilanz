@@ -59,6 +59,7 @@ export const DEFAULT_PREFERENCES = {
 	favoriteTapAction: 'instant' as const,
 	favoriteMealAssignmentMode: 'time_based' as const,
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
+	biologicalSex: null as 'male' | 'female' | null,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

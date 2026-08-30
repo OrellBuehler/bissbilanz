@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import kotlinx.datetime.plus
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -121,17 +122,51 @@ class NutrientCorrelationTest {
 
     @Test
     fun exactly50PercentNullsStillIncluded() {
-        val dates = (1..10).map { "2024-01-${pad2(it)}" }
+        val dates = (1..16).map { "2024-01-${pad2(it)}" }
         val nutrients =
             makeDailyNutrients(
                 dates,
-                mapOf("protein" to dates.indices.map { if (it < 5) (it + 1).toDouble() else null }),
+                mapOf("protein" to dates.indices.map { if (it < 8) (it + 1).toDouble() else null }),
             )
         val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
         val result = computeNutrientOutcomeCorrelations(nutrients, outcomes)
         assertEquals(1, result.size)
         assertEquals("protein", result[0].nutrientKey)
         assertEquals(1.0, result[0].correlation.r, 1e-9)
+        assertEquals(1, result[0].comparisons)
+    }
+
+    @Test
+    fun fewerThanSevenPairsIsNotTested() {
+        val dates = (1..5).map { "2024-01-${pad2(it)}" }
+        val nutrients = makeDailyNutrients(dates, mapOf("protein" to dates.indices.map { (it + 1).toDouble() }))
+        val outcomes = dates.mapIndexed { i, date -> date to (i + 1).toDouble() }
+        assertEquals(emptyList(), computeNutrientOutcomeCorrelations(nutrients, outcomes))
+    }
+
+    @Test
+    fun noiseIsFilteredByFdrControl() {
+        val dates = (1..30).map { "2024-01-${pad2(it)}".let { d -> if (it <= 31) d else d } }
+        val safeDates =
+            (0 until 30).map {
+                kotlinx.datetime
+                    .LocalDate(2024, 1, 1)
+                    .plus(it, kotlinx.datetime.DateTimeUnit.DAY)
+                    .toString()
+            }
+        val nutrients =
+            makeDailyNutrients(
+                safeDates,
+                mapOf(
+                    "strong" to safeDates.indices.map { it * 3.0 },
+                    "noise" to safeDates.indices.map { kotlin.math.sin(it * 7.3) * 5 },
+                ),
+            )
+        val outcomes = safeDates.mapIndexed { i, date -> date to i.toDouble() }
+        val result = computeNutrientOutcomeCorrelations(nutrients, outcomes)
+        assertEquals(listOf("strong"), result.map { it.nutrientKey })
+        assertTrue(result[0].qValue < 0.01)
+        assertTrue(dates.isNotEmpty())
     }
 
     @Test

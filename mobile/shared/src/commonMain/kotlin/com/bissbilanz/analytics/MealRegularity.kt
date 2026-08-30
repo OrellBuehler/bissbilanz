@@ -2,11 +2,12 @@ package com.bissbilanz.analytics
 
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sqrt
 
 data class MealRegularityEntry(
     val mealType: String,
+    /** Circular mean clock time in minutes since midnight. */
     val avgMinute: Double,
+    /** Circular standard deviation in minutes. */
     val stddevMinutes: Double,
     val regularity: String,
 )
@@ -24,6 +25,11 @@ data class RegularityInputEntry(
     val eatenAt: String?,
 )
 
+/**
+ * How consistently each meal type lands at the same clock time. Clock time is
+ * circular, so the spread is the circular SD: dinners at 23:50 and 00:10 are 20
+ * minutes apart, where a linear SD on minute-of-day would have called it ~710.
+ */
 fun computeMealRegularity(
     entries: List<RegularityInputEntry>,
     timeZone: String,
@@ -54,10 +60,9 @@ fun computeMealRegularity(
     val stddevValues = mutableListOf<Double>()
 
     for ((mealType, minutesList) in byMealType) {
-        val n = minutesList.size
-        val avgMinute = minutesList.sumOf { it.toDouble() } / n
-        val variance = minutesList.sumOf { (it - avgMinute) * (it - avgMinute) } / n
-        val stddevMinutes = sqrt(variance)
+        val asDoubles = minutesList.map { it.toDouble() }
+        val avgMinute = circularMeanMinutes(asDoubles) ?: 0.0
+        val stddevMinutes = circularStdMinutes(asDoubles)
         val regularity =
             when {
                 stddevMinutes < 30 -> "high"

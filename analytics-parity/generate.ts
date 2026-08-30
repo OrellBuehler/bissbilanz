@@ -19,7 +19,23 @@ import {
 	type AggFood,
 	type AggRecipe
 } from '../src/lib/analytics/aggregation';
-import { calculateMaintenance, type MaintenanceInput } from '../src/lib/utils/maintenance';
+import {
+	calculateMaintenance,
+	smoothedWeightChange,
+	type MaintenanceInput
+} from '../src/lib/utils/maintenance';
+import {
+	normalCdf,
+	welchTTest,
+	benjaminiHochberg,
+	fisherCI95,
+	studentTwoSidedP
+} from '../src/lib/analytics/stats';
+import {
+	circularMeanMinutes,
+	circularStdMinutes,
+	eatingDayOf
+} from '../src/lib/analytics/local-time';
 import { computeTEF, computeDIIScore } from '../src/lib/analytics/food-quality';
 import { extractMealTimingPatterns } from '../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../src/lib/analytics/calorie-patterns';
@@ -187,9 +203,9 @@ function round(v: number, dp: number): number {
 	const tdee = computeAdaptiveTDEE(w, c, 14).estimatedTDEE;
 	add(
 		'detectPlateau',
-		'plateau_adaptive',
-		{ weightSeries: w, calorieSeries: c, estimatedTDEE: tdee, sodiumAvg: null },
-		detectPlateau(w, c, tdee, null)
+		'plateau_flat',
+		{ weightSeries: w, calorieSeries: c, estimatedTDEE: tdee },
+		detectPlateau(w, c, tdee)
 	);
 
 	const w2 = weightSeries(14, 78, 0.0);
@@ -197,8 +213,8 @@ function round(v: number, dp: number): number {
 	add(
 		'detectPlateau',
 		'plateau_intake_variance',
-		{ weightSeries: w2, calorieSeries: c2, estimatedTDEE: 2300, sodiumAvg: null },
-		detectPlateau(w2, c2, 2300, null)
+		{ weightSeries: w2, calorieSeries: c2, estimatedTDEE: 2300 },
+		detectPlateau(w2, c2, 2300)
 	);
 
 	const w3 = weightSeries(14, 78, -0.06); // clearly losing → not plateau
@@ -206,8 +222,29 @@ function round(v: number, dp: number): number {
 	add(
 		'detectPlateau',
 		'not_plateau',
-		{ weightSeries: w3, calorieSeries: c3, estimatedTDEE: 2400, sodiumAvg: null },
-		detectPlateau(w3, c3, 2400, null)
+		{ weightSeries: w3, calorieSeries: c3, estimatedTDEE: 2400 },
+		detectPlateau(w3, c3, 2400)
+	);
+
+	// Flat but too short a span to call: six weigh-ins over six days.
+	const w4 = weightSeries(6, 78, 0.0);
+	const c4 = calorieSeries(6, () => 2200);
+	add(
+		'detectPlateau',
+		'too_short_to_call',
+		{ weightSeries: w4, calorieSeries: c4, estimatedTDEE: 2300 },
+		detectPlateau(w4, c4, 2300)
+	);
+
+	// Sparse weigh-ins regressed on the date: 0.05 kg/day over 13 days stays 0.35 kg/week.
+	const sparseDense = weightSeries(14, 80, -0.05);
+	const w5 = [sparseDense[0], sparseDense[1], sparseDense[2], sparseDense[5], sparseDense[13]];
+	const c5 = calorieSeries(14, () => 2000);
+	add(
+		'computeAdaptiveTDEE',
+		'sparse_weighins_on_date_axis',
+		{ weightSeries: w5, calorieSeries: c5, windowDays: 14 },
+		computeAdaptiveTDEE(w5, c5, 14)
 	);
 }
 
@@ -227,6 +264,14 @@ function round(v: number, dp: number): number {
 		'flat_low_sample',
 		{ weightSeries: w2, weeklyRate: 0.0 },
 		projectWeight(w2, 0)
+	);
+
+	// The rate's own confidence overrides the weight-count badge.
+	add(
+		'projectWeight',
+		'rate_confidence_carried',
+		{ weightSeries: w, weeklyRate: -0.49, rateConfidence: 'low' },
+		projectWeight(w, -0.49, 'low')
 	);
 }
 
@@ -262,6 +307,45 @@ function round(v: number, dp: number): number {
 			calculateMaintenance(input)
 		);
 	}
+}
+
+// --- smoothedWeightChange ---------------------------------------------------
+{
+	const dated = [
+		{ entryDate: '2026-02-01', weightKg: 80.6 },
+		{ entryDate: '2026-02-02', weightKg: 79.8 },
+		{ entryDate: '2026-02-03', weightKg: 80.2 },
+		{ entryDate: '2026-02-26', weightKg: 79.4 },
+		{ entryDate: '2026-02-27', weightKg: 78.6 },
+		{ entryDate: '2026-02-28', weightKg: 79.0 }
+	];
+	add(
+		'smoothedWeightChange',
+		'seven_day_anchors',
+		{ weights: dated, days: 27 },
+		smoothedWeightChange(dated, 27)
+	);
+
+	// All weights inside one anchor window: anchors overlap, raw endpoints are used.
+	const clustered = [
+		{ entryDate: '2026-03-01', weightKg: 80.0 },
+		{ entryDate: '2026-03-02', weightKg: 79.5 },
+		{ entryDate: '2026-03-04', weightKg: 79.8 }
+	];
+	add(
+		'smoothedWeightChange',
+		'overlapping_anchors_fall_back',
+		{ weights: clustered, days: 3 },
+		smoothedWeightChange(clustered, 3)
+	);
+
+	const undated = [{ weightKg: 82.0 }, { weightKg: 81.1 }];
+	add(
+		'smoothedWeightChange',
+		'undated_raw_endpoints',
+		{ weights: undated, days: 14 },
+		smoothedWeightChange(undated, 14)
+	);
 }
 
 // --- aggregateDailyNutrientTotals -------------------------------------------
@@ -333,7 +417,8 @@ function round(v: number, dp: number): number {
 		{ protein: 120, carbs: 250, fat: 70, calories: 2100 },
 		{ protein: 90, carbs: 180, fat: 55, calories: 1600 },
 		{ protein: 160, carbs: 300, fat: 95, calories: 2850 },
-		{ protein: 100, carbs: 0, fat: 40, calories: 0 }
+		{ protein: 100, carbs: 0, fat: 40, calories: 0 },
+		{ protein: 110, carbs: 220, fat: 60, calories: 2300, alcohol: 30 }
 	];
 	add('computeTEF', 'varying_calories', { dailyNutrients: tefDays }, computeTEF(tefDays));
 	add('computeTEF', 'empty', { dailyNutrients: [] }, computeTEF([]));
@@ -349,7 +434,6 @@ function round(v: number, dp: number): number {
 		fiber: 14 + (i % 4) * 3,
 		omega3: 0.6 + (i % 3) * 0.4,
 		saturatedFat: 22 + (i % 5) * 4,
-		sodium: 2800 + (i % 4) * 350,
 		vitaminC: i < 6 ? 60 + i * 10 : undefined,
 		vitaminD: i < 3 ? 4.5 : undefined,
 		vitaminE: i < 4 ? 8.7 : 0,
@@ -358,6 +442,21 @@ function round(v: number, dp: number): number {
 		caffeine: i % 2 === 0 ? 180 + i * 15 : undefined
 	}));
 	add('computeDIIScore', 'varied_coverage', { dailyNutrients: days }, computeDIIScore(days));
+
+	// Per-day coverage gates a nutrient's mean: the low-coverage fibre days are
+	// dropped, and a 5000 g outlier saturates at |coefficient| instead of
+	// dominating the score.
+	const covered = Array.from({ length: 8 }, (_, i) => ({
+		fiber: i === 7 ? 5000 : i < 4 ? 30 : 8,
+		saturatedFat: 20 + i,
+		coverage: { fiber: i < 4 || i === 7 ? 1 : 0.4, saturatedFat: 0.9 }
+	}));
+	add(
+		'computeDIIScore',
+		'coverage_gated_and_bounded',
+		{ dailyNutrients: covered },
+		computeDIIScore(covered)
+	);
 
 	add('computeDIIScore', 'empty', { dailyNutrients: [] }, computeDIIScore([]));
 }
@@ -394,6 +493,22 @@ function round(v: number, dp: number): number {
 		{ entries: [], timeZone: 'UTC' },
 		extractMealTimingPatterns([], 'UTC')
 	);
+
+	// A 00:30 snack belongs to the evening before (eating day starts 04:00), and
+	// the average clock times are circular.
+	const midnight = [
+		{ date: '2025-05-01', eatenAt: '2025-05-01T06:00:00Z', calories: 400 }, // 08:00 CEST
+		{ date: '2025-05-01', eatenAt: '2025-05-01T18:00:00Z', calories: 700 }, // 20:00
+		{ date: '2025-05-02', eatenAt: '2025-05-01T22:30:00Z', calories: 150 }, // 00:30 next calendar day
+		{ date: '2025-05-02', eatenAt: '2025-05-02T06:00:00Z', calories: 400 }, // 08:00
+		{ date: '2025-05-02', eatenAt: '2025-05-02T17:00:00Z', calories: 700 } // 19:00
+	];
+	add(
+		'extractMealTimingPatterns',
+		'post_midnight_snack',
+		{ entries: midnight, timeZone: 'Europe/Zurich' },
+		extractMealTimingPatterns(midnight, 'Europe/Zurich')
+	);
 }
 
 // --- computeCalorieFrontLoading -----------------------------------------------
@@ -424,6 +539,18 @@ function round(v: number, dp: number): number {
 		{ date: '2025-02-02', eatenAt: '2025-02-02T13:45:00Z', calories: 300 }, // 08:45 local
 		{ date: '2025-02-02', eatenAt: '2025-02-02T23:10:00Z', calories: 450 } // 18:10 local
 	];
+	const postMidnight = [
+		{ date: '2025-03-10', eatenAt: '2025-03-10T00:00:00Z', calories: 500 }, // 01:00 CET → previous eating day
+		{ date: '2025-03-10', eatenAt: '2025-03-10T08:00:00Z', calories: 500 }, // 09:00
+		{ date: '2025-03-10', eatenAt: '2025-03-10T18:00:00Z', calories: 500 } // 19:00
+	];
+	add(
+		'computeCalorieFrontLoading',
+		'post_midnight_not_morning',
+		{ entries: postMidnight, timeZone: 'Europe/Zurich' },
+		computeCalorieFrontLoading(postMidnight, 'Europe/Zurich')
+	);
+
 	add(
 		'computeCalorieFrontLoading',
 		'new_york_cutoff12',
@@ -444,9 +571,13 @@ function round(v: number, dp: number): number {
 		{ date: '2025-03-04', eatenAt: '2025-03-04T10:40:00Z', caffeine: 80 }, // 11:40 local
 		{ date: '2025-03-05', eatenAt: '2025-03-05T11:20:00Z', caffeine: 120 }, // 12:20 local
 		{ date: '2025-03-06', eatenAt: '2025-03-06T12:05:00Z', caffeine: 60 }, // 13:05 local
+		{ date: '2025-03-14', eatenAt: '2025-03-14T08:10:00Z', caffeine: 70 }, // 09:10 local
+		{ date: '2025-03-15', eatenAt: '2025-03-15T09:50:00Z', caffeine: 70 }, // 10:50 local
 		{ date: '2025-03-07', eatenAt: '2025-03-07T15:30:00Z', caffeine: 90 }, // 16:30 local
 		{ date: '2025-03-08', eatenAt: '2025-03-08T16:45:00Z', caffeine: 85 }, // 17:45 local
 		{ date: '2025-03-09', eatenAt: '2025-03-09T17:10:00Z', caffeine: 100 }, // 18:10 local
+		{ date: '2025-03-16', eatenAt: '2025-03-16T16:20:00Z', caffeine: 100 }, // 17:20 local
+		{ date: '2025-03-17', eatenAt: '2025-03-17T18:05:00Z', caffeine: 100 }, // 19:05 local
 		{ date: '2025-03-31', eatenAt: '2025-03-31T17:20:00Z', caffeine: 75 }, // 19:20 CEST, sleep next month
 		{ date: '2025-03-10', eatenAt: '2025-03-10T08:00:00Z', caffeine: 0 }, // zero caffeine → skipped
 		{ date: '2025-03-11', eatenAt: null, caffeine: 200 }, // no timestamp → skipped
@@ -457,9 +588,13 @@ function round(v: number, dp: number): number {
 		{ date: '2025-03-05', sleepQuality: 8.0, sleepDurationMinutes: 455 },
 		{ date: '2025-03-06', sleepQuality: 8.2, sleepDurationMinutes: 480 },
 		{ date: '2025-03-07', sleepQuality: 7.9, sleepDurationMinutes: 445 },
+		{ date: '2025-03-15', sleepQuality: 8.4, sleepDurationMinutes: 465 },
+		{ date: '2025-03-16', sleepQuality: 7.7, sleepDurationMinutes: 450 },
 		{ date: '2025-03-08', sleepQuality: 6.1, sleepDurationMinutes: 380 },
 		{ date: '2025-03-09', sleepQuality: 5.8, sleepDurationMinutes: 365 },
 		{ date: '2025-03-10', sleepQuality: 6.4, sleepDurationMinutes: 395 },
+		{ date: '2025-03-17', sleepQuality: 5.9, sleepDurationMinutes: 370 },
+		{ date: '2025-03-18', sleepQuality: 6.2, sleepDurationMinutes: 385 },
 		{ date: '2025-04-01', sleepQuality: 5.5, sleepDurationMinutes: 350 },
 		{ date: '2025-03-13', sleepQuality: null, sleepDurationMinutes: 400 } // incomplete → skipped
 	];
@@ -563,21 +698,30 @@ function round(v: number, dp: number): number {
 		{ date: '2025-02-02', omega3: 2.0, omega6: 14.0 },
 		{ date: '2025-02-03', omega3: 1.0, omega6: 6.0 },
 		{ date: '2025-02-04', omega3: 0, omega6: 8.0 },
-		{ date: '2025-02-05', omega3: 1.2, omega6: 0 }
+		{ date: '2025-02-05', omega3: 1.2, omega6: 0 },
+		{ date: '2025-02-06', omega3: 0.2, omega6: 20.0, coverage: 0.3 } // under the coverage floor
 	];
 	add(
 		'computeOmegaRatio',
-		'elevated_with_dropped_days',
+		'optimal_with_dropped_days',
 		{ dailyNutrients: days },
 		computeOmegaRatio(days)
 	);
 
-	const critical = Array.from({ length: 8 }, (_, i) => ({
+	const high = Array.from({ length: 8 }, (_, i) => ({
 		date: isoDay(i),
 		omega3: 0.5,
+		omega6: 15.0,
+		coverage: 1
+	}));
+	add('computeOmegaRatio', 'high', { dailyNutrients: high }, computeOmegaRatio(high));
+
+	const elevated = Array.from({ length: 8 }, (_, i) => ({
+		date: isoDay(i),
+		omega3: 1.0,
 		omega6: 15.0
 	}));
-	add('computeOmegaRatio', 'critical', { dailyNutrients: critical }, computeOmegaRatio(critical));
+	add('computeOmegaRatio', 'elevated', { dailyNutrients: elevated }, computeOmegaRatio(elevated));
 
 	// No usable day at all: there is no ratio to report and the status says so.
 	add('computeOmegaRatio', 'empty', { dailyNutrients: [] }, computeOmegaRatio([]));
@@ -661,15 +805,23 @@ function round(v: number, dp: number): number {
 	// Weight responds to intake three days later, so lag 3 should correlate best.
 	// Note computeCaloricLag takes {date, value} rather than the {date, calories} /
 	// {date, weightKg} shapes the TDEE analytics use.
-	const lagDays = 24;
-	const kcal = Array.from({ length: lagDays }, (_, i) => ({
+	// Weight *changes* follow intake three days earlier; intake is a fixed
+	// pseudo-random sequence so neighbouring lags are not autocorrelated.
+	const lagDays = 30;
+	const noise = [
+		0.31, -0.42, 0.07, 0.48, -0.19, -0.36, 0.22, 0.44, -0.05, -0.47, 0.13, 0.38, -0.29, 0.02, 0.46,
+		-0.11, -0.4, 0.27, 0.35, -0.24, 0.09, -0.45, 0.41, -0.16, 0.18, -0.33, 0.49, -0.08, 0.25, -0.38,
+		0.15, 0.04, -0.21
+	];
+	const kcal = Array.from({ length: lagDays + 3 }, (_, i) => ({
 		date: isoDay(i),
-		value: 2000 + Math.round(600 * Math.sin(i / 2))
+		value: 2000 + Math.round(800 * noise[i])
 	}));
-	const wt = Array.from({ length: lagDays }, (_, i) => ({
-		date: isoDay(i),
-		value: round(80 + 0.4 * Math.sin(Math.max(0, i - 3) / 2), 4)
-	}));
+	let wtAcc = 80;
+	const wt = Array.from({ length: lagDays }, (_, i) => {
+		wtAcc += (kcal[i].value - 2000) / 20000;
+		return { date: isoDay(i + 3), value: round(wtAcc, 5) };
+	});
 	add(
 		'computeCaloricLag',
 		'three_day_lag',
@@ -818,10 +970,10 @@ function round(v: number, dp: number): number {
 {
 	// "Pizza" appears on four nights and drags quality down; "Salad" lifts it.
 	// "Tea" appears twice and falls under the three-night minimum.
-	const nights = 12;
+	const nights = 40;
 	const sleepPoints = Array.from({ length: nights }, (_, i) => ({
 		date: isoDay(i),
-		quality: i % 3 === 0 ? 4.5 : 8.0
+		quality: (i % 3 === 0 ? 4.5 : 8.0) + (i % 2 === 0 ? 0.2 : -0.2)
 	}));
 	const eveningFoods: {
 		date: string;
@@ -861,15 +1013,29 @@ function round(v: number, dp: number): number {
 	add(
 		'detectFoodSleepPatterns',
 		'pizza_hurts_salad_helps',
-		{ eveningFoods, sleepData: sleepPoints, minOccurrences: 3 },
-		detectFoodSleepPatterns(eveningFoods, sleepPoints, 3)
+		{ eveningFoods, sleepData: sleepPoints, minOccurrences: 5 },
+		detectFoodSleepPatterns(eveningFoods, sleepPoints, 5)
+	);
+
+	// "Toast" tracks the base rate and must not surface; "Tea" is under the minimum.
+	const withNoise = [
+		...eveningFoods,
+		...Array.from({ length: nights }, (_, i) => i)
+			.filter((i) => i % 5 === 1)
+			.map((i) => ({ date: isoDay(i), foodId: 'toast', foodName: 'Toast', nutrients: {} }))
+	];
+	add(
+		'detectFoodSleepPatterns',
+		'no_effect_food_filtered',
+		{ eveningFoods: withNoise, sleepData: sleepPoints, minOccurrences: 5 },
+		detectFoodSleepPatterns(withNoise, sleepPoints, 5)
 	);
 
 	add(
 		'detectFoodSleepPatterns',
 		'empty',
-		{ eveningFoods: [], sleepData: [], minOccurrences: 3 },
-		detectFoodSleepPatterns([], [], 3)
+		{ eveningFoods: [], sleepData: [], minOccurrences: 5 },
+		detectFoodSleepPatterns([], [], 5)
 	);
 }
 
@@ -900,6 +1066,75 @@ function round(v: number, dp: number): number {
 			{ isoString: iso, timeZone: tz },
 			localMinutesOfDay(iso, tz)
 		)
+	);
+}
+
+// --- stats helpers --------------------------------------------------------------
+{
+	for (const z of [-3, -1.96, -0.5, 0, 0.3, 1, 2.5]) {
+		add('normalCdf', `z_${z}`, { z }, normalCdf(z));
+	}
+	add('studentTwoSidedP', 't2.228_df10', { t: 2.228, df: 10 }, studentTwoSidedP(2.228, 10));
+	add('studentTwoSidedP', 't0_df5', { t: 0, df: 5 }, studentTwoSidedP(0, 5));
+	add('studentTwoSidedP', 'df0', { t: 1, df: 0 }, studentTwoSidedP(1, 0));
+
+	const wa = [8, 8.2, 7.9, 8.1, 8.3, 7.8];
+	const wb = [5, 5.2, 4.9, 5.1, 5.3, 4.8];
+	add('welchTTest', 'separated', { a: wa, b: wb }, welchTTest(wa, wb));
+	add('welchTTest', 'identical', { a: wa, b: wa }, welchTTest(wa, wa));
+	add('welchTTest', 'too_small', { a: [1], b: [2, 3] }, welchTTest([1], [2, 3]));
+	add(
+		'welchTTest',
+		'unequal_sizes',
+		{ a: [6, 7, 6.5, 7.2, 6.8, 7.1, 6.9, 7.3], b: [5.5, 6.1, 5.8] },
+		welchTTest([6, 7, 6.5, 7.2, 6.8, 7.1, 6.9, 7.3], [5.5, 6.1, 5.8])
+	);
+
+	const ps = [0.01, 0.04, 0.03, 0.5, 0.2, 0.001];
+	add('benjaminiHochberg', 'six', { pValues: ps }, benjaminiHochberg(ps));
+	add('benjaminiHochberg', 'empty', { pValues: [] }, benjaminiHochberg([]));
+
+	add('fisherCI95', 'r0.5_n30', { r: 0.5, n: 30 }, fisherCI95(0.5, 30));
+	add('fisherCI95', 'r-0.8_n8', { r: -0.8, n: 8 }, fisherCI95(-0.8, 8));
+	add('fisherCI95', 'n3', { r: 0.5, n: 3 }, fisherCI95(0.5, 3));
+	add('fisherCI95', 'r1', { r: 1, n: 20 }, fisherCI95(1, 20));
+}
+
+// --- circular time ------------------------------------------------------------
+{
+	const straddle = [23 * 60, 1 * 60];
+	add(
+		'circularMeanMinutes',
+		'straddles_midnight',
+		{ values: straddle },
+		circularMeanMinutes(straddle)
+	);
+	add(
+		'circularStdMinutes',
+		'straddles_midnight',
+		{ values: straddle },
+		circularStdMinutes(straddle)
+	);
+	const tight = [480, 490, 470, 485];
+	add('circularMeanMinutes', 'tight', { values: tight }, circularMeanMinutes(tight));
+	add('circularStdMinutes', 'tight', { values: tight }, circularStdMinutes(tight));
+	const opposite = [0, 720];
+	add('circularMeanMinutes', 'dispersed', { values: opposite }, circularMeanMinutes(opposite));
+	add('circularStdMinutes', 'dispersed', { values: opposite }, circularStdMinutes(opposite));
+	add('circularMeanMinutes', 'empty', { values: [] }, circularMeanMinutes([]));
+	add('circularStdMinutes', 'empty', { values: [] }, circularStdMinutes([]));
+	add('circularStdMinutes', 'single', { values: [600] }, circularStdMinutes([600]));
+
+	const eating: [string, string][] = [
+		['2024-03-10T00:30:00Z', 'UTC'],
+		['2024-03-10T03:59:00Z', 'UTC'],
+		['2024-03-10T04:00:00Z', 'UTC'],
+		['2025-03-30T00:30:00Z', 'Europe/Zurich'],
+		['2025-01-15T02:15:00Z', 'America/New_York'],
+		['not-a-timestamp', 'UTC']
+	];
+	eating.forEach(([iso, tz], i) =>
+		add('eatingDayOf', `sample_${i}`, { isoString: iso, timeZone: tz }, eatingDayOf(iso, tz))
 	);
 }
 

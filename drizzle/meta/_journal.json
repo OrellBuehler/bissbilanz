@@ -337,6 +337,13 @@
       "when": 1788040691916,
       "tag": "0047_shiny_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1788090647955,
+      "tag": "0048_tricky_magdalene",
+      "breakpoints": true
     }
   ]
 }

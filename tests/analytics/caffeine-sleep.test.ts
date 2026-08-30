@@ -17,10 +17,35 @@ function localHourTs(date: string, localHour: number): string {
 }
 
 describe('computeCaffeineSleepCutoff', () => {
-	test('late caffeine correlates with poor sleep', () => {
-		// caffeine at local hour 19-21 → poor sleep next day
-		// caffeine at local hour 8-10 → good sleep next day
-		// Need enough samples (3+) on each side of a candidate cutoff
+	test('late caffeine with a clear, repeated sleep penalty yields a personal cutoff', () => {
+		// 8 early days (last dose 08:00–11:00) followed by good sleep, 8 late days
+		// (18:00–21:00) followed by poor sleep. The split has ≥5 nights a side and
+		// survives the Bonferroni correction over the candidates tested.
+		const caffeineEntries: { date: string; eatenAt: string; caffeine: number }[] = [];
+		const sleepData: ReturnType<typeof makeSleepData>[] = [];
+		for (let i = 0; i < 16; i++) {
+			const day = `2024-01-${String(i + 1).padStart(2, '0')}`;
+			const next = `2024-01-${String(i + 2).padStart(2, '0')}`;
+			const late = i % 2 === 1;
+			caffeineEntries.push({
+				date: day,
+				eatenAt: localHourTs(day, late ? 18 + (i % 4) : 8 + (i % 4)),
+				caffeine: 100
+			});
+			sleepData.push(
+				makeSleepData(next, late ? 3 + (i % 3) * 0.3 : 8 - (i % 3) * 0.3, late ? 300 : 480)
+			);
+		}
+		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
+		expect(result.estimatedCutoffHour).not.toBeNull();
+		expect(result.estimatedCutoffHour!).toBeGreaterThanOrEqual(12);
+		expect(result.estimatedCutoffHour!).toBeLessThanOrEqual(18);
+		expect(result.comparisons).toBeGreaterThan(0);
+		expect(result.pValue!).toBeLessThan(0.05);
+		expect(result.defaultCutoffHour).toBe(14);
+	});
+
+	test('three nights a side is not enough to override the literature default', () => {
 		const caffeineEntries = [
 			{ date: '2024-01-01', eatenAt: localHourTs('2024-01-01', 19), caffeine: 100 },
 			{ date: '2024-01-02', eatenAt: localHourTs('2024-01-02', 20), caffeine: 100 },
@@ -38,7 +63,9 @@ describe('computeCaffeineSleepCutoff', () => {
 			makeSleepData('2024-01-10', 8, 490)
 		];
 		const result = computeCaffeineSleepCutoff(caffeineEntries, sleepData, TZ);
-		expect(result.estimatedCutoffHour).not.toBeNull();
+		expect(result.estimatedCutoffHour).toBeNull();
+		expect(result.comparisons).toBe(0);
+		expect(result.defaultCutoffHour).toBe(14);
 	});
 
 	test('early caffeine with no sleep impact gives null cutoff', () => {

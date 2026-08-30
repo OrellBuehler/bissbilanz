@@ -1,6 +1,8 @@
 package com.bissbilanz.analytics
 
+import kotlinx.datetime.LocalDate
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -16,14 +18,21 @@ data class TDEEResult(
 
 data class PlateauResult(
     val isPlateaued: Boolean,
+    /** Calendar days spanned by the weights the plateau test ran on. */
     val plateauDays: Int,
     val estimatedDeficit: Double?,
+    /**
+     * "intake_variance" or "none". Metabolic adaptation and sodium-driven water
+     * retention are not identifiable from a scale plus a food log, so they are no
+     * longer asserted.
+     */
     val cause: String,
     val confidence: ConfidenceLevel,
     val sampleSize: Int,
 )
 
 data class WeightForecast(
+    /** Trailing 7-day smoothed weight the projection is anchored on. */
     val currentWeight: Double?,
     val weeklyRate: Double,
     val day30: Double?,
@@ -33,21 +42,41 @@ data class WeightForecast(
     val confidence: ConfidenceLevel,
 )
 
-private fun linearSlope(values: List<Double>): Double {
-    val n = values.size
-    val xMean = (n - 1) / 2.0
-    val yMean = values.sum() / n
+private class DatedPoint(
+    val date: String,
+    val day: Int,
+    val value: Double,
+)
+
+private fun epochDay(date: String): Int = LocalDate.parse(date).toEpochDays()
+
+/**
+ * OLS slope of value on calendar day (kg/day). Regressing on the date rather
+ * than the row index keeps sparse logging from compressing time.
+ */
+private fun slopePerDay(points: List<DatedPoint>): Double {
+    val n = points.size
+    val xMean = points.sumOf { it.day.toDouble() } / n
+    val yMean = points.sumOf { it.value } / n
     var num = 0.0
     var den = 0.0
-    for (i in 0 until n) {
-        val dx = i - xMean
-        num += dx * (values[i] - yMean)
+    for (p in points) {
+        val dx = p.day - xMean
+        num += dx * (p.value - yMean)
         den += dx * dx
     }
     return if (den == 0.0) 0.0 else num / den
 }
 
-private fun mean(values: List<Double>): Double = values.sum() / values.size
+/** One weight per measured date (same-date entries collapse to the latest); the slope is fitted to these. */
+private fun measuredWeights(series: List<Pair<String, Double?>>): List<DatedPoint> =
+    weightMovingAverage(series.mapNotNull { (date, kg) -> kg?.let { WeightChartInput(date, it) } }, 1)
+        .map { DatedPoint(it.date, epochDay(it.date), it.weightKg) }
+
+/** Trailing 7-calendar-day smoothed weights, one per measured date, for the projection anchor. */
+private fun smoothedWeights(series: List<Pair<String, Double?>>): List<DatedPoint> =
+    weightMovingAverage(series.mapNotNull { (date, kg) -> kg?.let { WeightChartInput(date, it) } }, 7)
+        .map { DatedPoint(it.date, epochDay(it.date), it.movingAvg) }
 
 private fun stddev(values: List<Double>): Double {
     val m = mean(values)
@@ -63,22 +92,29 @@ private fun cutoffFromData(
     return shiftDate(maxDate, -windowDays)
 }
 
+private class WindowInputs(
+    val weights: List<DatedPoint>,
+    val calories: List<Double>,
+)
+
+private fun windowInputs(
+    weightSeries: List<Pair<String, Double?>>,
+    calorieSeries: List<Pair<String, Double?>>,
+    windowDays: Int,
+): WindowInputs {
+    val allDates = weightSeries.map { it.first } + calorieSeries.map { it.first }
+    val cutoff = cutoffFromData(allDates, windowDays)
+    val weights = measuredWeights(weightSeries).filter { it.date >= cutoff }
+    val calories = calorieSeries.filter { it.first >= cutoff && it.second != null }.map { it.second!! }
+    return WindowInputs(weights, calories)
+}
+
 fun computeAdaptiveTDEE(
     weightSeries: List<Pair<String, Double?>>,
     calorieSeries: List<Pair<String, Double?>>,
     windowDays: Int = 14,
 ): TDEEResult {
-    val allDates = weightSeries.map { it.first } + calorieSeries.map { it.first }
-    val cutoff = cutoffFromData(allDates, windowDays)
-    val weights =
-        weightSeries
-            .filter { it.first >= cutoff && it.second != null }
-            .sortedBy { it.first }
-            .map { it.second!! }
-    val calories =
-        calorieSeries
-            .filter { it.first >= cutoff && it.second != null }
-            .map { it.second!! }
+    val (weights, calories) = windowInputs(weightSeries, calorieSeries, windowDays).let { Pair(it.weights, it.calories) }
     val sampleSize = weights.size
     if (weights.size < 5 || calories.size < 10) {
         return TDEEResult(
@@ -90,8 +126,7 @@ fun computeAdaptiveTDEE(
             sampleSize = sampleSize,
         )
     }
-    val slope = linearSlope(weights)
-    val weeklyRate = slope * 7
+    val weeklyRate = slopePerDay(weights) * 7
     val weeklyEnergyBalance = weeklyRate * KCAL_PER_KG_FAT
     val avgDailyIntake = mean(calories)
     var estimatedTDEE = avgDailyIntake - weeklyEnergyBalance / 7
@@ -125,19 +160,10 @@ fun detectPlateau(
     weightSeries: List<Pair<String, Double?>>,
     calorieSeries: List<Pair<String, Double?>>,
     estimatedTDEE: Double?,
-    sodiumAvg: Double? = null,
 ): PlateauResult {
-    val allDates = weightSeries.map { it.first } + calorieSeries.map { it.first }
-    val cutoff = cutoffFromData(allDates, 14)
-    val weights =
-        weightSeries
-            .filter { it.first >= cutoff && it.second != null }
-            .sortedBy { it.first }
-            .map { it.second!! }
-    val calories =
-        calorieSeries
-            .filter { it.first >= cutoff && it.second != null }
-            .map { it.second!! }
+    val inputs = windowInputs(weightSeries, calorieSeries, 14)
+    val weights = inputs.weights
+    val calories = inputs.calories
     val sampleSize = weights.size
     val confidence: ConfidenceLevel =
         when {
@@ -145,40 +171,31 @@ fun detectPlateau(
             sampleSize >= 7 -> ConfidenceLevel.LOW
             else -> ConfidenceLevel.INSUFFICIENT
         }
-    if (sampleSize < 3) {
-        return PlateauResult(
+
+    fun notPlateaued(conf: ConfidenceLevel) =
+        PlateauResult(
             isPlateaued = false,
             plateauDays = 0,
             estimatedDeficit = null,
             cause = "none",
-            confidence = ConfidenceLevel.INSUFFICIENT,
+            confidence = conf,
             sampleSize = sampleSize,
         )
-    }
-    val slope = linearSlope(weights)
-    val weeklyRate = slope * 7
-    val isPlateaued = abs(weeklyRate) < PLATEAU_THRESHOLD_KG_PER_WEEK
-    if (!isPlateaued) {
-        return PlateauResult(
-            isPlateaued = false,
-            plateauDays = 0,
-            estimatedDeficit = null,
-            cause = "none",
-            confidence = confidence,
-            sampleSize = sampleSize,
-        )
-    }
+
+    if (sampleSize < 3) return notPlateaued(ConfidenceLevel.INSUFFICIENT)
+    val spanDays = weights.last().day - weights.first().day + 1
+    // Fewer than seven weigh-ins over fewer than ten days cannot separate "flat"
+    // from "not enough data": the slope's own standard error is of the order of
+    // the plateau threshold there.
+    if (sampleSize < 7 || spanDays < PLATEAU_MIN_SPAN_DAYS) return notPlateaued(confidence)
+    val weeklyRate = slopePerDay(weights) * 7
+    if (abs(weeklyRate) >= PLATEAU_THRESHOLD_KG_PER_WEEK) return notPlateaued(confidence)
+
     val estimatedDeficit = if (estimatedTDEE != null && calories.isNotEmpty()) estimatedTDEE - mean(calories) else null
-    val cause =
-        when {
-            calories.isNotEmpty() && stddev(calories) > 300 -> "intake_variance"
-            sodiumAvg != null && sodiumAvg > 3000 -> "water_retention"
-            estimatedDeficit != null && estimatedDeficit > 200 -> "adaptive_metabolism"
-            else -> "none"
-        }
+    val cause = if (calories.isNotEmpty() && stddev(calories) > 300) "intake_variance" else "none"
     return PlateauResult(
         isPlateaued = true,
-        plateauDays = sampleSize,
+        plateauDays = spanDays,
         estimatedDeficit = estimatedDeficit,
         cause = cause,
         confidence = confidence,
@@ -186,32 +203,38 @@ fun detectPlateau(
     )
 }
 
+/**
+ * Projects the smoothed current weight forward at [weeklyRate], decelerating as
+ * expenditure falls with mass (≈ 22 kcal/kg/day, Hall 2011): an exponential
+ * approach with time constant τ = 7700 / 22 ≈ 350 days. [rateConfidence] is the
+ * confidence of the rate estimate itself, which is what the projection rests on.
+ */
 fun projectWeight(
     weightSeries: List<Pair<String, Double?>>,
     weeklyRate: Double,
+    rateConfidence: ConfidenceLevel? = null,
 ): WeightForecast {
-    val sorted =
-        weightSeries
-            .filter { it.second != null }
-            .sortedBy { it.first }
-    val currentWeight = if (sorted.isNotEmpty()) sorted.last().second else null
-    val sampleSize = sorted.size
+    val smoothed = smoothedWeights(weightSeries)
+    val currentWeight = smoothed.lastOrNull()?.value
+    val sampleSize = smoothed.size
     val confidence: ConfidenceLevel =
-        when {
-            sampleSize > 21 -> ConfidenceLevel.HIGH
-            sampleSize > 14 -> ConfidenceLevel.MEDIUM
-            sampleSize > 7 -> ConfidenceLevel.LOW
-            else -> ConfidenceLevel.INSUFFICIENT
-        }
-    val day30 = currentWeight?.let { it + (weeklyRate * 30) / 7 }
-    val day60 = currentWeight?.let { it + (weeklyRate * 60) / 7 }
-    val day90 = currentWeight?.let { it + (weeklyRate * 90) / 7 }
+        rateConfidence
+            ?: when {
+                sampleSize > 21 -> ConfidenceLevel.HIGH
+                sampleSize > 14 -> ConfidenceLevel.MEDIUM
+                sampleSize > 7 -> ConfidenceLevel.LOW
+                else -> ConfidenceLevel.INSUFFICIENT
+            }
+    val tau = KCAL_PER_KG_FAT / EXPENDITURE_PER_KG_KCAL_PER_DAY
+    val dailyRate = weeklyRate / 7
+
+    fun project(days: Int): Double? = currentWeight?.let { it + dailyRate * tau * (1 - exp(-days / tau)) }
     return WeightForecast(
         currentWeight = currentWeight,
         weeklyRate = weeklyRate,
-        day30 = day30,
-        day60 = day60,
-        day90 = day90,
+        day30 = project(30),
+        day60 = project(60),
+        day90 = project(90),
         sampleSize = sampleSize,
         confidence = confidence,
     )

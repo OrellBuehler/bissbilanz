@@ -137,6 +137,22 @@ class MealRegularityTest {
     }
 
     @Test
+    fun dinnersStraddlingMidnightAreTwentyMinutesApartNotTwelveHours() {
+        val entries =
+            listOf(
+                RegularityInputEntry("2024-01-01", "Dinner", "2024-01-01T23:50:00Z"),
+                RegularityInputEntry("2024-01-02", "Dinner", "2024-01-03T00:10:00Z"),
+                RegularityInputEntry("2024-01-03", "Dinner", "2024-01-03T23:55:00Z"),
+                RegularityInputEntry("2024-01-04", "Dinner", "2024-01-05T00:05:00Z"),
+            )
+        val result = computeMealRegularity(entries, "UTC")
+        assertTrue(result.meals[0].stddevMinutes < 15)
+        assertEquals("high", result.meals[0].regularity)
+        val avg = result.meals[0].avgMinute
+        assertTrue(avg < 30 || avg > 1410)
+    }
+
+    @Test
     fun multipleMealTypesEachTrackedSeparately() {
         val entries =
             listOf(

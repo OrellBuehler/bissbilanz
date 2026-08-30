@@ -359,6 +359,9 @@ export const userPreferences = pgTable('user_preferences', {
 		.notNull()
 		.default(sql`ARRAY['Breakfast', 'Lunch', 'Dinner', 'Snacks']::text[]`),
 	caloricLagDaysOverride: integer('caloric_lag_days_override'),
+	// 'male' | 'female' | null. Drives sex-specific dietary reference intakes
+	// (EAR/RDA/AI) in the nutrient-adequacy insights; unset shows both.
+	biologicalSex: text('biological_sex'),
 	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
 	timeZone: text('time_zone').notNull().default('UTC'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
