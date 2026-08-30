@@ -32,8 +32,8 @@
 				{m.foods_duplicates_banner_count({ count: groups.length })}
 			</Badge>
 		</Alert.Title>
-		<Alert.Description class="mt-2 space-y-2">
-			<ul class="space-y-1.5">
+		<Alert.Description class="mt-2 w-full space-y-2">
+			<ul class="w-full space-y-1.5">
 				{#each previewGroups as group (group.reason + ':' + group.key)}
 					<li
 						class="flex items-center justify-between gap-2 rounded-md border border-amber-200/60 bg-background/70 p-2 text-sm dark:border-amber-900/30"
@@ -48,14 +48,14 @@
 									: m.foods_duplicates_reason_name_brand()})
 							</span>
 						</span>
-						<Button size="sm" variant="outline" onclick={() => onResolve(group)}>
+						<Button size="sm" variant="outline" class="shrink-0" onclick={() => onResolve(group)}>
 							{m.foods_duplicates_resolve()}
 						</Button>
 					</li>
 				{/each}
 			</ul>
 			{#if groups.length > previewGroups.length}
-				<div class="flex justify-end">
+				<div class="flex w-full justify-end">
 					<Button size="sm" variant="ghost" onclick={() => goto('/foods/duplicates')}>
 						{m.foods_duplicates_view_all()}
 						<ChevronRight class="size-4" />
