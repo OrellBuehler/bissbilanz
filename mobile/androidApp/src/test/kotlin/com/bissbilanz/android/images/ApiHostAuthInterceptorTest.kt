@@ -1,5 +1,7 @@
 package com.bissbilanz.android.images
 
+import io.mockk.every
+import io.mockk.mockk
 import okhttp3.Interceptor
 import okhttp3.Protocol
 import okhttp3.Request
@@ -18,15 +20,14 @@ class ApiHostAuthInterceptorTest {
         base: String = baseUrl,
     ): String? {
         var seen: Request? = null
+        val original = Request.Builder().url(url).build()
         val chain =
-            object : Interceptor.Chain {
-                private val original = Request.Builder().url(url).build()
-
-                override fun request(): Request = original
-
-                override fun proceed(request: Request): Response {
+            mockk<Interceptor.Chain> {
+                every { request() } returns original
+                every { proceed(any()) } answers {
+                    val request = firstArg<Request>()
                     seen = request
-                    return Response
+                    Response
                         .Builder()
                         .request(request)
                         .protocol(Protocol.HTTP_1_1)
@@ -35,31 +36,6 @@ class ApiHostAuthInterceptorTest {
                         .body("".toResponseBody(null))
                         .build()
                 }
-
-                override fun connection() = null
-
-                override fun call() = throw UnsupportedOperationException()
-
-                override fun connectTimeoutMillis() = 0
-
-                override fun withConnectTimeout(
-                    timeout: Int,
-                    unit: java.util.concurrent.TimeUnit,
-                ) = this
-
-                override fun readTimeoutMillis() = 0
-
-                override fun withReadTimeout(
-                    timeout: Int,
-                    unit: java.util.concurrent.TimeUnit,
-                ) = this
-
-                override fun writeTimeoutMillis() = 0
-
-                override fun withWriteTimeout(
-                    timeout: Int,
-                    unit: java.util.concurrent.TimeUnit,
-                ) = this
             }
         ApiHostAuthInterceptor(base) { token }.intercept(chain)
         return seen?.header("Authorization")
