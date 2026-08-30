@@ -77,9 +77,15 @@ jobs:
     name: Analyze (swift)
     runs-on: macos-14
     # CodeQL traces the Swift compiler, so the build runs far slower than a
-    # normal xcodebuild (~2-4 min) — successful runs land at 35-45 min. 60 was
-    # too tight and an occasional slow runner tipped over it; 90 gives headroom.
-    timeout-minutes: 90
+    # normal xcodebuild — the untraced iOS job builds the same app in ~10-14 min.
+    # Traced runs have crept up as the app has grown: 35-45 min when the limit
+    # was raised 60 -> 90, then 49 min on 70421a6d and 95 min on c9701126, which
+    # timed out on main before this branch existed. 150 restores headroom.
+    #
+    # This is a ceiling, not a target. If it starts being hit again the fix is to
+    # find what is slow to type-check (`-Xfrontend -warn-long-function-bodies`)
+    # rather than to keep raising the number.
+    timeout-minutes: 150
     permissions:
       contents: read
       security-events: write
