@@ -18,6 +18,7 @@
 	import Apple from '@lucide/svelte/icons/apple';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Seo from '$lib/components/Seo.svelte';
+	import StripeBuyButton from '$lib/components/StripeBuyButton.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { absoluteUrl, GITHUB_URL, OG_IMAGE, SITE_URL, TESTFLIGHT_URL } from '$lib/seo';
 	import * as m from '$lib/paraglide/messages';
@@ -294,6 +295,19 @@
 		</div>
 	</section>
 
+	<!-- Support -->
+	<section id="support" class="px-6 py-24 text-center">
+		<div class="mx-auto max-w-2xl">
+			<h2 class="font-heading mb-4 text-3xl font-bold tracking-tight">
+				{m.landing_support_headline()}
+			</h2>
+			<p class="mb-8 text-muted-foreground">{m.landing_support_text()}</p>
+			<div class="flex justify-center">
+				<StripeBuyButton />
+			</div>
+		</div>
+	</section>
+
 	<!-- Footer -->
 	<footer class="border-t border-outline-variant/15 px-6 py-8">
 		<div
@@ -313,6 +327,13 @@
 				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
 			>
 				{m.landing_footer_support()}
+			</Button>
+			<Button
+				variant="link"
+				href="#support"
+				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
+			>
+				{m.landing_footer_donate()}
 			</Button>
 			<span>© {new Date().getFullYear()} {m.app_title()}</span>
 		</div>

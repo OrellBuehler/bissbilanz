@@ -32,8 +32,27 @@ const config = {
 					'https://lh3.googleusercontent.com'
 				],
 				'style-src': ['self', 'unsafe-inline'],
-				'script-src': ['self', 'wasm-unsafe-eval', 'https://a.orellbuehler.ch'],
-				'connect-src': ['self', 'https://a.orellbuehler.ch', 'https://*.ingest.de.sentry.io'],
+				// js.stripe.com serves the embedded buy button; the checkout it opens
+				// runs in a Stripe-hosted iframe, which default-src 'self' would block.
+				'script-src': [
+					'self',
+					'wasm-unsafe-eval',
+					'https://a.orellbuehler.ch',
+					'https://js.stripe.com'
+				],
+				// js.stripe.com hosts the button itself, checkout.stripe.com the payment
+				// overlay, hooks.stripe.com the 3-D Secure challenge.
+				'frame-src': [
+					'https://js.stripe.com',
+					'https://checkout.stripe.com',
+					'https://hooks.stripe.com'
+				],
+				'connect-src': [
+					'self',
+					'https://a.orellbuehler.ch',
+					'https://*.ingest.de.sentry.io',
+					'https://api.stripe.com'
+				],
 				'base-uri': ['self'],
 				'form-action': ['self'],
 				'frame-ancestors': ['none']

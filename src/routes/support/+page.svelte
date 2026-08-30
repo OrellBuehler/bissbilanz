@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Seo from '$lib/components/Seo.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { DONATION_URL } from '$lib/seo';
 </script>
 
 <Seo title={m.seo_support_title()} description={m.seo_support_description()} path="/support" />
@@ -99,6 +100,15 @@
 		<a href="https://github.com/OrellBuehler/bissbilanz/blob/main/SECURITY.md" class="underline"
 			>security policy</a
 		> says what to include and what happens next.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Supporting the project</h2>
+	<p class="mb-6">
+		Bissbilanz is free and has no ads, no tracking and nothing to unlock. If you would like to help
+		cover hosting and development, you can
+		<a href={DONATION_URL} target="_blank" rel="noopener" class="underline">contribute here</a>.
+		Contributions are entirely voluntary and change nothing in the app — everyone gets the same
+		features either way.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Privacy</h2>

@@ -10,6 +10,11 @@ export const OG_IMAGE = `${SITE_URL}/og-image.png`;
 export const GITHUB_URL = 'https://github.com/OrellBuehler/bissbilanz';
 export const TESTFLIGHT_URL = 'https://testflight.apple.com/join/e5Y3scbW';
 
+// Stripe Payment Link. Web only, and deliberately not surfaced in the iOS or
+// Android apps: collecting money inside an app runs into App Store and Play
+// billing rules that the carve-outs mostly write for registered non-profits.
+export const DONATION_URL = 'https://buy.stripe.com/3cIcN60k64iU7a84zx04800';
+
 export const localePath = (path: string, locale: string) => {
 	const clean = path === '/' ? '' : path.replace(/\/$/, '');
 	return locale === baseLocale ? clean || '/' : `/${locale}${clean}`;
