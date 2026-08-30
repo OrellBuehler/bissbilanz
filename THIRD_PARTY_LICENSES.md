@@ -6,7 +6,7 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 237   |
+| MIT                       | 238   |
 | Apache-2.0                | 26    |
 | ISC                       | 15    |
 | BSD-2-Clause              | 6     |
@@ -2622,7 +2622,7 @@ SOFTWARE.
 
 </details>
 
-### @sveltejs/kit@2.70.2
+### @sveltejs/kit@2.70.3
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/kit
@@ -3306,7 +3306,7 @@ SOFTWARE.
 
 </details>
 
-### bun-types@1.3.14
+### bun-types@1.4.0
 
 - **License:** MIT
 - **Repository:** https://github.com/oven-sh/bun
@@ -7887,6 +7887,41 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 </details>
 
 ### picomatch@4.0.5
+
+- **License:** MIT
+- **Repository:** https://github.com/micromatch/picomatch
+
+<details><summary>License Text</summary>
+
+```
+
+The MIT License (MIT)
+
+Copyright (c) 2017-present, Jon Schlinkert.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+```
+
+</details>
+
+### picomatch@4.0.7
 
 - **License:** MIT
 - **Repository:** https://github.com/micromatch/picomatch
