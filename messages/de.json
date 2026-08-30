@@ -873,6 +873,8 @@
 	"analytics_adequacy_depends_on_sex": "Abhängig vom Geschlecht",
 	"analytics_adequacy_set_sex": "Lege dein biologisches Geschlecht in den Einstellungen fest für geschlechtsspezifische Referenzen",
 	"analytics_adequacy_days": "{days} T",
+	"analytics_adequacy_unmeasured": "Nicht erfasst ({count})",
+	"analytics_adequacy_unmeasured_hint": "Keines deiner protokollierten Lebensmittel enth\u00e4lt Werte daf\u00fcr \u2014 sie sind unbekannt, nicht ausreichend.",
 	"analytics_sex_male": "Männer",
 	"analytics_sex_female": "Frauen",
 	"analytics_sex_unset": "beide Geschlechter",

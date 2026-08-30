@@ -873,6 +873,8 @@
 	"analytics_adequacy_depends_on_sex": "Depends on sex",
 	"analytics_adequacy_set_sex": "Set your biological sex in Settings for sex-specific references",
 	"analytics_adequacy_days": "{days} d",
+	"analytics_adequacy_unmeasured": "Not tracked ({count})",
+	"analytics_adequacy_unmeasured_hint": "No food you logged carries a value for these, so nothing can be said about them \u2014 they are unknown, not adequate.",
 	"analytics_sex_male": "men",
 	"analytics_sex_female": "women",
 	"analytics_sex_unset": "both sexes",

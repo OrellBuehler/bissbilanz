@@ -115,3 +115,69 @@ export const sleepFoodCorrelationResponseSchema = z
 		data: z.array(sleepFoodCorrelationEntrySchema)
 	})
 	.meta({ id: 'SleepFoodCorrelationResponse' });
+
+const nutrientContributorSchema = z
+	.object({
+		foodId: z.string().nullable(),
+		recipeId: z.string().nullable(),
+		name: z.string(),
+		totalAmount: z.number(),
+		sharePct: z.number(),
+		timesLogged: z.number()
+	})
+	.meta({ id: 'NutrientContributor' });
+
+const nutrientGapSchema = z
+	.object({
+		key: z.string(),
+		label: z.string(),
+		unit: z.string(),
+		avgIntake: z.number(),
+		daysMeasured: z.number(),
+		coverageAvg: z.number(),
+		target: z.number(),
+		targetLow: z.number(),
+		targetHigh: z.number(),
+		referenceType: z.enum(['rda', 'ai', 'cdrr']),
+		referenceSource: z.enum(['iom', 'user_goal']),
+		pct: z.number(),
+		pctLow: z.number(),
+		pctHigh: z.number(),
+		verdict: z.enum([
+			'likely_adequate',
+			'uncertain',
+			'likely_inadequate',
+			'no_conclusion',
+			'above_limit',
+			'depends_on_sex'
+		]),
+		deficitPerDay: z.number(),
+		topContributors: z.array(nutrientContributorSchema)
+	})
+	.meta({ id: 'NutrientGap' });
+
+const unmeasuredNutrientSchema = z
+	.object({
+		key: z.string(),
+		label: z.string(),
+		unit: z.string(),
+		reason: z.enum(['no_data', 'low_coverage']),
+		coverageAvg: z.number()
+	})
+	.meta({ id: 'UnmeasuredNutrient' });
+
+export const nutrientGapsResponseSchema = z
+	.object({
+		startDate: z.string(),
+		endDate: z.string(),
+		days: z.number(),
+		daysLogged: z.number(),
+		avgCalories: z.number(),
+		minCoverage: z.number(),
+		biologicalSex: z.enum(['male', 'female']).nullable(),
+		biologicalSexSource: z.enum(['argument', 'preference', 'unknown']),
+		nutrients: z.array(nutrientGapSchema),
+		unmeasured: z.array(unmeasuredNutrientSchema),
+		summary: z.record(z.string(), z.number())
+	})
+	.meta({ id: 'NutrientGapsResponse' });

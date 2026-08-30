@@ -74,6 +74,10 @@ let mockSleepFoodCorrelation: any = null;
 let mockWeightFoodSeries: any = null;
 let mockExtendedNutrients: any = null;
 let mockDailyNutrients: any = null;
+let mockRdaEntries: any = [];
+let mockNutrientCandidates: any = [];
+let mockNutrientCandidateArgs: any = null;
+let mockBiologicalSex: 'male' | 'female' | null = null;
 let mockMealTypes: any[] = [];
 let mockDayProperties: any = null;
 let mockCalendarStats: any = null;
@@ -226,6 +230,13 @@ const mockDeps = {
 	getWeightFoodSeries: async () => mockWeightFoodSeries,
 	getExtendedNutrientEntries: async () => mockExtendedNutrients,
 	getDailyNutrientTotals: async () => mockDailyNutrients,
+	getRdaNutrientEntries: async () => mockRdaEntries,
+	getNutrientCandidates: async (userId: string, options: any) => {
+		mockNutrientCandidateArgs = options;
+		return mockNutrientCandidates;
+	},
+	getBiologicalSex: async () => mockBiologicalSex,
+	getUserTimeZone: async () => 'UTC',
 	listMealTypes: async () => mockMealTypes,
 	getDayProperties: async () => mockDayProperties,
 	setDayProperties: async () => mockDayProperties,
@@ -314,6 +325,10 @@ const {
 	handleGetWeightFoodSeries,
 	handleGetExtendedNutrients,
 	handleGetDailyNutrients,
+	handleGetNutrientGaps,
+	handleFindNutrientSources,
+	handleGetEatingPatterns,
+	handleGetMealPlanContext,
 	handleListMealTypes,
 	handleGetSupplementHistory,
 	handleGetDayProperties,
@@ -384,6 +399,10 @@ describe('MCP handlers', () => {
 		mockWeightFoodSeries = null;
 		mockExtendedNutrients = null;
 		mockDailyNutrients = null;
+		mockRdaEntries = [];
+		mockNutrientCandidates = [];
+		mockNutrientCandidateArgs = null;
+		mockBiologicalSex = null;
 		mockMealTypes = [];
 		mockDayProperties = null;
 		mockCalendarStats = null;
@@ -1411,6 +1430,281 @@ describe('MCP handlers', () => {
 				endDate: '2026-02-10'
 			});
 			expect(result).toEqual(mockDailyNutrients);
+		});
+	});
+
+	describe('handleGetNutrientGaps', () => {
+		/** One entry a day carrying the named nutrients, so coverage is a clean 1.0. */
+		const entryDay = (date: string, nutrients: Record<string, number | null>) => ({
+			date,
+			mealType: 'Dinner',
+			eatenAt: `${date}T18:00:00.000Z`,
+			foodId: 'food-1',
+			recipeId: null,
+			foodName: 'Spinach',
+			calories: 500,
+			protein: 20,
+			servings: 1,
+			nutrients
+		});
+
+		test('flags a shortfall below the EAR as likely inadequate', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [
+				entryDay('2026-02-08', { vitaminC: 10 }),
+				entryDay('2026-02-09', { vitaminC: 10 })
+			];
+			const result: any = await handleGetNutrientGaps(TEST_USER.id, {});
+			const vitaminC = result.nutrients.find((n: any) => n.key === 'vitaminC');
+			expect(vitaminC.verdict).toBe('likely_inadequate');
+			expect(vitaminC.avgIntake).toBe(10);
+			expect(vitaminC.deficitPerDay).toBeCloseTo(80, 5);
+			expect(result.biologicalSex).toBe('male');
+			expect(result.biologicalSexSource).toBe('preference');
+		});
+
+		test('reports a nutrient nothing carried as unmeasured, never as adequate', async () => {
+			mockRdaEntries = [entryDay('2026-02-09', { vitaminC: 200, calcium: null })];
+			const result: any = await handleGetNutrientGaps(TEST_USER.id, {});
+			const calcium = result.unmeasured.find((n: any) => n.key === 'calcium');
+			expect(calcium.reason).toBe('no_data');
+			expect(result.nutrients.some((n: any) => n.key === 'calcium')).toBe(false);
+			expect(result.summary.unmeasured).toBeGreaterThan(0);
+		});
+
+		test('an explicit biologicalSex argument overrides the stored preference', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [entryDay('2026-02-09', { iron: 9 })];
+			const male: any = await handleGetNutrientGaps(TEST_USER.id, {});
+			const female: any = await handleGetNutrientGaps(TEST_USER.id, { biologicalSex: 'female' });
+			const ironMale = male.nutrients.find((n: any) => n.key === 'iron');
+			const ironFemale = female.nutrients.find((n: any) => n.key === 'iron');
+			expect(ironFemale.target).toBeGreaterThan(ironMale.target);
+			expect(female.biologicalSexSource).toBe('argument');
+		});
+
+		test('sodium is a ceiling, so going over it reports above_limit', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [entryDay('2026-02-09', { sodium: 4000 })];
+			const result: any = await handleGetNutrientGaps(TEST_USER.id, {});
+			const sodium = result.nutrients.find((n: any) => n.key === 'sodium');
+			expect(sodium.verdict).toBe('above_limit');
+			expect(sodium.deficitPerDay).toBeGreaterThan(0);
+		});
+
+		test('includeAdequate=false drops the nutrients that are fine', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [entryDay('2026-02-09', { vitaminC: 500 })];
+			const result: any = await handleGetNutrientGaps(TEST_USER.id, { includeAdequate: false });
+			expect(result.nutrients.every((n: any) => n.verdict !== 'likely_adequate')).toBe(true);
+		});
+
+		test('rejects a range longer than the maximum', async () => {
+			const result: any = await handleGetNutrientGaps(TEST_USER.id, {
+				startDate: '2024-01-01',
+				endDate: '2026-02-10'
+			});
+			expect(result.error).toContain('exceeds maximum');
+		});
+	});
+
+	describe('handleFindNutrientSources', () => {
+		const candidate = (name: string, amounts: Record<string, number>, extra: any = {}) => ({
+			kind: 'food' as const,
+			id: name,
+			name,
+			brand: null,
+			servingSize: 100,
+			servingUnit: 'g',
+			caloriesPerServing: 100,
+			amounts,
+			isFavorite: false,
+			timesLogged: 0,
+			lastLoggedDate: null,
+			...extra
+		});
+
+		test('names the valid keys when given an unknown one', async () => {
+			const result: any = await handleFindNutrientSources(TEST_USER.id, {
+				nutrients: ['unobtainium']
+			});
+			expect(result.error).toContain('unobtainium');
+			expect(result.error).toContain('vitaminC');
+		});
+
+		test('ranks the richer source first and passes the gap keys through', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T18:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Rice',
+					calories: 500,
+					protein: 10,
+					servings: 1,
+					nutrients: { vitaminC: 5 }
+				}
+			];
+			mockNutrientCandidates = [
+				candidate('Weak pepper', { vitaminC: 5 }),
+				candidate('Strong pepper', { vitaminC: 60 })
+			];
+			const result: any = await handleFindNutrientSources(TEST_USER.id, {
+				nutrients: ['vitaminC']
+			});
+			expect(mockNutrientCandidateArgs.keys).toEqual(['vitaminC']);
+			expect(result.candidates[0].name).toBe('Strong pepper');
+			expect(result.candidates[0].perNutrient[0].pctOfGap).toBeGreaterThan(0);
+			expect(result.candidates[0].practical).toBe(true);
+		});
+
+		test('says so instead of ranking when nothing is short', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T18:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Pepper',
+					calories: 500,
+					protein: 10,
+					servings: 1,
+					nutrients: { vitaminC: 500 }
+				}
+			];
+			const result: any = await handleFindNutrientSources(TEST_USER.id, {
+				nutrients: ['vitaminC']
+			});
+			expect(result.candidates).toEqual([]);
+			expect(result.notes[0]).toContain('nothing to close');
+		});
+
+		test('warns that catalog results are not in the database yet', async () => {
+			mockBiologicalSex = 'male';
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T18:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Rice',
+					calories: 500,
+					protein: 10,
+					servings: 1,
+					nutrients: { vitaminC: 5 }
+				}
+			];
+			mockNutrientCandidates = [
+				{ ...candidate('Catalog pepper', { vitaminC: 60 }), kind: 'catalog' as const }
+			];
+			const result: any = await handleFindNutrientSources(TEST_USER.id, {
+				nutrients: ['vitaminC'],
+				catalogQuery: 'pepper'
+			});
+			expect(mockNutrientCandidateArgs.catalogQuery).toBe('pepper');
+			expect(result.notes.join(' ')).toContain('create_food');
+		});
+	});
+
+	describe('handleGetEatingPatterns', () => {
+		test('summarises meal slots and omits per-day windows', async () => {
+			mockDailyNutrients = [
+				{ date: '2026-02-09', calories: 2000, protein: 100, carbs: 200, fat: 70, fiber: 25 }
+			];
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Breakfast',
+					eatenAt: '2026-02-09T07:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Oats',
+					calories: 400,
+					protein: 15,
+					servings: 1,
+					nutrients: {}
+				},
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T19:00:00.000Z',
+					foodId: 'f2',
+					recipeId: null,
+					foodName: 'Salmon',
+					calories: 600,
+					protein: 45,
+					servings: 1,
+					nutrients: {}
+				}
+			];
+			const result: any = await handleGetEatingPatterns(TEST_USER.id, {});
+			expect(result.mealSlots.map((s: any) => s.mealType)).toEqual(['Dinner', 'Breakfast']);
+			expect(result.mealSlots[0].avgTimeHHmm).toBe('19:00');
+			expect(result.mealSlots[0].sharePct).toBeCloseTo(60, 5);
+			expect(result.mealTiming).not.toHaveProperty('dailyWindows');
+			expect(result.proteinThresholdG).toBeGreaterThan(0);
+		});
+	});
+
+	describe('handleGetMealPlanContext', () => {
+		test('bundles goals, gaps and habits within a sane payload size', async () => {
+			mockBiologicalSex = 'male';
+			mockGoals = TEST_GOALS;
+			mockRecipes = [];
+			mockTopFoods = [];
+			mockMealTypes = ['Breakfast', 'Dinner'];
+			mockDailyNutrients = [
+				{ date: '2026-02-09', calories: 2000, protein: 100, carbs: 200, fat: 70, fiber: 25 }
+			];
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T19:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Salmon',
+					calories: 2000,
+					protein: 100,
+					servings: 1,
+					nutrients: { vitaminC: 5 }
+				}
+			];
+			const result: any = await handleGetMealPlanContext(TEST_USER.id, {});
+			expect(result.planDays).toBe(7);
+			expect(result.timeZone).toBe('UTC');
+			expect(result.mealTypes).toEqual(['Breakfast', 'Dinner']);
+			expect(result.gaps.priority.some((g: any) => g.key === 'vitaminC')).toBe(true);
+			expect(result.gaps.unmeasuredKeys.length).toBeGreaterThan(0);
+			expect(result.notes.join(' ')).toContain('unknown, not adequate');
+			expect(JSON.stringify(result).length).toBeLessThan(40_000);
+		});
+
+		test('caps the priority gap list', async () => {
+			mockBiologicalSex = 'male';
+			mockDailyNutrients = [];
+			mockRdaEntries = [
+				{
+					date: '2026-02-09',
+					mealType: 'Dinner',
+					eatenAt: '2026-02-09T19:00:00.000Z',
+					foodId: 'f1',
+					recipeId: null,
+					foodName: 'Salmon',
+					calories: 2000,
+					protein: 100,
+					servings: 1,
+					nutrients: { vitaminC: 1, iron: 1, calcium: 1, zinc: 1, magnesium: 1 }
+				}
+			];
+			const result: any = await handleGetMealPlanContext(TEST_USER.id, { maxGapNutrients: 2 });
+			expect(result.gaps.priority).toHaveLength(2);
 		});
 	});
 

@@ -31,6 +31,10 @@ const READ_ONLY_TOOLS = [
 	'get_weight_food_series',
 	'get_extended_nutrients',
 	'get_daily_nutrients',
+	'get_nutrient_gaps',
+	'find_nutrient_sources',
+	'get_eating_patterns',
+	'get_meal_plan_context',
 	'list_meal_types',
 	'get_supplement_history',
 	'get_day_properties',
@@ -127,7 +131,7 @@ describe('tool annotations', () => {
 
 	test('all 63 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(63);
+		expect(all).toHaveLength(67);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -186,6 +190,10 @@ describe('toolNames', () => {
 			'get_weight_food_series',
 			'get_extended_nutrients',
 			'get_daily_nutrients',
+			'get_nutrient_gaps',
+			'find_nutrient_sources',
+			'get_eating_patterns',
+			'get_meal_plan_context',
 			'list_meal_types',
 			'get_supplement_history',
 			'get_day_properties',
@@ -203,6 +211,6 @@ describe('toolNames', () => {
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(63);
+		expect(toolNames).toHaveLength(67);
 	});
 });
