@@ -75,12 +75,16 @@ jobs:
 
   swift:
     name: Analyze (swift)
-    # macos-15, matching mobile-ios.yml and mobile-release.yml — this was the
-    # last iOS job on macos-14, and that label queues far worse (95 min before
-    # the job even started on 2026-08-30). Xcode 16.2 is on both images at the
-    # same build (16C5032a), so the toolchain is unchanged. Note this is a
-    # consistency/queueing fix, not the memory fix: both images are 3-core/7 GB.
-    runs-on: macos-15
+    # Stays on macos-14 even though every other iOS job is on macos-15, and
+    # macos-14 queues far worse (95 min before this job even started on
+    # 2026-08-30). macos-15 was tried and reverted: Xcode 16.2 is on that image
+    # at the same build (16C5032a), but its iOS 18.2 simulator runtime is not —
+    # macos-15 ships 18.5, 18.6 and 26.0-26.2 — so the generic iOS Simulator
+    # destination resolves to nothing and xcodebuild exits 70 with "iOS 18.2 is
+    # not installed". Moving here means also moving off the 16.2 pin (16.4 is
+    # the image default and matches iOS 18.5), which is a toolchain change, not
+    # a runner change. Both images are 3-core/7 GB, so this is not about memory.
+    runs-on: macos-14
     # CodeQL traces the Swift compiler, and the extractor re-does a full
     # type-check inside every swift-frontend invocation it wraps. That, not the
     # code, is the cost: the untraced job in mobile-ios.yml builds the same
