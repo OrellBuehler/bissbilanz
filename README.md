@@ -37,8 +37,8 @@ later sign in.
 ## What makes it different
 
 **Your food log is an MCP server.** Point Claude (or any MCP client) at it and just say
-what you ate. **59 tools** cover logging, foods, recipes, goals, weight, sleep,
-supplements and analytics — OAuth-protected, so the agent only ever sees your data.
+what you ate. **63 tools** cover logging, foods, recipes, goals, weight, sleep,
+supplements, analytics and the AI task queue — OAuth-protected, so the agent only ever sees your data.
 
 **On-device label OCR.** No barcode? Point the camera at the nutrition table. A shared
 Kotlin parser plus ML Kit reads the values locally — nothing leaves the phone.
@@ -57,17 +57,17 @@ Health Connect / Apple Health integration.
 
 ## Features
 
-|                 |                                                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Track**       | Calories, protein, carbs, fat, fiber + 43 extended nutrients, per meal and per day                                    |
-| **Log fast**    | Barcode scanner, camera label OCR, favorites, recent foods, one-tap widgets                                           |
-| **Recipes**     | Multi-ingredient recipes with automatic per-serving nutrition                                                         |
-| **Beyond food** | Weight trend, sleep, supplements, fasting timer with Live Activity                                                    |
-| **Insights**    | Maintenance-calorie estimate from weight trend + intake, streaks, meal timing, food diversity, sleep/food correlation |
-| **AI**          | Natural-language logging via MCP, plus on-device meal estimation from a photo on iOS                                  |
-| **Sync**        | Web, Android, iOS and watch stay in sync; conflict-safe and offline-tolerant                                          |
-| **Accounts**    | Infomaniak, Google, Microsoft or Apple sign-in — or no account at all on mobile                                       |
-| **Languages**   | English and German                                                                                                    |
+|                 |                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Track**       | Calories, protein, carbs, fat, fiber + 43 extended nutrients, per meal and per day                                       |
+| **Log fast**    | Barcode scanner, camera label OCR, food photos, favorites, recent foods, one-tap widgets                                 |
+| **Recipes**     | Multi-ingredient recipes with automatic per-serving nutrition                                                            |
+| **Beyond food** | Weight trend, sleep, supplements, fasting timer with Live Activity                                                       |
+| **Insights**    | Maintenance-calorie estimate from weight trend + intake, streaks, meal timing, food diversity, sleep/food correlation    |
+| **AI**          | Natural-language logging via MCP, an agent task queue in both mobile apps, on-device meal estimation from a photo on iOS |
+| **Sync**        | Web, Android, iOS and watch stay in sync; conflict-safe and offline-tolerant                                             |
+| **Accounts**    | Infomaniak, Google or Apple sign-in — or no account at all on mobile                                                     |
+| **Languages**   | English and German                                                                                                       |
 
 ## How it fits together
 
@@ -122,7 +122,11 @@ Then:
 > and 89 / 160 g protein for the day.
 
 Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,
-`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 50 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
+`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 56 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
+
+An agent can also label the food database — `list_unlabeled_foods` plus `set_food_labels`
+gives every food the plain English noun a camera would call it, which is how the phone
+matches a food from a camera frame.
 
 ## Tech stack
 
@@ -139,17 +143,20 @@ Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_r
 ## Repository layout
 
 ```
-src/            SvelteKit app — routes, API, server logic, Drizzle schema
-  lib/server/   auth, validation, MCP server, sync, security
+src/               SvelteKit app — routes, API, server logic, Drizzle schema
+  lib/server/      auth, validation, MCP server, sync, security
 mobile/
-  shared/       Kotlin Multiplatform core (models, API client, repositories, DI)
-  androidApp/   Jetpack Compose app
-  wearApp/      Wear OS app
-  iosApp/       SwiftUI app + widgets + Apple Watch app
-drizzle/        SQL migrations and snapshots
-crawler/        base food catalog importer
-tests/          unit, integration (Testcontainers) and Playwright e2e suites
-docs/           generated OpenAPI spec
+  shared/          Kotlin Multiplatform core (models, API client, repositories, DI)
+  androidApp/      Jetpack Compose app
+  wearApp/         Wear OS app
+  iosApp/          SwiftUI app + widgets + Apple Watch app
+drizzle/           SQL migrations and snapshots
+crawler/           base food catalog importer
+tests/             unit, integration (Testcontainers) and Playwright e2e suites
+analytics-parity/  golden vectors keeping the TS and Kotlin analytics in step
+scripts/           codegen, security scans, release helpers
+store/             App Store and Play Console metadata
+docs/              generated OpenAPI spec and the MCP guide
 ```
 
 ## Development
@@ -169,6 +176,8 @@ bun test                   # unit tests
 bun run test:integration-db # DB integration tests (Testcontainers, needs Docker)
 bun run test:mobile        # Playwright e2e
 bun run api:generate       # regenerate OpenAPI spec + TS/Kotlin clients
+bun run analytics:check    # verify the TS/Kotlin analytics parity vectors
+bun run constants:check    # verify the generated shared constants
 bun run security           # Semgrep + bun audit + Trivy
 ```
 
@@ -179,6 +188,15 @@ cd mobile && ./gradlew androidApp:assembleDebug
 ```
 
 iOS requires macOS with Xcode; the shared KMP module builds as a static framework.
+
+## Support
+
+Bissbilanz is free, with no ads and nothing to unlock. If it is useful to you, you can help
+cover hosting on the [support page](https://bissbilanz.orellbuehler.ch/#support) or via
+[GitHub Sponsors](https://github.com/sponsors/OrellBuehler) — entirely voluntary, and it
+changes nothing in the app. Bugs and requests go to
+[issues](https://github.com/OrellBuehler/bissbilanz/issues); security reports follow
+[SECURITY.md](SECURITY.md).
 
 ## License
 
