@@ -45,7 +45,7 @@
 		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@tailwindcss/vite": "^4.3.3",
-		"@tanstack/table-core": "^8.21.3",
+		"@tanstack/table-core": "^9.2.3",
 		"@testcontainers/postgresql": "^12.1.0",
 		"@types/bcrypt": "^6.0.0",
 		"@types/bun": "^1.4.0",
