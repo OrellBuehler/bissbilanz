@@ -69,7 +69,7 @@ supplement logging semantics. Clients pass these to the model once.
 | Stats              | `get_weekly_stats`, `get_monthly_stats`, `get_daily_breakdown`, `get_meal_breakdown`, `get_top_foods`, `get_streaks`, `get_calendar_stats`                                                                                   |
 | Analytics          | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                                                                             |
 | Nutrition planning | `get_nutrient_gaps`, `find_nutrient_sources`, `get_eating_patterns`, `get_meal_plan_context` — micronutrient shortfalls against IOM references, the foods that close them, eating habits, and one bundle for building a plan |
-| AI task queue      | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos (up to five per task) and descriptions queued from the mobile apps for an agent to process                                                                         |
+| AI task queue      | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos (up to five per task) and descriptions queued from the mobile apps for an agent to process                                               |
 | Food labels        | `list_unlabeled_foods`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                                                                         |
 
 Every tool carries `readOnlyHint`/`destructiveHint`/`idempotentHint` annotations and a
