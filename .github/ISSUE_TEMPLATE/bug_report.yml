@@ -1,0 +1,99 @@
+name: Bug report
+description: Something in Bissbilanz is broken or behaves unexpectedly
+title: 'bug: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. The more of the fields below you fill in, the
+        faster it can be reproduced and fixed. Issues are public — please leave out passwords,
+        tokens and anything else you would not want on the open web.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where did it happen?
+      options:
+        - Web app (bissbilanz.orellbuehler.ch)
+        - Android app
+        - iPhone app
+        - Apple Watch app
+        - Wear OS app
+        - Home screen widget
+        - AI assistant / MCP
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown at the bottom of the Settings screen. For the web app, the date you noticed it is enough.
+      placeholder: 1.36.1
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: Device and OS version
+      placeholder: iPhone 15 Pro, iOS 26.1 — or Chrome 141 on Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: account-mode
+    attributes:
+      label: How were you signed in?
+      options:
+        - Signed in with an account
+        - Local-only mode (no account, mobile)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open today's day log
+        2. Swipe left on an entry
+        3. Tap Edit
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Include the exact error message if one was shown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots and anything else
+      description: Drag images in here. Please also say whether it happens every time or only sometimes, and whether it started after an update.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate
+          required: true
+        - label: This report contains no passwords, tokens or other credentials
+          required: true

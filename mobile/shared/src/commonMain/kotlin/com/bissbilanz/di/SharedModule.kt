@@ -73,4 +73,5 @@ val sharedModule =
         single { PreferencesRepository(get(), get(), get(), get(), get(), get()) }
         single { LocalAnalytics(get(), get()) }
         single { AnalyticsRepository(get(), get()) }
+        single { AiTaskRepository(get(), get(), get()) }
     }

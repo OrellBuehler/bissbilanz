@@ -229,6 +229,10 @@ struct RepositoryHarness {
         GoalsRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }
 
+    var aiTaskStore: AiTaskStore {
+        AiTaskStore(api: api, appMode: appMode)
+    }
+
     var preferencesRepository: PreferencesRepository {
         PreferencesRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }

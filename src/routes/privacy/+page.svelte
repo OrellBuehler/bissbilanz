@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'August 19, 2026' })}
+		{m.privacy_effective_date({ date: 'August 30, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -28,8 +28,10 @@
 	<p class="mb-3">When you use Bissbilanz with an account, the app stores the following:</p>
 	<ul class="mb-6 list-disc space-y-1 pl-6">
 		<li>
-			<strong>Account information:</strong> Your name and email address, provided by your Infomaniak account
-			when you log in.
+			<strong>Account information:</strong> Your name, email address and profile picture, provided by
+			the sign-in provider you choose (Infomaniak, Google or Apple). For every provider you connect, the
+			app also stores the account identifier that provider uses for you, so it can recognize you on the
+			next sign-in.
 		</li>
 		<li>
 			<strong>Food entries:</strong> What you ate, including calories, macronutrients (protein, carbs,
@@ -141,15 +143,35 @@
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Third-party services</h2>
 	<p class="mb-3">Bissbilanz uses the following external services:</p>
+	<p class="mb-3">
+		You pick which sign-in provider to use, and only that provider is involved in your sign-in — the
+		others receive nothing. Signing in tells the provider that you use Bissbilanz; it never gives
+		the provider access to your food log or any other data in the app. You can link several
+		providers to the same account, and disconnect any of them again, under Connected accounts in
+		settings.
+	</p>
 	<ul class="mb-6 list-disc space-y-2 pl-6">
 		<li>
-			<strong>Infomaniak (authentication):</strong> When you log in, you authenticate through
-			Infomaniak's OpenID Connect service. Infomaniak provides your name and email to the app.
-			Infomaniak is a Swiss company subject to Swiss data protection law. Their privacy policy is
-			available at
+			<strong>Infomaniak (sign-in):</strong> Infomaniak's OpenID Connect service. Infomaniak
+			provides your name, email address and profile picture to the app. Infomaniak is a Swiss
+			company subject to Swiss data protection law. Their privacy policy is available at
 			<a href="https://www.infomaniak.com/en/legal/confidentiality" class="underline"
 				>infomaniak.com</a
 			>.
+		</li>
+		<li>
+			<strong>Google (sign-in):</strong> Sign in with Google. Google provides your name, email
+			address and profile picture to the app. No other Google service is used, and the app never
+			accesses your Gmail, Drive or contacts. Their privacy policy is available at
+			<a href="https://policies.google.com/privacy" class="underline">policies.google.com</a>.
+		</li>
+		<li>
+			<strong>Apple (sign-in):</strong> Sign in with Apple. Apple provides your email address, and
+			your name only the first time you authorize the app. If you choose “Hide My Email”, Apple
+			passes on a private relay address instead of your real one, and that relay address is the only
+			one Bissbilanz ever sees. In the iOS app this runs natively on your device; on the web and on
+			Android it goes through Apple's sign-in page. Their privacy policy is available at
+			<a href="https://www.apple.com/legal/privacy/" class="underline">apple.com</a>.
 		</li>
 		<li>
 			<strong>Open Food Facts (product lookups):</strong> When you scan a barcode or search the Open

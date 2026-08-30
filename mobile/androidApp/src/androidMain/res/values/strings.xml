@@ -143,6 +143,26 @@
     <string name="ai_task_remove_photo">Remove photo</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
 
+    <!-- AI task list -->
+    <string name="ai_tasks_title">AI Tasks</string>
+    <string name="ai_tasks_filter_open">Open</string>
+    <string name="ai_tasks_filter_completed">Completed</string>
+    <string name="ai_tasks_filter_dismissed">Dismissed</string>
+    <string name="ai_tasks_empty_open">No open tasks — you\'re all caught up</string>
+    <string name="ai_tasks_empty_completed">Nothing completed yet</string>
+    <string name="ai_tasks_empty_dismissed">Nothing dismissed</string>
+    <string name="ai_tasks_photo_only">Photo only, no description</string>
+    <string name="ai_tasks_agent_comment">From your assistant</string>
+    <string name="ai_tasks_unread">New</string>
+    <string name="ai_tasks_delete">Delete task</string>
+    <string name="ai_tasks_delete_confirm">Delete this AI task? This cannot be undone.</string>
+    <string name="ai_tasks_load_failed">Could not load AI tasks</string>
+    <string name="ai_tasks_notification_channel">AI tasks</string>
+    <string name="ai_tasks_notification_channel_desc">Tells you when the assistant could not log a meal you sent.</string>
+    <string name="ai_tasks_notification_title">AI task dismissed</string>
+    <string name="ai_tasks_notification_body_fallback">Your assistant could not log this meal.</string>
+    <string name="ai_tasks_notification_summary">Dismissed AI tasks</string>
+
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connected">Connected</string>

@@ -16,7 +16,8 @@ struct BackgroundRefresherTests {
             weightRepository: harness.weightRepository,
             sleepRepository: harness.sleepRepository,
             foodRepository: harness.foodRepository,
-            supplementRepository: harness.supplementRepository
+            supplementRepository: harness.supplementRepository,
+            aiTaskStore: harness.aiTaskStore
         )
     }
 
@@ -26,6 +27,7 @@ struct BackgroundRefresherTests {
         harness.stub("GET", "/api/weight", json: #"{"entries": []}"#)
         harness.stub("GET", "/api/sleep", json: #"{"entries": []}"#)
         harness.stub("GET", "/api/favorites", json: #"{"foods": [], "recipes": []}"#)
+        harness.stub("GET", "/api/ai-tasks", json: #"{"tasks": [], "total": 0}"#)
     }
 
     @Test("Pull caches entries logged server-side (the MCP case)")

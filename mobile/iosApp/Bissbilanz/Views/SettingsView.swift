@@ -109,6 +109,11 @@ struct SettingsView: View {
                         NavigationLink { MaintenanceView() } label: {
                             Label(L10n.maintenance, systemImage: "function")
                         }
+                        // The queue only exists server-side — the assistant reaches it
+                        // over MCP — so it has no meaning in Local mode.
+                        NavigationLink { AiTasksView() } label: {
+                            Label(L10n.aiTasks, systemImage: "sparkles")
+                        }
                     }
                 }
 

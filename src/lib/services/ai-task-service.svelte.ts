@@ -81,11 +81,19 @@ async function collectNewDismissals(): Promise<AiTask[]> {
 	const notified = readNotified();
 	const fresh = tasks.filter((t) => isUnread(t) && !notified.has(t.id));
 
-	// Drop ids the server no longer returns so the set cannot grow forever.
-	const known = new Set(tasks.map((t) => t.id));
-	const pruned = new Set([...notified].filter((id) => known.has(id)));
-	for (const task of fresh) pruned.add(task.id);
-	writeNotified(pruned);
+	// Prune ids the server no longer returns so the set cannot grow forever — but
+	// only against a list we actually got. A failed or not-yet-run refresh leaves
+	// `tasks` empty, and pruning against that would clear the whole set and
+	// re-announce every dismissal on the next successful refresh.
+	if (tasks.length > 0) {
+		const known = new Set(tasks.map((t) => t.id));
+		const pruned = new Set([...notified].filter((id) => known.has(id)));
+		for (const task of fresh) pruned.add(task.id);
+		writeNotified(pruned);
+	} else if (fresh.length > 0) {
+		for (const task of fresh) notified.add(task.id);
+		writeNotified(notified);
+	}
 
 	return fresh;
 }

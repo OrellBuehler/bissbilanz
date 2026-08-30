@@ -7,6 +7,10 @@ import UserNotifications
 /// notification itself can cross an isolation boundary — the delegate pulls out these
 /// plain values first and hands those over instead.
 struct SupplementReminderPayload {
+    /// Which notification this came from. The delegate is shared across every
+    /// category the app posts — `UNUserNotificationCenter.delegate` is a single
+    /// slot — so a body tap has to be told apart by category, not by action.
+    let category: String
     let supplementId: String?
     /// `yyyy-MM-dd` day the reminder was scheduled for; nil on notifications delivered
     /// by a version that didn't attach it.
@@ -69,6 +73,7 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
     ) {
         let content = response.notification.request.content
         let payload = SupplementReminderPayload(
+            category: content.categoryIdentifier,
             supplementId: content.userInfo[SupplementReminderScheduler.userInfoSupplementId] as? String,
             date: content.userInfo[SupplementReminderScheduler.userInfoDate] as? String,
             title: content.title,
@@ -114,7 +119,9 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
             }
 
         case UNNotificationDefaultActionIdentifier:
-            router?.pending = .supplements
+            router?.pending = payload.category == AiTaskNotifier.categoryIdentifier
+                ? .aiTasks
+                : .supplements
 
         default:
             break

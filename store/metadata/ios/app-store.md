@@ -47,7 +47,7 @@ Reuse `store/metadata/android/<locale>/full_description.txt` — same copy works
 
 ## URLs
 
-- Support URL: https://bissbilanz.orellbuehler.ch/account-deletion (until a dedicated support page exists)
+- Support URL: https://bissbilanz.orellbuehler.ch/support
 - Marketing URL: https://bissbilanz.orellbuehler.ch
 - Privacy Policy URL: https://bissbilanz.orellbuehler.ch/privacy
 
@@ -60,13 +60,18 @@ All questionnaire answers "No" → 4+.
 Data used to track you: **none**.
 Data linked to you:
 
-| Data type            | Purpose           | Notes                                           |
-| -------------------- | ----------------- | ----------------------------------------------- |
-| Name                 | App Functionality | From Infomaniak OIDC                            |
-| Email address        | App Functionality | From Infomaniak OIDC                            |
-| Health & Fitness     | App Functionality | Food, weight, sleep logs; optional Apple Health |
-| Photos (user photos) | App Functionality | Food/recipe photos, AI meal estimation          |
-| User content         | App Functionality | Foods, recipes, notes                           |
+| Data type            | Purpose           | Notes                                                                 |
+| -------------------- | ----------------- | --------------------------------------------------------------------- |
+| Name                 | App Functionality | From the sign-in provider                                             |
+| Email address        | App Functionality | From the sign-in provider; a relay address when Hide My Email is used |
+| User ID              | App Functionality | The account identifier each linked provider uses for the user         |
+| Health & Fitness     | App Functionality | Food, weight, sleep logs; optional Apple Health                       |
+| Photos (user photos) | App Functionality | Food/recipe photos, AI meal estimation                                |
+| User content         | App Functionality | Foods, recipes, notes                                                 |
+
+Sign-in providers: Infomaniak, Google and Sign in with Apple. Only the one the user picks is
+involved; where the provider supplies a profile picture (Infomaniak, Google), its URL is stored with
+the account.
 
 Data not linked to you:
 
