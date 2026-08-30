@@ -55,11 +55,16 @@ No endpoints or UI exist for:
 
 **Priority: Low**
 
-No features for:
+Partially covered over MCP: `get_meal_plan_context`, `get_nutrient_gaps`,
+`find_nutrient_sources` and `get_eating_patterns`, plus the `meal_plan` prompt, let an agent
+build a plan and suggest foods that close micronutrient shortfalls. Plans are not persisted —
+the agent proposes, the user logs with `log_food`/`copy_entries`.
 
-- Creating weekly meal plans
+Still missing:
+
+- Storing a plan (no plan tables, no web or mobile UI)
 - Generating grocery lists from planned meals
-- Suggesting meals based on remaining macro budget
+- In-app meal suggestions from the remaining macro budget, outside an AI conversation
 
 ### 4. Exercise & Activity Tracking
 

@@ -79,13 +79,18 @@ import { sleepCreateSchema, sleepUpdateSchema } from './validation/sleep';
 import { sleepEntriesResponseSchema, sleepEntryResponseSchema } from './validation/responses/sleep';
 import {
 	foodDiversityResponseSchema,
+	nutrientGapsResponseSchema,
 	mealTimingResponseSchema,
 	nutrientsDailyResponseSchema,
 	nutrientsExtendedResponseSchema,
 	sleepFoodCorrelationResponseSchema,
 	weightFoodResponseSchema
 } from './validation/responses/analytics';
-import { analyticsDateRangeSchema, dateRangeShape } from './validation/analytics';
+import {
+	analyticsDateRangeSchema,
+	dateRangeShape,
+	nutrientGapsQuerySchema
+} from './validation/analytics';
 import { paginationSchema } from './validation/pagination';
 import {
 	aiTaskCreateSchema,
@@ -1499,6 +1504,26 @@ export function generateSpec() {
 						'200': {
 							description: 'Success',
 							content: { 'application/json': { schema: sleepFoodCorrelationResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+
+			'/api/analytics/nutrient-gaps': {
+				get: {
+					operationId: 'getNutrientGaps',
+					tags: ['Analytics'],
+					description:
+						'Compare average intake against reference values for every nutrient that has one. Defaults to the last 30 days. Nutrients listed under `unmeasured` have no usable data and are not adequate.',
+					requestParams: {
+						query: nutrientGapsQuerySchema
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: nutrientGapsResponseSchema } }
 						},
 						'400': res400,
 						'401': res401

@@ -72,6 +72,11 @@ import {
 	getExtendedNutrientEntries,
 	getDailyNutrientTotals
 } from '$lib/server/analytics';
+import {
+	getRdaNutrientEntries,
+	getNutrientCandidates,
+	getBiologicalSex
+} from '$lib/server/nutrient-insights';
 import { setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import { listMealTypes } from '$lib/server/meal-types';
 import {
@@ -137,6 +142,10 @@ export const {
 	handleGetWeightFoodSeries,
 	handleGetExtendedNutrients,
 	handleGetDailyNutrients,
+	handleGetNutrientGaps,
+	handleFindNutrientSources,
+	handleGetEatingPatterns,
+	handleGetMealPlanContext,
 	handleListMealTypes,
 	handleGetSupplementHistory,
 	handleGetDayProperties,
@@ -214,6 +223,10 @@ export const {
 	getWeightFoodSeries,
 	getExtendedNutrientEntries,
 	getDailyNutrientTotals,
+	getRdaNutrientEntries,
+	getNutrientCandidates,
+	getBiologicalSex,
+	getUserTimeZone,
 	listMealTypes,
 	getDayProperties,
 	setDayProperties,

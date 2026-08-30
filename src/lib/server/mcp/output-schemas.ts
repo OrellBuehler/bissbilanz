@@ -94,5 +94,57 @@ export const TOOL_OUTPUT = {
 			startDate: z.string(),
 			endDate: z.string()
 		})
+	},
+	// Arrays are nested inside an object on purpose: the SDK rejects a call whose
+	// structuredContent is a bare array.
+	get_nutrient_gaps: {
+		startDate: z.string(),
+		endDate: z.string(),
+		days: z.number().int(),
+		daysLogged: z.number().int(),
+		avgCalories: z.number(),
+		minCoverage: z.number(),
+		biologicalSex: z.string().nullable(),
+		biologicalSexSource: z.string(),
+		nutrients: z.array(opaque),
+		unmeasured: z.array(opaque),
+		summary: z.record(z.string(), z.number())
+	},
+	get_eating_patterns: {
+		startDate: z.string(),
+		endDate: z.string(),
+		timeZone: z.string(),
+		mealTiming: opaque,
+		mealRegularity: opaque,
+		calorieFrontLoading: opaque,
+		calorieCycling: opaque,
+		weekdayWeekend: opaque,
+		proteinDistribution: opaque,
+		proteinThresholdG: z.number(),
+		mealSlots: z.array(opaque),
+		foodDiversity: opaque
+	},
+	find_nutrient_sources: {
+		nutrients: z.array(opaque),
+		avgCalories: z.number(),
+		candidates: z.array(opaque),
+		notes: z.array(z.string())
+	},
+	get_meal_plan_context: {
+		today: z.string(),
+		timeZone: z.string(),
+		planDays: z.number().int(),
+		goals: goalsSchema.nullable(),
+		maintenance: opaque,
+		latestWeightKg: z.number().nullable(),
+		biologicalSex: z.string().nullable(),
+		gaps: opaque,
+		patterns: opaque,
+		mealSlots: z.array(opaque),
+		favorites: opaque,
+		topFoods: z.array(opaque),
+		recipes: z.array(opaque),
+		mealTypes: z.array(z.unknown()),
+		notes: z.array(z.string())
 	}
 } as const;

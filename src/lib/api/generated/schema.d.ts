@@ -913,6 +913,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/analytics/nutrient-gaps': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Compare average intake against reference values for every nutrient that has one. Defaults to the last 30 days. Nutrients listed under `unmeasured` have no usable data and are not adequate. */
+		get: operations['getNutrientGaps'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/catalog/search': {
 		parameters: {
 			query?: never;
@@ -2268,6 +2285,66 @@ export interface components {
 			eveningCalories: number | null;
 			sleepDurationMinutes: number;
 			sleepQuality: number;
+		};
+		NutrientGapsResponse: {
+			startDate: string;
+			endDate: string;
+			days: number;
+			daysLogged: number;
+			avgCalories: number;
+			minCoverage: number;
+			biologicalSex: ('male' | 'female') | null;
+			/** @enum {string} */
+			biologicalSexSource: 'argument' | 'preference' | 'unknown';
+			nutrients: components['schemas']['NutrientGap'][];
+			unmeasured: components['schemas']['UnmeasuredNutrient'][];
+			summary: {
+				[key: string]: number;
+			};
+		};
+		NutrientGap: {
+			key: string;
+			label: string;
+			unit: string;
+			avgIntake: number;
+			daysMeasured: number;
+			coverageAvg: number;
+			target: number;
+			targetLow: number;
+			targetHigh: number;
+			/** @enum {string} */
+			referenceType: 'rda' | 'ai' | 'cdrr';
+			/** @enum {string} */
+			referenceSource: 'iom' | 'user_goal';
+			pct: number;
+			pctLow: number;
+			pctHigh: number;
+			/** @enum {string} */
+			verdict:
+				| 'likely_adequate'
+				| 'uncertain'
+				| 'likely_inadequate'
+				| 'no_conclusion'
+				| 'above_limit'
+				| 'depends_on_sex';
+			deficitPerDay: number;
+			topContributors: components['schemas']['NutrientContributor'][];
+		};
+		NutrientContributor: {
+			foodId: string | null;
+			recipeId: string | null;
+			name: string;
+			totalAmount: number;
+			sharePct: number;
+			timesLogged: number;
+		};
+		UnmeasuredNutrient: {
+			key: string;
+			label: string;
+			unit: string;
+			/** @enum {string} */
+			reason: 'no_data' | 'low_coverage';
+			coverageAvg: number;
 		};
 		OpenFoodFactsSearchResponse: {
 			results: components['schemas']['OpenFoodFactsProduct'][];
@@ -4192,6 +4269,33 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['SleepFoodCorrelationResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getNutrientGaps: {
+		parameters: {
+			query?: {
+				startDate?: string;
+				endDate?: string;
+				biologicalSex?: 'male' | 'female';
+				minCoverage?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NutrientGapsResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];

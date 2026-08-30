@@ -50,6 +50,11 @@ export const toolNames = [
 	'get_weight_food_series',
 	'get_extended_nutrients',
 	'get_daily_nutrients',
+	// Nutrient adequacy & meal planning
+	'get_nutrient_gaps',
+	'find_nutrient_sources',
+	'get_eating_patterns',
+	'get_meal_plan_context',
 	// Meal types
 	'list_meal_types',
 	// Supplement history

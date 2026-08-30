@@ -10,6 +10,16 @@
 
 import { shiftDate } from '$lib/utils/dates';
 import { buildMaintenanceReport } from '$lib/utils/maintenance';
+import { MIN_NUTRIENT_COVERAGE } from '$lib/analytics/constants.generated';
+import { RDA_VALUES } from '$lib/analytics/rda';
+import { buildNutrientGapReport, type NutrientGapRow } from '$lib/server/nutrient-gaps';
+import { scoreNutrientCandidates, type NutrientGapInput } from '$lib/server/nutrient-scoring';
+import { buildEatingPatterns } from '$lib/server/eating-patterns';
+import type {
+	getRdaNutrientEntries,
+	getNutrientCandidates,
+	getBiologicalSex
+} from '$lib/server/nutrient-insights';
 import type {
 	listFoods,
 	createFood,
@@ -177,6 +187,11 @@ export type HandlerDeps = {
 	getWeightFoodSeries: typeof getWeightFoodSeries;
 	getExtendedNutrientEntries: typeof getExtendedNutrientEntries;
 	getDailyNutrientTotals: typeof getDailyNutrientTotals;
+	// Nutrient adequacy & planning
+	getRdaNutrientEntries: typeof getRdaNutrientEntries;
+	getNutrientCandidates: typeof getNutrientCandidates;
+	getBiologicalSex: typeof getBiologicalSex;
+	getUserTimeZone: (userId: string) => Promise<string>;
 	// Meal types
 	listMealTypes: typeof listMealTypes;
 	// Day properties
@@ -878,6 +893,367 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	const RDA_KEY_SET = new Set(RDA_VALUES.map((rda) => rda.nutrientKey));
+	const DEFAULT_GAP_WINDOW_DAYS = 30;
+
+	/** Resolves the analysis window shared by every nutrient tool. */
+	const resolveWindow = async (
+		userId: string,
+		startDate?: string,
+		endDate?: string,
+		span = DEFAULT_GAP_WINDOW_DAYS
+	) => {
+		const end = endDate ?? (await d.todayForUser(userId));
+		return { startDate: startDate ?? shiftDate(end, -(span - 1)), endDate: end };
+	};
+
+	/**
+	 * `entries` can be passed in by a caller that already needs them, so the 31-nutrient
+	 * entry query runs once per tool call rather than once per consumer.
+	 */
+	const gapReportFor = async (
+		userId: string,
+		window: { startDate: string; endDate: string },
+		overrides: {
+			biologicalSex?: 'male' | 'female';
+			minCoverage?: number;
+			topContributors?: number;
+		},
+		prefetchedEntries?: Awaited<ReturnType<typeof d.getRdaNutrientEntries>>
+	) => {
+		const [entries, goals, prefSex] = await Promise.all([
+			prefetchedEntries ?? d.getRdaNutrientEntries(userId, window.startDate, window.endDate),
+			d.getGoals(userId),
+			d.getBiologicalSex(userId)
+		]);
+		const sex = overrides.biologicalSex ?? prefSex;
+		const report = buildNutrientGapReport({
+			entries,
+			sex,
+			goals,
+			minCoverage: overrides.minCoverage ?? MIN_NUTRIENT_COVERAGE,
+			topContributors: overrides.topContributors ?? 3,
+			window
+		});
+		return {
+			report,
+			biologicalSexSource: overrides.biologicalSex
+				? ('argument' as const)
+				: prefSex
+					? ('preference' as const)
+					: ('unknown' as const)
+		};
+	};
+
+	const handleGetNutrientGaps = async (
+		userId: string,
+		args: {
+			startDate?: string;
+			endDate?: string;
+			biologicalSex?: 'male' | 'female';
+			minCoverage?: number;
+			includeAdequate?: boolean;
+			topContributors?: number;
+		}
+	) => {
+		try {
+			const window = await resolveWindow(userId, args.startDate, args.endDate);
+			const err = guardDateRange(window.startDate, window.endDate);
+			if (err) return err;
+			const { report, biologicalSexSource } = await gapReportFor(userId, window, args);
+			return {
+				...report,
+				biologicalSexSource,
+				nutrients:
+					args.includeAdequate === false
+						? report.nutrients.filter((row) => row.verdict !== 'likely_adequate')
+						: report.nutrients
+			};
+		} catch (e) {
+			wrapError('get nutrient gaps', e);
+		}
+	};
+
+	/** Turns a gap row into the scoring input, honouring an explicit per-nutrient deficit. */
+	const toGapInput = (row: NutrientGapRow, deficitOverride?: number): NutrientGapInput => ({
+		key: row.key,
+		unit: row.unit,
+		label: row.label,
+		deficitPerDay: deficitOverride ?? row.deficitPerDay,
+		target: row.target,
+		deficitFraction: Math.min(1, Math.max(0, 1 - row.pct / 100))
+	});
+
+	const handleFindNutrientSources = async (
+		userId: string,
+		args: {
+			nutrients: string[];
+			deficits?: Record<string, number>;
+			includeFoods?: boolean;
+			includeRecipes?: boolean;
+			catalogQuery?: string;
+			limit?: number;
+		}
+	) => {
+		try {
+			const unknown = args.nutrients.filter((key) => !RDA_KEY_SET.has(key));
+			if (unknown.length > 0) {
+				return {
+					error: `Unknown nutrient key(s): ${unknown.join(', ')}. Valid keys: ${[...RDA_KEY_SET].join(', ')}`
+				};
+			}
+
+			const window = await resolveWindow(userId);
+			const { report } = await gapReportFor(userId, window, { topContributors: 0 });
+			const byKey = new Map(report.nutrients.map((row) => [row.key, row]));
+
+			const gaps: NutrientGapInput[] = [];
+			const unmeasured: string[] = [];
+			for (const key of args.nutrients) {
+				const row = byKey.get(key);
+				const override = args.deficits?.[key];
+				if (!row) {
+					// No intake data, so no measured shortfall: fall back to the whole reference
+					// value as the target when the caller has not supplied one.
+					const rda = RDA_VALUES.find((r) => r.nutrientKey === key);
+					if (!rda || override === undefined) {
+						unmeasured.push(key);
+						continue;
+					}
+					gaps.push({
+						key,
+						unit: rda.unit,
+						label: rda.label,
+						deficitPerDay: override,
+						target: override,
+						deficitFraction: 1
+					});
+					continue;
+				}
+				gaps.push(toGapInput(row, override));
+			}
+
+			const targeted = gaps.filter((gap) => gap.deficitPerDay > 0);
+			if (targeted.length === 0) {
+				return {
+					nutrients: gaps,
+					avgCalories: report.avgCalories,
+					candidates: [],
+					notes: [
+						unmeasured.length > 0
+							? `No intake data for ${unmeasured.join(', ')} — pass an explicit deficit to rank sources for them.`
+							: 'None of the requested nutrients is currently short, so there is nothing to close.'
+					]
+				};
+			}
+
+			const candidates = await d.getNutrientCandidates(userId, {
+				keys: targeted.map((gap) => gap.key),
+				includeFoods: args.includeFoods,
+				includeRecipes: args.includeRecipes,
+				catalogQuery: args.catalogQuery
+			});
+
+			const scored = scoreNutrientCandidates(candidates, targeted, {
+				avgCalories: report.avgCalories,
+				today: window.endDate
+			}).slice(0, args.limit ?? 10);
+
+			const notes: string[] = [];
+			if (scored.some((candidate) => candidate.kind === 'catalog')) {
+				notes.push(
+					'Catalog results are not in the user\u2019s food database yet — create them with create_food before logging.'
+				);
+			}
+			if (unmeasured.length > 0) {
+				notes.push(`No intake data for ${unmeasured.join(', ')}; they were skipped.`);
+			}
+
+			return { nutrients: targeted, avgCalories: report.avgCalories, candidates: scored, notes };
+		} catch (e) {
+			wrapError('find nutrient sources', e);
+		}
+	};
+
+	const handleGetEatingPatterns = async (
+		userId: string,
+		args: { startDate?: string; endDate?: string }
+	) => {
+		try {
+			const window = await resolveWindow(userId, args.startDate, args.endDate, 90);
+			const err = guardDateRange(window.startDate, window.endDate);
+			if (err) return err;
+			const [entries, days, timeZone, latestWeight] = await Promise.all([
+				d.getRdaNutrientEntries(userId, window.startDate, window.endDate),
+				d.getDailyNutrientTotals(userId, window.startDate, window.endDate),
+				d.getUserTimeZone(userId),
+				d.getLatestWeight(userId)
+			]);
+			return {
+				startDate: window.startDate,
+				endDate: window.endDate,
+				...buildEatingPatterns({
+					entries,
+					days,
+					timeZone,
+					bodyWeightKg: latestWeight?.weightKg ?? null
+				})
+			};
+		} catch (e) {
+			wrapError('get eating patterns', e);
+		}
+	};
+
+	const handleGetMealPlanContext = async (
+		userId: string,
+		args: {
+			planDays?: number;
+			analysisDays?: number;
+			maxFoods?: number;
+			maxRecipes?: number;
+			maxGapNutrients?: number;
+		}
+	) => {
+		try {
+			const analysisDays = args.analysisDays ?? DEFAULT_GAP_WINDOW_DAYS;
+			const window = await resolveWindow(userId, undefined, undefined, analysisDays);
+			const maxFoods = args.maxFoods ?? 40;
+			const maxRecipes = args.maxRecipes ?? 20;
+			const maxGapNutrients = args.maxGapNutrients ?? 8;
+
+			const nutrientEntries = await d.getRdaNutrientEntries(
+				userId,
+				window.startDate,
+				window.endDate
+			);
+
+			const [
+				{ report },
+				timeZone,
+				goals,
+				entries,
+				weights,
+				fastingDays,
+				latestWeight,
+				favoriteFoods,
+				favoriteRecipes,
+				topFoods,
+				recipeList,
+				mealTypes,
+				dailyTotals
+			] = await Promise.all([
+				gapReportFor(userId, window, { topContributors: 0 }, nutrientEntries),
+				d.getUserTimeZone(userId),
+				d.getGoals(userId),
+				d.listEntriesByDateRange(userId, window.startDate, window.endDate),
+				d.getWeightEntriesByDateRange(userId, window.startDate, window.endDate),
+				d.getFastingDays(userId, window.startDate, window.endDate),
+				d.getLatestWeight(userId),
+				d.listFavoriteFoods(userId, 15),
+				d.listFavoriteRecipes(userId, 10),
+				d.getTopFoods(userId, analysisDays, maxFoods),
+				d.listRecipes(userId, { limit: maxRecipes }),
+				d.listMealTypes(userId),
+				d.getDailyNutrientTotals(userId, window.startDate, window.endDate)
+			]);
+
+			const patterns = buildEatingPatterns({
+				entries: nutrientEntries,
+				days: dailyTotals,
+				timeZone,
+				bodyWeightKg: latestWeight?.weightKg ?? null
+			});
+
+			const maintenance = buildMaintenanceReport({
+				entries,
+				weights,
+				fastingDays,
+				startDate: window.startDate,
+				endDate: window.endDate
+			});
+
+			const trim = (name: string) => (name.length > 80 ? `${name.slice(0, 77)}...` : name);
+
+			return {
+				today: window.endDate,
+				timeZone,
+				planDays: args.planDays ?? 7,
+				goals,
+				maintenance,
+				latestWeightKg: latestWeight?.weightKg ?? null,
+				biologicalSex: report.biologicalSex,
+				gaps: {
+					window: { startDate: window.startDate, endDate: window.endDate, days: report.days },
+					priority: report.nutrients
+						.filter((row) => row.verdict !== 'likely_adequate')
+						.slice(0, maxGapNutrients)
+						.map((row) => ({
+							key: row.key,
+							label: row.label,
+							unit: row.unit,
+							avgIntake: row.avgIntake,
+							target: row.target,
+							pct: row.pct,
+							verdict: row.verdict,
+							deficitPerDay: row.deficitPerDay
+						})),
+					unmeasuredKeys: report.unmeasured.map((row) => row.key),
+					adequateCount: report.summary.likelyAdequate
+				},
+				patterns: {
+					avgFirstMealTime: patterns.mealTiming.avgFirstMealTime,
+					avgLastMealTime: patterns.mealTiming.avgLastMealTime,
+					avgWindowMinutes: patterns.mealTiming.avgWindowMinutes,
+					mealRegularityScore: patterns.mealRegularity.overallScore,
+					frontLoadingPct: patterns.calorieFrontLoading.avgMorningPct,
+					proteinThresholdG: patterns.proteinThresholdG,
+					avgUniqueFoodsPerWeek: patterns.foodDiversity.avgUniqueFoodsPerWeek
+				},
+				mealSlots: patterns.mealSlots.slice(0, 8),
+				favorites: {
+					foods: favoriteFoods.map((food) => ({
+						id: food.id,
+						name: trim(food.name),
+						calories: food.calories,
+						protein: food.protein
+					})),
+					recipes: favoriteRecipes.map((recipe) => ({
+						id: recipe.id,
+						name: trim(recipe.name)
+					}))
+				},
+				topFoods: topFoods.map((food) => ({
+					foodId: food.foodId,
+					recipeId: food.recipeId,
+					name: trim(food.foodName),
+					count: food.count,
+					calories: food.calories,
+					protein: food.protein
+				})),
+				recipes: recipeList.items.map((recipe) => ({
+					id: recipe.id,
+					name: trim(recipe.name),
+					totalServings: recipe.totalServings,
+					isFavorite: recipe.isFavorite,
+					perServing: {
+						calories: recipe.calories / (recipe.totalServings || 1),
+						protein: recipe.protein / (recipe.totalServings || 1),
+						carbs: recipe.carbs / (recipe.totalServings || 1),
+						fat: recipe.fat / (recipe.totalServings || 1),
+						fiber: recipe.fiber / (recipe.totalServings || 1)
+					}
+				})),
+				mealTypes,
+				notes: [
+					`${report.unmeasured.length} of ${RDA_VALUES.length} reference nutrients have no usable data — treat them as unknown, not adequate.`,
+					'Recipes carry per-serving macros only; call get_recipe for ingredients.'
+				]
+			};
+		} catch (e) {
+			wrapError('get meal plan context', e);
+		}
+	};
+
 	const handleGetStreaks = async (userId: string) => {
 		try {
 			return d.getStreaks(userId);
@@ -1329,6 +1705,10 @@ export function createHandlers(d: HandlerDeps) {
 		handleGetWeightFoodSeries,
 		handleGetExtendedNutrients,
 		handleGetDailyNutrients,
+		handleGetNutrientGaps,
+		handleFindNutrientSources,
+		handleGetEatingPatterns,
+		handleGetMealPlanContext,
 		handleListMealTypes,
 		handleGetSupplementHistory,
 		handleGetDayProperties,

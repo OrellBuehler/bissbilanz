@@ -2800,6 +2800,66 @@
 				}
 			}
 		},
+		"/api/analytics/nutrient-gaps": {
+			"get": {
+				"operationId": "getNutrientGaps",
+				"tags": ["Analytics"],
+				"description": "Compare average intake against reference values for every nutrient that has one. Defaults to the last 30 days. Nutrients listed under `unmeasured` have no usable data and are not adequate.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "startDate",
+						"schema": {
+							"type": "string",
+							"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+						}
+					},
+					{
+						"in": "query",
+						"name": "endDate",
+						"schema": {
+							"type": "string",
+							"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+						}
+					},
+					{
+						"in": "query",
+						"name": "biologicalSex",
+						"schema": {
+							"type": "string",
+							"enum": ["male", "female"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "minCoverage",
+						"schema": {
+							"type": "number",
+							"minimum": 0,
+							"maximum": 1
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/NutrientGapsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/catalog/search": {
 			"get": {
 				"operationId": "catalogSearch",
@@ -10631,6 +10691,230 @@
 					}
 				},
 				"required": ["date", "eveningCalories", "sleepDurationMinutes", "sleepQuality"],
+				"additionalProperties": false
+			},
+			"NutrientGapsResponse": {
+				"type": "object",
+				"properties": {
+					"startDate": {
+						"type": "string"
+					},
+					"endDate": {
+						"type": "string"
+					},
+					"days": {
+						"type": "number"
+					},
+					"daysLogged": {
+						"type": "number"
+					},
+					"avgCalories": {
+						"type": "number"
+					},
+					"minCoverage": {
+						"type": "number"
+					},
+					"biologicalSex": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["male", "female"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"biologicalSexSource": {
+						"type": "string",
+						"enum": ["argument", "preference", "unknown"]
+					},
+					"nutrients": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/NutrientGap"
+						}
+					},
+					"unmeasured": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/UnmeasuredNutrient"
+						}
+					},
+					"summary": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"type": "number"
+						}
+					}
+				},
+				"required": [
+					"startDate",
+					"endDate",
+					"days",
+					"daysLogged",
+					"avgCalories",
+					"minCoverage",
+					"biologicalSex",
+					"biologicalSexSource",
+					"nutrients",
+					"unmeasured",
+					"summary"
+				],
+				"additionalProperties": false
+			},
+			"NutrientGap": {
+				"type": "object",
+				"properties": {
+					"key": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"unit": {
+						"type": "string"
+					},
+					"avgIntake": {
+						"type": "number"
+					},
+					"daysMeasured": {
+						"type": "number"
+					},
+					"coverageAvg": {
+						"type": "number"
+					},
+					"target": {
+						"type": "number"
+					},
+					"targetLow": {
+						"type": "number"
+					},
+					"targetHigh": {
+						"type": "number"
+					},
+					"referenceType": {
+						"type": "string",
+						"enum": ["rda", "ai", "cdrr"]
+					},
+					"referenceSource": {
+						"type": "string",
+						"enum": ["iom", "user_goal"]
+					},
+					"pct": {
+						"type": "number"
+					},
+					"pctLow": {
+						"type": "number"
+					},
+					"pctHigh": {
+						"type": "number"
+					},
+					"verdict": {
+						"type": "string",
+						"enum": [
+							"likely_adequate",
+							"uncertain",
+							"likely_inadequate",
+							"no_conclusion",
+							"above_limit",
+							"depends_on_sex"
+						]
+					},
+					"deficitPerDay": {
+						"type": "number"
+					},
+					"topContributors": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/NutrientContributor"
+						}
+					}
+				},
+				"required": [
+					"key",
+					"label",
+					"unit",
+					"avgIntake",
+					"daysMeasured",
+					"coverageAvg",
+					"target",
+					"targetLow",
+					"targetHigh",
+					"referenceType",
+					"referenceSource",
+					"pct",
+					"pctLow",
+					"pctHigh",
+					"verdict",
+					"deficitPerDay",
+					"topContributors"
+				],
+				"additionalProperties": false
+			},
+			"NutrientContributor": {
+				"type": "object",
+				"properties": {
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"name": {
+						"type": "string"
+					},
+					"totalAmount": {
+						"type": "number"
+					},
+					"sharePct": {
+						"type": "number"
+					},
+					"timesLogged": {
+						"type": "number"
+					}
+				},
+				"required": ["foodId", "recipeId", "name", "totalAmount", "sharePct", "timesLogged"],
+				"additionalProperties": false
+			},
+			"UnmeasuredNutrient": {
+				"type": "object",
+				"properties": {
+					"key": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"unit": {
+						"type": "string"
+					},
+					"reason": {
+						"type": "string",
+						"enum": ["no_data", "low_coverage"]
+					},
+					"coverageAvg": {
+						"type": "number"
+					}
+				},
+				"required": ["key", "label", "unit", "reason", "coverageAvg"],
 				"additionalProperties": false
 			},
 			"OpenFoodFactsSearchResponse": {

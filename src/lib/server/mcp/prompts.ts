@@ -145,4 +145,46 @@ export function registerPrompts(server: McpServer) {
 				].join('\n')
 			)
 	);
+
+	server.registerPrompt(
+		'meal_plan',
+		{
+			title: 'Plan meals around nutrient gaps',
+			description:
+				'Build a multi-day meal plan that fits existing habits and closes the biggest nutrient shortfalls.',
+			argsSchema: {
+				startDate: DATE_ARG.describe('First day of the plan, YYYY-MM-DD. Defaults to tomorrow.'),
+				days: z
+					.string()
+					.regex(/^\d+$/)
+					.optional()
+					.describe('How many days to plan. Defaults to 7.'),
+				focus: z
+					.string()
+					.optional()
+					.describe(
+						'What to optimise for, e.g. "iron and vitamin D" or "more protein at breakfast"'
+					)
+			}
+		},
+		({ startDate, days, focus }) =>
+			user(
+				[
+					`Build me a ${days ?? 'seven'}-day Bissbilanz meal plan starting ${startDate ?? 'tomorrow'}.`,
+					focus ? `Focus on: ${focus}.` : '',
+					'',
+					'Steps:',
+					'1. Call get_meal_plan_context first. It carries my goals, maintenance calories, priority nutrient gaps, eating patterns, meal-slot split, favourites, top foods and recipes.',
+					'2. Call get_nutrient_gaps for the detail, including which nutrients are unmeasured.',
+					'3. For the two or three worst gaps, call find_nutrient_sources. Prefer foods I already eat; use each candidate\u2019s servingsToCloseGap and practical flag rather than the raw score.',
+					'4. Build the plan around my actual habits: use the mealSlots calorie split and avgFirstMealTime/avgLastMealTime rather than inventing a schedule. Hit my calorie and protein goals each day.',
+					'5. Present it as a day-by-day table with per-day totals for calories, protein and the nutrients we are targeting, then a short shopping list.',
+					'',
+					'You may propose foods that are not in my database yet. Check search_foods first, then search_openfoodfacts for packaged products, and state your assumptions for anything you estimate.',
+					'Do not log anything and do not create foods — this is a plan, not a diary write. Tell me what is unmeasured rather than assuming it is adequate.'
+				]
+					.filter(Boolean)
+					.join('\n')
+			)
+	);
 }
