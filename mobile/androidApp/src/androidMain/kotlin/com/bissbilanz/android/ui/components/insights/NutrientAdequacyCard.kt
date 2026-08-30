@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.bissbilanz.analytics.RdaEntry
+import com.bissbilanz.analytics.NutrientAdequacyItem
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -22,7 +22,7 @@ import com.bissbilanz.android.ui.theme.ProteinRed
 import kotlin.math.roundToInt
 
 @Composable
-fun NutrientAdequacyCard(adequacy: List<Pair<RdaEntry, Double>>) {
+fun NutrientAdequacyCard(adequacy: List<NutrientAdequacyItem>) {
     CollapsibleCard(title = stringResource(R.string.insights_nutrient_adequacy_title), sectionId = "nutrient_adequacy") {
         if (adequacy.isEmpty()) {
             Text(
@@ -32,7 +32,7 @@ fun NutrientAdequacyCard(adequacy: List<Pair<RdaEntry, Double>>) {
             )
             return@CollapsibleCard
         }
-        adequacy.forEach { (entry, pct) ->
+        adequacy.forEach { (rda, pct) ->
             val color =
                 when {
                     pct < 0.5 -> ProteinRed
@@ -45,7 +45,7 @@ fun NutrientAdequacyCard(adequacy: List<Pair<RdaEntry, Double>>) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    nutrientDisplayName(entry.nutrientKey),
+                    nutrientDisplayName(rda.nutrientKey),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

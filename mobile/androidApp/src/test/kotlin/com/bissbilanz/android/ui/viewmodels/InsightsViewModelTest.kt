@@ -2,6 +2,8 @@ package com.bissbilanz.android.ui.viewmodels
 
 import androidx.lifecycle.SavedStateHandle
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.InsightsInput
+import com.bissbilanz.analytics.computeInsights
 import com.bissbilanz.android.R
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
@@ -68,7 +70,12 @@ class InsightsViewModelTest {
         sleepEntriesFlow = MutableStateFlow(emptyList())
         statsRepo = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
-        analyticsRepo = mockk(relaxed = true)
+        analyticsRepo =
+            mockk(relaxed = true) {
+                // A real bundle rather than a relaxed mock, so the per-tab fan-out
+                // below asserts against values the shared computation actually produces.
+                coEvery { getInsights(any(), any(), any()) } returns emptyRangeBundle()
+            }
         appModeManager = AppModeManager(InMemoryKeyValueStore())
         goalsRepo =
             mockk(relaxed = true) {
@@ -221,7 +228,8 @@ class InsightsViewModelTest {
 
             viewModel.selectTab(1)
 
-            coVerify(atLeast = 1) { analyticsRepo.getNutrientsExtended(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.foodDiversityResult.value)
         }
 
     @Test
@@ -232,7 +240,7 @@ class InsightsViewModelTest {
             viewModel.selectTab(1)
             viewModel.selectTab(1)
 
-            coVerify(exactly = 1) { analyticsRepo.getNutrientsExtended(any(), any()) }
+            coVerify(exactly = 1) { analyticsRepo.getInsights(any(), any(), any()) }
         }
 
     @Test
@@ -243,7 +251,7 @@ class InsightsViewModelTest {
             viewModel.selectTab(1)
             viewModel.selectRange(1)
 
-            coVerify(exactly = 2) { analyticsRepo.getNutrientsExtended(any(), any()) }
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
         }
 
     @Test
@@ -263,7 +271,8 @@ class InsightsViewModelTest {
 
             viewModel.selectTab(2)
 
-            coVerify(atLeast = 1) { analyticsRepo.getWeightFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.tdeeResult.value)
         }
 
     @Test
@@ -273,7 +282,8 @@ class InsightsViewModelTest {
 
             viewModel.selectTab(3)
 
-            coVerify(atLeast = 1) { analyticsRepo.getSleepFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.caffeineSleepResult.value)
         }
 
     @Test
@@ -284,13 +294,13 @@ class InsightsViewModelTest {
             viewModel.selectTab(2)
             viewModel.selectTab(2)
 
-            coVerify(exactly = 1) { analyticsRepo.getWeightFood(any(), any()) }
+            coVerify(exactly = 1) { analyticsRepo.getInsights(any(), any(), any()) }
         }
 
     @Test
     fun nutritionLoadErrorDoesNotCrash() =
         runTest {
-            coEvery { analyticsRepo.getNutrientsExtended(any(), any()) } throws RuntimeException("fail")
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
 
             val viewModel = createViewModel()
             viewModel.loadNutritionAnalytics()
@@ -301,7 +311,7 @@ class InsightsViewModelTest {
     @Test
     fun weightLoadErrorDoesNotCrash() =
         runTest {
-            coEvery { analyticsRepo.getWeightFood(any(), any()) } throws RuntimeException("fail")
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
 
             val viewModel = createViewModel()
             viewModel.loadWeightAnalytics()
@@ -312,7 +322,7 @@ class InsightsViewModelTest {
     @Test
     fun sleepAnalyticsLoadErrorDoesNotCrash() =
         runTest {
-            coEvery { analyticsRepo.getSleepFood(any(), any()) } throws RuntimeException("fail")
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
 
             val viewModel = createViewModel()
             viewModel.loadSleepAnalytics()
@@ -359,7 +369,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.selectTab(1)
 
-            coVerify(atLeast = 1) { analyticsRepo.getNutrientsExtended(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
             assertEquals(false, viewModel.nutritionLoading.value)
         }
 
@@ -371,7 +381,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.selectTab(2)
 
-            coVerify(atLeast = 1) { analyticsRepo.getWeightFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
             assertEquals(false, viewModel.weightLoading.value)
         }
 
@@ -383,7 +393,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.selectTab(3)
 
-            coVerify(atLeast = 1) { analyticsRepo.getSleepFood(any(), any()) }
+            coVerify(atLeast = 1) { analyticsRepo.getInsights(any(), any(), any()) }
             assertEquals(false, viewModel.sleepLoading.value)
         }
 
@@ -401,6 +411,19 @@ class InsightsViewModelTest {
         }
 
     companion object {
+        /** The shared computation over an empty range: every card present, all INSUFFICIENT. */
+        fun emptyRangeBundle() =
+            computeInsights(
+                InsightsInput(
+                    entries = emptyList(),
+                    foods = emptyList(),
+                    recipes = emptyList(),
+                    weights = emptyList(),
+                    sleep = emptyList(),
+                    timeZoneId = "UTC",
+                ),
+            )
+
         fun testSleepEntry(id: String) =
             SleepEntry(
                 id = id,

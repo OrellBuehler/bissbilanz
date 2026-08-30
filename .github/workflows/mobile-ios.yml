@@ -72,6 +72,14 @@ jobs:
       - name: Build shared iOS framework
         run: ./gradlew shared:linkDebugFrameworkIosSimulatorArm64
 
+      # The shared module's unit tests — including the cross-language golden
+      # vectors — otherwise only ever run on the JVM via the Android job. This is
+      # the one place the Kotlin/Native binary the app actually links gets
+      # exercised, where Double formatting, the timezone database and
+      # Instant.parse can all behave differently.
+      - name: Run shared Kotlin/Native tests
+        run: ./gradlew shared:iosSimulatorArm64Test
+
       - name: Stage shared framework for Xcode
         run: |
           SDK_NAME=$(xcrun --sdk iphonesimulator --show-sdk-version)

@@ -142,8 +142,8 @@ class InsightsViewModel(
     val macroImpactResult: StateFlow<List<NutrientCorrelation>> = _macroImpactResult.asStateFlow()
     private val _mealTimingSummary = MutableStateFlow<MealTimingSummary?>(null)
     val mealTimingSummary: StateFlow<MealTimingSummary?> = _mealTimingSummary.asStateFlow()
-    private val _nutrientAdequacyResult = MutableStateFlow<List<Pair<RdaEntry, Double>>>(emptyList())
-    val nutrientAdequacyResult: StateFlow<List<Pair<RdaEntry, Double>>> = _nutrientAdequacyResult.asStateFlow()
+    private val _nutrientAdequacyResult = MutableStateFlow<List<NutrientAdequacyItem>>(emptyList())
+    val nutrientAdequacyResult: StateFlow<List<NutrientAdequacyItem>> = _nutrientAdequacyResult.asStateFlow()
 
     // Sleep results (4)
     private val _foodSleepResult = MutableStateFlow<FoodSleepResult?>(null)
@@ -157,26 +157,15 @@ class InsightsViewModel(
 
     private val loadedTabs = mutableSetOf<Int>()
 
-    private var cachedExtendedNutrients: NutrientsExtendedResponse? = null
-    private var cachedMealTiming: MealTimingResponse? = null
-    private var cachedDailyNutrients: NutrientsDailyResponse? = null
+    private var cachedInsights: InsightsBundle? = null
 
-    private suspend fun getExtendedNutrients(): NutrientsExtendedResponse? {
-        cachedExtendedNutrients?.let { return it }
+    /** All three analytics tabs read the same bundle; compute it once per range. */
+    private suspend fun getInsights(): InsightsBundle? {
+        cachedInsights?.let { return it }
         val (start, end) = dateRange()
-        return analyticsRepo.getNutrientsExtended(start, end).also { cachedExtendedNutrients = it }
-    }
-
-    private suspend fun getMealTiming(): MealTimingResponse? {
-        cachedMealTiming?.let { return it }
-        val (start, end) = dateRange()
-        return analyticsRepo.getMealTiming(start, end).also { cachedMealTiming = it }
-    }
-
-    private suspend fun getDailyNutrients(): NutrientsDailyResponse? {
-        cachedDailyNutrients?.let { return it }
-        val (start, end) = dateRange()
-        return analyticsRepo.getNutrientsDaily(start, end).also { cachedDailyNutrients = it }
+        return analyticsRepo
+            .getInsights(start, end, TimeZone.currentSystemDefault().id)
+            .also { cachedInsights = it }
     }
 
     init {
@@ -206,9 +195,7 @@ class InsightsViewModel(
         savedStateHandle[KEY_SELECTED_RANGE] = index
         loadedTabs.clear()
         loadedTabs.add(0)
-        cachedExtendedNutrients = null
-        cachedMealTiming = null
-        cachedDailyNutrients = null
+        cachedInsights = null
         loadData()
         if (selectedTab.value != 0) {
             selectTab(selectedTab.value)
@@ -418,273 +405,60 @@ class InsightsViewModel(
     }
 
     fun loadNutritionAnalytics() {
-        viewModelScope.launch {
-            _nutritionLoading.value = true
-            val (startDate, endDate) = dateRange()
-            try {
-                coroutineScope {
-                    val extDeferred = async { getExtendedNutrients() }
-                    val dailyDeferred = async { getDailyNutrients() }
-                    val timingDeferred = async { getMealTiming() }
-                    val divDeferred = async { analyticsRepo.getFoodDiversity(startDate, endDate) }
-
-                    val extResponse = extDeferred.await()
-                    val dailyResponse = dailyDeferred.await()
-                    val timingResponse = timingDeferred.await()
-                    val divResponse = divDeferred.await()
-
-                    val extData = extResponse?.data ?: emptyList()
-                    val dailyData = dailyResponse?.data ?: emptyList()
-                    val timingData = timingResponse?.data ?: emptyList()
-                    val divData = divResponse?.data ?: emptyList()
-
-                    _novaResult.value = computeNOVAScore(extData.map { Pair(it.calories, it.novaGroup) })
-                    _omegaResult.value =
-                        computeOmegaRatio(
-                            extData.groupBy { it.date }.map { (date, entries) ->
-                                Triple(date, entries.sumOf { it.omega3 ?: 0.0 }, entries.sumOf { it.omega6 ?: 0.0 })
-                            },
-                        )
-                    _diiResult.value =
-                        computeDIIScore(
-                            extData.groupBy { it.date }.map { (_, entries) ->
-                                DIIInput(
-                                    fiber = entries.sumOf { it.fiber },
-                                    omega3 = entries.sumOf { it.omega3 ?: 0.0 },
-                                    vitaminC = entries.sumOf { it.vitaminC ?: 0.0 },
-                                    vitaminD = entries.sumOf { it.vitaminD ?: 0.0 },
-                                    vitaminE = entries.sumOf { it.vitaminE ?: 0.0 },
-                                    saturatedFat = entries.sumOf { it.saturatedFat ?: 0.0 },
-                                    transFat = entries.sumOf { it.transFat ?: 0.0 },
-                                    alcohol = entries.sumOf { it.alcohol ?: 0.0 },
-                                    caffeine = entries.sumOf { it.caffeine ?: 0.0 },
-                                    sodium = entries.sumOf { it.sodium ?: 0.0 },
-                                )
-                            },
-                        )
-                    _tefResult.value = computeTEF(dailyData.map { TEFInput(it.protein, it.carbs, it.fat, it.calories) })
-                    _proteinDistributionResult.value =
-                        computeProteinDistribution(
-                            extData.map { Triple(it.date, it.mealType, it.protein) },
-                        )
-                    _frontLoadingResult.value =
-                        computeCalorieFrontLoading(
-                            extData.map { Triple(it.date, it.eatenAt, it.calories) },
-                            TimeZone.currentSystemDefault().id,
-                        )
-                    _calorieCyclingResult.value = computeCalorieCycling(dailyData.map { Pair(it.date, it.calories) })
-                    _weekdayWeekendResult.value =
-                        computeWeekdayWeekendSplit(
-                            dailyData.map { DayEntry(it.date, it.calories, it.protein, it.carbs, it.fat, it.fiber) },
-                        )
-                    _mealRegularityResult.value =
-                        computeMealRegularity(
-                            timingData.map { RegularityInputEntry(it.date, it.mealType, it.eatenAt) },
-                            TimeZone.currentSystemDefault().id,
-                        )
-                    _foodDiversityResult.value =
-                        computeFoodDiversity(
-                            divData.map { FoodEntry(it.date, it.foodId, it.recipeId, it.foodName) },
-                        )
-                }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            } finally {
-                _nutritionLoading.value = false
-            }
+        loadTab(_nutritionLoading) { b ->
+            _novaResult.value = b.nova
+            _omegaResult.value = b.omega
+            _diiResult.value = b.dii
+            _tefResult.value = b.tef
+            _proteinDistributionResult.value = b.proteinDistribution
+            _frontLoadingResult.value = b.frontLoading
+            _calorieCyclingResult.value = b.calorieCycling
+            _weekdayWeekendResult.value = b.weekdayWeekend
+            _mealRegularityResult.value = b.mealRegularity
+            _foodDiversityResult.value = b.foodDiversity
         }
     }
 
     fun loadWeightAnalytics() {
-        viewModelScope.launch {
-            _weightLoading.value = true
-            val (startDate, endDate) = dateRange()
-            try {
-                coroutineScope {
-                    val weightDeferred = async { analyticsRepo.getWeightFood(startDate, endDate) }
-                    val extDeferred = async { getExtendedNutrients() }
-                    val dailyDeferred = async { getDailyNutrients() }
-                    val timingDeferred = async { getMealTiming() }
-
-                    val weightResponse = weightDeferred.await()
-                    val extResponse = extDeferred.await()
-                    val dailyResponse = dailyDeferred.await()
-                    val timingResponse = timingDeferred.await()
-
-                    val weightFoodData = weightResponse?.data ?: emptyList()
-                    val extData = extResponse?.data ?: emptyList()
-                    val dailyData = dailyResponse?.data ?: emptyList()
-                    val timingData = timingResponse?.data ?: emptyList()
-
-                    val weightSeries = weightFoodData.map { Pair(it.date, it.weightKg) }
-                    val calorieSeries = weightFoodData.map { Pair(it.date, it.calories) }
-
-                    val tdee = computeAdaptiveTDEE(weightSeries, calorieSeries)
-                    _tdeeResult.value = tdee
-                    val sodiumAvg =
-                        extData
-                            .groupBy { it.date }
-                            .values
-                            .map { entries -> entries.sumOf { it.sodium ?: 0.0 } }
-                            .takeIf { it.isNotEmpty() }
-                            ?.average()
-                    _plateauResult.value = detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE, sodiumAvg)
-                    _weightForecastResult.value = projectWeight(weightSeries, tdee.weeklyRate)
-                    _sodiumWeightResult.value =
-                        computeSodiumWeightCorrelation(
-                            extData.groupBy { it.date }.map { (date, entries) ->
-                                Pair(date, entries.sumOf { it.sodium ?: 0.0 })
-                            },
-                            weightSeries,
-                        )
-                    _caloricLagResult.value =
-                        computeCaloricLag(
-                            calorieSeries,
-                            weightSeries,
-                        )
-                    _macroImpactResult.value =
-                        computeNutrientOutcomeCorrelations(
-                            dailyData.map { d ->
-                                Pair(
-                                    d.date,
-                                    mapOf(
-                                        "protein" to d.protein,
-                                        "carbs" to d.carbs,
-                                        "fat" to d.fat,
-                                        "fiber" to d.fiber,
-                                    ),
-                                )
-                            },
-                            weightFoodData.mapNotNull { d -> d.weightKg?.let { Pair(d.date, it) } },
-                        )
-                    _mealTimingSummary.value =
-                        extractMealTimingPatterns(
-                            timingData.map { MealEntry(it.date, it.eatenAt, it.calories) },
-                            TimeZone.currentSystemDefault().id,
-                        )
-
-                    // Intentionally limited to the 7 nutrients most relevant for dietary adequacy
-                    // assessment. Update this set if new tracked nutrient fields are added to
-                    // ExtendedNutrientEntry.
-                    val trackedKeys = setOf("vitaminC", "vitaminD", "vitaminE", "sodium", "omega3", "omega6", "fiber")
-                    val dayCount =
-                        extData
-                            .map { it.date }
-                            .distinct()
-                            .size
-                            .takeIf { it > 0 } ?: 1
-                    val sumByKey = mutableMapOf<String, Double>()
-                    for (entry in extData) {
-                        sumByKey["vitaminC"] = (sumByKey["vitaminC"] ?: 0.0) + (entry.vitaminC ?: 0.0)
-                        sumByKey["vitaminD"] = (sumByKey["vitaminD"] ?: 0.0) + (entry.vitaminD ?: 0.0)
-                        sumByKey["vitaminE"] = (sumByKey["vitaminE"] ?: 0.0) + (entry.vitaminE ?: 0.0)
-                        sumByKey["sodium"] = (sumByKey["sodium"] ?: 0.0) + (entry.sodium ?: 0.0)
-                        sumByKey["omega3"] = (sumByKey["omega3"] ?: 0.0) + (entry.omega3 ?: 0.0)
-                        sumByKey["omega6"] = (sumByKey["omega6"] ?: 0.0) + (entry.omega6 ?: 0.0)
-                        sumByKey["fiber"] = (sumByKey["fiber"] ?: 0.0) + entry.fiber
-                    }
-                    // Sex is not available in the current user model, so use the more
-                    // conservative (higher) RDA value to avoid over-reporting adequacy.
-                    _nutrientAdequacyResult.value =
-                        RDA_VALUES
-                            .filter { it.nutrientKey in trackedKeys }
-                            .map { rda ->
-                                val avg = (sumByKey[rda.nutrientKey] ?: 0.0) / dayCount
-                                val rdaTarget = maxOf(rda.rdaMale, rda.rdaFemale)
-                                Pair(rda, avg / rdaTarget)
-                            }
-                }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            } finally {
-                _weightLoading.value = false
-            }
+        loadTab(_weightLoading) { b ->
+            _tdeeResult.value = b.tdee
+            _plateauResult.value = b.plateau
+            _weightForecastResult.value = b.weightForecast
+            _sodiumWeightResult.value = b.sodiumWeight
+            _caloricLagResult.value = b.caloricLag
+            _macroImpactResult.value = b.macroImpact
+            _mealTimingSummary.value = b.mealTiming
+            _nutrientAdequacyResult.value = b.nutrientAdequacy
         }
     }
 
     fun loadSleepAnalytics() {
+        loadTab(_sleepLoading) { b ->
+            _foodSleepResult.value = b.foodSleep
+            _nutrientSleepCorrelations.value = b.nutrientSleep
+            _preSleepTimingSummary.value = b.preSleepTiming
+            _caffeineSleepResult.value = b.caffeineSleep
+        }
+    }
+
+    /**
+     * Computes the insights bundle once per range and hands it to [publish], which
+     * fans it out to one tab's flows. The bundle is memoised, so switching tabs
+     * within a range costs nothing.
+     */
+    private fun loadTab(
+        loading: MutableStateFlow<Boolean>,
+        publish: (InsightsBundle) -> Unit,
+    ) {
         viewModelScope.launch {
-            _sleepLoading.value = true
-            val (startDate, endDate) = dateRange()
+            loading.value = true
             try {
-                coroutineScope {
-                    val extDeferred = async { getExtendedNutrients() }
-                    val timingDeferred = async { getMealTiming() }
-                    val sleepFoodDeferred = async { analyticsRepo.getSleepFood(startDate, endDate) }
-
-                    val extResponse = extDeferred.await()
-                    val timingResponse = timingDeferred.await()
-                    val sleepFoodResponse = sleepFoodDeferred.await()
-
-                    val extData = extResponse?.data ?: emptyList()
-                    val timingData = timingResponse?.data ?: emptyList()
-                    val sleepFoodData = sleepFoodResponse?.data ?: emptyList()
-
-                    val deviceTz = TimeZone.currentSystemDefault().id
-                    val eveningFoods =
-                        extData
-                            .filter { entry ->
-                                val eatenAt = entry.eatenAt ?: return@filter false
-                                val localMinutes = localMinutesOfDay(eatenAt, deviceTz) ?: return@filter false
-                                val hour = localMinutes / 60
-                                hour >= 19
-                            }.mapNotNull { entry ->
-                                val id = entry.foodId ?: entry.recipeId ?: return@mapNotNull null
-                                EveningFoodEntry(
-                                    date = entry.date,
-                                    foodId = id,
-                                    foodName = entry.foodName,
-                                    nutrients =
-                                        mapOf(
-                                            "calories" to entry.calories,
-                                            "protein" to entry.protein,
-                                            "carbs" to entry.carbs,
-                                            "fat" to entry.fat,
-                                            "fiber" to entry.fiber,
-                                        ),
-                                )
-                            }
-                    val sleepQualityPoints = sleepFoodData.map { SleepQualityPoint(it.date, it.sleepQuality.toDouble()) }
-
-                    _foodSleepResult.value = detectFoodSleepPatterns(eveningFoods, sleepQualityPoints)
-                    _nutrientSleepCorrelations.value =
-                        computeNutrientOutcomeCorrelations(
-                            extData.groupBy { it.date }.map { (date, entries) ->
-                                Pair(
-                                    date,
-                                    mapOf(
-                                        "protein" to entries.sumOf { it.protein },
-                                        "carbs" to entries.sumOf { it.carbs },
-                                        "fat" to entries.sumOf { it.fat },
-                                        "fiber" to entries.sumOf { it.fiber },
-                                    ),
-                                )
-                            },
-                            sleepFoodData.map { Pair(it.date, it.sleepQuality.toDouble()) },
-                        )
-                    _preSleepTimingSummary.value =
-                        extractMealTimingPatterns(
-                            timingData.map { MealEntry(it.date, it.eatenAt, it.calories) },
-                            deviceTz,
-                        )
-
-                    val caffeineEntries =
-                        extData
-                            .filter { (it.caffeine ?: 0.0) > 0.0 }
-                            .map { CaffeineEntry(it.date, it.eatenAt, it.caffeine!!) }
-                    val sleepDataPoints =
-                        sleepEntries.value.map {
-                            SleepDataPoint(it.entryDate, it.quality, it.durationMinutes.toDouble())
-                        }
-                    _caffeineSleepResult.value = computeCaffeineSleepCutoff(caffeineEntries, sleepDataPoints, deviceTz)
-                }
+                getInsights()?.let(publish)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
             } finally {
-                _sleepLoading.value = false
+                loading.value = false
             }
         }
     }

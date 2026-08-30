@@ -4,15 +4,21 @@ import com.bissbilanz.analytics.AggEntry
 import com.bissbilanz.analytics.AggFood
 import com.bissbilanz.analytics.AggRecipe
 import com.bissbilanz.analytics.AggRecipeIngredient
+import com.bissbilanz.analytics.EVENING_CUTOFF_HOUR
+import com.bissbilanz.analytics.InsightsBundle
+import com.bissbilanz.analytics.InsightsInput
+import com.bissbilanz.analytics.InsightsSleepRow
 import com.bissbilanz.analytics.MaintenanceInput
 import com.bissbilanz.analytics.SleepRow
 import com.bissbilanz.analytics.WeightRow
 import com.bissbilanz.analytics.aggregateDailyNutrientTotals
 import com.bissbilanz.analytics.calculateMaintenance
+import com.bissbilanz.analytics.computeInsights
 import com.bissbilanz.analytics.extendedNutrientEntries
 import com.bissbilanz.analytics.foodDiversityRows
 import com.bissbilanz.analytics.localMinutesOfDay
 import com.bissbilanz.analytics.mealTimingRows
+import com.bissbilanz.analytics.shiftDate
 import com.bissbilanz.analytics.sleepFoodCorrelation
 import com.bissbilanz.analytics.weightFoodSeries
 import com.bissbilanz.api.generated.model.DailyNutrients
@@ -27,6 +33,7 @@ import com.bissbilanz.api.generated.model.MealTimingResponse
 import com.bissbilanz.api.generated.model.NutrientsDailyResponse
 import com.bissbilanz.api.generated.model.NutrientsExtendedResponse
 import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepFoodCorrelationEntry
 import com.bissbilanz.api.generated.model.SleepFoodCorrelationResponse
 import com.bissbilanz.api.generated.model.WeightFoodResponse
@@ -299,6 +306,51 @@ class LocalAnalytics(
         )
     }
 
+    /**
+     * Every insights card for the range, in one pass.
+     *
+     * The per-card methods above each rebuild the whole food/recipe table from the
+     * cache; the insights screen needs six of those aggregations at once, so it
+     * loads the inputs once and hands them to the shared [computeInsights].
+     *
+     * Sleep is read one day past [endDate] on purpose: the caffeine cutoff pairs a
+     * day's last coffee with the *following* night, so the night after the last
+     * day in range is still part of this window.
+     */
+    fun insights(
+        startDate: String,
+        endDate: String,
+        timeZoneId: String,
+    ): InsightsBundle {
+        val inputs = buildInputs(loadEntries(startDate, endDate))
+        val weights =
+            db.userDataDatabaseQueries
+                .selectWeightEntriesByDateRange(startDate, endDate)
+                .executeAsList()
+                .map { WeightRow(it.entryDate, it.weightKg) }
+        val sleep =
+            db.userDataDatabaseQueries
+                .selectSleepEntriesByDateRange(startDate, shiftDate(endDate, 1))
+                .executeAsList()
+                // Decoded rather than read off the typed columns: the cache stores
+                // quality as an INTEGER, and the caffeine cutoff wants the Double.
+                .mapNotNull { row ->
+                    json.decodeOrNull<SleepEntry>(row.jsonData)?.let {
+                        InsightsSleepRow(it.entryDate, it.durationMinutes, it.quality)
+                    }
+                }
+        return computeInsights(
+            InsightsInput(
+                entries = inputs.entries,
+                foods = inputs.foods,
+                recipes = inputs.recipes,
+                weights = weights,
+                sleep = sleep,
+                timeZoneId = timeZoneId,
+            ),
+        )
+    }
+
     // --- loading + mapping ---------------------------------------------------
 
     private class Inputs(
@@ -398,8 +450,4 @@ class LocalAnalytics(
             totalServings = totalServings,
             ingredients = ingredients.map { AggRecipeIngredient(foodId = it.foodId, quantity = it.quantity) },
         )
-
-    private companion object {
-        const val EVENING_CUTOFF_HOUR = 17
-    }
 }

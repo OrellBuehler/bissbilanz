@@ -9,11 +9,20 @@ export type FoodDiversityResult = {
 	sampleSize: number;
 };
 
+/**
+ * The Monday on or before `dateStr` (a plain `YYYY-MM-DD`).
+ *
+ * Deliberately all-UTC: parsing as local midnight and then slicing
+ * `toISOString()` reads back the *UTC* day, which for any timezone east of UTC
+ * is the day before — every week boundary shifted by one day depending on where
+ * the server ran. Kotlin does this with pure `LocalDate` arithmetic and has no
+ * such trapdoor; the golden vectors now hold the two together.
+ */
 function getWeekStart(dateStr: string): string {
-	const d = new Date(dateStr + 'T00:00:00');
-	const dow = d.getDay();
+	const d = new Date(dateStr + 'T00:00:00Z');
+	const dow = d.getUTCDay();
 	const diff = (dow + 6) % 7;
-	d.setDate(d.getDate() - diff);
+	d.setUTCDate(d.getUTCDate() - diff);
 	return d.toISOString().slice(0, 10);
 }
 
@@ -33,9 +42,10 @@ export function computeFoodDiversity(
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([weekStart, foods]) => ({ weekStart, uniqueCount: foods.size }));
 
-	const sampleSize = weeklyData.length;
+	const weekCount = weeklyData.length;
+	const sampleSize = entries.length;
 
-	if (sampleSize === 0) {
+	if (weekCount === 0) {
 		return {
 			avgUniqueFoodsPerWeek: 0,
 			currentWeekUnique: 0,
@@ -46,12 +56,12 @@ export function computeFoodDiversity(
 		};
 	}
 
-	const avgUniqueFoodsPerWeek = weeklyData.reduce((s, w) => s + w.uniqueCount, 0) / sampleSize;
+	const avgUniqueFoodsPerWeek = weeklyData.reduce((s, w) => s + w.uniqueCount, 0) / weekCount;
 
 	const currentWeekUnique = weeklyData[weeklyData.length - 1].uniqueCount;
 
 	let trend: FoodDiversityResult['trend'] = 'stable';
-	if (sampleSize >= 4) {
+	if (weekCount >= 4) {
 		const recent = weeklyData.slice(-2);
 		const previous = weeklyData.slice(-4, -2);
 		const recentAvg = recent.reduce((s, w) => s + w.uniqueCount, 0) / recent.length;
@@ -68,7 +78,7 @@ export function computeFoodDiversity(
 		currentWeekUnique,
 		trend,
 		weeklyData,
-		confidence: getConfidenceLevel(sampleSize),
+		confidence: getConfidenceLevel(weekCount),
 		sampleSize
 	};
 }

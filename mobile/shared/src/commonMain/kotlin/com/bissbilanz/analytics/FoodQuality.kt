@@ -11,7 +11,8 @@ data class NOVAResult(
 )
 
 data class OmegaResult(
-    val ratio: Double,
+    /** Null when there is no day with both omegas logged — there is no ratio to show. */
+    val ratio: Double?,
     val avgOmega3: Double,
     val avgOmega6: Double,
     val status: String,
@@ -95,7 +96,7 @@ fun computeOmegaRatio(dailyNutrients: List<Triple<String, Double, Double>>): Ome
     val sampleSize = filtered.size
     if (sampleSize == 0) {
         return OmegaResult(
-            ratio = 0.0,
+            ratio = null,
             avgOmega3 = 0.0,
             avgOmega6 = 0.0,
             status = "insufficient",
@@ -105,10 +106,10 @@ fun computeOmegaRatio(dailyNutrients: List<Triple<String, Double, Double>>): Ome
     }
     val avgOmega3 = filtered.sumOf { it.second } / sampleSize
     val avgOmega6 = filtered.sumOf { it.third } / sampleSize
-    val ratio = if (avgOmega3 > 0) avgOmega6 / avgOmega3 else 0.0
+    val ratio = if (avgOmega3 > 0) avgOmega6 / avgOmega3 else null
     val status =
         when {
-            ratio <= OMEGA_RATIO_OPTIMAL_MAX -> "optimal"
+            ratio == null || ratio <= OMEGA_RATIO_OPTIMAL_MAX -> "optimal"
             ratio <= OMEGA_RATIO_ELEVATED_MAX -> "elevated"
             ratio <= OMEGA_RATIO_HIGH_MAX -> "high"
             else -> "critical"

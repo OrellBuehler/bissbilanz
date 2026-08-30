@@ -56,7 +56,7 @@ fun OmegaRatioCard(result: OmegaResult) {
         ) {
             Column {
                 Text(
-                    "${"%.1f".format(result.ratio)}:1",
+                    result.ratio?.let { "${"%.1f".format(it)}:1" } ?: "—",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     color = statusColor,

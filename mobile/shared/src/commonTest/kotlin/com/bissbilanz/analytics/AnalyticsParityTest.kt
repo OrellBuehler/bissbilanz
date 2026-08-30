@@ -16,7 +16,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import java.io.File
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.fail
@@ -26,12 +25,18 @@ import kotlin.test.fail
  * TypeScript server. Both this test and tests/analytics/parity.test.ts assert
  * the same frozen fixtures, so the server's TS analytics and the mobile apps'
  * Kotlin analytics fail CI the moment they diverge. See analytics-parity/README.md.
+ *
+ * Lives in `commonTest` rather than `androidUnitTest` so it runs on every target.
+ * The Android app runs on the JVM but the iOS app links a Kotlin/Native binary,
+ * and a JVM-only test says nothing about that one — Double formatting, the
+ * timezone database behind `localMinutesOfDay`, and `Instant.parse` strictness
+ * all differ by platform. The cases are embedded as generated source because
+ * `commonTest` has no filesystem to read a fixture from.
  */
 class AnalyticsParityTest {
     @Test
     fun matchesGoldenVectors() {
-        val root = Json.parseToJsonElement(loadFixtureText()).jsonObject
-        val cases = root.getValue("cases").jsonArray
+        val cases = GOLDEN_VECTOR_CASES.map { Json.parseToJsonElement(it) }
         check(cases.isNotEmpty()) { "no golden-vector cases found" }
 
         val failures = mutableListOf<String>()
@@ -155,6 +160,132 @@ class AnalyticsParityTest {
                     regularityEntriesFrom(input.getValue("entries")),
                     input.str("timeZone"),
                 ).toJson()
+            }
+
+            "computeNOVAScore" -> {
+                computeNOVAScore(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        o.dbl("calories") to o.optInt("novaGroup")
+                    },
+                ).toJson()
+            }
+
+            "computeOmegaRatio" -> {
+                computeOmegaRatio(
+                    input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
+                        Triple(o.str("date"), o.dbl("omega3"), o.dbl("omega6"))
+                    },
+                ).toJson()
+            }
+
+            "computeFoodDiversity" -> {
+                computeFoodDiversity(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        FoodEntry(
+                            date = o.str("date"),
+                            foodId = o.optStr("foodId"),
+                            recipeId = o.optStr("recipeId"),
+                            foodName = o.str("foodName"),
+                        )
+                    },
+                ).toJson()
+            }
+
+            "computeCalorieCycling" -> {
+                computeCalorieCycling(
+                    input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
+                        o.str("date") to o.dbl("calories")
+                    },
+                ).toJson()
+            }
+
+            "computeCaloricLag" -> {
+                computeCaloricLag(
+                    seriesFrom(input.getValue("dailyCalories"), "value"),
+                    seriesFrom(input.getValue("dailyWeight"), "value"),
+                    input.optInt("maxLag") ?: 7,
+                ).toJson()
+            }
+
+            "computeProteinDistribution" -> {
+                computeProteinDistribution(
+                    input.getValue("entries").jsonArray.map { it.jsonObject }.map { o ->
+                        Triple(o.str("date"), o.str("mealType"), o.dbl("protein"))
+                    },
+                    input.optDouble("threshold") ?: 20.0,
+                ).toJson()
+            }
+
+            "computeSodiumWeightCorrelation" -> {
+                computeSodiumWeightCorrelation(
+                    input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
+                        o.str("date") to o.dbl("sodium")
+                    },
+                    weightSeriesFrom(input.getValue("weightSeries")),
+                ).toJson()
+            }
+
+            "computeWeekdayWeekendSplit" -> {
+                computeWeekdayWeekendSplit(
+                    input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
+                        DayEntry(
+                            date = o.str("date"),
+                            calories = o.dbl("calories"),
+                            protein = o.dbl("protein"),
+                            carbs = o.dbl("carbs"),
+                            fat = o.dbl("fat"),
+                            fiber = o.dbl("fiber"),
+                        )
+                    },
+                ).toJson()
+            }
+
+            "computeNutrientOutcomeCorrelations" -> {
+                computeNutrientOutcomeCorrelations(
+                    input.getValue("dailyNutrients").jsonArray.map { it.jsonObject }.map { o ->
+                        o.str("date") to
+                            o.getValue("nutrients").jsonObject.mapValues { (_, v) -> v.asNullableDouble() }
+                    },
+                    input.getValue("outcomes").jsonArray.map { it.jsonObject }.map { o ->
+                        o.str("date") to o.dbl("value")
+                    },
+                    input.optInt("lagDays") ?: 0,
+                ).let { result -> JsonArray(result.map { it.toJson() }) }
+            }
+
+            "detectFoodSleepPatterns" -> {
+                detectFoodSleepPatterns(
+                    input.getValue("eveningFoods").jsonArray.map { it.jsonObject }.map { o ->
+                        EveningFoodEntry(
+                            date = o.str("date"),
+                            foodId = o.str("foodId"),
+                            foodName = o.str("foodName"),
+                            nutrients =
+                                o.getValue("nutrients").jsonObject.mapValues { (_, v) -> v.jsonPrimitive.double },
+                        )
+                    },
+                    input.getValue("sleepData").jsonArray.map { it.jsonObject }.map { o ->
+                        SleepQualityPoint(date = o.str("date"), quality = o.dbl("quality"))
+                    },
+                    input.optInt("minOccurrences") ?: 3,
+                ).toJson()
+            }
+
+            "getConfidenceLevel" -> {
+                JsonPrimitive(getConfidenceLevel(input.getValue("sampleSize").jsonPrimitive.int).wire())
+            }
+
+            "localMinutesOfDay" -> {
+                localMinutesOfDay(input.str("isoString"), input.str("timeZone"))
+                    ?.let(::JsonPrimitive) ?: JsonNull
+            }
+
+            "nullDiv" -> {
+                nullDiv(input.dbl("a"), input.dbl("b"))?.let(::JsonPrimitive) ?: JsonNull
+            }
+
+            "nullSum" -> {
+                nullSum(nullableDoublesFrom(input.getValue("values")))?.let(::JsonPrimitive) ?: JsonNull
             }
 
             else -> {
@@ -330,6 +461,163 @@ class AnalyticsParityTest {
             put("avgMinute", avgMinute)
             put("stddevMinutes", stddevMinutes)
             put("regularity", regularity)
+        }
+
+    // Kotlin keeps the NOVA split as a Map<Int, Double>; the TS wire shape is a
+    // sorted byGroup array carrying each group's share of the tagged calories.
+    private fun NOVAResult.toJson() =
+        buildJsonObject {
+            put("ultraProcessedPct", ultraProcessedPct)
+            val novaKcal = groupDistribution.values.sum()
+            put(
+                "byGroup",
+                JsonArray(
+                    groupDistribution.entries.sortedBy { it.key }.map { (group, kcal) ->
+                        buildJsonObject {
+                            put("group", group)
+                            put("kcal", kcal)
+                            put("pct", if (novaKcal > 0) kcal / novaKcal * 100.0 else 0.0)
+                        }
+                    },
+                ),
+            )
+            put("coveragePct", coveragePct)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun OmegaResult.toJson() =
+        buildJsonObject {
+            putNullableDouble("ratio", ratio)
+            put("avgOmega3", avgOmega3)
+            put("avgOmega6", avgOmega6)
+            put("status", status)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    // Kotlin: weeklyEntries/uniqueFoods/avgUniquePerWeek. TS: weeklyData/uniqueCount/
+    // avgUniqueFoodsPerWeek, plus currentWeekUnique, which Kotlin derives on demand.
+    private fun FoodDiversityResult.toJson() =
+        buildJsonObject {
+            put("avgUniqueFoodsPerWeek", avgUniquePerWeek)
+            put("currentWeekUnique", weeklyEntries.lastOrNull()?.uniqueFoods ?: 0)
+            put("trend", trend)
+            put(
+                "weeklyData",
+                JsonArray(
+                    weeklyEntries.map {
+                        buildJsonObject {
+                            put("weekStart", it.weekStart)
+                            put("uniqueCount", it.uniqueFoods)
+                        }
+                    },
+                ),
+            )
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun CalorieCyclingResult.toJson() =
+        buildJsonObject {
+            put("mean", mean)
+            put("stddev", stddev)
+            put("cv", cv)
+            put("pattern", pattern)
+            put("highDays", highDays)
+            put("lowDays", lowDays)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun CaloricLagResult.toJson() =
+        buildJsonObject {
+            put("bestLag", bestLag?.let(::JsonPrimitive) ?: JsonNull)
+            put(
+                "results",
+                JsonArray(
+                    results.map {
+                        buildJsonObject {
+                            put("lag", it.lag)
+                            put("correlation", it.correlation?.toJson() ?: JsonNull)
+                        }
+                    },
+                ),
+            )
+        }
+
+    private fun ProteinDistributionResult.toJson() =
+        buildJsonObject {
+            put("score", score)
+            put("avgPerMeal", avgPerMeal)
+            put("mealsPerDay", mealsPerDay)
+            put("mealsBelowThreshold", mealsBelowThreshold)
+            put("totalMeals", totalMeals)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun SodiumWeightResult.toJson() =
+        buildJsonObject {
+            put(
+                "correlation",
+                buildJsonObject {
+                    put("r", correlation.r)
+                    putNullableDouble("pValue", correlation.pValue)
+                    put("sampleSize", correlation.sampleSize)
+                },
+            )
+            put("avgSodium", avgSodium)
+            put("highSodiumDays", highSodiumDays)
+            putNullableDouble("avgWeightDeltaAfterHighSodium", avgWeightDeltaAfterHighSodium)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun DayStats.toJson() =
+        buildJsonObject {
+            put("avgCalories", avgCalories)
+            put("avgProtein", avgProtein)
+            put("avgCarbs", avgCarbs)
+            put("avgFat", avgFat)
+            put("avgFiber", avgFiber)
+            put("days", days)
+        }
+
+    private fun WeekdayWeekendResult.toJson() =
+        buildJsonObject {
+            put("weekday", weekday.toJson())
+            put("weekend", weekend.toJson())
+            put("calorieDelta", calorieDelta)
+            put("calorieDeltaPct", calorieDeltaPct)
+            put("confidence", confidence.wire())
+            put("sampleSize", sampleSize)
+        }
+
+    private fun NutrientCorrelation.toJson() =
+        buildJsonObject {
+            put("nutrientKey", nutrientKey)
+            put("correlation", correlation.toJson())
+        }
+
+    private fun FoodSleepResult.toJson() =
+        buildJsonObject {
+            put(
+                "foodImpacts",
+                JsonArray(
+                    foodImpacts.map {
+                        buildJsonObject {
+                            put("foodName", it.foodName)
+                            put("foodId", it.foodId)
+                            put("avgQualityWith", it.avgQualityWith)
+                            put("avgQualityWithout", it.avgQualityWithout)
+                            put("delta", it.delta)
+                            put("occurrences", it.occurrences)
+                        }
+                    },
+                ),
+            )
+            put("overallAvgQuality", overallAvgQuality)
         }
 
     // TS encodes ConfidenceLevel as a lowercase string.
@@ -532,22 +820,17 @@ class AnalyticsParityTest {
         val expectedNum = if (!expected.isString) expected.doubleOrNull else null
         if (expectedNum != null) {
             val actualNum = actual.doubleOrNull ?: fail("$path: expected number, got $actual")
-            val tol = if (path.endsWith("pValue")) 1e-7 else 1e-9 * maxOf(1.0, abs(expectedNum))
+            val tol =
+                if (path.endsWith("pValue")) {
+                    GOLDEN_TOLERANCE_P_VALUE
+                } else {
+                    GOLDEN_TOLERANCE_DEFAULT * maxOf(1.0, abs(expectedNum))
+                }
             if (abs(actualNum - expectedNum) > tol) {
                 fail("$path: expected $expectedNum, got $actualNum (tolerance $tol)")
             }
             return
         }
         if (actual.content != expected.content) fail("$path: expected '${expected.content}', got '${actual.content}'")
-    }
-
-    private fun loadFixtureText(): String {
-        var dir: File? = File(System.getProperty("user.dir"))
-        repeat(8) {
-            val candidate = File(dir, "analytics-parity/fixtures/golden-vectors.json")
-            if (candidate.exists()) return candidate.readText()
-            dir = dir?.parentFile
-        }
-        error("golden-vectors.json not found walking up from ${System.getProperty("user.dir")}")
     }
 }

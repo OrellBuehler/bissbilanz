@@ -23,7 +23,7 @@ export function computeNOVAScore(
 	const totalCalories = entries.reduce((sum, e) => sum + e.calories, 0);
 
 	const withNova = entries.filter((e) => e.novaGroup !== null);
-	const sampleSize = withNova.length;
+	const sampleSize = entries.length;
 	const novaCalories = withNova.reduce((sum, e) => sum + e.calories, 0);
 
 	const coveragePct = totalCalories > 0 ? (novaCalories / totalCalories) * 100 : 0;
@@ -46,7 +46,8 @@ export function computeNOVAScore(
 	const ultraProcessedPct = novaCalories > 0 ? (group4Kcal / novaCalories) * 100 : 0;
 
 	const baseConfidence = getConfidenceLevel(sampleSize);
-	const confidence: ConfidenceLevel = coveragePct < 30 ? 'low' : baseConfidence;
+	const confidence: ConfidenceLevel =
+		coveragePct < 30 && baseConfidence !== 'insufficient' ? 'low' : baseConfidence;
 
 	return { ultraProcessedPct, byGroup, coveragePct, confidence, sampleSize };
 }
@@ -55,7 +56,7 @@ export type OmegaResult = {
 	ratio: number | null;
 	avgOmega3: number;
 	avgOmega6: number;
-	status: 'optimal' | 'elevated' | 'high' | 'critical';
+	status: 'optimal' | 'elevated' | 'high' | 'critical' | 'insufficient';
 	confidence: ConfidenceLevel;
 	sampleSize: number;
 };
@@ -71,7 +72,7 @@ export function computeOmegaRatio(
 			ratio: null,
 			avgOmega3: 0,
 			avgOmega6: 0,
-			status: 'optimal',
+			status: 'insufficient',
 			confidence: 'insufficient',
 			sampleSize: 0
 		};

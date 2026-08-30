@@ -107,6 +107,48 @@ final class EntryRepository {
         syncDayToHealth(date)
     }
 
+    /// Replaces the cached entries for a whole date span in one request.
+    ///
+    /// `refresh(date:)` pulls a single day, which is all the day log needs; the
+    /// insights screen needs up to 90 days at once and would otherwise compute
+    /// over whichever days the user happened to have visited. Conflict handling
+    /// matches the per-day refresh exactly — optimistic `temp_` rows and rows
+    /// with an un-uploaded queued write survive the server response.
+    ///
+    /// Deliberately does not push to Health: that is a per-day diff, and running
+    /// it 90 times for a backfill would cost far more than it is worth. Days the
+    /// user actually opens still sync through `refresh(date:)`.
+    func refreshRange(startDate: String, endDate: String) async throws {
+        guard !appMode.isLocal else { return }
+        let fetched = try await api.getEntriesRange(startDate: startDate, endDate: endDate)
+
+        let pendingIds = syncManager.pendingAffectedIds(table: "entries")
+        let descriptor = FetchDescriptor<LocalEntry>(
+            predicate: #Predicate { $0.date >= startDate && $0.date <= endDate }
+        )
+        var rowsById = Dictionary(
+            ((try? context.fetch(descriptor)) ?? []).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (id, row) in rowsById where !LocalStore.isTempId(id) && !pendingIds.contains(id) {
+            context.delete(row)
+            rowsById.removeValue(forKey: id)
+        }
+        for entry in fetched where !pendingIds.contains(entry.id) {
+            // The range endpoint carries the date on each entry; skip anything
+            // that somehow lacks one rather than filing it under the wrong day.
+            guard let date = entry.date else { continue }
+            if let row = rowsById[entry.id] {
+                row.update(from: entry, date: date)
+            } else {
+                let row = LocalEntry(entry: entry, date: date)
+                context.insert(row)
+                rowsById[entry.id] = row
+            }
+        }
+        save()
+    }
+
     // MARK: - Writes (local first + queued upload)
 
     @discardableResult

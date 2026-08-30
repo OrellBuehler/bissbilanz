@@ -6,7 +6,7 @@
  * analytics-parity/README.md. Keep this file dependency-free (pure imports of
  * the analytics modules) so it runs without the SvelteKit runtime.
  */
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,18 @@ import { extractMealTimingPatterns } from '../src/lib/analytics/meal-timing';
 import { computeCalorieFrontLoading } from '../src/lib/analytics/calorie-patterns';
 import { computeCaffeineSleepCutoff } from '../src/lib/analytics/caffeine-sleep';
 import { computeMealRegularity } from '../src/lib/analytics/meal-regularity';
+import { computeNOVAScore, computeOmegaRatio } from '../src/lib/analytics/food-quality';
+import { computeFoodDiversity } from '../src/lib/analytics/food-diversity';
+import { computeCalorieCycling } from '../src/lib/analytics/calorie-patterns';
+import { computeCaloricLag } from '../src/lib/analytics/caloric-lag';
+import { computeProteinDistribution } from '../src/lib/analytics/protein-distribution';
+import { computeSodiumWeightCorrelation } from '../src/lib/analytics/sodium-weight';
+import { computeWeekdayWeekendSplit } from '../src/lib/analytics/weekday-weekend';
+import { computeNutrientOutcomeCorrelations } from '../src/lib/analytics/nutrient-correlation';
+import { detectFoodSleepPatterns } from '../src/lib/analytics/food-sleep';
+import { getConfidenceLevel } from '../src/lib/analytics/correlation';
+import { localMinutesOfDay } from '../src/lib/analytics/local-time';
+import { nullDiv, nullSum } from '../src/lib/analytics/aggregation';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -501,6 +513,406 @@ function round(v: number, dp: number): number {
 	);
 }
 
+// --- computeNOVAScore -----------------------------------------------------------
+{
+	// Mixed coverage: two untagged entries drag coveragePct down without changing
+	// the group split, which is computed over tagged calories only.
+	const mixed = [
+		{ calories: 400, novaGroup: 1 },
+		{ calories: 250, novaGroup: 1 },
+		{ calories: 300, novaGroup: 3 },
+		{ calories: 600, novaGroup: 4 },
+		{ calories: 150, novaGroup: 4 },
+		{ calories: 200, novaGroup: 2 },
+		{ calories: 350, novaGroup: null },
+		{ calories: 120, novaGroup: null }
+	];
+	add(
+		'computeNOVAScore',
+		'mixed_groups_partial_coverage',
+		{ entries: mixed },
+		computeNOVAScore(mixed)
+	);
+
+	// Coverage under 30% must downgrade a usable sample to 'low' — but never
+	// promote one that was insufficient to begin with (the two-entry case below).
+	const thin = Array.from({ length: 10 }, (_, i) =>
+		i === 0 ? { calories: 100, novaGroup: 4 } : { calories: 200, novaGroup: null }
+	);
+	add('computeNOVAScore', 'low_coverage_downgrades', { entries: thin }, computeNOVAScore(thin));
+
+	const twoEntries = [
+		{ calories: 100, novaGroup: 4 },
+		{ calories: 900, novaGroup: null }
+	];
+	add(
+		'computeNOVAScore',
+		'insufficient_not_promoted',
+		{ entries: twoEntries },
+		computeNOVAScore(twoEntries)
+	);
+
+	add('computeNOVAScore', 'empty', { entries: [] }, computeNOVAScore([]));
+}
+
+// --- computeOmegaRatio ----------------------------------------------------------
+{
+	// Days missing either omega are dropped before averaging.
+	const days = [
+		{ date: '2025-02-01', omega3: 1.5, omega6: 9.0 },
+		{ date: '2025-02-02', omega3: 2.0, omega6: 14.0 },
+		{ date: '2025-02-03', omega3: 1.0, omega6: 6.0 },
+		{ date: '2025-02-04', omega3: 0, omega6: 8.0 },
+		{ date: '2025-02-05', omega3: 1.2, omega6: 0 }
+	];
+	add(
+		'computeOmegaRatio',
+		'elevated_with_dropped_days',
+		{ dailyNutrients: days },
+		computeOmegaRatio(days)
+	);
+
+	const critical = Array.from({ length: 8 }, (_, i) => ({
+		date: isoDay(i),
+		omega3: 0.5,
+		omega6: 15.0
+	}));
+	add('computeOmegaRatio', 'critical', { dailyNutrients: critical }, computeOmegaRatio(critical));
+
+	// No usable day at all: there is no ratio to report and the status says so.
+	add('computeOmegaRatio', 'empty', { dailyNutrients: [] }, computeOmegaRatio([]));
+}
+
+// --- computeFoodDiversity -------------------------------------------------------
+{
+	// Six Mondays-to-Sundays; the last two weeks are more varied than the two
+	// before them, so the trend reads increasing.
+	const diversityEntries: {
+		date: string;
+		foodId: string | null;
+		recipeId: string | null;
+		foodName: string;
+	}[] = [];
+	const perWeek = [3, 3, 4, 4, 7, 8];
+	perWeek.forEach((count, week) => {
+		for (let i = 0; i < count; i++) {
+			diversityEntries.push({
+				date: isoDay(week * 7 + (i % 7)),
+				foodId: `food-${week}-${i}`,
+				recipeId: null,
+				foodName: `Food ${week}-${i}`
+			});
+		}
+	});
+	add(
+		'computeFoodDiversity',
+		'six_weeks_increasing',
+		{ entries: diversityEntries },
+		computeFoodDiversity(diversityEntries)
+	);
+
+	// Identity falls back recipeId then foodName, so the same food logged twice
+	// counts once. Week boundaries must not move with the server's timezone.
+	const dedup = [
+		{ date: '2025-01-01', foodId: null, recipeId: 'r1', foodName: 'Stew' },
+		{ date: '2025-01-02', foodId: null, recipeId: 'r1', foodName: 'Stew' },
+		{ date: '2025-01-03', foodId: null, recipeId: null, foodName: 'Toast' },
+		{ date: '2025-01-06', foodId: 'f1', recipeId: null, foodName: 'Apple' }
+	];
+	add(
+		'computeFoodDiversity',
+		'identity_fallback_and_weeks',
+		{ entries: dedup },
+		computeFoodDiversity(dedup)
+	);
+
+	add('computeFoodDiversity', 'empty', { entries: [] }, computeFoodDiversity([]));
+}
+
+// --- computeCalorieCycling ------------------------------------------------------
+{
+	const steady = Array.from({ length: 14 }, (_, i) => ({
+		date: isoDay(i),
+		calories: 2000 + (i % 2) * 20
+	}));
+	add(
+		'computeCalorieCycling',
+		'consistent',
+		{ dailyNutrients: steady },
+		computeCalorieCycling(steady)
+	);
+
+	const swinging = Array.from({ length: 14 }, (_, i) => ({
+		date: isoDay(i),
+		calories: i % 2 === 0 ? 1400 : 3000
+	}));
+	add(
+		'computeCalorieCycling',
+		'high_variance',
+		{ dailyNutrients: swinging },
+		computeCalorieCycling(swinging)
+	);
+
+	add('computeCalorieCycling', 'empty', { dailyNutrients: [] }, computeCalorieCycling([]));
+}
+
+// --- computeCaloricLag ----------------------------------------------------------
+{
+	// Weight responds to intake three days later, so lag 3 should correlate best.
+	// Note computeCaloricLag takes {date, value} rather than the {date, calories} /
+	// {date, weightKg} shapes the TDEE analytics use.
+	const lagDays = 24;
+	const kcal = Array.from({ length: lagDays }, (_, i) => ({
+		date: isoDay(i),
+		value: 2000 + Math.round(600 * Math.sin(i / 2))
+	}));
+	const wt = Array.from({ length: lagDays }, (_, i) => ({
+		date: isoDay(i),
+		value: round(80 + 0.4 * Math.sin(Math.max(0, i - 3) / 2), 4)
+	}));
+	add(
+		'computeCaloricLag',
+		'three_day_lag',
+		{ dailyCalories: kcal, dailyWeight: wt, maxLag: 7 },
+		computeCaloricLag(kcal, wt, 7)
+	);
+
+	// Fewer than seven paired points per lag leaves every correlation null.
+	const shortKcal = kcal.slice(0, 6);
+	const shortWt = wt.slice(0, 6);
+	add(
+		'computeCaloricLag',
+		'too_short_for_any_lag',
+		{ dailyCalories: shortKcal, dailyWeight: shortWt, maxLag: 7 },
+		computeCaloricLag(shortKcal, shortWt, 7)
+	);
+}
+
+// --- computeProteinDistribution -------------------------------------------------
+{
+	// Three days, three meals each; the 12 g and 8 g meals fall below the 20 g bar.
+	const meals = [
+		{ date: '2025-03-01', mealType: 'Breakfast', protein: 30 },
+		{ date: '2025-03-01', mealType: 'Lunch', protein: 40 },
+		{ date: '2025-03-01', mealType: 'Dinner', protein: 12 },
+		{ date: '2025-03-02', mealType: 'Breakfast', protein: 25 },
+		{ date: '2025-03-02', mealType: 'Lunch', protein: 35 },
+		{ date: '2025-03-02', mealType: 'Dinner', protein: 45 },
+		{ date: '2025-03-03', mealType: 'Breakfast', protein: 8 },
+		{ date: '2025-03-03', mealType: 'Lunch', protein: 30 },
+		{ date: '2025-03-03', mealType: 'Dinner', protein: 28 }
+	];
+	add(
+		'computeProteinDistribution',
+		'three_days',
+		{ entries: meals, threshold: 20 },
+		computeProteinDistribution(meals, 20)
+	);
+
+	add(
+		'computeProteinDistribution',
+		'empty',
+		{ entries: [], threshold: 20 },
+		computeProteinDistribution([], 20)
+	);
+}
+
+// --- computeSodiumWeightCorrelation ---------------------------------------------
+{
+	// Weight rises the day after each sodium spike.
+	const sodiumDays = Array.from({ length: 16 }, (_, i) => ({
+		date: isoDay(i),
+		sodium: i % 4 === 0 ? 4200 : 1800
+	}));
+	const sodiumWeights = Array.from({ length: 16 }, (_, i) => ({
+		date: isoDay(i),
+		weightKg: round(80 + (i % 4 === 1 ? 0.6 : 0) + i * 0.01, 4)
+	}));
+	add(
+		'computeSodiumWeightCorrelation',
+		'spikes_precede_gain',
+		{ dailyNutrients: sodiumDays, weightSeries: sodiumWeights },
+		computeSodiumWeightCorrelation(sodiumDays, sodiumWeights)
+	);
+
+	const fewPairs = sodiumDays.slice(0, 5);
+	const fewWeights = sodiumWeights.slice(0, 5);
+	add(
+		'computeSodiumWeightCorrelation',
+		'insufficient_pairs',
+		{ dailyNutrients: fewPairs, weightSeries: fewWeights },
+		computeSodiumWeightCorrelation(fewPairs, fewWeights)
+	);
+}
+
+// --- computeWeekdayWeekendSplit -------------------------------------------------
+{
+	// 2025-01-01 is a Wednesday, so the run covers both kinds of day.
+	const isWeekend = (i: number) => {
+		const dow = new Date(Date.UTC(2025, 0, 1) + i * 86400000).getUTCDay(); // Sun = 0
+		return dow === 0 || dow === 6;
+	};
+	const split = Array.from({ length: 21 }, (_, i) => {
+		const weekend = isWeekend(i);
+		return {
+			date: isoDay(i),
+			calories: weekend ? 2600 : 2000,
+			protein: weekend ? 110 : 130,
+			carbs: weekend ? 300 : 220,
+			fat: weekend ? 95 : 70,
+			fiber: weekend ? 20 : 28
+		};
+	});
+	add(
+		'computeWeekdayWeekendSplit',
+		'three_weeks',
+		{ dailyNutrients: split },
+		computeWeekdayWeekendSplit(split)
+	);
+
+	add(
+		'computeWeekdayWeekendSplit',
+		'empty',
+		{ dailyNutrients: [] },
+		computeWeekdayWeekendSplit([])
+	);
+}
+
+// --- computeNutrientOutcomeCorrelations -----------------------------------------
+{
+	// protein tracks the outcome, fat runs against it, carbs is mostly null and
+	// must be dropped for coverage, fiber is flat so its |r| falls under the bar.
+	const nutrientDays = Array.from({ length: 20 }, (_, i) => ({
+		date: isoDay(i),
+		nutrients: {
+			protein: 100 + i * 2,
+			fat: 100 - i * 2,
+			carbs: i % 3 === 0 ? 200 : null,
+			fiber: 25
+		} as Record<string, number | null>
+	}));
+	const outcomes = Array.from({ length: 20 }, (_, i) => ({ date: isoDay(i), value: 70 + i * 0.5 }));
+	add(
+		'computeNutrientOutcomeCorrelations',
+		'mixed_signals',
+		{ dailyNutrients: nutrientDays, outcomes, lagDays: 0 },
+		computeNutrientOutcomeCorrelations(nutrientDays, outcomes, 0)
+	);
+
+	add(
+		'computeNutrientOutcomeCorrelations',
+		'lagged_by_one_day',
+		{ dailyNutrients: nutrientDays, outcomes, lagDays: 1 },
+		computeNutrientOutcomeCorrelations(nutrientDays, outcomes, 1)
+	);
+
+	add(
+		'computeNutrientOutcomeCorrelations',
+		'empty',
+		{ dailyNutrients: [], outcomes: [], lagDays: 0 },
+		computeNutrientOutcomeCorrelations([], [], 0)
+	);
+}
+
+// --- detectFoodSleepPatterns ----------------------------------------------------
+{
+	// "Pizza" appears on four nights and drags quality down; "Salad" lifts it.
+	// "Tea" appears twice and falls under the three-night minimum.
+	const nights = 12;
+	const sleepPoints = Array.from({ length: nights }, (_, i) => ({
+		date: isoDay(i),
+		quality: i % 3 === 0 ? 4.5 : 8.0
+	}));
+	const eveningFoods: {
+		date: string;
+		foodId: string;
+		foodName: string;
+		nutrients: Record<string, number>;
+	}[] = [];
+	for (let i = 0; i < nights; i++) {
+		if (i % 3 === 0) {
+			eveningFoods.push({
+				date: isoDay(i),
+				foodId: 'pizza',
+				foodName: 'Pizza',
+				nutrients: { calories: 900 }
+			});
+		} else {
+			eveningFoods.push({
+				date: isoDay(i),
+				foodId: 'salad',
+				foodName: 'Salad',
+				nutrients: { calories: 200 }
+			});
+		}
+	}
+	eveningFoods.push({
+		date: isoDay(1),
+		foodId: 'tea',
+		foodName: 'Tea',
+		nutrients: { calories: 5 }
+	});
+	eveningFoods.push({
+		date: isoDay(2),
+		foodId: 'tea',
+		foodName: 'Tea',
+		nutrients: { calories: 5 }
+	});
+	add(
+		'detectFoodSleepPatterns',
+		'pizza_hurts_salad_helps',
+		{ eveningFoods, sleepData: sleepPoints, minOccurrences: 3 },
+		detectFoodSleepPatterns(eveningFoods, sleepPoints, 3)
+	);
+
+	add(
+		'detectFoodSleepPatterns',
+		'empty',
+		{ eveningFoods: [], sleepData: [], minOccurrences: 3 },
+		detectFoodSleepPatterns([], [], 3)
+	);
+}
+
+// --- getConfidenceLevel ---------------------------------------------------------
+{
+	// The 7/14/30 boundaries every other analytic inherits.
+	for (const n of [0, 6, 7, 13, 14, 29, 30, 100]) {
+		add('getConfidenceLevel', `n_${n}`, { sampleSize: n }, getConfidenceLevel(n));
+	}
+}
+
+// --- localMinutesOfDay ----------------------------------------------------------
+{
+	// The bucketing every time-of-day analytic depends on, including a DST
+	// boundary (Europe/Zurich went to CEST on 2025-03-30) and a UTC-day flip.
+	const samples: [string, string][] = [
+		['2025-03-29T23:30:00Z', 'Europe/Zurich'],
+		['2025-03-30T23:30:00Z', 'Europe/Zurich'],
+		['2025-01-15T07:15:00Z', 'UTC'],
+		['2025-01-15T23:45:00Z', 'America/New_York'],
+		['2025-06-15T12:00:00Z', 'Asia/Tokyo'],
+		['not-a-timestamp', 'UTC']
+	];
+	samples.forEach(([iso, tz], i) =>
+		add(
+			'localMinutesOfDay',
+			`sample_${i}`,
+			{ isoString: iso, timeZone: tz },
+			localMinutesOfDay(iso, tz)
+		)
+	);
+}
+
+// --- nullDiv / nullSum ----------------------------------------------------------
+{
+	// The SQL NULL semantics the whole aggregation layer is built on.
+	add('nullDiv', 'plain', { a: 10, b: 4 }, nullDiv(10, 4));
+	add('nullDiv', 'divide_by_zero_is_null', { a: 10, b: 0 }, nullDiv(10, 0));
+	add('nullSum', 'skips_nulls', { values: [1, null, 3, null, 5] }, nullSum([1, null, 3, null, 5]));
+	add('nullSum', 'all_null_is_null', { values: [null, null] }, nullSum([null, null]));
+	add('nullSum', 'empty_is_null', { values: [] }, nullSum([]));
+}
+
 const out = {
 	version: 1,
 	description:
@@ -511,6 +923,70 @@ const out = {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const target = resolve(here, 'fixtures/golden-vectors.json');
-mkdirSync(dirname(target), { recursive: true });
-writeFileSync(target, JSON.stringify(out, null, 2) + '\n');
-console.log(`Wrote ${cases.length} cases to ${target}`);
+const jsonSource = JSON.stringify(out, null, 2) + '\n';
+
+/**
+ * The same cases as Kotlin source.
+ *
+ * The Kotlin harness lives in `commonTest` so the vectors are asserted on every
+ * target — including the Kotlin/Native binary the iOS app links, which a JVM-only
+ * test would never touch. `commonTest` has no filesystem, hence embedding.
+ *
+ * One literal per case rather than one for the whole file: a JVM string constant
+ * is capped at 65535 bytes and the full fixture is already past that.
+ */
+const kotlinLiteral = (value: string) =>
+	'"' +
+	value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/\n/g, '\\n') +
+	'"';
+
+const kotlinTarget = resolve(
+	here,
+	'../mobile/shared/src/commonTest/kotlin/com/bissbilanz/analytics/GoldenVectors.kt'
+);
+const kotlinSource = `// GENERATED FILE — DO NOT EDIT.
+// Source of truth: analytics-parity/generate.ts. Regenerate with \`bun run analytics:generate\`.
+package com.bissbilanz.analytics
+
+/** Tolerance for [GOLDEN_VECTOR_CASES]; pValue flows through an iterative beta approximation. */
+internal const val GOLDEN_TOLERANCE_DEFAULT: Double = ${out.tolerances.default}
+internal const val GOLDEN_TOLERANCE_P_VALUE: Double = ${out.tolerances.pValue}
+
+/** One JSON \`{ fn, name, input, expected }\` object per case. */
+internal val GOLDEN_VECTOR_CASES: List<String> =
+    listOf(
+${cases.map((c) => '        ' + kotlinLiteral(JSON.stringify(c))).join(',\n')},
+    )
+`;
+// `--check` is the CI guard: the Kotlin fixture is generated, so a hand-edit or a
+// forgotten regeneration after an analytics change would otherwise let the two
+// languages assert different vectors and quietly agree with nobody.
+const checkMode = process.argv.includes('--check');
+const targets = [
+	{ path: target, content: jsonSource },
+	{ path: kotlinTarget, content: kotlinSource }
+];
+
+let drift = false;
+for (const { path, content } of targets) {
+	if (checkMode) {
+		let current = '';
+		try {
+			current = readFileSync(path, 'utf-8');
+		} catch {
+			// missing file counts as drift
+		}
+		if (current !== content) {
+			console.error(`DRIFT: ${path} is stale — run \`bun run analytics:generate\``);
+			drift = true;
+		}
+	} else {
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, content);
+		console.log(`Wrote ${cases.length} cases to ${path}`);
+	}
+}
+if (checkMode) {
+	if (drift) process.exit(1);
+	console.log('Golden vectors are up to date.');
+}

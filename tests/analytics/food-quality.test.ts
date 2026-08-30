@@ -29,14 +29,18 @@ describe('computeNOVAScore', () => {
 		expect(g4?.pct).toBe(50);
 	});
 
-	test('all null novaGroup → coveragePct = 0, confidence = low', () => {
+	test('all null novaGroup → no coverage, and a thin sample is not promoted to low', () => {
 		const result = computeNOVAScore([
 			{ calories: 500, novaGroup: null },
 			{ calories: 300, novaGroup: null }
 		]);
 		expect(result.coveragePct).toBe(0);
-		expect(result.confidence).toBe('low');
-		expect(result.sampleSize).toBe(0);
+		// Thin coverage downgrades a usable sample; it must not upgrade two
+		// entries into something the confidence scale calls reportable.
+		expect(result.confidence).toBe('insufficient');
+		// sampleSize counts every logged entry — coveragePct is what says how
+		// many of them carried a NOVA group.
+		expect(result.sampleSize).toBe(2);
 	});
 
 	test('50% coverage with sufficient samples → confidence not forced to low by coverage', () => {

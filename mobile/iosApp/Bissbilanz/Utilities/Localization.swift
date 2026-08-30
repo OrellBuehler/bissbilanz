@@ -2300,6 +2300,728 @@ enum L10n {
         }
     }
 
+    static var foodDetailExpand: String {
+        localized("food_detail_expand", en: "Expand", de: "Ausklappen")
+    }
+
+    static var foodDetailCollapse: String {
+        localized("food_detail_collapse", en: "Collapse", de: "Einklappen")
+    }
+
+    static var insightsTabOverview: String {
+        localized("insights_tab_overview", en: "Overview", de: "Übersicht")
+    }
+
+    static var insightsTabNutrition: String {
+        localized("insights_tab_nutrition", en: "Nutrition", de: "Ernährung")
+    }
+
+    static var weightWidgetTitle: String {
+        localized("weight_widget_title", en: "Weight", de: "Gewicht")
+    }
+
+    static var sleepSectionTitle: String {
+        localized("sleep_section_title", en: "Sleep", de: "Schlaf")
+    }
+
+    static var insightsMoreWithAccount: String {
+        localized(
+            "insights_more_with_account",
+            en: "More insights available with an account",
+            de: "Weitere Auswertungen mit einem Konto verfügbar"
+        )
+    }
+
+    // MARK: - Insights (analytics cards)
+
+    // Mirrors the insights_* keys in the Android app's strings.xml one-for-one,
+    // so a card's copy can be compared across platforms by key. Android formats
+    // with positional placeholders; here they become interpolated parameters.
+
+    static var foodDetailNova2: String {
+        localized("food_detail_nova_2", en: "Processed culinary ingredients", de: "Verarbeitete kulinarische Zutaten")
+    }
+
+    static var foodDetailNova3: String {
+        localized("food_detail_nova_3", en: "Processed foods", de: "Verarbeitete Lebensmittel")
+    }
+
+    static func formatKcal(_ a1: String) -> String {
+        localized("format_kcal", en: "\(a1) kcal", de: "\(a1) kcal")
+    }
+
+    static var insightsAvgDaily: String {
+        localized("insights_avg_daily", en: "avg daily", de: "Ø täglich")
+    }
+
+    static var insightsAvgEatingWindow: String {
+        localized("insights_avg_eating_window", en: "avg eating window", de: "Ø Essfenster")
+    }
+
+    static var insightsAvgIntake: String {
+        localized("insights_avg_intake", en: "Avg intake", de: "Ø Aufnahme")
+    }
+
+    static var insightsAvgPerMeal: String {
+        localized("insights_avg_per_meal", en: "avg per meal", de: "Ø pro Mahlzeit")
+    }
+
+    static var insightsBetterSleep: String {
+        localized("insights_better_sleep", en: "Better sleep", de: "Besserer Schlaf")
+    }
+
+    static func insightsCaffeineCutoff(_ a1: Int) -> String {
+        localized("insights_caffeine_cutoff", en: "Cut off at \(a1):00", de: "Grenze bei \(a1):00 Uhr")
+    }
+
+    static var insightsCaffeineNoCutoff: String {
+        localized("insights_caffeine_no_cutoff", en: "No clear cutoff found", de: "Keine klare Grenze gefunden")
+    }
+
+    static var insightsCaffeineSleepTitle: String {
+        localized("insights_caffeine_sleep_title", en: "Caffeine & Sleep", de: "Koffein & Schlaf")
+    }
+
+    static func insightsCaloricLagDay(_ a1: Int) -> String {
+        localized("insights_caloric_lag_day", en: "Day \(a1)", de: "Tag \(a1)")
+    }
+
+    static func insightsCaloricLagDays(_ a1: Int) -> String {
+        localized("insights_caloric_lag_days", en: "\(a1) day lag", de: "\(a1) Tage Verzögerung")
+    }
+
+    static var insightsCaloricLagNone: String {
+        localized("insights_caloric_lag_none", en: "No significant lag pattern found", de: "Kein signifikantes Verzögerungsmuster gefunden")
+    }
+
+    static var insightsCaloricLagTitle: String {
+        localized("insights_caloric_lag_title", en: "Caloric Lag", de: "Kalorien-Verzögerung")
+    }
+
+    static var insightsCalorieCyclingTitle: String {
+        localized("insights_calorie_cycling_title", en: "Calorie Cycling", de: "Kalorienzyklen")
+    }
+
+    static var insightsCyclingConsistent: String {
+        localized("insights_cycling_consistent", en: "Consistent", de: "Konstant")
+    }
+
+    static var insightsCyclingHigh: String {
+        localized("insights_cycling_high", en: "High cycling", de: "Starke Schwankung")
+    }
+
+    static var insightsCyclingModerate: String {
+        localized("insights_cycling_moderate", en: "Moderate cycling", de: "Mäßige Schwankung")
+    }
+
+    static var insightsDiiAntiInflammatory: String {
+        localized("insights_dii_anti_inflammatory", en: "Anti-inflammatory", de: "Entzündungshemmend")
+    }
+
+    static var insightsDiiMildlyProInflammatory: String {
+        localized("insights_dii_mildly_pro_inflammatory", en: "Mildly pro-inflammatory", de: "Leicht entzündungsfördernd")
+    }
+
+    static var insightsDiiNeutral: String {
+        localized("insights_dii_neutral", en: "Neutral", de: "Neutral")
+    }
+
+    static var insightsDiiProInflammatory: String {
+        localized("insights_dii_pro_inflammatory", en: "Pro-inflammatory", de: "Entzündungsfördernd")
+    }
+
+    static var insightsDiiScoreLabel: String {
+        localized("insights_dii_score_label", en: "DII score", de: "DII-Score")
+    }
+
+    static var insightsDiiTitle: String {
+        localized("insights_dii_title", en: "Dietary Inflammatory Index", de: "Entzündungsindex (DII)")
+    }
+
+    static var insightsDiiTopContributors: String {
+        localized("insights_dii_top_contributors", en: "Top contributors", de: "Hauptfaktoren")
+    }
+
+    static var insightsDistributionScore: String {
+        localized("insights_distribution_score", en: "distribution score", de: "Verteilungswert")
+    }
+
+    static func insightsDiversityBasedOn(_ a1: Int) -> String {
+        localized("insights_diversity_based_on", en: "Based on \(a1) food entries", de: "Basierend auf \(a1) Lebensmitteleinträgen")
+    }
+
+    static var insightsDiversityDecreasing: String {
+        localized("insights_diversity_decreasing", en: "Decreasing", de: "Sinkend")
+    }
+
+    static var insightsDiversityIncreasing: String {
+        localized("insights_diversity_increasing", en: "Increasing", de: "Steigend")
+    }
+
+    static var insightsDiversityStable: String {
+        localized("insights_diversity_stable", en: "Stable", de: "Stabil")
+    }
+
+    static var insightsEatingWindow: String {
+        localized("insights_eating_window", en: "Eating window", de: "Essfenster")
+    }
+
+    static var insightsFirstMeal: String {
+        localized("insights_first_meal", en: "First meal", de: "Erste Mahlzeit")
+    }
+
+    static var insightsFoodDiversityTitle: String {
+        localized("insights_food_diversity_title", en: "Food Diversity", de: "Lebensmittelvielfalt")
+    }
+
+    static var insightsFoodSleepTitle: String {
+        localized("insights_food_sleep_title", en: "Food & Sleep", de: "Ernährung & Schlaf")
+    }
+
+    static var insightsForecast30Days: String {
+        localized("insights_forecast_30_days", en: "30 days", de: "30 Tage")
+    }
+
+    static var insightsForecast60Days: String {
+        localized("insights_forecast_60_days", en: "60 days", de: "60 Tage")
+    }
+
+    static var insightsForecast90Days: String {
+        localized("insights_forecast_90_days", en: "90 days", de: "90 Tage")
+    }
+
+    static var insightsFrontLoadingBefore2pm: String {
+        localized("insights_front_loading_before_2pm", en: "of calories before 2pm", de: "der Kalorien vor 14 Uhr")
+    }
+
+    static func insightsFrontLoadingDays(_ a1: Int, _ a2: Int) -> String {
+        localized("insights_front_loading_days", en: "\(a1) of \(a2) days front-loaded", de: "\(a1) von \(a2) Tagen vorverlagert")
+    }
+
+    static var insightsFrontLoadingTitle: String {
+        localized("insights_front_loading_title", en: "Calorie Front-Loading", de: "Kalorien-Vorverlagerung")
+    }
+
+    static var insightsGCarbs: String {
+        localized("insights_g_carbs", en: "g carbs", de: "g Kohlenhydrate")
+    }
+
+    static var insightsGFat: String {
+        localized("insights_g_fat", en: "g fat", de: "g Fett")
+    }
+
+    static var insightsGProtein: String {
+        localized("insights_g_protein", en: "g protein", de: "g Protein")
+    }
+
+    static func insightsGramsPerDay(_ a1: String) -> String {
+        localized("insights_grams_per_day", en: "\(a1) g/day", de: "\(a1) g/Tag")
+    }
+
+    static func insightsHighDays(_ a1: Int) -> String {
+        localized("insights_high_days", en: "\(a1) high days", de: "\(a1) hohe Tage")
+    }
+
+    static func insightsHourWindow(_ a1: Int) -> String {
+        localized("insights_hour_window", en: "\(a1)h window", de: "\(a1)h Fenster")
+    }
+
+    static func insightsHourWindowDecimal(_ a1: String) -> String {
+        localized("insights_hour_window_decimal", en: "\(a1)h window", de: "\(a1)h Fenster")
+    }
+
+    static var insightsImpactWeightSuffix: String {
+        localized("insights_impact_weight_suffix", en: "weight", de: "Gewicht")
+    }
+
+    static func insightsKcalPerDay(_ a1: Int) -> String {
+        localized("insights_kcal_per_day", en: "\(a1) kcal/day", de: "\(a1) kcal/Tag")
+    }
+
+    static var insightsKcalUnit: String {
+        localized("insights_kcal_unit", en: "kcal", de: "kcal")
+    }
+
+    static func insightsKgPerWeek(_ a1: String, _ a2: String) -> String {
+        localized("insights_kg_per_week", en: "\(a1)\(a2) kg/week", de: "\(a1)\(a2) kg/Woche")
+    }
+
+    static var insightsLastMeal: String {
+        localized("insights_last_meal", en: "Last meal", de: "Letzte Mahlzeit")
+    }
+
+    static func insightsLastMealValue(_ a1: String) -> String {
+        localized("insights_last_meal_value", en: "Last meal: \(a1)", de: "Letzte Mahlzeit: \(a1)")
+    }
+
+    static var insightsLateNightEating: String {
+        localized("insights_late_night_eating", en: "Late-night eating", de: "Spätes Essen")
+    }
+
+    static func insightsLateNightPct(_ a1: Int) -> String {
+        localized("insights_late_night_pct", en: "\(a1)% of days with late-night meals", de: "\(a1)% der Tage mit späten Mahlzeiten")
+    }
+
+    static func insightsLowDays(_ a1: Int) -> String {
+        localized("insights_low_days", en: "\(a1) low days", de: "\(a1) niedrige Tage")
+    }
+
+    static var insightsMacroImpactTitle: String {
+        localized("insights_macro_impact_title", en: "Macro Impact on Weight", de: "Makro-Einfluss auf Gewicht")
+    }
+
+    static var insightsMealRegularityTitle: String {
+        localized("insights_meal_regularity_title", en: "Meal Regularity", de: "Mahlzeitenregelmäßigkeit")
+    }
+
+    static var insightsMealTimingTitle: String {
+        localized("insights_meal_timing_title", en: "Meal Timing", de: "Mahlzeitenzeitpunkt")
+    }
+
+    static var insightsMealsBelowThreshold: String {
+        localized("insights_meals_below_threshold", en: "meals below threshold", de: "Mahlzeiten unter Schwellenwert")
+    }
+
+    static func insightsMgPerDay(_ a1: Int) -> String {
+        localized("insights_mg_per_day", en: "\(a1) mg/day", de: "\(a1) mg/Tag")
+    }
+
+    static func insightsNightsCount(_ a1: String, _ a2: Int) -> String {
+        localized("insights_nights_count", en: "\(a1) · \(a2) nights", de: "\(a1) · \(a2) Nächte")
+    }
+
+    static var insightsNoRecentWeightEntries: String {
+        localized("insights_no_recent_weight_entries", en: "No recent weight entries", de: "Keine kürzlichen Gewichtseinträge")
+    }
+
+    static var insightsNotEnoughData: String {
+        localized("insights_not_enough_data", en: "Not enough data yet.", de: "Noch nicht genug Daten.")
+    }
+
+    static func insightsNovaBasedOn(_ a1: Int, _ a2: Int) -> String {
+        localized("insights_nova_based_on", en: "Based on \(a1) food entries (\(a2)% tagged)", de: "Basierend auf \(a1) Lebensmitteleinträgen (\(a2)% erfasst)")
+    }
+
+    static var insightsNovaGroup1: String {
+        localized("insights_nova_group_1", en: "Unprocessed / Minimally processed", de: "Unverarbeitet / minimal verarbeitet")
+    }
+
+    static var insightsNovaGroup4: String {
+        localized("insights_nova_group_4", en: "Ultra-processed foods", de: "Hochverarbeitete Lebensmittel")
+    }
+
+    static func insightsNovaRowFormat(_ a1: Int, _ a2: String) -> String {
+        localized("insights_nova_row_format", en: "NOVA \(a1) · \(a2)", de: "NOVA \(a1) · \(a2)")
+    }
+
+    static var insightsNovaScoreTitle: String {
+        localized("insights_nova_score_title", en: "NOVA Score", de: "NOVA-Score")
+    }
+
+    static func insightsNovaTaggedPct(_ a1: Int) -> String {
+        localized("insights_nova_tagged_pct", en: "\(a1)% tagged", de: "\(a1)% erfasst")
+    }
+
+    static var insightsNovaUltraProcessedLabel: String {
+        localized("insights_nova_ultra_processed_label", en: "ultra-processed", de: "hochverarbeitet")
+    }
+
+    static var insightsNutrientAdequacyTitle: String {
+        localized("insights_nutrient_adequacy_title", en: "Nutrient Adequacy", de: "Nährstoff-Versorgung")
+    }
+
+    static var insightsNutrientSleepTitle: String {
+        localized("insights_nutrient_sleep_title", en: "Nutrients & Sleep", de: "Nährstoffe & Schlaf")
+    }
+
+    static var insightsOmegaCritical: String {
+        localized("insights_omega_critical", en: "Critical", de: "Kritisch")
+    }
+
+    static var insightsOmegaElevated: String {
+        localized("insights_omega_elevated", en: "Elevated", de: "Erhöht")
+    }
+
+    static var insightsOmegaHigh: String {
+        localized("insights_omega_high", en: "High", de: "Hoch")
+    }
+
+    static var insightsOmegaIdealRatio: String {
+        localized("insights_omega_ideal_ratio", en: "Ideal ratio is 4:1 or lower", de: "Ideales Verhältnis ist 4:1 oder niedriger")
+    }
+
+    static var insightsOmegaOptimal: String {
+        localized("insights_omega_optimal", en: "Optimal", de: "Optimal")
+    }
+
+    static var insightsOmegaRatioLabel: String {
+        localized("insights_omega_ratio_label", en: "Omega-6 : Omega-3", de: "Omega-6 : Omega-3")
+    }
+
+    static var insightsOmegaRatioTitle: String {
+        localized("insights_omega_ratio_title", en: "Omega Ratio", de: "Omega-Verhältnis")
+    }
+
+    static var insightsOverallAvgQuality: String {
+        localized("insights_overall_avg_quality", en: "Overall avg quality", de: "Ø Gesamtqualität")
+    }
+
+    static var insightsOverallRegularityScore: String {
+        localized("insights_overall_regularity_score", en: "overall regularity score", de: "Gesamt-Regelmäßigkeitswert")
+    }
+
+    static func insightsPctOfDays(_ a1: Int) -> String {
+        localized("insights_pct_of_days", en: "\(a1)% of days", de: "\(a1)% der Tage")
+    }
+
+    static var insightsPlateauCauseAdaptiveMetabolism: String {
+        localized("insights_plateau_cause_adaptive_metabolism", en: "Adaptive metabolism", de: "Adaptiver Stoffwechsel")
+    }
+
+    static var insightsPlateauCauseIntakeVariance: String {
+        localized("insights_plateau_cause_intake_variance", en: "Intake variance", de: "Schwankende Kalorienzufuhr")
+    }
+
+    static var insightsPlateauCauseNone: String {
+        localized("insights_plateau_cause_none", en: "None", de: "Keine")
+    }
+
+    static var insightsPlateauCauseWaterRetention: String {
+        localized("insights_plateau_cause_water_retention", en: "Water retention", de: "Wassereinlagerung")
+    }
+
+    static var insightsPlateauDays: String {
+        localized("insights_plateau_days", en: "Plateau days", de: "Plateau-Tage")
+    }
+
+    static var insightsPlateauDetected: String {
+        localized("insights_plateau_detected", en: "Plateau detected", de: "Plateau erkannt")
+    }
+
+    static var insightsPlateauEstDeficit: String {
+        localized("insights_plateau_est_deficit", en: "Est. deficit", de: "Gesch. Defizit")
+    }
+
+    static var insightsPlateauNone: String {
+        localized("insights_plateau_none", en: "No plateau", de: "Kein Plateau")
+    }
+
+    static var insightsPlateauTitle: String {
+        localized("insights_plateau_title", en: "Plateau Detection", de: "Plateau-Erkennung")
+    }
+
+    static var insightsPreSleepWindowTitle: String {
+        localized("insights_pre_sleep_window_title", en: "Pre-Sleep Eating Window", de: "Essfenster vor dem Schlafen")
+    }
+
+    static var insightsProteinDistributionTitle: String {
+        localized("insights_protein_distribution_title", en: "Protein Distribution", de: "Proteinverteilung")
+    }
+
+    static func insightsQualityOutOf10(_ a1: String) -> String {
+        localized("insights_quality_out_of_10", en: "\(a1)/10", de: "\(a1)/10")
+    }
+
+    static var insightsRegularityHigh: String {
+        localized("insights_regularity_high", en: "High", de: "Hoch")
+    }
+
+    static var insightsRegularityLow: String {
+        localized("insights_regularity_low", en: "Low", de: "Niedrig")
+    }
+
+    static var insightsRegularityMedium: String {
+        localized("insights_regularity_medium", en: "Medium", de: "Mittel")
+    }
+
+    static var insightsSleepQualitySuffix: String {
+        localized("insights_sleep_quality_suffix", en: "sleep quality", de: "Schlafqualität")
+    }
+
+    static var insightsSodiumAvg: String {
+        localized("insights_sodium_avg", en: "Avg sodium", de: "Ø Natrium")
+    }
+
+    static var insightsSodiumCorrelationLabel: String {
+        localized("insights_sodium_correlation_label", en: "correlation (sodium vs weight)", de: "Korrelation (Natrium vs. Gewicht)")
+    }
+
+    static var insightsSodiumHighDays: String {
+        localized("insights_sodium_high_days", en: "High sodium days", de: "Tage mit hohem Natrium")
+    }
+
+    static func insightsSodiumWeightDelta(_ a1: String, _ a2: String) -> String {
+        localized("insights_sodium_weight_delta", en: "\(a1)\(a2) kg avg next-day weight after high sodium", de: "\(a1)\(a2) kg Ø Gewicht am Folgetag nach hohem Natrium")
+    }
+
+    static var insightsSodiumWeightTitle: String {
+        localized("insights_sodium_weight_title", en: "Sodium & Weight", de: "Natrium & Gewicht")
+    }
+
+    static var insightsStdDeviation: String {
+        localized("insights_std_deviation", en: "std deviation", de: "Standardabweichung")
+    }
+
+    static var insightsTdeeInsufficientWeightData: String {
+        localized("insights_tdee_insufficient_weight_data", en: "Insufficient weight data to estimate TDEE", de: "Nicht genügend Gewichtsdaten für eine Schätzung")
+    }
+
+    static var insightsTdeeTitle: String {
+        localized("insights_tdee_title", en: "Adaptive TDEE", de: "Adaptiver Gesamtenergiebedarf")
+    }
+
+    static var insightsTefExplanation: String {
+        localized("insights_tef_explanation", en: "TEF is calories burned digesting food. High protein diets increase it.", de: "TEF sind Kalorien, die bei der Verdauung verbrannt werden. Proteinreiche Ernährung erhöht ihn.")
+    }
+
+    static func insightsTefPct(_ a1: Int) -> String {
+        localized("insights_tef_pct", en: "\(a1)% of calories burned in digestion", de: "\(a1)% der Kalorien bei der Verdauung verbrannt")
+    }
+
+    static var insightsTefTitle: String {
+        localized("insights_tef_title", en: "Thermic Effect of Food", de: "Thermischer Effekt der Nahrung")
+    }
+
+    static var insightsTrendGain: String {
+        localized("insights_trend_gain", en: "Gain", de: "Zunahme")
+    }
+
+    static var insightsTrendLoss: String {
+        localized("insights_trend_loss", en: "Loss", de: "Abnahme")
+    }
+
+    static var insightsTrendMaintenance: String {
+        localized("insights_trend_maintenance", en: "Maintenance", de: "Gleichbleibend")
+    }
+
+    static var insightsUniqueFoodsPerWeek: String {
+        localized("insights_unique_foods_per_week", en: "unique foods / week", de: "verschiedene Lebensmittel / Woche")
+    }
+
+    static var insightsWeekday: String {
+        localized("insights_weekday", en: "Weekday", de: "Wochentag")
+    }
+
+    static var insightsWeekdayWeekendTitle: String {
+        localized("insights_weekday_weekend_title", en: "Weekday vs Weekend", de: "Wochentag vs. Wochenende")
+    }
+
+    static var insightsWeekend: String {
+        localized("insights_weekend", en: "Weekend", de: "Wochenende")
+    }
+
+    static func insightsWeekendDelta(_ a1: String, _ a2: String, _ a3: String, _ a4: String) -> String {
+        localized("insights_weekend_delta", en: "\(a1)\(a2) kcal on weekends (\(a3)\(a4)%)", de: "\(a1)\(a2) kcal am Wochenende (\(a3)\(a4)%)")
+    }
+
+    static var insightsWeeklyRate: String {
+        localized("insights_weekly_rate", en: "Weekly rate", de: "Wöchentliche Rate")
+    }
+
+    static var insightsWeightForecastTitle: String {
+        localized("insights_weight_forecast_title", en: "Weight Forecast", de: "Gewichtsprognose")
+    }
+
+    static var insightsWorseSleep: String {
+        localized("insights_worse_sleep", en: "Worse sleep", de: "Schlechterer Schlaf")
+    }
+
+    static var macroCalories: String {
+        localized("macro_calories", en: "Calories", de: "Kalorien")
+    }
+
+    static var macroCarbs: String {
+        localized("macro_carbs", en: "Carbs", de: "Kohlenhydrate")
+    }
+
+    static var macroFat: String {
+        localized("macro_fat", en: "Fat", de: "Fett")
+    }
+
+    static var macroFiber: String {
+        localized("macro_fiber", en: "Fiber", de: "Ballaststoffe")
+    }
+
+    static var macroProtein: String {
+        localized("macro_protein", en: "Protein", de: "Protein")
+    }
+
+    static var nutrientAddedSugars: String {
+        localized("nutrient_added_sugars", en: "Added Sugars", de: "Zugesetzter Zucker")
+    }
+
+    static var nutrientAlcohol: String {
+        localized("nutrient_alcohol", en: "Alcohol", de: "Alkohol")
+    }
+
+    static var nutrientCaffeine: String {
+        localized("nutrient_caffeine", en: "Caffeine", de: "Koffein")
+    }
+
+    static var nutrientCalcium: String {
+        localized("nutrient_calcium", en: "Calcium", de: "Calcium")
+    }
+
+    static var nutrientChloride: String {
+        localized("nutrient_chloride", en: "Chloride", de: "Chlorid")
+    }
+
+    static var nutrientCholesterol: String {
+        localized("nutrient_cholesterol", en: "Cholesterol", de: "Cholesterin")
+    }
+
+    static var nutrientChromium: String {
+        localized("nutrient_chromium", en: "Chromium", de: "Chrom")
+    }
+
+    static var nutrientCopper: String {
+        localized("nutrient_copper", en: "Copper", de: "Kupfer")
+    }
+
+    static var nutrientFluoride: String {
+        localized("nutrient_fluoride", en: "Fluoride", de: "Fluorid")
+    }
+
+    static var nutrientIodine: String {
+        localized("nutrient_iodine", en: "Iodine", de: "Jod")
+    }
+
+    static var nutrientIron: String {
+        localized("nutrient_iron", en: "Iron", de: "Eisen")
+    }
+
+    static var nutrientMagnesium: String {
+        localized("nutrient_magnesium", en: "Magnesium", de: "Magnesium")
+    }
+
+    static var nutrientManganese: String {
+        localized("nutrient_manganese", en: "Manganese", de: "Mangan")
+    }
+
+    static var nutrientMolybdenum: String {
+        localized("nutrient_molybdenum", en: "Molybdenum", de: "Molybdän")
+    }
+
+    static var nutrientMonounsaturatedFatFull: String {
+        localized("nutrient_monounsaturated_fat_full", en: "Monounsaturated Fat", de: "Einfach ungesättigte Fettsäuren")
+    }
+
+    static var nutrientOmega3: String {
+        localized("nutrient_omega3", en: "Omega-3", de: "Omega-3")
+    }
+
+    static var nutrientOmega6: String {
+        localized("nutrient_omega6", en: "Omega-6", de: "Omega-6")
+    }
+
+    static var nutrientPhosphorus: String {
+        localized("nutrient_phosphorus", en: "Phosphorus", de: "Phosphor")
+    }
+
+    static var nutrientPolyunsaturatedFatFull: String {
+        localized("nutrient_polyunsaturated_fat_full", en: "Polyunsaturated Fat", de: "Mehrfach ungesättigte Fettsäuren")
+    }
+
+    static var nutrientPotassium: String {
+        localized("nutrient_potassium", en: "Potassium", de: "Kalium")
+    }
+
+    static var nutrientSalt: String {
+        localized("nutrient_salt", en: "Salt", de: "Salz")
+    }
+
+    static var nutrientSaturatedFat: String {
+        localized("nutrient_saturated_fat", en: "Saturated Fat", de: "Gesättigte Fettsäuren")
+    }
+
+    static var nutrientSelenium: String {
+        localized("nutrient_selenium", en: "Selenium", de: "Selen")
+    }
+
+    static var nutrientSodium: String {
+        localized("nutrient_sodium", en: "Sodium", de: "Natrium")
+    }
+
+    static var nutrientStarch: String {
+        localized("nutrient_starch", en: "Starch", de: "Stärke")
+    }
+
+    static var nutrientSugar: String {
+        localized("nutrient_sugar", en: "Sugar", de: "Zucker")
+    }
+
+    static var nutrientSugarAlcohols: String {
+        localized("nutrient_sugar_alcohols", en: "Sugar Alcohols", de: "Zuckeralkohole")
+    }
+
+    static var nutrientTransFat: String {
+        localized("nutrient_trans_fat", en: "Trans Fat", de: "Transfette")
+    }
+
+    static var nutrientVitaminA: String {
+        localized("nutrient_vitamin_a", en: "Vitamin A", de: "Vitamin A")
+    }
+
+    static var nutrientVitaminB1: String {
+        localized("nutrient_vitamin_b1", en: "Vitamin B1", de: "Vitamin B1")
+    }
+
+    static var nutrientVitaminB12: String {
+        localized("nutrient_vitamin_b12", en: "Vitamin B12", de: "Vitamin B12")
+    }
+
+    static var nutrientVitaminB2: String {
+        localized("nutrient_vitamin_b2", en: "Vitamin B2", de: "Vitamin B2")
+    }
+
+    static var nutrientVitaminB3: String {
+        localized("nutrient_vitamin_b3", en: "Vitamin B3", de: "Vitamin B3")
+    }
+
+    static var nutrientVitaminB5: String {
+        localized("nutrient_vitamin_b5", en: "Vitamin B5", de: "Vitamin B5")
+    }
+
+    static var nutrientVitaminB6: String {
+        localized("nutrient_vitamin_b6", en: "Vitamin B6", de: "Vitamin B6")
+    }
+
+    static var nutrientVitaminB7: String {
+        localized("nutrient_vitamin_b7", en: "Vitamin B7", de: "Vitamin B7")
+    }
+
+    static var nutrientVitaminB9: String {
+        localized("nutrient_vitamin_b9", en: "Vitamin B9", de: "Vitamin B9")
+    }
+
+    static var nutrientVitaminC: String {
+        localized("nutrient_vitamin_c", en: "Vitamin C", de: "Vitamin C")
+    }
+
+    static var nutrientVitaminD: String {
+        localized("nutrient_vitamin_d", en: "Vitamin D", de: "Vitamin D")
+    }
+
+    static var nutrientVitaminE: String {
+        localized("nutrient_vitamin_e", en: "Vitamin E", de: "Vitamin E")
+    }
+
+    static var nutrientVitaminK: String {
+        localized("nutrient_vitamin_k", en: "Vitamin K", de: "Vitamin K")
+    }
+
+    static var nutrientWater: String {
+        localized("nutrient_water", en: "Water", de: "Wasser")
+    }
+
+    static var nutrientZinc: String {
+        localized("nutrient_zinc", en: "Zinc", de: "Zink")
+    }
+
+    static func weightKgValue(_ a1: String) -> String {
+        localized("weight_kg_value", en: "\(a1) kg", de: "\(a1) kg")
+    }
+
     private static func localized(_ key: String, en: String, de: String) -> String {
         switch currentLocale {
         case .en: en
