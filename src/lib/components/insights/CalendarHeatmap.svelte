@@ -18,6 +18,7 @@
 	let currentMonth = $state(new Date().getMonth());
 	let days: Record<string, CalendarDay> = $state(initialDays ?? {});
 	let loading = $state(!initialDays);
+	let refreshing = $state(false);
 
 	const goalsQuery = useLiveQuery(() => goalsService.goals(), undefined);
 	const calorieGoal = $derived(goalsQuery.value?.calorieGoal ?? 0);
@@ -25,7 +26,7 @@
 	const monthStr = $derived(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`);
 
 	const fetchData = async (ms: string) => {
-		loading = true;
+		refreshing = true;
 		try {
 			const result = await statsService.getCalendarStats(ms);
 			if (result) {
@@ -37,6 +38,7 @@
 			days = {};
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	};
 
@@ -138,7 +140,7 @@
 			{m.add_food_loading()}
 		</div>
 	{:else}
-		<div class="grid grid-cols-7 gap-1">
+		<div class="grid grid-cols-7 gap-1 transition-opacity" class:opacity-60={refreshing}>
 			{#each dayHeaders as header}
 				<div class="text-muted-foreground text-center text-xs font-medium">{header()}</div>
 			{/each}

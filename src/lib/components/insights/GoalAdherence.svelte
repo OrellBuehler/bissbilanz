@@ -22,6 +22,7 @@
 	let data: DayRow[] = $state(initialData?.data ?? []);
 	let goals = $state<Goals | null>(initialData?.goals ?? null);
 	let loading = $state(!initialData);
+	let refreshing = $state(false);
 
 	const rangeDays: Record<RangeKey, number> = { '7d': 6, '30d': 29, '90d': 89 };
 	const rangeLabels: Record<RangeKey, () => string> = {
@@ -39,7 +40,7 @@
 	];
 
 	const fetchData = async (r: RangeKey) => {
-		loading = true;
+		refreshing = true;
 		try {
 			const end = today();
 			const start = shiftDate(end, -rangeDays[r]);
@@ -52,6 +53,7 @@
 			data = [];
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	};
 
@@ -108,7 +110,7 @@
 			{m.insights_no_goals()}
 		</div>
 	{:else}
-		<div class="rounded-lg border p-4">
+		<div class="rounded-lg border p-4 transition-opacity" class:opacity-60={refreshing}>
 			<p class="text-sm font-medium">{m.insights_overall_adherence()}</p>
 			<div class="mt-2 flex gap-6">
 				<div>
@@ -122,7 +124,7 @@
 			</div>
 		</div>
 
-		<div class="space-y-4">
+		<div class="space-y-4 transition-opacity" class:opacity-60={refreshing}>
 			{#each macros as macro (macro.key)}
 				{@const goalVal = goals[macro.goalKey]}
 				{#if goalVal}
