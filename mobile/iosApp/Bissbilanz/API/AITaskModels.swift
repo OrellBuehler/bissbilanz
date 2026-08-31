@@ -8,7 +8,9 @@ struct AiTask: Codable, Identifiable, Hashable {
     let userId: String
     let status: String
     let description: String?
+    /// Mirrors `photoUrls.first`, kept by the server for older builds.
     let photoUrl: String?
+    let photoUrls: [String]
     let date: String
     let mealType: String?
     let source: String?
@@ -47,11 +49,11 @@ struct AiTaskAcknowledgeResponse: Codable {
     let acknowledged: Int
 }
 
-/// Matches `aiTaskCreateSchema`: `description`/`photoUrl` are individually
+/// Matches `aiTaskCreateSchema`: `description`/`photoUrls` are individually
 /// optional but the server rejects a payload with neither set.
 struct AiTaskCreate: Codable {
     var description: String?
-    var photoUrl: String?
+    var photoUrls: [String]?
     let date: String
     var mealType: String?
     var source: String?
@@ -68,4 +70,5 @@ struct AiTasksResponse: Codable {
 
 struct AiTaskPhotoResponse: Codable {
     let photoUrl: String
+    let photoUrls: [String]
 }

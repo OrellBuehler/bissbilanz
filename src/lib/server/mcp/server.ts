@@ -1442,7 +1442,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List AI Tasks',
 			description:
-				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes the meal photo if present) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary. Always close out every task you pick up: if you cannot log one, call dismiss_ai_task with a reason. Both outcomes show your text to the user in their AI Tasks list, and a dismissal also raises a notification, so never resolve a task silently.",
+				"Meal-logging tasks the user queued for you to process. Workflow for each pending task: call get_ai_task (includes every meal photo the user attached) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date and mealType (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates; create_food first if the user will likely eat the item again) → finish with complete_ai_task, passing the created entry IDs and a short summary. Always close out every task you pick up: if you cannot log one, call dismiss_ai_task with a reason. Both outcomes show your text to the user in their AI Tasks list, and a dismissal also raises a notification, so never resolve a task silently.",
 			inputSchema: {
 				status: z
 					.enum(aiTaskStatusValues)
@@ -1472,7 +1472,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Get AI Task',
 			description:
-				'Get full details for a specific AI task, including the meal photo as an image when present.',
+				'Get full details for a specific AI task, including every attached meal photo as an image. A task can carry several photos — parts of the same meal, packaging, or a nutrition label — so read all of them before logging.',
 			inputSchema: {
 				id: z.string().describe('ID of the AI task')
 			},

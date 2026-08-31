@@ -685,11 +685,13 @@ final class BissbilanzAPI {
         return response.acknowledged
     }
 
-    func uploadAiTaskPhoto(_ data: Data, filename: String) async throws -> String {
+    /// Uploads every photo of one meal in a single request — the route reads
+    /// repeated `photo` parts and answers with the URLs in the order sent.
+    func uploadAiTaskPhotos(_ photos: [(data: Data, filename: String)]) async throws -> [String] {
         let response: AiTaskPhotoResponse = try await postMultipart(
-            "/api/ai-tasks/photo", data: data, fieldName: "photo", filename: filename
+            "/api/ai-tasks/photo", fieldName: "photo", parts: photos
         )
-        return response.photoUrl
+        return response.photoUrls
     }
 
     // MARK: - Images
@@ -812,13 +814,26 @@ final class BissbilanzAPI {
         filename: String,
         mimeType: String = "image/jpeg"
     ) async throws -> T {
+        try await postMultipart(
+            path, fieldName: fieldName, parts: [(data: data, filename: filename)], mimeType: mimeType
+        )
+    }
+
+    /// Repeats `fieldName` once per part, which is how the routes that accept
+    /// several files read them.
+    private func postMultipart<T: Decodable>(
+        _ path: String,
+        fieldName: String,
+        parts: [(data: Data, filename: String)],
+        mimeType: String = "image/jpeg"
+    ) async throws -> T {
         var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
         request.httpMethod = "POST"
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(baseURL, forHTTPHeaderField: "Origin")
         request.httpBody = Self.multipartBody(
-            boundary: boundary, fieldName: fieldName, filename: filename, mimeType: mimeType, data: data
+            boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts
         )
         return try await performRequest(request)
     }
@@ -826,19 +841,21 @@ final class BissbilanzAPI {
     private static func multipartBody(
         boundary: String,
         fieldName: String,
-        filename: String,
         mimeType: String,
-        data: Data
+        parts: [(data: Data, filename: String)]
     ) -> Data {
         var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append(
-            "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(filename)\"\r\n"
-                .data(using: .utf8)!
-        )
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        for part in parts {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append(
+                "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(part.filename)\"\r\n"
+                    .data(using: .utf8)!
+            )
+            body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(part.data)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         return body
     }
 

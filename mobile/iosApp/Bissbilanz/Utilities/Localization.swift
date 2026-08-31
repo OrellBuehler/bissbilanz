@@ -2187,6 +2187,14 @@ enum L10n {
         localized("ai_task_photo_section_title", en: "Attach a Photo", de: "Foto anhängen")
     }
 
+    static func aiTaskPhotoHint(_ count: Int) -> String {
+        localized(
+            "ai_task_photo_hint",
+            en: "Add up to \(count) photos — the dish, the packaging, a nutrition label.",
+            de: "Bis zu \(count) Fotos – das Gericht, die Verpackung, eine Nährwerttabelle."
+        )
+    }
+
     static var aiTaskSendButton: String {
         localized("ai_task_send_button", en: "Send to My Assistant", de: "An meinen Assistenten senden")
     }
@@ -2248,6 +2256,14 @@ enum L10n {
             "ai_tasks_photo_only",
             en: "Photo only, no description",
             de: "Nur Foto, keine Beschreibung"
+        )
+    }
+
+    static func aiTasksPhotosOnly(_ count: Int) -> String {
+        localized(
+            "ai_tasks_photos_only",
+            en: "\(count) photos, no description",
+            de: "\(count) Fotos, keine Beschreibung"
         )
     }
 

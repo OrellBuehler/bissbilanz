@@ -5898,6 +5898,21 @@
 							}
 						]
 					},
+					"photoUrls": {
+						"anyOf": [
+							{
+								"maxItems": 5,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"pattern": "^\\/uploads\\/[a-f0-9-]+\\.webp$"
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"date": {
 						"type": "string",
 						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
@@ -9918,6 +9933,12 @@
 							}
 						]
 					},
+					"photoUrls": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
 					"date": {
 						"type": "string"
 					},
@@ -10007,6 +10028,7 @@
 					"status",
 					"description",
 					"photoUrl",
+					"photoUrls",
 					"date",
 					"mealType",
 					"source",
@@ -10045,9 +10067,15 @@
 				"properties": {
 					"photoUrl": {
 						"type": "string"
+					},
+					"photoUrls": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
-				"required": ["photoUrl"],
+				"required": ["photoUrl", "photoUrls"],
 				"additionalProperties": false
 			},
 			"SleepEntriesResponse": {

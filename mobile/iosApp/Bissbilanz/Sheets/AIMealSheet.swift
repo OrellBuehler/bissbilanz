@@ -1,8 +1,11 @@
 import PhotosUI
 import SwiftUI
 
+/// Mirrors MAX_AI_TASK_PHOTOS on the server.
+private let maxAiTaskPhotos = 5
+
 /// Entry point for AI-assisted meal logging: a free-text description (and
-/// optionally a photo) can either be estimated on-device via `MealEstimator`
+/// optionally up to five photos) can either be estimated on-device via `MealEstimator`
 /// — pushing `AIMealReviewView` within this sheet's stack — or queued as an
 /// `AiTask` for the MCP assistant to pick up later. On-device estimation only
 /// runs on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`);
@@ -25,8 +28,8 @@ struct AIMealSheet: View {
     @State private var errorMessage: String?
     @State private var estimate: MealEstimate?
 
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var attachedImage: UIImage?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var attachedImages: [UIImage] = []
     @State private var showCamera = false
     @State private var isSendingToAssistant = false
     @State private var pendingTaskCount: Int?
@@ -142,15 +145,15 @@ struct AIMealSheet: View {
                 CameraPicker(
                     onImage: { image in
                         showCamera = false
-                        attachedImage = image
+                        if attachedImages.count < maxAiTaskPhotos { attachedImages.append(image) }
                     },
                     onCancel: { showCamera = false }
                 )
                 .ignoresSafeArea()
             }
-            .onChange(of: selectedPhotoItem) { _, item in
-                guard let item else { return }
-                loadPhoto(item)
+            .onChange(of: selectedPhotoItems) { _, items in
+                guard !items.isEmpty else { return }
+                loadPhotos(items)
             }
             .onAppear { mealEstimator.prewarm() }
             .task { await loadPendingCount() }
@@ -189,25 +192,32 @@ struct AIMealSheet: View {
 
     @ViewBuilder
     private var photoAttachmentRow: some View {
-        if let attachedImage {
-            HStack {
-                Image(uiImage: attachedImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .clipped()
-                Spacer()
-                Button(role: .destructive) {
-                    self.attachedImage = nil
-                    selectedPhotoItem = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+        if !attachedImages.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(attachedImages.enumerated()), id: \.offset) { index, image in
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipped()
+                            Button(role: .destructive) {
+                                attachedImages.remove(at: index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.white, .black.opacity(0.5))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(4)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
             }
-        } else {
+        }
+
+        if attachedImages.count < maxAiTaskPhotos {
             HStack(spacing: 12) {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button {
@@ -218,12 +228,20 @@ struct AIMealSheet: View {
                     .buttonStyle(.bordered)
                 }
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: maxAiTaskPhotos - attachedImages.count,
+                    matching: .images
+                ) {
                     Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
                 }
                 .buttonStyle(.bordered)
             }
         }
+
+        Text(L10n.aiTaskPhotoHint(maxAiTaskPhotos))
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private var trimmedDescription: String {
@@ -231,7 +249,7 @@ struct AIMealSheet: View {
     }
 
     private var canSendToAssistant: Bool {
-        !trimmedDescription.isEmpty || attachedImage != nil
+        !trimmedDescription.isEmpty || !attachedImages.isEmpty
     }
 
     private var availabilityMessage: String {
@@ -260,12 +278,20 @@ struct AIMealSheet: View {
         isEstimating = false
     }
 
-    private func loadPhoto(_ item: PhotosPickerItem) {
+    private func loadPhotos(_ items: [PhotosPickerItem]) {
         Task {
-            guard let data = try? await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data)
-            else { return }
-            attachedImage = image
+            var loaded: [UIImage] = []
+            for item in items {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data)
+                else { continue }
+                loaded.append(image)
+            }
+            let room = maxAiTaskPhotos - attachedImages.count
+            attachedImages.append(contentsOf: loaded.prefix(room))
+            // The picker keeps its selection, so clearing it is what lets the
+            // same photo be picked again after a removal.
+            selectedPhotoItems = []
         }
     }
 
@@ -278,13 +304,16 @@ struct AIMealSheet: View {
         isSendingToAssistant = true
         errorMessage = nil
         do {
-            var photoUrl: String?
-            if let attachedImage, let data = attachedImage.downscaledJPEGData(maxDimension: 1600, quality: 0.8) {
-                photoUrl = try await api.uploadAiTaskPhoto(data, filename: "meal.jpg")
+            var parts: [(data: Data, filename: String)] = []
+            for (index, image) in attachedImages.enumerated() {
+                if let data = image.downscaledJPEGData(maxDimension: 1600, quality: 0.8) {
+                    parts.append((data: data, filename: "meal_\(index).jpg"))
+                }
             }
+            let photoUrls = parts.isEmpty ? nil : try await api.uploadAiTaskPhotos(parts)
             let task = AiTaskCreate(
                 description: trimmedDescription.isEmpty ? nil : trimmedDescription,
-                photoUrl: photoUrl,
+                photoUrls: photoUrls,
                 date: date,
                 mealType: mealType,
                 source: "ios"

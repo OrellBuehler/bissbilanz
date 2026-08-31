@@ -1,14 +1,37 @@
 import { getDB } from '$lib/server/db';
 import { aiTasks, aiTaskStatusValues } from '$lib/server/schema';
-import { aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
+import { MAX_AI_TASK_PHOTOS, aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { ApiError } from '$lib/server/errors';
 import { validateMealType } from '$lib/server/entries';
-import { unlinkUpload } from '$lib/server/images';
+import { unlinkUploads } from '$lib/server/images';
 
 const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Response shape for a task. `photoUrls` is the column; `photoUrl` mirrors its
+ * first entry so mobile builds shipped before multi-photo keep rendering it.
+ */
+export const serializeAiTask = <T extends { photoUrls: string[] | null }>(task: T) => ({
+	...task,
+	photoUrls: task.photoUrls ?? [],
+	photoUrl: task.photoUrls?.[0] ?? null
+});
+
+/**
+ * Merges the legacy single `photoUrl` with `photoUrls` into the column's value.
+ * Deduped because a client sending both would otherwise repeat its only photo.
+ */
+const mergePhotoUrls = (input: {
+	photoUrl?: string | null;
+	photoUrls?: string[] | null;
+}): string[] =>
+	[...new Set([...(input.photoUrl ? [input.photoUrl] : []), ...(input.photoUrls ?? [])])].slice(
+		0,
+		MAX_AI_TASK_PHOTOS
+	);
 
 export const listAiTasks = async (
 	userId: string,
@@ -83,7 +106,7 @@ export const createAiTask = async (
 			.values({
 				userId,
 				description: result.data.description ?? null,
-				photoUrl: result.data.photoUrl ?? null,
+				photoUrls: mergePhotoUrls(result.data),
 				date: result.data.date,
 				mealType: result.data.mealType ?? null,
 				source: result.data.source ?? null
@@ -208,7 +231,7 @@ export const deleteAiTask = async (userId: string, id: string): Promise<boolean>
 		.delete(aiTasks)
 		.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
 		.returning();
-	if (deleted) await unlinkUpload(deleted.photoUrl);
+	if (deleted) await unlinkUploads(deleted.photoUrls ?? []);
 	return !!deleted;
 };
 
@@ -218,6 +241,6 @@ export const cleanupAiTasks = async (): Promise<void> => {
 	const deleted = await db
 		.delete(aiTasks)
 		.where(and(inArray(aiTasks.status, ['completed', 'dismissed']), lt(aiTasks.updatedAt, cutoff)))
-		.returning({ photoUrl: aiTasks.photoUrl });
-	await Promise.all(deleted.map((row) => unlinkUpload(row.photoUrl)));
+		.returning({ photoUrls: aiTasks.photoUrls });
+	await unlinkUploads(deleted.flatMap((row) => row.photoUrls ?? []));
 };

@@ -32,8 +32,17 @@
 
 <Card.Root class={isUnread ? 'ring-2 ring-violet-300/80 dark:ring-violet-700/80' : undefined}>
 	<Card.Content class="flex gap-3 py-3">
-		{#if task.photoUrl}
-			<img src={task.photoUrl} alt="" class="size-16 shrink-0 rounded-lg border object-cover" />
+		{#if task.photoUrls.length > 0}
+			<div class="relative size-16 shrink-0">
+				<img src={task.photoUrls[0]} alt="" class="size-16 rounded-lg border object-cover" />
+				{#if task.photoUrls.length > 1}
+					<span
+						class="absolute right-1 bottom-1 rounded bg-background/85 px-1 text-[0.65rem] font-medium tabular-nums"
+					>
+						+{task.photoUrls.length - 1}
+					</span>
+				{/if}
+			</div>
 		{:else}
 			<div class="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-muted/40">
 				<Sparkles class="size-6 text-muted-foreground/50" />
@@ -69,7 +78,11 @@
 			{#if task.description}
 				<p class="line-clamp-2 text-sm">{task.description}</p>
 			{:else}
-				<p class="text-sm text-muted-foreground italic">{m.ai_tasks_photo_only()}</p>
+				<p class="text-sm text-muted-foreground italic">
+					{task.photoUrls.length > 1
+						? m.ai_tasks_photos_only({ count: String(task.photoUrls.length) })
+						: m.ai_tasks_photo_only()}
+				</p>
 			{/if}
 
 			{#if task.resultSummary}

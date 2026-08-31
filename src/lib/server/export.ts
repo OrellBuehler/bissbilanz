@@ -448,7 +448,9 @@ async function gatherImages(data: ExportData): Promise<Record<string, Uint8Array
 		if (recipe.imageUrl?.startsWith('/uploads/')) urls.add(recipe.imageUrl);
 	}
 	for (const task of data.aiTasks) {
-		if (task.photoUrl?.startsWith('/uploads/')) urls.add(task.photoUrl);
+		for (const photoUrl of task.photoUrls ?? []) {
+			if (photoUrl.startsWith('/uploads/')) urls.add(photoUrl);
+		}
 	}
 
 	const images: Record<string, Uint8Array> = {};

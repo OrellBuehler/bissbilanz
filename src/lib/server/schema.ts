@@ -604,7 +604,7 @@ export const aiTasks = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		status: aiTaskStatusEnum('status').notNull().default('pending'),
 		description: text('description'),
-		photoUrl: text('photo_url'),
+		photoUrls: text('photo_urls').array(),
 		date: date('date').notNull(),
 		mealType: text('meal_type'),
 		source: text('source'),
@@ -627,7 +627,7 @@ export const aiTasks = pgTable(
 		index('idx_ai_tasks_unacknowledged').on(table.userId, table.acknowledgedAt),
 		check(
 			'ai_tasks_has_content',
-			sql`${table.description} IS NOT NULL OR ${table.photoUrl} IS NOT NULL`
+			sql`${table.description} IS NOT NULL OR coalesce(array_length(${table.photoUrls}, 1), 0) > 0`
 		)
 	]
 );

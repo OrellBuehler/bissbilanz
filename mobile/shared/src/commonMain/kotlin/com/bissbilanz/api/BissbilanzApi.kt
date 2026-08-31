@@ -1068,24 +1068,29 @@ class BissbilanzApi(
         return response.acknowledged
     }
 
-    suspend fun uploadAiTaskPhoto(
-        fileName: String,
-        fileBytes: ByteArray,
+    /**
+     * Uploads every photo of one meal in a single request — the route reads
+     * repeated `photo` parts and answers with the URLs in the order sent.
+     */
+    suspend fun uploadAiTaskPhotos(
+        photos: List<Pair<String, ByteArray>>,
         contentType: String = "image/jpeg",
-    ): String {
+    ): List<String> {
         val response =
             client.submitFormWithBinaryData(
                 url = "/api/ai-tasks/photo",
                 formData =
                     formData {
-                        append(
-                            "photo",
-                            fileBytes,
-                            Headers.build {
-                                append(HttpHeaders.ContentType, contentType)
-                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
-                            },
-                        )
+                        photos.forEach { (fileName, fileBytes) ->
+                            append(
+                                "photo",
+                                fileBytes,
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, contentType)
+                                    append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                                },
+                            )
+                        }
                     },
             ) { header(HttpHeaders.Origin, baseUrl) }
         if (!response.status.isSuccess()) {
@@ -1095,7 +1100,7 @@ class BissbilanzApi(
             )
         }
         val body: AiTaskPhotoResponse = response.body()
-        return body.photoUrl
+        return body.photoUrls
     }
 
     // Images

@@ -43,12 +43,16 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 	const [foodRows, recipeRows, aiTaskRows] = await Promise.all([
 		db.select({ imageUrl: foods.imageUrl }).from(foods).where(isNotNull(foods.imageUrl)),
 		db.select({ imageUrl: recipes.imageUrl }).from(recipes).where(isNotNull(recipes.imageUrl)),
-		db.select({ imageUrl: aiTasks.photoUrl }).from(aiTasks).where(isNotNull(aiTasks.photoUrl))
+		db.select({ imageUrls: aiTasks.photoUrls }).from(aiTasks).where(isNotNull(aiTasks.photoUrls))
 	]);
 
 	const referenced = new Set(
-		[...foodRows, ...recipeRows, ...aiTaskRows]
-			.map((row) => uploadFilename(row.imageUrl))
+		[
+			...foodRows.map((row) => row.imageUrl),
+			...recipeRows.map((row) => row.imageUrl),
+			...aiTaskRows.flatMap((row) => row.imageUrls ?? [])
+		]
+			.map(uploadFilename)
 			.filter((name): name is string => name !== null)
 	);
 

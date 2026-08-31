@@ -113,20 +113,21 @@ async function refresh(): Promise<void> {
 	}
 }
 
-async function uploadPhoto(file: File): Promise<string> {
+/** One request per meal — the endpoint takes repeated `photo` parts. */
+async function uploadPhotos(files: File[]): Promise<string[]> {
 	const formData = new FormData();
-	formData.append('photo', file);
+	for (const file of files) formData.append('photo', file);
 	const res = await apiFetch('/api/ai-tasks/photo', { method: 'POST', body: formData });
 	if (!res.ok) {
 		throw new Error('photo_upload_failed');
 	}
-	const body = (await res.json()) as { photoUrl: string };
-	return body.photoUrl;
+	const body = (await res.json()) as { photoUrls: string[] };
+	return body.photoUrls;
 }
 
 async function create(input: {
 	description?: string;
-	photoFile?: File | null;
+	photoFiles?: File[];
 	date: string;
 	mealType?: string;
 }): Promise<AiTask> {
@@ -135,19 +136,17 @@ async function create(input: {
 	}
 
 	const description = input.description?.trim();
-	let photoUrl: string | undefined;
-	if (input.photoFile) {
-		photoUrl = await uploadPhoto(input.photoFile);
-	}
+	const files = input.photoFiles ?? [];
+	const photoUrls = files.length > 0 ? await uploadPhotos(files) : [];
 
-	if (!description && !photoUrl) {
+	if (!description && photoUrls.length === 0) {
 		throw new Error('missing_input');
 	}
 
 	const { data, error } = await api.POST('/api/ai-tasks', {
 		body: {
 			description: description || undefined,
-			photoUrl,
+			photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
 			date: input.date,
 			mealType: input.mealType || undefined,
 			source: 'web'

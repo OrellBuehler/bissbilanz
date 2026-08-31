@@ -132,14 +132,25 @@ private struct AiTaskRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                if let photoUrl = task.photoUrl {
-                    AsyncImage(url: BissbilanzAPI.absoluteURL(for: photoUrl)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.secondary.opacity(0.15)
+                if let photoUrl = task.photoUrls.first {
+                    ZStack(alignment: .bottomTrailing) {
+                        AsyncImage(url: BissbilanzAPI.absoluteURL(for: photoUrl)) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.secondary.opacity(0.15)
+                        }
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        if task.photoUrls.count > 1 {
+                            Text("+\(task.photoUrls.count - 1)")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 4))
+                                .padding(3)
+                        }
                     }
-                    .frame(width: 56, height: 56)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -159,10 +170,14 @@ private struct AiTaskRow: View {
                     if let description = task.description, !description.isEmpty {
                         Text(description).font(.body)
                     } else {
-                        Text(L10n.aiTasksPhotoOnly)
-                            .font(.body)
-                            .italic()
-                            .foregroundStyle(.secondary)
+                        Text(
+                            task.photoUrls.count > 1
+                                ? L10n.aiTasksPhotosOnly(task.photoUrls.count)
+                                : L10n.aiTasksPhotoOnly
+                        )
+                        .font(.body)
+                        .italic()
+                        .foregroundStyle(.secondary)
                     }
                 }
             }

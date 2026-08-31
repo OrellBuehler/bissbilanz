@@ -176,13 +176,20 @@ private fun AiTaskListItem(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                task.photoUrl?.let { url ->
-                    AsyncImage(
-                        model = if (url.startsWith("/")) "$baseUrl$url" else url,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop,
-                    )
+                task.photoUrls.firstOrNull()?.let { url ->
+                    Box {
+                        AsyncImage(
+                            model = if (url.startsWith("/")) "$baseUrl$url" else url,
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        if (task.photoUrls.size > 1) {
+                            Badge(
+                                modifier = Modifier.align(Alignment.BottomEnd),
+                            ) { Text("+${task.photoUrls.size - 1}") }
+                        }
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -197,7 +204,11 @@ private fun AiTaskListItem(
                     val description = task.description
                     if (description.isNullOrBlank()) {
                         Text(
-                            stringResource(R.string.ai_tasks_photo_only),
+                            if (task.photoUrls.size > 1) {
+                                stringResource(R.string.ai_tasks_photos_only, task.photoUrls.size)
+                            } else {
+                                stringResource(R.string.ai_tasks_photo_only)
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

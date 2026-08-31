@@ -1505,7 +1505,7 @@ export function createHandlers(d: HandlerDeps) {
 		id: task.id,
 		status: task.status,
 		description: task.description,
-		hasPhoto: Boolean(task.photoUrl),
+		photoCount: task.photoUrls?.length ?? 0,
 		date: task.date,
 		mealType: task.mealType,
 		source: task.source,
@@ -1543,8 +1543,10 @@ export function createHandlers(d: HandlerDeps) {
 				{ type: 'text', text: JSON.stringify(serializeAiTask(task), null, 2) }
 			];
 
-			if (task.photoUrl) {
-				const filename = task.photoUrl.replace(/^\/uploads\//, '');
+			// Every photo, in order — the user may have shot the plate, the
+			// packaging and the nutrition label as one meal.
+			for (const photoUrl of task.photoUrls ?? []) {
+				const filename = photoUrl.replace(/^\/uploads\//, '');
 				if (AI_TASK_PHOTO_FILENAME_RE.test(filename)) {
 					try {
 						const buffer = await readFile(join(UPLOAD_DIR, filename));
@@ -1554,10 +1556,10 @@ export function createHandlers(d: HandlerDeps) {
 							mimeType: 'image/webp'
 						});
 					} catch {
-						content.push({ type: 'text', text: 'Photo is unavailable.' });
+						content.push({ type: 'text', text: 'A photo is unavailable.' });
 					}
 				} else {
-					content.push({ type: 'text', text: 'Photo is unavailable.' });
+					content.push({ type: 'text', text: 'A photo is unavailable.' });
 				}
 			}
 
