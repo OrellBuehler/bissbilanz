@@ -1410,14 +1410,6 @@ enum L10n {
         localized("sign_in_with_google", en: "Continue with Google", de: "Mit Google fortfahren")
     }
 
-    static var signInWithMicrosoft: String {
-        localized(
-            "sign_in_with_microsoft",
-            en: "Continue with Microsoft",
-            de: "Mit Microsoft fortfahren"
-        )
-    }
-
     static var continueWithoutAccount: String {
         localized(
             "continue_without_account",

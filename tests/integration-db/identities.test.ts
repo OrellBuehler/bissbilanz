@@ -74,9 +74,9 @@ describe('findOrCreateUserByIdentity', () => {
 		const { findOrCreateUserByIdentity } = await account();
 
 		const google = await findOrCreateUserByIdentity('google', { sub: 'shared-sub' }, 'en');
-		const microsoft = await findOrCreateUserByIdentity('microsoft', { sub: 'shared-sub' }, 'en');
+		const apple = await findOrCreateUserByIdentity('apple', { sub: 'shared-sub' }, 'en');
 
-		expect(microsoft.id).not.toBe(google.id);
+		expect(apple.id).not.toBe(google.id);
 	});
 
 	it('does not merge accounts that happen to share an email address', async () => {
@@ -87,13 +87,9 @@ describe('findOrCreateUserByIdentity', () => {
 			{ sub: 'g-1', email: 'a@b.ch' },
 			'en'
 		);
-		const microsoft = await findOrCreateUserByIdentity(
-			'microsoft',
-			{ sub: 'm-1', email: 'a@b.ch' },
-			'en'
-		);
+		const apple = await findOrCreateUserByIdentity('apple', { sub: 'a-1', email: 'a@b.ch' }, 'en');
 
-		expect(microsoft.id).not.toBe(google.id);
+		expect(apple.id).not.toBe(google.id);
 	});
 
 	it('adopts a pre-identities Infomaniak account instead of duplicating it', async () => {
@@ -121,18 +117,18 @@ describe('findOrCreateUserByIdentity', () => {
 			{ sub: 'g-1', email: 'ada@gmail.com', name: 'Ada', avatarUrl: 'https://img/a.png' },
 			'en'
 		);
-		await linkIdentity(user.id, 'microsoft', { sub: 'm-1', email: 'ada@outlook.com' });
+		await linkIdentity(user.id, 'apple', { sub: 'a-1', email: 'ada@icloud.com' });
 
-		// Microsoft sends no picture; signing in with it must not clear the stored one.
-		const afterMicrosoft = await findOrCreateUserByIdentity(
-			'microsoft',
-			{ sub: 'm-1', email: 'ada@outlook.com' },
+		// Apple sends no picture; signing in with it must not clear the stored one.
+		const afterApple = await findOrCreateUserByIdentity(
+			'apple',
+			{ sub: 'a-1', email: 'ada@icloud.com' },
 			'en'
 		);
 
-		expect(afterMicrosoft.avatarUrl).toBe('https://img/a.png');
-		expect(afterMicrosoft.name).toBe('Ada');
-		expect(afterMicrosoft.email).toBe('ada@outlook.com');
+		expect(afterApple.avatarUrl).toBe('https://img/a.png');
+		expect(afterApple.name).toBe('Ada');
+		expect(afterApple.email).toBe('ada@icloud.com');
 	});
 });
 

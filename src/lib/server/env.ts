@@ -36,7 +36,7 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 		problems.push('DATABASE_URL must be a postgres:// connection string');
 	}
 	// Optional providers are all-or-nothing: half-configured means a broken button.
-	for (const provider of ['GOOGLE', 'MICROSOFT']) {
+	for (const provider of ['GOOGLE']) {
 		const id = env[`${provider}_CLIENT_ID`]?.trim();
 		const secret = env[`${provider}_CLIENT_SECRET`]?.trim();
 		if (Boolean(id) !== Boolean(secret)) {
@@ -69,10 +69,6 @@ export const config = {
 	google: {
 		clientId: process.env.GOOGLE_CLIENT_ID,
 		clientSecret: process.env.GOOGLE_CLIENT_SECRET
-	},
-	microsoft: {
-		clientId: process.env.MICROSOFT_CLIENT_ID,
-		clientSecret: process.env.MICROSOFT_CLIENT_SECRET
 	},
 	apple: {
 		servicesId: process.env.APPLE_SERVICES_ID,

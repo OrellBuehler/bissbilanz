@@ -53,7 +53,7 @@ and Apple Watch apps.
 
 Out of scope:
 
-- Third-party services the app talks to — Infomaniak, Google, Microsoft, Apple, Open Food Facts,
+- Third-party services the app talks to — Infomaniak, Google, Apple, Open Food Facts,
   Sentry. Report those to the provider.
 - Scanner output with no demonstrated impact
 - Missing hardening headers or best practices without a concrete attack
