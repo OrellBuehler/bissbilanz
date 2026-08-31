@@ -6,8 +6,8 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 238   |
-| Apache-2.0                | 26    |
+| MIT                       | 237   |
+| Apache-2.0                | 23    |
 | ISC                       | 15    |
 | BSD-2-Clause              | 6     |
 | BSD-3-Clause              | 5     |
@@ -16,10 +16,10 @@ This file lists all third-party dependencies used in production and their licens
 | OFL-1.1                   | 2     |
 | LGPL-3.0-or-later         | 2     |
 | FSL-1.1-MIT               | 2     |
+| UNKNOWN                   | 1     |
 | (Unlicense OR Apache-2.0) | 1     |
 | CC-BY-4.0                 | 1     |
 | Unlicense                 | 1     |
-| MIT*                      | 1     |
 
 ## Packages
 
@@ -965,7 +965,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### @img/sharp-libvips-linux-x64@1.3.2
+### @img/sharp-libvips-linux-x64@1.3.3
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
@@ -1023,7 +1023,7 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 </details>
 
-### @img/sharp-libvips-linuxmusl-x64@1.3.2
+### @img/sharp-libvips-linuxmusl-x64@1.3.3
 
 - **License:** LGPL-3.0-or-later
 - **Repository:** https://github.com/lovell/sharp-libvips
@@ -1081,17 +1081,17 @@ https://github.com/lovell/sharp-libvips/issues/new
 
 </details>
 
-### @img/sharp-linux-x64@0.35.3
+### @img/sharp-linux-x64@0.35.4
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @img/sharp-linuxmusl-x64@0.35.3
+### @img/sharp-linuxmusl-x64@0.35.4
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @inlang/paraglide-js@2.23.2
+### @inlang/paraglide-js@2.25.0
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
@@ -1156,7 +1156,7 @@ SOFTWARE.
 
 </details>
 
-### @inlang/sdk@2.10.2
+### @inlang/sdk@3.0.3
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/inlang
@@ -1375,69 +1375,15 @@ SOFTWARE.
 
 </details>
 
-### @lix-js/sdk@0.4.10
+### @lix-js/sdk-linux-x64@0.12.3
 
-- **License:** Apache-2.0
+- **License:** UNKNOWN
+- **Repository:** https://github.com/opral/lix
 
-<details><summary>License Text</summary>
+### @lix-js/sdk@0.12.3
 
-```
-MIT License
-
-Copyright (c) 2024 Opral US Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### @lix-js/server-protocol-schema@0.1.1
-
-- **License:** Apache-2.0
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2024 Opral US Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
+- **License:** MIT
+- **Repository:** https://github.com/opral/lix
 
 ### @modelcontextprotocol/sdk@1.30.0
 
@@ -2545,11 +2491,6 @@ THE SOFTWARE.
 ```
 
 </details>
-
-### @sqlite.org/sqlite-wasm@3.48.0-build4
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/sqlite/sqlite-wasm
 
 ### @standard-schema/spec@1.1.0
 
@@ -4034,41 +3975,6 @@ LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE A
 IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-```
-
-</details>
-
-### dedent@1.5.1
-
-- **License:** MIT
-- **Repository:** https://github.com/dmnd/dedent
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) 2015 Desmond Brand (dmnd@desmondbrand.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
 
 ```
 
@@ -5731,41 +5637,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### human-id@4.2.0
-
-- **License:** MIT
-- **Repository:** https://github.com/RienNeVaPlus/human-id
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2018 RienNeVaPlus
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
 ### iconv-lite@0.7.3
 
 - **License:** MIT
@@ -6134,42 +6005,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-```
-
-</details>
-
-### js-sha256@0.11.1
-
-- **License:** MIT
-- **Repository:** https://github.com/emn178/js-sha256
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright (c) 2014-2025 Chen, Yi-Cyuan
-
-MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ```
 
@@ -8641,7 +8476,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### sharp@0.35.3
+### sharp@0.35.4
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
@@ -9096,40 +8931,6 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-```
-
-</details>
-
-### sqlite-wasm-kysely@0.3.0
-
-- **License:** MIT*
-
-<details><summary>License Text</summary>
-
-```
-
-MIT License
-
-Copyright (c) 2024 Opral US Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 ```
 
@@ -9710,6 +9511,29 @@ THE SOFTWARE.
 The MIT License (MIT)
 
 Copyright (c) 2010-2020 Robert Kieffer and other contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
+### valibot@1.4.2
+
+- **License:** MIT
+- **Repository:** https://github.com/open-circle/valibot
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) Fabian Hiller
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
