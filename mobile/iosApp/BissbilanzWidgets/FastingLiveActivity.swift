@@ -10,6 +10,13 @@ import WidgetKit
 ///
 /// Date-relative `ProgressView`s ignore custom `ProgressViewStyle`s, so only
 /// the built-in `.linear`/`.circular` styles are used here.
+///
+/// `.supplementalActivityFamilies([.small])` opts the activity into the Apple
+/// Watch Smart Stack. Without it watchOS synthesises a card from the app name
+/// plus the Dynamic Island's compact leading/trailing views only — an icon, a
+/// ring and an empty middle, with no way to tell what is running or for how
+/// long. With it, `FastingLockScreenView` renders a wrist-sized layout for
+/// `ActivityFamily.small` instead.
 struct FastingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FastingActivityAttributes.self) { context in
@@ -84,10 +91,13 @@ struct FastingLiveActivity: Widget {
             }
             .keylineTint(MacroColors.fasting)
         }
+        .supplementalActivityFamilies([.small])
     }
 }
 
 struct FastingLockScreenView: View {
+    @Environment(\.activityFamily) private var activityFamily
+
     let state: FastingActivityAttributes.ContentState
 
     private var strings: WidgetStrings {
@@ -95,6 +105,57 @@ struct FastingLockScreenView: View {
     }
 
     var body: some View {
+        switch activityFamily {
+        case .small:
+            watchLayout
+        default:
+            lockScreenLayout
+        }
+    }
+
+    /// Apple Watch Smart Stack (`ActivityFamily.small`). Far less room than the
+    /// lock screen, so it drops the End Fast button and the end-time footer and
+    /// keeps what the card has to answer at a glance: that a fast is running,
+    /// how long it has been running, and how much is left.
+    private var watchLayout: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "timer")
+                Text(strings.fasting)
+                    .fontWeight(.semibold)
+                Spacer(minLength: 4)
+                Text(strings.fastingTarget(state.targetHours))
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+            .foregroundStyle(MacroColors.fasting)
+            .lineLimit(1)
+            Text(timerInterval: state.elapsedRange, countsDown: false)
+                .font(.system(.title2, design: .rounded))
+                .fontWeight(.semibold)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            HStack(spacing: 6) {
+                ProgressView(timerInterval: state.progressRange, countsDown: false) {
+                    EmptyView()
+                } currentValueLabel: {
+                    EmptyView()
+                }
+                .tint(MacroColors.fasting)
+                Text(timerInterval: state.progressRange, countsDown: true)
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 52, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var lockScreenLayout: some View {
         VStack(spacing: 12) {
             HStack {
                 Label(strings.fasting, systemImage: "timer")
