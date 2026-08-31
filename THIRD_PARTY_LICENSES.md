@@ -9918,7 +9918,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### zod@4.4.3
+### zod@4.5.4
 
 - **License:** MIT
 - **Repository:** https://github.com/colinhacks/zod
