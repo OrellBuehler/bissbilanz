@@ -144,6 +144,7 @@
     <string name="ai_task_send_failed">Senden an den Assistenten fehlgeschlagen</string>
     <string name="ai_task_queued">An den Assistenten gesendet</string>
     <string name="ai_task_remove_photo">Foto entfernen</string>
+    <string name="ai_task_photo_hint">Bis zu %1$d Fotos – das Gericht, die Verpackung, eine Nährwerttabelle.</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
 
     <!-- KI-Aufgabenliste -->
@@ -155,6 +156,7 @@
     <string name="ai_tasks_empty_completed">Noch nichts erledigt</string>
     <string name="ai_tasks_empty_dismissed">Nichts verworfen</string>
     <string name="ai_tasks_photo_only">Nur Foto, keine Beschreibung</string>
+    <string name="ai_tasks_photos_only">%1$d Fotos, keine Beschreibung</string>
     <string name="ai_tasks_agent_comment">Von deinem Assistenten</string>
     <string name="ai_tasks_unread">Neu</string>
     <string name="ai_tasks_delete">Aufgabe löschen</string>

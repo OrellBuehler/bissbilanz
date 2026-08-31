@@ -97,7 +97,7 @@ const TEST_AI_TASK = {
 	userId: TEST_USER.id,
 	status: 'pending' as const,
 	description: 'Chicken salad for lunch',
-	photoUrl: '/uploads/10000000-0000-4000-8000-000000000099.webp',
+	photoUrls: ['/uploads/10000000-0000-4000-8000-000000000099.webp'],
 	date: '2026-02-10',
 	mealType: 'Lunch',
 	source: 'ios',
@@ -1837,15 +1837,18 @@ describe('MCP handlers', () => {
 	});
 
 	describe('handleListAiTasks', () => {
-		test('serializes tasks and hides the raw photoUrl behind hasPhoto', async () => {
-			mockAiTasks = [TEST_AI_TASK, { ...TEST_AI_TASK, id: 'ai-task-2', photoUrl: null }];
+		test('serializes tasks and hides the raw photoUrls behind photoCount', async () => {
+			mockAiTasks = [
+				{ ...TEST_AI_TASK, photoUrls: [...TEST_AI_TASK.photoUrls, '/uploads/b.webp'] },
+				{ ...TEST_AI_TASK, id: 'ai-task-2', photoUrls: null }
+			];
 			mockAiTasksTotal = 2;
 			const result = await handleListAiTasks(TEST_USER.id, {});
 			expect(result.total).toBe(2);
 			expect(result.tasks).toHaveLength(2);
-			expect(result.tasks[0]).not.toHaveProperty('photoUrl');
-			expect(result.tasks[0].hasPhoto).toBe(true);
-			expect(result.tasks[1].hasPhoto).toBe(false);
+			expect(result.tasks[0]).not.toHaveProperty('photoUrls');
+			expect(result.tasks[0].photoCount).toBe(2);
+			expect(result.tasks[1].photoCount).toBe(0);
 			expect(result.tasks[0].id).toBe(TEST_AI_TASK.id);
 			expect(result.tasks[0].status).toBe('pending');
 		});
@@ -1879,26 +1882,30 @@ describe('MCP handlers', () => {
 		});
 
 		test('returns a single text block with no photo', async () => {
-			mockAiTask = { ...TEST_AI_TASK, photoUrl: null };
+			mockAiTask = { ...TEST_AI_TASK, photoUrls: null };
 			const result = await handleGetAiTask(TEST_USER.id, TEST_AI_TASK.id);
 			expect(result.isError).toBeUndefined();
 			expect(result.content).toHaveLength(1);
 			expect(result.content[0].type).toBe('text');
 			const payload = JSON.parse((result.content[0] as { text: string }).text);
-			expect(payload.hasPhoto).toBe(false);
-			expect(payload).not.toHaveProperty('photoUrl');
+			expect(payload.photoCount).toBe(0);
+			expect(payload).not.toHaveProperty('photoUrls');
 		});
 
-		test('appends an unavailable note when the photo file is missing', async () => {
-			mockAiTask = TEST_AI_TASK;
+		test('appends an unavailable note per photo when the files are missing', async () => {
+			mockAiTask = {
+				...TEST_AI_TASK,
+				photoUrls: [...TEST_AI_TASK.photoUrls, '/uploads/20000000-0000-4000-8000-000000000099.webp']
+			};
 			const result = await handleGetAiTask(TEST_USER.id, TEST_AI_TASK.id);
 			expect(result.isError).toBeUndefined();
-			expect(result.content).toHaveLength(2);
+			expect(result.content).toHaveLength(3);
 			expect(result.content[0].type).toBe('text');
 			const payload = JSON.parse((result.content[0] as { text: string }).text);
-			expect(payload.hasPhoto).toBe(true);
+			expect(payload.photoCount).toBe(2);
 			expect(result.content[1].type).toBe('text');
 			expect((result.content[1] as { text: string }).text).toContain('unavailable');
+			expect((result.content[2] as { text: string }).text).toContain('unavailable');
 		});
 	});
 

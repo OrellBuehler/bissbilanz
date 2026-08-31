@@ -147,7 +147,7 @@ android {
         implementation(libs.play.services.wearable)
         implementation(libs.kotlinx.coroutines.play.services)
         implementation(libs.work.runtime)
-        implementation("com.google.guava:guava:33.6.0-android")
+        implementation("com.google.guava:guava:33.7.1-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)
         testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")

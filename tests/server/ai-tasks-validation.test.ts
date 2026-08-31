@@ -3,7 +3,8 @@ import {
 	aiTaskCreateSchema,
 	aiTaskUpdateSchema,
 	aiTaskListQuerySchema,
-	aiTaskAcknowledgeSchema
+	aiTaskAcknowledgeSchema,
+	MAX_AI_TASK_PHOTOS
 } from '../../src/lib/server/validation';
 
 describe('aiTaskCreateSchema', () => {
@@ -99,6 +100,46 @@ describe('aiTaskCreateSchema', () => {
 	test('rejects an absolute external photoUrl', () => {
 		const result = aiTaskCreateSchema.safeParse({
 			photoUrl: 'https://example.com/photo.webp',
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	test('validates a task with several photoUrls', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrls: [validPhotoUrl, '/uploads/20000000-0000-4000-8000-000000000002.webp'],
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('accepts photoUrls at the photo limit', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrls: Array.from({ length: MAX_AI_TASK_PHOTOS }, () => validPhotoUrl),
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('rejects photoUrls over the photo limit', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrls: Array.from({ length: MAX_AI_TASK_PHOTOS + 1 }, () => validPhotoUrl),
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects a photoUrls entry not matching the uploads pattern', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrls: [validPhotoUrl, '/uploads/../secrets.webp'],
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects an empty photoUrls array with no description', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrls: [],
 			date: '2026-02-10'
 		});
 		expect(result.success).toBe(false);

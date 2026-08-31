@@ -10,7 +10,9 @@ const aiTaskSchema = z
 		userId: z.string().uuid(),
 		status: aiTaskStatusSchema,
 		description: z.string().nullable(),
+		// Kept for already-shipped mobile builds: mirrors photoUrls[0].
 		photoUrl: z.string().nullable(),
+		photoUrls: z.array(z.string()),
 		date: z.string(),
 		mealType: z.string().nullable(),
 		source: z.string().nullable(),
@@ -39,7 +41,9 @@ export const aiTasksResponseSchema = z
 
 export const aiTaskPhotoResponseSchema = z
 	.object({
-		photoUrl: z.string()
+		// Mirrors photoUrls[0], for clients that only upload one photo at a time.
+		photoUrl: z.string(),
+		photoUrls: z.array(z.string())
 	})
 	.meta({ id: 'AiTaskPhotoResponse' });
 

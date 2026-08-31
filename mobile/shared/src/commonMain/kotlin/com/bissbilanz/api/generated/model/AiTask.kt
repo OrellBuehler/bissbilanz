@@ -27,6 +27,7 @@ import kotlinx.serialization.encoding.*
  * @param status
  * @param description
  * @param photoUrl
+ * @param photoUrls
  * @param date
  * @param mealType
  * @param source
@@ -45,6 +46,7 @@ data class AiTask(
     @SerialName(value = "status") @Required val status: AiTask.Status,
     @SerialName(value = "description") @Required val description: kotlin.String?,
     @SerialName(value = "photoUrl") @Required val photoUrl: kotlin.String?,
+    @SerialName(value = "photoUrls") @Required val photoUrls: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "mealType") @Required val mealType: kotlin.String?,
     @SerialName(value = "source") @Required val source: kotlin.String?,

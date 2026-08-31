@@ -29,6 +29,8 @@
 
 	const NO_MEAL = '__none__';
 	const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+	// Mirrors MAX_AI_TASK_PHOTOS on the server.
+	const MAX_PHOTOS = 5;
 
 	const customMealTypesQuery = useLiveQuery(
 		() => mealTypeService.mealTypes(),
@@ -42,17 +44,22 @@
 	let description = $state('');
 	let date = $state(today());
 	let mealType = $state(NO_MEAL);
-	let photoFile: File | null = $state(null);
-	let photoPreviewUrl: string | null = $state(null);
+	type Photo = { file: File; previewUrl: string };
+	let photos: Photo[] = $state([]);
 	let saving = $state(false);
 	let fileInputEl: HTMLInputElement | null = $state(null);
 
-	const canSubmit = $derived(!saving && (description.trim().length > 0 || !!photoFile));
+	const canSubmit = $derived(!saving && (description.trim().length > 0 || photos.length > 0));
 
-	const clearPhoto = () => {
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		photoFile = null;
-		photoPreviewUrl = null;
+	const removePhoto = (index: number) => {
+		const removed = photos[index];
+		if (removed) URL.revokeObjectURL(removed.previewUrl);
+		photos = photos.filter((_, i) => i !== index);
+	};
+
+	const clearPhotos = () => {
+		for (const photo of photos) URL.revokeObjectURL(photo.previewUrl);
+		photos = [];
 		if (fileInputEl) fileInputEl.value = '';
 	};
 
@@ -60,7 +67,7 @@
 		description = '';
 		date = today();
 		mealType = NO_MEAL;
-		clearPhoto();
+		clearPhotos();
 	};
 
 	let wasOpen = $state(false);
@@ -77,21 +84,29 @@
 
 	const handlePhotoChange = (e: Event) => {
 		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		if (!file.type.startsWith('image/')) {
-			toast.error(m.ai_tasks_photo_invalid_type());
-			input.value = '';
-			return;
+		const picked = [...(input.files ?? [])];
+		// Always clear the input: re-picking the same file otherwise fires no
+		// change event, and the picker only ever adds to what's already attached.
+		input.value = '';
+		if (picked.length === 0) return;
+
+		const added: Photo[] = [];
+		for (const file of picked) {
+			if (!file.type.startsWith('image/')) {
+				toast.error(m.ai_tasks_photo_invalid_type());
+				continue;
+			}
+			if (file.size > MAX_PHOTO_BYTES) {
+				toast.error(m.ai_tasks_photo_too_large());
+				continue;
+			}
+			if (photos.length + added.length >= MAX_PHOTOS) {
+				toast.error(m.ai_tasks_photo_limit({ count: String(MAX_PHOTOS) }));
+				break;
+			}
+			added.push({ file, previewUrl: URL.createObjectURL(file) });
 		}
-		if (file.size > MAX_PHOTO_BYTES) {
-			toast.error(m.ai_tasks_photo_too_large());
-			input.value = '';
-			return;
-		}
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		photoFile = file;
-		photoPreviewUrl = URL.createObjectURL(file);
+		photos = [...photos, ...added];
 	};
 
 	const submit = async () => {
@@ -100,7 +115,7 @@
 		try {
 			await aiTaskService.create({
 				description,
-				photoFile,
+				photoFiles: photos.map((p) => p.file),
 				date,
 				mealType: mealType === NO_MEAL ? undefined : mealType
 			});
@@ -137,25 +152,31 @@
 
 		<div class="grid gap-1.5">
 			<Label for="ai-task-photo">{m.ai_tasks_capture_photo_label()}</Label>
-			{#if photoPreviewUrl}
-				<div class="relative w-fit">
-					<img
-						src={photoPreviewUrl}
-						alt={m.ai_tasks_capture_photo_label()}
-						class="h-32 w-32 rounded-lg border object-cover"
-					/>
-					<Button
-						type="button"
-						variant="secondary"
-						size="icon"
-						class="absolute -top-2 -right-2 size-6 rounded-full shadow"
-						onclick={clearPhoto}
-						aria-label={m.ai_tasks_capture_remove_photo()}
-					>
-						<X class="size-3.5" />
-					</Button>
+			{#if photos.length > 0}
+				<div class="flex flex-wrap gap-2">
+					{#each photos as photo, index (photo.previewUrl)}
+						<div class="relative">
+							<img
+								src={photo.previewUrl}
+								alt={m.ai_tasks_capture_photo_label()}
+								class="h-24 w-24 rounded-lg border object-cover"
+							/>
+							<Button
+								type="button"
+								variant="secondary"
+								size="icon"
+								class="absolute -top-2 -right-2 size-6 rounded-full shadow"
+								onclick={() => removePhoto(index)}
+								aria-label={m.ai_tasks_capture_remove_photo()}
+							>
+								<X class="size-3.5" />
+							</Button>
+						</div>
+					{/each}
 				</div>
-			{:else}
+			{/if}
+
+			{#if photos.length < MAX_PHOTOS}
 				<div class="flex items-center gap-2">
 					<Camera class="size-4 shrink-0 text-muted-foreground" />
 					<input
@@ -163,12 +184,15 @@
 						id="ai-task-photo"
 						type="file"
 						accept="image/*"
-						capture="environment"
+						multiple
 						onchange={handlePhotoChange}
 						class="block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
 					/>
 				</div>
 			{/if}
+			<p class="text-xs text-muted-foreground">
+				{m.ai_tasks_capture_photo_hint({ count: String(MAX_PHOTOS) })}
+			</p>
 		</div>
 
 		<div class="grid grid-cols-2 gap-3">

@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createAiTask, listAiTasks } from '$lib/server/ai-tasks';
+import { createAiTask, listAiTasks, serializeAiTask } from '$lib/server/ai-tasks';
 import { aiTaskListQuerySchema } from '$lib/server/validation';
 import {
 	handleApiError,
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const { status, acknowledged, limit, offset } = queryResult.data;
 		const { tasks, total } = await listAiTasks(userId, { status, acknowledged, limit, offset });
-		return json({ tasks, total });
+		return json({ tasks: tasks.map(serializeAiTask), total });
 	} catch (error) {
 		return handleApiError(error);
 	}
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const body = await parseJsonBody(request);
 
 		const task = unwrapResult(await createAiTask(userId, body));
-		return json({ task }, { status: 201 });
+		return json({ task: serializeAiTask(task) }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);
 	}
