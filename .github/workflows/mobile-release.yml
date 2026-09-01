@@ -230,7 +230,8 @@ jobs:
           path: |
             ~/Library/Caches/Homebrew
             /opt/homebrew/Cellar/xcodegen
-          key: brew-xcodegen-${{ runner.os }}
+            /opt/homebrew/Cellar/sentry-cli
+          key: brew-xcodegen-sentry-cli-${{ runner.os }}
 
       - name: Install XcodeGen
         # Link explicitly: a cache-restored Cellar makes `brew install` skip
@@ -340,6 +341,27 @@ jobs:
             MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SENTRY_DSN="$SENTRY_DSN"
+
+      - name: Upload dSYMs to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: orells-organization
+          SENTRY_PROJECT: bissbilanz
+          SENTRY_URL: https://de.sentry.io
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        # ExportOptions.plist's uploadSymbols only sends dSYMs to Apple; Sentry
+        # needs its own copy or every app frame in a crash shows as <unknown>.
+        # Mirrors the Android job's autoUploadProguardMapping: skipped when the
+        # token secret is missing.
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "SENTRY_AUTH_TOKEN not set; skipping dSYM upload"
+            exit 0
+          fi
+          brew install --formula sentry-cli
+          brew link --overwrite sentry-cli
+          sentry-cli debug-files upload --include-sources \
+            "$RUNNER_TEMP/Bissbilanz.xcarchive/dSYMs"
 
       - name: Import distribution certificate and profiles
         env:

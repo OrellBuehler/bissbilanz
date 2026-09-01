@@ -5,24 +5,18 @@ import { readClientEditedAt } from '$lib/server/sync/headers';
 import type { Result } from '$lib/server/types';
 
 /**
- * Narrow type for postgres.js server errors exposed as `Error.cause`.
- * The underlying driver tags these with `code: 'ERR_POSTGRES_SERVER_ERROR'`
- * and carries SQLSTATE in `errno` plus optional `constraint`/`detail` fields.
+ * Narrow type for postgres.js server errors (`PostgresError`), usually exposed
+ * as `Error.cause` of Drizzle's `DrizzleQueryError`. `code` carries the
+ * SQLSTATE and `constraint_name` the violated constraint.
  */
-type PgErrorCause = {
-	code: 'ERR_POSTGRES_SERVER_ERROR';
-	errno?: string;
-	constraint?: string;
+type PgErrorCause = Error & {
+	code?: string;
+	constraint_name?: string;
 	detail?: string;
 };
 
 function isPgErrorCause(value: unknown): value is PgErrorCause {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'code' in value &&
-		(value as { code: unknown }).code === 'ERR_POSTGRES_SERVER_ERROR'
-	);
+	return value instanceof Error && value.name === 'PostgresError';
 }
 
 /**
@@ -101,8 +95,8 @@ export function handleApiError(error: unknown): Response {
 	}
 
 	const pg = extractPgError(error);
-	if (pg && pg.errno === '23505') {
-		const constraint = pg.constraint ?? '';
+	if (pg && pg.code === '23505') {
+		const constraint = pg.constraint_name ?? '';
 		if (constraint.includes('barcode')) {
 			return json({ error: 'duplicate_barcode' }, { status: 409 });
 		}

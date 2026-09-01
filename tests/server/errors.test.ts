@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { ZodError, z } from 'zod';
+import * as Sentry from '@sentry/sveltekit';
 import {
 	ApiError,
 	ResultValidationError,
@@ -92,6 +93,11 @@ describe('validationError', () => {
 	});
 });
 
+// Shape of postgres.js's PostgresError as Drizzle wraps it in `Error.cause`:
+// the SQLSTATE lives in `code`, the violated constraint in `constraint_name`.
+const pgError = (code: string, constraint_name: string) =>
+	Object.assign(new Error('postgres error'), { name: 'PostgresError', code, constraint_name });
+
 describe('handleApiError', () => {
 	test('handles ApiError with status and message', async () => {
 		const err = new ApiError(422, 'Unprocessable');
@@ -125,26 +131,18 @@ describe('handleApiError', () => {
 	});
 
 	test('returns 409 duplicate_entry for postgres 23505 error', async () => {
-		const pgErr = Object.assign(new Error('postgres error'), {
-			cause: {
-				code: 'ERR_POSTGRES_SERVER_ERROR',
-				errno: '23505',
-				constraint: 'foods_unique'
-			}
-		});
+		vi.mocked(Sentry.captureException).mockClear();
+		const pgErr = new Error('Failed query', { cause: pgError('23505', 'foods_unique') });
 		const res = handleApiError(pgErr);
 		expect(res.status).toBe(409);
 		const body = await res.json();
 		expect(body.error).toBe('duplicate_entry');
+		expect(Sentry.captureException).not.toHaveBeenCalled();
 	});
 
 	test('returns 409 duplicate_barcode for 23505 with barcode constraint', async () => {
-		const pgErr = Object.assign(new Error('postgres error'), {
-			cause: {
-				code: 'ERR_POSTGRES_SERVER_ERROR',
-				errno: '23505',
-				constraint: 'foods_user_id_barcode_unique'
-			}
+		const pgErr = new Error('Failed query', {
+			cause: pgError('23505', 'foods_user_id_barcode_unique')
 		});
 		const res = handleApiError(pgErr);
 		expect(res.status).toBe(409);
@@ -167,25 +165,13 @@ describe('handleApiError', () => {
 	});
 
 	test('does not treat 23503 postgres error as duplicate', async () => {
-		const pgErr = Object.assign(new Error('postgres error'), {
-			cause: {
-				code: 'ERR_POSTGRES_SERVER_ERROR',
-				errno: '23503',
-				constraint: 'some_fk'
-			}
-		});
+		const pgErr = new Error('Failed query', { cause: pgError('23503', 'some_fk') });
 		const res = handleApiError(pgErr);
 		expect(res.status).toBe(500);
 	});
 
 	test('does not treat 23514 postgres error as duplicate', async () => {
-		const pgErr = Object.assign(new Error('postgres error'), {
-			cause: {
-				code: 'ERR_POSTGRES_SERVER_ERROR',
-				errno: '23514',
-				constraint: 'some_check'
-			}
-		});
+		const pgErr = new Error('Failed query', { cause: pgError('23514', 'some_check') });
 		const res = handleApiError(pgErr);
 		expect(res.status).toBe(500);
 	});

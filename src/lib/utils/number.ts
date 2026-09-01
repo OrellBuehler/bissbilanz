@@ -20,9 +20,9 @@ export const roundMacroValue = (key: string, value: number): number =>
  * which would silently coerce blank fields to zero) so callers can validate
  * explicitly instead of accepting a bad value.
  */
-export const parseDecimalInput = (value: string | null | undefined): number => {
+export const parseDecimalInput = (value: string | number | null | undefined): number => {
 	if (value == null) return NaN;
-	const normalized = value.trim().replace(/,/g, '.');
+	const normalized = String(value).trim().replace(/,/g, '.');
 	if (normalized === '') return NaN;
 	return Number(normalized);
 };
