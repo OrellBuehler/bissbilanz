@@ -143,14 +143,7 @@ jobs:
           # leaves nothing for swift-frontend — the emit-module pass for the app
           # target then dies with "hosted runner lost communication with the
           # server" ~90 min in — on PR #539 and on main alike (2026-08-30).
-          #
-          # 4096 turned that from every run into roughly one in five (3 of the
-          # last 18 on main, plus both attempts on this PR, 2026-08-31). The
-          # tell is the runtime: a run that fits in memory finishes in 43-55
-          # min, one that doesn't thrashes and dies at ~90-100. The analysis
-          # phase is ~4 min of the job, so giving the extractor another GB back
-          # to the compiler costs little.
-          ram: 3072
+          ram: 4096
 
       - name: Build iOS app
         working-directory: mobile/iosApp
