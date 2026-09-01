@@ -144,6 +144,14 @@ jobs:
           # target then dies with "hosted runner lost communication with the
           # server" ~90 min in — on PR #539 and on main alike (2026-08-30).
           ram: 4096
+          # CodeQL bundle 2.26.4 (the default since codeql-action v4.37.9)
+          # regressed the Swift extractor: the traced build went from ~48 min
+          # to >90 min and starved the runner to death ("lost communication")
+          # on five consecutive runs, while the untraced build in mobile-ios.yml
+          # stayed at ~2.5 min. 2.26.3 was the last green bundle. Pinned here
+          # rather than via the action version so a dependabot action bump
+          # can't silently reintroduce it.
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.26.3/codeql-bundle-osx64.tar.gz
 
       - name: Build iOS app
         working-directory: mobile/iosApp
