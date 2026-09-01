@@ -6,12 +6,12 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                   | Count |
 | ------------------------- | ----- |
-| MIT                       | 237   |
-| Apache-2.0                | 23    |
-| ISC                       | 15    |
-| BSD-2-Clause              | 6     |
-| BSD-3-Clause              | 5     |
+| MIT                       | 236   |
+| Apache-2.0                | 20    |
+| ISC                       | 14    |
+| BSD-2-Clause              | 5     |
 | BlueOak-1.0.0             | 5     |
+| BSD-3-Clause              | 4     |
 | MPL-2.0                   | 3     |
 | OFL-1.1                   | 2     |
 | LGPL-3.0-or-later         | 2     |
@@ -22,21 +22,6 @@ This file lists all third-party dependencies used in production and their licens
 | Unlicense                 | 1     |
 
 ## Packages
-
-### @apm-js-collab/code-transformer-bundler-plugins@0.7.4
-
-- **License:** MIT
-- **Repository:** https://github.com/apm-js-collab/code-transformer-bundler-plugins
-
-### @apm-js-collab/code-transformer@0.18.1
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/nodejs/orchestrion-js
-
-### @apm-js-collab/tracing-hooks@0.13.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/apm-js-collab/tracing-hooks
 
 ### @babel/code-frame@7.29.7
 
@@ -1727,7 +1712,7 @@ This is the **x86_64-unknown-linux-musl** binary for `rollup`
 
 </details>
 
-### @sentry/browser-utils@10.70.0
+### @sentry/browser-utils@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -1762,7 +1747,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/browser@10.70.0
+### @sentry/browser@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -1989,7 +1974,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/cloudflare@10.70.0
+### @sentry/cloudflare@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2094,7 +2079,42 @@ SOFTWARE.
 
 </details>
 
-### @sentry/feedback@10.70.0
+### @sentry/core@10.72.0
+
+- **License:** MIT
+- **Repository:** https://github.com/getsentry/sentry-javascript
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2019 Functional Software, Inc. dba Sentry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+</details>
+
+### @sentry/feedback@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2129,7 +2149,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node-core@10.70.0
+### @sentry/node-core@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2164,7 +2184,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node@10.70.0
+### @sentry/node@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2199,7 +2219,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/opentelemetry@10.70.0
+### @sentry/opentelemetry@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2234,7 +2254,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/replay-canvas@10.70.0
+### @sentry/replay-canvas@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2269,7 +2289,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/replay@10.70.0
+### @sentry/replay@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2304,7 +2324,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/server-utils@10.70.0
+### @sentry/server-utils@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2342,7 +2362,7 @@ aws-serverless, google-cloud-serverless, vercel-edge).
 
 </details>
 
-### @sentry/svelte@10.70.0
+### @sentry/svelte@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2377,7 +2397,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/sveltekit@10.70.0
+### @sentry/sveltekit@10.72.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2968,39 +2988,6 @@ SOFTWARE.
 The MIT License
 
 Copyright (c) 2015 Marco Ziccardi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-```
-
-</details>
-
-### astring@1.9.0
-
-- **License:** MIT
-- **Repository:** https://github.com/davidbonnet/astring
-
-<details><summary>License Text</summary>
-
-```
-
-Copyright (c) 2015, David Bonnet <david@bonnet.cc>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4560,42 +4547,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### esquery@1.7.0
-
-- **License:** BSD-3-Clause
-- **Repository:** https://github.com/estools/esquery
-
-<details><summary>License Text</summary>
-
-```
-Copyright (c) 2013, Joel Feenstra
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-    * Neither the name of the ESQuery nor the names of its contributors may
-      be used to endorse or promote products derived from this software without
-      specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL JOEL FEENSTRA BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-</details>
-
 ### esrap@2.3.3
 
 - **License:** MIT
@@ -4611,37 +4562,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-</details>
-
-### estraverse@5.3.0
-
-- **License:** BSD-2-Clause
-- **Repository:** https://github.com/estools/estraverse
-
-<details><summary>License Text</summary>
-
-```
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-  * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 </details>
@@ -6646,27 +6566,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
-### meriyah@6.1.4
-
-- **License:** ISC
-- **Repository:** https://github.com/meriyah/meriyah
-
-<details><summary>License Text</summary>
-
-```
-
-ISC License
-
-Copyright (c) 2019 and later, KFlash and others.
-
-Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-```
-
-</details>
-
 ### mime-db@1.54.0
 
 - **License:** MIT
@@ -8274,11 +8173,6 @@ SOFTWARE.
 ```
 
 </details>
-
-### semifies@1.0.0
-
-- **License:** Apache-2.0
-- **Repository:** https://github.com/holepunchto/semifies
 
 ### semver@6.3.1
 
