@@ -256,7 +256,6 @@
     <string name="login_sign_in">Sign in</string>
     <string name="login_with_infomaniak">Continue with Infomaniak</string>
     <string name="login_with_google">Continue with Google</string>
-    <string name="login_with_microsoft">Continue with Microsoft</string>
     <string name="login_with_apple">Continue with Apple</string>
     <string name="login_continue_without_account">Continue without account</string>
     <string name="login_local_mode_description">Your data stays on this device. Sign in later anytime to sync.</string>

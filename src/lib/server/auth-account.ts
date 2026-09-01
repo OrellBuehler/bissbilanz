@@ -5,7 +5,7 @@ import type { User } from './db';
 
 /**
  * Only claims the provider actually returned are written back. Providers differ in
- * what they hand over (Microsoft sends no picture, Apple sends the name once), so
+ * what they hand over (Apple sends no picture and the name only once), so
  * blindly writing every field would let one provider wipe data another supplied.
  */
 function profileUpdates(profile: ProviderProfile) {

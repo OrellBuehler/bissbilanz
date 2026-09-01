@@ -12,7 +12,6 @@
 	const providerLabels: Record<string, () => string> = {
 		infomaniak: m.auth_login_infomaniak,
 		google: m.auth_login_google,
-		microsoft: m.auth_login_microsoft,
 		apple: m.auth_login_apple
 	};
 </script>

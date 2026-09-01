@@ -5217,7 +5217,7 @@
 					"eatenAt": {
 						"type": "string",
 						"format": "date-time",
-						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 					}
 				},
 				"required": ["mealType", "servings", "date"]
@@ -5345,7 +5345,7 @@
 					"eatenAt": {
 						"type": "string",
 						"format": "date-time",
-						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 					}
 				}
 			},
@@ -6023,7 +6023,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -6035,7 +6035,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -6090,7 +6090,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -6102,7 +6102,7 @@
 							{
 								"type": "string",
 								"format": "date-time",
-								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+								"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
 							},
 							{
 								"type": "null"
@@ -6180,24 +6180,10 @@
 						"type": "number"
 					},
 					"sodiumGoal": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugarGoal": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"createdAt": {
 						"type": "string"
@@ -6286,14 +6272,7 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"servingSize": {
 						"type": "number"
@@ -6318,458 +6297,143 @@
 						"type": "number"
 					},
 					"saturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"monounsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"polyunsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"transFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"cholesterol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugar": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"addedSugars": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugarAlcohols": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"starch": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sodium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"potassium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"calcium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iron": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"magnesium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"phosphorus": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"zinc": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"copper": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"manganese": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"selenium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iodine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"fluoride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chromium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"molybdenum": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chloride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminA": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminC": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminD": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminE": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminK": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB1": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB2": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB5": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB7": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB9": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB12": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"caffeine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"alcohol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"water": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"salt": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"barcode": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"isFavorite": {
 						"default": false,
 						"type": "boolean"
 					},
 					"nutriScore": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"novaGroup": {
 						"anyOf": [
@@ -6797,24 +6461,10 @@
 						]
 					},
 					"ingredientsText": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"labels": {
 						"anyOf": [
@@ -6898,14 +6548,7 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"servingSize": {
 						"type": "number"
@@ -6930,27 +6573,13 @@
 						"type": "number"
 					},
 					"barcode": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"isFavorite": {
 						"type": "boolean"
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"lastServings": {
 						"type": "number"
@@ -7026,24 +6655,10 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"barcode": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["id", "name", "brand", "barcode"],
@@ -7110,24 +6725,10 @@
 						"enum": ["user", "llm", "external", "catalog"]
 					},
 					"confidence": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"createdAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["label", "source", "confidence", "createdAt"],
@@ -7192,14 +6793,7 @@
 						"type": "number"
 					},
 					"notes": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"foodId": {
 						"anyOf": [
@@ -7226,64 +6820,22 @@
 						]
 					},
 					"quickName": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"quickCalories": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickProtein": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickCarbs": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFiber": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickNutrients": {
 						"anyOf": [
@@ -7302,14 +6854,7 @@
 						]
 					},
 					"foodName": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -7333,24 +6878,10 @@
 						"type": "string"
 					},
 					"servingSize": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"servingUnit": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": [
@@ -7436,74 +6967,25 @@
 						"type": "number"
 					},
 					"notes": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"quickName": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"quickCalories": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickProtein": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickCarbs": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFiber": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickNutrients": {
 						"anyOf": [
@@ -7600,14 +7082,7 @@
 						"type": "number"
 					},
 					"notes": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"foodId": {
 						"anyOf": [
@@ -7649,64 +7124,22 @@
 						"type": "string"
 					},
 					"quickName": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"quickCalories": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickProtein": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickCarbs": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickFiber": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"quickNutrients": {
 						"anyOf": [
@@ -7725,34 +7158,13 @@
 						]
 					},
 					"servingSize": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"servingUnit": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"foodName": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -7834,14 +7246,7 @@
 						"type": "boolean"
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -7906,14 +7311,7 @@
 						"type": "boolean"
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -8042,14 +7440,7 @@
 						]
 					},
 					"scheduleStartDate": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"isActive": {
 						"default": true,
@@ -8156,14 +7547,7 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"kind": {
 						"type": "string",
@@ -8191,14 +7575,7 @@
 						"type": "number"
 					},
 					"ingredientsText": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": [
@@ -8252,14 +7629,7 @@
 						"type": "boolean"
 					},
 					"takenAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["supplement", "taken", "takenAt"],
@@ -8371,14 +7741,7 @@
 						"type": "string"
 					},
 					"notes": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"createdAt": {
 						"type": "string"
@@ -8847,14 +8210,7 @@
 						]
 					},
 					"locale": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"timeZone": {
 						"type": "string"
@@ -9031,14 +8387,7 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"servingSize": {
 						"type": "number"
@@ -9063,458 +8412,143 @@
 						"type": "number"
 					},
 					"saturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"monounsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"polyunsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"transFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"cholesterol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugar": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"addedSugars": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugarAlcohols": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"starch": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sodium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"potassium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"calcium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iron": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"magnesium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"phosphorus": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"zinc": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"copper": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"manganese": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"selenium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iodine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"fluoride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chromium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"molybdenum": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chloride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminA": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminC": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminD": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminE": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminK": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB1": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB2": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB5": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB7": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB9": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB12": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"caffeine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"alcohol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"water": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"salt": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"barcode": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"isFavorite": {
 						"default": false,
 						"type": "boolean"
 					},
 					"nutriScore": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"novaGroup": {
 						"anyOf": [
@@ -9542,24 +8576,10 @@
 						]
 					},
 					"ingredientsText": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"labels": {
 						"anyOf": [
@@ -9626,14 +8646,7 @@
 						"type": "string"
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -9808,34 +8821,13 @@
 				"type": "object",
 				"properties": {
 					"email": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"name": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"createdAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["email", "name", "createdAt"],
@@ -9845,24 +8837,10 @@
 				"type": "object",
 				"properties": {
 					"earliest": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"latest": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["earliest", "latest"],
@@ -9914,24 +8892,10 @@
 						"enum": ["pending", "completed", "dismissed"]
 					},
 					"description": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"photoUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"photoUrls": {
 						"type": "array",
@@ -9943,34 +8907,13 @@
 						"type": "string"
 					},
 					"mealType": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"source": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"resultSummary": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"createdEntryIds": {
 						"anyOf": [
@@ -9986,34 +8929,13 @@
 						]
 					},
 					"completedAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"dismissedAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"acknowledgedAt": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"createdAt": {
 						"type": "string"
@@ -10116,24 +9038,10 @@
 						"type": "number"
 					},
 					"bedtime": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"wakeTime": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"wakeUps": {
 						"anyOf": [
@@ -10196,24 +9104,10 @@
 						]
 					},
 					"source": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"notes": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"loggedAt": {
 						"type": "string"
@@ -10341,24 +9235,10 @@
 						"type": "string"
 					},
 					"foodId": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"recipeId": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -10488,114 +9368,37 @@
 						]
 					},
 					"omega3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sodium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"caffeine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"saturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"transFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminC": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminD": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminE": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"alcohol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"addedSugars": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					}
 				},
 				"required": [
@@ -10645,34 +9448,13 @@
 						"type": "string"
 					},
 					"calories": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"weightKg": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"movingAvg": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					}
 				},
 				"required": ["date", "calories", "weightKg", "movingAvg"],
@@ -10698,14 +9480,7 @@
 						"type": "string"
 					},
 					"eveningCalories": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sleepDurationMinutes": {
 						"type": "integer",
@@ -10887,24 +9662,10 @@
 				"type": "object",
 				"properties": {
 					"foodId": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"recipeId": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"name": {
 						"type": "string"
@@ -10968,27 +9729,13 @@
 						"type": "string"
 					},
 					"brand": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"barcode": {
 						"type": "string"
 					},
 					"imageUrl": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"nutriScore": {
 						"anyOf": [
@@ -11002,34 +9749,13 @@
 						]
 					},
 					"novaGroup": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"servingSize": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"servingUnit": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -11047,434 +9773,133 @@
 						"type": "number"
 					},
 					"saturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"monounsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"polyunsaturatedFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"transFat": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"cholesterol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"omega6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugar": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"addedSugars": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sugarAlcohols": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"starch": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"sodium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"potassium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"calcium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iron": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"magnesium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"phosphorus": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"zinc": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"copper": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"manganese": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"selenium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"iodine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"fluoride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chromium": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"molybdenum": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"chloride": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminA": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminC": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminD": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminE": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminK": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB1": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB2": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB3": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB5": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB6": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB7": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB9": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"vitaminB12": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"caffeine": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"alcohol": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"water": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"salt": {
-						"anyOf": [
-							{
-								"type": "number"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["number", "null"]
 					},
 					"additives": {
 						"anyOf": [
@@ -11490,14 +9915,7 @@
 						]
 					},
 					"ingredientsText": {
-						"anyOf": [
-							{
-								"type": "string"
-							},
-							{
-								"type": "null"
-							}
-						]
+						"type": ["string", "null"]
 					}
 				},
 				"required": [
