@@ -23,13 +23,30 @@ updates:
           - '@testcontainers/*'
 
   # Gradle (Kotlin Multiplatform / Android)
+  # Every mobile/** PR costs two macOS runner slots (iOS build + Swift CodeQL)
+  # out of the five a personal account gets, so a burst of six single-dep PRs
+  # queues every iOS job for an hour. One PR per week for the routine bumps;
+  # majors stay separate so a breaking one doesn't hold the rest hostage.
   - package-ecosystem: 'gradle'
     directory: '/mobile'
     schedule:
       interval: 'weekly'
+    groups:
+      gradle-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
 
   # GitHub Actions
+  # One PR for all action bumps. codeql-action/init and /analyze must move
+  # together — each one alone fails every Analyze job on a version mismatch.
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+    groups:
+      github-actions:
+        patterns:
+          - '*'
