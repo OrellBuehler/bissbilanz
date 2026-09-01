@@ -1,6 +1,5 @@
 package com.bissbilanz.analytics
 
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
@@ -11,6 +10,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 private const val MINUTES_PER_DAY = 1440
 

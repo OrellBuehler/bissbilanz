@@ -35,6 +35,8 @@ import com.bissbilanz.util.SupplementSchedule
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 private data class IngredientRow(
     val name: String,

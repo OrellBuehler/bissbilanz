@@ -13,10 +13,10 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.resolveDefaultMeal
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 val FoodIdKey = ActionParameters.Key<String>("food_id")
 val FoodNameKey = ActionParameters.Key<String>("food_name")

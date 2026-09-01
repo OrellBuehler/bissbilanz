@@ -46,10 +46,10 @@ import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 private val NutriScoreA = Color(0xFF038141)
 private val NutriScoreB = Color(0xFF85BB2F)

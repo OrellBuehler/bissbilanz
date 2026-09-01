@@ -72,11 +72,11 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toNutrientDoubles
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
+import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

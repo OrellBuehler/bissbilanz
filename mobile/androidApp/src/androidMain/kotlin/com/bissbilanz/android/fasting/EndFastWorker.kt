@@ -6,10 +6,10 @@ import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.repository.EntryRepository
 import kotlinx.coroutines.CancellationException
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.java.KoinJavaComponent
+import kotlin.time.Clock
 
 /**
  * Marks the day a notification-ended fast finished on as a fasting day. Split out

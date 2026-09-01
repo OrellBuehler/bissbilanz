@@ -11,9 +11,9 @@ import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 class RefreshManager(
     private val foodRepo: FoodRepository,

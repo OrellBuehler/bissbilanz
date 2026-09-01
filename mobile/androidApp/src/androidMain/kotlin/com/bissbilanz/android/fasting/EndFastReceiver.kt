@@ -8,10 +8,10 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.bissbilanz.ErrorReporter
 import kotlinx.coroutines.CancellationException
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.java.KoinJavaComponent
+import kotlin.time.Clock
 
 /**
  * Handles End Fast from the ongoing notification. The visible work — clearing

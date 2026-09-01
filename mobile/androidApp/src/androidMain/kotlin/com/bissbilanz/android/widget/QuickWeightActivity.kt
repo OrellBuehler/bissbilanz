@@ -34,10 +34,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.util.Locale
+import kotlin.time.Clock
 
 class QuickWeightActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

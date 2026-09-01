@@ -1,9 +1,9 @@
 package com.bissbilanz.util
 
 import com.bissbilanz.api.generated.model.Preferences
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 /**
  * The four default meal types in their canonical, server-side spelling. The server

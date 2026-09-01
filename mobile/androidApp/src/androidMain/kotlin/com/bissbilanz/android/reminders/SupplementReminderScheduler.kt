@@ -8,11 +8,11 @@ import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.util.SupplementSchedule
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 /**
  * Arms one AlarmManager alarm per (supplement, reminder time), for that slot's next due

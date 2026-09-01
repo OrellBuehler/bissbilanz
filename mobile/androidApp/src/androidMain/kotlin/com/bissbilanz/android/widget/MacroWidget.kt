@@ -38,9 +38,9 @@ import com.bissbilanz.model.MacroTotals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.util.totalMacros
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 class MacroWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition

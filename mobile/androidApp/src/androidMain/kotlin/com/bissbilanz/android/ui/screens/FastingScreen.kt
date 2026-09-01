@@ -39,12 +39,12 @@ import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 /** The preset protocols offered on the start screen, mirroring iOS. */
 private enum class FastingProtocol(

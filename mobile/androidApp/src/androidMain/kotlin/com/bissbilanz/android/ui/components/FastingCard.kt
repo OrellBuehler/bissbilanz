@@ -18,8 +18,8 @@ import com.bissbilanz.android.ui.screens.formatElapsed
 import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 /**
  * Entry point to the fasting tracker on the dashboard. Only rendered for today —
