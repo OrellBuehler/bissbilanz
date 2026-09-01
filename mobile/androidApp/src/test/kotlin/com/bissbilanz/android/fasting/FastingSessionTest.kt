@@ -1,7 +1,6 @@
 package com.bissbilanz.android.fasting
 
 import com.bissbilanz.android.ui.screens.formatElapsed
-import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,6 +9,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class FastingSessionTest {
     private val start = Instant.parse("2026-08-15T08:00:00Z")

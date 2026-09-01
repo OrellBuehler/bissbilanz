@@ -28,12 +28,12 @@ import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import kotlin.time.Clock
 
 /**
  * True when the failure is Play services saying it has no Wearable API — the normal

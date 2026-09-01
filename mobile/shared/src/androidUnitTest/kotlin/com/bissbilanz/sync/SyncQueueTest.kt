@@ -5,13 +5,13 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.test.appModeManager
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 class SyncQueueTest {
     private lateinit var db: BissbilanzDatabase

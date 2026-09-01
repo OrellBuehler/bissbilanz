@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +56,7 @@ fun CalendarScreen(navController: NavController) {
     var currentYear by remember { mutableStateOf(today.year) }
 
     suspend fun fetchMonth() {
-        val monthStr = "%04d-%02d".format(currentYear, currentMonth.value)
+        val monthStr = "%04d-%02d".format(currentYear, currentMonth.number)
         try {
             calendarDays = statsRepo.getCalendarStats(monthStr)
             goals = goalsRepo.goalsOnce()
@@ -115,7 +116,7 @@ fun CalendarScreen(navController: NavController) {
                             currentMonth = Month.DECEMBER
                             currentYear--
                         } else {
-                            currentMonth = Month(currentMonth.value - 1)
+                            currentMonth = Month(currentMonth.number - 1)
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.calendar_previous_month))
@@ -130,7 +131,7 @@ fun CalendarScreen(navController: NavController) {
                             currentMonth = Month.JANUARY
                             currentYear++
                         } else {
-                            currentMonth = Month(currentMonth.value + 1)
+                            currentMonth = Month(currentMonth.number + 1)
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.calendar_next_month))
@@ -206,7 +207,7 @@ fun CalendarScreen(navController: NavController) {
                                             .padding(2.dp)
                                             .let { mod ->
                                                 if (day != null) {
-                                                    val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.value, day)
+                                                    val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.number, day)
                                                     mod.clickable { navController.navigate("daylog/$dateStr") }
                                                 } else {
                                                     mod
@@ -215,7 +216,7 @@ fun CalendarScreen(navController: NavController) {
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (day != null) {
-                                        val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.value, day)
+                                        val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.number, day)
                                         val calDay = dayMap[dateStr]
                                         val isToday = dateStr == today.toString()
 

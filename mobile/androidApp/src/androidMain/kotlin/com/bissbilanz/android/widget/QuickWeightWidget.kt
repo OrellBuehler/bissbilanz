@@ -33,10 +33,10 @@ import com.bissbilanz.android.R
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import java.util.Locale
+import kotlin.time.Clock
 
 class QuickWeightWidget : GlanceAppWidget() {
     override suspend fun provideGlance(

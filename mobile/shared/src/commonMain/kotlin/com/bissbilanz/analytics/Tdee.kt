@@ -48,7 +48,7 @@ private class DatedPoint(
     val value: Double,
 )
 
-private fun epochDay(date: String): Int = LocalDate.parse(date).toEpochDays()
+private fun epochDay(date: String): Int = LocalDate.parse(date).toEpochDays().toInt()
 
 /**
  * OLS slope of value on calendar day (kg/day). Regressing on the date rather

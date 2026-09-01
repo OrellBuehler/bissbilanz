@@ -1,12 +1,12 @@
 package com.bissbilanz.android.fasting
 
 import android.content.Context
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 /**
  * A single fast — the one currently running ([endedAt] null) or a completed one

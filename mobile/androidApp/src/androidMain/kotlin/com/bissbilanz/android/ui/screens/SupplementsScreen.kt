@@ -40,10 +40,10 @@ import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 // Single-ingredient supplements show the backing food's dosage label
 // (e.g. "1000 IU"); multi-ingredient show an ingredient count summary.

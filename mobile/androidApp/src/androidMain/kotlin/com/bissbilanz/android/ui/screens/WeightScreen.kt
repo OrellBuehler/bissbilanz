@@ -43,12 +43,12 @@ import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

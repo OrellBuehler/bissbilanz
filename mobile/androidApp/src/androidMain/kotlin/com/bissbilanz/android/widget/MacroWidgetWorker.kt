@@ -6,9 +6,9 @@ import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 class MacroWidgetWorker(
     context: Context,

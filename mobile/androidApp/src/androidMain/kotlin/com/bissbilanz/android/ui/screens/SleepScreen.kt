@@ -40,9 +40,7 @@ import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
-import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -54,6 +52,8 @@ import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
