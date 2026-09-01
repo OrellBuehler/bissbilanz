@@ -1105,6 +1105,7 @@ export interface components {
 			additives?: string[] | null;
 			ingredientsText?: string | null;
 			imageUrl?: string | null;
+			categoriesTags?: string[];
 		};
 		/** @enum {string} */
 		ServingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
@@ -1172,6 +1173,7 @@ export interface components {
 				additives?: string[] | null;
 				ingredientsText?: string | null;
 				imageUrl?: string | null;
+				categoriesTags?: string[];
 			};
 		};
 		FoodLabelsBatch: {
@@ -1251,6 +1253,7 @@ export interface components {
 			additives?: string[] | null;
 			ingredientsText?: string | null;
 			imageUrl?: string | null;
+			categoriesTags?: string[];
 		};
 		EntryCreate: {
 			/** Format: uuid */
@@ -2412,6 +2415,7 @@ export interface components {
 			salt?: number | null;
 			additives: string[] | null;
 			ingredientsText: string | null;
+			categoriesTags?: string[];
 		};
 		OpenFoodFactsResponse: {
 			product: components['schemas']['OpenFoodFactsProduct'];

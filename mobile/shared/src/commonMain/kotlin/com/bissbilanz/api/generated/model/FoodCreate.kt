@@ -82,6 +82,7 @@ import kotlinx.serialization.encoding.*
  * @param additives
  * @param ingredientsText
  * @param imageUrl
+ * @param categoriesTags
  */
 @Serializable
 data class FoodCreate(
@@ -144,6 +145,7 @@ data class FoodCreate(
     @SerialName(value = "additives") val additives: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "ingredientsText") val ingredientsText: kotlin.String? = null,
     @SerialName(value = "imageUrl") val imageUrl: kotlin.String? = null,
+    @SerialName(value = "categoriesTags") val categoriesTags: kotlin.collections.List<kotlin.String>? = null,
 ) {
     /**
      *

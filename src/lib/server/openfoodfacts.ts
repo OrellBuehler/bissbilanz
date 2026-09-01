@@ -13,6 +13,7 @@ const OFF_FIELDS = [
 	'additives_tags',
 	'ingredients_text',
 	'image_front_url',
+	'categories_tags',
 	'nutriments'
 ].join(',');
 
@@ -26,6 +27,7 @@ const offProductSchema = z.object({
 	additives_tags: z.array(z.string().max(100)).max(100).optional().default([]),
 	ingredients_text: z.string().max(10000).optional().nullable(),
 	image_front_url: z.string().url().max(2000).optional().nullable(),
+	categories_tags: z.array(z.string().max(200)).max(100).optional().default([]),
 	nutriments: z
 		.record(z.string(), z.union([z.number(), z.string()]))
 		.optional()
@@ -60,6 +62,8 @@ export type OFFProduct = {
 	additives: string[];
 	ingredientsText: string | null;
 	imageUrl: string | null;
+	/** Raw OFF `categories_tags`; the server derives labels from them on create. */
+	categoriesTags: string[];
 	barcode: string;
 	[key: string]: unknown;
 };
@@ -87,6 +91,7 @@ function mapSearchProduct(
 		additives: p.additives_tags,
 		ingredientsText: p.ingredients_text ?? null,
 		imageUrl: p.image_front_url ?? null,
+		categoriesTags: p.categories_tags,
 		barcode
 	};
 

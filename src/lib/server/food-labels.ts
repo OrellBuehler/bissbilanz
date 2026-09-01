@@ -2,6 +2,7 @@ import { getDB } from '$lib/server/db';
 import { foodLabels, foods, type LabelSource } from '$lib/server/schema';
 import { and, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
 import { normalizeLabels } from '$lib/server/labels';
+import { labelsFromCategoriesTags } from '$lib/server/openfoodfacts-labels';
 
 /**
  * Correlated aggregate that flattens the label rows back into the array clients
@@ -40,6 +41,10 @@ const ownedFoodIds = async (db: DB, userId: string, foodIds: string[]) => {
  * Replace-by-source, assuming ownership has already been established: delete
  * exactly this source's rows for the food, then re-insert. The unique index on
  * (food_id, label) makes the whole thing idempotent.
+ *
+ * A user write is the exception: what the user saved is the whole set, so it
+ * replaces every source. A seeded label the user removed can then never be
+ * resurrected by a re-seed, without needing tombstones to say "not this one".
  */
 const writeLabels = async (
 	db: DB,
@@ -56,7 +61,7 @@ const writeLabels = async (
 				and(
 					eq(foodLabels.userId, userId),
 					eq(foodLabels.foodId, foodId),
-					eq(foodLabels.source, source)
+					source === 'user' ? undefined : eq(foodLabels.source, source)
 				)
 			);
 		if (normalized.length === 0) return;
@@ -79,6 +84,33 @@ const writeLabels = async (
 				})
 			: insert.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] }));
 	});
+
+/**
+ * Seeds `catalog` labels from a product's Open Food Facts `categories_tags`.
+ * Add-only, and a no-op once the user has edited the food's labels: their set
+ * is authoritative, so a re-seed (a second enrich, say) can never bring back a
+ * crowd-sourced label they deleted. Returns the labels actually seeded.
+ */
+export async function seedCatalogLabels(
+	db: DB,
+	userId: string,
+	foodId: string,
+	categoriesTags: readonly string[]
+): Promise<string[]> {
+	const labels = labelsFromCategoriesTags(categoriesTags);
+	if (labels.length === 0) return [];
+	const [owned] = await db
+		.select({ id: foodLabels.id })
+		.from(foodLabels)
+		.where(and(eq(foodLabels.foodId, foodId), eq(foodLabels.source, 'user')))
+		.limit(1);
+	if (owned) return [];
+	await db
+		.insert(foodLabels)
+		.values(labels.map((label) => ({ foodId, userId, label, source: 'catalog' as const })))
+		.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] });
+	return labels;
+}
 
 export type FoodLabelRow = {
 	label: string;

@@ -3785,6 +3785,14 @@
 								"type": "null"
 							}
 						]
+					},
+					"categoriesTags": {
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"maxLength": 200
+						}
 					}
 				},
 				"required": [
@@ -4412,6 +4420,14 @@
 										"type": "null"
 									}
 								]
+							},
+							"categoriesTags": {
+								"maxItems": 100,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"maxLength": 200
+								}
 							}
 						}
 					}
@@ -5091,6 +5107,14 @@
 								"type": "null"
 							}
 						]
+					},
+					"categoriesTags": {
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"maxLength": 200
+						}
 					}
 				}
 			},
@@ -9916,6 +9940,12 @@
 					},
 					"ingredientsText": {
 						"type": ["string", "null"]
+					},
+					"categoriesTags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
 				"required": [

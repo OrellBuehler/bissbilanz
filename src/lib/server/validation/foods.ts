@@ -40,7 +40,11 @@ export const foodCreateSchema = z
 		novaGroup: z.coerce.number().int().min(1).max(4).optional().nullable(),
 		additives: z.array(z.string().max(100)).max(100).optional().nullable(),
 		ingredientsText: z.string().max(10000).optional().nullable(),
-		imageUrl: imageUrlSchema.optional().nullable()
+		imageUrl: imageUrlSchema.optional().nullable(),
+		// Input only: raw Open Food Facts `categories_tags` as returned by the
+		// proxy. Never stored on the food — the server derives `catalog` labels
+		// from them and discards the rest.
+		categoriesTags: z.array(z.string().max(200)).max(100).optional()
 	})
 	.meta({ id: 'FoodCreate' });
 

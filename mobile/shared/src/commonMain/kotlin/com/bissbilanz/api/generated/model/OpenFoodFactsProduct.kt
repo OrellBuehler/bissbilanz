@@ -81,6 +81,7 @@ import kotlinx.serialization.encoding.*
  * @param alcohol
  * @param water
  * @param salt
+ * @param categoriesTags
  */
 @Serializable
 data class OpenFoodFactsProduct(
@@ -143,6 +144,7 @@ data class OpenFoodFactsProduct(
     @SerialName(value = "alcohol") val alcohol: kotlin.Double? = null,
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
+    @SerialName(value = "categoriesTags") val categoriesTags: kotlin.collections.List<kotlin.String>? = null,
 ) {
     /**
      *

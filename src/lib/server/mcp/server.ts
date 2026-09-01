@@ -207,6 +207,8 @@ export function createMcpServer(userId: string): McpServer {
 		additives: 'List of additives (null to clear)',
 		ingredientsText: 'Full ingredients text (null to clear)',
 		imageUrl: 'Image URL or relative path (null to clear)',
+		categoriesTags:
+			"Raw Open Food Facts categories_tags as returned by find_food_by_barcode or search_openfoodfacts; pass them through verbatim and the server seeds the food's labels from them. Not stored on the food.",
 		...NUTRIENT_DOCS
 	};
 

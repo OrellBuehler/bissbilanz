@@ -23,7 +23,10 @@ const productSchema = z
 		fiber: z.number(),
 		...nutrientFields,
 		additives: z.array(z.string()).nullable(),
-		ingredientsText: z.string().nullable()
+		ingredientsText: z.string().nullable(),
+		// Raw OFF `categories_tags`, forwarded verbatim to `FoodCreate.categoriesTags`
+		// so the server can seed labels; clients never interpret them.
+		categoriesTags: z.array(z.string()).optional()
 	})
 	.meta({ id: 'OpenFoodFactsProduct' });
 

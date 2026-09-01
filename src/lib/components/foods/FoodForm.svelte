@@ -18,6 +18,7 @@
 	import { round2 } from '$lib/utils/number';
 	import { ALL_NUTRIENTS, DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
+	import FoodLabelsInput from '$lib/components/foods/FoodLabelsInput.svelte';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -55,6 +56,9 @@
 		additives?: string[] | null;
 		ingredientsText?: string | null;
 		imageUrl?: string | null;
+		// Only present when editing: a create has nothing to show yet, and the
+		// server seeds scanned products itself.
+		labels?: string[];
 		[key: string]: unknown;
 	};
 
@@ -112,7 +116,8 @@
 		novaGroup: initial.novaGroup ?? null,
 		additives: initial.additives ?? null,
 		ingredientsText: initial.ingredientsText ?? null,
-		imageUrl: initial.imageUrl ?? null
+		imageUrl: initial.imageUrl ?? null,
+		labels: initial.labels
 	});
 
 	let isValid = $derived(form.name.trim().length > 0 && form.servingSize > 0);
@@ -264,6 +269,10 @@
 			</div>
 		</Collapsible.Content>
 	</Collapsible.Root>
+
+	{#if form.labels !== undefined}
+		<FoodLabelsInput labels={form.labels} onChange={(labels) => (form.labels = labels)} />
+	{/if}
 
 	{#if calorieMismatch}
 		<p

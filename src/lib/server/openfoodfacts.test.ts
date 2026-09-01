@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { searchProducts } from './openfoodfacts';
+import { fetchProduct, searchProducts } from './openfoodfacts';
 
 const okResponse = (body: unknown) =>
 	new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
@@ -83,5 +83,40 @@ describe('searchProducts (Open Food Facts text search)', () => {
 		const url = String(fetchMock.mock.calls[0][0]);
 		expect(url).toContain('search_terms=milk');
 		expect(url).toContain('page_size=20');
+	});
+});
+
+describe('fetchProduct (Open Food Facts barcode lookup)', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('requests and carries categories_tags through as categoriesTags', async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			okResponse({
+				status: 1,
+				product: {
+					product_name: 'Nutella',
+					categories_tags: ['en:spreads', 'fr:pates-a-tartiner'],
+					nutriments: { 'energy-kcal_100g': 539 }
+				}
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const product = await fetchProduct('3017620422003');
+
+		expect(String(fetchMock.mock.calls[0][0])).toContain('categories_tags');
+		expect(product?.categoriesTags).toEqual(['en:spreads', 'fr:pates-a-tartiner']);
+	});
+
+	it('defaults categoriesTags to [] when OFF has none', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi
+				.fn()
+				.mockResolvedValue(
+					okResponse({ status: 1, product: { product_name: 'Unknown', nutriments: {} } })
+				)
+		);
+		expect((await fetchProduct('1234567890123'))?.categoriesTags).toEqual([]);
 	});
 });

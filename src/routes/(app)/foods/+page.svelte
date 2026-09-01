@@ -140,7 +140,9 @@
 					novaGroup: offData.novaGroup,
 					additives: offData.additives,
 					ingredientsText: offData.ingredientsText,
-					imageUrl: offData.imageUrl
+					imageUrl: offData.imageUrl,
+					// Raw OFF categories; the server derives the food's labels from them.
+					categoriesTags: offData.categoriesTags
 				}
 			: payload;
 		try {
@@ -164,9 +166,10 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- FoodFormData is local to FoodForm.svelte
 	const updateFood = async (payload: any) => {
 		if (!editingFood) return;
+		const { labels, ...fields } = payload as { labels?: string[] };
 		const { error } = await api.PATCH('/api/foods/{id}', {
 			params: { path: { id: editingFood.id } },
-			body: { ...payload, imageUrl: editImageUrl }
+			body: { ...fields, imageUrl: editImageUrl }
 		});
 		if (error) {
 			if (error.error === 'duplicate_barcode') {
@@ -175,6 +178,22 @@
 				toast.error(m.detail_save_failed());
 			}
 			return;
+		}
+		// Labels live in their own table: only an actual edit is sent, because a
+		// user write is authoritative and replaces whatever a labeller had seeded.
+		const before = editingFood.labels ?? [];
+		if (
+			labels &&
+			(labels.length !== before.length || labels.some((label, i) => label !== before[i]))
+		) {
+			const { error: labelError } = await api.PUT('/api/foods/{id}/labels', {
+				params: { path: { id: editingFood.id } },
+				body: { labels }
+			});
+			if (labelError) {
+				toast.error(m.detail_save_failed());
+				return;
+			}
 		}
 		toast.success(m.detail_saved());
 		const updatedId = editingFood.id;
@@ -330,6 +349,7 @@
 					barcode: editingFood.barcode ?? '',
 					isFavorite: editingFood.isFavorite,
 					nutriScore: editingFood.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null,
+					labels: editingFood.labels ?? [],
 					...pickNutrients(editingFood)
 				}
 			: offData

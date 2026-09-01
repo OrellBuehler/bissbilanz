@@ -102,6 +102,14 @@ frame, which is matched against that vocabulary and nothing else. **Labels stay 
 whatever the food is named in:** a food called `Banane` must still carry `banana`, or it
 can never be matched.
 
+Packaged products label themselves: every barcode scan already fetches the product's Open
+Food Facts `categories_tags`, and a create or enrich that forwards them as
+`categoriesTags` seeds `catalog` labels from the object-like slugs (`en:colas` → `cola`,
+`en:sliced-breads` → `sliced bread`; merchandising paths like
+`en:cereals-and-their-products` are dropped). `find_food_by_barcode` and
+`search_openfoodfacts` return the tags; pass them to `create_food` verbatim. That covers
+barcoded goods only — fresh produce and home-cooked food need the labeller below.
+
 The server ships the socket, not the labeller: run `label_foods` from any client with an
 LLM subscription and it pages `list_unlabeled_foods`, applies the contract above, and
 writes back with `set_food_labels_batch` until the database is labelled. The same thing is
@@ -110,8 +118,9 @@ reachable over REST (`GET /api/foods?unlabeled=true`, `PUT /api/foods/{id}/label
 
 Writes are **replace-by-source**: a write for one source replaces exactly that source's
 rows. MCP writes are forced to source `llm`, so an agent can never delete or overwrite a
-label the user set by hand — while an explicit user write takes ownership of a label an
-agent had claimed. Labels are normalized server-side (lowercased, accent-folded,
+label the user set by hand — while an explicit user write (source `user`, the default over
+REST) is the whole set and replaces every source, so a seeded label the user removed
+never comes back. Labels are normalized server-side (lowercased, accent-folded,
 singularized, deduped, max 3 words / 40 characters, max 20 per food); anything that cannot
 be a general en_US noun is dropped rather than stored. Every food read carries the result
 back as a flat `labels` array.
