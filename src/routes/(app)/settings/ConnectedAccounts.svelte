@@ -25,7 +25,6 @@
 	const providerLabels: Record<string, () => string> = {
 		infomaniak: m.provider_infomaniak,
 		google: m.provider_google,
-		microsoft: m.provider_microsoft,
 		apple: m.provider_apple
 	};
 

@@ -25,7 +25,6 @@ val loginProviders =
     listOf(
         "infomaniak" to R.string.login_with_infomaniak,
         "google" to R.string.login_with_google,
-        "microsoft" to R.string.login_with_microsoft,
         "apple" to R.string.login_with_apple,
     )
 

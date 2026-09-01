@@ -85,8 +85,8 @@ describe('validateEnv', () => {
 		expect(validateEnv({ ...validEnv, GOOGLE_CLIENT_ID: 'id' })).toContain(
 			'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together (or both left unset)'
 		);
-		expect(validateEnv({ ...validEnv, MICROSOFT_CLIENT_SECRET: 'secret' })).toContain(
-			'MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET must be set together (or both left unset)'
+		expect(validateEnv({ ...validEnv, GOOGLE_CLIENT_SECRET: 'secret' })).toContain(
+			'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together (or both left unset)'
 		);
 	});
 

@@ -254,7 +254,6 @@
     <string name="login_sign_in">Anmelden</string>
     <string name="login_with_infomaniak">Mit Infomaniak fortfahren</string>
     <string name="login_with_google">Mit Google fortfahren</string>
-    <string name="login_with_microsoft">Mit Microsoft fortfahren</string>
     <string name="login_with_apple">Mit Apple fortfahren</string>
     <string name="login_continue_without_account">Ohne Konto fortfahren</string>
     <string name="login_local_mode_description">Deine Daten bleiben auf diesem Gerät. Melde dich später jederzeit an, um zu synchronisieren.</string>

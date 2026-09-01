@@ -73,35 +73,6 @@ describe('claim mapping', () => {
 		});
 	});
 
-	test('microsoft falls back to preferred_username when the email claim is missing', () => {
-		const profile = providerDefs.microsoft.mapClaims({
-			sub: 'm-1',
-			preferred_username: 'ada@outlook.com',
-			name: 'Ada'
-		});
-		expect(profile.email).toBe('ada@outlook.com');
-	});
-
-	test('microsoft ignores a preferred_username that is not an email address', () => {
-		const profile = providerDefs.microsoft.mapClaims({ sub: 'm-1', preferred_username: 'ada' });
-		expect(profile.email).toBeUndefined();
-	});
-
-	test('microsoft prefers the email claim over preferred_username', () => {
-		const profile = providerDefs.microsoft.mapClaims({
-			sub: 'm-1',
-			email: 'real@outlook.com',
-			preferred_username: 'other@outlook.com'
-		});
-		expect(profile.email).toBe('real@outlook.com');
-	});
-
-	test('microsoft returns no avatar so it cannot clear one set by another provider', () => {
-		const profile = providerDefs.microsoft.mapClaims({ sub: 'm-1', name: 'Ada' });
-		expect(profile.avatarUrl).toBeUndefined();
-		expect('avatarUrl' in profile).toBe(false);
-	});
-
 	test('empty-string claims are treated as absent so they cannot wipe stored values', () => {
 		const profile = providerDefs.infomaniak.mapClaims(
 			{ sub: 'x' },

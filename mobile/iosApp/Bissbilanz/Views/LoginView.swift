@@ -6,7 +6,6 @@ import SwiftUI
 enum SignInProvider: String, CaseIterable, Identifiable {
     case infomaniak
     case google
-    case microsoft
 
     var id: String { rawValue }
 
@@ -14,7 +13,6 @@ enum SignInProvider: String, CaseIterable, Identifiable {
         switch self {
         case .infomaniak: L10n.signInWithInfomaniak
         case .google: L10n.signInWithGoogle
-        case .microsoft: L10n.signInWithMicrosoft
         }
     }
 
@@ -22,7 +20,6 @@ enum SignInProvider: String, CaseIterable, Identifiable {
         switch self {
         case .infomaniak: "person.crop.circle"
         case .google: "globe"
-        case .microsoft: "square.grid.2x2"
         }
     }
 }
@@ -72,9 +69,11 @@ struct LoginView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                Image(systemName: "leaf.circle.fill")
-                    .font(.system(size: brandIconSize))
-                    .foregroundStyle(MacroColors.calories)
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: brandIconSize, height: brandIconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: brandIconSize * 0.22, style: .continuous))
 
                 Text(L10n.appName)
                     .font(.largeTitle)
