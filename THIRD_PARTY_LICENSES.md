@@ -4733,7 +4733,7 @@ SOFTWARE.
 
 </details>
 
-### fast-uri@3.1.5
+### fast-uri@3.1.7
 
 - **License:** BSD-3-Clause
 - **Repository:** https://github.com/fastify/fast-uri
