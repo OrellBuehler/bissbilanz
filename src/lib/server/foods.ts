@@ -7,7 +7,7 @@ import {
 	supplementIngredients
 } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
-import { foodColumnsWithLabels } from '$lib/server/food-labels';
+import { foodColumnsWithLabels, seedCatalogLabels } from '$lib/server/food-labels';
 import {
 	and,
 	count,
@@ -148,8 +148,12 @@ export const createFood = (
 			if (!created) {
 				throw new Error('Failed to create food');
 			}
-			// A food that was just inserted cannot have labels yet.
-			return roundNutrition({ ...created, labels: [] as string[] });
+			// A food that was just inserted has no labels beyond what its Open Food
+			// Facts categories seed, so the array can be built without a re-read.
+			const labels = data.categoriesTags?.length
+				? await seedCatalogLabels(db, userId, created.id, data.categoriesTags)
+				: [];
+			return roundNutrition({ ...created, labels });
 		} catch (error) {
 			const conflict = await handleBarcodeConflict(error, userId, data.barcode, dbOverride);
 			throw conflict ?? error;
@@ -159,7 +163,9 @@ export const createFood = (
 type FoodUpdateInput = typeof foodUpdateSchema._output;
 
 export const toFoodUpdate = (input: FoodUpdateInput) => {
-	const update = { ...input };
+	// Input-only: derived into food_labels, never a column on foods.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { categoriesTags, ...update } = input;
 	if (input.barcode !== undefined) update.barcode = input.barcode || null;
 	return update;
 };
@@ -191,6 +197,12 @@ export const updateFood = (
 			// changed — an LWW-rejected update leaves the old URL in place.
 			if (updated && previous?.imageUrl && previous.imageUrl !== updated.imageUrl) {
 				await unlinkUpload(previous.imageUrl);
+			}
+			// "Enrich from Open Food Facts" is an update, so it seeds too; the
+			// returned array is the one the client will cache, so merge the seeds in.
+			if (updated && data.categoriesTags?.length) {
+				const seeded = await seedCatalogLabels(db, userId, id, data.categoriesTags);
+				updated.labels = [...new Set([...updated.labels, ...seeded])].sort();
 			}
 			return updated ? roundNutrition(updated) : updated;
 		} catch (error) {

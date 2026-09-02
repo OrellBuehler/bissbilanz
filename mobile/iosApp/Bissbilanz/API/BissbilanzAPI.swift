@@ -580,12 +580,19 @@ final class BissbilanzAPI {
 
     // MARK: - Open Food Facts proxy
 
+    /// A proxy hit: the `Food` prefill plus the raw OFF categories, which are
+    /// not part of `Food` and only exist to be handed back on create.
+    struct OpenFoodFactsHit {
+        let food: Food
+        let categoriesTags: [String]?
+    }
+
     /// The proxy returns `{product: {...}}` — the `Food` prefill shape minus
     /// the user-scoped fields (`userId`, `isFavorite`) and with nullable
     /// serving info, so the gaps are patched in before decoding, mirroring
     /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
     /// or unparseable responses.
-    func lookupBarcode(_ barcode: String) async throws -> Food? {
+    func lookupBarcode(_ barcode: String) async throws -> OpenFoodFactsHit? {
         // The barcode is untrusted external input: the scanner accepts Code 39
         // (whose charset includes the space) and Code 128 (full ASCII), so a
         // scan can legitimately produce a string that isn't a valid path
@@ -616,7 +623,8 @@ final class BissbilanzAPI {
         if !(product["barcode"] is String) {
             product["barcode"] = barcode
         }
-        return try? JSONPatch.decode(Food.self, from: product)
+        guard let food = try? JSONPatch.decode(Food.self, from: product) else { return nil }
+        return OpenFoodFactsHit(food: food, categoriesTags: product["categoriesTags"] as? [String])
     }
 
     // MARK: - AI Tasks

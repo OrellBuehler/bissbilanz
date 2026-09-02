@@ -212,8 +212,9 @@ struct BarcodeScannerView: View {
             do {
                 if let food = try await foodRepository.findByBarcode(barcode) {
                     path.append(.log(food))
-                } else if let food = try await lookupOpenFoodFacts(barcode) {
+                } else if let hit = try await lookupOpenFoodFacts(barcode) {
                     // Found in Open Food Facts - create locally
+                    let food = hit.food
                     let created = try await foodRepository.createFood(FoodCreate(
                         name: food.name,
                         brand: food.brand,
@@ -228,7 +229,8 @@ struct BarcodeScannerView: View {
                         nutriScore: food.nutriScore,
                         novaGroup: food.novaGroup,
                         additives: food.additives,
-                        ingredientsText: food.ingredientsText
+                        ingredientsText: food.ingredientsText,
+                        categoriesTags: hit.categoriesTags
                     ))
                     path.append(.log(created))
                 } else {
@@ -244,10 +246,12 @@ struct BarcodeScannerView: View {
     }
 
     /// Local mode has no backend session — query Open Food Facts directly;
-    /// Synced mode keeps using the authenticated server proxy.
-    private func lookupOpenFoodFacts(_ barcode: String) async throws -> Food? {
+    /// Synced mode keeps using the authenticated server proxy. Only the proxy
+    /// carries categories: Local mode has no server to seed labels from them.
+    private func lookupOpenFoodFacts(_ barcode: String) async throws -> BissbilanzAPI.OpenFoodFactsHit? {
         if appModeManager.isLocal {
             try await OpenFoodFactsClient().lookupBarcode(barcode)
+                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
         } else {
             try await api.lookupBarcode(barcode)
         }

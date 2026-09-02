@@ -221,6 +221,9 @@ struct FoodCreate: Codable {
     var additives: [String]?
     var ingredientsText: String?
     var imageUrl: String?
+    /// Raw Open Food Facts `categories_tags` from the proxy, forwarded verbatim
+    /// so the server can seed the food's labels. Never stored on the food.
+    var categoriesTags: [String]?
 }
 
 /// `POST /api/images/upload` — the stored `/uploads/<uuid>.webp` path.

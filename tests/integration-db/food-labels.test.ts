@@ -210,6 +210,85 @@ describe('labels on the food read shape', () => {
 		expect(result.success && result.data.labels).toEqual([]);
 	});
 
+	it('createFood seeds catalog labels from Open Food Facts categories', async () => {
+		const { createFood } = await import('$lib/server/foods');
+		const result = await createFood(userId, {
+			name: 'Coca-Cola',
+			servingSize: 100,
+			servingUnit: 'ml',
+			calories: 42,
+			protein: 0,
+			carbs: 10.6,
+			fat: 0,
+			fiber: 0,
+			barcode: '5449000000996',
+			categoriesTags: ['en:beverages', 'en:sodas', 'en:colas', 'pt:bebidas cafeína']
+		});
+		expect(result.success && result.data.labels).toEqual(['beverage', 'soda', 'cola']);
+		const rows = await sourcesFor(result.success ? result.data.id : '');
+		expect(rows).toEqual([
+			{ label: 'beverage', source: 'catalog' },
+			{ label: 'cola', source: 'catalog' },
+			{ label: 'soda', source: 'catalog' }
+		]);
+		// Input-only: nothing about the tags lands on the food row itself.
+		expect(result.success && 'categoriesTags' in result.data).toBe(false);
+	});
+
+	it('updateFood seeds catalog labels too, without touching other sources', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const { updateFood } = await import('$lib/server/foods');
+		await setFoodLabels(userId, foodId, ['banana'], 'llm');
+
+		const updated = await updateFood(userId, foodId, {
+			categoriesTags: ['en:fruits', 'en:bananas', 'en:fresh-foods']
+		});
+		expect(updated.success && updated.data?.labels).toEqual(['banana', 'fruit']);
+		expect(await sourcesFor(foodId)).toEqual([
+			{ label: 'banana', source: 'llm' },
+			{ label: 'fruit', source: 'catalog' }
+		]);
+	});
+
+	it('a user edit becomes the whole set: seeded rows the user dropped are gone', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const { createFood } = await import('$lib/server/foods');
+		const result = await createFood(userId, {
+			name: 'Mandeln',
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 579,
+			protein: 21,
+			carbs: 22,
+			fat: 50,
+			fiber: 12.5,
+			// Crowd data is sometimes wrong — the almonds-tagged-as-cocoa case.
+			categoriesTags: ['en:nuts', 'en:almonds', 'en:cocoa-and-its-products', 'en:chocolate-powders']
+		});
+		const id = result.success ? result.data.id : '';
+		expect(await sourcesFor(id)).toEqual([
+			{ label: 'almond', source: 'catalog' },
+			{ label: 'chocolate powder', source: 'catalog' },
+			{ label: 'nut', source: 'catalog' }
+		]);
+
+		await setFoodLabels(userId, id, ['almond', 'nut'], 'user');
+		expect(await sourcesFor(id)).toEqual([
+			{ label: 'almond', source: 'user' },
+			{ label: 'nut', source: 'user' }
+		]);
+
+		// A later re-seed (a second enrich) cannot resurrect what the user removed.
+		const { seedCatalogLabels } = await import('$lib/server/food-labels');
+		expect(await seedCatalogLabels(getTestDB(dbUrl), userId, id, ['en:chocolate-powders'])).toEqual(
+			[]
+		);
+		expect(await sourcesFor(id)).toEqual([
+			{ label: 'almond', source: 'user' },
+			{ label: 'nut', source: 'user' }
+		]);
+	});
+
 	it('unlabeled=true returns only foods with no labels at all', async () => {
 		const { setFoodLabels } = await import('$lib/server/food-labels');
 		const { listFoods } = await import('$lib/server/foods');

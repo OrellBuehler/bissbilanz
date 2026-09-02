@@ -69,6 +69,14 @@ describe('foods-db', () => {
 		});
 	});
 
+	describe('toFoodUpdate', () => {
+		test('strips the input-only categoriesTags so it never reaches the foods row', async () => {
+			const { toFoodUpdate } = await import('$lib/server/foods');
+			const update = toFoodUpdate({ name: 'Cola', categoriesTags: ['en:colas'] });
+			expect(update).toEqual({ name: 'Cola' });
+		});
+	});
+
 	describe('createFood', () => {
 		test('creates food with valid payload', async () => {
 			const newFood = { ...TEST_FOOD };

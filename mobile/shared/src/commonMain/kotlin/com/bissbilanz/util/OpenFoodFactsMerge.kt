@@ -38,6 +38,8 @@ fun mergeOpenFoodFactsOntoFood(
         additives = product.additives ?: baseline.additives,
         ingredientsText = product.ingredientsText ?: baseline.ingredientsText,
         imageUrl = product.imageUrl ?: baseline.imageUrl,
+        // Raw OFF categories; the server derives the food's labels from them.
+        categoriesTags = product.categoriesTags,
         saturatedFat = product.saturatedFat ?: baseline.saturatedFat,
         monounsaturatedFat = product.monounsaturatedFat ?: baseline.monounsaturatedFat,
         polyunsaturatedFat = product.polyunsaturatedFat ?: baseline.polyunsaturatedFat,
@@ -109,6 +111,7 @@ fun openFoodFactsProductToFoodCreate(
         additives = product.additives,
         ingredientsText = product.ingredientsText,
         imageUrl = product.imageUrl,
+        categoriesTags = product.categoriesTags,
         saturatedFat = product.saturatedFat,
         monounsaturatedFat = product.monounsaturatedFat,
         polyunsaturatedFat = product.polyunsaturatedFat,
