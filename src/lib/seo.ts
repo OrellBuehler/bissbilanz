@@ -9,6 +9,10 @@ export const OG_IMAGE = `${SITE_URL}/og-image.png`;
 
 export const GITHUB_URL = 'https://github.com/OrellBuehler/bissbilanz';
 export const TESTFLIGHT_URL = 'https://testflight.apple.com/join/e5Y3scbW';
+// Opt-in page for the Play testing track; the store listing only installs once opted in.
+export const PLAY_TESTING_URL = 'https://play.google.com/apps/testing/com.bissbilanz.android';
+export const PLAY_STORE_URL =
+	'https://play.google.com/store/apps/details?id=com.bissbilanz.android';
 
 // Stripe Payment Link. Web only, and deliberately not surfaced in the iOS or
 // Android apps: collecting money inside an app runs into App Store and Play

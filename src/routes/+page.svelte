@@ -20,10 +20,19 @@
 	import Seo from '$lib/components/Seo.svelte';
 	import StripeBuyButton from '$lib/components/StripeBuyButton.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
-	import { absoluteUrl, GITHUB_URL, OG_IMAGE, SITE_URL, TESTFLIGHT_URL } from '$lib/seo';
+	import {
+		absoluteUrl,
+		GITHUB_URL,
+		OG_IMAGE,
+		PLAY_STORE_URL,
+		PLAY_TESTING_URL,
+		SITE_URL,
+		TESTFLIGHT_URL
+	} from '$lib/seo';
 	import * as m from '$lib/paraglide/messages';
 
 	const testflightUrl = TESTFLIGHT_URL;
+	const playTestingUrl = PLAY_TESTING_URL;
 
 	const features = [
 		{
@@ -108,8 +117,8 @@
 			title: m.landing_apps_android_title,
 			desc: m.landing_apps_android_desc,
 			cta: m.landing_apps_android_cta,
-			href: '/support',
-			external: false
+			href: playTestingUrl,
+			external: true
 		}
 	];
 
@@ -152,7 +161,7 @@
 				softwareHelp: `${SITE_URL}/support`,
 				privacyPolicy: `${SITE_URL}/privacy`,
 				featureList: features.map((feature) => feature.title()),
-				sameAs: [GITHUB_URL, TESTFLIGHT_URL]
+				sameAs: [GITHUB_URL, TESTFLIGHT_URL, PLAY_STORE_URL]
 			}
 		]
 	});
@@ -207,6 +216,10 @@
 				<Button variant="outline" size="lg" href={testflightUrl} target="_blank" rel="noopener">
 					<Apple />
 					{m.landing_cta_beta()}
+				</Button>
+				<Button variant="outline" size="lg" href={playTestingUrl} target="_blank" rel="noopener">
+					<Smartphone />
+					{m.landing_cta_beta_android()}
 				</Button>
 			</div>
 			<p class="mt-6 text-sm text-muted-foreground">{m.landing_hero_platforms()}</p>
@@ -290,6 +303,10 @@
 				<Button variant="outline" size="lg" href={testflightUrl} target="_blank" rel="noopener">
 					<Apple />
 					{m.landing_cta_beta()}
+				</Button>
+				<Button variant="outline" size="lg" href={playTestingUrl} target="_blank" rel="noopener">
+					<Smartphone />
+					{m.landing_cta_beta_android()}
 				</Button>
 			</div>
 		</div>
