@@ -627,6 +627,33 @@ final class BissbilanzAPI {
         return OpenFoodFactsHit(food: food, categoriesTags: product["categoriesTags"] as? [String])
     }
 
+    /// One row of `/api/openfoodfacts/search`: enough to render a picker row
+    /// and to instantiate the product by barcode (copy-on-use) once picked.
+    struct OpenFoodFactsSearchHit: Decodable, Identifiable, Hashable, Sendable {
+        let barcode: String
+        let name: String
+        let brand: String?
+        let imageUrl: String?
+        let calories: Double
+        let protein: Double
+        let carbs: Double
+        let fat: Double
+
+        var id: String { barcode }
+    }
+
+    private struct OpenFoodFactsSearchResponse: Decodable {
+        let results: [OpenFoodFactsSearchHit]
+    }
+
+    func searchOpenFoodFacts(query: String, limit: Int = 10) async throws -> [OpenFoodFactsSearchHit] {
+        let response: OpenFoodFactsSearchResponse = try await get(
+            "/api/openfoodfacts/search",
+            params: ["q": query, "limit": "\(limit)"]
+        )
+        return response.results
+    }
+
     // MARK: - AI Tasks
 
     /// Resolves a server-relative upload path (`/uploads/...`) against the API host.

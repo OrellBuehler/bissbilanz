@@ -56,6 +56,43 @@ class OpenFoodFactsClient(
         return mapProduct(product, barcode)
     }
 
+    /**
+     * Free-text product search, mirroring the server proxy's `searchProducts`
+     * (`/cgi/search.pl`). Only products with a name and a barcode are returned so
+     * every hit can be instantiated by barcode later.
+     */
+    suspend fun searchProducts(
+        query: String,
+        limit: Int = 10,
+    ): List<OpenFoodFactsProduct> {
+        val response =
+            client.get(SEARCH_BASE) {
+                parameter("search_terms", query)
+                parameter("search_simple", "1")
+                parameter("action", "process")
+                parameter("json", "1")
+                parameter("page_size", limit.coerceIn(1, 20))
+                parameter("fields", "code,$FIELDS")
+                header(HttpHeaders.UserAgent, USER_AGENT)
+                accept(ContentType.Application.Json)
+            }
+        if (!response.status.isSuccess()) return emptyList()
+
+        val root =
+            try {
+                json.parseToJsonElement(response.bodyAsText()).jsonObject
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                return emptyList()
+            }
+        val products = root["products"] as? JsonArray ?: return emptyList()
+        return products.mapNotNull { element ->
+            val product = element as? JsonObject ?: return@mapNotNull null
+            val code = product.stringOrNull("code")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            mapProduct(product, code).takeIf { it.name.isNotBlank() }
+        }
+    }
+
     private fun mapProduct(
         product: JsonObject,
         barcode: String,
@@ -156,6 +193,7 @@ class OpenFoodFactsClient(
 
     companion object {
         private const val API_BASE = "https://world.openfoodfacts.org/api/v2/product"
+        private const val SEARCH_BASE = "https://world.openfoodfacts.org/cgi/search.pl"
         private const val USER_AGENT = "Bissbilanz/1.0 (https://bissbilanz.orellbuehler.ch)"
         private const val FIELDS =
             "product_name,brands,nutriscore_grade,nova_group,additives_tags," +

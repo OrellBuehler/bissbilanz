@@ -272,6 +272,24 @@ class FoodRepository(
         }
     }
 
+    /**
+     * Free-text Open Food Facts search, used as a fallback when the user's own
+     * database has few matches. Never throws: OFF being down must not break the
+     * local search that already succeeded.
+     */
+    suspend fun searchOpenFoodFacts(query: String): List<OpenFoodFactsProduct> =
+        try {
+            if (appModeManager.isLocal) {
+                openFoodFactsClient.searchProducts(query)
+            } else {
+                api.searchOpenFoodFacts(query)
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            emptyList()
+        }
+
     private fun searchFoodsCached(query: String): List<Food> {
         val pattern = "%$query%"
         return db.userDataDatabaseQueries

@@ -502,6 +502,8 @@
     <string name="food_search_placeholder">Search foods…</string>
     <string name="food_search_icon_desc">Search</string>
     <string name="food_search_no_results">No foods found for \"%1$s\"</string>
+    <string name="food_search_off_section">Open Food Facts</string>
+    <string name="food_search_off_searching">Searching Open Food Facts…</string>
     <string name="food_search_tab_recent">Recent</string>
     <string name="food_search_tab_all">All</string>
     <string name="food_search_no_recent">No recent foods</string>

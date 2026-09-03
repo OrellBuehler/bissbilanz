@@ -9,6 +9,7 @@ struct OpenFoodFactsClient {
     private let session: URLSession
 
     private static let apiBase = "https://world.openfoodfacts.org/api/v2/product"
+    private static let searchBase = "https://world.openfoodfacts.org/cgi/search.pl"
     private static let userAgent = "Bissbilanz/1.0 (https://bissbilanz.orellbuehler.ch)"
     private static let fields = [
         "product_name", "brands", "nutriscore_grade", "nova_group",
@@ -72,6 +73,40 @@ struct OpenFoodFactsClient {
             return nil
         }
         return Self.mapProduct(product, barcode: barcode)
+    }
+
+    /// Free-text product search (`/cgi/search.pl`), mirroring the server
+    /// proxy's `searchProducts`. Only products with a name and a barcode are
+    /// returned so every hit can be instantiated by barcode later.
+    func searchProducts(query: String, limit: Int = 10) async throws -> [Food] {
+        guard var components = URLComponents(string: Self.searchBase) else { return [] }
+        components.queryItems = [
+            URLQueryItem(name: "search_terms", value: query),
+            URLQueryItem(name: "search_simple", value: "1"),
+            URLQueryItem(name: "action", value: "process"),
+            URLQueryItem(name: "json", value: "1"),
+            URLQueryItem(name: "page_size", value: String(min(max(limit, 1), 20))),
+            URLQueryItem(name: "fields", value: "code,\(Self.fields)"),
+        ]
+        guard let url = components.url else { return [] }
+        var request = URLRequest(url: url)
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
+            return []
+        }
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let products = root["products"] as? [[String: Any]]
+        else {
+            return []
+        }
+        return products.compactMap { product in
+            guard let code = product["code"] as? String, !code.isEmpty else { return nil }
+            guard let food = Self.mapProduct(product, barcode: code), !food.name.isEmpty else { return nil }
+            return food
+        }
     }
 
     /// Maps an OFF product onto the `Food` prefill shape (per-100g values,

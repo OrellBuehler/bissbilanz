@@ -189,6 +189,68 @@ final class FoodRepository {
         }
     }
 
+    /// Free-text Open Food Facts search, the fallback when the user's own
+    /// database has few matches. Never throws: OFF being down must not break
+    /// the local search that already succeeded. Local mode queries OFF
+    /// directly; Synced mode goes through the authenticated proxy.
+    func searchOpenFoodFacts(query: String) async -> [BissbilanzAPI.OpenFoodFactsSearchHit] {
+        do {
+            if appMode.isLocal {
+                return try await OpenFoodFactsClient().searchProducts(query: query).compactMap { food in
+                    guard let barcode = food.barcode, !barcode.isEmpty else { return nil }
+                    return BissbilanzAPI.OpenFoodFactsSearchHit(
+                        barcode: barcode,
+                        name: food.name,
+                        brand: food.brand,
+                        imageUrl: food.imageUrl,
+                        calories: food.calories,
+                        protein: food.protein,
+                        carbs: food.carbs,
+                        fat: food.fat
+                    )
+                }
+            }
+            return try await api.searchOpenFoodFacts(query: query)
+        } catch {
+            return []
+        }
+    }
+
+    /// Copy-on-use for an Open Food Facts search hit: the user's own food with
+    /// that barcode if one exists, else a new food created from the OFF
+    /// product (mirroring the barcode scanner). Nil when OFF no longer knows
+    /// the barcode.
+    func findOrCreateFromOpenFoodFacts(barcode: String) async throws -> Food? {
+        if let existing = try await findByBarcode(barcode) {
+            return existing
+        }
+        let hit: BissbilanzAPI.OpenFoodFactsHit? = if appMode.isLocal {
+            try await OpenFoodFactsClient().lookupBarcode(barcode)
+                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
+        } else {
+            try await api.lookupBarcode(barcode)
+        }
+        guard let hit else { return nil }
+        let food = hit.food
+        return try await createFood(FoodCreate(
+            name: food.name,
+            brand: food.brand,
+            servingSize: food.servingSize,
+            servingUnit: food.servingUnit,
+            calories: food.calories,
+            protein: food.protein,
+            carbs: food.carbs,
+            fat: food.fat,
+            fiber: food.fiber,
+            barcode: barcode,
+            nutriScore: food.nutriScore,
+            novaGroup: food.novaGroup,
+            additives: food.additives,
+            ingredientsText: food.ingredientsText,
+            categoriesTags: hit.categoriesTags
+        ))
+    }
+
     func findByBarcode(_ barcode: String) async throws -> Food? {
         if let local = findLocalByBarcode(barcode) {
             return local

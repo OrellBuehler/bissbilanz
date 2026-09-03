@@ -10,6 +10,9 @@ struct FoodSearchView: View {
 
     @State private var query = ""
     @State private var searchResults: [Food] = []
+    @State private var offResults: [BissbilanzAPI.OpenFoodFactsSearchHit] = []
+    @State private var isSearchingOff = false
+    @State private var isResolvingOff = false
     @State private var recentFoods: [Food] = []
     @State private var favoriteFoods: [Food] = []
     @State private var selectedTab = 0
@@ -128,18 +131,91 @@ struct FoodSearchView: View {
                 ContentUnavailableView(L10n.search, systemImage: "magnifyingglass", description: Text(L10n.searchFoods))
             } else if isSearching {
                 LoadingView(message: L10n.loading)
-            } else if searchResults.isEmpty {
+            } else if searchResults.isEmpty, offResults.isEmpty, !isSearchingOff {
                 ContentUnavailableView(
                     L10n.noResults,
                     systemImage: "magnifyingglass",
                     description: Text("\(L10n.noResults): \"\(query)\"")
                 )
             } else {
-                List(searchResults) { food in
-                    foodRow(food)
+                List {
+                    ForEach(searchResults) { food in
+                        foodRow(food)
+                    }
+                    if isSearchingOff || !offResults.isEmpty {
+                        Section(L10n.openFoodFacts) {
+                            if isSearchingOff {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
+                            } else {
+                                ForEach(offResults) { hit in
+                                    openFoodFactsRow(hit)
+                                }
+                            }
+                        }
+                    }
                 }
                 .listStyle(.plain)
             }
+        }
+    }
+
+    /// An Open Food Facts hit is copied into the user's database on tap and
+    /// then logged like any own food, mirroring the barcode scanner.
+    private func openFoodFactsRow(_ hit: BissbilanzAPI.OpenFoodFactsSearchHit) -> some View {
+        Button {
+            Task { await addFromOpenFoodFacts(hit) }
+        } label: {
+            HStack {
+                if hit.imageUrl != nil {
+                    FoodImageView(imageUrl: hit.imageUrl)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(hit.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    HStack(spacing: 4) {
+                        Text("\(Int(hit.calories)) cal")
+                            .foregroundStyle(MacroColors.calories)
+                        Text("\u{00B7}")
+                            .foregroundStyle(.secondary)
+                        Text("P\(Int(hit.protein))")
+                            .foregroundStyle(MacroColors.protein)
+                        Text("C\(Int(hit.carbs))")
+                            .foregroundStyle(MacroColors.carbs)
+                        Text("F\(Int(hit.fat))")
+                            .foregroundStyle(MacroColors.fat)
+                    }
+                    .font(.caption)
+                }
+                Spacer()
+                if let brand = hit.brand, !brand.isEmpty {
+                    Text(brand)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .disabled(isResolvingOff)
+    }
+
+    private func addFromOpenFoodFacts(_ hit: BissbilanzAPI.OpenFoodFactsSearchHit) async {
+        guard !isResolvingOff else { return }
+        isResolvingOff = true
+        defer { isResolvingOff = false }
+        do {
+            guard let food = try await foodRepository.findOrCreateFromOpenFoodFacts(barcode: hit.barcode) else {
+                errorMessage = L10n.openFoodFactsAddFailed
+                return
+            }
+            selectedFood = food
+        } catch {
+            errorMessage = L10n.openFoodFactsAddFailed
         }
     }
 
@@ -308,9 +384,11 @@ struct FoodSearchView: View {
     private func search(_ query: String) async {
         guard query.count >= 2 else {
             searchResults = []
+            offResults = []
             // A superseded search no longer clears this, so the query dropping
             // below the minimum length has to.
             isSearching = false
+            isSearchingOff = false
             return
         }
         isSearching = true
@@ -318,7 +396,22 @@ struct FoodSearchView: View {
         guard !Task.isCancelled, query == self.query else { return }
         searchResults = results
         isSearching = false
+        // Mirrors the web FoodPicker: only fall back to Open Food Facts when
+        // the user's own database has few matches.
+        guard results.count < Self.offFallbackThreshold else {
+            offResults = []
+            isSearchingOff = false
+            return
+        }
+        isSearchingOff = true
+        offResults = []
+        let hits = await foodRepository.searchOpenFoodFacts(query: query)
+        guard !Task.isCancelled, query == self.query else { return }
+        offResults = hits
+        isSearchingOff = false
     }
+
+    private static let offFallbackThreshold = 5
 
     private func loadRecent() async {
         recentFoods = foodRepository.localRecentFoods()

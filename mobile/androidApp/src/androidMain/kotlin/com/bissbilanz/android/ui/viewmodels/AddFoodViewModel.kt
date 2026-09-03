@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
@@ -55,6 +56,15 @@ class AddFoodViewModel(
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
 
+    private val _offResults = MutableStateFlow<List<OpenFoodFactsProduct>>(emptyList())
+    val offResults: StateFlow<List<OpenFoodFactsProduct>> = _offResults.asStateFlow()
+
+    private val _isSearchingOff = MutableStateFlow(false)
+    val isSearchingOff: StateFlow<Boolean> = _isSearchingOff.asStateFlow()
+
+    private val _isResolvingOff = MutableStateFlow(false)
+    val isResolvingOff: StateFlow<Boolean> = _isResolvingOff.asStateFlow()
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
@@ -91,7 +101,8 @@ class AddFoodViewModel(
                 if (newQuery.length >= 2) {
                     delay(300)
                     _isSearching.value = true
-                    _searchResults.value =
+                    _offResults.value = emptyList()
+                    val results =
                         try {
                             foodRepo.searchFoods(newQuery)
                         } catch (e: Exception) {
@@ -100,9 +111,21 @@ class AddFoodViewModel(
                             _snackbarMessage.value = "Search failed"
                             emptyList()
                         }
+                    _searchResults.value = results
                     _isSearching.value = false
+                    // Mirrors the web FoodPicker: only fall back to Open Food Facts
+                    // when the user's own database has few matches.
+                    if (results.size < OFF_FALLBACK_THRESHOLD) {
+                        _isSearchingOff.value = true
+                        try {
+                            _offResults.value = foodRepo.searchOpenFoodFacts(newQuery)
+                        } finally {
+                            _isSearchingOff.value = false
+                        }
+                    }
                 } else {
                     _searchResults.value = emptyList()
+                    _offResults.value = emptyList()
                 }
             }
     }
@@ -202,7 +225,40 @@ class AddFoodViewModel(
         }
     }
 
+    /**
+     * Copy-on-use: an Open Food Facts hit becomes a food in the user's database
+     * (or resolves to the one already carrying that barcode) before it can be
+     * logged or opened.
+     */
+    fun selectOffProduct(
+        product: OpenFoodFactsProduct,
+        onResolved: (Food) -> Unit,
+    ) {
+        if (_isResolvingOff.value) return
+        _isResolvingOff.value = true
+        viewModelScope.launch {
+            try {
+                val food = foodRepo.findOrCreateByBarcode(product.barcode)
+                if (food != null) {
+                    onResolved(food)
+                } else {
+                    _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Couldn't add from Open Food Facts"
+            } finally {
+                _isResolvingOff.value = false
+            }
+        }
+    }
+
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    private companion object {
+        const val OFF_FALLBACK_THRESHOLD = 5
     }
 }
