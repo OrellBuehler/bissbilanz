@@ -16,30 +16,33 @@ struct SyncConflictBanner: View {
 
     var body: some View {
         if let first = syncManager.conflictNotices.first {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "info.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.syncConflictBanner(syncManager.conflictNoticeCount))
-                        .font(.caption.weight(.medium))
+                        .font(.subheadline.weight(.semibold))
                     Text(first)
-                        .font(.caption2)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(3)
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Button(L10n.dismiss) {
                     syncManager.clearConflictNotices()
                 }
-                .font(.caption)
-                .buttonStyle(.plain)
-                .foregroundStyle(.tint)
+                .font(.subheadline.weight(.medium))
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
+            .padding(12)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
         }
     }
 }
