@@ -97,8 +97,12 @@ final class SleepRepository {
         // reapply the stale server copy over the user's edit (see
         // EntryRepository.refresh, PR #416).
         let pendingIds = syncManager.pendingAffectedIds(table: "sleep")
+        // Pull `jsonData` eagerly: the per-row change check below reads it, and
+        // on a faulted row that read is a separate SQLite trip per entry.
+        var rowsDescriptor = FetchDescriptor<LocalSleepEntry>()
+        rowsDescriptor.propertiesToFetch = [\.id, \.jsonData]
         var rowsById = Dictionary(
-            ((try? context.fetch(FetchDescriptor<LocalSleepEntry>())) ?? []).map { ($0.id, $0) },
+            ((try? context.fetch(rowsDescriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
         for (id, row) in rowsById where !serverIds.contains(id)
@@ -109,7 +113,13 @@ final class SleepRepository {
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
             if let row = rowsById[entry.id] {
-                row.update(from: entry)
+                // Only dirty rows that actually changed. Rewriting every row
+                // made each `save()` flush the whole table on the main thread,
+                // which is what the SleepRepository.save hang in Sentry
+                // BISSBILANZ-34 was.
+                if row.jsonData != LocalStoreCoding.encode(entry) {
+                    row.update(from: entry)
+                }
             } else {
                 let row = LocalSleepEntry(entry: entry)
                 context.insert(row)
@@ -243,7 +253,10 @@ final class SleepRepository {
     /// scope's exit re-enabled write-back while the outer one was still
     /// writing — producing exactly the app-authored duplicates of the
     /// device's own samples that this suppression exists to prevent.
-    func withHealthImportInProgress<T>(dates: Set<String>, _ body: @MainActor () async throws -> T) async rethrows -> T {
+    func withHealthImportInProgress<T>(
+        dates: Set<String>,
+        _ body: @MainActor () async throws -> T
+    ) async rethrows -> T {
         for date in dates {
             healthImportDateCounts[date, default: 0] += 1
         }

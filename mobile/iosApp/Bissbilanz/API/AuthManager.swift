@@ -292,6 +292,14 @@ private struct TokenResponse: Codable {
 }
 
 enum KeychainHelper {
+    /// Every `SecItem*` call is a synchronous XPC round trip to securityd.
+    /// `AuthManager` is main-actor bound, so a token write after a refresh ran
+    /// on the main thread — and one `SecItemUpdate` stalled long enough for the
+    /// watchdog to kill the app (Sentry BISSBILANZ-31). Writes and deletes are
+    /// queued here in order; reads join the same queue so they observe every
+    /// write issued before them.
+    private static let queue = DispatchQueue(label: "com.bissbilanz.keychain", qos: .utility)
+
     /// Writes `value`, updating in place when the item already exists.
     ///
     /// The previous delete-then-add pair had a window in which the old value
@@ -301,6 +309,18 @@ enum KeychainHelper {
     /// an add fallback closes the window, and the status is reported.
     static func save(key: String, value: String) {
         guard let data = value.data(using: .utf8) else { return }
+        queue.async { saveNow(key: key, data: data) }
+    }
+
+    static func load(key: String) -> String? {
+        queue.sync { loadNow(key: key) }
+    }
+
+    static func delete(key: String) {
+        queue.async { deleteNow(key: key) }
+    }
+
+    private static func saveNow(key: String, data: Data) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
@@ -330,7 +350,7 @@ enum KeychainHelper {
         )
     }
 
-    static func load(key: String) -> String? {
+    private static func loadNow(key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
@@ -343,7 +363,7 @@ enum KeychainHelper {
         return String(data: data, encoding: .utf8)
     }
 
-    static func delete(key: String) {
+    private static func deleteNow(key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
