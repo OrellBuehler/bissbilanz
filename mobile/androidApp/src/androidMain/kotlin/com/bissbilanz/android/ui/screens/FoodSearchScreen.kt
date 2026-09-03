@@ -38,6 +38,7 @@ import com.bissbilanz.android.ui.components.FoodSearchSkeleton
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
+import com.bissbilanz.android.ui.components.openFoodFactsSection
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
@@ -58,6 +59,9 @@ fun FoodSearchScreen(navController: NavController) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val offResults by viewModel.offResults.collectAsStateWithLifecycle()
+    val isSearchingOff by viewModel.isSearchingOff.collectAsStateWithLifecycle()
+    val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -187,7 +191,7 @@ fun FoodSearchScreen(navController: NavController) {
                     Crossfade(targetState = isSearching, label = "search") { searching ->
                         if (searching) {
                             FoodSearchSkeleton()
-                        } else if (searchResults.isEmpty()) {
+                        } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
                             EmptyState(stringResource(R.string.food_search_no_results, query))
                         } else {
                             LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
@@ -204,6 +208,18 @@ fun FoodSearchScreen(navController: NavController) {
                                         modifier = Modifier.animateItem(),
                                     )
                                 }
+                                // An Open Food Facts hit is copied into the user's database on
+                                // tap and then opened like any own food, mirroring the scanner.
+                                openFoodFactsSection(
+                                    products = offResults,
+                                    isLoading = isSearchingOff,
+                                    enabled = !isResolvingOff,
+                                    onSelect = { product ->
+                                        viewModel.selectOffProduct(product) { food ->
+                                            navController.navigate("food/${food.id}")
+                                        }
+                                    },
+                                )
                             }
                         }
                     }

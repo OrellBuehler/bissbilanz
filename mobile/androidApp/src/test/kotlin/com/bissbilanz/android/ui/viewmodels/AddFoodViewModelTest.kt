@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
@@ -107,6 +108,83 @@ class AddFoodViewModelTest {
 
             coVerify { foodRepo.searchFoods("ap") }
             assertEquals(results, vm.searchResults.value)
+        }
+
+    private fun offProduct(barcode: String = "4000000000001") =
+        OpenFoodFactsProduct(
+            id = barcode,
+            name = "OFF Apple Juice",
+            brand = "OFF brand",
+            barcode = barcode,
+            imageUrl = null,
+            nutriScore = null,
+            novaGroup = null,
+            servingSize = 100.0,
+            servingUnit = "g",
+            calories = 45.0,
+            protein = 0.1,
+            carbs = 10.0,
+            fat = 0.0,
+            fiber = 0.2,
+            additives = null,
+            ingredientsText = null,
+        )
+
+    @Test
+    fun sparseLocalResultsFallBackToOpenFoodFacts() =
+        runTest {
+            val hits = listOf(offProduct())
+            coEvery { foodRepo.searchFoods("ap") } returns listOf(testFood())
+            coEvery { foodRepo.searchOpenFoodFacts("ap") } returns hits
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+
+            assertEquals(hits, vm.offResults.value)
+            assertEquals(false, vm.isSearchingOff.value)
+        }
+
+    @Test
+    fun enoughLocalResultsSkipOpenFoodFacts() =
+        runTest {
+            coEvery { foodRepo.searchFoods("ap") } returns (1..5).map { testFood("food-$it") }
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { foodRepo.searchOpenFoodFacts(any()) }
+            assertEquals(emptyList(), vm.offResults.value)
+        }
+
+    @Test
+    fun selectOffProductResolvesViaBarcode() =
+        runTest {
+            val created = testFood("food-off")
+            coEvery { foodRepo.findOrCreateByBarcode("4000000000001") } returns created
+
+            val vm = viewModel()
+            var resolved: Food? = null
+            vm.selectOffProduct(offProduct()) { resolved = it }
+            advanceUntilIdle()
+
+            assertEquals(created, resolved)
+            assertEquals(false, vm.isResolvingOff.value)
+        }
+
+    @Test
+    fun selectOffProductReportsUnknownBarcode() =
+        runTest {
+            coEvery { foodRepo.findOrCreateByBarcode(any()) } returns null
+
+            val vm = viewModel()
+            var resolved: Food? = null
+            vm.selectOffProduct(offProduct()) { resolved = it }
+            advanceUntilIdle()
+
+            assertNull(resolved)
+            assertEquals("Couldn't add from Open Food Facts", vm.snackbarMessage.value)
         }
 
     @Test

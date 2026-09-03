@@ -269,6 +269,18 @@ enum L10n {
         localized("no_results", en: "No results", de: "Keine Ergebnisse")
     }
 
+    static var openFoodFacts: String {
+        localized("open_food_facts", en: "Open Food Facts", de: "Open Food Facts")
+    }
+
+    static var openFoodFactsAddFailed: String {
+        localized(
+            "open_food_facts_add_failed",
+            en: "Couldn't add from Open Food Facts",
+            de: "Konnte nicht von Open Food Facts hinzugefügt werden"
+        )
+    }
+
     static var noRecentFoods: String {
         localized(
             "no_recent_foods",

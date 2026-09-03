@@ -1,6 +1,7 @@
 package com.bissbilanz.test
 
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 
@@ -52,5 +53,29 @@ object TestFixtures {
             carbGoal = 250.0,
             fatGoal = 65.0,
             fiberGoal = 30.0,
+        )
+
+    fun offProduct(
+        barcode: String = "4000000000001",
+        name: String = "OFF Apple Juice",
+        brand: String? = "OFF brand",
+    ): OpenFoodFactsProduct =
+        OpenFoodFactsProduct(
+            id = barcode,
+            name = name,
+            brand = brand,
+            barcode = barcode,
+            imageUrl = null,
+            nutriScore = null,
+            novaGroup = null,
+            servingSize = 100.0,
+            servingUnit = "g",
+            calories = 45.0,
+            protein = 0.1,
+            carbs = 10.0,
+            fat = 0.0,
+            fiber = 0.2,
+            additives = null,
+            ingredientsText = null,
         )
 }

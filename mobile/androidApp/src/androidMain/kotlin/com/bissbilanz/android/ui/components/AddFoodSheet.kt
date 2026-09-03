@@ -68,6 +68,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.toLocalizedDoubleOrNull
@@ -94,6 +95,9 @@ fun AddFoodSheet(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val offResults by viewModel.offResults.collectAsStateWithLifecycle()
+    val isSearchingOff by viewModel.isSearchingOff.collectAsStateWithLifecycle()
+    val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val favoriteFoods by viewModel.favoriteFoods.collectAsStateWithLifecycle()
     val favoriteRecipes by viewModel.favoriteRecipes.collectAsStateWithLifecycle()
@@ -317,6 +321,9 @@ fun AddFoodSheet(
                                 query,
                                 searchResults,
                                 isSearching,
+                                offResults,
+                                isSearchingOff,
+                                isResolvingOff,
                                 onSelect = { selectedFood = it },
                             )
                         }
@@ -389,6 +396,9 @@ private fun SearchTab(
     query: String,
     searchResults: List<Food>,
     isSearching: Boolean,
+    offResults: List<OpenFoodFactsProduct>,
+    isSearchingOff: Boolean,
+    isResolvingOff: Boolean,
     onSelect: (Food) -> Unit,
 ) {
     Column {
@@ -405,7 +415,7 @@ private fun SearchTab(
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
-            } else if (searchResults.isEmpty()) {
+            } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
                 EmptyState(stringResource(R.string.food_search_no_results, query))
             } else {
                 LazyColumn(modifier = Modifier.fillMaxHeight()) {
@@ -416,6 +426,12 @@ private fun SearchTab(
                             onQuickLog = { onSelect(food) },
                         )
                     }
+                    openFoodFactsSection(
+                        products = offResults,
+                        isLoading = isSearchingOff,
+                        enabled = !isResolvingOff,
+                        onSelect = { product -> viewModel.selectOffProduct(product, onSelect) },
+                    )
                 }
             }
         }

@@ -83,6 +83,27 @@ class FoodRepositoryTest {
         }
 
     @Test
+    fun searchOpenFoodFactsUsesServerProxyWhenSynced() =
+        runTest {
+            val hits = listOf(TestFixtures.offProduct())
+            coEvery { api.searchOpenFoodFacts("juice") } returns hits
+
+            val found = repository.searchOpenFoodFacts("juice")
+
+            assertEquals(hits, found)
+        }
+
+    @Test
+    fun searchOpenFoodFactsSwallowsProxyFailure() =
+        runTest {
+            coEvery { api.searchOpenFoodFacts(any()) } throws RuntimeException("OFF down")
+
+            val found = repository.searchOpenFoodFacts("juice")
+
+            assertEquals(emptyList(), found)
+        }
+
+    @Test
     fun searchFoodsReturnsResults() =
         runTest {
             val results =

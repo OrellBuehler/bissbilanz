@@ -500,6 +500,8 @@
     <string name="food_search_placeholder">Lebensmittel suchen…</string>
     <string name="food_search_icon_desc">Suchen</string>
     <string name="food_search_no_results">Keine Lebensmittel für \"%1$s\" gefunden</string>
+    <string name="food_search_off_section">Open Food Facts</string>
+    <string name="food_search_off_searching">Open Food Facts wird durchsucht…</string>
     <string name="food_search_tab_recent">Zuletzt</string>
     <string name="food_search_tab_all">Alle</string>
     <string name="food_search_no_recent">Keine kürzlichen Lebensmittel</string>

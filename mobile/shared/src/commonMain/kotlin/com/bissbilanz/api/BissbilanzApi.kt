@@ -46,6 +46,7 @@ import com.bissbilanz.api.generated.model.NutrientsDailyResponse
 import com.bissbilanz.api.generated.model.NutrientsExtendedResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.OpenFoodFactsResponse
+import com.bissbilanz.api.generated.model.OpenFoodFactsSearchResponse
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesResponse
 import com.bissbilanz.api.generated.model.PreferencesUpdate
@@ -413,6 +414,18 @@ class BissbilanzApi(
             if (e is kotlinx.coroutines.CancellationException) throw e
             null
         }
+
+    suspend fun searchOpenFoodFacts(
+        query: String,
+        limit: Int = 10,
+    ): List<OpenFoodFactsProduct> {
+        val response: OpenFoodFactsSearchResponse =
+            get("/api/openfoodfacts/search") {
+                parameter("q", query)
+                parameter("limit", limit)
+            }
+        return response.results
+    }
 
     // Entries
     suspend fun getEntries(date: String): List<Entry> {

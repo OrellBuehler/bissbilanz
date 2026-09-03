@@ -15,6 +15,7 @@ import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -38,6 +39,7 @@ class LocalModeGatingTest {
     private lateinit var syncQueue: SyncQueue
     private lateinit var entryRepository: EntryRepository
     private lateinit var foodRepository: FoodRepository
+    private val openFoodFactsClient = mockk<OpenFoodFactsClient>(relaxed = true)
     private val json = Json { ignoreUnknownKeys = true }
     private val localMode = appModeManager(AppMode.LOCAL)
 
@@ -57,10 +59,22 @@ class LocalModeGatingTest {
                 json,
                 NoopErrorReporter(),
                 localMode,
-                mockk<OpenFoodFactsClient>(relaxed = true),
+                openFoodFactsClient,
                 Dispatchers.Unconfined,
             )
     }
+
+    @Test
+    fun searchOpenFoodFactsQueriesPublicApiDirectly() =
+        runTest {
+            val hits = listOf(TestFixtures.offProduct())
+            coEvery { openFoodFactsClient.searchProducts("juice") } returns hits
+
+            // Strict api mock: routing through the server proxy would throw.
+            val found = foodRepository.searchOpenFoodFacts("juice")
+
+            assertEquals(hits, found)
+        }
 
     @Test
     fun entryRefreshDoesNotCallApi() =
