@@ -46,6 +46,10 @@ internal fun remapTempIds(
             op.copy(id = remap(op.id))
         }
 
+        is SyncOperation.SetFoodLabels -> {
+            op.copy(id = remap(op.id))
+        }
+
         is SyncOperation.UpdateRecipe -> {
             op.copy(id = remap(op.id), body = remapRecipeUpdateBody(op.body, remaps, json))
         }

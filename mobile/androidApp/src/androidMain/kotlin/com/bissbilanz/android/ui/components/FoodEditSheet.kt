@@ -28,7 +28,9 @@ import com.bissbilanz.label.ParsedNutrition
 import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.util.MAX_LABELS_PER_FOOD
 import com.bissbilanz.util.formatNutrient
+import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.withNutrients
@@ -68,6 +70,9 @@ fun FoodEditSheet(
     var isFavorite by remember { mutableStateOf(false) }
     var imageUrl by remember { mutableStateOf<String?>(null) }
     var originalImageUrl by remember { mutableStateOf<String?>(null) }
+    var labels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var originalLabels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var labelInput by remember { mutableStateOf("") }
 
     // Extended nutrients
     var saturatedFat by remember { mutableStateOf("") }
@@ -110,6 +115,8 @@ fun FoodEditSheet(
                 isFavorite = food.isFavorite
                 imageUrl = food.imageUrl
                 originalImageUrl = food.imageUrl
+                labels = food.labels ?: emptyList()
+                originalLabels = labels
                 saturatedFat = food.saturatedFat?.formatNutrient() ?: ""
                 sugar = food.sugar?.formatNutrient() ?: ""
                 sodium = food.sodium?.formatNutrient() ?: ""
@@ -186,10 +193,14 @@ fun FoodEditSheet(
                     // FoodCreate and the client omits defaults, so a removal sent
                     // that way would be dropped and the old image would stay.
                     if (imageUrl != originalImageUrl) foodRepo.setImage(id, imageUrl)
+                    // Labels live in their own table; only an actual edit is sent,
+                    // because a user write replaces whatever a labeller seeded.
+                    if (labels != originalLabels) foodRepo.setLabels(id, labels)
                 } else {
                     // No id yet, so the already-uploaded URL rides along on the
                     // create body — `foodCreateSchema` accepts it.
-                    foodRepo.createFood(withExtras.copy(imageUrl = imageUrl))
+                    val created = foodRepo.createFood(withExtras.copy(imageUrl = imageUrl))
+                    if (labels.isNotEmpty()) foodRepo.setLabels(created.id, labels)
                 }
                 sheetState.hide()
                 onSaved()
@@ -356,6 +367,19 @@ fun FoodEditSheet(
                     label = { Text(stringResource(R.string.food_form_barcode)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                )
+                FoodLabelsInput(
+                    labels = labels,
+                    input = labelInput,
+                    onInputChange = { labelInput = it },
+                    onAdd = {
+                        val value = normalizeLabel(labelInput)
+                        if (value != null && value !in labels && labels.size < MAX_LABELS_PER_FOOD) {
+                            labels = labels + value
+                        }
+                        labelInput = ""
+                    },
+                    onRemove = { label -> labels = labels - label },
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

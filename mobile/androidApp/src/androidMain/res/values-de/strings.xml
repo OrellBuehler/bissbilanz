@@ -438,6 +438,10 @@
     <string name="food_form_serving_size">Portionsgröße</string>
     <string name="food_form_unit">Einheit</string>
     <string name="food_form_barcode">Barcode</string>
+    <string name="food_form_labels">Labels</string>
+    <string name="food_form_labels_hint">Englische Begriffe für das, was das Lebensmittel ist, z. B. banana, bread, bottle. Die Suche danach findet dieses Lebensmittel.</string>
+    <string name="food_form_labels_add">Label hinzufügen</string>
+    <string name="food_form_labels_remove">Label %1$s entfernen</string>
     <string name="food_form_macros">Makros</string>
     <string name="food_form_calories_required">Kalorien (kcal) *</string>
     <string name="food_form_protein_required">Protein (g) *</string>
