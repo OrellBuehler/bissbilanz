@@ -30,9 +30,18 @@ extension Double {
 
 extension [KotlinInt: KotlinDouble] {
     /// Unboxes a Kotlin `Map<Int, Double>` into native Swift types.
+    ///
+    /// Iterated through `NSDictionary` on purpose: Kotlin/Native hands the map
+    /// over with plain `NSNumber` keys, and letting Swift bridge those to the
+    /// declared `KotlinInt` traps with "Could not cast value of type
+    /// '__NSCFNumber' to 'SharedInt'" (Sentry BISSBILANZ-36, the Insights →
+    /// Nutrition crash).
     var swiftDoubles: [Int: Double] {
         var unboxed: [Int: Double] = [:]
-        for (key, value) in self { unboxed[Int(truncating: key)] = value.doubleValue }
+        for (key, value) in self as NSDictionary {
+            guard let key = key as? NSNumber, let value = value as? NSNumber else { continue }
+            unboxed[key.intValue] = value.doubleValue
+        }
         return unboxed
     }
 }

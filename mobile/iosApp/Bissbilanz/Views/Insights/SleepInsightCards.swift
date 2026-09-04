@@ -38,7 +38,7 @@ struct FoodSleepCard: View {
                     }
                 }
             } else {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsLateFoodNights)
             }
         }
     }
@@ -56,7 +56,7 @@ struct NutrientSleepCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsNutrientSleepTitle, sectionId: "nutrient_sleep") {
             if ranked.isEmpty {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodSleepDays7)
             } else {
                 ForEach(ranked, id: \.nutrientKey) { item in
                     let r = item.correlation.r
@@ -129,7 +129,7 @@ struct CaffeineSleepCard: View {
                     )
                 }
             } else {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsCaffeineNights7)
             }
         }
     }
