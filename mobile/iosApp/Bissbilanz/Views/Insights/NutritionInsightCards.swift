@@ -36,7 +36,7 @@ struct NOVAScoreCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsNovaScoreTitle, sectionId: "nova_score") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodEntries7)
             } else {
                 HStack(alignment: .top) {
                     InsightHeadline(
@@ -92,7 +92,7 @@ struct OmegaRatioCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsOmegaRatioTitle, sectionId: "omega_ratio") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsOmegaDays7)
             } else {
                 HStack(alignment: .top) {
                     InsightHeadline(
@@ -151,7 +151,7 @@ struct DIIScoreCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsDiiTitle, sectionId: "dii_score") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodDays7)
             } else {
                 HStack(alignment: .top) {
                     InsightHeadline(
@@ -186,7 +186,7 @@ struct TEFCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsTefTitle, sectionId: "tef") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodDays7)
             } else {
                 InsightHeadline(
                     value: L10n.insightsKcalPerDay(Int(result.avgTEF.rounded())),
@@ -213,7 +213,7 @@ struct ProteinDistributionCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsProteinDistributionTitle, sectionId: "protein_dist") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodDays7)
             } else {
                 InsightHeadline(
                     value: "\(result.score.rounded0)/100",
@@ -243,7 +243,7 @@ struct CalorieFrontLoadingCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsFrontLoadingTitle, sectionId: "calorie_front") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTimedFoodDays7)
             } else {
                 InsightHeadline(
                     value: "\(result.avgMorningPct.rounded0)%",
@@ -281,7 +281,7 @@ struct CalorieCyclingCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsCalorieCyclingTitle, sectionId: "calorie_cycle") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodDays7)
             } else {
                 Text(patternLabel)
                     .font(.system(.title, design: .rounded, weight: .bold))
@@ -317,7 +317,7 @@ struct WeekdayWeekendCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsWeekdayWeekendTitle, sectionId: "weekday_weekend") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsWeekdayWeekend)
             } else {
                 HStack(alignment: .top, spacing: 16) {
                     dayColumn(L10n.insightsWeekday, result.weekday)
@@ -375,7 +375,7 @@ struct MealRegularityCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsMealRegularityTitle, sectionId: "meal_regularity") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTimedFoodDays7)
             } else {
                 InsightHeadline(
                     value: "\(result.overallScore.rounded0)/100",
@@ -434,7 +434,7 @@ struct FoodDiversityCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsFoodDiversityTitle, sectionId: "food_diversity") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsFoodWeeks7)
             } else {
                 HStack(alignment: .top) {
                     InsightHeadline(

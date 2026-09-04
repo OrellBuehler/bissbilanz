@@ -30,7 +30,7 @@ struct AdaptiveTDEECard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsTdeeTitle, sectionId: "adaptive_tdee") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTdeeData)
             } else {
                 if let tdee = result.estimatedTDEE?.doubleValue {
                     Text(L10n.formatKcal("\(tdee.rounded0)"))
@@ -74,7 +74,7 @@ struct PlateauDetectionCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsPlateauTitle, sectionId: "plateau_detect") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsWeighIns7)
             } else {
                 Text(result.isPlateaued ? L10n.insightsPlateauDetected : L10n.insightsPlateauNone)
                     .font(.system(.title, design: .rounded, weight: .bold))
@@ -102,7 +102,7 @@ struct WeightForecastCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsWeightForecastTitle, sectionId: "weight_forecast") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTdeeData)
             } else if let current = result.currentWeight?.doubleValue {
                 Text(L10n.weightKgValue(current.rounded1))
                     .font(.system(.title, design: .rounded, weight: .bold))
@@ -147,7 +147,7 @@ struct SodiumWeightCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsSodiumWeightTitle, sectionId: "sodium_weight") {
             if result.confidence == .insufficient {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsSodiumWeightDays7)
             } else {
                 InsightHeadline(
                     value: result.correlation.r.rounded2,
@@ -217,7 +217,7 @@ struct MacroImpactCard: View {
     var body: some View {
         InsightCardView(title: L10n.insightsMacroImpactTitle, sectionId: "macro_impact") {
             if ranked.isEmpty {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsMacroWeightDays7)
             } else {
                 ForEach(ranked, id: \.nutrientKey) { item in
                     let r = item.correlation.r

@@ -2644,6 +2644,58 @@ enum L10n {
         localized("insights_not_enough_data", en: "Not enough data yet.", de: "Noch nicht genug Daten.")
     }
 
+    static var insightsNeedsFoodDays7: String {
+        localized("insights_needs_food_days_7", en: "Needs 7 days with food logged.", de: "Braucht 7 Tage mit erfassten Mahlzeiten.")
+    }
+
+    static var insightsNeedsFoodEntries7: String {
+        localized("insights_needs_food_entries_7", en: "Needs at least 7 food entries.", de: "Braucht mindestens 7 Lebensmitteleinträge.")
+    }
+
+    static var insightsNeedsOmegaDays7: String {
+        localized("insights_needs_omega_days_7", en: "Needs 7 days where most logged foods carry omega-3 and omega-6 values.", de: "Braucht 7 Tage, an denen die meisten erfassten Lebensmittel Omega-3- und Omega-6-Werte haben.")
+    }
+
+    static var insightsNeedsTimedFoodDays7: String {
+        localized("insights_needs_timed_food_days_7", en: "Needs 7 days with food entries that have a time of day.", de: "Braucht 7 Tage mit Mahlzeiten inklusive Uhrzeit.")
+    }
+
+    static var insightsNeedsWeekdayWeekend: String {
+        localized("insights_needs_weekday_weekend", en: "Needs 7 logged weekdays and 7 logged weekend days. Try the 30d or 90d range.", de: "Braucht 7 erfasste Wochentage und 7 erfasste Wochenendtage. Versuche den 30d- oder 90d-Bereich.")
+    }
+
+    static var insightsNeedsFoodWeeks7: String {
+        localized("insights_needs_food_weeks_7", en: "Needs 7 weeks with food logged. Only the 90d range covers enough time.", de: "Braucht 7 Wochen mit erfassten Mahlzeiten. Nur der 90d-Bereich deckt genug Zeit ab.")
+    }
+
+    static var insightsNeedsTdeeData: String {
+        localized("insights_needs_tdee_data", en: "Needs 5 weigh-ins and 10 days with food logged within the last 15 days.", de: "Braucht 5 Gewichtseinträge und 10 Tage mit Mahlzeiten innerhalb der letzten 15 Tage.")
+    }
+
+    static var insightsNeedsWeighIns7: String {
+        localized("insights_needs_weigh_ins_7", en: "Needs 7 weigh-ins within the last 15 days.", de: "Braucht 7 Gewichtseinträge innerhalb der letzten 15 Tage.")
+    }
+
+    static var insightsNeedsSodiumWeightDays7: String {
+        localized("insights_needs_sodium_weight_days_7", en: "Needs 7 days with sodium data plus a weigh-in on that day and the next.", de: "Braucht 7 Tage mit Natriumwerten sowie einem Gewichtseintrag an diesem und am folgenden Tag.")
+    }
+
+    static var insightsNeedsMacroWeightDays7: String {
+        localized("insights_needs_macro_weight_days_7", en: "Needs 7 days with food logged and weigh-ins on consecutive days. Shown once a clear pattern emerges.", de: "Braucht 7 Tage mit Mahlzeiten und Gewichtseinträgen an aufeinanderfolgenden Tagen. Erscheint, sobald ein klares Muster erkennbar ist.")
+    }
+
+    static var insightsNeedsFoodSleepDays7: String {
+        localized("insights_needs_food_sleep_days_7", en: "Needs 7 days with both food and sleep logged. Shown once a clear pattern emerges.", de: "Braucht 7 Tage mit erfassten Mahlzeiten und Schlaf. Erscheint, sobald ein klares Muster erkennbar ist.")
+    }
+
+    static var insightsNeedsLateFoodNights: String {
+        localized("insights_needs_late_food_nights", en: "Needs a food eaten after 19:00 on at least 5 nights with sleep logged, plus 3 nights without it.", de: "Braucht ein Lebensmittel, das an mindestens 5 Nächten mit erfasstem Schlaf nach 19:00 gegessen wurde, plus 3 Nächte ohne.")
+    }
+
+    static var insightsNeedsCaffeineNights7: String {
+        localized("insights_needs_caffeine_nights_7", en: "Needs 7 days with a timed caffeine entry followed by a logged night of sleep.", de: "Braucht 7 Tage mit einem Koffeineintrag inklusive Uhrzeit, gefolgt von einer erfassten Nacht Schlaf.")
+    }
+
     static func insightsNovaBasedOn(_ a1: Int, _ a2: Int) -> String {
         localized("insights_nova_based_on", en: "Based on \(a1) food entries (\(a2)% tagged)", de: "Basierend auf \(a1) Lebensmitteleinträgen (\(a2)% erfasst)")
     }
