@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.FoodLabelStat
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,10 +24,8 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param labels
- * @param dropped
  */
 @Serializable
-data class FoodLabelsSetResponse(
-    @SerialName(value = "labels") @Required val labels: kotlin.collections.List<kotlin.String>,
-    @SerialName(value = "dropped") @Required val dropped: kotlin.collections.List<kotlin.String>,
+data class FoodLabelStatsResponse(
+    @SerialName(value = "labels") @Required val labels: kotlin.collections.List<FoodLabelStat>,
 )

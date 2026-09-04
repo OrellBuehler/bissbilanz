@@ -25,6 +25,7 @@ import kotlinx.serialization.encoding.*
  * @param foodId
  * @param ok
  * @param labels
+ * @param dropped
  * @param error
  */
 @Serializable
@@ -32,5 +33,6 @@ data class FoodLabelsBatchItemResult(
     @SerialName(value = "foodId") @Required val foodId: kotlin.String,
     @SerialName(value = "ok") @Required val ok: kotlin.Boolean,
     @SerialName(value = "labels") val labels: kotlin.collections.List<kotlin.String>? = null,
+    @SerialName(value = "dropped") val dropped: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "error") val error: kotlin.String? = null,
 )

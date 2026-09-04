@@ -1636,9 +1636,9 @@ export function createHandlers(d: HandlerDeps) {
 	) => {
 		try {
 			// Source is forced server-side: an MCP client cannot write as 'user'.
-			const labels = await d.setFoodLabels(userId, args.foodId, args.labels, 'llm');
-			if (labels === null) return { error: 'Food not found' };
-			return { success: true, foodId: args.foodId, labels };
+			const result = await d.setFoodLabels(userId, args.foodId, args.labels, 'llm');
+			if (result.status !== 'ok') return { error: 'Food not found' };
+			return { success: true, foodId: args.foodId, labels: result.labels, dropped: result.dropped };
 		} catch (e) {
 			wrapError('set food labels', e);
 		}

@@ -24,7 +24,8 @@ import {
 	foodDuplicatesResponseSchema,
 	foodLabelsResponseSchema,
 	foodLabelsSetResponseSchema,
-	foodLabelsBatchResponseSchema
+	foodLabelsBatchResponseSchema,
+	foodLabelStatsResponseSchema
 } from './validation/responses/foods';
 import { foodLabelsSetSchema, foodLabelsBatchSchema } from './validation/labels';
 import {
@@ -194,12 +195,20 @@ export function generateSpec() {
 				get: {
 					operationId: 'listFoods',
 					tags: ['Foods'],
-					description: 'Search or list foods in the personal database.',
+					description:
+						'Search or list foods in the personal database. A query matches the name, then the English labels (so "bread" finds "Vollkornbrot"), then the brand, then trigram-similar names; results come back in that order.',
 					requestParams: {
 						query: z.object({
 							q: z.string().optional(),
 							barcode: z.string().optional(),
-							unlabeled: z.boolean().optional(),
+							minLabels: z
+								.number()
+								.int()
+								.min(1)
+								.max(20)
+								.optional()
+								.describe('Only foods carrying fewer than this many labels.'),
+							unlabeled: z.boolean().optional().describe('Deprecated: same as minLabels=1.'),
 							...paginationSchema.shape
 						})
 					},
@@ -278,11 +287,24 @@ export function generateSpec() {
 				}
 			},
 			'/api/foods/labels': {
+				get: {
+					operationId: 'listFoodLabelStats',
+					tags: ['Foods'],
+					description:
+						"The user's label vocabulary with the number of foods carrying each label, most common first.",
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodLabelStatsResponseSchema } }
+						},
+						'401': res401
+					}
+				},
 				post: {
 					operationId: 'setFoodLabelsBatch',
 					tags: ['Foods'],
 					description:
-						'Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep.',
+						'Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep.',
 					requestBody: {
 						required: true,
 						content: { 'application/json': { schema: foodLabelsBatchSchema } }
@@ -316,7 +338,7 @@ export function generateSpec() {
 					operationId: 'setFoodLabels',
 					tags: ['Foods'],
 					description:
-						"Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is.",
+						"Replace (or with `mode=extend`, add to) a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. A `user` write moves the food's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
 					requestParams: { path: uuidPathId },
 					requestBody: {
 						required: true,
@@ -329,7 +351,8 @@ export function generateSpec() {
 						},
 						'400': res400,
 						'401': res401,
-						'404': res404
+						'404': res404,
+						'409': res409
 					}
 				}
 			},

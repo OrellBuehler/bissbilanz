@@ -13,12 +13,14 @@ import {
 	count,
 	desc,
 	eq,
+	exists,
 	getTableColumns,
 	ilike,
 	isNotNull,
-	notExists,
-	or
+	or,
+	sql
 } from 'drizzle-orm';
+import { normalizeLabel } from '$lib/server/labels';
 import { ApiError, withValidation } from '$lib/server/errors';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -84,6 +86,9 @@ export const getFood = async (userId: string, id: string) => {
 	return food ? roundNutrition(food) : null;
 };
 
+/** Shorter queries trigram-match too much; substring and label matching cover them. */
+const FUZZY_MIN_QUERY_LENGTH = 4;
+
 export const listFoods = async (
 	userId: string,
 	options?: {
@@ -91,38 +96,63 @@ export const listFoods = async (
 		limit?: number;
 		offset?: number;
 		includeSupplements?: boolean;
+		/** Only foods carrying fewer than this many labels (1 = unlabelled). */
+		minLabels?: number;
+		/** @deprecated alias for `minLabels: 1` */
 		unlabeled?: boolean;
 	}
 ) => {
 	const db = getDB();
 	const offset = options?.offset ?? 0;
-	const escapedQuery = options?.query
-		?.replace(/\\/g, '\\\\')
-		.replace(/%/g, '\\%')
-		.replace(/_/g, '\\_');
+	const query = options?.query?.trim() || undefined;
+	const escapedQuery = query?.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 	const pattern = escapedQuery ? `%${escapedQuery}%` : undefined;
 	const kindFilter = options?.includeSupplements ? undefined : eq(foods.kind, 'food');
-	// Match the query against the name OR the brand so a brand search (e.g.
-	// "Coop", "Migros") surfaces its products, then rank name matches ahead of
-	// brand-only matches so the most relevant rows lead the list.
-	const matchClause = pattern
-		? or(ilike(foods.name, pattern), ilike(foods.brand, pattern))
-		: undefined;
-	// A labeller needs to find its work without paging the whole database and
-	// diffing client-side, so "has no labels at all" is a server-side filter.
-	const unlabeledFilter = options?.unlabeled
-		? notExists(
-				db.select({ one: foodLabels.id }).from(foodLabels).where(eq(foodLabels.foodId, foods.id))
+
+	// Four match tiers, ranked in this order:
+	//  1. name substring — what the user typed is (part of) the food's name
+	//  2. label — the query, normalized like a label, is one of the food's
+	//     English labels, so "bread" finds "Vollkornbrot" whatever its language
+	//  3. brand substring — "Coop", "Migros" surface their products
+	//  4. trigram similarity on the name — typos and compound-word variants
+	// The label tier is what makes a German database searchable in English (and
+	// vice versa, once labelled); it sits between name and brand because a label
+	// says what the food *is*, while a brand only says who made it.
+	const nameMatch = pattern ? ilike(foods.name, pattern) : undefined;
+	const brandMatch = pattern ? ilike(foods.brand, pattern) : undefined;
+	const queryLabel = query ? normalizeLabel(query) : null;
+	const labelMatch = queryLabel
+		? exists(
+				db
+					.select({ one: sql`1` })
+					.from(foodLabels)
+					.where(and(eq(foodLabels.foodId, foods.id), eq(foodLabels.label, queryLabel)))
 			)
 		: undefined;
-	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter, unlabeledFilter);
+	const fuzzyMatch =
+		query && query.length >= FUZZY_MIN_QUERY_LENGTH ? sql`${foods.name} % ${query}` : undefined;
+	const matchClause = pattern ? or(nameMatch, labelMatch, brandMatch, fuzzyMatch) : undefined;
+
+	// A labeller needs to find its work without paging the whole database and
+	// diffing client-side, so "has fewer than n labels" is a server-side filter.
+	const minLabels = options?.minLabels ?? (options?.unlabeled ? 1 : undefined);
+	const labelCountFilter =
+		minLabels !== undefined
+			? sql`(SELECT count(*) FROM ${foodLabels} fl WHERE fl.food_id = ${foods.id}) < ${minLabels}`
+			: undefined;
+	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter, labelCountFilter);
 
 	// `foods.id` is the tiebreaker, not decoration: names are not unique, and an
 	// offset-paginated client (the account download) skips or repeats rows when
 	// equal-name rows come back in a different order between page queries.
 	const q = db.select(foodColumnsWithLabels).from(foods).where(whereClause);
-	if (pattern) {
-		q.orderBy(desc(ilike(foods.name, pattern)), foods.name, foods.id);
+	if (pattern && query) {
+		const tier = sql`CASE
+			WHEN ${nameMatch} THEN 0
+			WHEN ${labelMatch ?? sql`false`} THEN 1
+			WHEN ${brandMatch} THEN 2
+			ELSE 3 END`;
+		q.orderBy(tier, desc(sql`similarity(${foods.name}, ${query})`), foods.name, foods.id);
 	} else {
 		q.orderBy(foods.name, foods.id);
 	}

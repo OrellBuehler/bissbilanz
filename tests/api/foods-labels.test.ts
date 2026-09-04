@@ -2,9 +2,17 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
 
-type SetCall = { userId: string; foodId: string; labels: string[]; source: string };
+type SetCall = {
+	userId: string;
+	foodId: string;
+	labels: string[];
+	source: string;
+	mode?: string;
+	clientEditedAt?: Date | null;
+};
 
 let setCalls: SetCall[] = [];
+let conflict = false;
 let knownFoodIds = new Set<string>();
 
 vi.mock('$lib/server/food-labels', () => ({
@@ -21,19 +29,26 @@ vi.mock('$lib/server/food-labels', () => ({
 		userId: string,
 		foodId: string,
 		labels: string[],
-		source: string
-	): Promise<string[] | null> => {
-		setCalls.push({ userId, foodId, labels, source });
-		if (!knownFoodIds.has(foodId)) return null;
-		return labels.map((l) => l.toLowerCase());
+		source: string,
+		options: { mode?: string; clientEditedAt?: Date | null } = {}
+	) => {
+		setCalls.push({ userId, foodId, labels, source, ...options });
+		if (!knownFoodIds.has(foodId)) return { status: 'not_found' };
+		if (conflict) return { status: 'conflict' };
+		return { status: 'ok', labels: labels.map((l) => l.toLowerCase()), dropped: [] };
 	},
+	listLabelStats: async () => [
+		{ label: 'banana', count: 3 },
+		{ label: 'bread', count: 1 }
+	],
 	setFoodLabelsBatch: async (
 		userId: string,
 		items: Array<{ foodId: string; labels: string[] }>,
-		source: string
+		source: string,
+		options: { mode?: string } = {}
 	) =>
 		items.map((item) => {
-			setCalls.push({ userId, foodId: item.foodId, labels: item.labels, source });
+			setCalls.push({ userId, foodId: item.foodId, labels: item.labels, source, ...options });
 			return knownFoodIds.has(item.foodId)
 				? { foodId: item.foodId, ok: true, labels: item.labels }
 				: { foodId: item.foodId, ok: false, error: 'Food not found' };
@@ -41,12 +56,13 @@ vi.mock('$lib/server/food-labels', () => ({
 }));
 
 const { GET, PUT } = await import('../../src/routes/api/foods/[id]/labels/+server');
-const { POST } = await import('../../src/routes/api/foods/labels/+server');
+const { GET: LABELS_GET, POST } = await import('../../src/routes/api/foods/labels/+server');
 
 const OTHER_ID = '11111111-2222-4333-8444-555555555555';
 
 beforeEach(() => {
 	setCalls = [];
+	conflict = false;
 	knownFoodIds = new Set([TEST_FOOD.id]);
 });
 
@@ -87,8 +103,44 @@ describe('PUT /api/foods/[id]/labels', () => {
 	test('defaults the source to user', async () => {
 		const response = await put({ labels: ['Banana'] });
 		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual({ labels: ['banana'] });
+		expect(await response.json()).toEqual({ labels: ['banana'], dropped: [] });
 		expect(setCalls[0].source).toBe('user');
+	});
+
+	test('passes the mode and the client edit time through', async () => {
+		const response = await PUT(
+			createMockEvent({
+				user: TEST_USER,
+				params: { id: TEST_FOOD.id },
+				body: { labels: ['banana'], mode: 'extend' } as any,
+				method: 'PUT',
+				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
+			})
+		);
+		expect(response.status).toBe(200);
+		expect(setCalls[0]).toMatchObject({
+			mode: 'extend',
+			clientEditedAt: new Date('2026-09-01T10:00:00.000Z')
+		});
+	});
+
+	test('rejects an unknown mode', async () => {
+		expect((await put({ labels: ['banana'], mode: 'merge' })).status).toBe(400);
+	});
+
+	test('answers 409 when a newer edit already won last-write-wins', async () => {
+		conflict = true;
+		const response = await PUT(
+			createMockEvent({
+				user: TEST_USER,
+				params: { id: TEST_FOOD.id },
+				body: { labels: ['banana'] } as any,
+				method: 'PUT',
+				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
+			})
+		);
+		expect(response.status).toBe(409);
+		expect(await response.json()).toEqual({ error: 'conflict_server_newer' });
 	});
 
 	test('honours an explicit source', async () => {
@@ -115,7 +167,7 @@ describe('PUT /api/foods/[id]/labels', () => {
 	test('accepts an empty array as "clear my labels"', async () => {
 		const response = await put({ labels: [] });
 		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual({ labels: [] });
+		expect(await response.json()).toEqual({ labels: [], dropped: [] });
 	});
 
 	test('returns 404 for a food the caller does not own', async () => {
@@ -124,9 +176,35 @@ describe('PUT /api/foods/[id]/labels', () => {
 	});
 });
 
+describe('GET /api/foods/labels', () => {
+	test('returns 401 when not authenticated', async () => {
+		expect((await LABELS_GET(createMockEvent({ user: null }))).status).toBe(401);
+	});
+
+	test('lists the label vocabulary with counts', async () => {
+		const response = await LABELS_GET(createMockEvent({ user: TEST_USER }));
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			labels: [
+				{ label: 'banana', count: 3 },
+				{ label: 'bread', count: 1 }
+			]
+		});
+	});
+});
+
 describe('POST /api/foods/labels', () => {
 	const post = (body: unknown, user = TEST_USER) =>
 		POST(createMockEvent({ user, body: body as any }));
+
+	test('passes the mode through', async () => {
+		const response = await post({
+			mode: 'extend',
+			items: [{ foodId: TEST_FOOD.id, labels: ['banana'] }]
+		});
+		expect(response.status).toBe(200);
+		expect(setCalls[0].mode).toBe('extend');
+	});
 
 	test('returns 401 when not authenticated', async () => {
 		expect(

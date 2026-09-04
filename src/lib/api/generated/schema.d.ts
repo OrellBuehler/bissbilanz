@@ -29,7 +29,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description Search or list foods in the personal database. */
+		/** @description Search or list foods in the personal database. A query matches the name, then the English labels (so "bread" finds "Vollkornbrot"), then the brand, then trigram-similar names; results come back in that order. */
 		get: operations['listFoods'];
 		put?: never;
 		/** @description Create a new food in the personal database. */
@@ -98,9 +98,10 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		get?: never;
+		/** @description The user's label vocabulary with the number of foods carrying each label, most common first. */
+		get: operations['listFoodLabelStats'];
 		put?: never;
-		/** @description Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep. */
+		/** @description Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep. */
 		post: operations['setFoodLabelsBatch'];
 		delete?: never;
 		options?: never;
@@ -117,7 +118,7 @@ export interface paths {
 		};
 		/** @description List a food's labels with their source and confidence. */
 		get: operations['getFoodLabels'];
-		/** @description Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. */
+		/** @description Replace (or with `mode=extend`, add to) a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. A `user` write moves the food's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed. */
 		put: operations['setFoodLabels'];
 		post?: never;
 		delete?: never;
@@ -1180,6 +1181,8 @@ export interface components {
 			/** @enum {string} */
 			source?: 'user' | 'llm' | 'external' | 'catalog';
 			confidence?: number | null;
+			/** @enum {string} */
+			mode?: 'replace' | 'extend';
 			items: components['schemas']['FoodLabelsBatchItem'][];
 		};
 		FoodLabelsBatchItem: {
@@ -1192,6 +1195,8 @@ export interface components {
 			/** @enum {string} */
 			source?: 'user' | 'llm' | 'external' | 'catalog';
 			confidence?: number | null;
+			/** @enum {string} */
+			mode?: 'replace' | 'extend';
 		};
 		FoodUpdate: {
 			name?: string;
@@ -1602,6 +1607,13 @@ export interface components {
 			brand: string | null;
 			barcode: string | null;
 		};
+		FoodLabelStatsResponse: {
+			labels: components['schemas']['FoodLabelStat'][];
+		};
+		FoodLabelStat: {
+			label: string;
+			count: number;
+		};
 		FoodLabelsBatchResponse: {
 			results: components['schemas']['FoodLabelsBatchItemResult'][];
 		};
@@ -1610,6 +1622,7 @@ export interface components {
 			foodId: string;
 			ok: boolean;
 			labels?: string[];
+			dropped?: string[];
 			error?: string;
 		};
 		FoodLabelsResponse: {
@@ -1624,6 +1637,7 @@ export interface components {
 		};
 		FoodLabelsSetResponse: {
 			labels: string[];
+			dropped: string[];
 		};
 		ConflictErrorResponse: {
 			error: string;
@@ -2449,13 +2463,6 @@ export interface components {
 				'application/json': components['schemas']['ErrorResponse'];
 			};
 		};
-		/** @description Deleted */
-		DeletedResponse: {
-			headers: {
-				[name: string]: unknown;
-			};
-			content?: never;
-		};
 		/** @description Conflict */
 		ConflictResponse: {
 			headers: {
@@ -2464,6 +2471,13 @@ export interface components {
 			content: {
 				'application/json': components['schemas']['ConflictErrorResponse'];
 			};
+		};
+		/** @description Deleted */
+		DeletedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content?: never;
 		};
 	};
 	parameters: never;
@@ -2525,6 +2539,9 @@ export interface operations {
 			query?: {
 				q?: string;
 				barcode?: string;
+				/** @description Only foods carrying fewer than this many labels. */
+				minLabels?: number;
+				/** @description Deprecated: same as minLabels=1. */
 				unlabeled?: boolean;
 				limit?: number;
 				offset?: number;
@@ -2641,6 +2658,27 @@ export interface operations {
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
+	listFoodLabelStats: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodLabelStatsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
 	setFoodLabelsBatch: {
 		parameters: {
 			query?: never;
@@ -2718,6 +2756,7 @@ export interface operations {
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	getFood: {
