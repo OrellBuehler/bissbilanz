@@ -506,6 +506,7 @@
 	"back_to_recipes": "Back to Recipes",
 	"detail_saving": "Saving...",
 	"detail_saved": "Changes saved",
+	"detail_labels_dropped": "Not saved (20 labels max): {labels}",
 	"detail_save_failed": "Failed to save changes",
 	"detail_duplicate_barcode": "A food with this barcode already exists",
 	"detail_create_failed": "Failed to create food",

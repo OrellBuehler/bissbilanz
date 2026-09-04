@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onlyFavorites } from '$lib/utils/favorites';
+	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -130,8 +131,9 @@
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
 
-	const filtered = () =>
-		foods.filter((food) => food.name.toLowerCase().includes(query.toLowerCase()));
+	// Name → label → brand, like the server: a labelled "Vollkornbrot" answers
+	// "bread" here before we ever go to the catalog or Open Food Facts.
+	const filtered = () => filterFoods(foods, query);
 
 	const filteredRecipes = () =>
 		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));

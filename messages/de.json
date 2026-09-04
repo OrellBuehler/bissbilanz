@@ -506,6 +506,7 @@
 	"back_to_recipes": "Zurück zu Rezepten",
 	"detail_saving": "Speichern...",
 	"detail_saved": "Änderungen gespeichert",
+	"detail_labels_dropped": "Nicht gespeichert (max. 20 Labels): {labels}",
 	"detail_save_failed": "Speichern fehlgeschlagen",
 	"detail_duplicate_barcode": "Ein Lebensmittel mit diesem Barcode existiert bereits",
 	"detail_create_failed": "Lebensmittel konnte nicht erstellt werden",

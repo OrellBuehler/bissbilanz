@@ -181,16 +181,18 @@
 		}
 		// Labels live in their own table: only an actual edit is sent, because a
 		// user write is authoritative and replaces whatever a labeller had seeded.
+		// It goes through the food service so it is optimistic and queues offline.
 		const before = editingFood.labels ?? [];
 		if (
 			labels &&
 			(labels.length !== before.length || labels.some((label, i) => label !== before[i]))
 		) {
-			const { error: labelError } = await api.PUT('/api/foods/{id}/labels', {
-				params: { path: { id: editingFood.id } },
-				body: { labels }
-			});
-			if (labelError) {
+			try {
+				const dropped = await foodService.setLabels(editingFood.id, labels);
+				if (dropped.length > 0) {
+					toast.info(m.detail_labels_dropped({ labels: dropped.join(', ') }));
+				}
+			} catch {
 				toast.error(m.detail_save_failed());
 				return;
 			}
