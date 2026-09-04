@@ -448,6 +448,14 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .setFoodLabels(id, labels):
+            _ = try await api.setFoodLabels(
+                id: id,
+                labels: labels,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
         case let .createEntry(body, localId):
             let server = try await api.createEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry() else {

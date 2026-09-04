@@ -59,6 +59,9 @@ struct FoodEditForm: View {
     @State private var isFavorite = false
     @State private var imageUrl: String?
     @State private var originalImageUrl: String?
+    @State private var labels: [String] = []
+    @State private var originalLabels: [String] = []
+    @State private var labelInput = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -165,6 +168,38 @@ struct FoodEditForm: View {
             }
 
             Section {
+                ForEach(labels, id: \.self) { label in
+                    HStack {
+                        Text(label)
+                        Spacer()
+                        Button(role: .destructive) {
+                            labels.removeAll { $0 == label }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.removeLabel)
+                    }
+                }
+                HStack {
+                    TextField(L10n.addLabel, text: $labelInput)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onSubmit(addLabel)
+                    Button(action: addLabel) {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(labelInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .accessibilityLabel(L10n.addLabel)
+                }
+            } header: {
+                Text(L10n.labels)
+            } footer: {
+                Text(L10n.labelsHint)
+            }
+
+            Section {
                 Toggle(L10n.favorite, isOn: $isFavorite)
             }
 
@@ -242,6 +277,8 @@ struct FoodEditForm: View {
         isFavorite = food.isFavorite
         imageUrl = food.imageUrl
         originalImageUrl = food.imageUrl
+        labels = food.labels ?? []
+        originalLabels = labels
 
         // Surface any extended nutrients already stored on the food so they can
         // be reviewed and edited alongside newly added ones.
@@ -276,6 +313,16 @@ struct FoodEditForm: View {
     /// Renders a parsed value without a trailing ".0".
     private static func numberString(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(value)
+    }
+
+    /// Normalized on add so what the user sees is exactly what the server stores.
+    private func addLabel() {
+        defer { labelInput = "" }
+        guard let value = LabelNormalizer.normalize(labelInput),
+              !labels.contains(value),
+              labels.count < LabelNormalizer.maxLabelsPerFood
+        else { return }
+        labels.append(value)
     }
 
     private func save() async {
@@ -332,6 +379,11 @@ struct FoodEditForm: View {
             // old image would stay.
             if let existing = existingFood, imageUrl != originalImageUrl {
                 saved = try await foodRepository.setImage(id: existing.id, imageUrl: imageUrl)
+            }
+            // Labels live in their own table; only an actual edit is sent,
+            // because a user write replaces whatever a labeller seeded.
+            if existingFood == nil ? !labels.isEmpty : labels != originalLabels {
+                saved = try await foodRepository.setLabels(id: saved.id, labels: labels)
             }
             onSaved(saved)
         } catch {

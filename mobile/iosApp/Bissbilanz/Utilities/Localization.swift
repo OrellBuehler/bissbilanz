@@ -273,6 +273,26 @@ enum L10n {
         localized("open_food_facts", en: "Open Food Facts", de: "Open Food Facts")
     }
 
+    static var labels: String {
+        localized("labels", en: "Labels", de: "Labels")
+    }
+
+    static var labelsHint: String {
+        localized(
+            "labels_hint",
+            en: "English nouns for what the food is, e.g. banana, bread, bottle. Searching for one finds this food.",
+            de: "Englische Begriffe für das, was das Lebensmittel ist, z. B. banana, bread, bottle. Die Suche danach findet dieses Lebensmittel."
+        )
+    }
+
+    static var addLabel: String {
+        localized("add_label", en: "Add label", de: "Label hinzufügen")
+    }
+
+    static var removeLabel: String {
+        localized("remove_label", en: "Remove label", de: "Label entfernen")
+    }
+
     static var openFoodFactsAddFailed: String {
         localized(
             "open_food_facts_add_failed",

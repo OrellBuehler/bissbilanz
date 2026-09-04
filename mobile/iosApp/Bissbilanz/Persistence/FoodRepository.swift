@@ -76,22 +76,29 @@ final class FoodRepository {
     /// `searchLocalFoods` tool, which calls it once per item while the model
     /// waits. Rows arrive alphabetical and name matches rank first, so once
     /// `limit` of them are found the rest of the table can't change the result.
+    /// Same tiers as the server's search: name, then English label, then brand.
+    /// The query is folded exactly like a stored label, so "Breads" meets a
+    /// food labelled "bread" whatever language its name is in.
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
+        let label = LabelNormalizer.normalize(query)
         var nameMatches: [LocalFood] = []
+        var labelMatches: [LocalFood] = []
         var brandOnly: [LocalFood] = []
         for row in rows {
             if row.name.localizedCaseInsensitiveContains(query) {
                 nameMatches.append(row)
                 if nameMatches.count == limit { break }
+            } else if let label, labelMatches.count < limit, row.labels.contains(label) {
+                labelMatches.append(row)
             } else if brandOnly.count < limit,
                       row.brand?.localizedCaseInsensitiveContains(query) == true
             {
                 brandOnly.append(row)
             }
         }
-        return (nameMatches + brandOnly)
+        return (nameMatches + labelMatches + brandOnly)
             .prefix(limit)
             .compactMap { $0.toFood() }
     }
@@ -330,6 +337,24 @@ final class FoodRepository {
         if let previous = current.imageUrl, previous != imageUrl {
             LocalImageStore.evict(previous)
         }
+        return patched
+    }
+
+    /// Replaces the food's labels — the English nouns search matches against.
+    /// Optimistic like every other edit. Labels never ride on a food body, so a
+    /// temp-id food gets its own queued op; the temp-id remap that follows the
+    /// create's response points it at the server id before it is sent.
+    @discardableResult
+    func setLabels(id: String, labels: [String]) async throws -> Food {
+        let normalized = LabelNormalizer.normalizeAll(labels).sorted()
+        guard let row = fetchRow(id: id), let current = row.toFood(),
+              let patched = try? JSONPatch.merged(Food.self, base: current, patch: ["labels": normalized])
+        else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        syncManager.enqueue(.setFoodLabels(id: id, labels: labels))
         return patched
     }
 

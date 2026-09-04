@@ -255,3 +255,10 @@ struct FavoritesResponse: Codable {
     let foods: [Food]
     let recipes: [Recipe]?
 }
+
+/// Response of `PUT /api/foods/{id}/labels`: the labels now stored, plus any
+/// that did not fit under the per-food cap (never silently trimmed).
+struct FoodLabelsSetResponse: Codable {
+    let labels: [String]
+    let dropped: [String]
+}
