@@ -31,7 +31,7 @@ fun WeekdayWeekendCard(result: WeekdayWeekendResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = stringResource(R.string.insights_weekday_weekend_title), sectionId = "weekday_weekend") {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_weekday_weekend),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

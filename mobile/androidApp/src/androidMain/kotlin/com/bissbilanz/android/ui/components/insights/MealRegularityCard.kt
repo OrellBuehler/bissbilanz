@@ -27,7 +27,7 @@ fun MealRegularityCard(result: MealRegularityResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = stringResource(R.string.insights_meal_regularity_title), sectionId = "meal_regularity") {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_timed_food_days_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

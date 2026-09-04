@@ -246,7 +246,7 @@ struct MealTimingWeightCard: View {
 
     var body: some View {
         InsightCardView(title: L10n.insightsMealTimingTitle, sectionId: "meal_timing_weight") {
-            if let summary {
+            if let summary, !summary.dailyWindows.isEmpty {
                 InsightHeadline(
                     value: L10n.insightsHourWindow((summary.avgWindowMinutes / 60).rounded0),
                     caption: L10n.insightsAvgEatingWindow,
@@ -256,7 +256,7 @@ struct MealTimingWeightCard: View {
                 InsightRow(label: L10n.insightsLastMeal, value: summary.avgLastMealTime)
                 InsightFootnote(text: L10n.insightsLateNightPct(summary.lateNightFrequency.rounded0))
             } else {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTimedFoodEntries)
             }
         }
     }

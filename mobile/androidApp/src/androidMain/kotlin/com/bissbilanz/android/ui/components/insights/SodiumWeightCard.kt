@@ -27,7 +27,7 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = stringResource(R.string.insights_sodium_weight_title), sectionId = "sodium_weight") {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_sodium_weight_days_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

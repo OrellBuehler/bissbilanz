@@ -78,7 +78,7 @@ struct PreSleepWindowCard: View {
 
     var body: some View {
         InsightCardView(title: L10n.insightsPreSleepWindowTitle, sectionId: "pre_sleep_window") {
-            if let summary {
+            if let summary, !summary.dailyWindows.isEmpty {
                 Text(L10n.insightsLastMealValue(summary.avgLastMealTime))
                     .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(MacroColors.calories)
@@ -94,7 +94,7 @@ struct PreSleepWindowCard: View {
                     tint: lateNightTint(summary.lateNightFrequency)
                 )
             } else {
-                InsightEmptyState()
+                InsightEmptyState(message: L10n.insightsNeedsTimedFoodEntries)
             }
         }
     }

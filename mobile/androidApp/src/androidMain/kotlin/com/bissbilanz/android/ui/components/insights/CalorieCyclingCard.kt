@@ -28,7 +28,7 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = stringResource(R.string.insights_calorie_cycling_title), sectionId = "calorie_cycle") {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_food_days_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

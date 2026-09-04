@@ -25,7 +25,7 @@ fun FoodSleepCard(result: FoodSleepResult?) {
     CollapsibleCard(title = stringResource(R.string.insights_food_sleep_title), sectionId = "food_sleep") {
         if (result == null || result.foodImpacts.isEmpty()) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_late_food_nights),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

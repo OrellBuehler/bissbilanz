@@ -29,7 +29,7 @@ fun NOVAScoreCard(result: NOVAResult) {
     if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
         CollapsibleCard(title = stringResource(R.string.insights_nova_score_title), sectionId = "nova_score") {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_food_entries_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -29,7 +29,7 @@ fun OmegaRatioCard(result: OmegaResult) {
     CollapsibleCard(title = stringResource(R.string.insights_omega_ratio_title), sectionId = "omega_ratio") {
         if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_omega_days_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

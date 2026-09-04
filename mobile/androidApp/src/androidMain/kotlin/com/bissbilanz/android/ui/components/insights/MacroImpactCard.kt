@@ -29,7 +29,7 @@ fun MacroImpactCard(correlations: List<NutrientCorrelation>) {
             }
         if (filtered.isEmpty()) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_macro_weight_days_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
