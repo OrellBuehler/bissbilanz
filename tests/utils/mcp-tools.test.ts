@@ -41,7 +41,8 @@ const READ_ONLY_TOOLS = [
 	'get_calendar_stats',
 	'list_ai_tasks',
 	'get_ai_task',
-	'list_unlabeled_foods'
+	'list_unlabeled_foods',
+	'list_labels'
 ] as const;
 
 const WRITE_TOOLS = [
@@ -131,7 +132,7 @@ describe('tool annotations', () => {
 
 	test('all 63 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(67);
+		expect(all).toHaveLength(68);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -205,12 +206,13 @@ describe('toolNames', () => {
 			'complete_ai_task',
 			'dismiss_ai_task',
 			'list_unlabeled_foods',
+			'list_labels',
 			'set_food_labels',
 			'set_food_labels_batch'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(67);
+		expect(toolNames).toHaveLength(68);
 	});
 });

@@ -76,6 +76,7 @@ import {
 	handleDeleteDayProperties,
 	handleGetCalendarStats,
 	handleListUnlabeledFoods,
+	handleListLabels,
 	handleSetFoodLabels,
 	handleSetFoodLabelsBatch,
 	handleListAiTasks,
@@ -153,9 +154,13 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Search Foods',
 			description:
-				"Search the user's food database by name. Returns matching foods with nutritional information, sorted by recent usage.",
+				'Search the user\'s food database. A query matches the food\'s name first, then its English labels (so "bread" finds a food named "Vollkornbrot" once it is labelled), then the brand, then similar-looking names for typos; results are ranked in that order, with recently used foods first. If a name in the user\'s language finds nothing, retry with the plain English noun for what the food is. Each result carries its labels.',
 			inputSchema: {
-				query: z.string().describe('Search query to match against food names'),
+				query: z
+					.string()
+					.describe(
+						'Search text: part of a name, a brand, or a general English noun such as "bread" or "cheese".'
+					),
 				limit: z
 					.number()
 					.int()
@@ -1379,8 +1384,17 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List Unlabeled Foods',
 			description:
-				"List foods in the user's database that carry no labels yet, so a labelling sweep can find its work. Returns the name, brand and a snippet of the ingredient list — you cannot see the food, so label from those.",
+				"List foods in the user's database that carry fewer than minLabels labels (default 1, i.e. no labels at all), so a labelling sweep can find its work. Returns the name, brand, a snippet of the ingredient list and the labels the food already has — you cannot see the food, so label from those, and extend rather than repeat what is already there.",
 			inputSchema: {
+				minLabels: z
+					.number()
+					.int()
+					.min(1)
+					.max(MAX_LABELS_PER_FOOD)
+					.optional()
+					.describe(
+						'Return foods carrying fewer than this many labels. 1 (default) means unlabelled only; 5 also surfaces thinly labelled foods worth extending.'
+					),
 				limit: z
 					.number()
 					.int()
@@ -1421,8 +1435,14 @@ export function createMcpServer(userId: string): McpServer {
 		'set_food_labels_batch',
 		{
 			title: 'Set Food Labels (Batch)',
-			description: `Label many foods in one call — the normal way to run a labelling sweep. ${LABEL_CONTRACT} Results are per-item, so one unknown id does not fail the batch.`,
+			description: `Label many foods in one call — the normal way to run a labelling sweep. ${LABEL_CONTRACT} By default (mode "extend") your labels are added to what the food already carries; mode "replace" swaps out the labels you wrote before. Either way labels the user set by hand are never touched, and the cap of ${MAX_LABELS_PER_FOOD} per food is hard: labels that do not fit come back per item as "dropped". Results are per-item, so one unknown id does not fail the batch.`,
 			inputSchema: {
+				mode: z
+					.enum(['replace', 'extend'])
+					.optional()
+					.describe(
+						'"extend" (default) adds to existing labels; "replace" swaps out your earlier ones.'
+					),
 				items: z
 					.array(
 						z.object({
@@ -1437,6 +1457,18 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: UPDATE
 		},
 		safe((args) => handleSetFoodLabelsBatch(userId, args))
+	);
+
+	server.registerTool(
+		'list_labels',
+		{
+			title: 'List Labels',
+			description:
+				'The user\'s label vocabulary: every label in use with how many foods carry it, most common first. Check it before a labelling sweep so you reuse the nouns already in play ("bread", not "loaf") and search_foods keeps matching consistently.',
+			inputSchema: {},
+			annotations: READ_ONLY
+		},
+		safe(() => handleListLabels(userId))
 	);
 
 	server.registerTool(

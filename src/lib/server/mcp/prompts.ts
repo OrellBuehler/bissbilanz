@@ -83,23 +83,33 @@ export function registerPrompts(server: McpServer) {
 		{
 			title: 'Label foods for Visual Intelligence',
 			description:
-				'Sweep the food database and give every unlabelled food general en_US nouns, so pointing a camera at a banana finds it.',
+				'Sweep the food database and give every unlabelled (or thinly labelled) food general en_US nouns, so searching "bread" or pointing a camera at a banana finds it.',
 			argsSchema: {
 				limit: z
 					.string()
 					.regex(/^\d+$/)
 					.optional()
-					.describe('How many foods to label. Leave empty to label everything.')
+					.describe('How many foods to label. Leave empty to label everything.'),
+				minLabels: z
+					.string()
+					.regex(/^\d+$/)
+					.optional()
+					.describe(
+						'Also extend foods carrying fewer than this many labels. Leave empty to label only foods with none.'
+					)
 			}
 		},
-		({ limit }) =>
-			user(
+		({ limit, minLabels }) => {
+			const threshold = minLabels ? Math.min(Math.max(Number(minLabels), 1), 20) : 1;
+			const scope =
+				threshold > 1
+					? `Bissbilanz foods that carry fewer than ${threshold} labels`
+					: 'unlabelled Bissbilanz foods';
+			return user(
 				[
-					limit
-						? `Label up to ${limit} of my unlabelled Bissbilanz foods.`
-						: 'Label all of my unlabelled Bissbilanz foods.',
+					limit ? `Label up to ${limit} of my ${scope}.` : `Label all of my ${scope}.`,
 					'',
-					'Labels let my phone find a food when I point the camera at it, so they must describe what the food physically IS, not what it is called.',
+					'Labels let me search my foods in English whatever language they are named in, and let my phone find a food when I point the camera at it, so they must describe what the food physically IS, not what it is called.',
 					'',
 					'Rules for every label:',
 					'- 3 to 8 general English (en_US) nouns per food, singular and lowercase: banana, bread, cheese, bottle, salad.',
@@ -108,15 +118,17 @@ export function registerPrompts(server: McpServer) {
 					'- Prefer the concrete object, but include one broader term where it is natural (banana, fruit).',
 					'',
 					'Steps:',
-					`1. Call list_unlabeled_foods${limit ? ` with limit=${Math.min(Number(limit), 200)}` : ' (page it with limit/offset)'}. Use the name, brand and ingredient snippet to work out what each food is.`,
-					'2. Write the labels back with set_food_labels_batch, up to 100 foods per call.',
-					'3. Repeat until list_unlabeled_foods comes back empty' +
+					'1. Call list_labels once and reuse the nouns already in play rather than inventing near-synonyms.',
+					`2. Call list_unlabeled_foods${threshold > 1 ? ` with minLabels=${threshold}` : ''}${limit ? `${threshold > 1 ? ' and' : ' with'} limit=${Math.min(Number(limit), 200)}` : ' (page it with limit/offset)'}. Use the name, brand, ingredient snippet and any labels it already has to work out what each food is.`,
+					'3. Write the labels back with set_food_labels_batch, up to 100 foods per call. It extends by default, so only send labels the food does not have yet; anything past 20 per food comes back as dropped.',
+					'4. Repeat until list_unlabeled_foods comes back empty' +
 						(limit ? ' or you have labelled the requested number.' : '.'),
-					'4. Finish with one line: how many foods you labelled, and any you skipped because the name was too vague to tell what it is.',
+					'5. Finish with one line: how many foods you labelled, and any you skipped because the name was too vague to tell what it is.',
 					'',
 					'Do not ask me about individual foods — skip anything you cannot identify and list those at the end.'
 				].join('\n')
-			)
+			);
+		}
 	);
 
 	server.registerPrompt(
