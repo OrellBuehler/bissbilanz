@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
+	import { foodMatchTier } from '$lib/components/foods/foodFilters';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
@@ -97,12 +98,7 @@
 		const q = keeperSearch.trim().toLowerCase();
 		const pool = allFoods.filter((f) => !sourceIds.has(f.id));
 		if (!q) return pool;
-		return pool.filter(
-			(f) =>
-				f.name.toLowerCase().includes(q) ||
-				(f.brand ?? '').toLowerCase().includes(q) ||
-				(f.barcode ?? '').includes(q)
-		);
+		return pool.filter((f) => foodMatchTier(f, q) >= 0 || (f.barcode ?? '').includes(q));
 	});
 
 	// Virtualization for the keeper picker — handles arbitrary food counts

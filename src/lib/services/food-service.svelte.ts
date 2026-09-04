@@ -3,6 +3,8 @@ import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { refreshTable, withOfflineFallback } from './base';
+import { filterFoods } from '$lib/components/foods/foodFilters';
+import { normalizeLabels } from '$lib/labels';
 import type { paths } from '$lib/api/generated/schema';
 
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
@@ -22,18 +24,14 @@ function foodById(id: string) {
 }
 
 function search(query: string) {
-	const q = query.toLowerCase();
-	const matchesName = (f: DexieFood) => f.name.toLowerCase().includes(q);
-	// Match name or brand, then rank name matches ahead of brand-only matches
-	// (the sort is stable, so each group stays alphabetical from orderBy).
+	// Name, then label, then brand — the same tiers as the server's search, so
+	// "bread" finds "Vollkornbrot" offline too once it is labelled.
 	return liveQuery(() =>
 		db.foods
 			.orderBy('name')
-			.filter(
-				(f) => isRegularFood(f) && (matchesName(f) || (f.brand ?? '').toLowerCase().includes(q))
-			)
+			.filter(isRegularFood)
 			.toArray()
-			.then((rows) => rows.sort((a, b) => Number(matchesName(b)) - Number(matchesName(a))))
+			.then((rows) => filterFoods(rows, query))
 	);
 }
 
@@ -176,6 +174,39 @@ async function update(id: string, food: FoodUpdate) {
 	);
 }
 
+/**
+ * Replace the food's labels. Optimistic like every other edit: the Dexie row is
+ * updated first (so search picks the new labels up immediately), then the write
+ * goes to the server or into the offline queue with the same idempotency and
+ * last-write-wins stamps as a food edit. Returns the labels the server could
+ * not fit under the per-food cap, empty when the write was queued.
+ */
+async function setLabels(id: string, labels: string[]): Promise<string[]> {
+	const normalized = normalizeLabels(labels).sort();
+	await db.foods.update(id, { labels: normalized, updatedAt: new Date().toISOString() });
+
+	let dropped: string[] = [];
+	await withOfflineFallback(
+		() =>
+			api.PUT('/api/foods/{id}/labels', {
+				params: { path: { id } },
+				body: { labels }
+			}),
+		{
+			onSuccess: async (data) => {
+				await db.foods.update(id, { labels: data.labels });
+				dropped = data.dropped;
+			},
+			method: 'PUT',
+			url: `/api/foods/${id}/labels`,
+			body: { labels },
+			affectedTable: 'foods',
+			affectedId: id
+		}
+	);
+	return dropped;
+}
+
 async function deleteFood(id: string) {
 	await db.foods.delete(id);
 
@@ -234,6 +265,7 @@ export const foodService = {
 	refreshById,
 	create,
 	update,
+	setLabels,
 	delete: deleteFood,
 	findByBarcode,
 	saveFromCatalog,

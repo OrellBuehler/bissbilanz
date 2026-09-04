@@ -45,7 +45,7 @@ export async function refreshTable<T extends { id: string }>(
 }
 
 type WithOfflineFallbackOpts<T> = {
-	method: 'POST' | 'PATCH' | 'DELETE';
+	method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 	url: string;
 	body: object;
 	affectedTable: string;
