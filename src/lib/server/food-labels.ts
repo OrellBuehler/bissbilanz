@@ -169,7 +169,9 @@ export async function seedCatalogLabels(
 		null,
 		'extend'
 	);
-	return after.filter((label) => !before.has(label));
+	const stored = new Set(after);
+	// Seed order, not sorted: callers merge this into the array the client caches.
+	return labels.filter((label) => !before.has(label) && stored.has(label));
 }
 
 export type FoodLabelRow = {
