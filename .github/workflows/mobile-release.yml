@@ -343,6 +343,8 @@ jobs:
             SENTRY_DSN="$SENTRY_DSN"
 
       - name: Upload dSYMs to Sentry
+        # Missing symbols must never block a build that already archived.
+        continue-on-error: true
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: orells-organization
@@ -358,8 +360,9 @@ jobs:
             echo "SENTRY_AUTH_TOKEN not set; skipping dSYM upload"
             exit 0
           fi
-          brew install --formula sentry-cli
-          brew link --overwrite sentry-cli
+          # sentry-cli is no longer in homebrew-core (v1.39.0 failed with
+          # "No available formula"); Sentry publishes it from its own tap.
+          brew install getsentry/tools/sentry-cli
           sentry-cli debug-files upload --include-sources \
             "$RUNNER_TEMP/Bissbilanz.xcarchive/dSYMs"
 
