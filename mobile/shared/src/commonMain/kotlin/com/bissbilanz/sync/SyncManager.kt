@@ -328,6 +328,10 @@ class SyncManager(
                 api.setFoodImage(op.id, op.imageUrl, idempotencyKey, clientEditedAt)
             }
 
+            is SyncOperation.SetFoodLabels -> {
+                api.setFoodLabels(op.id, op.labels, idempotencyKey, clientEditedAt)
+            }
+
             is SyncOperation.CreateEntry -> {
                 val server = api.createEntry(json.decodeFromString<EntryCreate>(op.body), idempotencyKey, clientEditedAt)
                 return op.localId?.takeIf { it.isTempId() }?.let { tempId ->

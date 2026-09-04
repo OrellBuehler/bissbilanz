@@ -25,6 +25,8 @@ import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDiversityResponse
+import com.bissbilanz.api.generated.model.FoodLabelsSet
+import com.bissbilanz.api.generated.model.FoodLabelsSetResponse
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
@@ -364,6 +366,22 @@ class BissbilanzApi(
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         val response: FoodResponse = patch("/api/foods/$id", ImagePatch(imageUrl), key, editedAt)
         return response.food
+    }
+
+    /**
+     * Replaces the user's labels for a food. Source defaults to `user` server-side,
+     * which is what makes the write authoritative over anything a labeller seeded.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun setFoodLabels(
+        id: String,
+        labels: List<String>,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): FoodLabelsSetResponse {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        return put("/api/foods/$id/labels", FoodLabelsSet(labels = labels), key, editedAt)
     }
 
     @OptIn(ExperimentalUuidApi::class)

@@ -19,6 +19,8 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.mergeOpenFoodFactsOntoFood
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.normalizeLabel
+import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -233,8 +235,27 @@ class FoodRepository(
         return updated
     }
 
+    /**
+     * Replaces the food's labels — the English nouns search matches against.
+     * Optimistic like every other edit: the cache (and its label index) is
+     * updated first, then the write is queued. Labels never ride on a food body,
+     * so a temp-id food gets its own queued op; the temp-id remap on the create's
+     * response points it at the server id before it is sent.
+     */
+    suspend fun setLabels(
+        id: String,
+        labels: List<String>,
+    ): Food? {
+        val normalized = normalizeLabels(labels).sorted()
+        val updated = getFoodCached(id)?.copy(labels = normalized)?.also { cacheFood(it) }
+        syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
+        onFoodChanged?.invoke()
+        return updated
+    }
+
     suspend fun deleteFood(id: String) {
         val imageUrl = getFoodCached(id)?.imageUrl
+        db.userDataDatabaseQueries.deleteFoodLabels(id)
         db.userDataDatabaseQueries.deleteFood(id)
         if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
@@ -291,9 +312,11 @@ class FoodRepository(
         }
 
     private fun searchFoodsCached(query: String): List<Food> {
-        val pattern = "%$query%"
+        val trimmed = query.trim()
+        // The query is folded exactly like a stored label, so "Breads" meets "bread".
+        val label = normalizeLabel(trimmed) ?: ""
         return db.userDataDatabaseQueries
-            .searchFoods(pattern, pattern, pattern, 50)
+            .searchFoods(pattern = "%$trimmed%", label = label, limit = 50)
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
     }
@@ -393,6 +416,8 @@ class FoodRepository(
     }
 
     private fun cacheFood(food: Food) {
+        db.userDataDatabaseQueries.deleteFoodLabels(food.id)
+        food.labels?.forEach { label -> db.userDataDatabaseQueries.insertFoodLabel(food.id, label) }
         db.userDataDatabaseQueries.insertFood(
             id = food.id,
             name = food.name,

@@ -37,6 +37,17 @@ CREATE TABLE IF NOT EXISTS CachedFood (
     jsonData TEXT NOT NULL
 );
 
+-- One row per (food, label), mirrored from Food.labels on every cache write so
+-- the offline search can match "bread" against a food named "Vollkornbrot"
+-- without decoding every row's JSON.
+CREATE TABLE IF NOT EXISTS CachedFoodLabel (
+    foodId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    PRIMARY KEY (foodId, label)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cached_food_label_label ON CachedFoodLabel(label);
+
 CREATE TABLE IF NOT EXISTS CachedGoals (
     id INTEGER NOT NULL PRIMARY KEY DEFAULT 1,
     calorieGoal REAL NOT NULL,
@@ -152,8 +163,20 @@ SELECT * FROM CachedFood WHERE barcode = ? LIMIT 1;
 selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
+-- Same tiers as the server: name, then English label, then brand.
 searchFoods:
-SELECT * FROM CachedFood WHERE name LIKE ? OR brand LIKE ? ORDER BY (name LIKE ?) DESC, name LIMIT ?;
+SELECT * FROM CachedFood
+WHERE name LIKE :pattern
+   OR brand LIKE :pattern
+   OR EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label)
+ORDER BY
+    CASE
+        WHEN name LIKE :pattern THEN 0
+        WHEN EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label) THEN 1
+        ELSE 2
+    END,
+    name
+LIMIT :limit;
 
 -- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
 selectRecentFoods:
@@ -173,6 +196,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteFood:
 DELETE FROM CachedFood WHERE id = ?;
+
+insertFoodLabel:
+INSERT OR IGNORE INTO CachedFoodLabel(foodId, label) VALUES (?, ?);
+
+deleteFoodLabels:
+DELETE FROM CachedFoodLabel WHERE foodId = ?;
 
 deleteAllFoods:
 DELETE FROM CachedFood;

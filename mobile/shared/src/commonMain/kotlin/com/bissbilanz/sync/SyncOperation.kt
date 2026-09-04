@@ -64,6 +64,22 @@ sealed class SyncOperation {
         override val description get() = "set food image $id"
     }
 
+    /**
+     * Replaces the user's labels for a food. Labels live in their own table
+     * server-side and never ride on a food body, so this is its own operation;
+     * the server treats it as an edit of the food for last-write-wins.
+     */
+    @Serializable
+    @SerialName("set_food_labels")
+    data class SetFoodLabels(
+        val id: String,
+        val labels: List<String>,
+    ) : SyncOperation() {
+        override val affectedTable = "foods"
+        override val affectedId get() = id
+        override val description get() = "set food labels $id"
+    }
+
     @Serializable
     @SerialName("create_entry")
     data class CreateEntry(
