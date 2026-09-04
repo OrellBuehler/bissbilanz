@@ -25,12 +25,14 @@ import kotlinx.serialization.encoding.*
  * @param labels
  * @param source
  * @param confidence
+ * @param mode
  */
 @Serializable
 data class FoodLabelsSet(
     @SerialName(value = "labels") @Required val labels: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "source") val source: FoodLabelsSet.Source? = null,
     @SerialName(value = "confidence") val confidence: kotlin.Double? = null,
+    @SerialName(value = "mode") val mode: FoodLabelsSet.Mode? = null,
 ) {
     /**
      *
@@ -52,5 +54,21 @@ data class FoodLabelsSet(
 
         @SerialName(value = "catalog")
         catalog("catalog"),
+    }
+
+    /**
+     *
+     *
+     * Values: replace,extend
+     */
+    @Serializable
+    enum class Mode(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "replace")
+        replace("replace"),
+
+        @SerialName(value = "extend")
+        extend("extend"),
     }
 }

@@ -261,7 +261,7 @@ const mockDeps = {
 	},
 	setFoodLabels: async (userId: string, foodId: string, labels: string[], source: string) => {
 		mockSetLabelCalls.push({ userId, foodId, labels, source });
-		return mockLabelFoodMissing ? null : labels;
+		return mockLabelFoodMissing ? { status: 'not_found' } : { status: 'ok', labels, dropped: [] };
 	},
 	setFoodLabelsBatch: async (userId: string, items: any[], source: string) => {
 		for (const item of items) {
@@ -2078,7 +2078,12 @@ describe('food label handlers', () => {
 		expect(mockSetLabelCalls).toEqual([
 			{ userId: TEST_USER.id, foodId: TEST_FOOD.id, labels: ['banana'], source: 'llm' }
 		]);
-		expect(result).toEqual({ success: true, foodId: TEST_FOOD.id, labels: ['banana'] });
+		expect(result).toEqual({
+			success: true,
+			foodId: TEST_FOOD.id,
+			labels: ['banana'],
+			dropped: []
+		});
 	});
 
 	test('set_food_labels reports a missing food instead of throwing', async () => {

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createFood, findFoodByBarcode, listFoods } from '$lib/server/foods';
 import { paginationSchema } from '$lib/server/validation';
+import { minLabelsSchema } from '$lib/server/validation/labels';
 import {
 	handleApiError,
 	requireAuth,
@@ -34,11 +35,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const query = url.searchParams.get('q') ?? undefined;
 		// Lets a labeller find its work instead of paging everything and diffing
-		// client-side.
-		const unlabeled = url.searchParams.get('unlabeled') === 'true';
+		// client-side: `minLabels=n` returns foods carrying fewer than n labels,
+		// and the older `unlabeled=true` means the same as `minLabels=1`.
+		let minLabels: number | undefined;
+		if (url.searchParams.has('minLabels')) {
+			const parsed = minLabelsSchema.safeParse(url.searchParams.get('minLabels'));
+			if (!parsed.success) return validationError(parsed.error);
+			minLabels = parsed.data;
+		} else if (url.searchParams.get('unlabeled') === 'true') {
+			minLabels = 1;
+		}
 		const { offset } = paginationResult.data;
 		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
-		const { items: foods, total } = await listFoods(userId, { query, limit, offset, unlabeled });
+		const { items: foods, total } = await listFoods(userId, { query, limit, offset, minLabels });
 		return json({ foods, total });
 	} catch (error) {
 		return handleApiError(error);

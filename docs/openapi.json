@@ -75,7 +75,7 @@
 			"get": {
 				"operationId": "listFoods",
 				"tags": ["Foods"],
-				"description": "Search or list foods in the personal database.",
+				"description": "Search or list foods in the personal database. A query matches the name, then the English labels (so \"bread\" finds \"Vollkornbrot\"), then the brand, then trigram-similar names; results come back in that order.",
 				"parameters": [
 					{
 						"in": "query",
@@ -93,10 +93,23 @@
 					},
 					{
 						"in": "query",
+						"name": "minLabels",
+						"schema": {
+							"description": "Only foods carrying fewer than this many labels.",
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 20
+						},
+						"description": "Only foods carrying fewer than this many labels."
+					},
+					{
+						"in": "query",
 						"name": "unlabeled",
 						"schema": {
+							"description": "Deprecated: same as minLabels=1.",
 							"type": "boolean"
-						}
+						},
+						"description": "Deprecated: same as minLabels=1."
 					},
 					{
 						"in": "query",
@@ -249,10 +262,30 @@
 			}
 		},
 		"/api/foods/labels": {
+			"get": {
+				"operationId": "listFoodLabelStats",
+				"tags": ["Foods"],
+				"description": "The user's label vocabulary with the number of foods carrying each label, most common first.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodLabelStatsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
 			"post": {
 				"operationId": "setFoodLabelsBatch",
 				"tags": ["Foods"],
-				"description": "Batch-write labels for up to 100 foods. Replace-by-source: only the rows written by `source` are replaced, so a machine labeller never deletes a user label. Results are per-item, so one unknown id does not fail the sweep.",
+				"description": "Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -322,7 +355,7 @@
 			"put": {
 				"operationId": "setFoodLabels",
 				"tags": ["Foods"],
-				"description": "Replace a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is.",
+				"description": "Replace (or with `mode=extend`, add to) a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. A `user` write moves the food's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
 				"parameters": [
 					{
 						"in": "path",
@@ -364,6 +397,9 @@
 					},
 					"404": {
 						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
@@ -4453,6 +4489,10 @@
 							}
 						]
 					},
+					"mode": {
+						"type": "string",
+						"enum": ["replace", "extend"]
+					},
 					"items": {
 						"minItems": 1,
 						"maxItems": 100,
@@ -4511,6 +4551,10 @@
 								"type": "null"
 							}
 						]
+					},
+					"mode": {
+						"type": "string",
+						"enum": ["replace", "extend"]
 					}
 				},
 				"required": ["labels"]
@@ -6688,6 +6732,34 @@
 				"required": ["id", "name", "brand", "barcode"],
 				"additionalProperties": false
 			},
+			"FoodLabelStatsResponse": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodLabelStat"
+						}
+					}
+				},
+				"required": ["labels"],
+				"additionalProperties": false
+			},
+			"FoodLabelStat": {
+				"type": "object",
+				"properties": {
+					"label": {
+						"type": "string"
+					},
+					"count": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["label", "count"],
+				"additionalProperties": false
+			},
 			"FoodLabelsBatchResponse": {
 				"type": "object",
 				"properties": {
@@ -6713,6 +6785,12 @@
 						"type": "boolean"
 					},
 					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"dropped": {
 						"type": "array",
 						"items": {
 							"type": "string"
@@ -6766,9 +6844,15 @@
 						"items": {
 							"type": "string"
 						}
+					},
+					"dropped": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
-				"required": ["labels"],
+				"required": ["labels", "dropped"],
 				"additionalProperties": false
 			},
 			"ConflictErrorResponse": {
@@ -10010,9 +10094,6 @@
 					}
 				}
 			},
-			"DeletedResponse": {
-				"description": "Deleted"
-			},
 			"ConflictResponse": {
 				"description": "Conflict",
 				"content": {
@@ -10022,6 +10103,9 @@
 						}
 					}
 				}
+			},
+			"DeletedResponse": {
+				"description": "Deleted"
 			}
 		},
 		"securitySchemes": {

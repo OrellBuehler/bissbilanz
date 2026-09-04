@@ -113,11 +113,20 @@ barcoded goods only — fresh produce and home-cooked food need the labeller bel
 The server ships the socket, not the labeller: run `label_foods` from any client with an
 LLM subscription and it pages `list_unlabeled_foods`, applies the contract above, and
 writes back with `set_food_labels_batch` until the database is labelled. The same thing is
-reachable over REST (`GET /api/foods?unlabeled=true`, `PUT /api/foods/{id}/labels`,
-`POST /api/foods/labels`) for a local classifier or a third-party tool.
+reachable over REST (`GET /api/foods?minLabels=n` for foods carrying fewer than `n`
+labels, `PUT /api/foods/{id}/labels`, `POST /api/foods/labels`, and
+`GET /api/foods/labels` for the vocabulary with per-label food counts) for a local
+classifier or a third-party tool.
 
-Writes are **replace-by-source**: a write for one source replaces exactly that source's
-rows. MCP writes are forced to source `llm`, so an agent can never delete or overwrite a
+Labels are also a search tier: `GET /api/foods?q=` matches the name first, then the
+English labels, then the brand, then trigram-similar names, in that order — so `bread`
+finds a food named `Vollkornbrot` once it is labelled.
+
+Writes are **replace-by-source** by default: a write for one source replaces exactly that
+source's rows. With `mode: "extend"` a write only adds to them, so a second sweep can never
+shrink a set it did not fully re-derive. The 20-per-food cap is hard either way: labels
+that do not fit next to what is already stored come back as `dropped` instead of pushing
+older rows out. MCP writes are forced to source `llm`, so an agent can never delete or overwrite a
 label the user set by hand — while an explicit user write (source `user`, the default over
 REST) is the whole set and replaces every source, so a seeded label the user removed
 never comes back. Labels are normalized server-side (lowercased, accent-folded,

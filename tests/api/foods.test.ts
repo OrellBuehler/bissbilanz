@@ -5,6 +5,7 @@ import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 
 // Mock the foods module
 let mockListResult: any = [];
+let mockListArgs: any = null;
 let mockFindBarcodeResult: any = null;
 let mockCreateResult: any = null;
 
@@ -20,10 +21,10 @@ const mockValidationError = new ZodError([
 
 vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
-	listFoods: async (userId: string, options: any) => ({
-		items: mockListResult,
-		total: mockListResult.length
-	}),
+	listFoods: async (userId: string, options: any) => {
+		mockListArgs = options;
+		return { items: mockListResult, total: mockListResult.length };
+	},
 	findFoodByBarcode: async (userId: string, barcode: string) => mockFindBarcodeResult,
 	createFood: async (userId: string, payload: unknown) =>
 		mockCreateResult
@@ -241,5 +242,44 @@ describe('api/foods', () => {
 				expect(data.error).toBe('Validation failed');
 			});
 		});
+	});
+});
+
+describe('GET /api/foods label filters', () => {
+	beforeEach(() => {
+		mockListResult = [];
+		mockListArgs = null;
+	});
+
+	test('minLabels=n asks for foods with fewer than n labels', async () => {
+		const response = await GET(
+			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=3' })
+		);
+		expect(response.status).toBe(200);
+		expect(mockListArgs).toMatchObject({ minLabels: 3 });
+	});
+
+	test('unlabeled=true still means minLabels=1', async () => {
+		await GET(
+			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?unlabeled=true' })
+		);
+		expect(mockListArgs).toMatchObject({ minLabels: 1 });
+	});
+
+	test('rejects minLabels outside 1..20', async () => {
+		expect(
+			(
+				await GET(
+					createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=0' })
+				)
+			).status
+		).toBe(400);
+		expect(
+			(
+				await GET(
+					createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=21' })
+				)
+			).status
+		).toBe(400);
 	});
 });

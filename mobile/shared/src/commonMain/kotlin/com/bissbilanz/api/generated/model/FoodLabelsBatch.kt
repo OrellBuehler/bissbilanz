@@ -26,12 +26,14 @@ import kotlinx.serialization.encoding.*
  * @param items
  * @param source
  * @param confidence
+ * @param mode
  */
 @Serializable
 data class FoodLabelsBatch(
     @SerialName(value = "items") @Required val items: kotlin.collections.List<FoodLabelsBatchItem>,
     @SerialName(value = "source") val source: FoodLabelsBatch.Source? = null,
     @SerialName(value = "confidence") val confidence: kotlin.Double? = null,
+    @SerialName(value = "mode") val mode: FoodLabelsBatch.Mode? = null,
 ) {
     /**
      *
@@ -53,5 +55,21 @@ data class FoodLabelsBatch(
 
         @SerialName(value = "catalog")
         catalog("catalog"),
+    }
+
+    /**
+     *
+     *
+     * Values: replace,extend
+     */
+    @Serializable
+    enum class Mode(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "replace")
+        replace("replace"),
+
+        @SerialName(value = "extend")
+        extend("extend"),
     }
 }

@@ -122,15 +122,32 @@ export const foodLabelsResponseSchema = z
 
 export const foodLabelsSetResponseSchema = z
 	.object({
-		labels: z.array(z.string())
+		labels: z.array(z.string()),
+		// Labels that did not fit under the per-food cap next to what was already
+		// stored. Never silently trimmed, so a client can tell the user.
+		dropped: z.array(z.string())
 	})
 	.meta({ id: 'FoodLabelsSetResponse' });
+
+export const foodLabelStatSchema = z
+	.object({
+		label: z.string(),
+		count: z.number().int()
+	})
+	.meta({ id: 'FoodLabelStat' });
+
+export const foodLabelStatsResponseSchema = z
+	.object({
+		labels: z.array(foodLabelStatSchema)
+	})
+	.meta({ id: 'FoodLabelStatsResponse' });
 
 export const foodLabelsBatchItemResultSchema = z
 	.object({
 		foodId: z.string().uuid(),
 		ok: z.boolean(),
 		labels: z.array(z.string()).optional(),
+		dropped: z.array(z.string()).optional(),
 		error: z.string().optional()
 	})
 	.meta({ id: 'FoodLabelsBatchItemResult' });

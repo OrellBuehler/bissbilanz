@@ -82,10 +82,11 @@ describe('food labels', () => {
 	it('normalizes and stores on write, and reads back sorted', async () => {
 		const { setFoodLabels, getFoodLabels } = await import('$lib/server/food-labels');
 
-		expect(await setFoodLabels(userId, foodId, ['Bananas', 'FRUIT', 'bananas'], 'llm')).toEqual([
-			'banana',
-			'fruit'
-		]);
+		expect(await setFoodLabels(userId, foodId, ['Bananas', 'FRUIT', 'bananas'], 'llm')).toEqual({
+			status: 'ok',
+			labels: ['banana', 'fruit'],
+			dropped: []
+		});
 
 		const rows = await getFoodLabels(userId, foodId);
 		expect(rows.map((r) => r.label)).toEqual(['banana', 'fruit']);
@@ -138,13 +139,15 @@ describe('food labels', () => {
 	it('clearing a source removes exactly its rows', async () => {
 		const { setFoodLabels } = await import('$lib/server/food-labels');
 		await setFoodLabels(userId, foodId, ['banana'], 'llm');
-		expect(await setFoodLabels(userId, foodId, [], 'llm')).toEqual([]);
+		expect(await setFoodLabels(userId, foodId, [], 'llm')).toMatchObject({ labels: [] });
 		expect(await sourcesFor(foodId)).toEqual([]);
 	});
 
 	it('refuses a food the caller does not own', async () => {
 		const { setFoodLabels } = await import('$lib/server/food-labels');
-		expect(await setFoodLabels(otherUserId, foodId, ['banana'], 'llm')).toBeNull();
+		expect(await setFoodLabels(otherUserId, foodId, ['banana'], 'llm')).toEqual({
+			status: 'not_found'
+		});
 		expect(await sourcesFor(foodId)).toEqual([]);
 	});
 
@@ -162,6 +165,77 @@ describe('food labels', () => {
 		expect(results.map((r) => r.ok)).toEqual([true, false, true]);
 		expect(results[1].error).toBe('Food not found');
 		expect(await sourcesFor(otherFoodId)).toEqual([{ label: 'bread', source: 'external' }]);
+	});
+
+	it('extend keeps what is there and only adds', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		await setFoodLabels(userId, foodId, ['banana'], 'llm');
+		const result = await setFoodLabels(userId, foodId, ['fruit', 'banana'], 'llm', {
+			mode: 'extend'
+		});
+		expect(result).toEqual({ status: 'ok', labels: ['banana', 'fruit'], dropped: [] });
+		expect(await sourcesFor(foodId)).toEqual([
+			{ label: 'banana', source: 'llm' },
+			{ label: 'fruit', source: 'llm' }
+		]);
+	});
+
+	it('the per-food cap is hard: overflow is reported, never silently trimmed', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const userLabels = Array.from({ length: 18 }, (_, i) => `label${i}`);
+		await setFoodLabels(userId, foodId, userLabels, 'user');
+		const result = await setFoodLabels(userId, foodId, ['aaa', 'bbb', 'ccc', 'label0'], 'llm');
+		expect(result).toMatchObject({ status: 'ok', dropped: ['ccc'] });
+		expect((await sourcesFor(foodId)).map((r) => r.label)).toHaveLength(20);
+		// The user's rows are untouched, and the duplicate stayed with the user.
+		expect((await sourcesFor(foodId)).filter((r) => r.source === 'user')).toHaveLength(18);
+	});
+
+	it('a user write moves the food clock and honours last-write-wins', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const db = getTestDB(dbUrl);
+		// The row was inserted "now"; put its clock in the past so the test's edit
+		// times are unambiguous rather than racing the wall clock.
+		await db
+			.update(foods)
+			.set({ updatedAt: new Date('2026-09-01T08:00:00Z') })
+			.where(eq(foods.id, foodId));
+		const t1 = new Date('2026-09-01T10:00:00Z');
+		const t0 = new Date('2026-09-01T09:00:00Z');
+		expect(
+			await setFoodLabels(userId, foodId, ['banana'], 'user', { clientEditedAt: t1 })
+		).toMatchObject({ status: 'ok' });
+		const [row] = await db
+			.select({ updatedAt: foods.updatedAt })
+			.from(foods)
+			.where(eq(foods.id, foodId));
+		expect(row.updatedAt?.getTime()).toBe(t1.getTime());
+
+		// An older offline edit arriving later loses and changes nothing.
+		expect(await setFoodLabels(userId, foodId, ['apple'], 'user', { clientEditedAt: t0 })).toEqual({
+			status: 'conflict'
+		});
+		expect(await sourcesFor(foodId)).toEqual([{ label: 'banana', source: 'user' }]);
+
+		// A machine write never touches the clock.
+		await setFoodLabels(userId, foodId, ['fruit'], 'llm');
+		const [after] = await db
+			.select({ updatedAt: foods.updatedAt })
+			.from(foods)
+			.where(eq(foods.id, foodId));
+		expect(after.updatedAt?.getTime()).toBe(t1.getTime());
+	});
+
+	it('label stats count foods per label, most common first', async () => {
+		const { setFoodLabels, listLabelStats } = await import('$lib/server/food-labels');
+		await setFoodLabels(userId, foodId, ['fruit', 'banana'], 'llm');
+		await setFoodLabels(userId, otherFoodId, ['bread', 'fruit'], 'llm');
+		expect(await listLabelStats(userId)).toEqual([
+			{ label: 'fruit', count: 2 },
+			{ label: 'banana', count: 1 },
+			{ label: 'bread', count: 1 }
+		]);
+		expect(await listLabelStats(otherUserId)).toEqual([]);
 	});
 
 	it('deleting a food takes its labels with it', async () => {
@@ -299,6 +373,19 @@ describe('labels on the food read shape', () => {
 		expect(total).toBe(1);
 	});
 
+	it('minLabels returns foods carrying fewer than that many labels', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const { listFoods } = await import('$lib/server/foods');
+		await setFoodLabels(userId, foodId, ['banana', 'fruit'], 'llm');
+		await setFoodLabels(userId, otherFoodId, ['bread'], 'llm');
+
+		expect((await listFoods(userId, { minLabels: 1 })).items).toEqual([]);
+		expect((await listFoods(userId, { minLabels: 2 })).items.map((f) => f.id)).toEqual([
+			otherFoodId
+		]);
+		expect((await listFoods(userId, { minLabels: 3 })).total).toBe(2);
+	});
+
 	it('another user’s labels never leak onto a food', async () => {
 		const { setFoodLabels } = await import('$lib/server/food-labels');
 		const { getFood } = await import('$lib/server/foods');
@@ -311,5 +398,59 @@ describe('labels on the food read shape', () => {
 			.delete(foodLabels)
 			.where(and(eq(foodLabels.userId, userId), eq(foodLabels.foodId, foodId)));
 		expect((await getFood(userId, foodId))?.labels).toEqual([]);
+	});
+});
+
+describe('search tiers', () => {
+	it('matches a label, so an English query finds a German food', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const { listFoods } = await import('$lib/server/foods');
+		await setFoodLabels(userId, otherFoodId, ['bread', 'sliced bread'], 'llm');
+
+		const { items } = await listFoods(userId, { query: 'Bread' });
+		expect(items.map((f) => f.name)).toEqual(['Brot']);
+		// Plural and case fold through the same normalizer as the stored label.
+		expect((await listFoods(userId, { query: 'breads' })).items.map((f) => f.name)).toEqual([
+			'Brot'
+		]);
+		expect((await listFoods(userId, { query: 'sliced breads' })).total).toBe(1);
+	});
+
+	it('ranks name matches ahead of label matches ahead of brand matches', async () => {
+		const { setFoodLabels } = await import('$lib/server/food-labels');
+		const { listFoods } = await import('$lib/server/foods');
+		const db = getTestDB(dbUrl);
+		const base = {
+			servingSize: 100,
+			servingUnit: 'g' as const,
+			calories: 1,
+			protein: 0,
+			carbs: 0,
+			fat: 0,
+			fiber: 0
+		};
+		const [byName] = await db
+			.insert(foods)
+			.values({ userId, name: 'Zwieback Toast', ...base })
+			.returning();
+		const [byBrand] = await db
+			.insert(foods)
+			.values({ userId, name: 'Aufstrich', brand: 'Toast & Co', ...base })
+			.returning();
+		await setFoodLabels(userId, otherFoodId, ['toast'], 'llm');
+
+		const { items } = await listFoods(userId, { query: 'toast' });
+		expect(items.map((f) => f.id)).toEqual([byName.id, otherFoodId, byBrand.id]);
+	});
+
+	it('tolerates a typo through trigram similarity', async () => {
+		const { listFoods } = await import('$lib/server/foods');
+		const { items } = await listFoods(userId, { query: 'Banane' });
+		expect(items.map((f) => f.name)).toEqual(['Banane']);
+		expect((await listFoods(userId, { query: 'Bannane' })).items.map((f) => f.name)).toEqual([
+			'Banane'
+		]);
+		// Short queries stay exact: "Bro" must not fuzz onto everything.
+		expect((await listFoods(userId, { query: 'Bro' })).items.map((f) => f.name)).toEqual(['Brot']);
 	});
 });

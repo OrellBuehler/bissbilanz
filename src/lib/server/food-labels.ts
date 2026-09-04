@@ -1,7 +1,8 @@
 import { getDB } from '$lib/server/db';
 import { foodLabels, foods, type LabelSource } from '$lib/server/schema';
-import { and, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
-import { normalizeLabels } from '$lib/server/labels';
+import { and, count, desc, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
+import { MAX_LABELS_PER_FOOD, normalizeLabels } from '$lib/server/labels';
+import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { labelsFromCategoriesTags } from '$lib/server/openfoodfacts-labels';
 
 /**
@@ -37,14 +38,22 @@ const ownedFoodIds = async (db: DB, userId: string, foodIds: string[]) => {
 	return new Set(rows.map((row) => row.id));
 };
 
+export type LabelWriteMode = 'replace' | 'extend';
+export type LabelWriteOutcome = { labels: string[]; dropped: string[] };
+
 /**
- * Replace-by-source, assuming ownership has already been established: delete
- * exactly this source's rows for the food, then re-insert. The unique index on
- * (food_id, label) makes the whole thing idempotent.
+ * Write a source's labels, assuming ownership has already been established.
  *
- * A user write is the exception: what the user saved is the whole set, so it
- * replaces every source. A seeded label the user removed can then never be
- * resurrected by a re-seed, without needing tombstones to say "not this one".
+ * `replace` deletes exactly this source's rows first, then re-inserts, so a
+ * labeller re-run is idempotent. `extend` keeps what is there and only adds, so
+ * a second sweep can never shrink a set it did not fully re-derive.
+ *
+ * A user write is the exception: what the user saved is the whole set, so in
+ * replace mode it replaces every source. A seeded label the user removed can
+ * then never be resurrected by a re-seed, without needing tombstones.
+ *
+ * The per-food cap is hard: labels that do not fit next to what already exists
+ * are reported back as `dropped` rather than silently pushing older rows out.
  */
 const writeLabels = async (
 	db: DB,
@@ -52,21 +61,36 @@ const writeLabels = async (
 	foodId: string,
 	normalized: string[],
 	source: LabelSource,
-	confidence?: number | null
-) =>
+	confidence?: number | null,
+	mode: LabelWriteMode = 'replace'
+): Promise<LabelWriteOutcome> =>
 	db.transaction(async (tx) => {
-		await tx
-			.delete(foodLabels)
-			.where(
-				and(
-					eq(foodLabels.userId, userId),
-					eq(foodLabels.foodId, foodId),
-					source === 'user' ? undefined : eq(foodLabels.source, source)
-				)
-			);
-		if (normalized.length === 0) return;
+		if (mode === 'replace') {
+			await tx
+				.delete(foodLabels)
+				.where(
+					and(
+						eq(foodLabels.userId, userId),
+						eq(foodLabels.foodId, foodId),
+						source === 'user' ? undefined : eq(foodLabels.source, source)
+					)
+				);
+		}
 
-		const values = normalized.map((label) => ({
+		const existingRows = await tx
+			.select({ label: foodLabels.label })
+			.from(foodLabels)
+			.where(eq(foodLabels.foodId, foodId));
+		const existing = new Set(existingRows.map((row) => row.label));
+
+		const fresh = normalized.filter((label) => !existing.has(label));
+		const room = Math.max(0, MAX_LABELS_PER_FOOD - existing.size);
+		const inserted = fresh.slice(0, room);
+		const dropped = fresh.slice(room);
+		// A row already held by another source wins, except that an explicit user
+		// write promotes it — "user outranks everything" cuts both ways.
+		const promoted = source === 'user' ? normalized.filter((label) => existing.has(label)) : [];
+		const values = [...inserted, ...promoted].map((label) => ({
 			foodId,
 			userId,
 			label,
@@ -74,16 +98,39 @@ const writeLabels = async (
 			confidence: confidence ?? null
 		}));
 
-		const insert = tx.insert(foodLabels).values(values);
-		// A row already held by another source wins, except that an explicit user
-		// write promotes it — "user outranks everything" cuts both ways.
-		await (source === 'user'
-			? insert.onConflictDoUpdate({
-					target: [foodLabels.foodId, foodLabels.label],
-					set: { source: 'user', confidence: confidence ?? null, updatedAt: new Date() }
-				})
-			: insert.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] }));
+		if (values.length > 0) {
+			const insert = tx.insert(foodLabels).values(values);
+			await (source === 'user'
+				? insert.onConflictDoUpdate({
+						target: [foodLabels.foodId, foodLabels.label],
+						set: { source: 'user', confidence: confidence ?? null, updatedAt: new Date() }
+					})
+				: insert.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] }));
+		}
+
+		return { labels: [...existing, ...inserted].sort(), dropped };
 	});
+
+/**
+ * A user's label edit is an edit of the food as far as every other device is
+ * concerned, so it moves the food's last-write-wins clock. Returns false when a
+ * newer edit already landed and this one lost.
+ */
+const stampFood = async (
+	db: DB,
+	userId: string,
+	foodId: string,
+	clientEditedAt: Date | null | undefined
+): Promise<boolean> => {
+	const [row] = await db
+		.update(foods)
+		.set({ updatedAt: lwwStamp(clientEditedAt) })
+		.where(
+			and(eq(foods.id, foodId), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
+		)
+		.returning({ id: foods.id });
+	return Boolean(row);
+};
 
 /**
  * Seeds `catalog` labels from a product's Open Food Facts `categories_tags`.
@@ -105,11 +152,26 @@ export async function seedCatalogLabels(
 		.where(and(eq(foodLabels.foodId, foodId), eq(foodLabels.source, 'user')))
 		.limit(1);
 	if (owned) return [];
-	await db
-		.insert(foodLabels)
-		.values(labels.map((label) => ({ foodId, userId, label, source: 'catalog' as const })))
-		.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] });
-	return labels;
+	const before = new Set(
+		(
+			await db
+				.select({ label: foodLabels.label })
+				.from(foodLabels)
+				.where(eq(foodLabels.foodId, foodId))
+		).map((row) => row.label)
+	);
+	const { labels: after } = await writeLabels(
+		db,
+		userId,
+		foodId,
+		labels,
+		'catalog',
+		null,
+		'extend'
+	);
+	const stored = new Set(after);
+	// Seed order, not sorted: callers merge this into the array the client caches.
+	return labels.filter((label) => !before.has(label) && stored.has(label));
 }
 
 export type FoodLabelRow = {
@@ -133,36 +195,66 @@ export async function getFoodLabels(userId: string, foodId: string): Promise<Foo
 		.orderBy(foodLabels.label);
 }
 
+export type SetFoodLabelsOptions = {
+	confidence?: number | null;
+	mode?: LabelWriteMode;
+	/** Only meaningful for a `user` write: the device's edit time for LWW. */
+	clientEditedAt?: Date | null;
+};
+
+export type SetFoodLabelsResult =
+	({ status: 'ok' } & LabelWriteOutcome) | { status: 'not_found' } | { status: 'conflict' };
+
 /**
- * Replace-by-source: a write for `source` replaces exactly that source's rows and
- * leaves the others alone, so re-running a labeller is idempotent and a machine
- * source can never delete what the user asserted by hand.
+ * Replace-by-source (or extend): a write for `source` touches exactly that
+ * source's rows and leaves the others alone, so re-running a labeller is
+ * idempotent and a machine source can never delete what the user asserted by
+ * hand. A user write with a client edit time is LWW-guarded against the food.
  */
 export async function setFoodLabels(
 	userId: string,
 	foodId: string,
 	labels: string[],
 	source: LabelSource,
-	confidence?: number | null
-): Promise<string[] | null> {
+	options: SetFoodLabelsOptions = {}
+): Promise<SetFoodLabelsResult> {
 	const db = getDB();
 	const owned = await ownedFoodIds(db, userId, [foodId]);
-	if (!owned.has(foodId)) return null;
+	if (!owned.has(foodId)) return { status: 'not_found' };
+
+	if (source === 'user') {
+		const won = await stampFood(db, userId, foodId, options.clientEditedAt);
+		if (!won) return { status: 'conflict' };
+	}
 
 	const normalized = normalizeLabels(labels);
-	await writeLabels(db, userId, foodId, normalized, source, confidence);
-	return normalized;
+	const outcome = await writeLabels(
+		db,
+		userId,
+		foodId,
+		normalized,
+		source,
+		options.confidence,
+		options.mode
+	);
+	return { status: 'ok', ...outcome };
 }
 
 export type BatchLabelItem = { foodId: string; labels: string[] };
-export type BatchLabelResult = { foodId: string; ok: boolean; labels?: string[]; error?: string };
+export type BatchLabelResult = {
+	foodId: string;
+	ok: boolean;
+	labels?: string[];
+	dropped?: string[];
+	error?: string;
+};
 
 /** Per-item results so one unknown id does not fail a whole labelling sweep. */
 export async function setFoodLabelsBatch(
 	userId: string,
 	items: BatchLabelItem[],
 	source: LabelSource,
-	confidence?: number | null
+	options: Omit<SetFoodLabelsOptions, 'clientEditedAt'> = {}
 ): Promise<BatchLabelResult[]> {
 	const db = getDB();
 	// One ownership query for the whole batch rather than one per item — this is
@@ -180,11 +272,25 @@ export async function setFoodLabelsBatch(
 			continue;
 		}
 		try {
-			const labels = normalizeLabels(item.labels);
+			if (source === 'user') await stampFood(db, userId, item.foodId, null);
+			const normalized = normalizeLabels(item.labels);
 			// Per item, not one transaction for the batch: a single bad row must not
 			// roll back the work that already succeeded.
-			await writeLabels(db, userId, item.foodId, labels, source, confidence);
-			results.push({ foodId: item.foodId, ok: true, labels });
+			const { labels, dropped } = await writeLabels(
+				db,
+				userId,
+				item.foodId,
+				normalized,
+				source,
+				options.confidence,
+				options.mode
+			);
+			results.push({
+				foodId: item.foodId,
+				ok: true,
+				labels,
+				...(dropped.length ? { dropped } : {})
+			});
 		} catch (error) {
 			results.push({
 				foodId: item.foodId,
@@ -194,4 +300,21 @@ export async function setFoodLabelsBatch(
 		}
 	}
 	return results;
+}
+
+export type LabelStat = { label: string; count: number };
+
+/**
+ * The user's label vocabulary with how many foods carry each one. This is what
+ * lets a labeller stay consistent ("bread", not "loaf") and is the seed of a
+ * labels-as-edges food graph.
+ */
+export async function listLabelStats(userId: string): Promise<LabelStat[]> {
+	const db = getDB();
+	return db
+		.select({ label: foodLabels.label, count: count() })
+		.from(foodLabels)
+		.where(eq(foodLabels.userId, userId))
+		.groupBy(foodLabels.label)
+		.orderBy(desc(count()), foodLabels.label);
 }

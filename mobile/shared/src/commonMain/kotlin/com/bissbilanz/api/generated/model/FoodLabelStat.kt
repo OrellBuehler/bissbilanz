@@ -22,11 +22,11 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param labels
- * @param dropped
+ * @param label
+ * @param count
  */
 @Serializable
-data class FoodLabelsSetResponse(
-    @SerialName(value = "labels") @Required val labels: kotlin.collections.List<kotlin.String>,
-    @SerialName(value = "dropped") @Required val dropped: kotlin.collections.List<kotlin.String>,
+data class FoodLabelStat(
+    @SerialName(value = "label") @Required val label: kotlin.String,
+    @SerialName(value = "count") @Required val count: kotlin.Int,
 )
