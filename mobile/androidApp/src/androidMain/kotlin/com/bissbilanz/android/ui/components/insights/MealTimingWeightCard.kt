@@ -22,9 +22,9 @@ import kotlin.math.roundToInt
 @Composable
 fun MealTimingWeightCard(summary: MealTimingSummary?) {
     CollapsibleCard(title = stringResource(R.string.insights_meal_timing_title), sectionId = "meal_timing_weight") {
-        if (summary == null) {
+        if (summary == null || summary.dailyWindows.isEmpty()) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_timed_food_entries),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

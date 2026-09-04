@@ -27,7 +27,7 @@ fun AdaptiveTDEECard(result: TDEEResult) {
     CollapsibleCard(title = stringResource(R.string.insights_tdee_title), sectionId = "adaptive_tdee") {
         if (result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_tdee_data),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

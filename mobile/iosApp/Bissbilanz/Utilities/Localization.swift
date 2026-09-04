@@ -2640,6 +2640,10 @@ enum L10n {
         localized("insights_no_recent_weight_entries", en: "No recent weight entries", de: "Keine kürzlichen Gewichtseinträge")
     }
 
+    static var insightsNeedsTimedFoodEntries: String {
+        localized("insights_needs_timed_food_entries", en: "Needs food entries with a time of day.", de: "Braucht Mahlzeiten inklusive Uhrzeit.")
+    }
+
     static var insightsNotEnoughData: String {
         localized("insights_not_enough_data", en: "Not enough data yet.", de: "Noch nicht genug Daten.")
     }

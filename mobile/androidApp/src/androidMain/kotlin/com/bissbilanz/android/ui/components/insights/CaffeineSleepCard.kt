@@ -27,7 +27,7 @@ fun CaffeineSleepCard(result: CaffeineSleepResult?) {
     CollapsibleCard(title = stringResource(R.string.insights_caffeine_sleep_title), sectionId = "caffeine_sleep") {
         if (result == null || result.confidence == ConfidenceLevel.INSUFFICIENT) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_caffeine_nights_7),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

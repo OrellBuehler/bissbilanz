@@ -25,9 +25,9 @@ import kotlin.math.roundToInt
 @Composable
 fun PreSleepWindowCard(summary: MealTimingSummary?) {
     CollapsibleCard(title = stringResource(R.string.insights_pre_sleep_window_title), sectionId = "pre_sleep_window") {
-        if (summary == null) {
+        if (summary == null || summary.dailyWindows.isEmpty()) {
             Text(
-                stringResource(R.string.insights_not_enough_data),
+                stringResource(R.string.insights_needs_timed_food_entries),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
