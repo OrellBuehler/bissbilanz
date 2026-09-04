@@ -194,6 +194,12 @@ describe('food labels', () => {
 	it('a user write moves the food clock and honours last-write-wins', async () => {
 		const { setFoodLabels } = await import('$lib/server/food-labels');
 		const db = getTestDB(dbUrl);
+		// The row was inserted "now"; put its clock in the past so the test's edit
+		// times are unambiguous rather than racing the wall clock.
+		await db
+			.update(foods)
+			.set({ updatedAt: new Date('2026-09-01T08:00:00Z') })
+			.where(eq(foods.id, foodId));
 		const t1 = new Date('2026-09-01T10:00:00Z');
 		const t0 = new Date('2026-09-01T09:00:00Z');
 		expect(
