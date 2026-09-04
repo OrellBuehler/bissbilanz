@@ -98,6 +98,18 @@ describe('MCP prompts', () => {
 		expect(text).toContain('limit=25');
 	});
 
+	test('label_foods widens the sweep to thinly labelled foods with minLabels', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({
+			name: 'label_foods',
+			arguments: { minLabels: '5', limit: '10' }
+		});
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('fewer than 5 labels');
+		expect(text).toContain('minLabels=5 and limit=10');
+		expect(text).toContain('list_labels');
+	});
+
 	test('mealType completes from the default meal types', async () => {
 		const client = await connect();
 		const result = await client.complete({

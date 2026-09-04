@@ -54,7 +54,7 @@ tool follows — dates as `YYYY-MM-DD` in your timezone (omit for "today"), capi
 types (`Breakfast`, `Lunch`, `Dinner`, `Snacks`), search-before-create, amounts in servings,
 supplement logging semantics. Clients pass these to the model once.
 
-### Tools (67)
+### Tools (68)
 
 | Area               | Tools                                                                                                                                                                                                                        |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ supplement logging semantics. Clients pass these to the model once.
 | Analytics          | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                                                                             |
 | Nutrition planning | `get_nutrient_gaps`, `find_nutrient_sources`, `get_eating_patterns`, `get_meal_plan_context` — micronutrient shortfalls against IOM references, the foods that close them, eating habits, and one bundle for building a plan |
 | AI task queue      | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos (up to five per task) and descriptions queued from the mobile apps for an agent to process                                               |
-| Food labels        | `list_unlabeled_foods`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                                                                         |
+| Food labels        | `list_unlabeled_foods`, `list_labels`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                                                          |
 
 Every tool carries `readOnlyHint`/`destructiveHint`/`idempotentHint` annotations and a
 display `title`. Results are returned as a JSON text block plus `structuredContent`; tools
@@ -88,7 +88,7 @@ with a stable object contract (`get_daily_status`, `log_food`, `delete_entry`,
 | `log_meal`      | `description`, `mealType?`, `date?` | Free-text meal → search / create / `log_food` → summary with remaining budget      |
 | `daily_review`  | `date?`                             | Totals vs goals, gaps, untaken supplements, one or two foods to close the gap      |
 | `weekly_review` | `endDate?`                          | Seven-day averages, consistency, weight trend, top foods, one change for next week |
-| `label_foods`   | `limit?`                            | Sweep the food database and label every unlabelled food (see below)                |
+| `label_foods`   | `limit?`, `minLabels?`              | Sweep the food database and label every unlabelled or thinly labelled food         |
 | `meal_plan`     | `startDate?`, `days?`, `focus?`     | Context → gaps → sources → a multi-day plan built around existing habits           |
 
 Claude Desktop and Claude Code surface these as slash commands (`/bissbilanz:log_meal …`).
@@ -112,7 +112,11 @@ barcoded goods only — fresh produce and home-cooked food need the labeller bel
 
 The server ships the socket, not the labeller: run `label_foods` from any client with an
 LLM subscription and it pages `list_unlabeled_foods`, applies the contract above, and
-writes back with `set_food_labels_batch` until the database is labelled. The same thing is
+writes back with `set_food_labels_batch` until the database is labelled. Pass
+`minLabels` (to the prompt or the tool) to also revisit foods carrying fewer than that
+many labels — `list_unlabeled_foods` returns what each food already has, and the batch
+write extends by default, so a second sweep adds rather than repeats. `list_labels` shows
+the vocabulary in use with per-label food counts, so a sweep stays consistent. The same thing is
 reachable over REST (`GET /api/foods?minLabels=n` for foods carrying fewer than `n`
 labels, `PUT /api/foods/{id}/labels`, `POST /api/foods/labels`, and
 `GET /api/foods/labels` for the vocabulary with per-label food counts) for a local

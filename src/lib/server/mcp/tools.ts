@@ -67,6 +67,7 @@ export const toolNames = [
 	'get_calendar_stats',
 	// Food labels
 	'list_unlabeled_foods',
+	'list_labels',
 	'set_food_labels',
 	'set_food_labels_batch',
 	// AI task queue

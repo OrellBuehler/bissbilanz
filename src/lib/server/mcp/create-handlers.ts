@@ -106,7 +106,7 @@ import type {
 	updateAiTask,
 	dismissAiTaskByAgent
 } from '$lib/server/ai-tasks';
-import type { setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
+import type { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import { isZodError } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
@@ -126,6 +126,7 @@ export type HandlerDeps = {
 	// Food labels
 	setFoodLabels: typeof setFoodLabels;
 	setFoodLabelsBatch: typeof setFoodLabelsBatch;
+	listLabelStats: typeof listLabelStats;
 	// Recipes
 	createRecipe: typeof createRecipe;
 	updateRecipe: typeof updateRecipe;
@@ -1608,11 +1609,11 @@ export function createHandlers(d: HandlerDeps) {
 	// the ingredient list — enough to decide that "Chiquita Banane" is a banana.
 	const handleListUnlabeledFoods = async (
 		userId: string,
-		args: { limit?: number; offset?: number }
+		args: { minLabels?: number; limit?: number; offset?: number }
 	) => {
 		try {
 			const { items, total } = await d.listFoods(userId, {
-				unlabeled: true,
+				minLabels: args.minLabels ?? 1,
 				limit: args.limit ?? 50,
 				offset: args.offset
 			});
@@ -1622,7 +1623,8 @@ export function createHandlers(d: HandlerDeps) {
 					id: food.id,
 					name: food.name,
 					brand: food.brand,
-					ingredientsText: food.ingredientsText?.slice(0, 200) ?? null
+					ingredientsText: food.ingredientsText?.slice(0, 200) ?? null,
+					labels: food.labels
 				}))
 			};
 		} catch (e) {
@@ -1646,13 +1648,26 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleSetFoodLabelsBatch = async (
 		userId: string,
-		args: { items: Array<{ foodId: string; labels: string[] }> }
+		args: { items: Array<{ foodId: string; labels: string[] }>; mode?: 'replace' | 'extend' }
 	) => {
 		try {
-			const results = await d.setFoodLabelsBatch(userId, args.items, 'llm');
+			// Extend by default: a sweep that only sees thinly labelled foods must
+			// add to them, and a re-run can then never shrink a set.
+			const results = await d.setFoodLabelsBatch(userId, args.items, 'llm', {
+				mode: args.mode ?? 'extend'
+			});
 			return { results, labeled: results.filter((r) => r.ok).length };
 		} catch (e) {
 			wrapError('set food labels batch', e);
+		}
+	};
+
+	const handleListLabels = async (userId: string) => {
+		try {
+			const labels = await d.listLabelStats(userId);
+			return { total: labels.length, labels };
+		} catch (e) {
+			wrapError('list labels', e);
 		}
 	};
 
@@ -1718,6 +1733,7 @@ export function createHandlers(d: HandlerDeps) {
 		handleDeleteDayProperties,
 		handleGetCalendarStats,
 		handleListUnlabeledFoods,
+		handleListLabels,
 		handleSetFoodLabels,
 		handleSetFoodLabelsBatch,
 		handleListAiTasks,

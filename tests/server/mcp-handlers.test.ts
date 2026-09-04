@@ -263,16 +263,27 @@ const mockDeps = {
 		mockSetLabelCalls.push({ userId, foodId, labels, source });
 		return mockLabelFoodMissing ? { status: 'not_found' } : { status: 'ok', labels, dropped: [] };
 	},
-	setFoodLabelsBatch: async (userId: string, items: any[], source: string) => {
+	setFoodLabelsBatch: async (userId: string, items: any[], source: string, options: any) => {
 		for (const item of items) {
-			mockSetLabelCalls.push({ userId, foodId: item.foodId, labels: item.labels, source });
+			mockSetLabelCalls.push({
+				userId,
+				foodId: item.foodId,
+				labels: item.labels,
+				source,
+				...options
+			});
 		}
 		return items.map((item, i) => ({ foodId: item.foodId, ok: i === 0, labels: item.labels }));
-	}
+	},
+	listLabelStats: async () => [
+		{ label: 'fruit', count: 2 },
+		{ label: 'banana', count: 1 }
+	]
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
 	handleListUnlabeledFoods,
+	handleListLabels,
 	handleSetFoodLabels,
 	handleSetFoodLabelsBatch,
 	handleSearchFoods,
@@ -2058,11 +2069,33 @@ describe('food label handlers', () => {
 		];
 		const result: any = await handleListUnlabeledFoods(TEST_USER.id, { limit: 10, offset: 5 });
 
-		expect(mockListFoodsArgs).toMatchObject({ unlabeled: true, limit: 10, offset: 5 });
+		expect(mockListFoodsArgs).toMatchObject({ minLabels: 1, limit: 10, offset: 5 });
 		expect(result.total).toBe(1);
 		// Only what the model needs to identify the food — not the full nutrition row.
-		expect(Object.keys(result.foods[0]).sort()).toEqual(['brand', 'id', 'ingredientsText', 'name']);
+		expect(Object.keys(result.foods[0]).sort()).toEqual([
+			'brand',
+			'id',
+			'ingredientsText',
+			'labels',
+			'name'
+		]);
 		expect(result.foods[0].ingredientsText).toHaveLength(200);
+	});
+
+	test('list_unlabeled_foods passes a minLabels threshold through', async () => {
+		await handleListUnlabeledFoods(TEST_USER.id, { minLabels: 5 });
+		expect(mockListFoodsArgs).toMatchObject({ minLabels: 5 });
+	});
+
+	test('list_labels returns the vocabulary with counts', async () => {
+		const result: any = await handleListLabels(TEST_USER.id);
+		expect(result).toEqual({
+			total: 2,
+			labels: [
+				{ label: 'fruit', count: 2 },
+				{ label: 'banana', count: 1 }
+			]
+		});
 	});
 
 	test('list_unlabeled_foods defaults to a page of 50', async () => {
@@ -2105,5 +2138,17 @@ describe('food label handlers', () => {
 		expect(mockSetLabelCalls.every((c) => c.source === 'llm')).toBe(true);
 		expect(result.labeled).toBe(1);
 		expect(result.results).toHaveLength(2);
+	});
+
+	test('set_food_labels_batch extends by default and honours an explicit replace', async () => {
+		await handleSetFoodLabelsBatch(TEST_USER.id, {
+			items: [{ foodId: TEST_FOOD.id, labels: ['a'] }]
+		});
+		expect(mockSetLabelCalls[0]).toMatchObject({ mode: 'extend' });
+		await handleSetFoodLabelsBatch(TEST_USER.id, {
+			items: [{ foodId: TEST_FOOD.id, labels: ['a'] }],
+			mode: 'replace'
+		});
+		expect(mockSetLabelCalls[1]).toMatchObject({ mode: 'replace' });
 	});
 });

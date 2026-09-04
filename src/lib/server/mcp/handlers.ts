@@ -77,7 +77,7 @@ import {
 	getNutrientCandidates,
 	getBiologicalSex
 } from '$lib/server/nutrient-insights';
-import { setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
+import { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import { listMealTypes } from '$lib/server/meal-types';
 import {
 	getDayProperties,
@@ -153,6 +153,7 @@ export const {
 	handleDeleteDayProperties,
 	handleGetCalendarStats,
 	handleListUnlabeledFoods,
+	handleListLabels,
 	handleSetFoodLabels,
 	handleSetFoodLabelsBatch,
 	handleListAiTasks,
@@ -168,6 +169,7 @@ export const {
 	findFoodByBarcode,
 	listRecentFoods,
 	setFoodLabels,
+	listLabelStats,
 	setFoodLabelsBatch,
 	createRecipe,
 	updateRecipe,

@@ -122,11 +122,11 @@ Then:
 > and 89 / 160 g protein for the day.
 
 Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,
-`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 56 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
+`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 57 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
 
-An agent can also label the food database — `list_unlabeled_foods` plus `set_food_labels`
-gives every food the plain English noun a camera would call it, which is how the phone
-matches a food from a camera frame.
+An agent can also label the food database — `list_unlabeled_foods` plus `set_food_labels_batch`
+gives every food the plain English nouns a camera would call it. Labels are a search tier
+everywhere (`bread` finds `Vollkornbrot`) and how the phone matches a food from a camera frame.
 
 ## Tech stack
 
