@@ -54,7 +54,8 @@ async function create(entry: {
 		method: 'POST',
 		url: '/api/weight',
 		body: entry,
-		affectedTable: 'weightEntries'
+		affectedTable: 'weightEntries',
+		affectedId: tempId
 	});
 }
 

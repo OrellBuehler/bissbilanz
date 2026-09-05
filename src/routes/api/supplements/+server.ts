@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listSupplements, createSupplement } from '$lib/server/supplements';
 import { handleApiError, requireAuth, unwrapResult, parseJsonBody } from '$lib/server/errors';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -18,7 +19,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
-		const supplement = unwrapResult(await createSupplement(userId, body));
+		const supplement = unwrapResult(
+			await createSupplement(userId, body, readClientEditedAt(request))
+		);
 		return json({ supplement }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);
