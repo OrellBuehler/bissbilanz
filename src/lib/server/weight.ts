@@ -9,12 +9,14 @@ import { weightMovingAverage } from '$lib/analytics/moving-average';
 
 export const createWeightEntry = (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof weightEntries.$inferSelect>> =>
 	withValidation(weightCreateSchema, payload, async (data) => {
 		try {
 			const db = getDB();
 			const now = new Date();
+			const stamp = lwwStamp(clientEditedAt);
 			const [created] = await db
 				.insert(weightEntries)
 				.values({
@@ -22,7 +24,8 @@ export const createWeightEntry = (
 					weightKg: data.weightKg,
 					entryDate: data.entryDate,
 					loggedAt: now,
-					notes: data.notes ?? null
+					notes: data.notes ?? null,
+					updatedAt: stamp
 				})
 				.onConflictDoUpdate({
 					target: [weightEntries.userId, weightEntries.entryDate],
@@ -30,7 +33,7 @@ export const createWeightEntry = (
 						weightKg: data.weightKg,
 						loggedAt: now,
 						notes: data.notes ?? null,
-						updatedAt: now
+						updatedAt: stamp
 					}
 				})
 				.returning();

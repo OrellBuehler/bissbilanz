@@ -169,12 +169,16 @@ export const listFoods = async (
 export const createFood = (
 	userId: string,
 	payload: unknown,
-	dbOverride?: ReturnType<typeof getDB>
+	dbOverride?: ReturnType<typeof getDB>,
+	clientEditedAt?: Date | null
 ): Promise<Result<FoodWithLabels>> =>
 	withValidation(foodCreateSchema, payload, async (data) => {
 		try {
 			const db = dbOverride ?? getDB();
-			const [created] = await db.insert(foods).values(toFoodInsert(userId, data)).returning();
+			const [created] = await db
+				.insert(foods)
+				.values({ ...toFoodInsert(userId, data), updatedAt: lwwStamp(clientEditedAt) })
+				.returning();
 			if (!created) {
 				throw new Error('Failed to create food');
 			}

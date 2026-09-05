@@ -1,7 +1,8 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/stores/offline-queue', () => ({
-	enqueue: vi.fn()
+	enqueue: vi.fn(),
+	pendingIdsFor: vi.fn(async () => new Set<string>())
 }));
 
 import { withOfflineFallback } from '../../src/lib/services/base';

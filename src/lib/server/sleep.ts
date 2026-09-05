@@ -8,7 +8,8 @@ import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 export const createSleepEntry = (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof sleepEntries.$inferSelect>> =>
 	withValidation(sleepCreateSchema, payload, async (data) => {
 		const db = getDB();
@@ -24,7 +25,8 @@ export const createSleepEntry = (
 				wakeTime: data.wakeTime ? new Date(data.wakeTime) : null,
 				wakeUps: data.wakeUps ?? null,
 				notes: data.notes ?? null,
-				loggedAt: now
+				loggedAt: now,
+				updatedAt: lwwStamp(clientEditedAt)
 			})
 			.returning();
 

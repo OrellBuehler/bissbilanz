@@ -226,7 +226,7 @@ describe('idempotency (withIdempotency)', () => {
 		expect(second.headers.get('x-idempotent-replay')).not.toBe('true');
 	});
 
-	it('answers 409 while an earlier attempt is genuinely still in flight', async () => {
+	it('answers a retryable 503 while an earlier attempt is genuinely still in flight', async () => {
 		const { withIdempotency } = await import('$lib/server/sync/idempotency');
 		const db = getTestDB(dbUrl);
 
@@ -245,7 +245,8 @@ describe('idempotency (withIdempotency)', () => {
 			'key-inflight'
 		);
 
-		expect(response.status).toBe(409);
+		expect(response.status).toBe(503);
+		expect(response.headers.get('retry-after')).toBe('2');
 		expect(await response.json()).toEqual({ error: 'request_in_progress' });
 	});
 

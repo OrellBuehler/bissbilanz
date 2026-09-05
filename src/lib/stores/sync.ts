@@ -6,9 +6,13 @@ import {
 	markFailed,
 	countFailed,
 	scheduleRetry,
-	nextRetryAt
+	nextRetryAt,
+	remapQueuedIds,
+	rewriteIds,
+	type QueuedRequest
 } from '$lib/stores/offline-queue';
 import { db } from '$lib/db';
+import { extractCreatedId, remapLocalId } from '$lib/sync/temp-ids';
 import {
 	setSyncing,
 	setPendingCount,
@@ -67,7 +71,7 @@ export async function syncQueue(): Promise<number> {
 		queuedCount = queued.length;
 		setPendingCount(queued.length);
 
-		for (const req of queued) {
+		for (const [index, req] of queued.entries()) {
 			try {
 				// All queued bodies are JSON-stringified strings (FormData is excluded
 				// from queuing — see apiFetch), so application/json is always correct.
@@ -93,6 +97,9 @@ export async function syncQueue(): Promise<number> {
 					synced++;
 				} else if (response.ok) {
 					// Success (including idempotent replays of an already-applied write).
+					if (req.method === 'POST' && req.affectedId && req.affectedTable) {
+						await adoptServerId(req, queued.slice(index + 1), response);
+					}
 					await removeFromQueue(req.id!);
 					trackAffected(req);
 					synced++;
@@ -112,33 +119,16 @@ export async function syncQueue(): Promise<number> {
 					addSyncError('Session expired. Please log in again to sync pending changes.');
 					break;
 				} else if (response.status >= 400 && response.status < 500) {
+					// Client errors (400, 409 duplicate/validation, 422, …) are unrecoverable
+					// as-is. Park them so the user can retry or discard.
 					const data = await response.json().catch(() => ({}));
 					const reason = (data as Record<string, string>).error ?? `HTTP ${response.status}`;
-
-					// An in-flight idempotency claim is explicitly retryable: the server is
-					// telling us an earlier attempt with this key hasn't finished yet. Dead-
-					// lettering it here would discard a write the server may still apply.
-					if (response.status === 409 && reason === 'request_in_progress') {
-						const count = (req.retryCount ?? 0) + 1;
-						if (count >= MAX_RETRIES) {
-							await markFailed(req.id!, `${reason} after ${MAX_RETRIES} retries`);
-							synced++;
-							addSyncError(
-								`Gave up syncing ${req.method} ${req.url} after ${MAX_RETRIES} retries (still in progress).`
-							);
-						} else {
-							await scheduleRetry(req.id!, count, Date.now() + backoffDelay(count));
-							break;
-						}
-					} else {
-						// Other client errors (400, real 409 duplicate/validation, 422, …) are
-						// unrecoverable as-is. Park them so the user can retry or discard.
-						await markFailed(req.id!, reason);
-						synced++;
-						addSyncError(`Failed to sync ${req.method} ${req.url}: ${reason}`);
-					}
+					await markFailed(req.id!, reason);
+					synced++;
+					addSyncError(`Failed to sync ${req.method} ${req.url}: ${reason}`);
 				} else {
-					// Server error (5xx) — transient; retry with exponential backoff.
+					// Server error (5xx, incl. 503 request_in_progress for an idempotency
+					// claim still in flight) — transient; retry with exponential backoff.
 					const count = (req.retryCount ?? 0) + 1;
 					if (count >= MAX_RETRIES) {
 						await markFailed(req.id!, `HTTP ${response.status} after ${MAX_RETRIES} retries`);
@@ -206,6 +196,25 @@ export async function syncQueue(): Promise<number> {
 	}
 
 	return synced;
+}
+
+/**
+ * An offline create was sent under a client-generated id. Once the server
+ * answers with the real one, move the local row and repoint every queued
+ * write that still names the temp id — both in Dexie and in the rest of this
+ * drain batch, which was read before the remap.
+ */
+async function adoptServerId(
+	req: { affectedTable?: string; affectedId?: string },
+	rest: QueuedRequest[],
+	response: Response
+): Promise<void> {
+	const tempId = req.affectedId!;
+	const serverId = extractCreatedId(await response.json().catch(() => null));
+	if (!serverId || serverId === tempId) return;
+	await remapLocalId(req.affectedTable!, tempId, serverId);
+	await remapQueuedIds(tempId, serverId);
+	for (const item of rest) rewriteIds(item, tempId, serverId);
 }
 
 /** Arm a single timer to re-drain when the next backed-off item becomes due. */

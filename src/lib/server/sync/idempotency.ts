@@ -16,10 +16,9 @@ const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
  *
  * A claim row is written before the handler runs and cleared on 5xx/throw, but a
  * process death (deploy, restart, OOM) between those two points strands it with a
- * NULL status forever. Without this window every retry would answer 409
- * `request_in_progress` until the 7-day prune, and the client — which cannot
- * distinguish that from a permanent client error — would dead-letter the user's
- * write. Longer than any real request, short enough that a retry recovers fast.
+ * NULL status forever. Without this window every retry would answer
+ * `request_in_progress` until the 7-day prune. Longer than any real request,
+ * short enough that a retry recovers fast.
  */
 const CLAIM_STALE_MS = 60_000;
 
@@ -47,7 +46,11 @@ function replayResponse(statusCode: number, body: string | null): Response {
  *    original response verbatim.
  *  - Same key, different (method, path): 422 — the key was reused for a different
  *    logical mutation, and replaying another endpoint's body would be a lie.
- *  - In flight: a fresh claim exists → 409 so the client backs off and retries.
+ *  - In flight: a fresh claim exists → 503 + Retry-After so the client backs off
+ *    and retries. 503 rather than 409 because every client (web, Android, iOS)
+ *    already treats 5xx as "retry with backoff" while a header-less 409 is a
+ *    validation conflict they dead-letter — a client-side timeout followed by a
+ *    retry inside the claim window would then permanently drop the write.
  *    A claim older than {@link CLAIM_STALE_MS} is treated as abandoned and taken
  *    over instead, so a crashed request can never strand the write.
  */
@@ -117,7 +120,10 @@ export async function withIdempotency(
 			.returning({ userId: idempotencyKeys.userId });
 
 		if (reclaimed.length === 0) {
-			return json({ error: 'request_in_progress' }, { status: 409 });
+			return json(
+				{ error: 'request_in_progress' },
+				{ status: 503, headers: { 'retry-after': '2' } }
+			);
 		}
 	}
 

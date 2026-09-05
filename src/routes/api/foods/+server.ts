@@ -10,6 +10,7 @@ import {
 	validationError,
 	parseJsonBody
 } from '$lib/server/errors';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -58,7 +59,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
-		const food = unwrapResult(await createFood(userId, body));
+		const food = unwrapResult(
+			await createFood(userId, body, undefined, readClientEditedAt(request))
+		);
 		return json({ food }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);

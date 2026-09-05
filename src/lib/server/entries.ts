@@ -90,7 +90,8 @@ export const listEntriesByDate = async (
 
 export const createEntry = async (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof foodEntries.$inferSelect>> => {
 	const result = entryCreateSchema.safeParse(payload);
 	if (!result.success) {
@@ -126,7 +127,11 @@ export const createEntry = async (
 				quickFat: result.data.quickFat ?? null,
 				quickFiber: result.data.quickFiber ?? null,
 				quickNutrients: normalizeQuickNutrients(result.data.quickNutrients),
-				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date()
+				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date(),
+				// Seed the LWW clock from the client's edit time, not the arrival time:
+				// an offline create drained after an offline edit of the same row would
+				// otherwise out-date that edit and reject it as "server newer".
+				updatedAt: lwwStamp(clientEditedAt)
 			})
 			.returning();
 		if (!created) {

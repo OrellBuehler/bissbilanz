@@ -9,6 +9,7 @@ import {
 	validationError,
 	parseJsonBody
 } from '$lib/server/errors';
+import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -43,7 +44,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
 
-		const entry = unwrapResult(await createEntry(userId, body));
+		const entry = unwrapResult(await createEntry(userId, body, readClientEditedAt(request)));
 		return json({ entry }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);

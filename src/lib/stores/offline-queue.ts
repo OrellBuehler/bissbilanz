@@ -49,14 +49,55 @@ export const DRAIN_BATCH_SIZE = 50;
 export async function drainQueue(): Promise<QueuedRequest[]> {
 	if (!browser) return [];
 	const now = Date.now();
-	return (
-		db.syncQueue
-			.orderBy('createdAt')
-			// Skip dead-lettered items and anything still inside its backoff window.
-			.filter((item) => !item.failedAt && (item.nextAttemptAt ?? 0) <= now)
-			.limit(DRAIN_BATCH_SIZE)
-			.toArray()
-	);
+	const batch: QueuedRequest[] = [];
+	// Strict FIFO: stop at the first live item still inside its backoff window
+	// instead of skipping past it. Later items may depend on it (an edit or delete
+	// of a row whose create is the one backing off), and overtaking it would send
+	// the dependent first — a 404 that reads as "deleted on another device".
+	// Dead-lettered items are skipped: the user has already been told about them.
+	await db.syncQueue
+		.orderBy('createdAt')
+		.filter((item) => !item.failedAt)
+		.until((item) => (item.nextAttemptAt ?? 0) > now || batch.length >= DRAIN_BATCH_SIZE)
+		.each((item) => {
+			batch.push(item);
+		});
+	return batch;
+}
+
+/**
+ * Rewrite every live queued item that still references a client-generated id
+ * after the server assigned the real one to the created row: the URL path
+ * segment, the `affectedId`, and any id embedded in the JSON body (a food
+ * entry's `foodId`, a recipe ingredient's `foodId`, …). Ids are UUIDs, so a
+ * plain substring replace in the serialized body cannot hit anything else.
+ */
+export async function remapQueuedIds(tempId: string, serverId: string): Promise<void> {
+	if (!browser || tempId === serverId) return;
+	await db.syncQueue
+		.filter((item) => !item.failedAt)
+		.modify((item) => {
+			rewriteIds(item, tempId, serverId);
+		});
+}
+
+/** In-place id rewrite of one queued item (shared by the Dexie modify and the in-memory drain batch). */
+export function rewriteIds(item: QueuedRequest, tempId: string, serverId: string): void {
+	if (item.affectedId === tempId) item.affectedId = serverId;
+	if (item.url.includes(tempId)) item.url = item.url.replaceAll(tempId, serverId);
+	if (item.body.includes(tempId)) item.body = item.body.replaceAll(tempId, serverId);
+}
+
+/** Ids of rows in `affectedTable` with a live (not dead-lettered) queued write. */
+export async function pendingIdsFor(affectedTable: string): Promise<Set<string>> {
+	const ids = new Set<string>();
+	if (!browser) return ids;
+	await db.syncQueue
+		.filter((q) => q.affectedTable === affectedTable && !q.failedAt && !!q.affectedId)
+		.each((q) => {
+			ids.add(q.affectedId!);
+		});
+	return ids;
 }
 
 /** Persist an exponential-backoff retry: bump the count and gate re-attempts. */

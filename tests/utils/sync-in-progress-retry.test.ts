@@ -55,14 +55,14 @@ describe('sync handling of an in-flight idempotency claim', () => {
 		vi.unstubAllGlobals();
 	});
 
-	// The server answers 409 request_in_progress to mean "an earlier attempt with
-	// this key hasn't finished — back off and retry". Treating it as a generic 4xx
-	// dead-lettered the item permanently and lost the user's write.
+	// The server answers 503 request_in_progress to mean "an earlier attempt with
+	// this key hasn't finished — back off and retry". It must not be dead-lettered
+	// like a client error, or the user's write is lost.
 	test('keeps the item queued and schedules a retry instead of dead-lettering', async () => {
 		await enqueue('POST', '/api/entries', { a: 1 });
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(async () => jsonResponse(409, { error: 'request_in_progress' }))
+			vi.fn(async () => jsonResponse(503, { error: 'request_in_progress' }))
 		);
 
 		await syncQueue();
@@ -87,7 +87,7 @@ describe('sync handling of an in-flight idempotency claim', () => {
 		expect(await drainQueue()).toHaveLength(0);
 	});
 
-	test('a duplicate 409 that is not request_in_progress is still dead-lettered', async () => {
+	test('a 409 duplicate/validation conflict is dead-lettered', async () => {
 		await enqueue('POST', '/api/foods', { a: 1 });
 		vi.stubGlobal(
 			'fetch',

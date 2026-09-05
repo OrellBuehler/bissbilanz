@@ -212,7 +212,8 @@ export const getSupplementById = async (
 
 export const createSupplement = (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<SupplementWithIngredients>> =>
 	withValidation(supplementCreateSchema, payload, async (parsed) => {
 		const db = getDB();
@@ -231,7 +232,8 @@ export const createSupplement = (
 					isActive: data.isActive ?? true,
 					sortOrder: data.sortOrder ?? 0,
 					timeOfDay: data.timeOfDay ?? null,
-					reminderTimes: data.reminderTimes ?? null
+					reminderTimes: data.reminderTimes ?? null,
+					updatedAt: lwwStamp(clientEditedAt)
 				})
 				.returning();
 

@@ -71,7 +71,8 @@ async function create(entry: CreateSleepEntry): Promise<void> {
 		method: 'POST',
 		url: '/api/sleep',
 		body: entry,
-		affectedTable: 'sleepEntries'
+		affectedTable: 'sleepEntries',
+		affectedId: tempId
 	});
 }
 

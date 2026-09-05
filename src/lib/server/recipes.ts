@@ -70,12 +70,16 @@ export const listRecipes = async (
 
 export const createRecipe = (
 	userId: string,
-	payload: unknown
+	payload: unknown,
+	clientEditedAt?: Date | null
 ): Promise<Result<typeof recipes.$inferSelect>> =>
 	withValidation(recipeCreateSchema, payload, async (data) => {
 		const db = getDB();
 		return db.transaction(async (tx) => {
-			const [created] = await tx.insert(recipes).values(toRecipeInsert(userId, data)).returning();
+			const [created] = await tx
+				.insert(recipes)
+				.values({ ...toRecipeInsert(userId, data), updatedAt: lwwStamp(clientEditedAt) })
+				.returning();
 
 			if (!created) {
 				throw new Error('Failed to create recipe');
