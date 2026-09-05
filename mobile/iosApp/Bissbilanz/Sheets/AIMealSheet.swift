@@ -15,6 +15,7 @@ private let maxAiTaskPhotos = 5
 struct AIMealSheet: View {
     @Environment(MealEstimator.self) private var mealEstimator
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AiTaskStore.self) private var aiTaskStore
     @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
@@ -24,6 +25,10 @@ struct AIMealSheet: View {
 
     @State private var description = ""
     @State private var mealType: String
+    // Off means "when I sent it": the server stamps its own clock on a task
+    // for today and leaves a back-dated one to the assistant.
+    @State private var setsTime = false
+    @State private var eatenTime = Date()
     @State private var isEstimating = false
     @State private var errorMessage: String?
     @State private var estimate: MealEstimate?
@@ -54,6 +59,16 @@ struct AIMealSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    if !appMode.isLocal {
+                        Toggle(L10n.aiTaskSetTime, isOn: $setsTime)
+                        if setsTime {
+                            DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                        }
+                    }
+                } footer: {
+                    if !appMode.isLocal {
+                        Text(L10n.aiTaskTimeHint)
+                    }
                 }
 
                 Section(L10n.aiMealWhatDidYouEat) {
@@ -168,7 +183,7 @@ struct AIMealSheet: View {
     @ViewBuilder
     private var sendToAssistantButton: some View {
         let button = Button {
-            Task { await sendToAssistant() }
+            sendToAssistant()
         } label: {
             HStack {
                 Spacer()
@@ -300,35 +315,33 @@ struct AIMealSheet: View {
         pendingTaskCount = try? await api.listAiTasks(status: "pending", limit: 1).total
     }
 
-    private func sendToAssistant() async {
-        isSendingToAssistant = true
-        errorMessage = nil
-        do {
-            var parts: [(data: Data, filename: String)] = []
-            for (index, image) in attachedImages.enumerated() {
-                if let data = image.downscaledJPEGData(maxDimension: 1600, quality: 0.8) {
-                    parts.append((data: data, filename: "meal_\(index).jpg"))
-                }
-            }
-            let photoUrls = parts.isEmpty ? nil : try await api.uploadAiTaskPhotos(parts)
-            let task = AiTaskCreate(
-                description: trimmedDescription.isEmpty ? nil : trimmedDescription,
-                photoUrls: photoUrls,
-                date: date,
-                mealType: mealType,
-                source: "ios"
-            )
-            _ = try await api.createAiTask(task, idempotencyKey: UUID().uuidString)
-            isSendingToAssistant = false
-            onQueued()
-            dismiss()
-        } catch let error as APIError {
-            isSendingToAssistant = false
-            errorMessage = error.localizedDescription
-        } catch {
-            isSendingToAssistant = false
-            errorMessage = error.localizedDescription
-        }
+    /// Hands the meal to `AiTaskStore`, which encodes and uploads it in the
+    /// background — the sheet closes at once instead of holding the user (and the
+    /// request) hostage to the uplink.
+    private func sendToAssistant() {
+        aiTaskStore.enqueue(AiTaskUploadDraft(
+            description: trimmedDescription.isEmpty ? nil : trimmedDescription,
+            images: attachedImages,
+            date: date,
+            mealType: mealType,
+            eatenAt: setsTime ? eatenAtString() : nil
+        ))
+        onQueued()
+        dismiss()
+    }
+
+    /// The picked time-of-day on the task's day as the UTC ISO-8601 wire value,
+    /// mirroring `EntryEditSheet.eatenAtString()`.
+    private func eatenAtString() -> String? {
+        guard let day = DateFormatting.date(from: date) else { return nil }
+        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
+        guard let combined = Calendar.current.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: day
+        ) else { return nil }
+        return DateFormatting.isoDateTimeString(from: combined)
     }
 
     private static func mealForCurrentTime() -> String {

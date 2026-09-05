@@ -52,12 +52,12 @@ fun decodeUprightBitmap(
 
 /**
  * JPEG bytes with the longest side capped at [maxDimension], matching what iOS
- * uploads for AI tasks — a full-resolution capture is needlessly large for a
- * photo the assistant only has to recognise a meal in.
+ * uploads for AI tasks. The defaults equal what the server keeps (it downsizes
+ * every AI task photo to 1024px), so sending more only costs upload time.
  */
 fun Bitmap.toJpegBytes(
-    maxDimension: Int = 1600,
-    quality: Int = 80,
+    maxDimension: Int = 1024,
+    quality: Int = 75,
 ): ByteArray {
     val longest = maxOf(width, height)
     val scaled =

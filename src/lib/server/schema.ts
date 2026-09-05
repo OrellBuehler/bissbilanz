@@ -632,6 +632,10 @@ export const aiTasks = pgTable(
 		photoUrls: text('photo_urls').array(),
 		date: date('date').notNull(),
 		mealType: text('meal_type'),
+		// When the meal was eaten. Set by the client, else by the server to the
+		// creation time when the task is for today; null on a back-dated task
+		// without a time, where the agent picks a plausible clock time.
+		eatenAt: timestamp('eaten_at', { withTimezone: true }),
 		source: text('source'),
 		resultSummary: text('result_summary'),
 		// Informational only — deliberately no FK, so a later entry deletion

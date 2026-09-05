@@ -13,6 +13,9 @@ struct AiTask: Codable, Identifiable, Hashable {
     let photoUrls: [String]
     let date: String
     let mealType: String?
+    /// When the meal was eaten. Null on a back-dated task queued without a
+    /// time, where the assistant picks one.
+    let eatenAt: String?
     let source: String?
     let resultSummary: String?
     let createdEntryIds: [String]?
@@ -38,6 +41,7 @@ struct AiTaskUpdate: Codable {
     var description: String?
     var date: String?
     var mealType: String?
+    var eatenAt: String?
     var acknowledged: Bool?
 }
 
@@ -56,6 +60,7 @@ struct AiTaskCreate: Codable {
     var photoUrls: [String]?
     let date: String
     var mealType: String?
+    var eatenAt: String?
     var source: String?
 }
 

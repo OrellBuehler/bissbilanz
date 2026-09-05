@@ -995,6 +995,7 @@
 	"ai_tasks_photo_limit": "Höchstens {count} Fotos pro Aufgabe",
 	"ai_tasks_photos_only": "{count} Fotos, keine Beschreibung",
 	"ai_tasks_capture_date_label": "Datum",
+	"ai_tasks_capture_time_label": "Uhrzeit",
 	"ai_tasks_capture_meal_label": "Mahlzeit",
 	"ai_tasks_capture_meal_placeholder": "Keine bestimmte Mahlzeit",
 	"ai_tasks_capture_hint": "Dein KI-Assistent übernimmt das, sobald du das nächste Mal über MCP mit ihm chattest.",

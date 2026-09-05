@@ -7,7 +7,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
-	import { formatDateLabel } from '$lib/utils/dates';
+	import { formatDateLabel, formatTime } from '$lib/utils/dates';
 	import type { AiTask } from '$lib/services/ai-task-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 
@@ -51,7 +51,9 @@
 
 		<div class="min-w-0 flex-1 space-y-1.5">
 			<div class="flex flex-wrap items-center gap-1.5">
-				<Badge variant="outline">{formatDateLabel(task.date)}</Badge>
+				<Badge variant="outline">
+					{formatDateLabel(task.date)}{task.eatenAt ? ` · ${formatTime(task.eatenAt)}` : ''}
+				</Badge>
 				{#if task.mealType}
 					<Badge variant="outline">{task.mealType}</Badge>
 				{/if}

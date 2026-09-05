@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.*
@@ -29,16 +30,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
-import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 /** Mirrors MAX_AI_TASK_PHOTOS on the server. */
 private const val MAX_AI_TASK_PHOTOS = 5
@@ -57,7 +60,6 @@ fun AiMealSheet(
     onDismiss: () -> Unit,
     onQueued: () -> Unit,
 ) {
-    val api: BissbilanzApi = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -66,6 +68,11 @@ fun AiMealSheet(
     var description by remember { mutableStateOf("") }
     var mealType by remember { mutableStateOf(mealTypes.first()) }
     var mealMenuOpen by remember { mutableStateOf(false) }
+    // Unset means "when I sent it": the server stamps its own clock on a task
+    // for today and leaves a back-dated one to the assistant.
+    var eatenHour by remember { mutableStateOf<Int?>(null) }
+    var eatenMinute by remember { mutableStateOf<Int?>(null) }
+    var showTimePicker by remember { mutableStateOf(false) }
     val attached = remember { mutableStateListOf<Bitmap>() }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
@@ -101,6 +108,35 @@ fun AiMealSheet(
         }
 
     val canSend = description.isNotBlank() || attached.isNotEmpty()
+
+    if (showTimePicker) {
+        val nowLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val timeState =
+            rememberTimePickerState(
+                initialHour = eatenHour ?: nowLocal.hour,
+                initialMinute = eatenMinute ?: nowLocal.minute,
+            )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        eatenHour = timeState.hour
+                        eatenMinute = timeState.minute
+                        showTimePicker = false
+                    },
+                ) { Text(stringResource(R.string.dialog_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timeState)
+                }
+            },
+        )
+    }
 
     // Swiping the sheet away mid-send would cancel the upload with it, since the
     // send runs in this composable's scope — hold it open until the task is queued.
@@ -153,6 +189,33 @@ fun AiMealSheet(
                     }
                 }
             }
+
+            Text(stringResource(R.string.ai_task_time_label), style = MaterialTheme.typography.labelLarge)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(formatTimeOfDay(eatenHour, eatenMinute))
+                }
+                if (eatenHour != null) {
+                    IconButton(
+                        onClick = {
+                            eatenHour = null
+                            eatenMinute = null
+                        },
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ai_task_clear_time))
+                    }
+                }
+            }
+            Text(
+                stringResource(R.string.ai_task_time_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             OutlinedTextField(
                 value = description,
@@ -243,29 +306,20 @@ fun AiMealSheet(
                         errorMessage = null
                         scope.launch {
                             try {
-                                // Upload first: the task is only worth creating
-                                // once its photos have URLs to point at.
-                                val photoUrls =
-                                    if (attached.isEmpty()) {
-                                        null
-                                    } else {
-                                        val parts =
-                                            withContext(Dispatchers.IO) {
-                                                attached.mapIndexed { index, image ->
-                                                    "meal_$index.jpg" to image.toJpegBytes()
-                                                }
-                                            }
-                                        api.uploadAiTaskPhotos(parts)
-                                    }
-                                api.createAiTask(
-                                    AiTaskCreate(
+                                // Only the encoding happens here; the upload itself is
+                                // WorkManager's, so closing the sheet or the app does
+                                // not lose the meal.
+                                withContext(Dispatchers.IO) {
+                                    val bytes = attached.map { it.toJpegBytes() }
+                                    AiTaskUploadWorker.enqueue(
+                                        context = context,
                                         date = date,
                                         description = description.trim().ifBlank { null },
-                                        photoUrls = photoUrls,
                                         mealType = mealType,
-                                        source = AiTaskCreate.Source.android,
-                                    ),
-                                )
+                                        eatenAt = buildEatenAt(date, eatenHour, eatenMinute),
+                                        photos = bytes,
+                                    )
+                                }
                                 isSending = false
                                 onQueued()
                             } catch (e: Exception) {

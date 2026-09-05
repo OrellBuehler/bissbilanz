@@ -2273,6 +2273,38 @@ enum L10n {
         localized("ai_task_send_button", en: "Send to My Assistant", de: "An meinen Assistenten senden")
     }
 
+    static var aiTaskSetTime: String {
+        localized("ai_task_set_time", en: "Set time", de: "Uhrzeit festlegen")
+    }
+
+    static var aiTaskTimeHint: String {
+        localized(
+            "ai_task_time_hint",
+            en: "Off means the time you send it.",
+            de: "Aus bedeutet: der Sendezeitpunkt."
+        )
+    }
+
+    static var aiTaskUploadSending: String {
+        localized("ai_task_upload_sending", en: "Sending to your assistant…", de: "Wird an deinen Assistenten gesendet…")
+    }
+
+    static var aiTaskUploadFailedTitle: String {
+        localized(
+            "ai_task_upload_failed_title",
+            en: "Could not send meal to your assistant",
+            de: "Mahlzeit konnte nicht an den Assistenten gesendet werden"
+        )
+    }
+
+    static var aiTaskUploadFailedBody: String {
+        localized(
+            "ai_task_upload_failed_body",
+            en: "Check your connection and send it again from AI Tasks.",
+            de: "Prüfe deine Verbindung und sende sie unter KI-Aufgaben erneut."
+        )
+    }
+
     static var aiTaskSending: String {
         localized("ai_task_sending", en: "Sending...", de: "Wird gesendet...")
     }

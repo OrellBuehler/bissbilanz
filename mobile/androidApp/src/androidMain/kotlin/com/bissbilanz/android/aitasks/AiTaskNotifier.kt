@@ -29,6 +29,7 @@ object AiTaskNotifier {
 
     /** Clear of FastingNotifier's 4201 and the supplement summary's 4300. */
     private const val SUMMARY_NOTIFICATION_ID = 4400
+    private const val UPLOAD_FAILED_NOTIFICATION_ID = 4401
 
     /**
      * Returns whether the notifications were actually posted. Callers must not record
@@ -74,6 +75,35 @@ object AiTaskNotifier {
     }
 
     fun notificationId(taskId: String): Int = taskId.hashCode() and 0x0FFF_FFFF
+
+    /**
+     * The meal never reached the server after every retry. Unlike a dismissal there
+     * is no task to open, but the list is still the place to send it again from.
+     */
+    @SuppressLint("MissingPermission")
+    fun showUploadFailed(
+        context: Context,
+        description: String?,
+    ): Boolean {
+        if (!hasPermission(context)) return false
+        ensureChannel(context)
+        val body =
+            description?.takeIf { it.isNotBlank() }
+                ?: context.getString(R.string.ai_tasks_upload_failed_body)
+        val notification =
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_ai_task)
+                .setContentTitle(context.getString(R.string.ai_tasks_upload_failed_title))
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_ERROR)
+                .setContentIntent(openAiTasksIntent(context, UPLOAD_FAILED_NOTIFICATION_ID))
+                .build()
+        NotificationManagerCompat.from(context).notify(UPLOAD_FAILED_NOTIFICATION_ID, notification)
+        return true
+    }
 
     private fun summaryNotification(context: Context) =
         NotificationCompat

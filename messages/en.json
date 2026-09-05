@@ -995,6 +995,7 @@
 	"ai_tasks_photo_limit": "At most {count} photos per task",
 	"ai_tasks_photos_only": "{count} photos, no description",
 	"ai_tasks_capture_date_label": "Date",
+	"ai_tasks_capture_time_label": "Time",
 	"ai_tasks_capture_meal_label": "Meal",
 	"ai_tasks_capture_meal_placeholder": "No specific meal",
 	"ai_tasks_capture_hint": "Your AI assistant will pick this up next time you chat with it via MCP.",
