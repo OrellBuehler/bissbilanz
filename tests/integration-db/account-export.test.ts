@@ -146,6 +146,7 @@ describe('buildAccountExport (integration)', () => {
 			'README.txt',
 			'bissbilanz.json',
 			'csv/day-properties.csv',
+			'csv/fasting-sessions.csv',
 			'csv/food-entries.csv',
 			'csv/foods.csv',
 			'csv/goals.csv',
