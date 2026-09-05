@@ -124,6 +124,21 @@ final class BissbilanzAPI {
         return response.foods.first
     }
 
+    /// Replaces the user's labels for a food. The source defaults to `user`
+    /// server-side, which makes the write authoritative over anything a
+    /// labeller seeded. A 409 means a newer edit already won last-write-wins.
+    func setFoodLabels(
+        id: String,
+        labels: [String],
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> FoodLabelsSetResponse {
+        try await put(
+            "/api/foods/\(id)/labels", body: ["labels": labels],
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+    }
+
     func toggleFavorite(
         foodId: String,
         isFavorite: Bool,

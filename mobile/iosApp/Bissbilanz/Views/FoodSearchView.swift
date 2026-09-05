@@ -222,9 +222,9 @@ struct FoodSearchView: View {
     /// The shared search field filters the Recent/Favorites lists too — typing
     /// here narrows whichever tab is showing, not just the Search tab.
     private func matches(_ food: Food) -> Bool {
-        query.isEmpty
-            || food.name.localizedCaseInsensitiveContains(query)
-            || (food.brand?.localizedCaseInsensitiveContains(query) ?? false)
+        if query.isEmpty || food.name.localizedCaseInsensitiveContains(query) { return true }
+        if let label = LabelNormalizer.normalize(query), food.labels?.contains(label) == true { return true }
+        return food.brand?.localizedCaseInsensitiveContains(query) ?? false
     }
 
     private var recentTab: some View {

@@ -275,6 +275,69 @@ struct RepositoryTests {
         #expect(harness.syncManager.queuedRows().count == 1)
     }
 
+    @Test("Local search matches English labels, ranked after names and before brands")
+    func localSearchMatchesLabels() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        func insert(_ id: String, _ name: String, brand: String? = nil, labels: [String]) throws {
+            var food = try FoodRepository.makeFood(from: FoodCreate(
+                name: name, brand: brand, servingSize: 100, servingUnit: .g,
+                calories: 1, protein: 0, carbs: 0, fat: 0, fiber: 0
+            ), id: id)
+            food = try JSONPatch.merged(Food.self, base: food, patch: ["labels": labels])
+            harness.context.insert(LocalFood(food: food))
+        }
+        try insert("f-brot", "Vollkornbrot", labels: ["bread", "sliced bread"])
+        try insert("f-toast", "Toastbrot", labels: [])
+        try insert("f-spread", "Aufstrich", brand: "Bread & Co", labels: [])
+        try insert("f-banana", "Banane", labels: ["banana", "fruit"])
+        try harness.context.save()
+
+        #expect(repo.searchLocal("bread").map(\.id) == ["f-brot", "f-spread"])
+        // Plural and case fold through the same normalizer as the stored label.
+        #expect(repo.searchLocal("Breads").map(\.id) == ["f-brot"])
+        #expect(repo.searchLocal("brot").map(\.id) == ["f-toast", "f-brot"])
+        #expect(repo.searchLocal("fruit").map(\.id) == ["f-banana"])
+    }
+
+    @Test("Setting labels updates the row optimistically and queues the PUT")
+    func setLabelsQueuesWrite() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stub("PUT", "/api/foods/f-1/labels", json: #"{"labels": ["banana", "fruit"], "dropped": []}"#)
+        let food = try FoodRepository.makeFood(from: FoodCreate(
+            name: "Banane", servingSize: 100, servingUnit: .g,
+            calories: 89, protein: 1, carbs: 23, fat: 0, fiber: 2
+        ), id: "f-1")
+        harness.context.insert(LocalFood(food: food))
+        try harness.context.save()
+
+        let updated = try await repo.setLabels(id: "f-1", labels: ["Bananas", "FRUIT", "bananas"])
+        #expect(updated.labels == ["banana", "fruit"])
+        #expect(repo.searchLocal("banana").map(\.id) == ["f-1"])
+        #expect(harness.syncManager.queuedRows().count == 1)
+
+        let drained = await harness.syncManager.drainPendingQueue()
+        #expect(drained == 1)
+        #expect(harness.recordedRequests == ["PUT /api/foods/f-1/labels"])
+        #expect(harness.syncManager.errors.isEmpty)
+    }
+
+    @Test("A queued label write follows its food to the server id")
+    func setLabelsRemapsTempId() {
+        let op = SyncOperation.setFoodLabels(id: "temp-1", labels: ["banana"])
+        let remapped = op.remappingReferences(from: "temp-1", to: "srv-1")
+        guard case let .setFoodLabels(id, labels)? = remapped else {
+            Issue.record("expected a remapped setFoodLabels")
+            return
+        }
+        #expect(id == "srv-1")
+        #expect(labels == ["banana"])
+        #expect(op.remappingReferences(from: "other", to: "x") == nil)
+        #expect(op.affectedTable == "foods")
+        #expect(op.affectedId == "temp-1")
+    }
+
     @Test("Updating a temp food rewrites the queued create body")
     func foodUpdateCoalescesIntoQueuedCreate() async throws {
         let harness = try RepositoryHarness()
