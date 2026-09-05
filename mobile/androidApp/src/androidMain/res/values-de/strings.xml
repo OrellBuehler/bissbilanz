@@ -194,6 +194,10 @@
     <string name="ai_tasks_notification_title">KI-Aufgabe verworfen</string>
     <string name="ai_tasks_notification_body_fallback">Dein Assistent konnte diese Mahlzeit nicht erfassen.</string>
     <string name="ai_tasks_notification_summary">Verworfene KI-Aufgaben</string>
+    <string name="ai_tasks_upload_failed_title">Mahlzeit konnte nicht an den Assistenten gesendet werden</string>
+    <string name="ai_tasks_upload_failed_body">Prüfe deine Verbindung und sende sie erneut.</string>
+    <string name="ai_tasks_uploading_one">1 Mahlzeit wird an deinen Assistenten gesendet…</string>
+    <string name="ai_tasks_uploading_many">%1$d Mahlzeiten werden an deinen Assistenten gesendet…</string>
 
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>

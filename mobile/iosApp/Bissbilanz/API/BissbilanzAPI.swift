@@ -907,6 +907,8 @@ final class BissbilanzAPI {
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue(baseURL, forHTTPHeaderField: "Origin")
+        // Several photos over a weak cellular uplink outlast the default 60s.
+        request.timeoutInterval = 120
         request.httpBody = Self.multipartBody(
             boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts
         )

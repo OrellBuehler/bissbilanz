@@ -30,11 +30,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
-import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,7 +60,6 @@ fun AiMealSheet(
     onDismiss: () -> Unit,
     onQueued: () -> Unit,
 ) {
-    val api: BissbilanzApi = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -308,30 +306,20 @@ fun AiMealSheet(
                         errorMessage = null
                         scope.launch {
                             try {
-                                // Upload first: the task is only worth creating
-                                // once its photos have URLs to point at.
-                                val photoUrls =
-                                    if (attached.isEmpty()) {
-                                        null
-                                    } else {
-                                        val parts =
-                                            withContext(Dispatchers.IO) {
-                                                attached.mapIndexed { index, image ->
-                                                    "meal_$index.jpg" to image.toJpegBytes()
-                                                }
-                                            }
-                                        api.uploadAiTaskPhotos(parts)
-                                    }
-                                api.createAiTask(
-                                    AiTaskCreate(
+                                // Only the encoding happens here; the upload itself is
+                                // WorkManager's, so closing the sheet or the app does
+                                // not lose the meal.
+                                withContext(Dispatchers.IO) {
+                                    val bytes = attached.map { it.toJpegBytes() }
+                                    AiTaskUploadWorker.enqueue(
+                                        context = context,
                                         date = date,
                                         description = description.trim().ifBlank { null },
-                                        photoUrls = photoUrls,
                                         mealType = mealType,
                                         eatenAt = buildEatenAt(date, eatenHour, eatenMinute),
-                                        source = AiTaskCreate.Source.android,
-                                    ),
-                                )
+                                        photos = bytes,
+                                    )
+                                }
                                 isSending = false
                                 onQueued()
                             } catch (e: Exception) {

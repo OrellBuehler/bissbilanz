@@ -1156,7 +1156,11 @@ class BissbilanzApi(
                             )
                         }
                     },
-            ) { header(HttpHeaders.Origin, baseUrl) }
+            ) {
+                header(HttpHeaders.Origin, baseUrl)
+                // Several photos over a weak cellular uplink outlast the default 30s.
+                timeout { requestTimeoutMillis = 120_000 }
+            }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST /api/ai-tasks/photo failed: HTTP ${response.status.value} ${response.bodyAsText()}",

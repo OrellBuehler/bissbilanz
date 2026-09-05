@@ -45,6 +45,10 @@ struct AiTasksView: View {
         store.tasks.filter { $0.status == selectedFilter.status }
     }
 
+    private var visibleUploads: [PendingAiTaskUpload] {
+        selectedFilter == .open ? store.pendingUploads : []
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedFilter) {
@@ -62,22 +66,34 @@ struct AiTasksView: View {
                     LoadingView()
                 } else if let error {
                     ErrorView(error: error) { Task { await load() } }
-                } else if visibleTasks.isEmpty {
+                } else if visibleTasks.isEmpty, visibleUploads.isEmpty {
                     ContentUnavailableView(
                         L10n.aiTasks,
                         systemImage: "sparkles",
                         description: Text(selectedFilter.emptyMessage)
                     )
                 } else {
-                    List(visibleTasks) { task in
-                        AiTaskRow(task: task)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task { await delete(task) }
-                                } label: {
-                                    Label(L10n.delete, systemImage: "trash")
+                    List {
+                        ForEach(visibleUploads) { upload in
+                            PendingUploadRow(upload: upload)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        store.discardUpload(id: upload.id)
+                                    } label: {
+                                        Label(L10n.discard, systemImage: "trash")
+                                    }
                                 }
-                            }
+                        }
+                        ForEach(visibleTasks) { task in
+                            AiTaskRow(task: task)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task { await delete(task) }
+                                    } label: {
+                                        Label(L10n.delete, systemImage: "trash")
+                                    }
+                                }
+                        }
                     }
                     .listStyle(.plain)
                 }
@@ -123,6 +139,50 @@ struct AiTasksView: View {
             if store.tasks.isEmpty { self.error = error }
         }
         isLoading = false
+    }
+}
+
+/// A meal still on its way to the server, or one that never got there and can be
+/// sent again without re-entering anything.
+private struct PendingUploadRow: View {
+    @Environment(AiTaskStore.self) private var store
+    let upload: PendingAiTaskUpload
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                switch upload.state {
+                case .sending:
+                    ProgressView().controlSize(.small)
+                    Text(L10n.aiTaskUploadSending)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .failed:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(L10n.aiTaskUploadFailedTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(
+                upload.draft.description ?? (
+                    upload.draft.images.count > 1
+                        ? L10n.aiTasksPhotosOnly(upload.draft.images.count)
+                        : L10n.aiTasksPhotoOnly
+                )
+            )
+            .font(.body)
+            if case let .failed(message) = upload.state {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button(L10n.retry) { store.retryUpload(id: upload.id) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

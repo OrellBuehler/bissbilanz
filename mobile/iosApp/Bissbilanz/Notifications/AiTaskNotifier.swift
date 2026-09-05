@@ -80,6 +80,24 @@ enum AiTaskNotifier {
         store(notified, knownIds: Set(tasks.map(\.id)))
     }
 
+    /// The meal never reached the server after every retry. Fires only when the
+    /// user is not looking at the app — in the foreground the list shows the
+    /// failed upload itself.
+    static func notifyUploadFailed(description: String?) async {
+        guard await SupplementReminderScheduler.authorizationStatus() == .authorized else { return }
+        let content = UNMutableNotificationContent()
+        content.title = L10n.aiTaskUploadFailedTitle
+        content.body = description.flatMap { $0.isEmpty ? nil : $0 } ?? L10n.aiTaskUploadFailedBody
+        content.sound = .default
+        content.categoryIdentifier = categoryIdentifier
+        let request = UNNotificationRequest(
+            identifier: "\(identifierPrefix)upload-failed-\(UUID().uuidString)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
     private static func prune(knownIds: Set<String>) {
         store(storedNotifiedIds(), knownIds: knownIds)
     }
