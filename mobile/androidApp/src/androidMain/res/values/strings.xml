@@ -149,6 +149,16 @@
     <string name="fasting_notification_channel">Fasting</string>
     <string name="fasting_notification_channel_desc">Shows the elapsed time while a fast is running.</string>
     <string name="fasting_card_start">Start a fast</string>
+    <string name="fasting_started_at">Started at</string>
+    <string name="fasting_start_now">Now</string>
+    <string name="fasting_adjust_start">Adjust start</string>
+    <string name="fasting_edit_fast">Edit fast</string>
+    <string name="fasting_ended">Ended</string>
+    <string name="fasting_target">Target</string>
+    <string name="fasting_save">Save</string>
+    <string name="fasting_today">Today</string>
+    <string name="fasting_yesterday">Yesterday</string>
+    <string name="fasting_history_hint">Tap a fast to edit or delete it.</string>
 
     <!-- AI meal task -->
     <string name="ai_task_title">Send to assistant</string>

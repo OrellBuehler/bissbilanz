@@ -1093,6 +1093,16 @@ enum L10n {
                 en: "Cleared fasting day",
                 de: "Fastentag entfernt"
             )
+        case "upsert_fast": localized(
+                "sync_upsert_fast",
+                en: "Saved fast",
+                de: "Fasten gespeichert"
+            )
+        case "delete_fast": localized(
+                "sync_delete_fast",
+                en: "Deleted fast",
+                de: "Fasten gelöscht"
+            )
         case "update_preferences": localized(
                 "sync_update_preferences",
                 en: "Updated settings",
@@ -1690,8 +1700,48 @@ enum L10n {
     static var fastingHistoryHint: String {
         localized(
             "fasting_history_hint",
-            en: "Touch and hold an entry to delete it",
-            de: "Eintrag zum Löschen gedrückt halten"
+            en: "Tap a fast to edit or delete it",
+            de: "Tippe auf ein Fasten, um es zu bearbeiten oder zu löschen"
+        )
+    }
+
+    static var fastingStartedAt: String {
+        localized("fasting_started_at", en: "Started at", de: "Gestartet um")
+    }
+
+    static var fastingStartNow: String {
+        localized("fasting_start_now", en: "Now", de: "Jetzt")
+    }
+
+    static var fastingAdjustStart: String {
+        localized("fasting_adjust_start", en: "Adjust Start", de: "Start anpassen")
+    }
+
+    static var fastingAdjustStartHint: String {
+        localized(
+            "fasting_adjust_start_hint",
+            en: "Forgot to start the timer? Move the start back and the timer, Lock Screen and history all count from there.",
+            de: "Timer vergessen? Verschiebe den Start nach hinten – Timer, Sperrbildschirm und Verlauf zählen dann ab dort."
+        )
+    }
+
+    static var fastingEditFast: String {
+        localized("fasting_edit_fast", en: "Edit Fast", de: "Fasten bearbeiten")
+    }
+
+    static var fastingEnded: String {
+        localized("fasting_ended", en: "Ended", de: "Beendet")
+    }
+
+    static var fastingTarget: String {
+        localized("fasting_target", en: "Target", de: "Ziel")
+    }
+
+    static var fastingInvalidRange: String {
+        localized(
+            "fasting_invalid_range",
+            en: "The end must be after the start",
+            de: "Das Ende muss nach dem Start liegen"
         )
     }
 

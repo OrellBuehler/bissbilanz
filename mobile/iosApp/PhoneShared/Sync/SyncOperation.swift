@@ -34,6 +34,10 @@ enum SyncOperation: Codable {
     case unlogSupplement(supplementId: String, date: String)
     case setDayProperties(date: String, isFastingDay: Bool)
     case deleteDayProperties(date: String)
+    /// Uploads a finished fast. Keyed by the client UUID (see
+    /// `FastingSession.upsertBody`), so no temp-id remap is involved.
+    case upsertFast(id: String, body: FastingSessionUpsert)
+    case deleteFast(id: String)
     case updatePreferences(body: PreferencesUpdate)
 
     /// Stable discriminator stored on the queue row (debugging/inspection).
@@ -65,6 +69,8 @@ enum SyncOperation: Codable {
         case .unlogSupplement: "unlog_supplement"
         case .setDayProperties: "set_day_properties"
         case .deleteDayProperties: "delete_day_properties"
+        case .upsertFast: "upsert_fast"
+        case .deleteFast: "delete_fast"
         case .updatePreferences: "update_preferences"
         }
     }
@@ -80,6 +86,7 @@ enum SyncOperation: Codable {
         case .createSupplement, .updateSupplement, .deleteSupplement,
              .logSupplement, .unlogSupplement: "supplements"
         case .setDayProperties, .deleteDayProperties: "day_properties"
+        case .upsertFast, .deleteFast: "fasts"
         case .updatePreferences: "preferences"
         }
     }
@@ -96,7 +103,8 @@ enum SyncOperation: Codable {
              let .updateRecipe(id, _), let .deleteRecipe(id),
              let .updateWeight(id, _), let .deleteWeight(id),
              let .updateSleep(id, _), let .deleteSleep(id),
-             let .updateSupplement(id, _), let .deleteSupplement(id):
+             let .updateSupplement(id, _), let .deleteSupplement(id),
+             let .upsertFast(id, _), let .deleteFast(id):
             id
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
             supplementId
@@ -274,6 +282,8 @@ enum SyncOperation: Codable {
         case let .unlogSupplement(id, _): "unlog supplement \(id)"
         case let .setDayProperties(date, _): "set day properties \(date)"
         case let .deleteDayProperties(date): "delete day properties \(date)"
+        case let .upsertFast(id, _): "upsert fast \(id)"
+        case let .deleteFast(id): "delete fast \(id)"
         case .updatePreferences: "update preferences"
         }
     }

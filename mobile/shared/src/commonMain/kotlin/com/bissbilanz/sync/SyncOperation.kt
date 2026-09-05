@@ -186,6 +186,32 @@ sealed class SyncOperation {
         override val description get() = "delete weight entry $id"
     }
 
+    /**
+     * Uploads a completed fast. The id is the client UUID minted when the fast
+     * started, and the server upserts on it, so edits made before the first upload
+     * drained and retried uploads both land on the same row — no temp-id remap.
+     */
+    @Serializable
+    @SerialName("upsert_fast")
+    data class UpsertFast(
+        val id: String,
+        val body: String,
+    ) : SyncOperation() {
+        override val affectedTable = "fasts"
+        override val affectedId get() = id
+        override val description get() = "upsert fast $id"
+    }
+
+    @Serializable
+    @SerialName("delete_fast")
+    data class DeleteFast(
+        val id: String,
+    ) : SyncOperation() {
+        override val affectedTable = "fasts"
+        override val affectedId get() = id
+        override val description get() = "delete fast $id"
+    }
+
     @Serializable
     @SerialName("create_supplement")
     data class CreateSupplement(

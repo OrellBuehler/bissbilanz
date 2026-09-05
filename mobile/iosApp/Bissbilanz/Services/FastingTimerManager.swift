@@ -17,11 +17,15 @@ import Observation
 @Observable
 final class FastingTimerManager {
     private(set) var session: FastingSession?
+    private(set) var history: [FastingSession] = []
     private let entryRepository: EntryRepository
+    private let syncManager: SyncManager
 
-    init(entryRepository: EntryRepository) {
+    init(entryRepository: EntryRepository, syncManager: SyncManager) {
         self.entryRepository = entryRepository
+        self.syncManager = syncManager
         session = FastingSessionStore.loadCurrent()
+        history = FastingSessionStore.loadHistory()
     }
 
     var isFasting: Bool {
@@ -32,9 +36,12 @@ final class FastingTimerManager {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
-    func start(targetHours: Int) {
+    /// Starts a fast. `startedAt` defaults to now but may lie in the past for
+    /// a fast that began before the user remembered to start the timer; a
+    /// future start is clamped to now.
+    func start(targetHours: Int, startedAt: Date = Date()) {
         guard session == nil else { return }
-        let newSession = FastingSession(startedAt: Date(), targetHours: targetHours)
+        let newSession = FastingSession(startedAt: min(startedAt, Date()), targetHours: targetHours)
         FastingSessionStore.saveCurrent(newSession)
         session = newSession
         startActivity(for: newSession)
@@ -43,6 +50,18 @@ final class FastingTimerManager {
     func changeTarget(hours: Int) async {
         guard var current = session else { return }
         current.targetHours = hours
+        await update(current)
+    }
+
+    /// Moves the running fast's start. `startDate` lives in the activity's
+    /// `ContentState`, so the Live Activity re-bases through a plain update.
+    func changeStart(_ startedAt: Date) async {
+        guard var current = session else { return }
+        current.startedAt = min(startedAt, Date())
+        await update(current)
+    }
+
+    private func update(_ current: FastingSession) async {
         FastingSessionStore.saveCurrent(current)
         session = current
         let state = contentState(for: current)
@@ -58,11 +77,35 @@ final class FastingTimerManager {
         FastingSessionStore.appendToHistory(current)
         FastingSessionStore.clearCurrent()
         session = nil
+        history = FastingSessionStore.loadHistory()
         await endAllActivities()
+        upload(current)
         try? await entryRepository.setDayProperties(
             date: DateFormatting.isoString(from: endDate),
             isFastingDay: true
         )
+    }
+
+    /// Rewrites a finished fast's start, end or target. Ignored unless the
+    /// range is still valid.
+    func updateHistory(_ session: FastingSession) {
+        guard let endedAt = session.endedAt, endedAt > session.startedAt else { return }
+        FastingSessionStore.updateInHistory(session)
+        history = FastingSessionStore.loadHistory()
+        upload(session)
+    }
+
+    func deleteHistory(id: UUID) {
+        FastingSessionStore.removeFromHistory(id: id)
+        history = FastingSessionStore.loadHistory()
+        syncManager.enqueue(.deleteFast(id: id.uuidString.lowercased()))
+    }
+
+    /// Finished fasts are their own synced resource so the web history can
+    /// list them; `SyncManager.enqueue` is a no-op in Local mode.
+    private func upload(_ session: FastingSession) {
+        guard let body = session.upsertBody, let id = body.id else { return }
+        syncManager.enqueue(.upsertFast(id: id, body: body))
     }
 
     /// Ends the running fast without leaving a trace — no history entry and
@@ -80,6 +123,7 @@ final class FastingTimerManager {
     /// or the system may have expired the activity mid-fast (~8h cap).
     func refresh() {
         session = FastingSessionStore.loadCurrent()
+        history = FastingSessionStore.loadHistory()
         guard let session else {
             // No running fast — sweep up any activity the intent path didn't
             // manage to end (e.g. it was force-killed mid-perform).

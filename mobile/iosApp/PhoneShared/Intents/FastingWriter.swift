@@ -11,8 +11,8 @@ import SwiftData
 /// next foreground.
 enum FastingWriter {
     /// Ends the running fast: moves it to history, clears the current-session
-    /// slot and marks the day it ended as a fasting day. Returns the ended
-    /// session, or nil when no fast was running.
+    /// slot, queues the finished fast for upload and marks the day it ended as
+    /// a fasting day. Returns the ended session, or nil when no fast was running.
     @MainActor
     @discardableResult
     static func endCurrentFast(at endDate: Date = Date()) -> FastingSession? {
@@ -20,12 +20,12 @@ enum FastingWriter {
         session.endedAt = endDate
         FastingSessionStore.appendToHistory(session)
         FastingSessionStore.clearCurrent()
-        markFastingDay(date: DateFormatting.isoString(from: endDate))
+        markFastingDay(date: DateFormatting.isoString(from: endDate), ended: session)
         return session
     }
 
     @MainActor
-    private static func markFastingDay(date: String) {
+    private static func markFastingDay(date: String, ended: FastingSession) {
         let isLocal = AppModeSnapshot.isLocal
         let container = LocalStore.extensionContainer(
             cloudKitEnabled: isLocal,
@@ -45,7 +45,11 @@ enum FastingWriter {
         }
 
         if !isLocal {
-            let seq = PendingSyncOperation.nextSeq(in: context)
+            var seq = PendingSyncOperation.nextSeq(in: context)
+            if let body = ended.upsertBody, let id = body.id {
+                context.insert(PendingSyncOperation(seq: seq, operation: .upsertFast(id: id, body: body)))
+                seq += 1
+            }
             let operation = SyncOperation.setDayProperties(date: date, isFastingDay: true)
             context.insert(PendingSyncOperation(seq: seq, operation: operation))
         }

@@ -7,6 +7,7 @@ import {
 	aiTasks,
 	customMealTypes,
 	dayProperties,
+	fastingSessions,
 	favoriteMealTimeframes,
 	foodEntries,
 	foods,
@@ -72,6 +73,7 @@ async function gatherData(userId: string) {
 		weightRows,
 		sleepRows,
 		dayPropertyRows,
+		fastingRows,
 		[goals],
 		[preferences],
 		mealTypeRows,
@@ -193,6 +195,11 @@ async function gatherData(userId: string) {
 			.from(dayProperties)
 			.where(eq(dayProperties.userId, userId))
 			.orderBy(asc(dayProperties.date)),
+		db
+			.select()
+			.from(fastingSessions)
+			.where(eq(fastingSessions.userId, userId))
+			.orderBy(asc(fastingSessions.startedAt)),
 		db.select().from(userGoals).where(eq(userGoals.userId, userId)),
 		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
 		db
@@ -220,6 +227,7 @@ async function gatherData(userId: string) {
 		weightEntries: stripUserId(weightRows),
 		sleepEntries: stripUserId(sleepRows),
 		dayProperties: stripUserId(dayPropertyRows),
+		fastingSessions: stripUserId(fastingRows),
 		goals: goals ? stripUserId([goals])[0] : null,
 		preferences: preferences ? stripUserId([preferences])[0] : null,
 		customMealTypes: stripUserId(mealTypeRows),
@@ -404,6 +412,10 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 		'csv/day-properties.csv': toCsv(
 			['date', 'is_fasting_day'],
 			data.dayProperties.map((day) => [day.date, day.isFastingDay])
+		),
+		'csv/fasting-sessions.csv': toCsv(
+			['id', 'started_at', 'ended_at', 'target_hours'],
+			data.fastingSessions.map((fast) => [fast.id, fast.startedAt, fast.endedAt, fast.targetHours])
 		),
 		'csv/meal-types.csv': toCsv(
 			['name', 'sort_order'],

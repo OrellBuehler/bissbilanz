@@ -100,6 +100,7 @@ private struct PendingSyncRow: View {
         case "create_supplement", "update_supplement", "delete_supplement",
              "log_supplement", "unlog_supplement": "pills"
         case "set_day_properties", "delete_day_properties": "calendar"
+        case "upsert_fast", "delete_fast": "timer"
         case "update_preferences": "gearshape"
         default: "arrow.triangle.2.circlepath"
         }

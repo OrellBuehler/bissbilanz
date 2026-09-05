@@ -395,6 +395,18 @@ class SyncManager(
                 api.deleteWeightEntry(op.id, idempotencyKey, clientEditedAt)
             }
 
+            is SyncOperation.UpsertFast -> {
+                api.upsertFastingSession(
+                    json.decodeFromString<FastingSessionUpsert>(op.body),
+                    idempotencyKey,
+                    clientEditedAt,
+                )
+            }
+
+            is SyncOperation.DeleteFast -> {
+                api.deleteFastingSession(op.id, idempotencyKey, clientEditedAt)
+            }
+
             is SyncOperation.CreateSupplement -> {
                 val server =
                     api.createSupplement(
@@ -480,6 +492,7 @@ class SyncManager(
             op is SyncOperation.DeleteEntry ||
             op is SyncOperation.DeleteRecipe ||
             op is SyncOperation.DeleteWeight ||
+            op is SyncOperation.DeleteFast ||
             op is SyncOperation.DeleteSupplement ||
             op is SyncOperation.DeleteSleep ||
             op is SyncOperation.DeleteDayProperties ||

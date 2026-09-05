@@ -46,8 +46,10 @@ data class FastingSession(
 /**
  * Reads and writes the running fast and the finished-fast history. Backed by
  * plain SharedPreferences rather than the SQLDelight cache: the notification's
- * End Fast receiver needs it too, and a fast is device-local state that never
- * syncs — only the resulting "fasting day" flag does.
+ * End Fast receiver needs it too, and the running fast is device-local state.
+ * Finished fasts are pushed to the server through the sync queue (see
+ * [FastingManager]) so the web history can show them; this store stays the
+ * source of truth on the device.
  */
 class FastingSessionStore(
     context: Context,
@@ -75,8 +77,21 @@ class FastingSessionStore(
         } ?: emptyList()
 
     fun appendToHistory(session: FastingSession) {
-        val history = (listOf(session) + loadHistory()).take(HISTORY_LIMIT)
-        prefs.edit().putString(KEY_HISTORY, json.encodeToString(history)).apply()
+        saveHistory(listOf(session) + loadHistory().filter { it.id != session.id })
+    }
+
+    /** Replaces the history record with the same id; re-sorts by start so an edited start keeps the list in order. */
+    fun updateInHistory(session: FastingSession) {
+        saveHistory(loadHistory().filter { it.id != session.id } + session)
+    }
+
+    fun removeFromHistory(id: String) {
+        saveHistory(loadHistory().filter { it.id != id })
+    }
+
+    private fun saveHistory(history: List<FastingSession>) {
+        val sorted = history.sortedByDescending { it.startedAtEpochMs }.take(HISTORY_LIMIT)
+        prefs.edit().putString(KEY_HISTORY, json.encodeToString(sorted)).apply()
     }
 
     companion object {

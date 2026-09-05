@@ -529,6 +529,31 @@ export const dayProperties = pgTable(
 	(table) => [primaryKey({ columns: [table.userId, table.date] })]
 );
 
+// Fasting Sessions — completed timed fasts synced up from the mobile apps.
+// The running fast stays device-local; only finished ones reach the server.
+export const fastingSessions = pgTable(
+	'fasting_sessions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+		endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+		targetHours: integer('target_hours').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_fasting_sessions_user_started').on(table.userId, table.startedAt),
+		check('fasting_sessions_range_valid', sql`${table.endedAt} > ${table.startedAt}`),
+		check(
+			'fasting_sessions_target_valid',
+			sql`${table.targetHours} >= 1 AND ${table.targetHours} <= 168`
+		)
+	]
+);
+
 // Weight Entries
 export const weightEntries = pgTable(
 	'weight_entries',
