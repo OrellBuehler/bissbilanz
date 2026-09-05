@@ -260,7 +260,7 @@ struct FastingView: View {
                     .accessibilityLabel(L10n.fastingStartNow)
                 } else {
                     Button {
-                        customStart = Date().addingTimeInterval(-3600)
+                        customStart = Date()
                     } label: {
                         Label(L10n.fastingStartNow, systemImage: "pencil")
                             .font(.subheadline)
