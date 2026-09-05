@@ -50,6 +50,24 @@ describe('aiTaskCreateSchema', () => {
 		expect(result.success).toBe(false);
 	});
 
+	test('accepts an eatenAt with a UTC offset', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			description: 'Chicken salad',
+			date: '2026-02-10',
+			eatenAt: '2026-02-10T12:30:00+01:00'
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('rejects an eatenAt without a timezone', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			description: 'Chicken salad',
+			date: '2026-02-10',
+			eatenAt: '2026-02-10T12:30:00'
+		});
+		expect(result.success).toBe(false);
+	});
+
 	test('rejects missing date', () => {
 		const result = aiTaskCreateSchema.safeParse({
 			description: 'Chicken salad'

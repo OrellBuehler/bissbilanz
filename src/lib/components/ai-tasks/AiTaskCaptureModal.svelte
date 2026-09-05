@@ -10,7 +10,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Send from '@lucide/svelte/icons/send';
-	import { today } from '$lib/utils/dates';
+	import { today, timeToIsoString } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
 	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
@@ -43,6 +43,9 @@
 
 	let description = $state('');
 	let date = $state(today());
+	// Empty means "when I queued it" (server default) for today's tasks; a
+	// back-dated task without a time leaves the clock time to the assistant.
+	let time = $state('');
 	let mealType = $state(NO_MEAL);
 	type Photo = { file: File; previewUrl: string };
 	let photos: Photo[] = $state([]);
@@ -66,6 +69,7 @@
 	const reset = () => {
 		description = '';
 		date = today();
+		time = '';
 		mealType = NO_MEAL;
 		clearPhotos();
 	};
@@ -117,7 +121,8 @@
 				description,
 				photoFiles: photos.map((p) => p.file),
 				date,
-				mealType: mealType === NO_MEAL ? undefined : mealType
+				mealType: mealType === NO_MEAL ? undefined : mealType,
+				eatenAt: timeToIsoString(time, date) ?? undefined
 			});
 			toast.success(m.ai_tasks_capture_success());
 			open = false;
@@ -201,6 +206,10 @@
 				<Input id="ai-task-date" type="date" max={today()} bind:value={date} />
 			</div>
 			<div class="grid gap-1.5">
+				<Label for="ai-task-time">{m.ai_tasks_capture_time_label()}</Label>
+				<Input id="ai-task-time" type="time" bind:value={time} />
+			</div>
+			<div class="col-span-2 grid gap-1.5">
 				<Label>{m.ai_tasks_capture_meal_label()}</Label>
 				<Select.Root type="single" bind:value={mealType}>
 					<Select.Trigger class="w-full">

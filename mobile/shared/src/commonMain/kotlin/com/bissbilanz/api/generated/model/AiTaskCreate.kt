@@ -27,6 +27,7 @@ import kotlinx.serialization.encoding.*
  * @param photoUrl
  * @param photoUrls
  * @param mealType
+ * @param eatenAt
  * @param source
  */
 @Serializable
@@ -36,6 +37,7 @@ data class AiTaskCreate(
     @SerialName(value = "photoUrl") val photoUrl: kotlin.String? = null,
     @SerialName(value = "photoUrls") val photoUrls: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "mealType") val mealType: kotlin.String? = null,
+    @SerialName(value = "eatenAt") val eatenAt: kotlin.String? = null,
     @SerialName(value = "source") val source: AiTaskCreate.Source? = null,
 ) {
     /**

@@ -32,11 +32,15 @@ import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.api.generated.model.AiTask
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.qualifier.named
+import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,6 +200,7 @@ private fun AiTaskListItem(
                     Text(
                         buildString {
                             append(task.date)
+                            task.eatenAt?.let { append(" · ").append(formatEatenTime(it)) }
                             task.mealType?.let { append(" · ").append(it) }
                         },
                         style = MaterialTheme.typography.labelMedium,
@@ -254,4 +259,12 @@ private fun AiTaskListItem(
             }
         }
     }
+}
+
+/** The task's eaten instant as a local short time-of-day, e.g. "12:30". */
+private fun formatEatenTime(iso: String): String {
+    val local =
+        runCatching { Instant.parse(iso).toLocalDateTime(TimeZone.currentSystemDefault()) }.getOrNull()
+            ?: return ""
+    return formatTimeOfDay(local.hour, local.minute)
 }

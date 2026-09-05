@@ -20,6 +20,7 @@ export const aiTaskCreateSchema = z
 		photoUrls: z.array(aiTaskPhotoUrlSchema).max(MAX_AI_TASK_PHOTOS).optional().nullable(),
 		date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 		mealType: z.string().min(1).max(50).transform(normalizeMealType).optional(),
+		eatenAt: z.string().datetime({ offset: true }).optional().nullable(),
 		source: z.enum(aiTaskSourceValues).optional()
 	})
 	.meta({ id: 'AiTaskCreate' })
@@ -38,6 +39,7 @@ export const aiTaskUpdateSchema = z
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
 			.optional(),
 		mealType: z.string().min(1).max(50).transform(normalizeMealType).optional(),
+		eatenAt: z.string().datetime({ offset: true }).optional().nullable(),
 		acknowledged: z.boolean().optional()
 	})
 	.meta({ id: 'AiTaskUpdate' });

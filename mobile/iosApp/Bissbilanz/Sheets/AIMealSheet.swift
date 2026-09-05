@@ -24,6 +24,10 @@ struct AIMealSheet: View {
 
     @State private var description = ""
     @State private var mealType: String
+    // Off means "when I sent it": the server stamps its own clock on a task
+    // for today and leaves a back-dated one to the assistant.
+    @State private var setsTime = false
+    @State private var eatenTime = Date()
     @State private var isEstimating = false
     @State private var errorMessage: String?
     @State private var estimate: MealEstimate?
@@ -54,6 +58,16 @@ struct AIMealSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    if !appMode.isLocal {
+                        Toggle(L10n.aiTaskSetTime, isOn: $setsTime)
+                        if setsTime {
+                            DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                        }
+                    }
+                } footer: {
+                    if !appMode.isLocal {
+                        Text(L10n.aiTaskTimeHint)
+                    }
                 }
 
                 Section(L10n.aiMealWhatDidYouEat) {
@@ -316,6 +330,7 @@ struct AIMealSheet: View {
                 photoUrls: photoUrls,
                 date: date,
                 mealType: mealType,
+                eatenAt: setsTime ? eatenAtString() : nil,
                 source: "ios"
             )
             _ = try await api.createAiTask(task, idempotencyKey: UUID().uuidString)
@@ -329,6 +344,20 @@ struct AIMealSheet: View {
             isSendingToAssistant = false
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// The picked time-of-day on the task's day as the UTC ISO-8601 wire value,
+    /// mirroring `EntryEditSheet.eatenAtString()`.
+    private func eatenAtString() -> String? {
+        guard let day = DateFormatting.date(from: date) else { return nil }
+        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
+        guard let combined = Calendar.current.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: day
+        ) else { return nil }
+        return DateFormatting.isoDateTimeString(from: combined)
     }
 
     private static func mealForCurrentTime() -> String {

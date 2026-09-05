@@ -391,7 +391,7 @@ fun EntryEditSheet(
 }
 
 /** Locale-aware short time-of-day (e.g. "1:30 PM" / "13:30"), or a placeholder when unset. */
-private fun formatTimeOfDay(
+internal fun formatTimeOfDay(
     hour: Int?,
     minute: Int?,
 ): String {
@@ -410,7 +410,7 @@ private fun formatTimeOfDay(
  * [date] so editing the time never moves the entry to another day. Returns null when any
  * input is missing, in which case the server keeps the existing eaten time.
  */
-private fun buildEatenAt(
+internal fun buildEatenAt(
     date: String?,
     hour: Int?,
     minute: Int?,

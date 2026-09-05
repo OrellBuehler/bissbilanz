@@ -2273,6 +2273,18 @@ enum L10n {
         localized("ai_task_send_button", en: "Send to My Assistant", de: "An meinen Assistenten senden")
     }
 
+    static var aiTaskSetTime: String {
+        localized("ai_task_set_time", en: "Set time", de: "Uhrzeit festlegen")
+    }
+
+    static var aiTaskTimeHint: String {
+        localized(
+            "ai_task_time_hint",
+            en: "Off means the time you send it.",
+            de: "Aus bedeutet: der Sendezeitpunkt."
+        )
+    }
+
     static var aiTaskSending: String {
         localized("ai_task_sending", en: "Sending...", de: "Wird gesendet...")
     }

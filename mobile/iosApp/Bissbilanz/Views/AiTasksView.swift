@@ -129,6 +129,14 @@ struct AiTasksView: View {
 private struct AiTaskRow: View {
     let task: AiTask
 
+    /// "2026-09-05 · 12:30 · Lunch", dropping whichever parts the task lacks.
+    private var taskSubtitle: String {
+        let time = task.eatenAt
+            .flatMap { DateFormatting.isoDateTime(from: $0) }
+            .map { DateFormatting.timeString(from: $0) }
+        return [task.date, time, task.mealType].compactMap { $0 }.joined(separator: " · ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
@@ -155,7 +163,7 @@ private struct AiTaskRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(task.mealType.map { "\(task.date) · \($0)" } ?? task.date)
+                        Text(taskSubtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if task.isUnreadDismissal {

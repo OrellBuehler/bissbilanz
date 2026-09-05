@@ -15,6 +15,7 @@ const aiTaskSchema = z
 		photoUrls: z.array(z.string()),
 		date: z.string(),
 		mealType: z.string().nullable(),
+		eatenAt: z.string().nullable(),
 		source: z.string().nullable(),
 		resultSummary: z.string().nullable(),
 		createdEntryIds: z.array(z.string()).nullable(),

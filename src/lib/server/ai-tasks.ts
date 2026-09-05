@@ -7,6 +7,8 @@ import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { ApiError } from '$lib/server/errors';
 import { validateMealType } from '$lib/server/entries';
 import { unlinkUploads } from '$lib/server/images';
+import { getUserTimeZone } from '$lib/server/preferences';
+import { todayInTimeZone } from '$lib/utils/dates';
 
 const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -83,6 +85,21 @@ export const getAiTask = async (userId: string, id: string) => {
 	return task ?? null;
 };
 
+/**
+ * A task without an explicit time was almost always queued while (or right
+ * after) eating, so the creation time is the meal time — but only when the task
+ * is for today. A back-dated task keeps null rather than a clock time from a
+ * different day; the agent then picks a time that fits the meal.
+ */
+const defaultEatenAt = async (
+	userId: string,
+	input: { date: string; eatenAt?: string | null }
+): Promise<Date | null> => {
+	if (input.eatenAt) return new Date(input.eatenAt);
+	const today = todayInTimeZone(await getUserTimeZone(userId));
+	return input.date === today ? new Date() : null;
+};
+
 export const createAiTask = async (
 	userId: string,
 	payload: unknown
@@ -109,6 +126,7 @@ export const createAiTask = async (
 				photoUrls: mergePhotoUrls(result.data),
 				date: result.data.date,
 				mealType: result.data.mealType ?? null,
+				eatenAt: await defaultEatenAt(userId, result.data),
 				source: result.data.source ?? null
 			})
 			.returning();
@@ -140,7 +158,7 @@ export const updateAiTask = async (
 	}
 
 	// `acknowledged` is a read receipt, not a column — translate it before the spread.
-	const { acknowledged, ...columns } = result.data;
+	const { acknowledged, eatenAt, ...columns } = result.data;
 
 	try {
 		const db = getDB();
@@ -148,6 +166,7 @@ export const updateAiTask = async (
 			.update(aiTasks)
 			.set({
 				...columns,
+				...(eatenAt === undefined ? {} : { eatenAt: eatenAt ? new Date(eatenAt) : null }),
 				...(columns.status === 'completed'
 					? { completedAt: new Date(), acknowledgedAt: new Date() }
 					: {}),

@@ -1477,6 +1477,7 @@ export interface components {
 			photoUrls?: string[] | null;
 			date: string;
 			mealType?: string;
+			eatenAt?: string | null;
 			/** @enum {string} */
 			source?: 'web' | 'ios' | 'android';
 		};
@@ -1491,6 +1492,7 @@ export interface components {
 			description?: string | null;
 			date?: string;
 			mealType?: string;
+			eatenAt?: string | null;
 			acknowledged?: boolean;
 		};
 		SleepCreate: {
@@ -2250,6 +2252,7 @@ export interface components {
 			photoUrls: string[];
 			date: string;
 			mealType: string | null;
+			eatenAt: string | null;
 			source: string | null;
 			resultSummary: string | null;
 			createdEntryIds: string[] | null;

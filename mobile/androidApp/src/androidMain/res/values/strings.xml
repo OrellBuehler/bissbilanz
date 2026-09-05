@@ -169,6 +169,9 @@
     <string name="ai_task_sending">Sending…</string>
     <string name="ai_task_send_failed">Could not send to the assistant</string>
     <string name="ai_task_queued">Sent to the assistant</string>
+    <string name="ai_task_time_label">Time (optional)</string>
+    <string name="ai_task_time_hint">Leave empty to use the time you send it.</string>
+    <string name="ai_task_clear_time">Clear time</string>
     <string name="ai_task_remove_photo">Remove photo</string>
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>

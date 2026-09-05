@@ -1,0 +1,1 @@
+ALTER TABLE "ai_tasks" ADD COLUMN "eaten_at" timestamp with time zone;

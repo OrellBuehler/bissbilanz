@@ -130,6 +130,7 @@ async function create(input: {
 	photoFiles?: File[];
 	date: string;
 	mealType?: string;
+	eatenAt?: string;
 }): Promise<AiTask> {
 	if (browser && !navigator.onLine) {
 		throw new Error('offline');
@@ -149,6 +150,7 @@ async function create(input: {
 			photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
 			date: input.date,
 			mealType: input.mealType || undefined,
+			eatenAt: input.eatenAt || undefined,
 			source: 'web'
 		}
 	});

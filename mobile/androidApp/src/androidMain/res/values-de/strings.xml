@@ -167,6 +167,9 @@
     <string name="ai_task_sending">Wird gesendet…</string>
     <string name="ai_task_send_failed">Senden an den Assistenten fehlgeschlagen</string>
     <string name="ai_task_queued">An den Assistenten gesendet</string>
+    <string name="ai_task_time_label">Uhrzeit (optional)</string>
+    <string name="ai_task_time_hint">Leer lassen, um den Sendezeitpunkt zu verwenden.</string>
+    <string name="ai_task_clear_time">Uhrzeit löschen</string>
     <string name="ai_task_remove_photo">Foto entfernen</string>
     <string name="ai_task_photo_hint">Bis zu %1$d Fotos – das Gericht, die Verpackung, eine Nährwerttabelle.</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
