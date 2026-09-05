@@ -22,6 +22,10 @@ import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.EntryRangeItem
 import com.bissbilanz.api.generated.model.EntryResponse
 import com.bissbilanz.api.generated.model.EntryUpdate
+import com.bissbilanz.api.generated.model.FastingSession
+import com.bissbilanz.api.generated.model.FastingSessionResponse
+import com.bissbilanz.api.generated.model.FastingSessionUpsert
+import com.bissbilanz.api.generated.model.FastingSessionsResponse
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDiversityResponse
@@ -675,6 +679,35 @@ class BissbilanzApi(
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         delete("/api/weight/$id", key, editedAt)
+    }
+
+    // Fasting
+    suspend fun getFastingSessions(limit: Int = 60): List<FastingSession> {
+        val response: FastingSessionsResponse = get("/api/fasts") { parameter("limit", limit) }
+        return response.sessions
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun upsertFastingSession(
+        session: FastingSessionUpsert,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): FastingSession {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FastingSessionResponse = post("/api/fasts", session, key, editedAt)
+        return response.session
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteFastingSession(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/fasts/$id", key, editedAt)
     }
 
     suspend fun getLatestWeightEntry(): WeightEntry? {

@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { getFastingDays } from '$lib/server/day-properties';
+import { listFastingSessions } from '$lib/server/fasting';
 import { getGoals } from '$lib/server/goals';
 import { computeAverages, computeDailyBreakdown, computeCalendarDays } from '$lib/server/stats';
 import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
@@ -22,10 +23,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rangeStart = calendarStart < start30 ? calendarStart : start30;
 	const rangeEnd = calendarEnd > endDate ? calendarEnd : endDate;
 
-	const [allEntries, fastingDays, goals] = await Promise.all([
+	const [allEntries, fastingDays, goals, fasts] = await Promise.all([
 		listEntriesByDateRange(userId, rangeStart, rangeEnd),
 		getFastingDays(userId, start30, endDate),
-		getGoals(userId)
+		getGoals(userId),
+		listFastingSessions(userId, { limit: 20 })
 	]);
 
 	const entries30 = allEntries.filter((e) => e.date >= start30 && e.date <= endDate);
@@ -40,6 +42,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		monthlyStats: computeAverages(entries30, fastingDays),
 		chartData: computeDailyBreakdown(entries7, start7, endDate),
 		calendarDays: computeCalendarDays(calendarEntries),
-		calorieGoal: goals?.calorieGoal ?? null
+		calorieGoal: goals?.calorieGoal ?? null,
+		fasts: fasts.map((fast) => ({
+			id: fast.id,
+			startedAt: fast.startedAt.toISOString(),
+			endedAt: fast.endedAt.toISOString(),
+			targetHours: fast.targetHours
+		}))
 	};
 };

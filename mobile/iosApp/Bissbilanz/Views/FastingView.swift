@@ -34,8 +34,16 @@ struct FastingView: View {
 
     @State private var selectedProtocol: FastingProtocolOption = .sixteenEight
     @State private var customHours = 16
-    @State private var history: [FastingSession] = []
     @State private var showEndConfirmation = false
+    /// Nil means "now" — the start row shows a plain "Now" until the user
+    /// back-dates the start, so a fast started on time carries no stale instant.
+    @State private var customStart: Date?
+    @State private var showAdjustStart = false
+    @State private var editingSession: FastingSession?
+
+    private var history: [FastingSession] {
+        fastingManager.history
+    }
 
     private var targetHours: Int {
         selectedProtocol.fastingHours ?? customHours
@@ -62,12 +70,20 @@ struct FastingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             fastingManager.refresh()
-            history = FastingSessionStore.loadHistory()
         }
-        // The lock-screen "End Fast" button can flip this from outside the
-        // view — reload the history list when it does.
-        .onChange(of: fastingManager.isFasting) { _, _ in
-            history = FastingSessionStore.loadHistory()
+        .sheet(isPresented: $showAdjustStart) {
+            if let session = fastingManager.session {
+                FastingStartSheet(startedAt: session.startedAt) { newStart in
+                    Task { await fastingManager.changeStart(newStart) }
+                }
+            }
+        }
+        .sheet(item: $editingSession) { session in
+            FastingEditSheet(
+                session: session,
+                onSave: { fastingManager.updateHistory($0) },
+                onDelete: { fastingManager.deleteHistory(id: session.id) }
+            )
         }
         .confirmationDialog(
             L10n.fastingEndConfirmation,
@@ -77,7 +93,6 @@ struct FastingView: View {
             Button(L10n.endFast) {
                 Task {
                     await fastingManager.stop()
-                    history = FastingSessionStore.loadHistory()
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 }
             }
@@ -125,14 +140,25 @@ struct FastingView: View {
             .padding(.vertical, 8)
 
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.fastingStarted)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(DateFormatting.timeString(from: session.startedAt))
-                        .font(.headline)
-                        .monospacedDigit()
+                Button {
+                    showAdjustStart = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.fastingStarted)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 4) {
+                            Text(startLabel(session.startedAt))
+                                .font(.headline)
+                                .monospacedDigit()
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.fastingAdjustStart)
                 Spacer()
                 Menu {
                     ForEach([14, 16, 18, 20, 24, 36], id: \.self) { hours in
@@ -208,8 +234,44 @@ struct FastingView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Forgot to start the timer before bed? Back-date the start here;
+            // the ring, the Live Activity and the history all count from it.
+            HStack {
+                Text(L10n.fastingStartedAt)
+                    .font(.subheadline)
+                Spacer()
+                if let start = customStart {
+                    DatePicker(
+                        L10n.fastingStartedAt,
+                        selection: Binding(
+                            get: { start },
+                            set: { customStart = min($0, Date()) }
+                        ),
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .labelsHidden()
+                    Button {
+                        customStart = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel(L10n.fastingStartNow)
+                } else {
+                    Button {
+                        customStart = Date()
+                    } label: {
+                        Label(L10n.fastingStartNow, systemImage: "pencil")
+                            .font(.subheadline)
+                    }
+                }
+            }
+            .frame(minHeight: 44)
+
             Button {
-                fastingManager.start(targetHours: targetHours)
+                fastingManager.start(targetHours: targetHours, startedAt: customStart ?? Date())
+                customStart = nil
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             } label: {
                 Text(L10n.startFast)
@@ -271,41 +333,210 @@ struct FastingView: View {
     }
 
     private func historyRow(_ session: FastingSession) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(DateFormatting.displayString(from: session.startedAt))
+        Button {
+            editingSession = session
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(DateFormatting.displayString(from: session.startedAt))
+                        .font(.subheadline)
+                    Text(historySubtitle(session))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(FastingFormatting.duration(session.duration ?? 0))
                     .font(.subheadline)
-                Text(L10n.fastingTargetHours(session.targetHours))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                if session.reachedTarget {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.green)
+                        .accessibilityLabel(L10n.fastingTargetReached)
+                }
             }
-            Spacer()
-            Text(durationString(session.duration ?? 0))
-                .font(.subheadline)
-                .monospacedDigit()
-            if session.reachedTarget {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.green)
-                    .accessibilityLabel(L10n.fastingTargetReached)
-            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .contextMenu {
+            Button {
+                editingSession = session
+            } label: {
+                Label(L10n.edit, systemImage: "pencil")
+            }
             Button(role: .destructive) {
-                FastingSessionStore.removeFromHistory(id: session.id)
-                history = FastingSessionStore.loadHistory()
+                fastingManager.deleteHistory(id: session.id)
             } label: {
                 Label(L10n.delete, systemImage: "trash")
             }
         }
     }
 
-    private func durationString(_ interval: TimeInterval) -> String {
+    private func historySubtitle(_ session: FastingSession) -> String {
+        let target = L10n.fastingTargetHours(session.targetHours)
+        guard let endedAt = session.endedAt else { return target }
+        let start = DateFormatting.timeString(from: session.startedAt)
+        let end = DateFormatting.timeString(from: endedAt)
+        return "\(start) – \(end) · \(target)"
+    }
+
+    /// "21:00" when the fast started today, otherwise date + time.
+    private func startLabel(_ startedAt: Date) -> String {
+        if Calendar.current.isDateInToday(startedAt) {
+            return DateFormatting.timeString(from: startedAt)
+        }
+        return startedAt.formatted(date: .abbreviated, time: .shortened)
+    }
+}
+
+enum FastingFormatting {
+    static func duration(_ interval: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute]
         formatter.unitsStyle = .abbreviated
         return formatter.string(from: max(interval, 0)) ?? "0"
+    }
+}
+
+// MARK: - Adjust Start
+
+/// Moves the running fast's start. A future instant is clamped by the picker
+/// range, so the manager never sees a negative elapsed time.
+struct FastingStartSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var startedAt: Date
+    private let onSave: (Date) -> Void
+
+    init(startedAt: Date, onSave: @escaping (Date) -> Void) {
+        _startedAt = State(initialValue: startedAt)
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        L10n.fastingStartedAt,
+                        selection: $startedAt,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                } footer: {
+                    Text(L10n.fastingAdjustStartHint)
+                }
+            }
+            .navigationTitle(L10n.fastingAdjustStart)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.save) {
+                        onSave(min(startedAt, Date()))
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Edit History
+
+/// Edits a finished fast: start, end and target. Validates the range itself
+/// so the manager only ever stores an end after its start.
+struct FastingEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private let session: FastingSession
+    private let onSave: (FastingSession) -> Void
+    private let onDelete: () -> Void
+
+    @State private var startedAt: Date
+    @State private var endedAt: Date
+    @State private var targetHours: Int
+    @State private var showDeleteConfirmation = false
+
+    init(session: FastingSession, onSave: @escaping (FastingSession) -> Void, onDelete: @escaping () -> Void) {
+        self.session = session
+        self.onSave = onSave
+        self.onDelete = onDelete
+        _startedAt = State(initialValue: session.startedAt)
+        _endedAt = State(initialValue: session.endedAt ?? Date())
+        _targetHours = State(initialValue: session.targetHours)
+    }
+
+    private var isValid: Bool {
+        endedAt > startedAt
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        L10n.fastingStarted,
+                        selection: $startedAt,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    DatePicker(
+                        L10n.fastingEnded,
+                        selection: $endedAt,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    Picker(L10n.fastingTarget, selection: $targetHours) {
+                        ForEach(Array(Set([12, 14, 16, 18, 20, 24, 36, 48, targetHours])).sorted(), id: \.self) { hours in
+                            Text(L10n.fastingTargetHours(hours)).tag(hours)
+                        }
+                    }
+                } footer: {
+                    if isValid {
+                        Text(FastingFormatting.duration(endedAt.timeIntervalSince(startedAt)))
+                    } else {
+                        Text(L10n.fastingInvalidRange)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label(L10n.delete, systemImage: "trash")
+                    }
+                }
+            }
+            .navigationTitle(L10n.fastingEditFast)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.save) {
+                        var updated = session
+                        updated.startedAt = startedAt
+                        updated.endedAt = endedAt
+                        updated.targetHours = targetHours
+                        onSave(updated)
+                        dismiss()
+                    }
+                    .disabled(!isValid)
+                }
+            }
+            .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .hidden) {
+                Button(L10n.delete, role: .destructive) {
+                    onDelete()
+                    dismiss()
+                }
+            }
+        }
     }
 }

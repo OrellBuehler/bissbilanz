@@ -10,6 +10,7 @@ import {
 	supplementLogSchema
 } from './validation/supplements';
 import { weightCreateSchema, weightUpdateSchema } from './validation/weight';
+import { fastingSessionUpsertSchema, fastingSessionUpdateSchema } from './validation/fasting';
 import { preferencesUpdateSchema } from './validation/preferences';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from './validation/meal-types';
 import {
@@ -48,6 +49,10 @@ import {
 	weightLatestResponseSchema,
 	weightTrendResponseSchema
 } from './validation/responses/weight';
+import {
+	fastingSessionsResponseSchema,
+	fastingSessionResponseSchema
+} from './validation/responses/fasting';
 import {
 	dailyStatsResponseSchema,
 	weeklyStatsResponseSchema,
@@ -840,6 +845,83 @@ export function generateSpec() {
 					responses: {
 						'204': res204,
 						'401': res401
+					}
+				}
+			},
+
+			// ── Fasting ───────────────────────────────────────────
+			'/api/fasts': {
+				get: {
+					operationId: 'listFastingSessions',
+					tags: ['Fasting'],
+					description:
+						'Returns completed fasting sessions, newest first. from/to filter on the start instant.',
+					requestParams: {
+						query: z.object({
+							from: z.string().datetime({ offset: true }).optional(),
+							to: z.string().datetime({ offset: true }).optional(),
+							limit: z.coerce.number().int().min(1).max(500).optional()
+						})
+					},
+					responses: {
+						'200': {
+							description: 'Fasting sessions',
+							content: { 'application/json': { schema: fastingSessionsResponseSchema } }
+						},
+						'401': res401
+					}
+				},
+				post: {
+					operationId: 'upsertFastingSession',
+					tags: ['Fasting'],
+					description:
+						'Create or replace a completed fasting session. The client may supply the id so retries and pre-upload edits land on the same row.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: fastingSessionUpsertSchema } }
+					},
+					responses: {
+						'201': {
+							description: 'Created or replaced',
+							content: { 'application/json': { schema: fastingSessionResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'409': res409
+					}
+				}
+			},
+			'/api/fasts/{id}': {
+				patch: {
+					operationId: 'updateFastingSession',
+					tags: ['Fasting'],
+					description: 'Update a completed fasting session.',
+					requestParams: { path: uuidPathId },
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: fastingSessionUpdateSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: fastingSessionResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'404': res404,
+						'409': res409
+					}
+				},
+				delete: {
+					operationId: 'deleteFastingSession',
+					tags: ['Fasting'],
+					description: 'Delete a completed fasting session.',
+					requestParams: { path: uuidPathId },
+					responses: {
+						'204': res204,
+						'401': res401,
+						'404': res404,
+						'409': res409
 					}
 				}
 			},

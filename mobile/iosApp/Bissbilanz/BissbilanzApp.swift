@@ -114,7 +114,7 @@ struct BissbilanzApp: App {
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
-        _fastingManager = State(wrappedValue: FastingTimerManager(entryRepository: entryRepo))
+        _fastingManager = State(wrappedValue: FastingTimerManager(entryRepository: entryRepo, syncManager: sync))
 
         // App Intents (Siri / Spotlight / Shortcuts) run in a separate launch of
         // the app — outside the SwiftUI environment the views use — so resolve

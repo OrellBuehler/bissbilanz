@@ -327,6 +327,31 @@ final class BissbilanzAPI {
         )
     }
 
+    // MARK: - Fasting
+
+    func upsertFastingSession(
+        _ session: FastingSessionUpsert,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> FastingSessionRemote {
+        let response: FastingSessionResponse = try await post(
+            "/api/fasts", body: session,
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+        return response.session
+    }
+
+    func deleteFastingSession(
+        id: String,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws {
+        try await deleteRequest(
+            "/api/fasts/\(id)",
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+    }
+
     // MARK: - Sleep
 
     func getSleepEntries(from: String? = nil, to: String? = nil) async throws -> [SleepEntry] {

@@ -125,7 +125,7 @@ class BissbilanzApplication :
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }
-                single { FastingManager(androidContext(), get(), get(), get()) }
+                single { FastingManager(androidContext(), get(), get(), get(), get(), get()) }
                 single { HealthConnectService(androidContext()) }
                 single { HealthSyncPreferences(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }

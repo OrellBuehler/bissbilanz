@@ -147,6 +147,16 @@
     <string name="fasting_notification_channel">Fasten</string>
     <string name="fasting_notification_channel_desc">Zeigt die verstrichene Zeit während eines Fastens.</string>
     <string name="fasting_card_start">Fasten starten</string>
+    <string name="fasting_started_at">Gestartet um</string>
+    <string name="fasting_start_now">Jetzt</string>
+    <string name="fasting_adjust_start">Start anpassen</string>
+    <string name="fasting_edit_fast">Fasten bearbeiten</string>
+    <string name="fasting_ended">Beendet</string>
+    <string name="fasting_target">Ziel</string>
+    <string name="fasting_save">Speichern</string>
+    <string name="fasting_today">Heute</string>
+    <string name="fasting_yesterday">Gestern</string>
+    <string name="fasting_history_hint">Tippe auf ein Fasten, um es zu bearbeiten oder zu löschen.</string>
 
     <!-- KI-Mahlzeitenauftrag -->
     <string name="ai_task_title">An Assistenten senden</string>

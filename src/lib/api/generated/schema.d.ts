@@ -428,6 +428,42 @@ export interface paths {
 		patch: operations['updateWeightEntry'];
 		trace?: never;
 	};
+	'/api/fasts': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Returns completed fasting sessions, newest first. from/to filter on the start instant. */
+		get: operations['listFastingSessions'];
+		put?: never;
+		/** @description Create or replace a completed fasting session. The client may supply the id so retries and pre-upload edits land on the same row. */
+		post: operations['upsertFastingSession'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/fasts/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** @description Delete a completed fasting session. */
+		delete: operations['deleteFastingSession'];
+		options?: never;
+		head?: never;
+		/** @description Update a completed fasting session. */
+		patch: operations['updateFastingSession'];
+		trace?: never;
+	};
 	'/api/stats/daily': {
 		parameters: {
 			query?: never;
@@ -1366,6 +1402,22 @@ export interface components {
 			entryDate?: string;
 			notes?: string | null;
 		};
+		FastingSessionUpsert: {
+			/** Format: uuid */
+			id?: string;
+			/** Format: date-time */
+			startedAt: string;
+			/** Format: date-time */
+			endedAt: string;
+			targetHours: number;
+		};
+		FastingSessionUpdate: {
+			/** Format: date-time */
+			startedAt?: string;
+			/** Format: date-time */
+			endedAt?: string;
+			targetHours?: number;
+		};
 		DayPropertiesSet: {
 			date: string;
 			isFastingDay: boolean;
@@ -1899,6 +1951,23 @@ export interface components {
 		};
 		WeightLatestResponse: {
 			entry: components['schemas']['WeightEntry'] | null;
+		};
+		FastingSessionsResponse: {
+			sessions: components['schemas']['FastingSession'][];
+		};
+		FastingSession: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			startedAt: string;
+			endedAt: string;
+			targetHours: number;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		FastingSessionResponse: {
+			session: components['schemas']['FastingSession'];
 		};
 		DailyStatsResponse: {
 			data: components['schemas']['DailyStat'][];
@@ -3428,6 +3497,105 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFastingSessions: {
+		parameters: {
+			query?: {
+				from?: string;
+				to?: string;
+				limit?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Fasting sessions */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FastingSessionsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	upsertFastingSession: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FastingSessionUpsert'];
+			};
+		};
+		responses: {
+			/** @description Created or replaced */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FastingSessionResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	deleteFastingSession: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	updateFastingSession: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FastingSessionUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FastingSessionResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	getDailyStats: {

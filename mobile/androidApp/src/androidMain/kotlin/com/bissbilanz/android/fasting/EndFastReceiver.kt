@@ -10,6 +10,7 @@ import com.bissbilanz.ErrorReporter
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.json.Json
 import org.koin.java.KoinJavaComponent
 import kotlin.time.Clock
 
@@ -41,8 +42,12 @@ class EndFastReceiver : BroadcastReceiver() {
             val endedDate = endedAt.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             WorkManager.getInstance(context).enqueue(
                 OneTimeWorkRequestBuilder<EndFastWorker>()
-                    .setInputData(workDataOf(EndFastWorker.KEY_DATE to endedDate))
-                    .build(),
+                    .setInputData(
+                        workDataOf(
+                            EndFastWorker.KEY_DATE to endedDate,
+                            EndFastWorker.KEY_SESSION to koin.get<Json>().encodeToString(ended),
+                        ),
+                    ).build(),
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e

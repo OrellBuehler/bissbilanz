@@ -7,6 +7,9 @@
 	import Flame from '@lucide/svelte/icons/flame';
 	import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
 	import Target from '@lucide/svelte/icons/target';
+	import Timer from '@lucide/svelte/icons/timer';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import { formatTime } from '$lib/utils/dates';
 	import type { MacroTotals } from '$lib/utils/nutrition';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
@@ -124,6 +127,25 @@
 
 	const fmt = (n: number) => Math.round(n).toLocaleString();
 
+	const fastDuration = (fast: { startedAt: string; endedAt: string }) => {
+		const minutes = Math.max(
+			0,
+			Math.round((new Date(fast.endedAt).getTime() - new Date(fast.startedAt).getTime()) / 60000)
+		);
+		return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
+	};
+
+	const fastReached = (fast: { startedAt: string; endedAt: string; targetHours: number }) =>
+		new Date(fast.endedAt).getTime() - new Date(fast.startedAt).getTime() >=
+		fast.targetHours * 3600000;
+
+	const fastDate = (iso: string) =>
+		new Date(iso).toLocaleDateString(undefined, {
+			weekday: 'short',
+			month: 'short',
+			day: 'numeric'
+		});
+
 	$effect(() => {
 		if (year !== initialYear || month !== initialMonth) {
 			loadCalendarData(year, month);
@@ -219,6 +241,48 @@
 			</Card.Root>
 		</div>
 	</div>
+
+	<!-- Completed Fasts -->
+	<Card.Root class="overflow-hidden">
+		<Card.Content class="px-3 py-3 sm:px-4 sm:py-3.5">
+			<div class="mb-2.5 flex items-center gap-2">
+				<div
+					class="flex size-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+				>
+					<Timer class="size-4" />
+				</div>
+				<p class="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+					{m.history_fasts()}
+				</p>
+			</div>
+			{#if data.fasts.length === 0}
+				<p class="text-muted-foreground px-1 py-2 text-sm">{m.history_fasts_empty()}</p>
+			{:else}
+				<ul class="divide-y divide-border/60">
+					{#each data.fasts as fast (fast.id)}
+						<li class="flex min-h-11 items-center gap-3 py-2">
+							<div class="min-w-0 flex-1">
+								<p class="text-sm font-medium">{fastDate(fast.startedAt)}</p>
+								<p class="text-muted-foreground text-xs tabular-nums">
+									{formatTime(fast.startedAt)} – {formatTime(fast.endedAt)} ·
+									{m.history_fasts_target({ hours: fast.targetHours })}
+								</p>
+							</div>
+							<span class="text-sm font-semibold tabular-nums">{fastDuration(fast)}</span>
+							{#if fastReached(fast)}
+								<CircleCheck
+									class="size-4 text-green-600 dark:text-green-400"
+									aria-label={m.history_fasts_reached()}
+								/>
+							{:else}
+								<span class="size-4"></span>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</Card.Content>
+	</Card.Root>
 
 	<!-- Range Selector -->
 	<ChartRangeSelector onRangeChange={handleRangeChange} />

@@ -597,6 +597,20 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .upsertFast(_, body):
+            _ = try await api.upsertFastingSession(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
+        case let .deleteFast(id):
+            try await api.deleteFastingSession(
+                id: id,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
         case let .updatePreferences(body):
             _ = try await api.updatePreferences(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         }
@@ -666,7 +680,7 @@ final class SyncManager {
         switch operation {
         case .deleteFood, .deleteEntry, .deleteRecipe, .deleteWeight,
              .deleteSupplement, .deleteSleep, .deleteDayProperties,
-             .unlogSupplement:
+             .deleteFast, .unlogSupplement:
             true
         default:
             false

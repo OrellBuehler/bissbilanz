@@ -6,9 +6,9 @@ import Foundation
 /// SwiftData: the app, the widget extension and the `EndFastIntent`
 /// background process all need to read it, and the App Group defaults are
 /// the established lightweight cross-process channel (see `WidgetSnapshot`).
-struct FastingSession: Codable, Identifiable {
+struct FastingSession: Codable, Identifiable, Equatable {
     let id: UUID
-    let startedAt: Date
+    var startedAt: Date
     var targetHours: Int
     var endedAt: Date?
 
@@ -29,6 +29,19 @@ struct FastingSession: Codable, Identifiable {
 
     var reachedTarget: Bool {
         (duration ?? 0) >= TimeInterval(targetHours) * 3600
+    }
+
+    /// Wire shape for the server copy of a finished fast. The local UUID doubles
+    /// as the server id, so a retried upload or an edit that lands before the
+    /// first upload drained both hit the same row.
+    var upsertBody: FastingSessionUpsert? {
+        guard let endedAt else { return nil }
+        return FastingSessionUpsert(
+            id: id.uuidString.lowercased(),
+            startedAt: DateFormatting.isoDateTimeString(from: startedAt),
+            endedAt: DateFormatting.isoDateTimeString(from: endedAt),
+            targetHours: targetHours
+        )
     }
 
     /// Range driving the date-relative elapsed timers (`Text(timerInterval:)`).
@@ -80,14 +93,22 @@ enum FastingSessionStore {
     }
 
     static func appendToHistory(_ session: FastingSession) {
-        let history = Array(([session] + loadHistory()).prefix(historyLimit))
-        guard let defaults, let data = try? JSONEncoder().encode(history) else { return }
-        defaults.set(data, forKey: historyKey)
+        saveHistory([session] + loadHistory().filter { $0.id != session.id })
+    }
+
+    /// Replaces the record with the same id; re-sorts by start so an edited
+    /// start keeps the list in order.
+    static func updateInHistory(_ session: FastingSession) {
+        saveHistory(loadHistory().filter { $0.id != session.id } + [session])
     }
 
     static func removeFromHistory(id: UUID) {
-        let history = loadHistory().filter { $0.id != id }
-        guard let defaults, let data = try? JSONEncoder().encode(history) else { return }
+        saveHistory(loadHistory().filter { $0.id != id })
+    }
+
+    private static func saveHistory(_ history: [FastingSession]) {
+        let sorted = Array(history.sorted { $0.startedAt > $1.startedAt }.prefix(historyLimit))
+        guard let defaults, let data = try? JSONEncoder().encode(sorted) else { return }
         defaults.set(data, forKey: historyKey)
     }
 }
