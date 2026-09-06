@@ -68,7 +68,6 @@ fun SettingsScreen(navController: NavController) {
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
-    val biologicalSex by viewModel.biologicalSex.collectAsStateWithLifecycle()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
@@ -602,7 +601,7 @@ fun SettingsScreen(navController: NavController) {
                                 SegmentedButton(
                                     shape = SegmentedButtonDefaults.itemShape(index, sexOptions.size),
                                     onClick = { viewModel.updateBiologicalSex(value) },
-                                    selected = biologicalSex == value?.value,
+                                    selected = prefs?.biologicalSex?.value == value?.value,
                                 ) {
                                     Text(label)
                                 }

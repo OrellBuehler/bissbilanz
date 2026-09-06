@@ -86,6 +86,12 @@ fun EntryEditSheet(
     // from the record behind it, which is edited in that record's own sheet.
     val isQuickEntry = entry?.let { it.foodId == null && it.recipeId == null } == true
     val showQuickFields = !isEditing || isQuickEntry
+    // The server requires foodId, recipeId or positive quickCalories. For a quick entry
+    // that hasn't uploaded yet the edit is merged into the still-queued create
+    // (coalesceQueuedCreate); an emptied calorie field would drop quickCalories from
+    // that create, the POST would 400, and the sync queue dead-letters client errors,
+    // stranding the entry as a local temp_ row forever.
+    val canSave = !isQuickEntry || (quickCalories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
     val unknownName = stringResource(R.string.entry_edit_unknown)
     val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
     val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
@@ -324,6 +330,14 @@ fun EntryEditSheet(
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
 
+            if (!canSave) {
+                Text(
+                    stringResource(R.string.entry_edit_calories_required),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             if (isSaving) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
@@ -425,7 +439,7 @@ fun EntryEditSheet(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isSaving,
+                    enabled = !isSaving && canSave,
                 ) {
                     Text(stringResource(R.string.weight_save))
                 }

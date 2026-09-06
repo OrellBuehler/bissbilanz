@@ -33,7 +33,6 @@ class CalorieComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         WearStateRepository.loadCached(this)
-        val state = WearStateRepository.state.value?.resetIfStale(LocalDate.now().toString())
 
         // While the app is closed this refresh is the only thing that runs on a
         // schedule, which makes it the watch's one chance to retry a log made
@@ -46,6 +45,10 @@ class CalorieComplicationService : SuspendingComplicationDataSourceService() {
                 WearStateRepository.flushOutbox(this@CalorieComplicationService)
             }
         }
+
+        // Read after the flush: a successful drain applies the phone's response to the
+        // state, and this is the only refresh for up to fifteen minutes.
+        val state = WearStateRepository.state.value?.resetIfStale(LocalDate.now().toString())
 
         return build(
             resources = forAppLocale(state?.localeCode).resources,

@@ -741,6 +741,7 @@
     <string name="entry_edit_unknown">Unbekannt</string>
     <string name="entry_edit_delete_failed">Eintrag konnte nicht gelöscht werden</string>
     <string name="entry_edit_save_failed">Eintrag konnte nicht gespeichert werden</string>
+    <string name="entry_edit_calories_required">Ein Schnelleintrag braucht Kalorien.</string>
     <string name="entry_edit_delete_title">Eintrag löschen</string>
     <string name="entry_edit_delete_text">\"%1$s\" aus deinem Protokoll entfernen?</string>
     <string name="entry_edit_title">Eintrag bearbeiten</string>

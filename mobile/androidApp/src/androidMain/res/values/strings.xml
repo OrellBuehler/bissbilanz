@@ -743,6 +743,7 @@
     <string name="entry_edit_unknown">Unknown</string>
     <string name="entry_edit_delete_failed">Failed to delete entry</string>
     <string name="entry_edit_save_failed">Failed to save entry</string>
+    <string name="entry_edit_calories_required">A quick entry needs calories.</string>
     <string name="entry_edit_delete_title">Delete Entry</string>
     <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
     <string name="entry_edit_title">Edit Entry</string>

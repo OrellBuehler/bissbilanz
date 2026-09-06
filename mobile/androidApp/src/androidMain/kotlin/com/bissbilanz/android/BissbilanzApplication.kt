@@ -304,9 +304,6 @@ class BissbilanzApplication :
         koin.get<CoroutineScope>().launch {
             FoodShortcutPublisher.publish(this@BissbilanzApplication)
         }
-
-        // NOTE: the Wear OS state publish for goals and sleep changes belongs here,
-        // next to the other repository hooks above (see wearPublisher).
     }
 
     /**
