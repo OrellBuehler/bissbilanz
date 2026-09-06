@@ -123,7 +123,7 @@ export function getNavGroups(): NavGroup[] {
 				},
 				{
 					title: () => m.nav_weight(),
-					href: '/insights?tab=weight',
+					href: '/weight',
 					icon: Weight,
 					badgeColor: 'bg-teal-100 text-teal-600',
 					activeRing: 'ring-2 ring-inset ring-teal-300/80 dark:ring-teal-700/80'
@@ -167,7 +167,7 @@ export const ALL_CONFIGURABLE_TABS: BottomNavTab[] = [
 	{ id: 'favorites', title: () => m.nav_favorites(), href: '/favorites', icon: Heart },
 	{ id: 'foods', title: () => m.nav_foods(), href: '/foods', icon: Utensils },
 	{ id: 'insights', title: () => m.nav_insights(), href: '/insights', icon: ChartBar },
-	{ id: 'weight', title: () => m.nav_weight(), href: '/insights?tab=weight', icon: Weight },
+	{ id: 'weight', title: () => m.nav_weight(), href: '/weight', icon: Weight },
 	{ id: 'supplements', title: () => m.nav_supplements(), href: '/supplements', icon: Pill },
 	{ id: 'ai-tasks', title: () => m.nav_ai_tasks(), href: '/ai-tasks', icon: Sparkles }
 ];

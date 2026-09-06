@@ -1081,6 +1081,8 @@ export interface components {
 			fiberGoal: number;
 			sodiumGoal?: number | null;
 			sugarGoal?: number | null;
+			targetWeightKg?: number | null;
+			targetDate?: string | null;
 		};
 		FoodCreate: {
 			name: string;
@@ -1528,6 +1530,8 @@ export interface components {
 			fiberGoal: number;
 			sodiumGoal?: number | null;
 			sugarGoal?: number | null;
+			targetWeightKg?: number | null;
+			targetDate?: string | null;
 			createdAt?: string;
 			updatedAt?: string;
 		};

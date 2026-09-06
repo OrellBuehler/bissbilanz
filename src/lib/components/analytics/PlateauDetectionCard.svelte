@@ -1,15 +1,22 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
-	import { computeAdaptiveTDEE, detectPlateau } from '$lib/analytics/tdee';
+	import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '$lib/analytics/tdee';
+	import { computeGoalProjection } from '$lib/analytics/weight-goal';
+	import { today } from '$lib/utils/dates';
+	import { formatKg } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
 	let {
 		weightFoodData,
-		loading
+		loading,
+		targetWeightKg = null,
+		targetDate = null
 	}: {
 		weightFoodData: WeightFoodPoint[];
 		loading: boolean;
+		targetWeightKg?: number | null;
+		targetDate?: string | null;
 	} = $props();
 
 	const plateau = $derived.by(() => {
@@ -18,6 +25,21 @@
 		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
 		const tdee = computeAdaptiveTDEE(weightSeries, calorieSeries, 14);
 		return detectPlateau(weightSeries, calorieSeries, tdee.estimatedTDEE);
+	});
+
+	const targetProjection = $derived.by(() => {
+		if (targetWeightKg == null || weightFoodData.length === 0) return null;
+		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
+		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
+		const tdee = computeAdaptiveTDEE(weightSeries, calorieSeries, 14);
+		const forecast = projectWeight(weightSeries, tdee.weeklyRate, tdee.confidence);
+		return computeGoalProjection({
+			currentWeightKg: forecast.currentWeight,
+			targetWeightKg,
+			targetDate,
+			ratePerWeekKg: forecast.weeklyRate,
+			asOf: today()
+		});
 	});
 
 	const headline = $derived.by(() => {
@@ -60,6 +82,17 @@
 						</div>
 					{/if}
 
+					{#if targetProjection}
+						<div class="flex items-center justify-between border-t pt-2">
+							<span class="text-xs text-muted-foreground">{m.analytics_target_distance()}</span>
+							<span class="text-sm font-semibold tabular-nums">
+								{targetProjection.reached
+									? m.weight_target_reached()
+									: `${formatKg(Math.abs(targetProjection.remainingKg))} kg`}
+							</span>
+						</div>
+					{/if}
+
 					<p class="text-[11px] text-muted-foreground">{m.analytics_plateau_span_note()}</p>
 				{:else}
 					<div class="flex items-center gap-2">
@@ -69,6 +102,16 @@
 							{m.analytics_plateau_none()}
 						</span>
 					</div>
+					{#if targetProjection}
+						<div class="flex items-center justify-between border-t pt-2">
+							<span class="text-xs text-muted-foreground">{m.analytics_target_distance()}</span>
+							<span class="text-sm font-semibold tabular-nums">
+								{targetProjection.reached
+									? m.weight_target_reached()
+									: `${formatKg(Math.abs(targetProjection.remainingKg))} kg`}
+							</span>
+						</div>
+					{/if}
 				{/if}
 			</div>
 		{/if}

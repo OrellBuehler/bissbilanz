@@ -3,6 +3,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
+	import { goalsService } from '$lib/services/goals-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { today } from '$lib/utils/dates';
 	import { formatKg } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
@@ -21,6 +23,12 @@
 	let saving = $state(false);
 
 	const isToday = $derived(entryDate === today());
+
+	const cachedGoals = useLiveQuery(() => goalsService.goals(), undefined);
+	const targetWeightKg = $derived(cachedGoals.value?.targetWeightKg ?? null);
+	const distanceToTarget = $derived(
+		weightKg != null && targetWeightKg != null ? targetWeightKg - weightKg : null
+	);
 
 	const logWeight = async (e: Event) => {
 		e.preventDefault();
@@ -51,6 +59,13 @@
 	{:else}
 		<p class="text-muted-foreground text-sm">{m.dashboard_weight_no_entries()}</p>
 	{/if}
+	{#if distanceToTarget != null}
+		<p class="text-muted-foreground mt-1 text-xs tabular-nums">
+			{Math.abs(distanceToTarget) <= 0.25
+				? m.dashboard_weight_target_reached()
+				: m.dashboard_weight_to_target({ value: formatKg(Math.abs(distanceToTarget)) })}
+		</p>
+	{/if}
 	{#if !isToday}
 		<form onsubmit={logWeight} class="mt-3 flex gap-2">
 			<NumberInput
@@ -63,7 +78,7 @@
 			</Button>
 		</form>
 	{/if}
-	<Button variant="outline" size="sm" href="/insights?tab=weight" class="mt-3 w-full">
+	<Button variant="outline" size="sm" href="/weight" class="mt-3 w-full">
 		{m.dashboard_weight_view_all()}
 	</Button>
 </DashboardCard>

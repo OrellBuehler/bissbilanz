@@ -18,3 +18,4 @@ export * from './protein-distribution';
 export * from './weekday-weekend';
 export * from './rda';
 export * from './nutrient-reference';
+export * from './weight-goal';

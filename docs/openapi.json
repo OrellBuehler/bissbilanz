@@ -3396,6 +3396,29 @@
 								"type": "null"
 							}
 						]
+					},
+					"targetWeightKg": {
+						"anyOf": [
+							{
+								"type": "number",
+								"exclusiveMinimum": 0,
+								"maximum": 500
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"targetDate": {
+						"anyOf": [
+							{
+								"type": "string",
+								"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
 				"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"]
@@ -6493,6 +6516,12 @@
 					},
 					"sugarGoal": {
 						"type": ["number", "null"]
+					},
+					"targetWeightKg": {
+						"type": ["number", "null"]
+					},
+					"targetDate": {
+						"type": ["string", "null"]
 					},
 					"createdAt": {
 						"type": "string"

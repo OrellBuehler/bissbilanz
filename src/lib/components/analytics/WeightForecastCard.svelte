@@ -1,15 +1,23 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
 	import { computeAdaptiveTDEE, projectWeight } from '$lib/analytics/tdee';
+	import { computeGoalProjection } from '$lib/analytics/weight-goal';
+	import { today } from '$lib/utils/dates';
+	import { formatDateLabel } from '$lib/utils/dates';
+	import { formatKg } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
 	let {
 		weightFoodData,
-		loading
+		loading,
+		targetWeightKg = null,
+		targetDate = null
 	}: {
 		weightFoodData: WeightFoodPoint[];
 		loading: boolean;
+		targetWeightKg?: number | null;
+		targetDate?: string | null;
 	} = $props();
 
 	const forecast = $derived.by(() => {
@@ -26,7 +34,19 @@
 		return m.analytics_forecast_headline({ weight: f.day30.toFixed(1) });
 	});
 
-	const formatKg = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)} kg`);
+	const targetProjection = $derived(
+		forecast
+			? computeGoalProjection({
+					currentWeightKg: forecast.currentWeight,
+					targetWeightKg,
+					targetDate,
+					ratePerWeekKg: forecast.weeklyRate,
+					asOf: today()
+				})
+			: null
+	);
+
+	const formatWeight = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)} kg`);
 </script>
 
 <InsightCard
@@ -54,7 +74,7 @@
 									? 'text-red-600 dark:text-red-400'
 									: ''}"
 						>
-							{formatKg(forecast.day30)}
+							{formatWeight(forecast.day30)}
 						</p>
 					</div>
 					<div class="rounded-lg bg-muted/30 p-2 text-center">
@@ -70,7 +90,7 @@
 									? 'text-red-600 dark:text-red-400'
 									: ''}"
 						>
-							{formatKg(forecast.day60)}
+							{formatWeight(forecast.day60)}
 						</p>
 					</div>
 					<div class="rounded-lg bg-muted/30 p-2 text-center">
@@ -86,7 +106,7 @@
 									? 'text-red-600 dark:text-red-400'
 									: ''}"
 						>
-							{formatKg(forecast.day90)}
+							{formatWeight(forecast.day90)}
 						</p>
 					</div>
 				</div>
@@ -104,6 +124,21 @@
 						{m.analytics_kg_per_week()}
 					</span>
 				</div>
+
+				{#if targetProjection}
+					<div class="flex items-center justify-between border-t pt-2">
+						<span class="text-xs text-muted-foreground">
+							{m.analytics_forecast_target_eta()} · {formatKg(targetProjection.targetWeightKg)} kg
+						</span>
+						<span class="text-sm font-semibold tabular-nums">
+							{targetProjection.reached
+								? m.weight_target_reached()
+								: targetProjection.projectedDate
+									? formatDateLabel(targetProjection.projectedDate)
+									: m.analytics_forecast_target_none()}
+						</span>
+					</div>
+				{/if}
 
 				<p class="text-[11px] text-muted-foreground">
 					{m.analytics_forecast_anchor()} · {m.analytics_forecast_disclaimer()}
