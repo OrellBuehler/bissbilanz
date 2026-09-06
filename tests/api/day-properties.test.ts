@@ -4,7 +4,11 @@ import { TEST_USER } from '../helpers/fixtures';
 
 const TEST_DAY_PROPERTIES = {
 	date: '2026-03-22',
-	isFastingDay: true
+	isFastingDay: true,
+	notes: null,
+	waterMl: null,
+	activityCalories: null,
+	activityNote: null
 };
 
 const TEST_DAY_PROPERTIES_RANGE = [
@@ -150,10 +154,22 @@ describe('api/day-properties', () => {
 			expect(data.error).toBe('Invalid request body');
 		});
 
-		test('returns 400 when isFastingDay is missing', async () => {
+		test('accepts a partial patch without isFastingDay', async () => {
+			mockSetResult = { ...TEST_DAY_PROPERTIES, isFastingDay: false, notes: 'rest day' };
 			const event = createMockEvent({
 				user: TEST_USER,
-				body: { date: '2026-03-22' }
+				body: { date: '2026-03-22', notes: 'rest day' }
+			});
+			const response = await PUT(event);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.properties.notes).toBe('rest day');
+		});
+
+		test('returns 400 when water is negative', async () => {
+			const event = createMockEvent({
+				user: TEST_USER,
+				body: { date: '2026-03-22', waterMl: -1 }
 			});
 			const response = await PUT(event);
 			const data = await response.json();

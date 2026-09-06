@@ -24,7 +24,22 @@ function pct(consumed: number, goal: number): number {
 	return Math.round((consumed / goal) * 100);
 }
 
-export const formatDailyStatus = ({ entries, goals }: { entries: Entry[]; goals: Goals }) => {
+type DayProperties = {
+	isFastingDay?: boolean;
+	waterMl?: number | null;
+	activityCalories?: number | null;
+	activityNote?: string | null;
+} | null;
+
+export const formatDailyStatus = ({
+	entries,
+	goals,
+	dayProperties
+}: {
+	entries: Entry[];
+	goals: Goals;
+	dayProperties?: DayProperties;
+}) => {
 	const totals = sumEntries(entries);
 
 	const progress = goals
@@ -51,11 +66,19 @@ export const formatDailyStatus = ({ entries, goals }: { entries: Entry[]; goals:
 		byMeal[meal].fiber += (entry.fiber ?? 0) * entry.servings;
 	}
 
+	// Activity calories are informational only: they are never subtracted from
+	// intake or folded into goals/progress, which stay pure food-log figures.
+	const day = dayProperties ?? null;
+
 	return {
 		totals: roundNutrition(totals),
 		goals,
 		progress,
 		entryCount: entries.length,
-		byMeal: roundNutrition(byMeal)
+		byMeal: roundNutrition(byMeal),
+		...(day?.waterMl != null ? { waterMl: day.waterMl } : {}),
+		...(day?.activityCalories != null ? { activityCalories: day.activityCalories } : {}),
+		...(day?.activityNote ? { activityNote: day.activityNote } : {}),
+		...(day?.isFastingDay ? { isFastingDay: true } : {})
 	};
 };

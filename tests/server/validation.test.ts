@@ -54,8 +54,13 @@ describe('validation schemas', () => {
 		expect(result.success).toBe(false);
 	});
 
-	test('dayPropertiesSetSchema rejects missing fields', () => {
+	test('dayPropertiesSetSchema accepts a date-only patch (nothing changes)', () => {
 		const result = dayPropertiesSetSchema.safeParse({ date: '2026-03-22' });
+		expect(result.success).toBe(true);
+	});
+
+	test('dayPropertiesSetSchema rejects a missing date', () => {
+		const result = dayPropertiesSetSchema.safeParse({ isFastingDay: true });
 		expect(result.success).toBe(false);
 	});
 

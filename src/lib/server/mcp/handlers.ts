@@ -81,6 +81,7 @@ import { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/f
 import { listMealTypes } from '$lib/server/meal-types';
 import {
 	getDayProperties,
+	getDayPropertiesRange,
 	setDayProperties,
 	deleteDayProperties,
 	getFastingDays
@@ -231,6 +232,7 @@ export const {
 	getUserTimeZone,
 	listMealTypes,
 	getDayProperties,
+	getDayPropertiesRange,
 	setDayProperties,
 	deleteDayProperties,
 	getCalendarStats,

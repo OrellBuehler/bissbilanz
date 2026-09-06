@@ -45,12 +45,8 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const clientEditedAt = readClientEditedAt(request);
-		const properties = await setDayProperties(
-			userId,
-			result.data.date,
-			result.data.isFastingDay,
-			clientEditedAt
-		);
+		const { date: parsedDate, ...patch } = result.data;
+		const properties = await setDayProperties(userId, parsedDate, patch, clientEditedAt);
 		return respondUpdate({
 			key: 'properties',
 			updated: properties,

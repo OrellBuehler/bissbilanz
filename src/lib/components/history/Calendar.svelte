@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import StickyNote from '@lucide/svelte/icons/sticky-note';
 	import * as m from '$lib/paraglide/messages';
 
 	type DayStatus = 'on-target' | 'off-target' | 'logged' | 'none';
@@ -13,6 +14,7 @@
 		month: number;
 		dayColors?: Record<string, string>;
 		dayStatus?: Record<string, DayStatus>;
+		notedDates?: string[];
 		onDayClick?: (date: string) => void;
 		onPrevMonth?: () => void;
 		onNextMonth?: () => void;
@@ -23,6 +25,7 @@
 		month,
 		dayColors = {},
 		dayStatus = {},
+		notedDates = [],
 		onDayClick,
 		onPrevMonth,
 		onNextMonth
@@ -49,6 +52,7 @@
 	const firstDayOffset = $derived(getDayOfWeek(monthData.days[0]));
 
 	const hasAnyStatus = $derived(Object.keys(dayStatus).length > 0);
+	const notedSet = $derived(new Set(notedDates));
 
 	const getDayClass = (date: string) => {
 		const status = dayStatus[date];
@@ -79,11 +83,17 @@
 				<Button
 					variant="ghost"
 					size="sm"
-					class="h-8 w-full p-0 {getDayClass(date)}"
+					class="relative h-8 w-full p-0 {getDayClass(date)}"
 					style={dayColors[date] ? `background-color: ${dayColors[date]}` : ''}
 					onclick={() => onDayClick?.(date)}
 				>
 					{new Date(date + 'T00:00:00Z').getUTCDate()}
+					{#if notedSet.has(date)}
+						<StickyNote
+							class="absolute top-0.5 right-0.5 size-2.5 text-muted-foreground"
+							aria-label={m.calendar_has_note()}
+						/>
+					{/if}
 				</Button>
 			{/each}
 		</div>

@@ -95,10 +95,12 @@ import type {
 import type { listMealTypes } from '$lib/server/meal-types';
 import type {
 	getDayProperties,
+	getDayPropertiesRange,
 	setDayProperties,
 	deleteDayProperties,
 	getFastingDays
 } from '$lib/server/day-properties';
+import type { DayPropertiesPatch } from '$lib/server/validation/day-properties';
 import type { getCalendarStats } from '$lib/server/stats';
 import type {
 	listAiTasks,
@@ -197,6 +199,7 @@ export type HandlerDeps = {
 	listMealTypes: typeof listMealTypes;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
+	getDayPropertiesRange: typeof getDayPropertiesRange;
 	setDayProperties: typeof setDayProperties;
 	deleteDayProperties: typeof deleteDayProperties;
 	// Calendar stats
@@ -244,17 +247,23 @@ export function createHandlers(d: HandlerDeps) {
 	}
 
 	const getDailyStatusForDate = async (userId: string, date: string) => {
-		const { items: entries } = await d.listEntriesByDate(userId, date);
-		const goals = await d.getGoals(userId);
-		return d.formatDailyStatus({ entries, goals });
+		const [{ items: entries }, goals, dayProperties] = await Promise.all([
+			d.listEntriesByDate(userId, date),
+			d.getGoals(userId),
+			d.getDayProperties(userId, date)
+		]);
+		return d.formatDailyStatus({ entries, goals, dayProperties });
 	};
 
 	const handleGetDailyStatus = async (userId: string, date?: string, includeEntries?: boolean) => {
 		try {
 			const targetDate = date ?? (await d.todayForUser(userId));
-			const { items: entries } = await d.listEntriesByDate(userId, targetDate);
-			const goals = await d.getGoals(userId);
-			const status = d.formatDailyStatus({ entries, goals });
+			const [{ items: entries }, goals, dayProperties] = await Promise.all([
+				d.listEntriesByDate(userId, targetDate),
+				d.getGoals(userId),
+				d.getDayProperties(userId, targetDate)
+			]);
+			const status = d.formatDailyStatus({ entries, goals, dayProperties });
 			if (includeEntries) {
 				return { ...status, date: targetDate, entries };
 			}
@@ -840,7 +849,20 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			const err = guardDateRange(args.startDate, args.endDate);
 			if (err) return err;
-			return d.getDailyBreakdown(userId, args.startDate, args.endDate);
+			const [days, dayProps] = await Promise.all([
+				d.getDailyBreakdown(userId, args.startDate, args.endDate),
+				d.getDayPropertiesRange(userId, args.startDate, args.endDate)
+			]);
+			const byDate = new Map(dayProps.map((p) => [p.date, p]));
+			return days.map((day) => {
+				const props = byDate.get(day.date);
+				return {
+					...day,
+					...(props?.waterMl != null ? { waterMl: props.waterMl } : {}),
+					...(props?.activityCalories != null ? { activityCalories: props.activityCalories } : {}),
+					...(props?.activityNote ? { activityNote: props.activityNote } : {})
+				};
+			});
 		} catch (e) {
 			wrapError('get daily breakdown', e);
 		}
@@ -1468,10 +1490,11 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleSetDayProperties = async (
 		userId: string,
-		args: { date: string; isFastingDay: boolean }
+		args: { date: string } & DayPropertiesPatch
 	) => {
 		try {
-			const properties = await d.setDayProperties(userId, args.date, args.isFastingDay);
+			const { date, ...patch } = args;
+			const properties = await d.setDayProperties(userId, date, patch);
 			return { success: true, properties };
 		} catch (e) {
 			wrapError('set day properties', e);

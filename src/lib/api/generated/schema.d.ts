@@ -1420,7 +1420,11 @@ export interface components {
 		};
 		DayPropertiesSet: {
 			date: string;
-			isFastingDay: boolean;
+			isFastingDay?: boolean;
+			notes?: string | null;
+			waterMl?: number | null;
+			activityCalories?: number | null;
+			activityNote?: string | null;
 		};
 		PreferencesUpdate: {
 			showChartWidget?: boolean;
@@ -1454,6 +1458,7 @@ export interface components {
 			/** @enum {string} */
 			locale?: 'en' | 'de';
 			caloricLagDaysOverride?: number | null;
+			waterGoalMl?: number;
 			biologicalSex?: ('male' | 'female') | null;
 			timeZone?: string;
 		};
@@ -2036,6 +2041,7 @@ export interface components {
 			days: {
 				[key: string]: components['schemas']['CalendarDay'];
 			};
+			notedDates: string[];
 		};
 		CalendarDay: {
 			calories: number;
@@ -2047,6 +2053,10 @@ export interface components {
 		DayProperties: {
 			date: string;
 			isFastingDay: boolean;
+			notes: string | null;
+			waterMl: number | null;
+			activityCalories: number | null;
+			activityNote: string | null;
 		};
 		DayPropertiesRangeResponse: {
 			data: components['schemas']['DayProperties'][];
@@ -2069,6 +2079,7 @@ export interface components {
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
 			caloricLagDaysOverride?: number | null;
+			waterGoalMl: number;
 			biologicalSex?: ('male' | 'female') | null;
 			locale: string | null;
 			timeZone: string;
