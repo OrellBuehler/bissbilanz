@@ -69,6 +69,7 @@ import {
 } from './validation/responses/meal-types';
 import { favoritesResponseSchema } from './validation/responses/favorites';
 import { accountResponseSchema } from './validation/responses/account';
+import { importSummaryResponseSchema } from './validation/responses/import';
 import { maintenanceResponseSchema } from './validation/responses/maintenance';
 import { imageUploadResponseSchema } from './validation/responses/images';
 import {
@@ -1283,6 +1284,42 @@ export function generateSpec() {
 								}
 							}
 						},
+						'401': res401
+					}
+				}
+			},
+
+			'/api/account/import': {
+				post: {
+					operationId: 'importAccountData',
+					tags: ['Account'],
+					description:
+						'Import data into the authenticated account from a Bissbilanz export archive (.zip or bissbilanz.json) or a weight/sleep CSV file. With mode=preview nothing is written and the response describes what would be imported; mode=commit applies the import in a single transaction, skipping rows that already exist.',
+					requestBody: {
+						required: true,
+						content: {
+							'multipart/form-data': {
+								schema: {
+									type: 'object' as const,
+									properties: {
+										file: { type: 'string' as const, format: 'binary' },
+										mode: { type: 'string' as const, enum: ['preview', 'commit'] },
+										format: {
+											type: 'string' as const,
+											enum: ['archive', 'weight-csv', 'sleep-csv']
+										}
+									},
+									required: ['file']
+								}
+							}
+						}
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: importSummaryResponseSchema } }
+						},
+						'400': res400,
 						'401': res401
 					}
 				}

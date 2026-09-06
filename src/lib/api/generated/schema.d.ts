@@ -725,6 +725,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/account/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Import data into the authenticated account from a Bissbilanz export archive (.zip or bissbilanz.json) or a weight/sleep CSV file. With mode=preview nothing is written and the response describes what would be imported; mode=commit applies the import in a single transaction, skipping rows that already exist. */
+		post: operations['importAccountData'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/images/upload': {
 		parameters: {
 			query?: never;
@@ -2232,6 +2249,27 @@ export interface components {
 		AccountDataRange: {
 			earliest: string | null;
 			latest: string | null;
+		};
+		ImportSummaryResponse: {
+			/** @enum {string} */
+			mode: 'preview' | 'commit';
+			/** @enum {string} */
+			format: 'archive' | 'weight-csv' | 'sleep-csv';
+			totalRows: number;
+			imported: number;
+			skipped: number;
+			sections: components['schemas']['ImportSection'][];
+			samples: string[];
+			issues: components['schemas']['ImportIssue'][];
+		};
+		ImportSection: {
+			name: string;
+			toImport: number;
+			skipped: number;
+		};
+		ImportIssue: {
+			row: number;
+			message: string;
 		};
 		ImageUploadResponse: {
 			imageUrl: string;
@@ -4066,6 +4104,39 @@ export interface operations {
 					'application/zip': string;
 				};
 			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	importAccountData: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					/** Format: binary */
+					file: string;
+					/** @enum {string} */
+					mode?: 'preview' | 'commit';
+					/** @enum {string} */
+					format?: 'archive' | 'weight-csv' | 'sleep-csv';
+				};
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ImportSummaryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
