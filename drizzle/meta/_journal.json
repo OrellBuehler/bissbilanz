@@ -379,6 +379,13 @@
       "when": 1788632006076,
       "tag": "0053_icy_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1788730513210,
+      "tag": "0054_lethal_killmonger",
+      "breakpoints": true
     }
   ]
 }

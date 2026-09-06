@@ -471,9 +471,14 @@ export const supplements = pgTable(
 		sortOrder: integer('sort_order').notNull().default(0),
 		timeOfDay: text('time_of_day'),
 		// Optional local wall-clock reminder times as 'HH:MM' (24h). Timezone-naive on
-		// purpose: 08:00 means 08:00 wherever the device currently is. Only the mobile
-		// apps act on these — they schedule local notifications; the web never notifies.
+		// purpose: 08:00 means 08:00 wherever the device currently is. The mobile apps
+		// schedule local notifications from these; the server dispatcher resolves them
+		// against the user's stored timezone and sends a Web Push for the PWA.
 		reminderTimes: text('reminder_times').array(),
+		// Dedupe marker for the push reminder dispatcher — the minute a reminder was
+		// last sent for this supplement. Claimed atomically so a restart or an
+		// overlapping tick can never send twice within the same minute.
+		lastRemindedAt: timestamp('last_reminded_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -903,6 +908,29 @@ export const catalogAccess = pgTable(
 	(table) => [primaryKey({ columns: [table.userId, table.datasetId] })]
 );
 
+// Web Push subscriptions — one row per browser/PWA install that opted in to
+// supplement reminders. The endpoint is the push service URL and is globally
+// unique, so re-subscribing the same browser upserts rather than duplicates.
+export const pushSubscriptions = pgTable(
+	'push_subscriptions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		endpoint: text('endpoint').notNull().unique(),
+		p256dh: text('p256dh').notNull(),
+		auth: text('auth').notNull(),
+		userAgent: text('user_agent'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+		// Consecutive delivery failures; the row is dropped once it crosses the
+		// dispatcher's threshold (a 404/410 from the push service drops it at once).
+		failureCount: integer('failure_count').notNull().default(0)
+	},
+	(table) => [index('idx_push_subscriptions_user_id').on(table.userId)]
+);
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -944,3 +972,5 @@ export type DayProperty = typeof dayProperties.$inferSelect;
 export type NewDayProperty = typeof dayProperties.$inferInsert;
 export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
 export type NewIdempotencyKey = typeof idempotencyKeys.$inferInsert;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
