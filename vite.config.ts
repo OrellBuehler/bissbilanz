@@ -79,6 +79,10 @@ export default defineConfig({
 				]
 			},
 			workbox: {
+				// Push + notificationclick handlers live in a static script the
+				// generated worker imports, so precache and runtime caching stay
+				// exactly as generateSW produces them.
+				importScripts: ['/push-sw.js'],
 				globPatterns: [
 					'client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm}',
 					'prerendered/**/*.{html,json}'

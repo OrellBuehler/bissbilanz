@@ -14,6 +14,7 @@ import { isCrossOriginEndpoint, isFormPostCallback, isOriginMismatch } from '$li
 import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
+import { startReminderScheduler } from '$lib/server/push/scheduler';
 import { acceptsBearerAuth } from '$lib/server/auth-paths';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
 import { env } from '$env/dynamic/public';
@@ -60,6 +61,7 @@ export async function init() {
 	};
 	runCleanup();
 	setInterval(runCleanup, 3600000);
+	startReminderScheduler();
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>

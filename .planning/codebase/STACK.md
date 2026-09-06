@@ -173,6 +173,8 @@
 - `SESSION_SECRET` - Session encryption key (32 bytes base64)
 - `PUBLIC_APP_URL` - Application base URL (e.g., http://localhost:4000)
 - `MCP_ENDPOINT_ENABLED` - Enable MCP integration (boolean, optional)
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` - Web Push credentials for PWA
+  supplement reminders (optional, all-or-nothing; generate with `bun run push:vapid`)
 
 **Build Configuration:**
 

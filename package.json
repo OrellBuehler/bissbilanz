@@ -16,6 +16,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
+		"push:vapid": "bun run scripts/generate-vapid-keys.ts",
 		"test": "bun --bun vitest run",
 		"test:watch": "bun --bun vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
