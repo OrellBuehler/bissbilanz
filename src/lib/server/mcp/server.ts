@@ -373,7 +373,7 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'Get Goals',
 			outputSchema: TOOL_OUTPUT.get_goals,
 			description:
-				"Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber.",
+				"Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber, plus the optional body weight target and target date.",
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
@@ -384,7 +384,8 @@ export function createMcpServer(userId: string): McpServer {
 		'update_goals',
 		{
 			title: 'Update Goals',
-			description: 'Set or update daily nutrition goals.',
+			description:
+				'Set or update daily nutrition goals, and optionally the body weight target (targetWeightKg) and the date it should be reached by (targetDate). All macro goals must be sent on every call.',
 			inputSchema: describeShape(goalsSchema.shape, {
 				calorieGoal: 'Daily calorie goal',
 				proteinGoal: 'Daily protein goal in grams',
@@ -392,7 +393,9 @@ export function createMcpServer(userId: string): McpServer {
 				fatGoal: 'Daily fat goal in grams',
 				fiberGoal: 'Daily fiber goal in grams',
 				sodiumGoal: 'Daily sodium goal in mg (null to clear)',
-				sugarGoal: 'Daily sugar goal in grams (null to clear)'
+				sugarGoal: 'Daily sugar goal in grams (null to clear)',
+				targetWeightKg: 'Body weight target in kg (null to clear)',
+				targetDate: 'Target date for the body weight target as YYYY-MM-DD (null to clear)'
 			}),
 			annotations: UPDATE
 		},

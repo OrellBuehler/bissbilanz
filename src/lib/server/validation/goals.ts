@@ -10,6 +10,13 @@ export const goalsSchema = z
 		fiberGoal: z.coerce.number().nonnegative(),
 		// Advanced nutrient goals (optional)
 		sodiumGoal: z.coerce.number().nonnegative().optional().nullable(),
-		sugarGoal: z.coerce.number().nonnegative().optional().nullable()
+		sugarGoal: z.coerce.number().nonnegative().optional().nullable(),
+		// Body weight target (optional)
+		targetWeightKg: z.coerce.number().positive().max(500).optional().nullable(),
+		targetDate: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional()
+			.nullable()
 	})
 	.meta({ id: 'GoalsUpdate' });

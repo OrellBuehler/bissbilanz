@@ -171,6 +171,8 @@ describe('goalsService', () => {
 			fiberGoal: 30,
 			sodiumGoal: 2300,
 			sugarGoal: 50,
+			targetWeightKg: null,
+			targetDate: null,
 			updatedAt: '2026-01-01T00:00:00Z'
 		});
 

@@ -14,6 +14,8 @@ export const goalsResponseSchema = z
 				fiberGoal: z.number(),
 				sodiumGoal: z.number().nullable().optional(),
 				sugarGoal: z.number().nullable().optional(),
+				targetWeightKg: z.number().nullable().optional(),
+				targetDate: z.string().nullable().optional(),
 				createdAt: z.string().optional(),
 				updatedAt: z.string().optional()
 			})

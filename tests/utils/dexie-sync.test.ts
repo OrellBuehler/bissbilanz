@@ -148,6 +148,8 @@ describe('clearAllData', () => {
 			fiberGoal: 30,
 			sodiumGoal: null,
 			sugarGoal: null,
+			targetWeightKg: null,
+			targetDate: null,
 			updatedAt: null
 		});
 		await db.syncQueue.add({
@@ -286,6 +288,8 @@ describe('ensureUserScope', () => {
 			fiberGoal: 30,
 			sodiumGoal: null,
 			sugarGoal: null,
+			targetWeightKg: null,
+			targetDate: null,
 			updatedAt: null
 		});
 		await ensureUserScope('user-abc');
