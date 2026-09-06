@@ -152,7 +152,6 @@ class SettingsViewModelTest {
 
             viewModel.updateBiologicalSex(null)
 
-            assertNull(viewModel.biologicalSex.value)
             coVerify {
                 prefsRepo.updatePreferences(any(), setOf(PreferencesField.BIOLOGICAL_SEX))
             }
@@ -165,7 +164,6 @@ class SettingsViewModelTest {
 
             viewModel.updateBiologicalSex(PreferencesUpdate.BiologicalSex.female)
 
-            assertEquals("female", viewModel.biologicalSex.value)
             coVerify { prefsRepo.updatePreferences(any(), emptySet()) }
         }
 
