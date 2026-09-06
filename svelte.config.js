@@ -53,6 +53,9 @@ const config = {
 					'https://*.ingest.de.sentry.io',
 					'https://api.stripe.com'
 				],
+				// The nutrition-label OCR runs in a same-origin web worker; blob: covers
+				// Tesseract's blob-URL worker fallback.
+				'worker-src': ['self', 'blob:'],
 				'base-uri': ['self'],
 				'form-action': ['self'],
 				'frame-ancestors': ['none']
