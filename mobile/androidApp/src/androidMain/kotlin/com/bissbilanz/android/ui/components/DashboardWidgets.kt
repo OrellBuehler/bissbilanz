@@ -46,7 +46,6 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
-import com.bissbilanz.api.generated.model.MealBreakdownItem
 import com.bissbilanz.api.generated.model.TopFoodItem
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
@@ -64,6 +63,17 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import org.koin.compose.koinInject
+
+/**
+ * A cheap value that changes whenever the day's entries do — a new log, an edit, a
+ * delete, or the sync manager swapping a temp id for the server one.
+ *
+ * The cards that read a server-side aggregate use it as a `LaunchedEffect` key so they
+ * refetch instead of showing the figures the day started with. Servings and calories are
+ * folded in because editing an entry changes neither the count nor the ids.
+ */
+internal fun List<Entry>.calorieSignature(): String =
+    joinToString(separator = "|") { "${it.id}:${it.mealType}:${it.servings}:${it.resolvedCalories()}" }
 
 /**
  * Shared chrome for the optional dashboard cards: an icon, a title and an optional
@@ -110,28 +120,42 @@ private fun WidgetCard(
  * Seven days of calories ending on the shown day. `getDailyStats` computes from the
  * local cache in Local mode and falls back to it when the server call fails, so this
  * card works offline without a separate code path.
+ *
+ * [entries] are the shown day's own entries. They keep the card honest: the fetch is
+ * re-run whenever they change (so a log made here is picked up once it has uploaded),
+ * and the last point is meanwhile taken from them directly, because the server aggregate
+ * cannot know about a write still sitting in the sync queue.
  */
 @Composable
 fun CalorieTrendWidget(
     date: String,
+    entries: List<Entry>,
     modifier: Modifier = Modifier,
 ) {
     val statsRepo: StatsRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    var calories by remember { mutableStateOf<List<Double>>(emptyList()) }
+    var series by remember { mutableStateOf<List<Pair<String, Double>>>(emptyList()) }
+    val entriesKey = entries.calorieSignature()
 
-    LaunchedEffect(date) {
+    LaunchedEffect(date, entriesKey) {
         val end = runCatching { LocalDate.parse(date) }.getOrNull() ?: return@LaunchedEffect
         val start = end.minus(6, DateTimeUnit.DAY)
-        calories =
+        series =
             try {
-                statsRepo.getDailyStats(start.toString(), end.toString()).data.map { it.calories }
+                statsRepo.getDailyStats(start.toString(), end.toString()).data.map { it.date to it.calories }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 emptyList()
             }
     }
+
+    val calories =
+        remember(series, entries, date) {
+            val localTotal = entries.sumOf { it.resolvedCalories() }
+            val merged = series.map { (day, value) -> if (day == date) localTotal else value }
+            if (series.none { it.first == date } && entries.isNotEmpty()) merged + localTotal else merged
+        }
 
     WidgetCard(
         title = stringResource(R.string.dashboard_calorie_trend_title),
@@ -275,47 +299,26 @@ fun FavoritesQuickLogWidget(
 }
 
 /**
- * Calories per meal for the shown day. The server breakdown is authoritative when it is
- * reachable; otherwise the same figures are derived from the day's own entries, so the
- * card stays correct in Local mode and offline instead of erroring.
+ * Calories per meal for the shown day, derived from the day's own entries.
+ *
+ * Deliberately not the server breakdown: the cached entries are the same rows the rings
+ * and the day log above are drawn from, so the card agrees with the rest of the screen
+ * and updates the moment something is logged — a server aggregate cannot see a write
+ * that is still queued for upload, and preferring it left the card stale until the day
+ * changed. It also removes the separate Local-mode path.
  */
 @Composable
 fun MealBreakdownWidget(
-    date: String,
     entries: List<Entry>,
-    isLocalMode: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val statsRepo: StatsRepository = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
-    var remote by remember { mutableStateOf<List<MealBreakdownItem>>(emptyList()) }
-
-    LaunchedEffect(date, isLocalMode) {
-        if (isLocalMode) {
-            remote = emptyList()
-            return@LaunchedEffect
-        }
-        remote =
-            try {
-                statsRepo.getMealBreakdown(date).data
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                emptyList()
-            }
-    }
-
     val meals =
-        remember(remote, entries) {
-            val source =
-                if (remote.isNotEmpty()) {
-                    remote.map { it.mealType to it.calories }
-                } else {
-                    entries
-                        .groupBy { normalizeMealType(it.mealType) }
-                        .map { (meal, group) -> meal to group.sumOf { it.resolvedCalories() } }
-                }
-            source.filter { it.second > 0 }.sortedByDescending { it.second }
+        remember(entries) {
+            entries
+                .groupBy { normalizeMealType(it.mealType) }
+                .map { (meal, group) -> meal to group.sumOf { it.resolvedCalories() } }
+                .filter { it.second > 0 }
+                .sortedByDescending { it.second }
         }
 
     WidgetCard(
@@ -362,17 +365,23 @@ fun MealBreakdownWidget(
 /**
  * The foods logged most often over the last week. Server-only — there is no local
  * aggregate to fall back on — so in Local mode the card says so rather than erroring.
+ *
+ * [entries] are the shown day's entries; they are only a refetch key. Without one the
+ * list was fetched once and then contradicted every log made on the screen until the
+ * card left composition.
  */
 @Composable
 fun TopFoodsWidget(
+    entries: List<Entry>,
     isLocalMode: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val statsRepo: StatsRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     var foods by remember { mutableStateOf<List<TopFoodItem>>(emptyList()) }
+    val entriesKey = entries.calorieSignature()
 
-    LaunchedEffect(isLocalMode) {
+    LaunchedEffect(isLocalMode, entriesKey) {
         if (isLocalMode) return@LaunchedEffect
         foods =
             try {

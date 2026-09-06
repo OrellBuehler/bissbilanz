@@ -117,8 +117,9 @@ fun BissbilanzApp() {
 
             RootDestination.App -> {
                 // In Local mode a stale SessionExpired is cleared silently — no toast,
-                // the app works without an account.
-                if (authState is AuthState.SessionExpired) {
+                // the app works without an account. A Synced session that died must keep
+                // the state, otherwise the Settings prompt to sign in again never renders.
+                if (authState is AuthState.SessionExpired && mode == AppMode.LOCAL) {
                     LaunchedEffect(Unit) {
                         authManager.clearSessionExpired()
                     }

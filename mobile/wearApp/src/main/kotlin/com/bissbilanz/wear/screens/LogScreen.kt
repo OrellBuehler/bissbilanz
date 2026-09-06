@@ -48,8 +48,13 @@ fun LogScreen(
     val scope = rememberCoroutineScope()
     var outcome by remember { mutableStateOf<WearSendResult?>(null) }
     var pending by remember { mutableIntStateOf(0) }
+    var sending by remember { mutableStateOf(false) }
+    // Counted, not derived: offline a second log leaves both the state and the
+    // outcome exactly as they were, and a banner keyed on those alone would go on
+    // reading "1 waiting" while two writes sit on the watch.
+    var sends by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(state, outcome) {
+    LaunchedEffect(state, outcome, sends) {
         pending = withContext(Dispatchers.IO) { WearStateRepository.pendingCount(context) }
     }
 
@@ -58,22 +63,36 @@ fun LogScreen(
         LogDetailScreen(
             food = chosen,
             mealTypes = state.mealTypes,
+            sending = sending,
             onCancel = { selected = null },
             onConfirm = { meal, servings ->
-                scope.launch {
-                    outcome =
-                        WearStateRepository.logFood(
-                            context,
-                            WearLogRequest(
-                                foodId = chosen.id.takeUnless { chosen.isRecipe },
-                                recipeId = chosen.id.takeIf { chosen.isRecipe },
-                                mealType = meal,
-                                servings = servings,
-                                date = LocalDate.now().toString(),
-                                requestId = UUID.randomUUID().toString(),
-                            ),
-                        )
-                    selected = null
+                // A send takes up to fifteen seconds. A second tap in that window
+                // makes a second entry with its own request id, which nothing
+                // downstream can recognise as a duplicate.
+                if (!sending) {
+                    sending = true
+                    scope.launch {
+                        try {
+                            outcome =
+                                WearStateRepository.logFood(
+                                    context,
+                                    WearLogRequest(
+                                        foodId = chosen.id.takeUnless { chosen.isRecipe },
+                                        recipeId = chosen.id.takeIf { chosen.isRecipe },
+                                        mealType = meal,
+                                        servings = servings,
+                                        date = LocalDate.now().toString(),
+                                        requestId = UUID.randomUUID().toString(),
+                                    ),
+                                )
+                        } finally {
+                            // The write is durable from the moment it is queued, so
+                            // this runs even if the page was swiped away mid-send.
+                            sending = false
+                            sends += 1
+                            selected = null
+                        }
+                    }
                 }
             },
         )
@@ -163,6 +182,7 @@ private fun FoodChip(
 private fun LogDetailScreen(
     food: WearFoodRef,
     mealTypes: List<String>,
+    sending: Boolean,
     onCancel: () -> Unit,
     onConfirm: (String, Double) -> Unit,
 ) {
@@ -232,9 +252,10 @@ private fun LogDetailScreen(
         item {
             Chip(
                 onClick = { onConfirm(meal, servings) },
+                enabled = !sending,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ChipDefaults.primaryChipColors(),
-                label = { Text(wearString(R.string.log)) },
+                label = { Text(wearString(if (sending) R.string.sending else R.string.log)) },
             )
         }
 

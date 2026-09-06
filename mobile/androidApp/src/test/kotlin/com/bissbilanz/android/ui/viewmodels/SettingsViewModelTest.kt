@@ -4,6 +4,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.migration.AccountDowngrader
@@ -13,6 +14,7 @@ import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.storage.KeyValueStore
 import com.bissbilanz.sync.SyncManager
+import com.bissbilanz.util.PreferencesField
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -136,6 +138,35 @@ class SettingsViewModelTest {
             createViewModel()
 
             coVerify(exactly = 0) { api.getMealTypes() }
+        }
+
+    /**
+     * "Not set" is a clear, not "leave it alone". `PreferencesUpdate` encodes both as
+     * null and the shared Json omits nulls, so without the explicit clear the picker
+     * moved and then snapped back to the old value on the next visit.
+     */
+    @Test
+    fun choosingNotSetForBiologicalSexAnnouncesAnExplicitClear() =
+        runTest {
+            val viewModel = createViewModel()
+
+            viewModel.updateBiologicalSex(null)
+
+            assertNull(viewModel.biologicalSex.value)
+            coVerify {
+                prefsRepo.updatePreferences(any(), setOf(PreferencesField.BIOLOGICAL_SEX))
+            }
+        }
+
+    @Test
+    fun choosingAConcreteBiologicalSexClearsNothing() =
+        runTest {
+            val viewModel = createViewModel()
+
+            viewModel.updateBiologicalSex(PreferencesUpdate.BiologicalSex.female)
+
+            assertEquals("female", viewModel.biologicalSex.value)
+            coVerify { prefsRepo.updatePreferences(any(), emptySet()) }
         }
 
     @Test

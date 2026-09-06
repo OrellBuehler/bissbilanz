@@ -37,6 +37,30 @@ class OpenFoodFactsMergeTest {
     }
 
     @Test
+    fun keepsTheUsersOwnPhotoOverTheProductShot() {
+        val baseline = foodFixture(imageUrl = "/uploads/mine.jpg")
+        val product = productFixture(imageUrl = "https://off.example/product.jpg")
+
+        val result = mergeOpenFoodFactsOntoFood(baseline, product)
+
+        assertEquals(
+            "/uploads/mine.jpg",
+            result.imageUrl,
+            "the server unlinks the previous upload when imageUrl changes, so enriching must not replace a user photo",
+        )
+    }
+
+    @Test
+    fun takesTheProductPhotoWhenTheFoodHasNone() {
+        val baseline = foodFixture(imageUrl = null)
+        val product = productFixture(imageUrl = "https://off.example/product.jpg")
+
+        val result = mergeOpenFoodFactsOntoFood(baseline, product)
+
+        assertEquals("https://off.example/product.jpg", result.imageUrl)
+    }
+
+    @Test
     fun fallsBackToBaselineWhenProductFieldIsNull() {
         val baseline = foodFixture(saturatedFat = 2.0, vitaminC = 8.0, imageUrl = "local.jpg")
         val product = productFixture(saturatedFat = null, vitaminC = null, imageUrl = null)

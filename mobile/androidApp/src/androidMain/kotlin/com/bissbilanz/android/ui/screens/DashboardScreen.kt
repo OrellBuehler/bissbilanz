@@ -400,7 +400,7 @@ fun DashboardScreen(navController: NavController) {
                             // meal breakdown, top foods.
                             if (prefs?.showChartWidget == true) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                CalorieTrendWidget(date = selectedDate.toString())
+                                CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
                             }
 
                             // Logging into a past day from a quick-log row would be a
@@ -447,16 +447,12 @@ fun DashboardScreen(navController: NavController) {
 
                             if (prefs?.showMealBreakdownWidget == true) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                MealBreakdownWidget(
-                                    date = selectedDate.toString(),
-                                    entries = entries,
-                                    isLocalMode = isLocalMode,
-                                )
+                                MealBreakdownWidget(entries = entries)
                             }
 
                             if (prefs?.showTopFoodsWidget == true) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                TopFoodsWidget(isLocalMode = isLocalMode)
+                                TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))

@@ -286,11 +286,20 @@ struct FoodPicker: View {
     }
 
     private func search(_ query: String) async {
+        // Every exit clears the spinners, including the cancellation guards
+        // below — those used to return with `isSearching`/`isSearchingOff`
+        // still true and only recovered because a superseding task re-entered.
+        // Guarded on the query still being the one in the field so a superseded
+        // search can't switch off the flags its successor just turned on.
+        defer {
+            if query == self.query {
+                isSearching = false
+                isSearchingOff = false
+            }
+        }
         guard query.count >= 2 else {
             results = []
             offResults = []
-            isSearching = false
-            isSearchingOff = false
             return
         }
         isSearching = true
@@ -300,7 +309,6 @@ struct FoodPicker: View {
         isSearching = false
         guard found.count < Self.offFallbackThreshold else {
             offResults = []
-            isSearchingOff = false
             return
         }
         isSearchingOff = true
@@ -308,6 +316,5 @@ struct FoodPicker: View {
         let hits = await foodRepository.searchOpenFoodFacts(query: query)
         guard !Task.isCancelled, query == self.query else { return }
         offResults = hits
-        isSearchingOff = false
     }
 }

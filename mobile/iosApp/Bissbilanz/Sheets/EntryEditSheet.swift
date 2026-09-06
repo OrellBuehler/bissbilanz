@@ -56,6 +56,18 @@ struct EntryEditSheet: View {
         entry.foodId == nil && entry.recipeId == nil
     }
 
+    /// A quick entry has to keep its calories. The server's `entryCreateSchema`
+    /// requires `foodId`, `recipeId` or a positive `quickCalories`, and for an
+    /// entry that hasn't uploaded yet the edit is merged into the still-queued
+    /// create (`EntryRepository.coalesceQueuedCreate`) — an emptied field would
+    /// drop `quickCalories` from that create, the POST would 400, and the sync
+    /// queue drops client errors for good, stranding the entry as a local
+    /// `temp_` row forever.
+    private var canSave: Bool {
+        guard isQuickEntry else { return true }
+        return (Double.parseUserInput(calories) ?? 0) > 0
+    }
+
     /// "0.75 × 50 g = 37.5 g" — the food's serving size with the amount the
     /// picked serving count works out to, so the user can judge the quantity
     /// without remembering the food. `nil` for quick entries and recipes,
@@ -138,7 +150,7 @@ struct EntryEditSheet: View {
                     Button(L10n.save) {
                         Task { await save() }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || !canSave)
                     .fontWeight(.semibold)
                 }
             }
@@ -158,12 +170,19 @@ struct EntryEditSheet: View {
 
     @ViewBuilder
     private var quickNutritionSections: some View {
-        Section(L10n.nutritionPerServing) {
+        Section {
             NutrientInputField(label: L10n.calories, text: $calories, unit: "kcal")
             NutrientInputField(label: L10n.protein, text: $protein, unit: "g")
             NutrientInputField(label: L10n.carbs, text: $carbs, unit: "g")
             NutrientInputField(label: L10n.fat, text: $fat, unit: "g")
             NutrientInputField(label: L10n.fiber, text: $fiber, unit: "g")
+        } header: {
+            Text(L10n.nutritionPerServing)
+        } footer: {
+            // Says why Save is disabled rather than leaving it inert.
+            if !canSave {
+                Text(L10n.caloriesRequired)
+            }
         }
 
         Section(L10n.additionalNutrients) {
@@ -200,6 +219,7 @@ struct EntryEditSheet: View {
     }
 
     private func save() async {
+        guard canSave else { return }
         isSaving = true
         var update = EntryUpdate(mealType: mealType, servings: servings, eatenAt: eatenAtString())
         // Always sent, never omitted: an emptied note has to reach the server as

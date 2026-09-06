@@ -31,6 +31,7 @@ import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.SupplementRepository
+import com.bissbilanz.util.SupplementField
 import com.bissbilanz.util.SupplementSchedule
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.flow.first
@@ -82,6 +83,11 @@ fun SupplementEditSheet(
     // Server encoding: 0 = Sunday .. 6 = Saturday. Required (and non-empty) for the
     // weekly and specific-days schedules, ignored for the other two.
     var scheduleDays by remember { mutableStateOf(setOf<Int>()) }
+    // The anchor an every_other_day schedule counts from. Purely carried through: the
+    // sheet never edits it, but dropping it made every edit — a rename included — reset
+    // the anchor locally, and `SupplementSchedule` then treated the supplement as due
+    // every day until the next server refresh put the real date back.
+    var scheduleStartDate by remember { mutableStateOf<String?>(null) }
     var showFrequencyMenu by remember { mutableStateOf(false) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var reminderTimes by remember { mutableStateOf(listOf<String>()) }
@@ -104,6 +110,7 @@ fun SupplementEditSheet(
                     name = found.name
                     scheduleType = found.scheduleType
                     scheduleDays = found.scheduleDays?.toSet().orEmpty()
+                    scheduleStartDate = found.scheduleStartDate
                     timeOfDay = found.timeOfDay?.value ?: "morning"
                     reminderTimes = found.reminderTimes.orEmpty()
                     isActive = found.isActive
@@ -483,6 +490,7 @@ fun SupplementEditSheet(
                                             ingredients = ingredientInputs,
                                             scheduleDays =
                                                 if (needsScheduleDays) scheduleDays.sorted() else null,
+                                            scheduleStartDate = scheduleStartDate,
                                             timeOfDay =
                                                 GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
                                                     tod.value == timeOfDay
@@ -492,7 +500,19 @@ fun SupplementEditSheet(
                                         )
                                     if (isEditing) {
                                         val id = supplementId ?: return@launch
-                                        supplementRepo.updateSupplement(id, create)
+                                        // Switching weekly/specific-days back to daily has
+                                        // to null `scheduleDays` server-side; an omitted
+                                        // field would leave the stale days behind.
+                                        supplementRepo.updateSupplement(
+                                            id,
+                                            create,
+                                            cleared =
+                                                if (needsScheduleDays) {
+                                                    emptySet()
+                                                } else {
+                                                    setOf(SupplementField.SCHEDULE_DAYS)
+                                                },
+                                        )
                                     } else {
                                         supplementRepo.createSupplement(create)
                                     }

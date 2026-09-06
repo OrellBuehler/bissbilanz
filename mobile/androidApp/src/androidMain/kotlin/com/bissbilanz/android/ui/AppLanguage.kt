@@ -30,6 +30,18 @@ object AppLanguage {
     private const val PREFS_NAME = "app_language"
     private const val KEY_TAG = "language_tag"
 
+    /**
+     * The device locale as it was before the app ever overrode [Locale.getDefault].
+     *
+     * [wrap] has to set the process default so number and date parsing/formatting follow
+     * the picked language on 26..32. Switching back to [SYSTEM] then has to put the
+     * original back: leaving the last override in place made the UI flip to the device
+     * language while `toLocalizedDoubleOrNull` and friends kept parsing in the old one,
+     * until the next cold start. Captured on first use, which is the first activity's
+     * `attachBaseContext` — before any override has been applied.
+     */
+    private val deviceDefaultLocale: Locale by lazy { Locale.getDefault() }
+
     fun stored(context: Context): String {
         val tag =
             context
@@ -63,10 +75,13 @@ object AppLanguage {
      */
     fun wrap(base: Context): Context {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return base
+        // Read before the first override so the lazy records the real device locale and
+        // not one this method installed on an earlier activity.
+        val deviceDefault = deviceDefaultLocale
         val tag = stored(base)
-        if (tag == SYSTEM) return base
-        val locale = Locale.forLanguageTag(tag)
+        val locale = if (tag == SYSTEM) deviceDefault else Locale.forLanguageTag(tag)
         Locale.setDefault(locale)
+        if (tag == SYSTEM) return base
         val config = Configuration(base.resources.configuration)
         config.setLocale(locale)
         return base.createConfigurationContext(config)

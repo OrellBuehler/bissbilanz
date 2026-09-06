@@ -34,6 +34,7 @@ fun WeightScreen(
 ) {
     val scope = rememberCoroutineScope()
     var outcome by remember { mutableStateOf<WearSendResult?>(null) }
+    var sending by remember { mutableStateOf(false) }
     // Seeded from the last known weight so a log is usually two taps away.
     var draft by remember(state.weight?.latestKg) { mutableDoubleStateOf(state.weight?.latestKg ?: 70.0) }
 
@@ -74,21 +75,31 @@ fun WeightScreen(
         item {
             Chip(
                 onClick = {
-                    scope.launch {
-                        outcome =
-                            WearStateRepository.logWeight(
-                                context,
-                                WearWeightLogRequest(
-                                    weightKg = (draft * 10).roundToInt() / 10.0,
-                                    date = LocalDate.now().toString(),
-                                    requestId = UUID.randomUUID().toString(),
-                                ),
-                            )
+                    // Held for the whole send: a second tap makes a second entry
+                    // under its own request id, which nothing can deduplicate.
+                    if (!sending) {
+                        sending = true
+                        scope.launch {
+                            try {
+                                outcome =
+                                    WearStateRepository.logWeight(
+                                        context,
+                                        WearWeightLogRequest(
+                                            weightKg = (draft * 10).roundToInt() / 10.0,
+                                            date = LocalDate.now().toString(),
+                                            requestId = UUID.randomUUID().toString(),
+                                        ),
+                                    )
+                            } finally {
+                                sending = false
+                            }
+                        }
                     }
                 },
+                enabled = !sending,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ChipDefaults.primaryChipColors(),
-                label = { Text(wearString(R.string.log_weight)) },
+                label = { Text(wearString(if (sending) R.string.sending else R.string.log_weight)) },
             )
         }
 

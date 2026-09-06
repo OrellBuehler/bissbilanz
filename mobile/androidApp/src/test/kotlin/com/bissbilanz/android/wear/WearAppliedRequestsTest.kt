@@ -3,6 +3,7 @@ package com.bissbilanz.android.wear
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.bissbilanz.wear.WearLimits
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -44,10 +45,47 @@ class WearAppliedRequestsTest {
     @Test
     fun `the remembered set stays bounded`() {
         assertTrue(WearAppliedRequests.markApplied(context, "bounded-oldest"))
-        repeat(64) { index -> WearAppliedRequests.markApplied(context, "bounded-$index") }
+        repeat(WearLimits.APPLIED_REQUESTS) { index -> WearAppliedRequests.markApplied(context, "bounded-$index") }
         // Pushed out of the window, so it would be applied again — which is fine:
         // a retry that far behind is not a retry any more.
         assertTrue(WearAppliedRequests.markApplied(context, "bounded-oldest"))
-        assertFalse(WearAppliedRequests.markApplied(context, "bounded-63"))
+        assertFalse(WearAppliedRequests.markApplied(context, "bounded-${WearLimits.APPLIED_REQUESTS - 1}"))
+    }
+
+    @Test
+    fun `a full outbox flushing at once still deduplicates its first item`() {
+        // The watch can queue WearLimits.OUTBOX writes and send them as one burst.
+        // A window shorter than the burst forgets the earliest ids before their
+        // own retries arrive, and those get written a second time.
+        assertTrue(WearAppliedRequests.markApplied(context, "burst-first"))
+        repeat(WearLimits.OUTBOX - 1) { index -> WearAppliedRequests.markApplied(context, "burst-$index") }
+        assertFalse(WearAppliedRequests.markApplied(context, "burst-first"))
+    }
+
+    @Test
+    fun `an id released after a failed write can be applied again`() {
+        // The claim is taken before the write, so a write that throws has to hand
+        // it back — otherwise the watch's retry is dropped as a duplicate of a log
+        // that never happened, and the entry is lost for good.
+        assertTrue(WearAppliedRequests.markApplied(context, "released-1"))
+        WearAppliedRequests.release(context, "released-1")
+        assertTrue(WearAppliedRequests.markApplied(context, "released-1"))
+        assertFalse(WearAppliedRequests.markApplied(context, "released-1"))
+    }
+
+    @Test
+    fun `releasing one id leaves the others claimed`() {
+        assertTrue(WearAppliedRequests.markApplied(context, "keep-1"))
+        assertTrue(WearAppliedRequests.markApplied(context, "drop-1"))
+        WearAppliedRequests.release(context, "drop-1")
+        assertFalse(WearAppliedRequests.markApplied(context, "keep-1"))
+        assertTrue(WearAppliedRequests.markApplied(context, "drop-1"))
+    }
+
+    @Test
+    fun `releasing an id that was never claimed does nothing`() {
+        WearAppliedRequests.release(context, "never-claimed")
+        WearAppliedRequests.release(context, null)
+        assertTrue(WearAppliedRequests.markApplied(context, "never-claimed"))
     }
 }

@@ -67,6 +67,7 @@ fun SettingsScreen(navController: NavController) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val biologicalSex by viewModel.biologicalSex.collectAsStateWithLifecycle()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -90,6 +91,12 @@ fun SettingsScreen(navController: NavController) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+    LaunchedEffect(snackbarMessageRes) {
+        snackbarMessageRes?.let {
+            snackbarHostState.showSnackbar(context.getString(it))
+            viewModel.clearSnackbarRes()
         }
     }
 
@@ -825,8 +832,12 @@ fun SettingsScreen(navController: NavController) {
                         } else {
                             // A dead session leaves the app fully usable on cached data,
                             // so it is stated here rather than only as a passing toast —
-                            // the same warning row plus sign-in action iOS shows.
-                            if (authState is AuthState.SessionExpired) {
+                            // the same warning row plus sign-in action iOS shows. Keyed on
+                            // "not signed in" rather than on SessionExpired alone: the
+                            // refresh already deleted both tokens, so after a restart the
+                            // same stranded user reads as Unauthenticated with a Synced
+                            // mode, and would otherwise have no way back in.
+                            if (authState !is AuthState.Authenticated && authState !is AuthState.Refreshing) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.Top) {
                                     Icon(

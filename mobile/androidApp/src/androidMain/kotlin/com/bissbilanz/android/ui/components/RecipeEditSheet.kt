@@ -108,6 +108,9 @@ fun RecipeEditSheet(
                     unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                 )
             showFoodPicker = false
+            searchJob?.cancel()
+            isSearching = false
+            isSearchingOff = false
             foodSearchQuery = ""
             foodSearchResults = emptyList()
             offResults = emptyList()
@@ -156,6 +159,11 @@ fun RecipeEditSheet(
                                         }
                                     }
                             } else {
+                                // The cancelled job never reaches its own `isSearching =
+                                // false`, so backspacing from "ab" to "a" left the
+                                // spinner up for good.
+                                isSearching = false
+                                isSearchingOff = false
                                 foodSearchResults = emptyList()
                                 offResults = emptyList()
                             }

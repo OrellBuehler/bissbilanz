@@ -34,6 +34,7 @@ fun SleepScreen(
 ) {
     val scope = rememberCoroutineScope()
     var outcome by remember { mutableStateOf<WearSendResult?>(null) }
+    var sending by remember { mutableStateOf(false) }
     var hours by remember { mutableDoubleStateOf(8.0) }
     var quality by remember { mutableIntStateOf(7) }
 
@@ -90,22 +91,32 @@ fun SleepScreen(
         item {
             Chip(
                 onClick = {
-                    scope.launch {
-                        outcome =
-                            WearStateRepository.logSleep(
-                                context,
-                                WearSleepLogRequest(
-                                    durationMinutes = (hours * 60).roundToInt(),
-                                    quality = quality.toDouble(),
-                                    date = LocalDate.now().toString(),
-                                    requestId = UUID.randomUUID().toString(),
-                                ),
-                            )
+                    // Held for the whole send: a second tap makes a second entry
+                    // under its own request id, which nothing can deduplicate.
+                    if (!sending) {
+                        sending = true
+                        scope.launch {
+                            try {
+                                outcome =
+                                    WearStateRepository.logSleep(
+                                        context,
+                                        WearSleepLogRequest(
+                                            durationMinutes = (hours * 60).roundToInt(),
+                                            quality = quality.toDouble(),
+                                            date = LocalDate.now().toString(),
+                                            requestId = UUID.randomUUID().toString(),
+                                        ),
+                                    )
+                            } finally {
+                                sending = false
+                            }
+                        }
                     }
                 },
+                enabled = !sending,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ChipDefaults.primaryChipColors(),
-                label = { Text(wearString(R.string.log_sleep)) },
+                label = { Text(wearString(if (sending) R.string.sending else R.string.log_sleep)) },
             )
         }
 

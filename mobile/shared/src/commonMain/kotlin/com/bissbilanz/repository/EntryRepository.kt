@@ -11,8 +11,10 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.EntryField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -76,9 +78,16 @@ class EntryRepository(
         return tempEntry
     }
 
+    /**
+     * [cleared] names the fields the user deliberately emptied. The generated
+     * [EntryUpdate] represents both "unchanged" and "cleared" as null, so without it a
+     * cleared note/quick macro/nutrient map keeps its old value both here and on the
+     * server. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateEntry(
         id: String,
         entry: EntryUpdate,
+        cleared: Set<EntryField> = emptySet(),
     ): Entry {
         // Look the row up by id rather than by the viewed date: the shared
         // `currentDate` is reset to today by the post-sync refresh, so a date-based
@@ -91,7 +100,7 @@ class EntryRepository(
                 ?.let { json.decodeOrNull<Entry>(it.jsonData) }
         val result =
             if (existing != null) {
-                val updated = applyUpdate(existing, entry)
+                val updated = applyUpdate(existing, entry, cleared)
                 cacheEntry(updated)
                 updated
             } else {
@@ -104,9 +113,9 @@ class EntryRepository(
                 )
             }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry)
+            coalesceQueuedCreate(id, entry, cleared)
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry)))
+            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry), cleared.jsonKeys()))
         }
         onEntryChanged?.invoke()
         return result
@@ -130,11 +139,14 @@ class EntryRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: EntryUpdate,
+        cleared: Set<EntryField>,
     ) {
         syncQueue.rewriteQueuedCreate("entries", tempId) { op ->
             val create = op as? SyncOperation.CreateEntry ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<EntryCreate>(create.body) ?: return@rewriteQueuedCreate null
-            val merged = applyUpdate(body, update)
+            // A create body needs no explicit nulls: an omitted field is already
+            // "no value", so nulling the merged property is the whole clear.
+            val merged = applyUpdate(body, update, cleared)
             create.copy(body = json.encodeToString(merged))
         }
     }
@@ -308,6 +320,7 @@ class EntryRepository(
     private fun applyUpdate(
         existing: EntryCreate,
         update: EntryUpdate,
+        cleared: Set<EntryField>,
     ): EntryCreate =
         existing.copy(
             foodId = update.foodId ?: existing.foodId,
@@ -315,20 +328,21 @@ class EntryRepository(
             mealType = update.mealType ?: existing.mealType,
             servings = update.servings ?: existing.servings,
             date = update.date ?: existing.date,
-            notes = update.notes ?: existing.notes,
-            quickName = update.quickName ?: existing.quickName,
-            quickCalories = update.quickCalories ?: existing.quickCalories,
-            quickProtein = update.quickProtein ?: existing.quickProtein,
-            quickCarbs = update.quickCarbs ?: existing.quickCarbs,
-            quickFat = update.quickFat ?: existing.quickFat,
-            quickFiber = update.quickFiber ?: existing.quickFiber,
-            quickNutrients = update.quickNutrients ?: existing.quickNutrients,
+            notes = cleared.pick(EntryField.NOTES, update.notes, existing.notes),
+            quickName = cleared.pick(EntryField.QUICK_NAME, update.quickName, existing.quickName),
+            quickCalories = cleared.pick(EntryField.QUICK_CALORIES, update.quickCalories, existing.quickCalories),
+            quickProtein = cleared.pick(EntryField.QUICK_PROTEIN, update.quickProtein, existing.quickProtein),
+            quickCarbs = cleared.pick(EntryField.QUICK_CARBS, update.quickCarbs, existing.quickCarbs),
+            quickFat = cleared.pick(EntryField.QUICK_FAT, update.quickFat, existing.quickFat),
+            quickFiber = cleared.pick(EntryField.QUICK_FIBER, update.quickFiber, existing.quickFiber),
+            quickNutrients = cleared.pick(EntryField.QUICK_NUTRIENTS, update.quickNutrients, existing.quickNutrients),
             eatenAt = update.eatenAt ?: existing.eatenAt,
         )
 
     private fun applyUpdate(
         existing: Entry,
         update: EntryUpdate,
+        cleared: Set<EntryField>,
     ): Entry =
         existing.copy(
             foodId = update.foodId ?: existing.foodId,
@@ -336,14 +350,21 @@ class EntryRepository(
             mealType = update.mealType ?: existing.mealType,
             servings = update.servings ?: existing.servings,
             date = update.date ?: existing.date,
-            notes = update.notes ?: existing.notes,
-            quickName = update.quickName ?: existing.quickName,
-            quickCalories = update.quickCalories ?: existing.quickCalories,
-            quickProtein = update.quickProtein ?: existing.quickProtein,
-            quickCarbs = update.quickCarbs ?: existing.quickCarbs,
-            quickFat = update.quickFat ?: existing.quickFat,
-            quickFiber = update.quickFiber ?: existing.quickFiber,
-            quickNutrients = update.quickNutrients ?: existing.quickNutrients,
+            notes = cleared.pick(EntryField.NOTES, update.notes, existing.notes),
+            quickName = cleared.pick(EntryField.QUICK_NAME, update.quickName, existing.quickName),
+            quickCalories = cleared.pick(EntryField.QUICK_CALORIES, update.quickCalories, existing.quickCalories),
+            quickProtein = cleared.pick(EntryField.QUICK_PROTEIN, update.quickProtein, existing.quickProtein),
+            quickCarbs = cleared.pick(EntryField.QUICK_CARBS, update.quickCarbs, existing.quickCarbs),
+            quickFat = cleared.pick(EntryField.QUICK_FAT, update.quickFat, existing.quickFat),
+            quickFiber = cleared.pick(EntryField.QUICK_FIBER, update.quickFiber, existing.quickFiber),
+            quickNutrients = cleared.pick(EntryField.QUICK_NUTRIENTS, update.quickNutrients, existing.quickNutrients),
             eatenAt = update.eatenAt ?: existing.eatenAt,
         )
+
+    /** The cache-side counterpart of the explicit null the request carries. */
+    private fun <T> Set<EntryField>.pick(
+        field: EntryField,
+        updated: T?,
+        existing: T?,
+    ): T? = if (field in this) null else updated ?: existing
 }

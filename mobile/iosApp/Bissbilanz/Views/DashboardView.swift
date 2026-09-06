@@ -139,7 +139,7 @@ struct DashboardView: View {
             }
             .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
-            .refreshable { await loadData() }
+            .refreshable { await loadData(paintFromStore: false) }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
             .sheet(isPresented: $showFoodSearch) {
@@ -657,6 +657,10 @@ struct DashboardView: View {
                     .padding(.horizontal, 2)
                 }
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
@@ -853,7 +857,6 @@ struct DashboardView: View {
 
     /// Instant render from the local store; `loadData` refreshes from the API on top.
     private func loadFromStore() {
-        entries = entryRepository.entries(date: dateString)
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
         isFastingDay = entryRepository.isFastingDay(date: dateString)
@@ -861,23 +864,40 @@ struct DashboardView: View {
         closestWeight = weightRepository.closest(to: dateString)
         closestSleep = sleepRepository.closest(to: dateString)
         favoriteFoods = preferences.showFavoritesWidget ? foodRepository.favorites() : []
-        loadTrendWindow()
+        loadEntriesFromStore()
+    }
+
+    /// Just the entry-derived state: the day's list and the two cards computed
+    /// from it. A local write that only touched entries (a favorite quick-log,
+    /// a copied day) re-reads this instead of the whole dashboard.
+    private func loadEntriesFromStore() {
+        let dayEntries = entryRepository.entries(date: dateString)
+        entries = dayEntries
+        loadTrendWindow(selectedDayEntries: dayEntries)
     }
 
     /// Walks the trend window once, building both the calorie series and the
-    /// most-logged tally. Skipped entirely when neither card is on — it is
-    /// `trendWindowDays` store reads per dashboard load.
-    private func loadTrendWindow() {
+    /// most-logged tally. Skipped entirely when neither card is on.
+    ///
+    /// The window comes back in a single range fetch — it used to be one fetch
+    /// per day, on the main actor, on the app's most-used screen — and the
+    /// selected day reuses the list the caller just read rather than fetching
+    /// it again.
+    private func loadTrendWindow(selectedDayEntries: [Entry]) {
         guard preferences.showChartWidget || preferences.showTopFoodsWidget else {
             calorieTrend = []
             topFoods = []
             return
         }
+        let selectedDay = dateString
+        let windowStart = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
+        let byDate = entryRepository.entriesByDate(from: windowStart, to: selectedDay)
         var trend: [DashboardTrendPoint] = []
         var tally: [String: (count: Int, calories: Double)] = [:]
         for offset in stride(from: Self.trendWindowDays - 1, through: 0, by: -1) {
             let day = selectedDate.adding(days: -offset)
-            let dayEntries = entryRepository.entries(date: day.isoDateString)
+            let key = day.isoDateString
+            let dayEntries = key == selectedDay ? selectedDayEntries : (byDate[key] ?? [])
             trend.append(DashboardTrendPoint(
                 date: day,
                 calories: dayEntries.reduce(0) { $0 + $1.totalCalories }
@@ -909,11 +929,18 @@ struct DashboardView: View {
     /// most visibly, turning on the "couldn't refresh" retry state for a day
     /// that loaded fine, or clearing the spinner for a load still running.
     /// Only the newest load writes back.
-    private func loadData() async {
+    ///
+    /// `paintFromStore` is the read that renders the cached day before the
+    /// refreshes come back — a cold open, a day change or a sheet dismissal
+    /// (which leaves an optimistic write in the store) all need it. A
+    /// pull-to-refresh doesn't: the store hasn't changed under it and the
+    /// screen already shows it, so it skips straight to the network and lets
+    /// the single read at the end apply the result.
+    private func loadData(paintFromStore: Bool = true) async {
         loadGeneration += 1
         let generation = loadGeneration
         let loadDate = dateString
-        loadFromStore()
+        if paintFromStore { loadFromStore() }
         isLoading = true
         defer {
             if generation == loadGeneration { isLoading = false }
@@ -996,10 +1023,18 @@ struct DashboardView: View {
     /// Caches the trend window's entries. A no-op in Local mode (the store is
     /// already the primary database) and silent on failure — the cards fall
     /// back to whatever is cached rather than showing an error.
+    ///
+    /// Stops one day short of the selected day: `refreshEntries` owns that day
+    /// and both run concurrently. `refreshRange` deletes and re-inserts every
+    /// non-pending row in its window, so a slightly older range response that
+    /// predates a just-synced entry would drop it until the next refresh, and
+    /// whichever of the two landed last would win the row's contents.
     private func refreshTrendWindow() async {
         guard preferences.showChartWidget || preferences.showTopFoodsWidget else { return }
+        guard Self.trendWindowDays > 1 else { return }
         let start = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
-        try? await entryRepository.refreshRange(startDate: start, endDate: dateString)
+        let end = selectedDate.adding(days: -1).isoDateString
+        try? await entryRepository.refreshRange(startDate: start, endDate: end)
     }
 
     private func refreshFavoritesWidget() async {
@@ -1018,7 +1053,9 @@ struct DashboardView: View {
             try await entryRepository.createEntry(entry, food: food)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = "\(food.name) \(L10n.logged)"
-            loadFromStore()
+            // Only the day's entries changed — no need to re-read goals,
+            // preferences, supplements, weight, sleep and favorites too.
+            loadEntriesFromStore()
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.failedToLog
@@ -1029,7 +1066,9 @@ struct DashboardView: View {
         let yesterday = selectedDate.adding(days: -1).isoDateString
         do {
             let count = try await entryRepository.copyEntries(fromDate: yesterday, toDate: dateString)
-            entries = entryRepository.entries(date: dateString)
+            // The copy lands on the selected day, so the trend/top-foods cards
+            // have to follow it — assigning `entries` alone left them stale.
+            loadEntriesFromStore()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = L10n.entriesCopied(count)
         } catch {

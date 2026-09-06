@@ -292,6 +292,14 @@ final class FoodRepository {
             // untouched on a partial PATCH — the same outcome as sending it.
             merged[key] = baselineFields[key]
         }
+        // The stored image is destructive to replace: `updateFood` on the
+        // server unlinks the previous `imageUrl` from disk once the write
+        // lands, so overwriting a photo the user took of this food deletes it
+        // irreversibly (in Local mode the `file://` copy is merely orphaned).
+        // Take the Open Food Facts product shot only when there is no image.
+        if let storedImage = baselineFields["imageUrl"] {
+            merged["imageUrl"] = storedImage
+        }
         if let categoriesTags = hit.categoriesTags {
             merged["categoriesTags"] = categoriesTags
         } else {

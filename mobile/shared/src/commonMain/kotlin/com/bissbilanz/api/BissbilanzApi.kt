@@ -93,6 +93,7 @@ import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.createHttpEngine
 import com.bissbilanz.model.Entry
+import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
@@ -103,6 +104,7 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -232,6 +234,32 @@ class BissbilanzApi(
         val response =
             client.patch(path) {
                 setBody(body)
+                applySyncHeaders(idempotencyKey, clientEditedAt)
+            }
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "PATCH $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+                response,
+            )
+        }
+        return response.body()
+    }
+
+    /**
+     * PATCHes an already-serialized JSON body. Used by the partial updates that have to
+     * send an explicit `null` to clear a field: routing those through the model
+     * serializer would drop the nulls again (`encodeDefaults = false`).
+     */
+    private suspend inline fun <reified T> patchRawJson(
+        path: String,
+        body: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): T {
+        val response =
+            client.patch(path) {
+                setBody(TextContent(body, ContentType.Application.Json))
                 applySyncHeaders(idempotencyKey, clientEditedAt)
             }
         if (!response.status.isSuccess()) {
@@ -514,16 +542,27 @@ class BissbilanzApi(
         )
     }
 
+    /**
+     * [clearedKeys] names the fields the caller is deliberately emptying; they are sent
+     * as explicit JSON nulls so the server clears the column instead of keeping it.
+     */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun updateEntry(
         id: String,
         entry: EntryUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): Entry {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: EntryResponse = patch("/api/entries/$id", entry, key, editedAt)
+        val response: EntryResponse =
+            patchRawJson(
+                "/api/entries/$id",
+                json.encodePartialUpdate(entry, clearedKeys).toString(),
+                key,
+                editedAt,
+            )
         val e = response.entry
         return Entry(
             id = e.id,
@@ -824,15 +863,23 @@ class BissbilanzApi(
         return response.preferences
     }
 
+    /** See [updateEntry] for what [clearedKeys] does. */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun updatePreferences(
         prefs: PreferencesUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): Preferences {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: PreferencesResponse = patch("/api/preferences", prefs, key, editedAt)
+        val response: PreferencesResponse =
+            patchRawJson(
+                "/api/preferences",
+                json.encodePartialUpdate(prefs, clearedKeys).toString(),
+                key,
+                editedAt,
+            )
         return response.preferences
     }
 
@@ -925,16 +972,25 @@ class BissbilanzApi(
     }
 
     // Supplement update
+
+    /** See [updateEntry] for what [clearedKeys] does. */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun updateSupplement(
         id: String,
         supplement: SupplementCreate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): Supplement {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: SupplementResponse = patch("/api/supplements/$id", supplement, key, editedAt)
+        val response: SupplementResponse =
+            patchRawJson(
+                "/api/supplements/$id",
+                json.encodePartialUpdate(supplement, clearedKeys).toString(),
+                key,
+                editedAt,
+            )
         return response.supplement
     }
 

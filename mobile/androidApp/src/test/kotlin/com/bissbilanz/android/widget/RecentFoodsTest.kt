@@ -68,6 +68,40 @@ class RecentFoodsTest {
         assertEquals(210.0, ranked.single().calories)
     }
 
+    /**
+     * Logging one supplement creates an entry per ingredient. A daily ten-ingredient
+     * multivitamin would otherwise own every quick-add row and every dynamic shortcut.
+     * `/api/entries` drops `supplementId`, so on a synced device the ingredient's food
+     * id is the only marker left.
+     */
+    @Test
+    fun excludesEntriesTheServerCreatedForALoggedSupplement() {
+        val entries =
+            (1..5).map { day -> entry("1", "oats", "2026-09-0$day") } +
+                (1..5).flatMap { day ->
+                    listOf("v-b12", "v-d3", "v-zinc").map { ingredientId ->
+                        entry(ingredientId, "ingredient $ingredientId", "2026-09-0$day")
+                    }
+                }
+
+        val ranked = RecentFoods.rank(entries, limit = 5, supplementFoodIds = setOf("v-b12", "v-d3", "v-zinc"))
+
+        assertEquals(listOf("oats"), ranked.map { it.name })
+    }
+
+    @Test
+    fun excludesLocallyStoredSupplementEntriesByTheirSupplementId() {
+        val entries =
+            listOf(
+                entry("1", "oats", "2026-09-01"),
+                entry("2", "zinc", "2026-09-01").copy(supplementId = "supp-1"),
+            )
+
+        val ranked = RecentFoods.rank(entries, limit = 5)
+
+        assertEquals(listOf("oats"), ranked.map { it.name })
+    }
+
     @Test
     fun honoursTheLimit() {
         val entries = (1..10).map { entry(it.toString(), "food $it", "2026-09-0${it % 9 + 1}") }

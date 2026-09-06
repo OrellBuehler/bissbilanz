@@ -11,6 +11,7 @@
     <string name="servings">Portionen</string>
     <string name="meal">Mahlzeit</string>
     <string name="log">Erfassen</string>
+    <string name="sending">Wird gesendet…</string>
     <string name="logged">Erfasst</string>
     <string name="log_failed">Konnte nicht gespeichert werden</string>
     <string name="queued_for_phone">Wartet auf dein Handy</string>

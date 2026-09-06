@@ -1,5 +1,6 @@
 package com.bissbilanz.android.widget
 
+import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.model.Entry
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
@@ -40,19 +41,50 @@ internal object RecentFoods {
                 .selectEntriesByDateRange(from, today.toString())
                 .executeAsList()
                 .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
-        return rank(entries, limit)
+        return rank(entries, limit, supplementFoodIds(db, json))
     }
+
+    /**
+     * The backing foods of every supplement ingredient.
+     *
+     * `/api/entries` does not return `supplementId`, so on a synced device the cached
+     * ingredient entries look like ordinary logs; the ingredient's food id is the only
+     * marker left. Reading all supplements (not just the active ones) keeps a paused
+     * supplement's ingredients out too, as its old entries are still in the window.
+     */
+    private fun supplementFoodIds(
+        db: UserDataDatabase,
+        json: Json,
+    ): Set<String> =
+        db.userDataDatabaseQueries
+            .selectAllSupplements()
+            .executeAsList()
+            .mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
+            .flatMap { supplement -> supplement.ingredients.map { it.foodId } }
+            .toSet()
 
     /**
      * Ranks by how often a food was logged and only then by how recently, so a
      * daily staple isn't pushed off the list by yesterday's one-off.
+     *
+     * Supplement-generated entries are excluded. Logging one supplement creates an
+     * entry per ingredient, so a daily ten-ingredient multivitamin would otherwise
+     * contribute ten foods with ~30 uses each and take every quick-add row and every
+     * dynamic shortcut, pushing out the real foods — and a single ingredient is not
+     * something anyone would quick-add on its own. [supplementFoodIds] catches the
+     * entries the server created (their `supplementId` is dropped by the day list
+     * endpoint); the `supplementId` check catches the ones a downgrade stored locally.
      */
     fun rank(
         entries: List<Entry>,
         limit: Int,
+        supplementFoodIds: Set<String> = emptySet(),
     ): List<RecentFood> =
         entries
-            .groupBy { it.foodId }
+            .filter { entry ->
+                val foodId = entry.foodId
+                entry.supplementId == null && (foodId == null || foodId !in supplementFoodIds)
+            }.groupBy { it.foodId }
             .mapNotNull { (foodId, logged) ->
                 if (foodId.isNullOrBlank()) return@mapNotNull null
                 val name = logged.firstNotNullOfOrNull { it.food?.name ?: it.foodName } ?: return@mapNotNull null

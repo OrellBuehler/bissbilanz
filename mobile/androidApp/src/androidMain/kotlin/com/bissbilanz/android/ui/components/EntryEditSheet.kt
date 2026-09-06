@@ -25,6 +25,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.EntryField
 import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
@@ -374,6 +375,20 @@ fun EntryEditSheet(
                                                     null
                                                 },
                                         ),
+                                        // A field the user emptied has to travel as an
+                                        // explicit clear: `EntryUpdate` encodes both
+                                        // "unchanged" and "cleared" as null.
+                                        clearedEntryFields(
+                                            isQuickEntry = isQuickEntry,
+                                            notes = notes,
+                                            quickName = quickName,
+                                            quickCalories = quickCalories,
+                                            quickProtein = quickProtein,
+                                            quickCarbs = quickCarbs,
+                                            quickFat = quickFat,
+                                            quickFiber = quickFiber,
+                                            quickNutrients = quickNutrients,
+                                        ),
                                     )
                                 } else {
                                     entryRepo.createEntry(
@@ -453,3 +468,36 @@ internal fun buildEatenAt(
         .toInstant(tz)
         .toString()
 }
+
+/**
+ * The fields the editor is deliberately emptying.
+ *
+ * A blank input means "remove this value", but the generated `EntryUpdate` cannot tell
+ * that apart from "leave it alone" — both are null — so the repository is told
+ * explicitly. Quick fields only count for a quick entry: a food- or recipe-backed entry
+ * takes its nutrition from the record behind it and never owns them. An unparseable
+ * (but non-blank) number is left untouched rather than cleared, matching what the sheet
+ * did before: the user is mid-typing, not removing the value.
+ */
+internal fun clearedEntryFields(
+    isQuickEntry: Boolean,
+    notes: String,
+    quickName: String,
+    quickCalories: String,
+    quickProtein: String,
+    quickCarbs: String,
+    quickFat: String,
+    quickFiber: String,
+    quickNutrients: Map<String, String>,
+): Set<EntryField> =
+    buildSet {
+        if (notes.isBlank()) add(EntryField.NOTES)
+        if (!isQuickEntry) return@buildSet
+        if (quickName.isBlank()) add(EntryField.QUICK_NAME)
+        if (quickCalories.isBlank()) add(EntryField.QUICK_CALORIES)
+        if (quickProtein.isBlank()) add(EntryField.QUICK_PROTEIN)
+        if (quickCarbs.isBlank()) add(EntryField.QUICK_CARBS)
+        if (quickFat.isBlank()) add(EntryField.QUICK_FAT)
+        if (quickFiber.isBlank()) add(EntryField.QUICK_FIBER)
+        if (quickNutrients.toNutrientDoubles().isEmpty()) add(EntryField.QUICK_NUTRIENTS)
+    }

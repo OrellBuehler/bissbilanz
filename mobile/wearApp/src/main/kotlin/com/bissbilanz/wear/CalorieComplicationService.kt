@@ -11,6 +11,7 @@ import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -36,9 +37,14 @@ class CalorieComplicationService : SuspendingComplicationDataSourceService() {
 
         // While the app is closed this refresh is the only thing that runs on a
         // schedule, which makes it the watch's one chance to retry a log made
-        // out of range without the user opening the app again.
+        // out of range without the user opening the app again. Budgeted like the
+        // listener's flush but on a tighter budget: a full queue at fifteen
+        // seconds an item would use up the whole request and the complication
+        // would then never update at all.
         if (WearStateRepository.pendingCount(this) > 0) {
-            WearStateRepository.flushOutbox(this)
+            withTimeoutOrNull(WearStateRepository.COMPLICATION_FLUSH_BUDGET_MS) {
+                WearStateRepository.flushOutbox(this@CalorieComplicationService)
+            }
         }
 
         return build(

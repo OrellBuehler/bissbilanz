@@ -3,8 +3,10 @@ package com.bissbilanz.wear
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WearStateTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -84,6 +86,29 @@ class WearStateTest {
             WearSleepLogRequest(durationMinutes = 452, quality = 7.0, date = "2026-08-15", requestId = "s-1")
         assertEquals("w-1", json.decodeFromString<WearWeightLogRequest>(json.encodeToString(weight)).requestId)
         assertEquals("s-1", json.decodeFromString<WearSleepLogRequest>(json.encodeToString(sleep)).requestId)
+    }
+
+    @Test
+    fun `an answer that is not a state says whether the write happened`() {
+        assertTrue(isWearWriteFailure(WearPaths.RESPONSE_ERROR.toByteArray()))
+        // A phone build predating the sentinels answered a failed write with an
+        // empty body, and the watch read that as "logged".
+        assertTrue(isWearWriteFailure(ByteArray(0)))
+        assertFalse(isWearWriteFailure(WearPaths.RESPONSE_OK.toByteArray()))
+        assertFalse(isWearWriteFailure(json.encodeToString(state).toByteArray()))
+    }
+
+    @Test
+    fun `neither answer sentinel can be mistaken for a state`() {
+        assertNull(runCatching { json.decodeFromString<WearState>(WearPaths.RESPONSE_OK) }.getOrNull())
+        assertNull(runCatching { json.decodeFromString<WearState>(WearPaths.RESPONSE_ERROR) }.getOrNull())
+    }
+
+    @Test
+    fun `the phone remembers at least as many requests as the watch can queue`() {
+        // A full queue flushes as one burst. A shorter window forgets the first
+        // ids of that burst before their own retries land, and writes them twice.
+        assertTrue(WearLimits.APPLIED_REQUESTS >= WearLimits.OUTBOX)
     }
 
     @Test

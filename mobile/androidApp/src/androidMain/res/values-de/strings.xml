@@ -1006,6 +1006,7 @@
     <string name="settings_biological_sex_unset">Nicht gesetzt</string>
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
+    <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
 
     <!-- Food form: per-serving vs per-100 basis -->
     <string name="food_form_values_per">Werte pro</string>

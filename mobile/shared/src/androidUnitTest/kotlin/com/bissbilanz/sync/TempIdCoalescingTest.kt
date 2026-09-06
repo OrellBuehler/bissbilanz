@@ -25,6 +25,8 @@ import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.EntryField
+import com.bissbilanz.util.SupplementField
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -32,6 +34,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -98,6 +101,72 @@ class TempIdCoalescingTest {
             assertEquals("lunch", body.mealType)
             assertEquals("f1", body.foodId)
             assertEquals("2024-01-15", body.date)
+        }
+
+    /**
+     * A clear made while the create is still queued has to survive the merge: the
+     * create body simply loses the value (an omitted field on a create already means
+     * "no value"), so no explicit null is needed there.
+     */
+    @Test
+    fun entryCreateThenClearDropsTheValueFromTheQueuedCreate() =
+        runTest {
+            val repo = entryRepository()
+            val temp =
+                repo.createEntry(
+                    EntryCreate(
+                        mealType = "lunch",
+                        servings = 1.0,
+                        date = "2024-01-15",
+                        quickName = "Kebab",
+                        quickCalories = 700.0,
+                        quickProtein = 30.0,
+                        notes = "extra sauce",
+                    ),
+                )
+
+            repo.updateEntry(
+                temp.id,
+                EntryUpdate(servings = 1.0),
+                cleared = setOf(EntryField.QUICK_PROTEIN, EntryField.NOTES),
+            )
+
+            val create = syncQueue.drain().single().operation as SyncOperation.CreateEntry
+            val body = json.decodeFromString<EntryCreate>(create.body)
+            assertNull(body.quickProtein)
+            assertNull(body.notes)
+            assertEquals(700.0, body.quickCalories)
+            assertEquals("Kebab", body.quickName)
+        }
+
+    @Test
+    fun entryUpdateOfAServerIdCarriesTheClearedKeysIntoTheQueue() =
+        runTest {
+            val repo = entryRepository()
+
+            repo.updateEntry(
+                "server-1",
+                EntryUpdate(servings = 2.0),
+                cleared = setOf(EntryField.QUICK_NUTRIENTS),
+            )
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateEntry
+            assertEquals(listOf("quickNutrients"), op.clearedKeys)
+        }
+
+    @Test
+    fun supplementUpdateOfAServerIdCarriesTheClearedKeysIntoTheQueue() =
+        runTest {
+            val repo = supplementRepository()
+
+            repo.updateSupplement(
+                "server-1",
+                supplementCreate(name = "Magnesium"),
+                cleared = setOf(SupplementField.SCHEDULE_DAYS),
+            )
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateSupplement
+            assertEquals(listOf("scheduleDays"), op.clearedKeys)
         }
 
     @Test

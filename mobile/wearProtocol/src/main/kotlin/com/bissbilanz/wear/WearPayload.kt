@@ -159,6 +159,19 @@ object WearPaths {
      */
     const val PHONE_CAPABILITY = "bissbilanz_phone"
 
+    /**
+     * Answer bodies for the write RPCs above. A write is normally answered with
+     * the refreshed [WearState] JSON; these two cover the cases where there is
+     * no state to answer with.
+     *
+     * [RESPONSE_OK] says the write landed but the phone had no state to send
+     * back. [RESPONSE_ERROR] says the write did not happen, so the watch has to
+     * keep it queued instead of telling the user it was logged. Neither is valid
+     * JSON, so neither can be mistaken for a state.
+     */
+    const val RESPONSE_OK = "!ok"
+    const val RESPONSE_ERROR = "!error"
+
     /** DataMap key holding the JSON payload. */
     const val KEY_PAYLOAD = "payload"
 
@@ -167,4 +180,31 @@ object WearPaths {
      * as a change — DataItems are deduplicated by content.
      */
     const val KEY_UPDATED_AT = "updatedAt"
+}
+
+/**
+ * True when an RPC answer means the phone did not perform the write.
+ *
+ * An empty body counts: that is what a phone build predating [WearPaths.RESPONSE_ERROR]
+ * answered with when its write threw, and reading it as success is how a watch reports
+ * "Logged" for an entry that does not exist.
+ */
+fun isWearWriteFailure(body: ByteArray): Boolean = body.isEmpty() || body.decodeToString() == WearPaths.RESPONSE_ERROR
+
+/**
+ * Bounds the watch's outbox and the phone's duplicate window share.
+ *
+ * They belong together: a full outbox flushes as one burst of retries, so a phone
+ * that remembers fewer request ids than the watch can queue forgets the earliest
+ * ones before their own retry arrives — and writes them a second time.
+ */
+object WearLimits {
+    /** Most unsent writes the watch keeps. Past this the watch is holding weeks of logs. */
+    const val OUTBOX = 100
+
+    /**
+     * Request ids the phone remembers, newest last. Never smaller than [OUTBOX],
+     * with headroom for the writes made while a full queue is draining.
+     */
+    const val APPLIED_REQUESTS = 128
 }

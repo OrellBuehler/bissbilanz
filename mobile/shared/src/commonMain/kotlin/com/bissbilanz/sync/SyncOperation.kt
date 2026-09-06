@@ -91,11 +91,18 @@ sealed class SyncOperation {
         override val description = "create entry"
     }
 
+    /**
+     * [clearedKeys] carries the fields the user deliberately emptied. They are omitted
+     * from [body] (the shared Json drops nulls), so the API layer re-adds them as
+     * explicit JSON nulls when the operation finally uploads — which is what makes an
+     * offline clear still clear.
+     */
     @Serializable
     @SerialName("update_entry")
     data class UpdateEntry(
         val id: String,
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "entries"
         override val affectedId get() = id
@@ -223,11 +230,13 @@ sealed class SyncOperation {
         override val description = "create supplement"
     }
 
+    /** See [UpdateEntry] for [clearedKeys]. */
     @Serializable
     @SerialName("update_supplement")
     data class UpdateSupplement(
         val id: String,
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "supplements"
         override val affectedId get() = id
@@ -287,10 +296,12 @@ sealed class SyncOperation {
         override val description get() = "delete day properties $date"
     }
 
+    /** See [UpdateEntry] for [clearedKeys]. */
     @Serializable
     @SerialName("update_preferences")
     data class UpdatePreferences(
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "preferences"
         override val affectedId: String? = null

@@ -387,6 +387,10 @@ enum L10n {
         )
     }
 
+    static var caloriesRequired: String {
+        localized("calories_required", en: "A quick entry needs calories.", de: "Ein Schnelleintrag braucht Kalorien.")
+    }
+
     static var quality: String {
         localized("quality", en: "Quality", de: "Qualität")
     }

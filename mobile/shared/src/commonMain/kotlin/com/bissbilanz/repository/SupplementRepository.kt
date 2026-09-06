@@ -20,8 +20,10 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.SupplementField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -75,16 +77,25 @@ class SupplementRepository(
         return temp
     }
 
+    /**
+     * [cleared] names the schedule fields that should be nulled server-side (e.g.
+     * `scheduleDays` when the user switches a weekly supplement back to daily). The
+     * shared Json omits nulls, so without it the server keeps the stale value while the
+     * local cache already dropped it. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateSupplement(
         id: String,
         supplement: SupplementCreate,
+        cleared: Set<SupplementField> = emptySet(),
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
         cacheSupplement(temp)
         if (id.isTempId()) {
             coalesceQueuedCreate(id, supplement)
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateSupplement(id, json.encodeToString(supplement)))
+            syncQueue.enqueue(
+                SyncOperation.UpdateSupplement(id, json.encodeToString(supplement), cleared.jsonKeys()),
+            )
         }
         return temp
     }

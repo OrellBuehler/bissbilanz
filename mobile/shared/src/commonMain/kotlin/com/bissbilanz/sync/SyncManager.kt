@@ -341,7 +341,13 @@ class SyncManager(
             }
 
             is SyncOperation.UpdateEntry -> {
-                api.updateEntry(op.id, json.decodeFromString<EntryUpdate>(op.body), idempotencyKey, clientEditedAt)
+                api.updateEntry(
+                    op.id,
+                    json.decodeFromString<EntryUpdate>(op.body),
+                    idempotencyKey,
+                    clientEditedAt,
+                    op.clearedKeys,
+                )
             }
 
             is SyncOperation.DeleteEntry -> {
@@ -426,6 +432,7 @@ class SyncManager(
                     json.decodeFromString<SupplementCreate>(op.body),
                     idempotencyKey,
                     clientEditedAt,
+                    op.clearedKeys,
                 )
             }
 
@@ -450,7 +457,12 @@ class SyncManager(
             }
 
             is SyncOperation.UpdatePreferences -> {
-                api.updatePreferences(json.decodeFromString<PreferencesUpdate>(op.body), idempotencyKey, clientEditedAt)
+                api.updatePreferences(
+                    json.decodeFromString<PreferencesUpdate>(op.body),
+                    idempotencyKey,
+                    clientEditedAt,
+                    op.clearedKeys,
+                )
             }
 
             is SyncOperation.CreateSleep -> {

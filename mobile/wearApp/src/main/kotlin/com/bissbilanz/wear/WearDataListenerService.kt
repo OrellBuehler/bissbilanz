@@ -48,11 +48,9 @@ class WearDataListenerService : WearableListenerService() {
     private fun flushPending() {
         if (WearStateRepository.pendingCount(this) == 0) return
         runBlocking {
-            withTimeoutOrNull(FLUSH_BUDGET_MS) { WearStateRepository.flushOutbox(this@WearDataListenerService) }
+            withTimeoutOrNull(WearStateRepository.FLUSH_BUDGET_MS) {
+                WearStateRepository.flushOutbox(this@WearDataListenerService)
+            }
         }
-    }
-
-    private companion object {
-        const val FLUSH_BUDGET_MS = 20_000L
     }
 }

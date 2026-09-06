@@ -277,6 +277,11 @@ export const listEntriesByDateRangeDetailed = async (
 			recipeId: foodEntries.recipeId,
 			supplementId: foodEntries.supplementId,
 			eatenAt: foodEntries.eatenAt,
+			// Selected here as well as in listEntriesByDate: a client that caches both
+			// responses into the same row would otherwise drop createdAt whenever the
+			// range response landed last, and loggedAt (eatenAt ?? createdAt) would lose
+			// the time of any entry logged without an explicit eatenAt.
+			createdAt: foodEntries.createdAt,
 			quickName: foodEntries.quickName,
 			quickCalories: foodEntries.quickCalories,
 			quickProtein: foodEntries.quickProtein,

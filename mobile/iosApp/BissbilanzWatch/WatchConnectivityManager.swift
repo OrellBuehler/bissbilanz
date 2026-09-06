@@ -73,13 +73,15 @@ final class WatchConnectivityManager: NSObject {
               let payload = WatchPayloadCodec.encode(WatchStateRequest(), key: WatchPayloadKey.stateRequest)
         else { return }
 
-        lastStateRequest = Date()
-
         guard session.isReachable else {
+            // Only queued, not asked — `queueStateRequest` already de-dupes, and
+            // burning the throttle window here would leave the watch on stale
+            // state for 30 s after the phone came back into range.
             Self.queueStateRequest(payload, on: session)
             return
         }
 
+        lastStateRequest = Date()
         isRequestingState = true
         session.sendMessage(
             payload,

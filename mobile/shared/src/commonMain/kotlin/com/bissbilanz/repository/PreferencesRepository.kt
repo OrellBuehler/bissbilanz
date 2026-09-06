@@ -10,7 +10,9 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.PreferencesField
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.jsonKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -59,7 +61,16 @@ class PreferencesRepository(
         updatePreferences(PreferencesUpdate(timeZone = deviceTimeZone))
     }
 
-    suspend fun updatePreferences(update: PreferencesUpdate): Preferences {
+    /**
+     * [cleared] names the settings the user reset to "not set". [PreferencesUpdate]
+     * encodes both "unchanged" and "cleared" as null, so without it choosing the empty
+     * option is silently dropped on the wire and in the cache. See
+     * `com.bissbilanz.util.PartialUpdate`.
+     */
+    suspend fun updatePreferences(
+        update: PreferencesUpdate,
+        cleared: Set<PreferencesField> = emptySet(),
+    ): Preferences {
         val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
             cached?.let {
@@ -85,9 +96,9 @@ class PreferencesRepository(
                 locale = null,
                 timeZone = "UTC",
             )
-        val updated = applyUpdate(current, update)
+        val updated = applyUpdate(current, update, cleared)
         cachePreferences(updated)
-        syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update)))
+        syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update), cleared.jsonKeys()))
         return updated
     }
 
@@ -105,6 +116,7 @@ class PreferencesRepository(
     private fun applyUpdate(
         current: Preferences,
         update: PreferencesUpdate,
+        cleared: Set<PreferencesField>,
     ): Preferences =
         current.copy(
             showChartWidget = update.showChartWidget ?: current.showChartWidget,
@@ -124,11 +136,15 @@ class PreferencesRepository(
             locale = update.locale?.value ?: current.locale,
             timeZone = update.timeZone ?: current.timeZone,
             biologicalSex =
-                update.biologicalSex?.let {
-                    when (it) {
-                        PreferencesUpdate.BiologicalSex.male -> Preferences.BiologicalSex.male
-                        PreferencesUpdate.BiologicalSex.female -> Preferences.BiologicalSex.female
-                    }
-                } ?: current.biologicalSex,
+                if (PreferencesField.BIOLOGICAL_SEX in cleared) {
+                    null
+                } else {
+                    update.biologicalSex?.let {
+                        when (it) {
+                            PreferencesUpdate.BiologicalSex.male -> Preferences.BiologicalSex.male
+                            PreferencesUpdate.BiologicalSex.female -> Preferences.BiologicalSex.female
+                        }
+                    } ?: current.biologicalSex
+                },
         )
 }

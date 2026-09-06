@@ -28,6 +28,14 @@ struct QuickEntrySheet: View {
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
+    /// A quick entry carries no food or recipe, so the server's
+    /// `entryCreateSchema` requires a positive `quickCalories`. A create it
+    /// rejects with a 400 is dropped permanently by the sync queue, which would
+    /// strand the entry as a local `temp_` row — so gate the button instead.
+    private var canSave: Bool {
+        !name.isEmpty && (Double.parseUserInput(calories) ?? 0) > 0
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -41,12 +49,19 @@ struct QuickEntrySheet: View {
                     .pickerStyle(.menu)
                 }
 
-                Section(L10n.nutrition) {
+                Section {
                     NutrientInputField(label: L10n.calories, text: $calories, unit: "kcal")
                     NutrientInputField(label: L10n.protein, text: $protein, unit: "g")
                     NutrientInputField(label: L10n.carbs, text: $carbs, unit: "g")
                     NutrientInputField(label: L10n.fat, text: $fat, unit: "g")
                     NutrientInputField(label: L10n.fiber, text: $fiber, unit: "g")
+                } header: {
+                    Text(L10n.nutrition)
+                } footer: {
+                    // Says why Log is disabled rather than leaving it inert.
+                    if (Double.parseUserInput(calories) ?? 0) <= 0 {
+                        Text(L10n.caloriesRequired)
+                    }
                 }
 
                 Section(L10n.additionalNutrients) {
@@ -78,7 +93,7 @@ struct QuickEntrySheet: View {
                     Button(L10n.log) {
                         Task { await save() }
                     }
-                    .disabled(name.isEmpty || isSaving)
+                    .disabled(!canSave || isSaving)
                     .fontWeight(.semibold)
                 }
             }
@@ -115,6 +130,7 @@ struct QuickEntrySheet: View {
     }
 
     private func save() async {
+        guard canSave else { return }
         isSaving = true
         let parsedNutrients = additionalValues.compactMapValues { Double.parseUserInput($0) }
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
