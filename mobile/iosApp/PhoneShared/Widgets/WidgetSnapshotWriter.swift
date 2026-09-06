@@ -14,6 +14,14 @@ import WidgetKit
 /// `Bissbilanz/Widgets/WidgetSnapshotWriter+App.swift`).
 @MainActor
 enum WidgetSnapshotWriter {
+    /// How many favorites ride along in the snapshot. The widgets take the
+    /// first 3–6 of these, but the watch's quick-log list shows all of them, so
+    /// this is really the watch's cap — matched to Wear's `FAVORITES_LIMIT`.
+    /// A row is ~95 bytes of JSON, so the whole list is under 2 KB inside a
+    /// `WatchState` of a few KB — far below WatchConnectivity's 256 KB
+    /// application-context limit.
+    static let favoritesLimit = 20
+
     /// Saves the snapshot to the App Group store and asks WidgetKit to reload
     /// every widget's timeline. Portable — safe to call from the widget
     /// extension process after a quick-add write.
@@ -69,7 +77,7 @@ enum WidgetSnapshotWriter {
             meals: mealTotals,
             latestWeightKg: latestWeight?.weightKg,
             latestWeightDate: latestWeight?.entryDate,
-            favorites: favorites.prefix(12).map {
+            favorites: favorites.prefix(favoritesLimit).map {
                 WidgetSnapshot.FavoriteFood(id: $0.id, name: $0.name, calories: $0.calories)
             },
             generatedAt: Date()

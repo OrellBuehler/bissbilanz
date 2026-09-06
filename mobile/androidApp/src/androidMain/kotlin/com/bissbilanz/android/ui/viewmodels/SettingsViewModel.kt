@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
@@ -54,6 +55,16 @@ class SettingsViewModel(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
+    /**
+     * Biological sex as the picker should render it ("male"/"female"/null).
+     *
+     * Held separately from [prefs] because `PreferencesRepository.applyUpdate` doesn't
+     * copy the field into the cached Preferences: a null read means "not known here",
+     * not "cleared", so it never overwrites a value the user just picked.
+     */
+    private val _biologicalSex = MutableStateFlow<String?>(null)
+    val biologicalSex: StateFlow<String?> = _biologicalSex.asStateFlow()
+
     init {
         loadData()
     }
@@ -62,6 +73,12 @@ class SettingsViewModel(
         viewModelScope.launch {
             goalsRepo.refresh()
             prefsRepo.refresh()
+            _biologicalSex.value =
+                prefsRepo
+                    .preferences()
+                    .first()
+                    ?.biologicalSex
+                    ?.value ?: _biologicalSex.value
             // Custom meal types are server-only; the management UI is hidden in Local mode.
             if (!appModeManager.isLocal) {
                 try {
@@ -111,6 +128,24 @@ class SettingsViewModel(
             try {
                 prefsRepo.updatePreferences(PreferencesUpdate(favoriteMealAssignmentMode = mode))
                 _snackbarMessage.value = "Meal assignment updated"
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to update preference"
+            }
+        }
+    }
+
+    /**
+     * `null` clears the setting locally, but the generated `PreferencesUpdate` omits null
+     * fields on the wire, so the server keeps whatever it already has until the model
+     * gains an explicit-null representation.
+     */
+    fun updateBiologicalSex(value: GenPreferencesUpdate.BiologicalSex?) {
+        _biologicalSex.value = value?.value
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(biologicalSex = value))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)

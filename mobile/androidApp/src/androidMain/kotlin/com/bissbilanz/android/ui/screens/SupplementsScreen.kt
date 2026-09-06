@@ -31,6 +31,7 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SupplementEditSheet
+import com.bissbilanz.android.ui.components.scheduleDisplayName
 import com.bissbilanz.android.ui.components.timeOfDayDisplayName
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
@@ -291,13 +292,14 @@ fun SupplementChecklistItem(
             supportingContent = {
                 Column {
                     Text(dosageSummary(supplement))
-                    supplement.timeOfDay?.let { tod ->
-                        Text(
-                            timeOfDayDisplayName(tod.value),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        listOfNotNull(
+                            scheduleDisplayName(supplement.scheduleType, supplement.scheduleDays),
+                            supplement.timeOfDay?.let { timeOfDayDisplayName(it.value) },
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     val ings = supplement.ingredients
                     if (ings.size > 1) {
                         Text(

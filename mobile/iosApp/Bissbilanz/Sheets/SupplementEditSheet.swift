@@ -31,7 +31,9 @@ struct SupplementEditSheet: View {
 
     private let dosageUnits = ["mg", "g", "\u{00B5}g", "IU", "ml", "drops"]
     private let timesOfDay = ["morning", "noon", "evening", "anytime"]
-    private let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private var weekdays: [String] {
+        L10n.supplementWeekdays
+    }
 
     init(supplement: Supplement? = nil, onSaved: @escaping (Supplement) -> Void = { _ in }) {
         existingSupplement = supplement

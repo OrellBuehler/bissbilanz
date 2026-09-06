@@ -1,10 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Long-press launcher shortcuts — Android's answer to the iOS Siri shortcuts.
-  Each one carries the navigate_to extra MainActivity already understands, so the
-  app lands directly on the relevant screen.
+  Two things live here.
+
+  1. Long-press launcher shortcuts — Android's answer to the iOS Siri shortcuts.
+     Each one carries the navigate_to extra MainActivity already understands, so the
+     app lands directly on the relevant screen.
+
+  2. App Actions <capability> declarations, the Assistant half of the same idea.
+     OPEN_APP_FEATURE turns the four shortcuts below into spoken app features
+     ("open the barcode scanner with Bissbilanz") via their inline inventory, and
+     RECORD_FOOD_OBSERVATION is the capability FoodShortcutPublisher binds the
+     user's most-logged foods to, so "log <food> with Bissbilanz" resolves.
+
+     A capability's own <intent> is only the fallback for an utterance that matches
+     no shortcut, and it deliberately carries no navigate_to extra: the routing
+     lives on the shortcuts, which is also what keeps LauncherShortcutsTest's
+     one-route-per-shortcut invariant meaningful.
 -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <parameter
+                android:name="feature"
+                android:key="feature"
+                android:required="false" />
+        </intent>
+    </capability>
+
+    <capability android:name="actions.intent.RECORD_FOOD_OBSERVATION">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.bissbilanz.android"
+            android:targetClass="com.bissbilanz.android.MainActivity">
+            <parameter
+                android:name="foodObservation.aboutFood.name"
+                android:key="food_name"
+                android:required="false" />
+        </intent>
+    </capability>
+
     <shortcut
         android:shortcutId="log_food"
         android:enabled="true"
@@ -19,6 +56,11 @@
                 android:name="navigate_to"
                 android:value="foods" />
         </intent>
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/assistant_feature_log_food" />
+        </capability-binding>
     </shortcut>
 
     <shortcut
@@ -35,6 +77,11 @@
                 android:name="navigate_to"
                 android:value="scanner" />
         </intent>
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/assistant_feature_scan_barcode" />
+        </capability-binding>
     </shortcut>
 
     <shortcut
@@ -51,6 +98,11 @@
                 android:name="navigate_to"
                 android:value="weight" />
         </intent>
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/assistant_feature_log_weight" />
+        </capability-binding>
     </shortcut>
 
     <shortcut
@@ -67,5 +119,10 @@
                 android:name="navigate_to"
                 android:value="fasting" />
         </intent>
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/assistant_feature_fasting" />
+        </capability-binding>
     </shortcut>
 </shortcuts>

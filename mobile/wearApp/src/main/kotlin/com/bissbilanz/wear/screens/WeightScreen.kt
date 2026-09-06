@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
@@ -17,11 +15,14 @@ import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.bissbilanz.wear.R
+import com.bissbilanz.wear.WearSendResult
 import com.bissbilanz.wear.WearState
 import com.bissbilanz.wear.WearStateRepository
 import com.bissbilanz.wear.WearWeightLogRequest
+import com.bissbilanz.wear.wearString
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -32,28 +33,25 @@ fun WeightScreen(
     context: Context,
 ) {
     val scope = rememberCoroutineScope()
-    var toast by remember { mutableStateOf<String?>(null) }
+    var outcome by remember { mutableStateOf<WearSendResult?>(null) }
     // Seeded from the last known weight so a log is usually two taps away.
     var draft by remember(state.weight?.latestKg) { mutableDoubleStateOf(state.weight?.latestKg ?: 70.0) }
 
-    val loggedLabel = stringResource(R.string.logged)
-    val failedLabel = stringResource(R.string.log_failed)
-
     val listState = rememberScalingLazyListState()
     ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        item { ListHeader { Text(stringResource(R.string.tab_weight)) } }
+        item { ListHeader { Text(wearString(R.string.tab_weight)) } }
 
         item {
             val latest = state.weight?.latestKg
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    latest?.let { stringResource(R.string.weight_kg, formatKg(it)) }
-                        ?: stringResource(R.string.no_weight),
+                    latest?.let { wearString(R.string.weight_kg, formatKg(it)) }
+                        ?: wearString(R.string.no_weight),
                     style = MaterialTheme.typography.title2,
                 )
                 state.weight?.delta7dKg?.let { delta ->
                     Text(
-                        stringResource(R.string.delta_7d, formatDelta(delta)),
+                        wearString(R.string.delta_7d, formatDelta(delta)),
                         style = MaterialTheme.typography.caption2,
                         color = MaterialTheme.colors.onSurfaceVariant,
                     )
@@ -77,32 +75,25 @@ fun WeightScreen(
             Chip(
                 onClick = {
                     scope.launch {
-                        val ok =
+                        outcome =
                             WearStateRepository.logWeight(
                                 context,
                                 WearWeightLogRequest(
                                     weightKg = (draft * 10).roundToInt() / 10.0,
                                     date = LocalDate.now().toString(),
+                                    requestId = UUID.randomUUID().toString(),
                                 ),
                             )
-                        toast = if (ok) loggedLabel else failedLabel
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ChipDefaults.primaryChipColors(),
-                label = { Text(stringResource(R.string.log_weight)) },
+                label = { Text(wearString(R.string.log_weight)) },
             )
         }
 
-        toast?.let { message ->
-            item {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.caption2,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+        outcome?.let { result ->
+            item { StatusLine(outcomeMessage(result)) }
         }
     }
 }

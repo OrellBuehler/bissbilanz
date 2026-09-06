@@ -273,6 +273,26 @@ enum L10n {
         localized("open_food_facts", en: "Open Food Facts", de: "Open Food Facts")
     }
 
+    static var enrichFromOpenFoodFacts: String {
+        localized(
+            "enrich_from_open_food_facts",
+            en: "Enrich from Open Food Facts",
+            de: "Mit Open Food Facts anreichern"
+        )
+    }
+
+    static var enrichSuccess: String {
+        localized(
+            "enrich_success",
+            en: "Food enriched with Open Food Facts data",
+            de: "Lebensmittel mit Open-Food-Facts-Daten angereichert"
+        )
+    }
+
+    static var enrichFailed: String {
+        localized("enrich_failed", en: "Failed to enrich food", de: "Anreicherung fehlgeschlagen")
+    }
+
     static var labels: String {
         localized("labels", en: "Labels", de: "Labels")
     }
@@ -357,6 +377,14 @@ enum L10n {
 
     static var nutrition: String {
         localized("nutrition", en: "Nutrition", de: "Nährwerte")
+    }
+
+    static var nutritionPerServing: String {
+        localized(
+            "nutrition_per_serving",
+            en: "Nutrition (per serving)",
+            de: "Nährwerte (pro Portion)"
+        )
     }
 
     static var quality: String {
@@ -512,6 +540,30 @@ enum L10n {
 
     static var dailyGoals: String {
         localized("daily_goals", en: "Daily Goals", de: "Tagesziele")
+    }
+
+    static var biologicalSex: String {
+        localized("biological_sex", en: "Biological Sex", de: "Biologisches Geschlecht")
+    }
+
+    static var biologicalSexHint: String {
+        localized(
+            "biological_sex_hint",
+            en: "Used for reference intakes — improves nutrient gap accuracy.",
+            de: "Wird für Referenzwerte genutzt — verbessert die Genauigkeit der Nährstofflücken."
+        )
+    }
+
+    static var biologicalSexNotSet: String {
+        localized("biological_sex_not_set", en: "Not set", de: "Nicht festgelegt")
+    }
+
+    static var biologicalSexMale: String {
+        localized("biological_sex_male", en: "Male", de: "Männlich")
+    }
+
+    static var biologicalSexFemale: String {
+        localized("biological_sex_female", en: "Female", de: "Weiblich")
     }
 
     // MARK: - Weight
@@ -732,6 +784,10 @@ enum L10n {
 
     static var dayPeriod: String {
         localized("day_period", en: "day period", de: "Tage Zeitraum")
+    }
+
+    static var last7Days: String {
+        localized("last_7_days", en: "Last 7 days", de: "Letzte 7 Tage")
     }
 
     static var avgComparison: String {
@@ -2399,6 +2455,15 @@ enum L10n {
         switch currentLocale {
         case .en: ["M", "T", "W", "T", "F", "S", "S"]
         case .de: ["M", "D", "M", "D", "F", "S", "S"]
+        }
+    }
+
+    /// Indexed by the server's Sun=0..Sat=6 `scheduleDays` numbering, so a label's
+    /// position is the value that gets stored. Not the Monday-first `weekdayHeaders`.
+    static var supplementWeekdays: [String] {
+        switch currentLocale {
+        case .en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        case .de: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
         }
     }
 

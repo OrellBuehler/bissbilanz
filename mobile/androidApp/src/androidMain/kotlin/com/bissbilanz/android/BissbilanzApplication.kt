@@ -37,8 +37,11 @@ import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.wear.WearStatePublisher
+import com.bissbilanz.android.widget.DayOverviewWidget
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
+import com.bissbilanz.android.widget.FoodShortcutPublisher
 import com.bissbilanz.android.widget.MacroWidget
+import com.bissbilanz.android.widget.QuickAddWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.auth.AuthManager
@@ -58,6 +61,10 @@ import io.sentry.android.core.SentryAndroid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import okhttp3.OkHttpClient
@@ -174,7 +181,7 @@ class BissbilanzApplication :
         val wearPublisher = koin.get<WearStatePublisher>()
 
         koin.get<EntryRepository>().onEntryChanged = {
-            MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+            refreshDayWidgets()
             healthExporter.exportNutrition(today())
             wearPublisher.publish()
         }
@@ -202,6 +209,10 @@ class BissbilanzApplication :
                     OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
                         .build(),
                 )
+            // A renamed or deleted food changes what the quick-add rows and the
+            // Assistant's food shortcuts say, so both are republished from here too.
+            QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
+            FoodShortcutPublisher.publish(this@BissbilanzApplication)
             // Favourites drive the watch's quick-log list.
             wearPublisher.publish()
         }
@@ -215,6 +226,29 @@ class BissbilanzApplication :
         // onWeightChanged — same three consumers, or Health Connect, the widget and
         // the watch all keep showing the last weight entered on this device.
         koin.get<WeightRepository>().onWeightRefreshed = publishWeight
+
+        // Goals and sleep are the two things the watch shows that no callback announces:
+        // GoalsRepository and SleepRepository have no onXChanged hook. Observing their
+        // cached flows keeps the watch's rings measured against the current goal and its
+        // Sleep tab on last night, instead of both waiting for the next food log.
+        val wearScope = koin.get<CoroutineScope>()
+        wearScope.launch {
+            koin
+                .get<GoalsRepository>()
+                .goals()
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { wearPublisher.publish() }
+        }
+        wearScope.launch {
+            koin
+                .get<SleepRepository>()
+                .entries()
+                .map { entries -> entries.maxByOrNull { it.entryDate } }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { wearPublisher.publish() }
+        }
 
         // Any supplement change can move an alarm: the schedule, the reminder times and
         // the active flag all live on the supplement. This one hook covers create,
@@ -254,7 +288,7 @@ class BissbilanzApplication :
         koin.get<SyncManager>().onConflictResolved = { refreshManager.refreshAll() }
         koin.get<SyncManager>().startNetworkListener {
             refreshManager.refreshAll()
-            MacroWidget.updateAllWidgets(this@BissbilanzApplication)
+            refreshDayWidgets()
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
             WorkManager
                 .getInstance(this@BissbilanzApplication)
@@ -263,6 +297,27 @@ class BissbilanzApplication :
                         .build(),
                 )
         }
+
+        // Nothing else publishes the launcher/Assistant shortcuts while the app is
+        // closed unless the quick-add widget is on a home screen, so seed them once
+        // per launch from whatever the cache already holds.
+        koin.get<CoroutineScope>().launch {
+            FoodShortcutPublisher.publish(this@BissbilanzApplication)
+        }
+
+        // NOTE: the Wear OS state publish for goals and sleep changes belongs here,
+        // next to the other repository hooks above (see wearPublisher).
+    }
+
+    /**
+     * Every home-screen surface that renders today's log, plus the Assistant shortcuts
+     * that rank foods by how often they were logged.
+     */
+    private suspend fun refreshDayWidgets() {
+        MacroWidget.updateAllWidgets(this)
+        DayOverviewWidget.updateAllWidgets(this)
+        QuickAddWidget.updateAllWidgets(this)
+        FoodShortcutPublisher.publish(this)
     }
 
     /**

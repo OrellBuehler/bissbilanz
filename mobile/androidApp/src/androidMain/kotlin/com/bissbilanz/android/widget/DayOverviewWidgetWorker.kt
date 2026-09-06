@@ -1,0 +1,35 @@
+package com.bissbilanz.android.widget
+
+import android.content.Context
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.bissbilanz.ErrorReporter
+import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.GoalsRepository
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import kotlin.time.Clock
+
+class DayOverviewWidgetWorker(
+    context: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val koin =
+            org.koin.java.KoinJavaComponent
+                .getKoin()
+        val errorReporter = koin.get<ErrorReporter>()
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+
+        try {
+            koin.get<EntryRepository>().refresh(today)
+            koin.get<GoalsRepository>().refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+
+        DayOverviewWidget.updateAllWidgets(applicationContext)
+        return Result.success()
+    }
+}

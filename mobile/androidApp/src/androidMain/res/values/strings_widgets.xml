@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Strings for the day-overview and quick-add widgets, the macro widget's
+  configuration screen and the Assistant (App Actions) inline inventory.
+  Android merges every file in values/, so these resolve exactly like the ones
+  in strings.xml.
+-->
+<resources>
+
+    <!-- Day overview widget -->
+    <string name="day_overview_widget_title">Day Overview</string>
+    <string name="day_overview_widget_description">Today\'s meals, macro totals and a shortcut to log food</string>
+    <string name="day_overview_today">Today</string>
+    <string name="day_overview_calorie_summary">%1$s / %2$s kcal</string>
+    <string name="day_overview_meal_empty">–</string>
+    <string name="day_overview_log_food">Log food</string>
+    <string name="widget_grams_format">%1$s g</string>
+    <!-- Five macro columns share the widget width, so these have to stay short. -->
+    <string name="widget_macro_calories">Cal</string>
+    <string name="widget_macro_protein">Protein</string>
+    <string name="widget_macro_carbs">Carbs</string>
+    <string name="widget_macro_fat">Fat</string>
+    <string name="widget_macro_fiber">Fiber</string>
+
+    <!-- Quick add widget -->
+    <string name="quick_add_widget_title">Quick Add</string>
+    <string name="quick_add_widget_description">One tap to log the foods you eat most often</string>
+    <string name="quick_add_widget_empty">Nothing logged yet</string>
+    <string name="quick_add_widget_log">Log %1$s</string>
+    <string name="quick_add_widget_logged">Logged</string>
+
+    <!-- Macro widget configuration -->
+    <string name="macro_widget_config_title">Configure widget</string>
+    <string name="macro_widget_config_subtitle">Select which macros to display:</string>
+    <string name="macro_widget_config_save">Save</string>
+
+    <!--
+      Inline inventory for actions.intent.OPEN_APP_FEATURE: the phrasings a user
+      can say for each of the four launcher shortcuts. Translated, because the
+      Assistant matches them against what was actually spoken.
+    -->
+    <string-array name="assistant_feature_log_food">
+        <item>food log</item>
+        <item>log food</item>
+        <item>food diary</item>
+        <item>add food</item>
+    </string-array>
+    <string-array name="assistant_feature_scan_barcode">
+        <item>barcode scanner</item>
+        <item>scan a barcode</item>
+        <item>scanner</item>
+    </string-array>
+    <string-array name="assistant_feature_log_weight">
+        <item>weight</item>
+        <item>log weight</item>
+        <item>weigh in</item>
+    </string-array>
+    <string-array name="assistant_feature_fasting">
+        <item>fasting</item>
+        <item>start a fast</item>
+        <item>fasting timer</item>
+    </string-array>
+
+</resources>

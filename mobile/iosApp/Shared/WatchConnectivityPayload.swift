@@ -44,12 +44,14 @@ struct WatchWeightInfo: Codable {
     static let empty = WatchWeightInfo(latestKg: nil, latestDate: nil, delta7dKg: nil)
 }
 
-/// Last night's sleep for the watch's Sleep tab. `quality` is 0–5 to match the
-/// phone's scale; `durationMinutes` is the total time asleep.
+/// Last night's sleep for the watch's Sleep tab. `quality` is 1–10 to match the
+/// phone's (and the server's) scale; `durationMinutes` is the total time asleep.
 struct WatchSleepInfo: Codable {
     /// ISO day ("yyyy-MM-dd") the entry refers to.
     let date: String
     let durationMinutes: Int
+    /// 1–10. Manual entries are whole numbers; synced sources (Apple Health)
+    /// can carry one decimal.
     let quality: Double
 }
 
@@ -78,7 +80,7 @@ struct WatchState: Codable {
             mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
             recents: [],
             weight: WatchWeightInfo(latestKg: 78.4, latestDate: nil, delta7dKg: -0.3),
-            sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 4)
+            sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 8)
         )
     }
 
@@ -165,7 +167,9 @@ struct WatchWeightLogRequest: Codable {
 /// runs the real write through `SleepRepository`.
 struct WatchSleepLogRequest: Codable {
     let durationMinutes: Int
-    /// 0–5 quality, matching the phone's scale.
+    /// 1–10 quality, matching the phone's (and the server's) scale. The phone
+    /// clamps into range before writing, so an out-of-range value from an older
+    /// watch build can't produce an entry the server rejects.
     let quality: Double
     /// ISO day ("yyyy-MM-dd") the sleep is attributed to.
     let date: String
@@ -176,6 +180,23 @@ struct WatchSleepLogRequest: Codable {
     /// same log arrives twice; the phone drops a repeat rather than writing it
     /// again. Optional so payloads from an older watch build still decode.
     var requestId: String?
+}
+
+/// The watch → phone "send me the current state" command.
+///
+/// State otherwise only ever moves when the phone happens to write, so a watch
+/// that was out of range for the last push shows stale data until the next one.
+/// The watch asks on launch and on every foreground; the phone answers with a
+/// freshly built `WatchState` (mirrors Wear's `/bissbilanz/request-state`).
+struct WatchStateRequest: Codable {
+    /// When the watch asked. The phone doesn't act on it — it only ever
+    /// answers with current state — but it keeps the payload self-describing
+    /// in a Sentry breadcrumb or a packet dump.
+    let requestedAt: Date
+
+    init(requestedAt: Date = Date()) {
+        self.requestedAt = requestedAt
+    }
 }
 
 /// Dictionary keys for the plist-safe `[String: Any]` payloads WCSession
@@ -190,6 +211,11 @@ enum WatchPayloadKey {
     static let weightLogRequest = "weightLogRequest"
     /// Watch → phone message/user-info: the encoded `WatchSleepLogRequest`.
     static let sleepLogRequest = "sleepLogRequest"
+    /// Watch → phone message/user-info: the encoded `WatchStateRequest`. The
+    /// message reply carries a `WatchState` under `state`; the queued
+    /// (user-info) form has no reply channel, so the phone answers it by
+    /// pushing a fresh application context instead.
+    static let stateRequest = "stateRequest"
     /// Phone → watch reply: the refreshed `WidgetSnapshot` after a food log.
     static let snapshot = "snapshot"
 }

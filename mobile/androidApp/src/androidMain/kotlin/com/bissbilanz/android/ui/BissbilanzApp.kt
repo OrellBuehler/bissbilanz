@@ -34,8 +34,9 @@ enum class RootDestination { Loading, Login, App, Migration }
  * - Local mode is fully anonymous, so an unauthenticated user still sees the app.
  * - A successful login while in Local mode means the local data must be migrated to the
  *   account first, so the migration screen is shown.
- * - A `null` mode means "not chosen yet" and is treated as sync-allowed (existing
- *   installs and fresh logins).
+ * - The login screen only shows when no mode was chosen yet — a fresh install or after an
+ *   explicit sign-out (which clears the mode). A Synced user whose session dies stays in the
+ *   app on cached data and is prompted to sign in again from Settings, matching iOS.
  */
 fun resolveRootDestination(
     authState: AuthState,
@@ -50,8 +51,12 @@ fun resolveRootDestination(
             if (mode == AppMode.LOCAL) RootDestination.Migration else RootDestination.App
         }
 
-        is AuthState.Unauthenticated, is AuthState.SessionExpired -> {
-            if (mode == AppMode.LOCAL) RootDestination.App else RootDestination.Login
+        is AuthState.SessionExpired -> {
+            RootDestination.App
+        }
+
+        is AuthState.Unauthenticated -> {
+            if (mode == null) RootDestination.Login else RootDestination.App
         }
     }
 

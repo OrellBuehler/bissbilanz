@@ -46,4 +46,29 @@ class WearFormattingTest {
         assertEquals("8", formatHours(8.0))
         assertEquals("7.5", formatHours(7.5))
     }
+
+    @Test
+    fun `the default meal follows the time of day`() {
+        assertEquals("Breakfast", defaultMealForHour(8))
+        assertEquals("Lunch", defaultMealForHour(12))
+        assertEquals("Snacks", defaultMealForHour(15))
+        assertEquals("Dinner", defaultMealForHour(19))
+        // Small hours belong to the evening's log, not to breakfast.
+        assertEquals("Dinner", defaultMealForHour(2))
+    }
+
+    @Test
+    fun `the default meal falls back to one the phone actually offers`() {
+        val custom = listOf("Pre-workout", "Post-workout")
+        assertEquals("Pre-workout", defaultMeal(custom, hour = 12))
+        assertEquals("Lunch", defaultMeal(listOf("Breakfast", "Lunch"), hour = 12))
+        // Case differences must not push a log into a second, duplicate meal.
+        assertEquals("lunch", defaultMeal(listOf("breakfast", "lunch"), hour = 12))
+    }
+
+    @Test
+    fun `a custom meal type is tidied rather than translated`() {
+        assertEquals("Pre Workout", titleCaseMeal("pre workout"))
+        assertEquals("Zweites Frühstück", titleCaseMeal("zweites frühstück"))
+    }
 }

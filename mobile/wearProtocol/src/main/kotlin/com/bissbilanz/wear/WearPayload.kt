@@ -40,6 +40,14 @@ data class WearSleepInfo(
     val quality: Double,
 )
 
+/** Today's calories for one meal, for the watch's per-meal breakdown page. */
+@Serializable
+data class WearMealTotal(
+    /** Canonical meal-type key, e.g. "Breakfast" or a custom type. */
+    val mealType: String,
+    val calories: Double,
+)
+
 /** Today's macro totals and the goals they are measured against. */
 @Serializable
 data class WearMacros(
@@ -57,6 +65,8 @@ data class WearState(
     val date: String,
     val totals: WearMacros = WearMacros(),
     val goals: WearMacros = WearMacros(),
+    /** Today's calories per meal, in the order the watch should list them. */
+    val meals: List<WearMealTotal> = emptyList(),
     /** Meal-type keys the watch offers in its log picker; server-driven, so custom types appear. */
     val mealTypes: List<String> = emptyList(),
     val favorites: List<WearFoodRef> = emptyList(),
@@ -64,16 +74,32 @@ data class WearState(
     val recents: List<WearFoodRef> = emptyList(),
     val weight: WearWeightInfo? = null,
     val sleep: WearSleepInfo? = null,
+    /**
+     * The phone app's own language ("en"/"de"), so the watch renders in the same
+     * language as the phone rather than in the watch's system locale. Null on a
+     * payload from an older phone build; the watch then keeps its system locale.
+     */
+    val localeCode: String? = null,
 ) {
     /**
      * Day-bound totals only hold for the day they were captured. Zero them when
      * rendered on a later day while keeping goals and reference data, mirroring
      * the iOS `resetIfStale`.
      */
-    fun resetIfStale(today: String): WearState = if (date == today) this else copy(date = today, totals = WearMacros())
+    fun resetIfStale(today: String): WearState = if (date == today) this else copy(date = today, totals = WearMacros(), meals = emptyList())
 }
 
-/** Watch → phone "log this food". The phone runs the real write through its repository. */
+/**
+ * Watch → phone "log this food". The phone runs the real write through its repository.
+ *
+ * `requestId` is stamped once on the watch and kept across every retry of the same
+ * request — the RPC → message fallback and the offline outbox both re-send the exact
+ * bytes they were handed. Neither path can tell "the phone never got this" from "the
+ * phone wrote it but the answer never came back", so the same log can arrive twice;
+ * the phone drops a repeat rather than writing it again. Nullable so a request from
+ * an older watch build still decodes — the phone applies an id-less request as before
+ * rather than dropping it. The same holds for the weight and sleep requests below.
+ */
 @Serializable
 data class WearLogRequest(
     val foodId: String? = null,
@@ -82,6 +108,7 @@ data class WearLogRequest(
     val servings: Double,
     /** ISO day. */
     val date: String,
+    val requestId: String? = null,
 )
 
 /** Watch → phone "log my weight". */
@@ -90,6 +117,7 @@ data class WearWeightLogRequest(
     val weightKg: Double,
     /** ISO day. */
     val date: String,
+    val requestId: String? = null,
 )
 
 /** Watch → phone "log my sleep". */
@@ -100,6 +128,7 @@ data class WearSleepLogRequest(
     val quality: Double,
     /** ISO day the sleep is attributed to. */
     val date: String,
+    val requestId: String? = null,
 )
 
 /** Data Layer paths and keys shared by both sides. */
@@ -107,13 +136,28 @@ object WearPaths {
     /** Phone → watch DataItem carrying the encoded [WearState]. */
     const val STATE = "/bissbilanz/state"
 
-    /** Watch → phone messages. */
+    /**
+     * Watch → phone messages.
+     *
+     * Sent as an RPC (`MessageClient.sendRequest`), whose response body is the
+     * refreshed [WearState] JSON — that is what lets the watch's rings move the
+     * moment a log lands instead of waiting for the phone's next DataItem push.
+     * `sendMessage` remains the fallback for a phone build with no RPC service
+     * registered; it has no response channel, so that path waits for the push.
+     */
     const val LOG_FOOD = "/bissbilanz/log-food"
     const val LOG_WEIGHT = "/bissbilanz/log-weight"
     const val LOG_SLEEP = "/bissbilanz/log-sleep"
 
     /** Watch → phone: "send me the current state". */
     const val REQUEST_STATE = "/bissbilanz/request-state"
+
+    /**
+     * Capability the phone app advertises. The watch listens for it appearing so
+     * it can flush anything it queued the moment the phone is reachable again,
+     * rather than waiting for the user to open the app.
+     */
+    const val PHONE_CAPABILITY = "bissbilanz_phone"
 
     /** DataMap key holding the JSON payload. */
     const val KEY_PAYLOAD = "payload"

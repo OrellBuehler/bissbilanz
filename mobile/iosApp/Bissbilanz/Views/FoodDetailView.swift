@@ -16,7 +16,9 @@ struct FoodDetailView: View {
     @State private var showLogSheet = false
     @State private var showDeleteConfirmation = false
     @State private var isTogglingFavorite = false
+    @State private var isEnriching = false
     @State private var errorMessage: String?
+    @State private var toastMessage: String?
     @State private var ingredientsExpanded = false
 
     var body: some View {
@@ -67,6 +69,17 @@ struct FoodDetailView: View {
                             Label(L10n.edit, systemImage: "pencil")
                         }
 
+                        // Only a barcode gives Open Food Facts something to
+                        // look the product up by.
+                        if let barcode = food.barcode, !barcode.isEmpty {
+                            Button {
+                                Task { await enrich(barcode: barcode) }
+                            } label: {
+                                Label(L10n.enrichFromOpenFoodFacts, systemImage: "wand.and.stars")
+                            }
+                            .disabled(isEnriching)
+                        }
+
                         Divider()
 
                         Button(role: .destructive) {
@@ -100,6 +113,7 @@ struct FoodDetailView: View {
             Button(L10n.cancel, role: .cancel) {}
         }
         .task { await loadFood() }
+        .toast(message: $toastMessage)
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}
         } message: {
@@ -311,6 +325,23 @@ struct FoodDetailView: View {
             self.food = foodRepository.food(id: food.id) ?? food
         }
         isTogglingFavorite = false
+    }
+
+    /// Overlays the Open Food Facts product for this barcode onto the stored
+    /// food. Nothing is lost on failure — the write only happens once the
+    /// lookup succeeded.
+    private func enrich(barcode: String) async {
+        guard !isEnriching else { return }
+        isEnriching = true
+        defer { isEnriching = false }
+        do {
+            food = try await foodRepository.enrichFood(id: foodId, barcode: barcode)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = L10n.enrichSuccess
+        } catch {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.enrichFailed
+        }
     }
 
     private func loadFood() async {

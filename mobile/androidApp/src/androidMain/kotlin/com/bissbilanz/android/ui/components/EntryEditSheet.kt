@@ -25,6 +25,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
@@ -80,6 +81,10 @@ fun EntryEditSheet(
     var quickNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // A quick entry carries its own nutrition; a food- or recipe-backed one takes it
+    // from the record behind it, which is edited in that record's own sheet.
+    val isQuickEntry = entry?.let { it.foodId == null && it.recipeId == null } == true
+    val showQuickFields = !isEditing || isQuickEntry
     val unknownName = stringResource(R.string.entry_edit_unknown)
     val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
     val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
@@ -99,6 +104,14 @@ fun EntryEditSheet(
                         ?.toLocalDateTime(TimeZone.currentSystemDefault())
                 eatenHour = seed?.hour
                 eatenMinute = seed?.minute
+                quickName = found.quickName ?: ""
+                quickCalories = found.quickCalories?.formatNutrient() ?: ""
+                quickProtein = found.quickProtein?.formatNutrient() ?: ""
+                quickCarbs = found.quickCarbs?.formatNutrient() ?: ""
+                quickFat = found.quickFat?.formatNutrient() ?: ""
+                quickFiber = found.quickFiber?.formatNutrient() ?: ""
+                quickNutrients =
+                    found.quickNutrients.orEmpty().mapValues { (_, value) -> value.formatNutrient() }
             }
         }
     }
@@ -203,7 +216,7 @@ fun EntryEditSheet(
                 }
             }
 
-            if (isEditing && entry != null) {
+            if (isEditing && entry != null && !isQuickEntry) {
                 val name = entry?.resolvedName() ?: unknownName
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -268,7 +281,7 @@ fun EntryEditSheet(
             }
 
             // Quick add fields
-            if (!isEditing) {
+            if (showQuickFields) {
                 OutlinedTextField(
                     value = quickName,
                     onValueChange = { quickName = it },
@@ -342,6 +355,24 @@ fun EntryEditSheet(
                                             notes = notes.ifBlank { null },
                                             eatenAt =
                                                 buildEatenAt(entry?.date, eatenHour, eatenMinute),
+                                            quickName =
+                                                if (isQuickEntry) quickName.trim().ifBlank { null } else null,
+                                            quickCalories =
+                                                if (isQuickEntry) quickCalories.toLocalizedDoubleOrNull() else null,
+                                            quickProtein =
+                                                if (isQuickEntry) quickProtein.toLocalizedDoubleOrNull() else null,
+                                            quickCarbs =
+                                                if (isQuickEntry) quickCarbs.toLocalizedDoubleOrNull() else null,
+                                            quickFat =
+                                                if (isQuickEntry) quickFat.toLocalizedDoubleOrNull() else null,
+                                            quickFiber =
+                                                if (isQuickEntry) quickFiber.toLocalizedDoubleOrNull() else null,
+                                            quickNutrients =
+                                                if (isQuickEntry) {
+                                                    quickNutrients.toNutrientDoubles().ifEmpty { null }
+                                                } else {
+                                                    null
+                                                },
                                         ),
                                     )
                                 } else {

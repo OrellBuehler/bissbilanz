@@ -71,6 +71,19 @@ struct SettingsView: View {
                     }
                 }
 
+                // Reference intakes for the nutrient-gap analytics differ by sex;
+                // its own section so the "why" can live in the footer.
+                Section {
+                    Picker(L10n.biologicalSex, selection: biologicalSexBinding) {
+                        Text(L10n.biologicalSexNotSet).tag("")
+                        Text(L10n.biologicalSexMale).tag("male")
+                        Text(L10n.biologicalSexFemale).tag("female")
+                    }
+                    .pickerStyle(.menu)
+                } footer: {
+                    Text(L10n.biologicalSexHint)
+                }
+
                 // Navigation Tabs
                 Section(L10n.navigationTabs) {
                     NavigationLink {
@@ -403,6 +416,26 @@ struct SettingsView: View {
                     case "showTopFoodsWidget": update.showTopFoodsWidget = newValue
                     default: break
                     }
+                    preferences = await (try? preferencesRepository.update(update))
+                        ?? (preferencesRepository.preferences() ?? .defaults)
+                }
+            }
+        )
+    }
+
+    // MARK: - Biological Sex
+
+    /// "" stands for "not set" so the picker stays a plain `String` selection.
+    /// Clearing has to travel as an explicit null — the server only writes the
+    /// column when the key is present.
+    private var biologicalSexBinding: Binding<String> {
+        Binding(
+            get: { preferences.biologicalSex ?? "" },
+            set: { newValue in
+                Task {
+                    let stored: String? = newValue.isEmpty ? nil : newValue
+                    var update = PreferencesUpdate()
+                    update.biologicalSex = .some(stored)
                     preferences = await (try? preferencesRepository.update(update))
                         ?? (preferencesRepository.preferences() ?? .defaults)
                 }

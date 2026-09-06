@@ -171,8 +171,16 @@ struct FoodPicker: View {
 
     @State private var query = ""
     @State private var results: [Food] = []
+    @State private var offResults: [BissbilanzAPI.OpenFoodFactsSearchHit] = []
     @State private var isSearching = false
+    @State private var isSearchingOff = false
+    @State private var isResolvingOff = false
+    @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
+
+    /// Same threshold as the main food search: Open Food Facts only fills in
+    /// when the user's own database barely matched.
+    private static let offFallbackThreshold = 5
 
     var body: some View {
         Group {
@@ -184,22 +192,40 @@ struct FoodPicker: View {
                 )
             } else if isSearching {
                 LoadingView()
-            } else if results.isEmpty {
+            } else if results.isEmpty, offResults.isEmpty, !isSearchingOff {
                 ContentUnavailableView(L10n.noResults, systemImage: "magnifyingglass")
             } else {
-                List(results) { food in
-                    Button {
-                        onPicked(food)
-                        dismiss()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(food.name)
-                                .foregroundStyle(.primary)
-                            Text(
-                                "\(Int(food.calories)) cal \u{00B7} \(food.servingSize, specifier: "%.0f") \(food.servingUnit.displayName)"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                List {
+                    ForEach(results) { food in
+                        Button {
+                            onPicked(food)
+                            dismiss()
+                        } label: {
+                            foodRow(name: food.name, detail: detailText(
+                                calories: food.calories,
+                                servingSize: food.servingSize,
+                                unit: food.servingUnit.displayName
+                            ))
+                        }
+                    }
+                    if isSearchingOff || !offResults.isEmpty {
+                        Section(L10n.openFoodFacts) {
+                            if isSearchingOff {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
+                                }
+                            } else {
+                                ForEach(offResults) { hit in
+                                    Button {
+                                        Task { await pickFromOpenFoodFacts(hit) }
+                                    } label: {
+                                        foodRow(name: hit.name, detail: hit.brand ?? "")
+                                    }
+                                    .disabled(isResolvingOff)
+                                }
+                            }
                         }
                     }
                 }
@@ -217,14 +243,71 @@ struct FoodPicker: View {
                 await search(newValue)
             }
         }
+        .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
+    }
+
+    private func foodRow(name: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name)
+                .foregroundStyle(.primary)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func detailText(calories: Double, servingSize: Double, unit: String) -> String {
+        "\(Int(calories)) cal \u{00B7} \(MacroFormat.nutrient(servingSize)) \(unit)"
+    }
+
+    /// Copy-on-use, exactly like the main food search: the hit becomes a food in
+    /// the user's own database (or resolves to the one already there) before it
+    /// can be an ingredient — a recipe references a food id, not a product.
+    private func pickFromOpenFoodFacts(_ hit: BissbilanzAPI.OpenFoodFactsSearchHit) async {
+        guard !isResolvingOff else { return }
+        isResolvingOff = true
+        defer { isResolvingOff = false }
+        do {
+            guard let food = try await foodRepository.findOrCreateFromOpenFoodFacts(barcode: hit.barcode) else {
+                errorMessage = L10n.openFoodFactsAddFailed
+                return
+            }
+            onPicked(food)
+            dismiss()
+        } catch {
+            errorMessage = L10n.openFoodFactsAddFailed
+        }
     }
 
     private func search(_ query: String) async {
-        guard query.count >= 2 else { results = []
+        guard query.count >= 2 else {
+            results = []
+            offResults = []
+            isSearching = false
+            isSearchingOff = false
             return
         }
         isSearching = true
-        results = await foodRepository.searchFoods(query: query)
+        let found = await foodRepository.searchFoods(query: query)
+        guard !Task.isCancelled, query == self.query else { return }
+        results = found
         isSearching = false
+        guard found.count < Self.offFallbackThreshold else {
+            offResults = []
+            isSearchingOff = false
+            return
+        }
+        isSearchingOff = true
+        offResults = []
+        let hits = await foodRepository.searchOpenFoodFacts(query: query)
+        guard !Task.isCancelled, query == self.query else { return }
+        offResults = hits
+        isSearchingOff = false
     }
 }

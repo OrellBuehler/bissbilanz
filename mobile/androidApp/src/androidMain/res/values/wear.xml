@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Advertised to paired watches so the watch app knows the moment the phone is
+         reachable again and can send anything it queued out of range. Must match
+         WearPaths.PHONE_CAPABILITY. -->
+    <string-array name="android_wear_capabilities">
+        <item>bissbilanz_phone</item>
+    </string-array>
+</resources>

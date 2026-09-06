@@ -8,9 +8,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,6 +76,7 @@ fun DayLogScreen(
     var editingEntryId by remember { mutableStateOf<String?>(null) }
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showCopyDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(date) {
@@ -91,7 +94,18 @@ fun DayLogScreen(
         remember(entries, pendingDeleteIds) {
             entries.filter { it.id !in pendingDeleteIds }
         }
-    val mealGroups = remember(visibleEntries) { visibleEntries.groupBy { normalizeMealType(it.mealType) } }
+    // The search field narrows the day by the name the row actually shows, and meals
+    // with no match drop out of the list entirely — same behaviour as the iOS day log.
+    val matchingEntries =
+        remember(visibleEntries, searchQuery) {
+            val query = searchQuery.trim()
+            if (query.isEmpty()) {
+                visibleEntries
+            } else {
+                visibleEntries.filter { it.resolvedName().contains(query, ignoreCase = true) }
+            }
+        }
+    val mealGroups = remember(matchingEntries) { matchingEntries.groupBy { normalizeMealType(it.mealType) } }
     val sortedMeals =
         remember(mealGroups) {
             mealTypes.filter { mealGroups.containsKey(it) } +
@@ -242,14 +256,41 @@ fun DayLogScreen(
                         }
                     }
 
-                    if (visibleEntries.isEmpty()) {
+                    if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text(stringResource(R.string.daylog_search_placeholder)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, stringResource(R.string.food_search_icon_desc))
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Default.Clear, stringResource(R.string.daylog_search_clear))
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+
+                    if (matchingEntries.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    stringResource(R.string.daylog_no_entries_for_day),
+                                    if (searchQuery.isBlank()) {
+                                        stringResource(R.string.daylog_no_entries_for_day)
+                                    } else {
+                                        stringResource(R.string.daylog_search_no_results, searchQuery)
+                                    },
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

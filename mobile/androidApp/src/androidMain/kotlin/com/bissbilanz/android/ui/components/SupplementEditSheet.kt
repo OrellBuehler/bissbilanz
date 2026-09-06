@@ -79,6 +79,10 @@ fun SupplementEditSheet(
 
     var name by remember { mutableStateOf("") }
     var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
+    // Server encoding: 0 = Sunday .. 6 = Saturday. Required (and non-empty) for the
+    // weekly and specific-days schedules, ignored for the other two.
+    var scheduleDays by remember { mutableStateOf(setOf<Int>()) }
+    var showFrequencyMenu by remember { mutableStateOf(false) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var reminderTimes by remember { mutableStateOf(listOf<String>()) }
     var isActive by remember { mutableStateOf(true) }
@@ -99,6 +103,7 @@ fun SupplementEditSheet(
                 if (found != null) {
                     name = found.name
                     scheduleType = found.scheduleType
+                    scheduleDays = found.scheduleDays?.toSet().orEmpty()
                     timeOfDay = found.timeOfDay?.value ?: "morning"
                     reminderTimes = found.reminderTimes.orEmpty()
                     isActive = found.isActive
@@ -126,8 +131,11 @@ fun SupplementEditSheet(
 
     val timeOptions = listOf("morning", "noon", "evening", "anytime")
     val unitOptions = listOf("mg", "mcg", "g", "IU", "ml", "drops", "capsules", "tablets")
+    val needsScheduleDays =
+        scheduleType == ScheduleType.weekly || scheduleType == ScheduleType.specific_days
     val isValid =
         name.isNotBlank() &&
+            (!needsScheduleDays || scheduleDays.isNotEmpty()) &&
             ingredients.isNotEmpty() &&
             ingredients.all { row ->
                 row.name.isNotBlank() &&
@@ -190,25 +198,72 @@ fun SupplementEditSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(stringResource(R.string.supplement_edit_frequency), style = MaterialTheme.typography.labelLarge)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val displayOptions =
-                        listOf(
-                            stringResource(R.string.supplement_edit_daily) to ScheduleType.daily,
-                            stringResource(R.string.supplement_edit_every_2_days) to ScheduleType.every_other_day,
-                        )
-                    displayOptions.forEachIndexed { index, (label, type) ->
-                        SegmentedButton(
-                            shape =
-                                SegmentedButtonDefaults.itemShape(
-                                    index,
-                                    displayOptions.size,
-                                ),
-                            onClick = { scheduleType = type },
-                            selected = scheduleType == type,
-                        ) {
-                            Text(label)
+                // A dropdown rather than a segmented row: four options with translated
+                // labels don't fit side by side, and it matches the iOS frequency picker.
+                val frequencyOptions =
+                    listOf(
+                        stringResource(R.string.supplement_edit_daily) to ScheduleType.daily,
+                        stringResource(R.string.supplement_edit_every_2_days) to ScheduleType.every_other_day,
+                        stringResource(R.string.supplement_edit_weekly) to ScheduleType.weekly,
+                        stringResource(R.string.supplement_edit_specific_days) to ScheduleType.specific_days,
+                    )
+                ExposedDropdownMenuBox(
+                    expanded = showFrequencyMenu,
+                    onExpandedChange = { showFrequencyMenu = it },
+                ) {
+                    OutlinedTextField(
+                        value = frequencyOptions.first { it.second == scheduleType }.first,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.supplement_edit_frequency)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showFrequencyMenu) },
+                        modifier =
+                            Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    ExposedDropdownMenu(
+                        expanded = showFrequencyMenu,
+                        onDismissRequest = { showFrequencyMenu = false },
+                    ) {
+                        frequencyOptions.forEach { (label, type) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    scheduleType = type
+                                    showFrequencyMenu = false
+                                },
+                            )
                         }
+                    }
+                }
+
+                if (needsScheduleDays) {
+                    Text(stringResource(R.string.supplement_edit_days), style = MaterialTheme.typography.labelLarge)
+                    val dayLabels = weekdayLabels()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        dayLabels.forEachIndexed { day, label ->
+                            FilterChip(
+                                selected = day in scheduleDays,
+                                onClick = {
+                                    scheduleDays =
+                                        if (day in scheduleDays) scheduleDays - day else scheduleDays + day
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                    if (scheduleDays.isEmpty()) {
+                        Text(
+                            stringResource(R.string.supplement_edit_days_required),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
 
@@ -426,6 +481,8 @@ fun SupplementEditSheet(
                                                     it.value == scheduleType.value
                                                 },
                                             ingredients = ingredientInputs,
+                                            scheduleDays =
+                                                if (needsScheduleDays) scheduleDays.sorted() else null,
                                             timeOfDay =
                                                 GenSupplementCreate.TimeOfDay.entries.firstOrNull { tod ->
                                                     tod.value == timeOfDay

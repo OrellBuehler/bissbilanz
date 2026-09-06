@@ -2,6 +2,7 @@ package com.bissbilanz.android.wear
 
 import android.content.Context
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
@@ -17,6 +18,7 @@ import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.wear.WearFoodRef
 import com.bissbilanz.wear.WearMacros
+import com.bissbilanz.wear.WearMealTotal
 import com.bissbilanz.wear.WearPaths
 import com.bissbilanz.wear.WearSleepInfo
 import com.bissbilanz.wear.WearState
@@ -32,6 +34,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.time.Clock
 
@@ -83,10 +86,25 @@ class WearStatePublisher(
     @Volatile
     private var wearableUnavailable = false
 
-    suspend fun publish() {
-        if (wearableUnavailable) return
+    /**
+     * Builds the watch's view of today and pushes it, returning what it pushed.
+     *
+     * The return value is what a watch RPC is answered with, so a log made on the
+     * watch moves its rings immediately instead of waiting for this push to make
+     * its way back. Null only when there is no Wearable API to push to, i.e. when
+     * there is no watch either.
+     */
+    suspend fun publish(): WearState? {
+        if (wearableUnavailable) return null
+        val state =
+            try {
+                buildState()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                errorReporter.captureException(e)
+                return null
+            }
         try {
-            val state = buildState()
             val request =
                 PutDataMapRequest.create(WearPaths.STATE).apply {
                     dataMap.putString(WearPaths.KEY_PAYLOAD, json.encodeToString(state))
@@ -102,10 +120,13 @@ class WearStatePublisher(
             if (e is CancellationException) throw e
             if (e.isWearableApiUnavailable()) {
                 wearableUnavailable = true
-                return
+            } else {
+                errorReporter.captureException(e)
             }
-            errorReporter.captureException(e)
         }
+        // The push may have failed while the state itself is sound — an RPC
+        // caller can still be answered with it.
+        return state
     }
 
     private suspend fun buildState(): WearState {
@@ -136,6 +157,11 @@ class WearStatePublisher(
                     fat = goals?.fatGoal ?: DefaultGoals.FAT,
                     fiber = goals?.fiberGoal ?: DefaultGoals.FIBER,
                 ),
+            meals =
+                entries
+                    .groupBy { normalizeMealType(it.mealType) }
+                    .map { (meal, rows) -> WearMealTotal(mealType = meal, calories = rows.sumOf { it.resolvedCalories() }) }
+                    .sortedWith(compareBy({ mealOrder(it.mealType) }, { it.mealType })),
             // Learned from the synced log rather than hardcoded, so custom meal
             // types reach the watch too.
             mealTypes = (mealTypes + entries.map { normalizeMealType(it.mealType) }).distinct(),
@@ -150,7 +176,33 @@ class WearStatePublisher(
                         quality = it.quality,
                     )
                 },
+            localeCode = appLocaleCode(),
         )
+    }
+
+    /**
+     * Canonical meals first and in their canonical order, custom types after them —
+     * the same order the phone's day log uses, so the watch's breakdown doesn't
+     * reshuffle the day.
+     */
+    private fun mealOrder(mealType: String): Int = mealTypes.indexOf(mealType).takeIf { it >= 0 } ?: mealTypes.size
+
+    /**
+     * The language the phone app itself is rendering in, so the watch follows it
+     * rather than its own system locale. Reading the app context's configuration
+     * covers both the system language and an Android 13+ per-app language, which
+     * the platform applies to the app's own resources. Clamped to a language the
+     * watch actually ships strings for; anything else renders the English default
+     * on the phone too.
+     */
+    private fun appLocaleCode(): String {
+        val chosen = AppLanguage.stored(context).takeIf { it != AppLanguage.SYSTEM }
+        val language =
+            chosen ?: run {
+                val locales = context.resources.configuration.locales
+                if (locales.isEmpty()) Locale.getDefault().language else locales.get(0).language
+            }
+        return if (language.equals("de", ignoreCase = true)) "de" else "en"
     }
 
     private companion object {

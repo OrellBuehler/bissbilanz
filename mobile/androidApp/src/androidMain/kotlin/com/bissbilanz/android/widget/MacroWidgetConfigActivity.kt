@@ -27,11 +27,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -93,22 +95,32 @@ class MacroWidgetConfigActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
-                            text = "Configure Widget",
+                            text = stringResource(R.string.macro_widget_config_title),
                             style = MaterialTheme.typography.headlineMedium,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Select which macros to display:",
+                            text = stringResource(R.string.macro_widget_config_subtitle),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        MacroCheckbox("Calories", showCalories, CaloriesBlue) { showCalories = it }
-                        MacroCheckbox("Protein", showProtein, ProteinRed) { showProtein = it }
-                        MacroCheckbox("Carbs", showCarbs, CarbsOrange) { showCarbs = it }
-                        MacroCheckbox("Fat", showFat, FatYellow) { showFat = it }
-                        MacroCheckbox("Fiber", showFiber, FiberGreen) { showFiber = it }
+                        MacroCheckbox(stringResource(R.string.macro_calories), showCalories, CaloriesBlue) {
+                            showCalories = it
+                        }
+                        MacroCheckbox(stringResource(R.string.macro_protein), showProtein, ProteinRed) {
+                            showProtein = it
+                        }
+                        MacroCheckbox(stringResource(R.string.macro_carbs), showCarbs, CarbsOrange) {
+                            showCarbs = it
+                        }
+                        MacroCheckbox(stringResource(R.string.macro_fat), showFat, FatYellow) {
+                            showFat = it
+                        }
+                        MacroCheckbox(stringResource(R.string.macro_fiber), showFiber, FiberGreen) {
+                            showFiber = it
+                        }
 
                         Spacer(modifier = Modifier.height(32.dp))
 
@@ -128,7 +140,7 @@ class MacroWidgetConfigActivity : ComponentActivity() {
                             enabled =
                                 showCalories || showProtein || showCarbs || showFat || showFiber,
                         ) {
-                            Text("Save")
+                            Text(stringResource(R.string.macro_widget_config_save))
                         }
                     }
                 }

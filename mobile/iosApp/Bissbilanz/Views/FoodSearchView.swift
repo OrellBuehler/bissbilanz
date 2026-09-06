@@ -517,6 +517,7 @@ struct LogFoodForm: View {
     /// standard set so the picker is never momentarily empty.
     @State private var mealTypes = WidgetSnapshotWriter.standardMealTypes
     @State private var eatenTime = Date()
+    @State private var notes = ""
     @State private var isLogging = false
     @State private var errorMessage: String?
 
@@ -589,6 +590,11 @@ struct LogFoodForm: View {
                 DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
             }
 
+            Section(L10n.notes) {
+                TextField(L10n.notes, text: $notes, axis: .vertical)
+                    .lineLimit(2 ... 4)
+            }
+
             Section(L10n.nutrition) {
                 NutrientRow(label: L10n.calories, value: food.calories * servings, unit: "kcal")
                 NutrientRow(label: L10n.protein, value: food.protein * servings, unit: "g")
@@ -640,11 +646,13 @@ struct LogFoodForm: View {
 
     private func logFood() async {
         isLogging = true
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let entry = EntryCreate(
             foodId: food.id,
             mealType: mealType,
             servings: servings,
             date: logDate.isoDateString,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
             eatenAt: eatenAtString()
         )
         do {

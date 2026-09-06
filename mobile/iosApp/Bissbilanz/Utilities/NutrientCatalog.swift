@@ -63,6 +63,27 @@ enum NutrientCatalog {
     static var all: [AdditionalNutrientSpec] {
         categories.flatMap(\.nutrients)
     }
+
+    /// Nutrient rows the user has added a value for, in catalog order.
+    static func added(from values: [String: String]) -> [AdditionalNutrientSpec] {
+        all.filter { values[$0.key] != nil }
+    }
+
+    /// "Add Nutrient" menu categories: everything not already added, restricted
+    /// to the user's enabled nutrients (nil or empty means every nutrient).
+    static func addable(
+        excluding values: [String: String],
+        visibleKeys: Set<String>?
+    ) -> [AdditionalNutrientCategory] {
+        let showAll = visibleKeys?.isEmpty ?? true
+        return categories.compactMap { category in
+            let nutrients = category.nutrients.filter { spec in
+                values[spec.key] == nil && (showAll || visibleKeys?.contains(spec.key) == true)
+            }
+            guard !nutrients.isEmpty else { return nil }
+            return AdditionalNutrientCategory(title: category.title, nutrients: nutrients)
+        }
+    }
 }
 
 struct AdditionalNutrientSpec: Identifiable {

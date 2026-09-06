@@ -92,12 +92,92 @@ struct EntryCreate: Codable {
     var eatenAt: String?
 }
 
+/// Partial PATCH body for `/api/entries/{id}`.
+///
+/// The clearable fields are double optionals on purpose. `JSONEncoder` drops a
+/// nil optional entirely, and the server only touches a column when the key is
+/// actually present (`'notes' in input`, `quickNutrients !== undefined`), so a
+/// plain `String?` could say "leave it alone" but never "clear it" — emptying a
+/// note or a nutrient silently kept the old value. `nil` omits the key,
+/// `.some(nil)` sends an explicit JSON null.
 struct EntryUpdate: Codable {
     var mealType: String?
     var servings: Double?
     var date: String?
-    var notes: String?
+    var notes: String??
     var eatenAt: String?
+    var quickName: String??
+    var quickCalories: Double??
+    var quickProtein: Double??
+    var quickCarbs: Double??
+    var quickFat: Double??
+    var quickFiber: Double??
+    var quickNutrients: [String: Double]??
+}
+
+/// Declared in an extension so the memberwise initializer survives.
+extension EntryUpdate {
+    private enum CodingKeys: String, CodingKey {
+        case mealType, servings, date, notes, eatenAt
+        case quickName, quickCalories, quickProtein, quickCarbs, quickFat, quickFiber, quickNutrients
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mealType = try container.decodeIfPresent(String.self, forKey: .mealType)
+        servings = try container.decodeIfPresent(Double.self, forKey: .servings)
+        date = try container.decodeIfPresent(String.self, forKey: .date)
+        eatenAt = try container.decodeIfPresent(String.self, forKey: .eatenAt)
+        notes = try container.decodeNullable(String.self, forKey: .notes)
+        quickName = try container.decodeNullable(String.self, forKey: .quickName)
+        quickCalories = try container.decodeNullable(Double.self, forKey: .quickCalories)
+        quickProtein = try container.decodeNullable(Double.self, forKey: .quickProtein)
+        quickCarbs = try container.decodeNullable(Double.self, forKey: .quickCarbs)
+        quickFat = try container.decodeNullable(Double.self, forKey: .quickFat)
+        quickFiber = try container.decodeNullable(Double.self, forKey: .quickFiber)
+        quickNutrients = try container.decodeNullable([String: Double].self, forKey: .quickNutrients)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(mealType, forKey: .mealType)
+        try container.encodeIfPresent(servings, forKey: .servings)
+        try container.encodeIfPresent(date, forKey: .date)
+        try container.encodeIfPresent(eatenAt, forKey: .eatenAt)
+        try container.encodeNullable(notes, forKey: .notes)
+        try container.encodeNullable(quickName, forKey: .quickName)
+        try container.encodeNullable(quickCalories, forKey: .quickCalories)
+        try container.encodeNullable(quickProtein, forKey: .quickProtein)
+        try container.encodeNullable(quickCarbs, forKey: .quickCarbs)
+        try container.encodeNullable(quickFat, forKey: .quickFat)
+        try container.encodeNullable(quickFiber, forKey: .quickFiber)
+        try container.encodeNullable(quickNutrients, forKey: .quickNutrients)
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// Reads a field that distinguishes "absent" from "explicitly null":
+    /// `nil` when the key is missing, `.some(nil)` for a JSON null.
+    func decodeNullable<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T?? {
+        guard contains(key) else { return nil }
+        let value = try decodeIfPresent(type, forKey: key)
+        return .some(value)
+    }
+}
+
+extension KeyedEncodingContainer {
+    /// Writes the counterpart of `decodeNullable`: omits the key for `nil` and
+    /// emits an explicit JSON null for `.some(nil)`.
+    mutating func encodeNullable(_ value: (some Encodable)??, forKey key: Key) throws {
+        switch value {
+        case .none:
+            return
+        case .some(.none):
+            try encodeNil(forKey: key)
+        case let .some(.some(unwrapped)):
+            try encode(unwrapped, forKey: key)
+        }
+    }
 }
 
 struct EntriesResponse: Codable {

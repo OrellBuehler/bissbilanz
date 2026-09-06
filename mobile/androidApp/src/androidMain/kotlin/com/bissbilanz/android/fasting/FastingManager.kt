@@ -106,6 +106,18 @@ class FastingManager(
         }
     }
 
+    /**
+     * Ends the running fast without leaving a trace — no history row, no fasting-day
+     * mark and no sync operation, matching iOS `FastingTimerManager.discard`. For fasts
+     * started by mistake or abandoned after a few minutes.
+     */
+    fun discard() {
+        if (_session.value == null) return
+        store.clearCurrent()
+        _session.value = null
+        FastingNotifier.clear(context)
+    }
+
     /** Rewrites a finished fast's start, end or target. Ignored unless the range is still valid. */
     suspend fun updateHistory(session: FastingSession) {
         val endedAt = session.endedAtEpochMs ?: return

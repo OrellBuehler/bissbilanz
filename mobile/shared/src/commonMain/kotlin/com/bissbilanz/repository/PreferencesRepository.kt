@@ -123,5 +123,12 @@ class PreferencesRepository(
             visibleNutrients = update.visibleNutrients ?: current.visibleNutrients,
             locale = update.locale?.value ?: current.locale,
             timeZone = update.timeZone ?: current.timeZone,
+            biologicalSex =
+                update.biologicalSex?.let {
+                    when (it) {
+                        PreferencesUpdate.BiologicalSex.male -> Preferences.BiologicalSex.male
+                        PreferencesUpdate.BiologicalSex.female -> Preferences.BiologicalSex.female
+                    }
+                } ?: current.biologicalSex,
         )
 }

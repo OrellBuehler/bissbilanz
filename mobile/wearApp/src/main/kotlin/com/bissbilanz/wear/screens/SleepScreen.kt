@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -17,11 +16,14 @@ import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.bissbilanz.wear.R
+import com.bissbilanz.wear.WearSendResult
 import com.bissbilanz.wear.WearSleepLogRequest
 import com.bissbilanz.wear.WearState
 import com.bissbilanz.wear.WearStateRepository
+import com.bissbilanz.wear.wearString
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.UUID
 import kotlin.math.roundToInt
 
 /** Last night at a glance, plus a coarse hours/quality logger. */
@@ -31,24 +33,21 @@ fun SleepScreen(
     context: Context,
 ) {
     val scope = rememberCoroutineScope()
-    var toast by remember { mutableStateOf<String?>(null) }
+    var outcome by remember { mutableStateOf<WearSendResult?>(null) }
     var hours by remember { mutableDoubleStateOf(8.0) }
     var quality by remember { mutableIntStateOf(7) }
 
-    val loggedLabel = stringResource(R.string.logged)
-    val failedLabel = stringResource(R.string.log_failed)
-
     val listState = rememberScalingLazyListState()
     ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        item { ListHeader { Text(stringResource(R.string.tab_sleep)) } }
+        item { ListHeader { Text(wearString(R.string.tab_sleep)) } }
 
         item {
             val sleep = state.sleep
             Text(
                 if (sleep == null) {
-                    stringResource(R.string.no_sleep)
+                    wearString(R.string.no_sleep)
                 } else {
-                    stringResource(
+                    wearString(
                         R.string.sleep_summary,
                         formatHours(sleep.durationMinutes / 60.0),
                         sleep.quality.roundToInt().toString(),
@@ -60,7 +59,7 @@ fun SleepScreen(
             )
         }
 
-        item { StepperLabel(stringResource(R.string.hours)) }
+        item { StepperLabel(wearString(R.string.hours)) }
 
         item {
             Row(
@@ -74,7 +73,7 @@ fun SleepScreen(
             }
         }
 
-        item { StepperLabel(stringResource(R.string.quality)) }
+        item { StepperLabel(wearString(R.string.quality)) }
 
         item {
             Row(
@@ -92,33 +91,26 @@ fun SleepScreen(
             Chip(
                 onClick = {
                     scope.launch {
-                        val ok =
+                        outcome =
                             WearStateRepository.logSleep(
                                 context,
                                 WearSleepLogRequest(
                                     durationMinutes = (hours * 60).roundToInt(),
                                     quality = quality.toDouble(),
                                     date = LocalDate.now().toString(),
+                                    requestId = UUID.randomUUID().toString(),
                                 ),
                             )
-                        toast = if (ok) loggedLabel else failedLabel
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ChipDefaults.primaryChipColors(),
-                label = { Text(stringResource(R.string.log_sleep)) },
+                label = { Text(wearString(R.string.log_sleep)) },
             )
         }
 
-        toast?.let { message ->
-            item {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.caption2,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+        outcome?.let { result ->
+            item { StatusLine(outcomeMessage(result)) }
         }
     }
 }

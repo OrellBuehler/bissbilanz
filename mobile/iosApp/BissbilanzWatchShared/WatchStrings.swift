@@ -113,6 +113,19 @@ struct WatchStrings {
         return "\(mins)m"
     }
 
+    /// Sleep quality on the app's 1–10 scale, e.g. "8/10". Manual entries are
+    /// whole numbers; a synced source can carry one decimal ("7.5/10"), which
+    /// is kept rather than rounded away.
+    func qualityScore(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 1
+        formatter.locale = locale
+        let score = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        return "\(score)/10"
+    }
+
     /// Signed kilogram delta, e.g. "−0.3 kg" / "+0.4 kg".
     func signedKg(_ value: Double) -> String {
         let sign = value > 0 ? "+" : (value < 0 ? "−" : "")

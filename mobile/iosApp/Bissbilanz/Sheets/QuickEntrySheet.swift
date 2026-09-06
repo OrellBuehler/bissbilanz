@@ -14,6 +14,7 @@ struct QuickEntrySheet: View {
     @State private var carbs = ""
     @State private var fat = ""
     @State private var fiber = ""
+    @State private var notes = ""
     @State private var mealType = "Snacks"
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -41,30 +42,29 @@ struct QuickEntrySheet: View {
                 }
 
                 Section(L10n.nutrition) {
-                    macroField(L10n.calories, text: $calories, unit: "kcal")
-                    macroField(L10n.protein, text: $protein, unit: "g")
-                    macroField(L10n.carbs, text: $carbs, unit: "g")
-                    macroField(L10n.fat, text: $fat, unit: "g")
-                    macroField(L10n.fiber, text: $fiber, unit: "g")
+                    NutrientInputField(label: L10n.calories, text: $calories, unit: "kcal")
+                    NutrientInputField(label: L10n.protein, text: $protein, unit: "g")
+                    NutrientInputField(label: L10n.carbs, text: $carbs, unit: "g")
+                    NutrientInputField(label: L10n.fat, text: $fat, unit: "g")
+                    NutrientInputField(label: L10n.fiber, text: $fiber, unit: "g")
                 }
 
                 Section(L10n.additionalNutrients) {
-                    ForEach(addedNutrients) { spec in
-                        additionalNutrientField(spec)
+                    ForEach(NutrientCatalog.added(from: additionalValues)) { spec in
+                        NutrientInputField(
+                            label: spec.label,
+                            text: binding(for: spec.key),
+                            unit: spec.unit
+                        )
                     }
                     .onDelete(perform: removeAdditionalNutrients)
 
-                    Menu {
-                        ForEach(availableCategories) { category in
-                            Menu(category.title) {
-                                ForEach(category.nutrients) { spec in
-                                    Button(spec.label) { additionalValues[spec.key] = "" }
-                                }
-                            }
-                        }
-                    } label: {
-                        Label(L10n.addNutrient, systemImage: "plus.circle")
-                    }
+                    AddNutrientMenu(values: $additionalValues, visibleNutrientKeys: visibleNutrientKeys)
+                }
+
+                Section(L10n.notes) {
+                    TextField(L10n.notes, text: $notes, axis: .vertical)
+                        .lineLimit(2 ... 4)
                 }
             }
             .keyboardDismissable()
@@ -95,52 +95,15 @@ struct QuickEntrySheet: View {
         .task { loadVisibleNutrients() }
     }
 
-    private func macroField(_ label: String, text: Binding<String>, unit: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField("0", text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 80)
-            Text(unit)
-                .foregroundStyle(.secondary)
-                .frame(width: 30, alignment: .leading)
-        }
-    }
-
-    /// Nutrient rows the user has added a value for, in catalog order.
-    private var addedNutrients: [AdditionalNutrientSpec] {
-        NutrientCatalog.all.filter { additionalValues[$0.key] != nil }
-    }
-
-    /// "Add Nutrient" menu categories, restricted to the user's enabled
-    /// nutrients (or every nutrient when none are configured) and excluding
-    /// rows already added.
-    private var availableCategories: [AdditionalNutrientCategory] {
-        NutrientCatalog.categories.compactMap { category in
-            let nutrients = category.nutrients.filter { spec in
-                additionalValues[spec.key] == nil && isVisible(spec.key)
-            }
-            guard !nutrients.isEmpty else { return nil }
-            return AdditionalNutrientCategory(title: category.title, nutrients: nutrients)
-        }
-    }
-
-    private func isVisible(_ key: String) -> Bool {
-        guard let visibleNutrientKeys, !visibleNutrientKeys.isEmpty else { return true }
-        return visibleNutrientKeys.contains(key)
-    }
-
-    private func additionalNutrientField(_ spec: AdditionalNutrientSpec) -> some View {
-        macroField(spec.label, text: Binding(
-            get: { additionalValues[spec.key] ?? "" },
-            set: { additionalValues[spec.key] = $0 }
-        ), unit: spec.unit)
+    private func binding(for key: String) -> Binding<String> {
+        Binding(
+            get: { additionalValues[key] ?? "" },
+            set: { additionalValues[key] = $0 }
+        )
     }
 
     private func removeAdditionalNutrients(at offsets: IndexSet) {
-        let specs = addedNutrients
+        let specs = NutrientCatalog.added(from: additionalValues)
         for index in offsets {
             additionalValues[specs[index].key] = nil
         }
@@ -154,10 +117,12 @@ struct QuickEntrySheet: View {
     private func save() async {
         isSaving = true
         let parsedNutrients = additionalValues.compactMapValues { Double.parseUserInput($0) }
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let entry = EntryCreate(
             mealType: mealType,
             servings: 1,
             date: date,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
             quickName: name,
             quickCalories: Double.parseUserInput(calories),
             quickProtein: Double.parseUserInput(protein),
