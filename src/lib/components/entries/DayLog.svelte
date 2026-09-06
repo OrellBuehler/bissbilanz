@@ -15,6 +15,12 @@
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
+	import Timer from '@lucide/svelte/icons/timer';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import { fastingService } from '$lib/services/fasting-service.svelte';
+	import { deviceTimeZone } from '$lib/analytics/local-time';
+	import { formatTime } from '$lib/utils/dates';
+	import { fastsOnDate, formatDuration } from '$lib/utils/fasting';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -34,6 +40,7 @@
 	}: Props = $props();
 
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
+	const fastsQuery = useLiveQuery(() => fastingService.sessions(), []);
 	const foodsQuery = useLiveQuery(() => foodService.allFoods(), []);
 	const recipesQuery = useLiveQuery(() => recipeService.allRecipes(), []);
 
@@ -74,7 +81,10 @@
 	$effect(() => {
 		foodService.refresh();
 		recipeService.refresh();
+		fastingService.refresh();
 	});
+
+	const fastsToday = $derived(fastsOnDate(fastsQuery.value, date, deviceTimeZone()));
 
 	async function loadFastingDay(d: string) {
 		const cached = await dayPropertiesService.get(d);
@@ -198,6 +208,28 @@
 </script>
 
 <div class="space-y-4">
+	{#each fastsToday as fast (fast.id)}
+		<a
+			href="/fasting"
+			class="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/50"
+		>
+			<div class="flex min-w-0 items-center gap-2">
+				<Timer class="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+				<span class="truncate text-sm">
+					<span class="font-medium">
+						{m.day_log_fasted({
+							duration: formatDuration(Date.parse(fast.endedAt) - Date.parse(fast.startedAt))
+						})}
+					</span>
+					<span class="text-muted-foreground tabular-nums">
+						· {formatTime(fast.startedAt)} – {formatTime(fast.endedAt)}
+					</span>
+				</span>
+			</div>
+			<ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+		</a>
+	{/each}
+
 	{#if !totals.calories}
 		<div
 			class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
@@ -207,6 +239,9 @@
 				<div>
 					<span class="text-sm font-medium">{m.fasting_day()}</span>
 					<p class="text-xs text-muted-foreground">{m.fasting_day_description()}</p>
+					<a href="/fasting" class="text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+						{m.day_log_fasting_open()}
+					</a>
 				</div>
 			</div>
 			<Switch checked={isFastingDay} onCheckedChange={toggleFastingDay} disabled={fastingLoading} />
