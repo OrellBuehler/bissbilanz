@@ -7,6 +7,7 @@
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
 	const user = $derived(getUser());
@@ -79,7 +80,8 @@
 				{/each}
 			</Breadcrumb.List>
 		</Breadcrumb.Root>
-		<div class="ml-auto">
+		<div class="ml-auto flex items-center gap-2">
+			<CommandPaletteButton />
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
