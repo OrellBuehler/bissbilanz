@@ -6,8 +6,10 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
+	import LabelScanModal from '$lib/components/label/LabelScanModal.svelte';
 	import NutriScoreSelector from '$lib/components/quality/NutriScoreSelector.svelte';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
+	import ScanText from '@lucide/svelte/icons/scan-text';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Check from '@lucide/svelte/icons/check';
@@ -19,6 +21,7 @@
 	import { ALL_NUTRIENTS, DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
 	import FoodLabelsInput from '$lib/components/foods/FoodLabelsInput.svelte';
+	import type { FoodFormPatch } from '$lib/label-parser';
 
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
@@ -85,10 +88,20 @@
 	let showAdvanced = $state(false);
 	let saving = $state(false);
 	let scanOpen = $state(false);
+	let labelScanOpen = $state(false);
 
 	function handleScanned(barcode: string) {
 		form.barcode = barcode;
 		onBarcodeScan?.(barcode);
+	}
+
+	function handleLabelScanned(patch: FoodFormPatch) {
+		form.servingSize = patch.servingSize;
+		form.servingUnit = patch.servingUnit;
+		for (const [key, value] of Object.entries(patch.values)) {
+			form[key] = value;
+		}
+		if (patch.hasExtendedNutrients) showAdvanced = true;
 	}
 
 	// Build initial form values (intentionally captures initial prop once — form state is independent)
@@ -190,6 +203,15 @@
 			</Button>
 		</div>
 	</div>
+	<Button
+		type="button"
+		variant="outline"
+		class="w-full justify-center sm:w-auto"
+		onclick={() => (labelScanOpen = true)}
+	>
+		<ScanText class="size-4" />
+		{m.label_scan_button()}
+	</Button>
 	<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 		<div class="grid gap-1.5">
 			<Label for="servingSize">{m.food_form_serving_size()}</Label>
@@ -300,3 +322,5 @@
 	onClose={() => (scanOpen = false)}
 	onBarcode={handleScanned}
 />
+
+<LabelScanModal bind:open={labelScanOpen} onApply={handleLabelScanned} />

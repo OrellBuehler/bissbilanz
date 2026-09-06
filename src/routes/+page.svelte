@@ -48,8 +48,7 @@
 		{
 			icon: ScanText,
 			title: m.landing_feature_label_title,
-			desc: m.landing_feature_label_desc,
-			platform: m.landing_platform_mobile
+			desc: m.landing_feature_label_desc
 		},
 		{ icon: Bot, title: m.landing_feature_ai_title, desc: m.landing_feature_ai_desc },
 		{
