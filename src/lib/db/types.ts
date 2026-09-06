@@ -174,6 +174,7 @@ export type DexieUserPreferences = {
 	locale: string | null;
 	timeZone: string | null;
 	biologicalSex: 'male' | 'female' | null;
+	waterGoalMl?: number | null;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 
@@ -271,6 +272,10 @@ export type DexieFastingSession = {
 export type DexieDayProperties = {
 	date: string;
 	isFastingDay: boolean;
+	notes?: string | null;
+	waterMl?: number | null;
+	activityCalories?: number | null;
+	activityNote?: string | null;
 };
 
 // ── Sync Queue (replaces bissbilanz-offline IndexedDB) ─────────────

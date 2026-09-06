@@ -12,6 +12,7 @@
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
+	import DayPropertiesCard from '$lib/components/entries/DayPropertiesCard.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
@@ -31,6 +32,7 @@
 		addModalOpen?: boolean;
 		initialFoodId?: string | null;
 		initialRecipeId?: string | null;
+		onActivityChange?: (activityCalories: number | null) => void;
 	};
 
 	let {
@@ -40,7 +42,8 @@
 		scanModalOpen = $bindable(false),
 		addModalOpen = $bindable(false),
 		initialFoodId = $bindable(null),
-		initialRecipeId = $bindable(null)
+		initialRecipeId = $bindable(null),
+		onActivityChange
 	}: Props = $props();
 
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
@@ -251,6 +254,8 @@
 			<Switch checked={isFastingDay} onCheckedChange={toggleFastingDay} disabled={fastingLoading} />
 		</div>
 	{/if}
+
+	<DayPropertiesCard {date} {onActivityChange} />
 
 	<div class="grid gap-4">
 		{#each mealTypes as mealType}
