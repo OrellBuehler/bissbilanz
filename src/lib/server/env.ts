@@ -45,6 +45,15 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 			);
 		}
 	}
+	// Web Push is all-or-nothing too: half-configured means a toggle that fails.
+	const vapidVars = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'];
+	const vapidSet = vapidVars.filter((key) => env[key]?.trim());
+	if (vapidSet.length > 0 && vapidSet.length < vapidVars.length) {
+		problems.push(`${vapidVars.join(', ')} must be set together (or all left unset)`);
+	}
+	if (env.VAPID_SUBJECT?.trim() && !/^(mailto:|https:\/\/)/.test(env.VAPID_SUBJECT.trim())) {
+		problems.push('VAPID_SUBJECT must be a mailto: or https:// URL');
+	}
 	const appleVars = ['APPLE_SERVICES_ID', 'APPLE_TEAM_ID', 'APPLE_KEY_ID', 'APPLE_PRIVATE_KEY'];
 	const appleSet = appleVars.filter((key) => env[key]?.trim());
 	if (appleSet.length > 0 && appleSet.length < appleVars.length) {
@@ -89,6 +98,13 @@ export const config = {
 	},
 	mcp: {
 		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'
+	},
+	// Web Push (optional): unset keys keep the Notifications settings section
+	// hidden and the reminder dispatcher asleep.
+	push: {
+		publicKey: process.env.VAPID_PUBLIC_KEY?.trim(),
+		privateKey: process.env.VAPID_PRIVATE_KEY?.trim(),
+		subject: process.env.VAPID_SUBJECT?.trim()
 	},
 	testMode: process.env.TEST_MODE === 'true',
 	testAuthToken: process.env.TEST_AUTH_TOKEN,
