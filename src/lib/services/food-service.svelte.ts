@@ -8,6 +8,12 @@ import { normalizeLabels } from '$lib/labels';
 import type { paths } from '$lib/api/generated/schema';
 
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
+type FoodBatchBody =
+	paths['/api/foods/batch']['post']['requestBody']['content']['application/json'];
+type FoodBatchResult =
+	paths['/api/foods/batch']['post']['responses']['200']['content']['application/json'];
+type FoodImportResult =
+	paths['/api/foods/import']['post']['responses']['201']['content']['application/json'];
 type FoodUpdate = paths['/api/foods/{id}']['patch']['requestBody']['content']['application/json'];
 
 // Supplement backing foods share the Dexie `foods` table but must not appear
@@ -219,6 +225,39 @@ async function deleteFood(id: string) {
 	);
 }
 
+/**
+ * Apply one action to many foods in a single request. Online-only, like the
+ * merge tool: a bulk write is a deliberate desk-side cleanup, and queueing it
+ * offline would replay against a mirror the server has since moved past.
+ * The Dexie rows are reconciled from the server once the write lands.
+ */
+async function batch(body: FoodBatchBody): Promise<FoodBatchResult | null> {
+	const { data, error } = await api.POST('/api/foods/batch', { body });
+	if (error || !data) return null;
+
+	const applied = data.results.filter((result) => result.ok).map((result) => result.id);
+	if (applied.length > 0) {
+		if (body.action === 'delete') {
+			await db.foods.bulkDelete(applied);
+		} else if (body.action === 'favorite' || body.action === 'unfavorite') {
+			const isFavorite = body.action === 'favorite';
+			await db.foods.where('id').anyOf(applied).modify({ isFavorite });
+		}
+	}
+	// Labels are normalized and capped server-side, so the mirror takes them
+	// from the refresh rather than guessing what was stored.
+	await refresh();
+	return data;
+}
+
+/** Create many foods at once and put the server's rows into the mirror. */
+async function importFoods(foods: FoodCreate[]): Promise<FoodImportResult | null> {
+	const { data, error } = await api.POST('/api/foods/import', { body: { foods } });
+	if (error || !data) return null;
+	await db.foods.bulkPut(data.foods as unknown as DexieFood[]);
+	return data;
+}
+
 async function findByBarcode(barcode: string): Promise<DexieFood | null> {
 	try {
 		const { data } = await api.GET('/api/foods', {
@@ -266,6 +305,8 @@ export const foodService = {
 	create,
 	update,
 	setLabels,
+	batch,
+	importFoods,
 	delete: deleteFood,
 	findByBarcode,
 	saveFromCatalog,
