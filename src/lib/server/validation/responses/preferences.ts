@@ -29,6 +29,7 @@ const preferencesSchema = z
 		favoriteTapAction: z.string(),
 		favoriteMealAssignmentMode: z.string(),
 		visibleNutrients: z.array(z.string()),
+		pinnedInsights: z.array(z.string()).optional(),
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
 		locale: z.string().nullable(),

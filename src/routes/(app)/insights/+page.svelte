@@ -14,10 +14,9 @@
 	import WeightChart from '$lib/components/weight/WeightChart.svelte';
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
 	import SleepTabContent from '$lib/components/sleep/SleepTabContent.svelte';
-	import WeightInsightsGroup from '$lib/components/analytics/WeightInsightsGroup.svelte';
-	import WeightCorrelationGroup from '$lib/components/analytics/WeightCorrelationGroup.svelte';
-	import NutritionInsightsGroup from '$lib/components/analytics/NutritionInsightsGroup.svelte';
-	import NutritionCorrelationGroup from '$lib/components/analytics/NutritionCorrelationGroup.svelte';
+	import AnalyticsGroupSection from '$lib/components/insights/AnalyticsGroupSection.svelte';
+	import InsightsSummary from '$lib/components/insights/InsightsSummary.svelte';
+	import type { SummaryTile } from '$lib/insights/summary';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -213,6 +212,78 @@
 	$effect(() => {
 		weightService.refresh();
 	});
+
+	// --- Headline tiles (derived from data the page already loaded) ---
+
+	const weekDays = $derived(pageData.dailyStatus.data);
+	const loggedDays = $derived(weekDays.filter((d) => d.calories > 0));
+	const avgCalories = $derived(
+		loggedDays.length > 0
+			? loggedDays.reduce((sum, d) => sum + d.calories, 0) / loggedDays.length
+			: null
+	);
+	const calorieGoal = $derived(pageData.dailyStatus.goals?.calorieGoal ?? null);
+	const adherencePct = $derived.by(() => {
+		const goal = calorieGoal;
+		if (!goal || loggedDays.length === 0) return null;
+		const onTarget = loggedDays.filter(
+			(d) => d.calories >= goal * 0.9 && d.calories <= goal * 1.1
+		).length;
+		return Math.round((onTarget / loggedDays.length) * 100);
+	});
+
+	const nutritionTiles = $derived<SummaryTile[]>([
+		{
+			label: m.insights_summary_avg_calories(),
+			value: avgCalories === null ? '—' : formatKcal(avgCalories),
+			hint: calorieGoal ? `${m.goals_calories()}: ${formatKcal(calorieGoal)}` : null,
+			accent: 'calories'
+		},
+		{
+			label: m.insights_summary_vs_goal(),
+			value: adherencePct === null ? '—' : `${adherencePct}%`
+		},
+		{
+			label: m.insights_summary_logged_days(),
+			value: `${loggedDays.length}/${weekDays.length}`
+		},
+		{
+			label: m.insights_summary_streak(),
+			value: m.insights_days_unit({ count: pageData.streaks.currentStreak.toString() })
+		}
+	]);
+
+	const weeklyRate = $derived.by(() => {
+		const points = weightChartData.filter(
+			(p): p is ChartPoint & { moving_avg: number } => p.moving_avg != null
+		);
+		if (points.length < 2) return null;
+		const first = points[0];
+		const last = points[points.length - 1];
+		const spanDays =
+			(new Date(`${last.entry_date}T00:00:00Z`).getTime() -
+				new Date(`${first.entry_date}T00:00:00Z`).getTime()) /
+			86_400_000;
+		if (spanDays < 7) return null;
+		return ((last.moving_avg - first.moving_avg) / spanDays) * 7;
+	});
+
+	const weightTiles = $derived<SummaryTile[]>([
+		{
+			label: m.insights_summary_latest_weight(),
+			value: formatKg(latestEntry?.weightKg ?? null)
+		},
+		{ label: m.insights_summary_weight_trend(), value: formatKg(latestTrend) },
+		{
+			label: m.insights_summary_weekly_rate(),
+			value:
+				weeklyRate === null ? '—' : `${weeklyRate > 0 ? '+' : ''}${formatKgValue(weeklyRate)} kg`
+		},
+		{
+			label: m.insights_summary_weight_entries(),
+			value: weightChartData.length.toString()
+		}
+	]);
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
@@ -229,6 +300,8 @@
 	</div>
 
 	{#if activeTab === 'nutrition'}
+		<InsightsSummary tiles={nutritionTiles} />
+
 		<CollapsibleCard title={m.insights_trends()} sectionId="trends">
 			<TrendsChart initialData={pageData.dailyStatus} />
 		</CollapsibleCard>
@@ -466,10 +539,12 @@
 			</div>
 		</CollapsibleCard>
 
-		<NutritionCorrelationGroup />
-		<NutritionInsightsGroup />
+		<AnalyticsGroupSection group="nutrition-correlations" />
+		<AnalyticsGroupSection group="nutrition-patterns" />
 	{:else if activeTab === 'weight'}
 		<div class="space-y-6 pb-8">
+			<InsightsSummary tiles={weightTiles} />
+
 			<Card.Root
 				class="overflow-hidden border-border/60 bg-linear-to-br from-blue-50/80 via-background to-emerald-50/60 dark:from-blue-950/20 dark:via-background dark:to-emerald-950/10"
 			>
@@ -595,8 +670,8 @@
 				</Card.Root>
 			{/if}
 
-			<WeightCorrelationGroup />
-			<WeightInsightsGroup />
+			<AnalyticsGroupSection group="weight-correlations" />
+			<AnalyticsGroupSection group="weight-insights" />
 		</div>
 	{:else if activeTab === 'sleep'}
 		<SleepTabContent />

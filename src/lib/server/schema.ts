@@ -354,6 +354,10 @@ export const userPreferences = pgTable('user_preferences', {
 		.array()
 		.notNull()
 		.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
+	pinnedInsights: text('pinned_insights')
+		.array()
+		.notNull()
+		.default(sql`ARRAY[]::text[]`),
 	mealOrder: text('meal_order')
 		.array()
 		.notNull()

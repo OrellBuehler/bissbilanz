@@ -1,12 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import InsightCard from './InsightCard.svelte';
 	import { computeCaffeineSleepCutoff } from '$lib/analytics/caffeine-sleep';
 	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import { DEFAULT_CAFFEINE_CUTOFF_HOUR } from '$lib/analytics/constants.generated';
 	import * as m from '$lib/paraglide/messages';
-	import { today, shiftDate } from '$lib/utils/dates';
-	import { api } from '$lib/api/client';
 
 	type CaffeineEntry = {
 		date: string;
@@ -20,30 +17,20 @@
 		sleepDurationMinutes: number | null;
 	};
 
-	let loading = $state(true);
-	let caffeineEntries = $state<CaffeineEntry[]>([]);
-	let sleepData = $state<SleepPoint[]>([]);
+	let {
+		nutrientEntries = [],
+		sleepFoodData = [],
+		loading = false
+	}: {
+		nutrientEntries: CaffeineEntry[];
+		sleepFoodData: SleepPoint[];
+		loading?: boolean;
+	} = $props();
 
-	onMount(async () => {
-		const endDate = today();
-		const startDate = shiftDate(endDate, -89);
-		try {
-			const [extRes, sfRes] = await Promise.all([
-				api.GET('/api/analytics/nutrients-extended', { params: { query: { startDate, endDate } } }),
-				api.GET('/api/analytics/sleep-food', { params: { query: { startDate, endDate } } })
-			]);
-			if (extRes.data) {
-				caffeineEntries = extRes.data.data.filter((e) => e.caffeine !== null && e.caffeine > 0);
-			}
-			if (sfRes.data) {
-				sleepData = sfRes.data.data;
-			}
-		} catch {
-			// card shows no-data state
-		} finally {
-			loading = false;
-		}
-	});
+	const caffeineEntries = $derived(
+		nutrientEntries.filter((e) => e.caffeine !== null && e.caffeine > 0)
+	);
+	const sleepData = $derived(sleepFoodData);
 
 	const result = $derived.by(() => {
 		if (caffeineEntries.length === 0 || sleepData.length === 0) return null;
