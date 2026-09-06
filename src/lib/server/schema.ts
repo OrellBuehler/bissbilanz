@@ -363,6 +363,7 @@ export const userPreferences = pgTable('user_preferences', {
 	// (EAR/RDA/AI) in the nutrient-adequacy insights; unset shows both.
 	biologicalSex: text('biological_sex'),
 	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
+	waterGoalMl: integer('water_goal_ml').notNull().default(2000),
 	timeZone: text('time_zone').notNull().default('UTC'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
@@ -523,6 +524,10 @@ export const dayProperties = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 		date: date('date').notNull(),
 		isFastingDay: boolean('is_fasting_day').notNull().default(false),
+		notes: text('notes'),
+		waterMl: integer('water_ml'),
+		activityCalories: integer('activity_calories'),
+		activityNote: text('activity_note'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},

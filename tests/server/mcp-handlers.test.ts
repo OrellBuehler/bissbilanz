@@ -80,6 +80,7 @@ let mockNutrientCandidateArgs: any = null;
 let mockBiologicalSex: 'male' | 'female' | null = null;
 let mockMealTypes: any[] = [];
 let mockDayProperties: any = null;
+let mockDayPropertiesRange: any[] = [];
 let mockCalendarStats: any = null;
 let mockComputedAverages: any = null;
 let mockDateRangeEntries: any[] = [];
@@ -239,6 +240,7 @@ const mockDeps = {
 	getUserTimeZone: async () => 'UTC',
 	listMealTypes: async () => mockMealTypes,
 	getDayProperties: async () => mockDayProperties,
+	getDayPropertiesRange: async () => mockDayPropertiesRange,
 	setDayProperties: async () => mockDayProperties,
 	deleteDayProperties: async () => {},
 	getCalendarStats: async () => mockCalendarStats,
@@ -416,6 +418,7 @@ describe('MCP handlers', () => {
 		mockBiologicalSex = null;
 		mockMealTypes = [];
 		mockDayProperties = null;
+		mockDayPropertiesRange = [];
 		mockCalendarStats = null;
 		mockComputedAverages = null;
 		mockDateRangeEntries = [];
@@ -1135,6 +1138,54 @@ describe('MCP handlers', () => {
 				endDate: '2026-02-07'
 			});
 			expect(result).toEqual([]);
+		});
+
+		test('merges water and activity from day properties', async () => {
+			mockDailyBreakdown = [
+				{ date: '2026-02-10', calories: 2000, protein: 150, carbs: 200, fat: 67, fiber: 30 }
+			];
+			mockDayPropertiesRange = [
+				{
+					date: '2026-02-10',
+					isFastingDay: false,
+					notes: null,
+					waterMl: 1750,
+					activityCalories: 430,
+					activityNote: '45 min run'
+				}
+			];
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-10',
+				endDate: '2026-02-10'
+			})) as any;
+			expect(result[0].waterMl).toBe(1750);
+			expect(result[0].activityCalories).toBe(430);
+			expect(result[0].activityNote).toBe('45 min run');
+			// Calories stay the pure food-log figure.
+			expect(result[0].calories).toBe(2000);
+		});
+
+		test('omits water and activity on days without them', async () => {
+			mockDailyBreakdown = [
+				{ date: '2026-02-10', calories: 2000, protein: 150, carbs: 200, fat: 67, fiber: 30 }
+			];
+			mockDayPropertiesRange = [
+				{
+					date: '2026-02-10',
+					isFastingDay: true,
+					notes: 'rest',
+					waterMl: null,
+					activityCalories: null,
+					activityNote: null
+				}
+			];
+			const result = (await handleGetDailyBreakdown(TEST_USER.id, {
+				startDate: '2026-02-10',
+				endDate: '2026-02-10'
+			})) as any;
+			expect('waterMl' in result[0]).toBe(false);
+			expect('activityCalories' in result[0]).toBe(false);
+			expect('activityNote' in result[0]).toBe(false);
 		});
 
 		test('rejects date range exceeding 366 days', async () => {

@@ -10,12 +10,14 @@
 	import { formatKcal, formatGrams } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
+	import Flame from '@lucide/svelte/icons/flame';
 
 	type Props = {
 		totals: MacroTotals;
+		activityCalories?: number | null;
 	};
 
-	let { totals }: Props = $props();
+	let { totals, activityCalories = null }: Props = $props();
 
 	const rows: { key: MacroKey; label: string; value: string; size: string }[] = $derived([
 		{
@@ -59,4 +61,13 @@
 			</div>
 		{/each}
 	</div>
+	{#if activityCalories != null && activityCalories > 0}
+		<div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+			<Flame class="size-3.5 text-orange-500" />
+			<span class="font-medium tabular-nums text-foreground"
+				>{m.day_summary_activity({ calories: activityCalories })}</span
+			>
+			<span>({m.day_summary_activity_hint()})</span>
+		</div>
+	{/if}
 </DashboardCard>

@@ -60,6 +60,7 @@ export const DEFAULT_PREFERENCES = {
 	favoriteMealAssignmentMode: 'time_based' as const,
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
 	biologicalSex: null as 'male' | 'female' | null,
+	waterGoalMl: 2000,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

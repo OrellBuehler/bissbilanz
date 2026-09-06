@@ -37,6 +37,7 @@
 	let mealOrder = $state<Array<{ id: string; name: string; isDefault: boolean }>>([]);
 	let startPage = $state('dashboard');
 	let biologicalSex = $state('unset');
+	let waterGoalMl = $state('2000');
 	let favoriteMealAssignmentMode = $state<AssignmentMode>('time_based');
 	let favoriteMealTimeframes = $state<TimeframeDraft[]>([]);
 
@@ -77,6 +78,7 @@
 		if (p) {
 			startPage = p.startPage ?? 'dashboard';
 			biologicalSex = p.biologicalSex ?? 'unset';
+			waterGoalMl = String(p.waterGoalMl ?? 2000);
 			favoriteMealAssignmentMode = (p.favoriteMealAssignmentMode ?? 'time_based') as AssignmentMode;
 			favoriteMealTimeframes = (p.favoriteMealTimeframes ?? []).map((row) => {
 				const startH = Math.floor(row.startMinute / 60)
@@ -113,6 +115,17 @@
 		} catch {
 			toast.error(m.settings_save_failed());
 		}
+	};
+
+	const saveWaterGoal = async () => {
+		const parsed = Math.round(Number(waterGoalMl));
+		if (!Number.isFinite(parsed) || parsed < 250 || parsed > 10000) {
+			waterGoalMl = String(cachedPrefs.value?.waterGoalMl ?? 2000);
+			return;
+		}
+		waterGoalMl = String(parsed);
+		if (parsed === (cachedPrefs.value?.waterGoalMl ?? 2000)) return;
+		await savePreference('waterGoalMl', parsed);
 	};
 
 	const saveVisibleNutrients = async (keys: string[]) => {
@@ -381,6 +394,31 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_water_goal()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_water_goal_desc()}</p>
+		</Card.Header>
+		<Card.Content>
+			<div class="flex items-center gap-2">
+				<Label class="sr-only" for="water-goal">{m.settings_water_goal_label()}</Label>
+				<Input
+					id="water-goal"
+					type="number"
+					inputmode="numeric"
+					min="250"
+					max="10000"
+					step="50"
+					class="w-32"
+					bind:value={waterGoalMl}
+					onblur={saveWaterGoal}
+					onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && saveWaterGoal()}
+				/>
+				<span class="text-muted-foreground text-sm">{m.day_unit_ml()}</span>
+			</div>
+		</Card.Content>
+	</Card.Root>
 
 	<Card.Root>
 		<Card.Header>

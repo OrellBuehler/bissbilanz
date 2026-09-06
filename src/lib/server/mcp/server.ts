@@ -136,7 +136,7 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'Get Daily Status',
 			outputSchema: TOOL_OUTPUT.get_daily_status,
 			description:
-				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown.",
+				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown. Also reports the day's water intake, activity calories and activity note when recorded; activity calories are informational and are not netted off the intake totals.",
 			inputSchema: {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
 				includeEntries: z
@@ -919,7 +919,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_daily_breakdown',
 		{
 			title: 'Get Daily Breakdown',
-			description: 'Get daily nutrition totals for a date range, with one row per day.',
+			description:
+				'Get daily nutrition totals for a date range, with one row per day. Rows also carry water intake, activity calories and the activity note on days where those were recorded.',
 			inputSchema: {
 				...dateRangeSchema
 			},
@@ -1317,7 +1318,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Get Day Properties',
 			description:
-				'Get properties for a specific day (e.g., whether it is marked as a fasting day).',
+				'Get properties for a specific day: fasting-day flag, free-text note, water intake in ml, and activity calories burned with an optional note.',
 			inputSchema: {
 				date: dateStr.describe('Date in YYYY-MM-DD format')
 			},
@@ -1330,10 +1331,15 @@ export function createMcpServer(userId: string): McpServer {
 		'set_day_properties',
 		{
 			title: 'Set Day Properties',
-			description: 'Set properties for a specific day, such as marking it as a fasting day.',
+			description:
+				'Set properties for a specific day. Omitted fields keep their stored value; pass null to clear one. Activity calories are recorded for reference only and are never subtracted from logged intake.',
 			inputSchema: describeShape(dayPropertiesSetSchema.shape, {
 				date: 'Date in YYYY-MM-DD format',
-				isFastingDay: 'Whether the day is a fasting day'
+				isFastingDay: 'Whether the day is a fasting day',
+				notes: 'Free-text note for the day',
+				waterMl: 'Water drunk on the day, in millilitres',
+				activityCalories: 'Calories burned through activity or exercise on the day',
+				activityNote: 'Short description of the activity (e.g. "45 min run")'
 			}),
 			annotations: UPDATE
 		},
@@ -1344,7 +1350,8 @@ export function createMcpServer(userId: string): McpServer {
 		'delete_day_properties',
 		{
 			title: 'Delete Day Properties',
-			description: 'Remove all properties for a specific day (resets fasting status, etc.).',
+			description:
+				'Remove all properties for a specific day (resets fasting status, note, water and activity).',
 			inputSchema: {
 				date: dateStr.describe('Date in YYYY-MM-DD format')
 			},

@@ -4,7 +4,11 @@ import { z } from 'zod';
 const dayPropertiesSchema = z
 	.object({
 		date: z.string(),
-		isFastingDay: z.boolean()
+		isFastingDay: z.boolean(),
+		notes: z.string().nullable(),
+		waterMl: z.number().int().nullable(),
+		activityCalories: z.number().int().nullable(),
+		activityNote: z.string().nullable()
 	})
 	.meta({ id: 'DayProperties' });
 

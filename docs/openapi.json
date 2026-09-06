@@ -5981,9 +5981,55 @@
 					},
 					"isFastingDay": {
 						"type": "boolean"
+					},
+					"notes": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"waterMl": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 0,
+								"maximum": 20000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"activityCalories": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 0,
+								"maximum": 20000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"activityNote": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 200
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
-				"required": ["date", "isFastingDay"]
+				"required": ["date"]
 			},
 			"PreferencesUpdate": {
 				"type": "object",
@@ -6076,6 +6122,11 @@
 								"type": "null"
 							}
 						]
+					},
+					"waterGoalMl": {
+						"type": "integer",
+						"minimum": 250,
+						"maximum": 10000
 					},
 					"biologicalSex": {
 						"anyOf": [
@@ -8470,9 +8521,15 @@
 						"additionalProperties": {
 							"$ref": "#/components/schemas/CalendarDay"
 						}
+					},
+					"notedDates": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
-				"required": ["days"],
+				"required": ["days", "notedDates"],
 				"additionalProperties": false
 			},
 			"CalendarDay": {
@@ -8513,9 +8570,46 @@
 					},
 					"isFastingDay": {
 						"type": "boolean"
+					},
+					"notes": {
+						"type": ["string", "null"]
+					},
+					"waterMl": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"activityCalories": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"activityNote": {
+						"type": ["string", "null"]
 					}
 				},
-				"required": ["date", "isFastingDay"],
+				"required": [
+					"date",
+					"isFastingDay",
+					"notes",
+					"waterMl",
+					"activityCalories",
+					"activityNote"
+				],
 				"additionalProperties": false
 			},
 			"DayPropertiesRangeResponse": {
@@ -8604,6 +8698,11 @@
 							}
 						]
 					},
+					"waterGoalMl": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
 					"biologicalSex": {
 						"anyOf": [
 							{
@@ -8645,6 +8744,7 @@
 					"favoriteTapAction",
 					"favoriteMealAssignmentMode",
 					"visibleNutrients",
+					"waterGoalMl",
 					"locale",
 					"timeZone",
 					"favoriteMealTimeframes"

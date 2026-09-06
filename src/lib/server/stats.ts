@@ -12,11 +12,11 @@ import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { getDB, foodEntries } from '$lib/server/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { getFastingDays } from '$lib/server/day-properties';
+import { getFastingDays, getNotedDays } from '$lib/server/day-properties';
 import type { CalendarDay } from '$lib/utils/insights';
 
 export type { CalendarDay };
-export type CalendarStats = { days: Record<string, CalendarDay> };
+export type CalendarStats = { days: Record<string, CalendarDay>; notedDates: string[] };
 
 const groupEntriesByDateWithFasting = (
 	entries: Array<{
@@ -149,8 +149,11 @@ export const getCalendarStats = async (
 	const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	return { days: computeCalendarDays(entries) };
+	const [entries, notedDates] = await Promise.all([
+		listEntriesByDateRange(userId, startDate, endDate),
+		getNotedDays(userId, startDate, endDate)
+	]);
+	return { days: computeCalendarDays(entries), notedDates };
 };
 
 export const getDailyBreakdown = async (

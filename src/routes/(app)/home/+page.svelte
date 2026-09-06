@@ -50,6 +50,7 @@
 	let isLg = $state(false);
 	let mqlCleanup: (() => void) | undefined;
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+	let daylogActivityCalories: number | null = $state(null);
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
 	let aiTaskCaptureOpen = $state(false);
@@ -166,12 +167,13 @@
 	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
 		<SleepWidget date={activeDate} />
 	{:else if sectionKey === 'summary'}
-		<MacroSummaryCard totals={daylogTotals} />
+		<MacroSummaryCard totals={daylogTotals} activityCalories={daylogActivityCalories} />
 	{:else if sectionKey === 'daylog'}
 		<DayLog
 			date={activeDate}
 			dashboardStyle={true}
 			onTotalsChange={(t) => (daylogTotals = t)}
+			onActivityChange={(kcal) => (daylogActivityCalories = kcal)}
 			bind:scanModalOpen
 			bind:addModalOpen
 		/>

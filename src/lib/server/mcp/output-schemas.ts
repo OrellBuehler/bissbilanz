@@ -23,7 +23,13 @@ const dailyStatusCore = {
 	goals: goalsSchema.nullable(),
 	progress: macroTotalsSchema.nullable(),
 	entryCount: z.number().int(),
-	byMeal: z.record(z.string(), macroTotalsSchema)
+	byMeal: z.record(z.string(), macroTotalsSchema),
+	// Present only when the day carries the matching day-property. Activity
+	// calories are informational and never folded into totals or progress.
+	waterMl: z.number().int().optional(),
+	activityCalories: z.number().int().optional(),
+	activityNote: z.string().optional(),
+	isFastingDay: z.boolean().optional()
 };
 const dailyStatusSchema = z.object(dailyStatusCore);
 

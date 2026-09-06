@@ -105,6 +105,7 @@ export const streaksResponseSchema = z
 
 export const calendarResponseSchema = z
 	.object({
-		days: z.record(z.string(), calendarDaySchema)
+		days: z.record(z.string(), calendarDaySchema),
+		notedDates: z.array(z.string())
 	})
 	.meta({ id: 'CalendarResponse' });

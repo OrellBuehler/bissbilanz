@@ -72,7 +72,7 @@ describe('day-properties-db', () => {
 		test('returns the upserted row on create', async () => {
 			setResult([TEST_DAY_PROPS]);
 
-			const result = await setDayProperties(TEST_USER.id, '2026-03-01', false);
+			const result = await setDayProperties(TEST_USER.id, '2026-03-01', { isFastingDay: false });
 			expect(result).toEqual(TEST_DAY_PROPS);
 		});
 
@@ -80,7 +80,35 @@ describe('day-properties-db', () => {
 			const updated = { date: '2026-03-01', isFastingDay: true };
 			setResult([updated]);
 
-			const result = await setDayProperties(TEST_USER.id, '2026-03-01', true);
+			const result = await setDayProperties(TEST_USER.id, '2026-03-01', { isFastingDay: true });
+			expect(result).toEqual(updated);
+		});
+	});
+
+	describe('setDayProperties (patch)', () => {
+		test('accepts a note-only patch without touching the fasting flag', async () => {
+			const updated = { date: '2026-03-01', isFastingDay: false, notes: 'long run day' };
+			setResult([updated]);
+
+			const result = await setDayProperties(TEST_USER.id, '2026-03-01', { notes: 'long run day' });
+			expect(result).toEqual(updated);
+		});
+
+		test('accepts water and activity fields', async () => {
+			const updated = {
+				date: '2026-03-01',
+				isFastingDay: false,
+				waterMl: 1500,
+				activityCalories: 420,
+				activityNote: '45 min run'
+			};
+			setResult([updated]);
+
+			const result = await setDayProperties(TEST_USER.id, '2026-03-01', {
+				waterMl: 1500,
+				activityCalories: 420,
+				activityNote: '45 min run'
+			});
 			expect(result).toEqual(updated);
 		});
 	});
