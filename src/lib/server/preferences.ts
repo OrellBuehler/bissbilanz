@@ -53,6 +53,7 @@ export const DEFAULT_PREFERENCES = {
 		'daylog'
 	] as string[],
 	mealOrder: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'] as string[],
+	pinnedInsights: [] as string[],
 	startPage: 'dashboard' as const,
 	locale: 'en' as const,
 	timeZone: 'UTC' as const,

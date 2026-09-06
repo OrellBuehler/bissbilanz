@@ -6055,6 +6055,40 @@
 							"maxLength": 100
 						}
 					},
+					"pinnedInsights": {
+						"maxItems": 6,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"enum": [
+								"nova-score",
+								"omega-ratio",
+								"protein-distribution",
+								"weekday-weekend",
+								"calorie-front-loading",
+								"dii-score",
+								"tef",
+								"calorie-cycling",
+								"meal-regularity",
+								"food-diversity",
+								"eating-window",
+								"meal-spacing",
+								"nutrient-adequacy",
+								"adaptive-tdee",
+								"plateau-detection",
+								"weight-forecast",
+								"sodium-weight",
+								"caloric-lag",
+								"macro-impact",
+								"meal-timing-weight",
+								"micronutrient-gaps",
+								"food-sleep",
+								"nutrient-sleep",
+								"pre-sleep-window",
+								"caffeine-sleep"
+							]
+						}
+					},
 					"visibleNutrients": {
 						"type": "array",
 						"items": {
@@ -8587,6 +8621,12 @@
 						"type": "string"
 					},
 					"visibleNutrients": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"pinnedInsights": {
 						"type": "array",
 						"items": {
 							"type": "string"

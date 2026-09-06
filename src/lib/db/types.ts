@@ -168,6 +168,7 @@ export type DexieUserPreferences = {
 	favoriteTapAction: string;
 	favoriteMealAssignmentMode: string;
 	visibleNutrients: string[];
+	pinnedInsights: string[];
 	updatedAt: string | null;
 	locale: string | null;
 	timeZone: string | null;

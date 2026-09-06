@@ -17,6 +17,7 @@
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
 	import SleepWidget from '$lib/components/dashboard/SleepWidget.svelte';
+	import PinnedInsights from '$lib/components/dashboard/PinnedInsights.svelte';
 	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
@@ -223,6 +224,7 @@
 					{#each mainOrder as key (key)}
 						{@render widget(key)}
 					{/each}
+					<PinnedInsights />
 				</div>
 				<div class="w-[340px] shrink-0 space-y-4">
 					{#each sidebarOrder as key (key)}
@@ -236,6 +238,7 @@
 				{#each order as key (key)}
 					{@render widget(key)}
 				{/each}
+				<PinnedInsights />
 			</div>
 		{/if}
 	</div>
