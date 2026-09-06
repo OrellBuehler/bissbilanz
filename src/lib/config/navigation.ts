@@ -3,6 +3,7 @@ import Heart from '@lucide/svelte/icons/heart';
 import Utensils from '@lucide/svelte/icons/utensils';
 import CookingPot from '@lucide/svelte/icons/cooking-pot';
 import Pill from '@lucide/svelte/icons/pill';
+import Timer from '@lucide/svelte/icons/timer';
 import Sparkles from '@lucide/svelte/icons/sparkles';
 import Weight from '@lucide/svelte/icons/weight';
 import ChartBar from '@lucide/svelte/icons/chart-bar';
@@ -36,6 +37,7 @@ export const breadcrumbLabelKeys = [
 	'settings',
 	'favorites',
 	'supplements',
+	'fasting',
 	'weight',
 	'insights',
 	'new',
@@ -94,6 +96,13 @@ export function getNavGroups(): NavGroup[] {
 					icon: Pill,
 					badgeColor: 'bg-purple-100 text-purple-600',
 					activeRing: 'ring-2 ring-inset ring-purple-300/80 dark:ring-purple-700/80'
+				},
+				{
+					title: () => m.nav_fasting(),
+					href: '/fasting',
+					icon: Timer,
+					badgeColor: 'bg-indigo-100 text-indigo-600',
+					activeRing: 'ring-2 ring-inset ring-indigo-300/80 dark:ring-indigo-700/80'
 				},
 				{
 					title: () => m.nav_ai_tasks(),

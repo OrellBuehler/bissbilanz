@@ -23,6 +23,7 @@
 		settings: () => m.nav_settings(),
 		favorites: () => m.nav_favorites(),
 		supplements: () => m.nav_supplements(),
+		fasting: () => m.nav_fasting(),
 		weight: () => m.nav_weight(),
 		insights: () => m.nav_insights(),
 		new: () => m.foods_new(),
