@@ -642,25 +642,30 @@ struct InsightsView: View {
 
     // MARK: - Data Loading
 
+    /// Every request here is optional: a failed or cancelled one (pull to
+    /// refresh, then switching tabs cancels the refreshable task) must keep the
+    /// value already on screen rather than replace it with nil, which is what
+    /// made the streaks card vanish on refresh. The full-screen spinner is only
+    /// for the first load; a refresh keeps the cards in place.
     private func loadAll() async {
-        isLoading = true
+        isLoading = streaks == nil && weeklyStats == nil && dailyStats.isEmpty
+        defer { isLoading = false }
 
         async let w = try? api.getWeeklyStats()
         async let m = try? api.getMonthlyStats()
         async let s = try? api.getStreaks()
         async let g = try? api.getGoals()
 
-        weeklyStats = await w
-        monthlyStats = await m
-        streaks = await s
-        goals = await g
+        if let w = await w { weeklyStats = w }
+        if let m = await m { monthlyStats = m }
+        if let s = await s { streaks = s }
+        if let g = await g { goals = g }
 
         // `topFoods` is not fetched here: `loadChartData` below requests the
         // same endpoint with the same argument and assigns the same property,
         // so doing it twice sent a ninth request per load for nothing.
         await loadChartData()
         await loadCalendar()
-        isLoading = false
     }
 
     private func loadChartData() async {
@@ -677,16 +682,16 @@ struct InsightsView: View {
         if let response = await daily {
             dailyStats = response.data
         }
-        mealBreakdown = await meals ?? []
-        topFoods = await foods ?? []
+        if let meals = await meals { mealBreakdown = meals }
+        if let foods = await foods { topFoods = foods }
     }
 
     private func loadCalendar() async {
         let components = Calendar.current.dateComponents([.month, .year], from: calendarMonth)
-        let wire = await (try? api.getCalendarStats(
+        guard let wire = try? await api.getCalendarStats(
             month: components.month ?? 1,
             year: components.year ?? Calendar.current.component(.year, from: Date())
-        )) ?? [:]
+        ) else { return }
         calendarDays = CalendarDay.days(from: wire, calorieGoal: goals?.calorieGoal)
     }
 }

@@ -389,9 +389,11 @@ class InsightsViewModel(
                             }
                         }
 
-                    _weeklyStats.value = weeklyDeferred.await()
-                    _monthlyStats.value = monthlyDeferred.await()
-                    _streaks.value = streaksDeferred.await()
+                    // A failed request keeps the value already on screen instead
+                    // of blanking its card.
+                    _weeklyStats.value = weeklyDeferred.await() ?: _weeklyStats.value
+                    _monthlyStats.value = monthlyDeferred.await() ?: _monthlyStats.value
+                    _streaks.value = streaksDeferred.await() ?: _streaks.value
                     _topFoods.value = topFoodsDeferred.await()
                     _dailyStats.value = dailyStatsDeferred.await()
                     _mealBreakdown.value = mealBreakdownDeferred.await()
