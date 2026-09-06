@@ -7,12 +7,22 @@
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
 	import DuplicatesBanner from '$lib/components/foods/DuplicatesBanner.svelte';
+	import BulkActionBar from '$lib/components/foods/BulkActionBar.svelte';
+	import BulkLabelsDialog from '$lib/components/foods/BulkLabelsDialog.svelte';
+	import FoodImportDialog from '$lib/components/foods/FoodImportDialog.svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import type { BulkLabelMode } from '$lib/components/foods/bulkActions';
+	import type { FoodCsvFood } from '$lib/foods/csv';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
+	import Clock from '@lucide/svelte/icons/clock';
+	import FileUp from '@lucide/svelte/icons/file-up';
+	import ListChecks from '@lucide/svelte/icons/list-checks';
 	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/generated/schema';
 
@@ -44,6 +54,15 @@
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
 	let qualityOpen = $state(false);
+
+	let selecting = $state(false);
+	let selectedIds = $state<string[]>([]);
+	let bulkBusy = $state(false);
+	let bulkLabelsOpen = $state(false);
+	let bulkDeleteOpen = $state(false);
+	let blockedIds = $state<string[]>([]);
+	let importOpen = $state(false);
+	let importing = $state(false);
 
 	let mergeOpen = $state(false);
 	let mergeCandidates = $state<components['schemas']['Food'][]>([]);
@@ -244,6 +263,96 @@
 		foodService.refreshById(id);
 	};
 
+	const toggleSelect = (id: string) => {
+		selectedIds = selectedIds.includes(id)
+			? selectedIds.filter((selected) => selected !== id)
+			: [...selectedIds, id];
+	};
+
+	const exitSelection = () => {
+		selecting = false;
+		selectedIds = [];
+	};
+
+	const reportBulk = (result: { succeeded: number; failed: number } | null) => {
+		if (!result) {
+			toast.error(m.foods_bulk_failed());
+			return false;
+		}
+		if (result.failed > 0) {
+			toast.warning(m.foods_bulk_partial({ succeeded: result.succeeded, failed: result.failed }));
+		} else {
+			toast.success(m.foods_bulk_success({ count: result.succeeded }));
+		}
+		return true;
+	};
+
+	const runBulk = async (
+		action: BulkLabelMode | 'favorite' | 'unfavorite' | 'delete',
+		payload?: { labels?: string[]; force?: boolean }
+	) => {
+		if (selectedIds.length === 0) return null;
+		bulkBusy = true;
+		try {
+			return await foodService.batch({ ids: selectedIds, action, payload });
+		} finally {
+			bulkBusy = false;
+		}
+	};
+
+	const bulkFavorite = async (favorite: boolean) => {
+		const result = await runBulk(favorite ? 'favorite' : 'unfavorite');
+		if (reportBulk(result)) exitSelection();
+	};
+
+	const bulkLabels = async (mode: BulkLabelMode, labels: string[]) => {
+		bulkLabelsOpen = false;
+		const result = await runBulk(mode, { labels });
+		if (reportBulk(result)) exitSelection();
+	};
+
+	const bulkDelete = async (force = false) => {
+		bulkDeleteOpen = false;
+		const result = await runBulk('delete', force ? { force: true } : undefined);
+		if (!result) {
+			toast.error(m.foods_bulk_failed());
+			return;
+		}
+		// Foods still referenced by diary entries come back untouched, exactly as
+		// a single delete does; deleting their entries stays an explicit choice.
+		const blocked = result.results.filter((row) => row.error === 'has_entries');
+		if (!force && blocked.length > 0) {
+			selectedIds = blocked.map((row) => row.id);
+			blockedIds = selectedIds;
+			toast.success(m.foods_bulk_success({ count: result.succeeded }));
+			return;
+		}
+		blockedIds = [];
+		reportBulk(result);
+		exitSelection();
+		refreshDuplicates();
+	};
+
+	const importFoods = async (rows: FoodCsvFood[]) => {
+		importing = true;
+		try {
+			const result = await foodService.importFoods(rows as never[]);
+			if (!result) {
+				toast.error(m.foods_import_failed());
+				return;
+			}
+			importOpen = false;
+			toast.success(m.foods_import_success({ count: result.created }));
+			if (result.skipped.length > 0) {
+				toast.info(m.foods_import_skipped({ count: result.skipped.length }));
+			}
+			foodService.refresh();
+			refreshDuplicates();
+		} finally {
+			importing = false;
+		}
+	};
+
 	const resetFormState = () => {
 		showForm = false;
 		editingFood = null;
@@ -379,6 +488,29 @@
 		<DuplicatesBanner groups={duplicateGroups} onResolve={openMergeFromGroup} />
 	{/if}
 
+	<div class="flex flex-wrap items-center gap-2">
+		<Button variant="outline" size="sm" href="/foods/recent">
+			<Clock class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">{m.foods_recent_link()}</span>
+		</Button>
+		<Button variant="outline" size="sm" onclick={() => (importOpen = true)}>
+			<FileUp class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">{m.foods_import()}</span>
+		</Button>
+		<Button
+			variant={selecting ? 'default' : 'outline'}
+			size="sm"
+			class="ml-auto"
+			aria-pressed={selecting}
+			onclick={() => (selecting ? exitSelection() : (selecting = true))}
+		>
+			<ListChecks class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">
+				{selecting ? m.foods_select_done() : m.foods_select()}
+			</span>
+		</Button>
+	</div>
+
 	<div class="relative">
 		<Search
 			class="text-muted-foreground pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
@@ -399,6 +531,9 @@
 			onDelete={deleteFood}
 			onEnrich={enrichFood}
 			onMerge={openMergeFromMenu}
+			{selecting}
+			{selectedIds}
+			onToggleSelect={toggleSelect}
 		/>
 	{/if}
 
@@ -435,17 +570,65 @@
 	{/if}
 </div>
 
-<Button
-	size="icon"
-	class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 z-50 size-14 rounded-full shadow-lg md:bottom-6"
-	aria-label={m.foods_new()}
-	onclick={() => {
-		resetFormState();
-		showForm = true;
+{#if selecting}
+	<BulkActionBar
+		count={selectedIds.length}
+		allSelected={selectedIds.length > 0 && selectedIds.length === foods.length}
+		busy={bulkBusy}
+		onSelectAll={() => (selectedIds = foods.map((food) => food.id))}
+		onClear={() => (selectedIds = [])}
+		onFavorite={bulkFavorite}
+		onLabels={() => (bulkLabelsOpen = true)}
+		onDelete={() => (bulkDeleteOpen = true)}
+	/>
+{:else}
+	<Button
+		size="icon"
+		class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 z-50 size-14 rounded-full shadow-lg md:bottom-6"
+		aria-label={m.foods_new()}
+		onclick={() => {
+			resetFormState();
+			showForm = true;
+		}}
+	>
+		<Plus class="size-6" />
+	</Button>
+{/if}
+
+<BulkLabelsDialog bind:open={bulkLabelsOpen} count={selectedIds.length} onApply={bulkLabels} />
+
+<FoodImportDialog bind:open={importOpen} {importing} onImport={importFoods} />
+
+<AlertDialog.Root bind:open={bulkDeleteOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title class="text-left">
+				{m.foods_bulk_delete_title({ count: selectedIds.length })}
+			</AlertDialog.Title>
+			<AlertDialog.Description>{m.foods_bulk_delete_description()}</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>{m.cancel()}</AlertDialog.Cancel>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={() => bulkDelete(false)}
+			>
+				{m.foods_delete()}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<ForceDeleteDialog
+	open={blockedIds.length > 0}
+	count={blockedIds.length}
+	description={m.foods_bulk_delete_blocked({ count: blockedIds.length })}
+	onConfirm={() => bulkDelete(true)}
+	onCancel={() => {
+		blockedIds = [];
+		exitSelection();
 	}}
->
-	<Plus class="size-6" />
-</Button>
+/>
 
 <ResponsiveModal
 	bind:open={showForm}

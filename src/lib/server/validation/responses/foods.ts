@@ -58,6 +58,9 @@ const recentFoodSchema = z
 		// Servings used in the most recent log entry of this food, so the log
 		// dialog can prefill the amount instead of defaulting to one serving.
 		lastServings: z.number(),
+		// When the food was last logged, and how often it has been logged at all.
+		lastUsedAt: z.string().nullable(),
+		logCount: z.number().int(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})
@@ -157,3 +160,38 @@ export const foodLabelsBatchResponseSchema = z
 		results: z.array(foodLabelsBatchItemResultSchema)
 	})
 	.meta({ id: 'FoodLabelsBatchResponse' });
+
+export const foodBatchResultSchema = z
+	.object({
+		id: z.string().uuid(),
+		ok: z.boolean(),
+		error: z.string().optional(),
+		// `delete` only: the food is still referenced by diary entries and was
+		// left alone. Retry with `force` to delete those entries too.
+		entryCount: z.number().int().optional()
+	})
+	.meta({ id: 'FoodBatchResult' });
+
+export const foodBatchResponseSchema = z
+	.object({
+		results: z.array(foodBatchResultSchema),
+		succeeded: z.number().int(),
+		failed: z.number().int()
+	})
+	.meta({ id: 'FoodBatchResponse' });
+
+export const foodImportSkippedSchema = z
+	.object({
+		index: z.number().int(),
+		name: z.string(),
+		reason: z.enum(['duplicate', 'duplicate_barcode'])
+	})
+	.meta({ id: 'FoodImportSkipped' });
+
+export const foodImportResponseSchema = z
+	.object({
+		foods: z.array(foodSchema),
+		created: z.number().int(),
+		skipped: z.array(foodImportSkippedSchema)
+	})
+	.meta({ id: 'FoodImportResponse' });
