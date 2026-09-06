@@ -10,6 +10,7 @@ describe('breadcrumb label keys', () => {
 			'/supplements',
 			'/weight',
 			'/insights',
+			'/sleep',
 			'/goals',
 			'/history',
 			'/maintenance',

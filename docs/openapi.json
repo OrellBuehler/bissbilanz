@@ -2304,6 +2304,56 @@
 				}
 			}
 		},
+		"/api/account/import": {
+			"post": {
+				"operationId": "importAccountData",
+				"tags": ["Account"],
+				"description": "Import data into the authenticated account from a Bissbilanz export archive (.zip or bissbilanz.json) or a weight/sleep CSV file. With mode=preview nothing is written and the response describes what would be imported; mode=commit applies the import in a single transaction, skipping rows that already exist.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									},
+									"mode": {
+										"type": "string",
+										"enum": ["preview", "commit"]
+									},
+									"format": {
+										"type": "string",
+										"enum": ["archive", "weight-csv", "sleep-csv"]
+									}
+								},
+								"required": ["file"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ImportSummaryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/images/upload": {
 			"post": {
 				"operationId": "uploadImage",
@@ -9250,6 +9300,86 @@
 					}
 				},
 				"required": ["earliest", "latest"],
+				"additionalProperties": false
+			},
+			"ImportSummaryResponse": {
+				"type": "object",
+				"properties": {
+					"mode": {
+						"type": "string",
+						"enum": ["preview", "commit"]
+					},
+					"format": {
+						"type": "string",
+						"enum": ["archive", "weight-csv", "sleep-csv"]
+					},
+					"totalRows": {
+						"type": "number"
+					},
+					"imported": {
+						"type": "number"
+					},
+					"skipped": {
+						"type": "number"
+					},
+					"sections": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ImportSection"
+						}
+					},
+					"samples": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"issues": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ImportIssue"
+						}
+					}
+				},
+				"required": [
+					"mode",
+					"format",
+					"totalRows",
+					"imported",
+					"skipped",
+					"sections",
+					"samples",
+					"issues"
+				],
+				"additionalProperties": false
+			},
+			"ImportSection": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"toImport": {
+						"type": "number"
+					},
+					"skipped": {
+						"type": "number"
+					}
+				},
+				"required": ["name", "toImport", "skipped"],
+				"additionalProperties": false
+			},
+			"ImportIssue": {
+				"type": "object",
+				"properties": {
+					"row": {
+						"type": "number"
+					},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": ["row", "message"],
 				"additionalProperties": false
 			},
 			"ImageUploadResponse": {

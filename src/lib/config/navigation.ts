@@ -5,6 +5,7 @@ import CookingPot from '@lucide/svelte/icons/cooking-pot';
 import Pill from '@lucide/svelte/icons/pill';
 import Sparkles from '@lucide/svelte/icons/sparkles';
 import Weight from '@lucide/svelte/icons/weight';
+import Moon from '@lucide/svelte/icons/moon';
 import ChartBar from '@lucide/svelte/icons/chart-bar';
 import Target from '@lucide/svelte/icons/target';
 import Calculator from '@lucide/svelte/icons/calculator';
@@ -38,6 +39,7 @@ export const breadcrumbLabelKeys = [
 	'supplements',
 	'weight',
 	'insights',
+	'sleep',
 	'new',
 	'maintenance',
 	'mcp',
@@ -127,6 +129,13 @@ export function getNavGroups(): NavGroup[] {
 					icon: Weight,
 					badgeColor: 'bg-teal-100 text-teal-600',
 					activeRing: 'ring-2 ring-inset ring-teal-300/80 dark:ring-teal-700/80'
+				},
+				{
+					title: () => m.nav_sleep(),
+					href: '/sleep',
+					icon: Moon,
+					badgeColor: 'bg-purple-100 text-purple-600',
+					activeRing: 'ring-2 ring-inset ring-purple-300/80 dark:ring-purple-700/80'
 				},
 				{
 					title: () => m.nav_maintenance(),
