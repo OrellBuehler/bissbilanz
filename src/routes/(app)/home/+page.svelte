@@ -19,6 +19,7 @@
 	import SleepWidget from '$lib/components/dashboard/SleepWidget.svelte';
 	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
@@ -52,6 +53,8 @@
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
+	let addFoodId: string | null = $state(null);
+	let addRecipeId: string | null = $state(null);
 	let aiTaskCaptureOpen = $state(false);
 
 	const isToday = $derived(activeDate === today());
@@ -123,6 +126,19 @@
 		if (prefs && !ready) ready = true;
 	});
 
+	// Dialogs requested from the command palette (it navigates here first).
+	$effect(() => {
+		const action = consumeQuickAction(['add-food', 'scan']);
+		if (!action) return;
+		if (action.type === 'scan') {
+			scanModalOpen = true;
+			return;
+		}
+		addFoodId = action.foodId ?? null;
+		addRecipeId = action.recipeId ?? null;
+		addModalOpen = true;
+	});
+
 	// Refresh supplement checklist when date changes
 	$effect(() => {
 		supplementService.refreshChecklist(activeDate);
@@ -174,6 +190,8 @@
 			onTotalsChange={(t) => (daylogTotals = t)}
 			bind:scanModalOpen
 			bind:addModalOpen
+			bind:initialFoodId={addFoodId}
+			bind:initialRecipeId={addRecipeId}
 		/>
 	{/if}
 {/snippet}

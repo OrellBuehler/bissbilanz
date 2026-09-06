@@ -25,6 +25,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
@@ -323,6 +324,13 @@
 				})
 				.catch(() => {});
 		}
+	});
+
+	// "New food" from the command palette.
+	$effect(() => {
+		if (!consumeQuickAction(['new-food'])) return;
+		resetFormState();
+		showForm = true;
 	});
 
 	$effect(() => {

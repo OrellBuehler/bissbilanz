@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ChevronLeft } from '@lucide/svelte';
+	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
 	import type { Snippet } from 'svelte';
@@ -53,7 +54,8 @@
 			<img src="/icon.svg" alt="Bissbilanz" class="size-7 rounded-lg" />
 			<span class="text-lg font-bold tracking-tight text-primary">{m.app_title()}</span>
 		</div>
-		<div class="ml-auto">
+		<div class="ml-auto flex items-center gap-1">
+			<CommandPaletteButton compact />
 			{#if headerExtra}
 				{@render headerExtra()}
 			{/if}
@@ -75,7 +77,8 @@
 			</Button>
 		{/if}
 		<h1 class="min-w-0 truncate text-lg font-semibold">{pageTitle}</h1>
-		<div class="ml-auto">
+		<div class="ml-auto flex items-center gap-1">
+			<CommandPaletteButton compact />
 			{#if headerExtra}
 				{@render headerExtra()}
 			{/if}

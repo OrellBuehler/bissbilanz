@@ -13,6 +13,7 @@
 	import SyncConflictBanner from '$lib/components/pwa/SyncConflictBanner.svelte';
 	import UpdateToast from '$lib/components/pwa/UpdateToast.svelte';
 	import AiTaskWatcher from '$lib/components/ai-tasks/AiTaskWatcher.svelte';
+	import CommandPalette from '$lib/components/command/CommandPalette.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import type { LayoutData } from './$types';
 	import { onMount } from 'svelte';
@@ -113,3 +114,4 @@
 </div>
 <UpdateToast />
 <AiTaskWatcher />
+<CommandPalette />
