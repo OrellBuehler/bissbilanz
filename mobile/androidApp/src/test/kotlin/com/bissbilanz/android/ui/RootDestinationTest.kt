@@ -57,8 +57,10 @@ class RootDestinationTest {
     }
 
     @Test
-    fun unauthenticatedWithSyncedModeGoesToLogin() {
-        assertEquals(RootDestination.Login, resolveRootDestination(AuthState.Unauthenticated, AppMode.SYNCED))
+    fun unauthenticatedWithSyncedModeStaysInApp() {
+        // Signing out clears the mode, so a mode that survives means the session died on
+        // its own: keep the user on cached data and prompt from Settings, as iOS does.
+        assertEquals(RootDestination.App, resolveRootDestination(AuthState.Unauthenticated, AppMode.SYNCED))
     }
 
     @Test
@@ -67,12 +69,9 @@ class RootDestinationTest {
     }
 
     @Test
-    fun sessionExpiredWithSyncedModeGoesToLogin() {
-        assertEquals(RootDestination.Login, resolveRootDestination(AuthState.SessionExpired, AppMode.SYNCED))
-    }
-
-    @Test
-    fun sessionExpiredWithNoModeGoesToLogin() {
-        assertEquals(RootDestination.Login, resolveRootDestination(AuthState.SessionExpired, null))
+    fun sessionExpiredStaysInAppRegardlessOfMode() {
+        allModes.forEach { mode ->
+            assertEquals(RootDestination.App, resolveRootDestination(AuthState.SessionExpired, mode))
+        }
     }
 }

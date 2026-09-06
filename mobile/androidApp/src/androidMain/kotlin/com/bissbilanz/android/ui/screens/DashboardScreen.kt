@@ -31,15 +31,19 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.CalorieTrendWidget
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FastingCard
+import com.bissbilanz.android.ui.components.FavoritesQuickLogWidget
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
+import com.bissbilanz.android.ui.components.MealBreakdownWidget
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
+import com.bissbilanz.android.ui.components.TopFoodsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -88,6 +92,7 @@ fun DashboardScreen(navController: NavController) {
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
     val copiedFormat = stringResource(R.string.dashboard_copied_count)
+    val loggedFormat = stringResource(R.string.dashboard_favorite_logged)
     val copyEntries = {
         viewModel.copyEntriesFromYesterday({ count -> copiedFormat.format(count) }, copyFailedMessage)
     }
@@ -390,6 +395,31 @@ fun DashboardScreen(navController: NavController) {
                                 }
                             }
 
+                            // The optional cards follow the order of the widget list in
+                            // Settings: chart, favorites, supplements, weight, sleep,
+                            // meal breakdown, top foods.
+                            if (prefs?.showChartWidget == true) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
+                            }
+
+                            // Logging into a past day from a quick-log row would be a
+                            // surprise, so favourites only appear on today — same rule
+                            // as the web dashboard.
+                            if (prefs?.showFavoritesWidget == true && selectedDate == today) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                FavoritesQuickLogWidget(
+                                    date = selectedDate.toString(),
+                                    onViewAll = { navController.navigate("favorites") },
+                                    onLogged = { name ->
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(loggedFormat.format(name))
+                                        }
+                                        viewModel.loadData()
+                                    },
+                                )
+                            }
+
                             // Supplements widget
                             if (prefs?.showSupplementsWidget == true) {
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -413,6 +443,16 @@ fun DashboardScreen(navController: NavController) {
                             if (prefs?.showSleepWidget == true) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 SleepWidget(onViewAll = { navController.navigate("sleep") })
+                            }
+
+                            if (prefs?.showMealBreakdownWidget == true) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                MealBreakdownWidget(entries = entries)
+                            }
+
+                            if (prefs?.showTopFoodsWidget == true) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))

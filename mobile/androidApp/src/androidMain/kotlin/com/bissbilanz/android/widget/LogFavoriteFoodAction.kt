@@ -21,6 +21,13 @@ import kotlin.time.Clock
 val FoodIdKey = ActionParameters.Key<String>("food_id")
 val FoodNameKey = ActionParameters.Key<String>("food_name")
 
+/**
+ * Where to send the user when no meal can be resolved and the log has to be finished
+ * by hand. Defaults to the favorites screen, which is where the favorites widget's
+ * tiles came from; [QuickAddWidget] overrides it with the food's own screen.
+ */
+val FallbackRouteKey = ActionParameters.Key<String>("fallback_route")
+
 class LogFavoriteFoodAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
@@ -49,13 +56,15 @@ class LogFavoriteFoodAction : ActionCallback {
                 entryRepo.createEntry(entry)
 
                 markLogged(foodId)
-                FavoritesWidget.updateAllWidgets(context)
+                showConfirmation(context)
 
                 delay(1200)
 
                 clearLogged(foodId)
-                FavoritesWidget.updateAllWidgets(context)
+                showConfirmation(context)
 
+                // The day-overview widget and the food shortcuts are already redrawn by
+                // the app's onEntryChanged hook, which createEntry fired above.
                 MacroWidget.updateAllWidgets(context)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -64,12 +73,18 @@ class LogFavoriteFoodAction : ActionCallback {
         } else {
             val intent =
                 Intent(context, MainActivity::class.java).apply {
-                    putExtra(MainActivity.EXTRA_NAVIGATE_TO, "favorites")
+                    putExtra(MainActivity.EXTRA_NAVIGATE_TO, parameters[FallbackRouteKey] ?: "favorites")
                     putExtra(MainActivity.EXTRA_FOOD_ID, foodId)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
             context.startActivity(intent)
         }
+    }
+
+    /** Both quick-log surfaces draw the "just logged ✓" state, so both have to redraw. */
+    private suspend fun showConfirmation(context: Context) {
+        FavoritesWidget.updateAllWidgets(context)
+        QuickAddWidget.updateAllWidgets(context)
     }
 
     companion object {

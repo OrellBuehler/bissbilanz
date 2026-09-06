@@ -80,6 +80,7 @@ fun FastingScreen(navController: NavController) {
     var selectedProtocol by remember { mutableStateOf(FastingProtocol.SIXTEEN_EIGHT) }
     var customHours by remember { mutableIntStateOf(16) }
     var showEndConfirmation by remember { mutableStateOf(false) }
+    var showDiscardConfirmation by remember { mutableStateOf(false) }
     var showTargetMenu by remember { mutableStateOf(false) }
     // Null means "now" — the start-section chip shows the live clock until the
     // user picks a time, so a fast started on time carries no stale instant.
@@ -117,6 +118,29 @@ fun FastingScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { showEndConfirmation = false }) {
+                    Text(stringResource(R.string.dialog_cancel))
+                }
+            },
+        )
+    }
+
+    if (showDiscardConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmation = false },
+            title = { Text(stringResource(R.string.fasting_discard_confirmation)) },
+            text = { Text(stringResource(R.string.fasting_discard_description)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmation = false
+                        haptic(HapticFeedbackType.LongPress)
+                        fastingManager.discard()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.fasting_discard)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmation = false }) {
                     Text(stringResource(R.string.dialog_cancel))
                 }
             },
@@ -194,6 +218,7 @@ fun FastingScreen(navController: NavController) {
                     onChangeTarget = { fastingManager.changeTarget(it) },
                     onAdjustStart = { showActiveStartPicker = true },
                     onEnd = { showEndConfirmation = true },
+                    onDiscard = { showDiscardConfirmation = true },
                 )
             } else {
                 StartSection(
@@ -231,6 +256,7 @@ private fun ActiveFastSection(
     onChangeTarget: (Int) -> Unit,
     onAdjustStart: () -> Unit,
     onEnd: () -> Unit,
+    onDiscard: () -> Unit,
 ) {
     // One-second tick drives both the ring and the elapsed readout.
     var now by remember { mutableStateOf(Clock.System.now()) }
@@ -375,6 +401,16 @@ private fun ActiveFastSection(
             colors = ButtonDefaults.buttonColors(containerColor = FastingIndigo),
         ) {
             Text(stringResource(R.string.fasting_end), style = MaterialTheme.typography.titleSmall)
+        }
+
+        // Discard drops the fast entirely: no history row, no fasting-day mark. Kept
+        // visually quieter than End so the everyday action stays the obvious one.
+        TextButton(
+            onClick = onDiscard,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) {
+            Text(stringResource(R.string.fasting_discard), style = MaterialTheme.typography.labelLarge)
         }
     }
 }

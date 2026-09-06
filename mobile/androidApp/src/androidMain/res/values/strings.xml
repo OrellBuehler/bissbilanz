@@ -743,6 +743,7 @@
     <string name="entry_edit_unknown">Unknown</string>
     <string name="entry_edit_delete_failed">Failed to delete entry</string>
     <string name="entry_edit_save_failed">Failed to save entry</string>
+    <string name="entry_edit_calories_required">A quick entry needs calories.</string>
     <string name="entry_edit_delete_title">Delete Entry</string>
     <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
     <string name="entry_edit_title">Edit Entry</string>
@@ -967,4 +968,67 @@
     <!-- Navigation / screen titles -->
     <string name="nav_home">Home</string>
     <string name="food_search_title">Foods</string>
+
+    <!-- Day log: entry search -->
+    <string name="daylog_search_placeholder">Search entries</string>
+    <string name="daylog_search_clear">Clear search</string>
+    <string name="daylog_search_no_results">No entries match \"%1$s\"</string>
+
+    <!-- Fasting: discard a running fast -->
+    <string name="fasting_discard">Discard fast</string>
+    <string name="fasting_discard_confirmation">Discard this fast?</string>
+    <string name="fasting_discard_description">The fast is dropped completely — no history entry, no fasting day, nothing synced.</string>
+
+    <!-- Supplements: weekly and custom-day schedules -->
+    <string name="supplement_edit_weekly">Weekly</string>
+    <string name="supplement_edit_specific_days">Custom days</string>
+    <string name="supplement_edit_days">Days</string>
+    <string name="supplement_edit_days_required">Pick at least one day.</string>
+    <string name="supplement_schedule_every_other_day">Every other day</string>
+    <string name="supplement_schedule_no_days">No days set</string>
+    <string name="supplement_day_sun">Sun</string>
+    <string name="supplement_day_mon">Mon</string>
+    <string name="supplement_day_tue">Tue</string>
+    <string name="supplement_day_wed">Wed</string>
+    <string name="supplement_day_thu">Thu</string>
+    <string name="supplement_day_fri">Fri</string>
+    <string name="supplement_day_sat">Sat</string>
+
+    <!-- Settings: in-app language -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_german">Deutsch</string>
+
+    <!-- Settings: expired session -->
+    <string name="settings_sign_in_again">Sign in again</string>
+
+    <!-- Settings: biological sex (nutrient-gap reference intakes) -->
+    <string name="settings_biological_sex">Biological sex</string>
+    <string name="settings_biological_sex_desc">Improves nutrient-gap accuracy: reference intakes for several nutrients differ by sex.</string>
+    <string name="settings_biological_sex_unset">Not set</string>
+    <string name="settings_biological_sex_male">Male</string>
+    <string name="settings_biological_sex_female">Female</string>
+    <string name="settings_preference_update_failed">Failed to update preference</string>
+
+    <!-- Food form: per-serving vs per-100 basis -->
+    <string name="food_form_values_per">Values per</string>
+    <string name="food_form_per_serving">Serving</string>
+    <string name="food_form_per_100_g">100 g</string>
+    <string name="food_form_per_100_ml">100 ml</string>
+    <string name="food_form_macro_basis_footer">Per-100 values are scaled to one serving when you save.</string>
+
+    <!-- Open Food Facts import failure (food search and recipe ingredients) -->
+    <string name="food_search_off_add_failed">Couldn\'t add from Open Food Facts</string>
+
+    <!-- Dashboard widgets -->
+    <string name="dashboard_calorie_trend_title">Calorie Trend</string>
+    <string name="dashboard_calorie_trend_average">7-day average: %1$s kcal</string>
+    <string name="dashboard_widget_not_enough_data">Not enough data yet</string>
+    <string name="dashboard_widget_no_data_for_day">Nothing logged on this day</string>
+    <string name="dashboard_widget_account_only">Available with an account</string>
+    <string name="dashboard_favorites_empty">No favorites yet</string>
+    <string name="dashboard_favorite_logged">Logged %1$s</string>
+    <string name="dashboard_top_foods_count">%1$d\u00d7</string>
+    <string name="unit_kcal">kcal</string>
 </resources>

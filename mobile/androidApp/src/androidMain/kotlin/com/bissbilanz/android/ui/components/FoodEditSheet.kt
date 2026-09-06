@@ -85,6 +85,11 @@ fun FoodEditSheet(
     var vitaminC by remember { mutableStateOf("") }
     var vitaminD by remember { mutableStateOf("") }
 
+    // Whether the typed macros describe 100 g/ml (packaging labels) or one serving
+    // (what the record stores). Per-100 input is scaled on save, so the user never
+    // does the arithmetic — same toggle and same maths as the iOS sheet.
+    var perHundredBasis by remember { mutableStateOf(false) }
+
     var showAdvanced by remember { mutableStateOf(false) }
     // Open-ended rather than a fixed field list: any nutrient the API model
     // declares can be recorded, matching the iOS add-nutrient catalog.
@@ -154,6 +159,11 @@ fun FoodEditSheet(
         }
         val fiberVal = fiber.toLocalizedDoubleOrNull() ?: 0.0
 
+        // Per-100 input is normalized to the serving in grams/millilitres first (33 cl
+        // is 330 ml), then scaled by servingInBase/100. Per-serving input keeps factor 1.
+        val servingInBase = servingSizeVal * servingUnit.baseUnitsPerUnit()
+        val factor = if (perHundredBasis && servingInBase > 0) servingInBase / 100 else 1.0
+
         errorMessage = null
         isSaving = true
         scope.launch {
@@ -164,26 +174,26 @@ fun FoodEditSheet(
                         brand = brand.trim().ifBlank { null },
                         servingSize = servingSizeVal,
                         servingUnit = servingUnit,
-                        calories = caloriesVal,
-                        protein = proteinVal,
-                        carbs = carbsVal,
-                        fat = fatVal,
-                        fiber = fiberVal,
+                        calories = caloriesVal * factor,
+                        protein = proteinVal * factor,
+                        carbs = carbsVal * factor,
+                        fat = fatVal * factor,
+                        fiber = fiberVal * factor,
                         barcode = barcode.trim().ifBlank { null },
                         isFavorite = isFavorite,
-                        saturatedFat = saturatedFat.toLocalizedDoubleOrNull(),
-                        sugar = sugar.toLocalizedDoubleOrNull(),
-                        sodium = sodium.toLocalizedDoubleOrNull(),
-                        salt = salt.toLocalizedDoubleOrNull(),
-                        potassium = potassium.toLocalizedDoubleOrNull(),
-                        calcium = calcium.toLocalizedDoubleOrNull(),
-                        iron = iron.toLocalizedDoubleOrNull(),
-                        vitaminC = vitaminC.toLocalizedDoubleOrNull(),
-                        vitaminD = vitaminD.toLocalizedDoubleOrNull(),
+                        saturatedFat = saturatedFat.toLocalizedDoubleOrNull()?.times(factor),
+                        sugar = sugar.toLocalizedDoubleOrNull()?.times(factor),
+                        sodium = sodium.toLocalizedDoubleOrNull()?.times(factor),
+                        salt = salt.toLocalizedDoubleOrNull()?.times(factor),
+                        potassium = potassium.toLocalizedDoubleOrNull()?.times(factor),
+                        calcium = calcium.toLocalizedDoubleOrNull()?.times(factor),
+                        iron = iron.toLocalizedDoubleOrNull()?.times(factor),
+                        vitaminC = vitaminC.toLocalizedDoubleOrNull()?.times(factor),
+                        vitaminD = vitaminD.toLocalizedDoubleOrNull()?.times(factor),
                     )
                 val withExtras =
                     foodCreate.withNutrients(
-                        extraNutrients.mapValues { (_, raw) -> raw.toLocalizedDoubleOrNull() },
+                        extraNutrients.mapValues { (_, raw) -> raw.toLocalizedDoubleOrNull()?.times(factor) },
                         json,
                     )
                 if (isEditing) {
@@ -219,6 +229,7 @@ fun FoodEditSheet(
         // adjusts the serving and confirms before saving.
         servingSize = "100"
         servingUnit = ServingUnit.g
+        perHundredBasis = true
         parsed.calories?.let { calories = it.formatNutrient() }
         parsed.protein?.let { protein = it.formatNutrient() }
         parsed.carbs?.let { carbs = it.formatNutrient() }
@@ -397,6 +408,34 @@ fun FoodEditSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
+                Text(stringResource(R.string.food_form_values_per), style = MaterialTheme.typography.labelLarge)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val basisOptions =
+                        listOf(
+                            stringResource(R.string.food_form_per_serving) to false,
+                            stringResource(
+                                if (servingUnit.isVolume()) {
+                                    R.string.food_form_per_100_ml
+                                } else {
+                                    R.string.food_form_per_100_g
+                                },
+                            ) to true,
+                        )
+                    basisOptions.forEachIndexed { index, (label, value) ->
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index, basisOptions.size),
+                            onClick = { perHundredBasis = value },
+                            selected = perHundredBasis == value,
+                        ) {
+                            Text(label)
+                        }
+                    }
+                }
+                Text(
+                    stringResource(R.string.food_form_macro_basis_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 NutrientTextField(stringResource(R.string.food_form_calories_required), calories, CaloriesBlue) { calories = it }
                 NutrientTextField(stringResource(R.string.food_form_protein_required), protein, ProteinRed) { protein = it }
                 NutrientTextField(stringResource(R.string.food_form_carbs_required), carbs, CarbsOrange) { carbs = it }
@@ -561,3 +600,30 @@ fun FoodEditSheet(
         }
     }
 }
+
+/**
+ * Grams (mass) or millilitres (volume) in one unit, so a serving can be normalized to
+ * the 100 g/ml basis packaging labels use. Mirrors `ServingUnit.baseUnitsPerUnit` on iOS.
+ */
+private fun ServingUnit.baseUnitsPerUnit(): Double =
+    when (this) {
+        ServingUnit.g, ServingUnit.ml -> 1.0
+        ServingUnit.kg, ServingUnit.l -> 1000.0
+        ServingUnit.cl -> 10.0
+        ServingUnit.oz -> 28.35
+        ServingUnit.lb -> 453.59
+        ServingUnit.fl_oz -> 29.57
+        ServingUnit.cup -> 240.0
+        ServingUnit.tbsp -> 15.0
+        ServingUnit.tsp -> 5.0
+    }
+
+/** Volume units label the per-100 basis as 100 ml instead of 100 g. */
+private fun ServingUnit.isVolume(): Boolean =
+    when (this) {
+        ServingUnit.ml, ServingUnit.cl, ServingUnit.l, ServingUnit.fl_oz,
+        ServingUnit.cup, ServingUnit.tbsp, ServingUnit.tsp,
+        -> true
+
+        ServingUnit.g, ServingUnit.kg, ServingUnit.oz, ServingUnit.lb -> false
+    }

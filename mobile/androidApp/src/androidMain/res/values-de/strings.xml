@@ -741,6 +741,7 @@
     <string name="entry_edit_unknown">Unbekannt</string>
     <string name="entry_edit_delete_failed">Eintrag konnte nicht gelöscht werden</string>
     <string name="entry_edit_save_failed">Eintrag konnte nicht gespeichert werden</string>
+    <string name="entry_edit_calories_required">Ein Schnelleintrag braucht Kalorien.</string>
     <string name="entry_edit_delete_title">Eintrag löschen</string>
     <string name="entry_edit_delete_text">\"%1$s\" aus deinem Protokoll entfernen?</string>
     <string name="entry_edit_title">Eintrag bearbeiten</string>
@@ -965,4 +966,67 @@
     <!-- Navigation / screen titles -->
     <string name="nav_home">Start</string>
     <string name="food_search_title">Lebensmittel</string>
+
+    <!-- Day log: entry search -->
+    <string name="daylog_search_placeholder">Einträge suchen</string>
+    <string name="daylog_search_clear">Suche löschen</string>
+    <string name="daylog_search_no_results">Keine Einträge für \"%1$s\"</string>
+
+    <!-- Fasting: discard a running fast -->
+    <string name="fasting_discard">Fasten verwerfen</string>
+    <string name="fasting_discard_confirmation">Dieses Fasten verwerfen?</string>
+    <string name="fasting_discard_description">Das Fasten wird vollständig verworfen — kein Verlaufseintrag, kein Fastentag, nichts wird synchronisiert.</string>
+
+    <!-- Supplements: weekly and custom-day schedules -->
+    <string name="supplement_edit_weekly">Wöchentlich</string>
+    <string name="supplement_edit_specific_days">Eigene Tage</string>
+    <string name="supplement_edit_days">Tage</string>
+    <string name="supplement_edit_days_required">Mindestens einen Tag auswählen.</string>
+    <string name="supplement_schedule_every_other_day">Jeden zweiten Tag</string>
+    <string name="supplement_schedule_no_days">Keine Tage festgelegt</string>
+    <string name="supplement_day_sun">So</string>
+    <string name="supplement_day_mon">Mo</string>
+    <string name="supplement_day_tue">Di</string>
+    <string name="supplement_day_wed">Mi</string>
+    <string name="supplement_day_thu">Do</string>
+    <string name="supplement_day_fri">Fr</string>
+    <string name="supplement_day_sat">Sa</string>
+
+    <!-- Settings: in-app language -->
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_german">Deutsch</string>
+
+    <!-- Settings: expired session -->
+    <string name="settings_sign_in_again">Erneut anmelden</string>
+
+    <!-- Settings: biological sex (nutrient-gap reference intakes) -->
+    <string name="settings_biological_sex">Biologisches Geschlecht</string>
+    <string name="settings_biological_sex_desc">Verbessert die Nährstofflücken-Analyse: Referenzwerte einiger Nährstoffe unterscheiden sich nach Geschlecht.</string>
+    <string name="settings_biological_sex_unset">Nicht gesetzt</string>
+    <string name="settings_biological_sex_male">Männlich</string>
+    <string name="settings_biological_sex_female">Weiblich</string>
+    <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+
+    <!-- Food form: per-serving vs per-100 basis -->
+    <string name="food_form_values_per">Werte pro</string>
+    <string name="food_form_per_serving">Portion</string>
+    <string name="food_form_per_100_g">100 g</string>
+    <string name="food_form_per_100_ml">100 ml</string>
+    <string name="food_form_macro_basis_footer">Werte pro 100 werden beim Speichern auf eine Portion umgerechnet.</string>
+
+    <!-- Open Food Facts import failure (food search and recipe ingredients) -->
+    <string name="food_search_off_add_failed">Hinzufügen von Open Food Facts fehlgeschlagen</string>
+
+    <!-- Dashboard widgets -->
+    <string name="dashboard_calorie_trend_title">Kalorienverlauf</string>
+    <string name="dashboard_calorie_trend_average">7-Tage-Schnitt: %1$s kcal</string>
+    <string name="dashboard_widget_not_enough_data">Noch nicht genug Daten</string>
+    <string name="dashboard_widget_no_data_for_day">An diesem Tag nichts erfasst</string>
+    <string name="dashboard_widget_account_only">Nur mit Konto verfügbar</string>
+    <string name="dashboard_favorites_empty">Noch keine Favoriten</string>
+    <string name="dashboard_favorite_logged">%1$s erfasst</string>
+    <string name="dashboard_top_foods_count">%1$d\u00d7</string>
+    <string name="unit_kcal">kcal</string>
 </resources>

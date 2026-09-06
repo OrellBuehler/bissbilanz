@@ -4,6 +4,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.model.Entry
 import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -13,6 +14,7 @@ import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.EntryField
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -21,6 +23,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class EntryRepositoryTest {
@@ -179,6 +182,107 @@ class EntryRepositoryTest {
             repository.refresh("2024-01-15")
 
             assertTrue(repository.entriesByDateOnce("2024-01-15").none { it.id == "e1" })
+        }
+
+    /**
+     * Emptying a field has to be spelled out: `EntryUpdate` encodes both "unchanged" and
+     * "cleared" as null and the shared Json omits nulls, so before this the value stayed
+     * put locally and on the server.
+     */
+    @Test
+    fun clearingQuickMacrosNullsThemLocallyAndQueuesAnExplicitClear() =
+        runTest {
+            val quick =
+                Entry(
+                    id = "e1",
+                    date = "2024-01-15",
+                    mealType = "Lunch",
+                    servings = 1.0,
+                    quickName = "Kebab",
+                    quickCalories = 700.0,
+                    quickProtein = 30.0,
+                    notes = "extra sauce",
+                )
+            coEvery { api.getEntries("2024-01-15") } returns listOf(quick)
+            coEvery { syncQueue.all() } returns emptyList()
+            repository.refresh("2024-01-15")
+
+            repository.updateEntry(
+                "e1",
+                EntryUpdate(mealType = "Lunch", servings = 1.0),
+                cleared = setOf(EntryField.QUICK_PROTEIN, EntryField.NOTES),
+            )
+
+            val after = repository.entriesByDateOnce("2024-01-15").first { it.id == "e1" }
+            assertNull(after.quickProtein, "the cleared macro must be gone from the cache too")
+            assertNull(after.notes)
+            assertEquals(700.0, after.quickCalories)
+            assertEquals("Kebab", after.quickName)
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> {
+                        it is SyncOperation.UpdateEntry && it.clearedKeys == listOf("notes", "quickProtein")
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun clearingTheLastNutrientEmptiesTheMap() =
+        runTest {
+            val quick =
+                Entry(
+                    id = "e1",
+                    date = "2024-01-15",
+                    mealType = "Lunch",
+                    servings = 1.0,
+                    quickCalories = 100.0,
+                    quickNutrients = mapOf("sodium" to 400.0),
+                )
+            coEvery { api.getEntries("2024-01-15") } returns listOf(quick)
+            coEvery { syncQueue.all() } returns emptyList()
+            repository.refresh("2024-01-15")
+
+            // Removing one of two nutrients already worked (a shrunken map is sent);
+            // removing the last one produced a null the wire dropped.
+            repository.updateEntry(
+                "e1",
+                EntryUpdate(quickNutrients = null),
+                cleared = setOf(EntryField.QUICK_NUTRIENTS),
+            )
+
+            val after = repository.entriesByDateOnce("2024-01-15").first { it.id == "e1" }
+            assertNull(after.quickNutrients)
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> {
+                        it is SyncOperation.UpdateEntry && it.clearedKeys == listOf("quickNutrients")
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun anUpdateWithoutClearsKeepsTheExistingValues() =
+        runTest {
+            val quick =
+                Entry(
+                    id = "e1",
+                    date = "2024-01-15",
+                    mealType = "Lunch",
+                    servings = 1.0,
+                    quickProtein = 30.0,
+                    notes = "extra sauce",
+                )
+            coEvery { api.getEntries("2024-01-15") } returns listOf(quick)
+            coEvery { syncQueue.all() } returns emptyList()
+            repository.refresh("2024-01-15")
+
+            repository.updateEntry("e1", EntryUpdate(servings = 2.0))
+
+            val after = repository.entriesByDateOnce("2024-01-15").first { it.id == "e1" }
+            assertEquals(30.0, after.quickProtein)
+            assertEquals("extra sauce", after.notes)
         }
 
     @Test

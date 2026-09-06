@@ -39,6 +39,21 @@ final class EntryRepository {
         }
     }
 
+    /// A whole date span in one fetch, grouped by day. The dashboard's trend
+    /// and top-foods cards walk a week at a time and used to run one
+    /// `entries(date:)` per day — seven synchronous SwiftData fetches on the
+    /// main actor for the app's most-used screen. Unsorted: both callers
+    /// aggregate rather than list.
+    func entriesByDate(from startDate: String, to endDate: String) -> [String: [Entry]] {
+        let descriptor = FetchDescriptor<LocalEntry>(
+            predicate: #Predicate { $0.date >= startDate && $0.date <= endDate }
+        )
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return Dictionary(grouping: rows, by: \.date).mapValues { dayRows in
+            dayRows.compactMap { $0.toEntry() }
+        }
+    }
+
     /// Local month aggregation for the calendar (used in Local mode, where
     /// the local store holds every entry).
     func calendarDays(year: Int, month: Int, calorieGoal: Double?) -> [CalendarDay] {

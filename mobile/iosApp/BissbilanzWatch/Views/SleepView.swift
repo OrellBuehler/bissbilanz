@@ -2,7 +2,7 @@ import SwiftUI
 import WatchKit
 
 /// Sleep tab: a glance (last night's duration + quality) and a vertical slide
-/// for logging sleep — duration on the Digital Crown, quality as five dots.
+/// for logging sleep — duration and quality each on the Digital Crown.
 struct SleepView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
 
@@ -17,7 +17,7 @@ struct SleepView: View {
     var body: some View {
         TabView {
             glance
-            SleepLoggerView(startMinutes: sleep?.durationMinutes)
+            SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
         }
         .tabViewStyle(.verticalPage)
     }
@@ -36,8 +36,14 @@ struct SleepView: View {
                     .font(.system(size: 40, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
-                QualityDots(quality: Int(sleep.quality.rounded()))
-                    .padding(.top, 2)
+                VStack(spacing: 3) {
+                    Text(strings.qualityScore(sleep.quality))
+                        .font(.footnote)
+                        .monospacedDigit()
+                    QualityBar(quality: sleep.quality)
+                }
+                .padding(.top, 2)
+                .padding(.horizontal, 6)
             } else {
                 Text(strings.noSleep)
                     .font(.footnote)
@@ -50,34 +56,49 @@ struct SleepView: View {
     }
 }
 
-/// Five dots showing a 0–5 sleep-quality score.
-private struct QualityDots: View {
-    let quality: Int
+/// Ten segments showing a 1–10 sleep-quality score. Segments are flexible, so
+/// the bar fits the smallest watch as well as the largest instead of ten
+/// fixed-size dots overflowing a 41mm screen.
+private struct QualityBar: View {
+    let quality: Double
+    var height: CGFloat = 4
+
+    private var filled: Int {
+        min(max(Int(quality.rounded()), 0), 10)
+    }
 
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(1 ... 5, id: \.self) { index in
-                Circle()
-                    .fill(index <= quality ? MacroColors.fiber : Color.secondary.opacity(0.3))
-                    .frame(width: 8, height: 8)
+        HStack(spacing: 2) {
+            ForEach(1 ... 10, id: \.self) { index in
+                Capsule()
+                    .fill(index <= filled ? MacroColors.fiber : Color.secondary.opacity(0.3))
+                    .frame(height: height)
             }
         }
     }
 }
 
-/// Sleep logger: duration via the Digital Crown (15-minute steps), quality via
-/// five tappable dots.
+/// Sleep logger: duration in 15-minute steps and quality on the app's real
+/// 1–10 scale, both driven by the Digital Crown. Tapping a value moves crown
+/// focus to it — the screen is far too small for ten tappable targets, and a
+/// five-dot control could never express an odd score.
 private struct SleepLoggerView: View {
+    private enum CrownField: Hashable {
+        case duration
+        case quality
+    }
+
     @Environment(WatchConnectivityManager.self) private var connectivity
 
     @State private var minutes: Double
-    @State private var quality: Int = 3
+    @State private var quality: Double
     @State private var isLogging = false
     @State private var didFinish = false
-    @FocusState private var crownFocused: Bool
+    @FocusState private var focusedField: CrownField?
 
-    init(startMinutes: Int?) {
+    init(startMinutes: Int?, startQuality: Double?) {
         _minutes = State(initialValue: Double(startMinutes ?? 450))
+        _quality = State(initialValue: min(max((startQuality ?? 7).rounded(), 1), 10))
     }
 
     private var strings: WatchStrings {
@@ -96,7 +117,7 @@ private struct SleepLoggerView: View {
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .focusable()
-                    .focused($crownFocused)
+                    .focused($focusedField, equals: .duration)
                     .digitalCrownRotation(
                         $minutes,
                         from: 0,
@@ -111,18 +132,21 @@ private struct SleepLoggerView: View {
                     Text(strings.quality)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        ForEach(1 ... 5, id: \.self) { index in
-                            Button {
-                                quality = index
-                            } label: {
-                                Circle()
-                                    .fill(index <= quality ? MacroColors.fiber : Color.secondary.opacity(0.3))
-                                    .frame(width: 16, height: 16)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    Text(strings.qualityScore(quality))
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .focusable()
+                        .focused($focusedField, equals: .quality)
+                        .digitalCrownRotation(
+                            $quality,
+                            from: 1,
+                            through: 10,
+                            by: 1,
+                            sensitivity: .low,
+                            isContinuous: false,
+                            isHapticFeedbackEnabled: true
+                        )
+                    QualityBar(quality: quality, height: 5)
                 }
 
                 Button(action: log) {
@@ -143,14 +167,14 @@ private struct SleepLoggerView: View {
         .sensoryFeedback(.increase, trigger: minutes)
         .sensoryFeedback(.selection, trigger: quality)
         .sensoryFeedback(.success, trigger: didFinish)
-        .onAppear { crownFocused = true }
+        .onAppear { focusedField = .duration }
     }
 
     private func log() {
         isLogging = true
         let request = WatchSleepLogRequest(
             durationMinutes: Int(minutes),
-            quality: Double(quality),
+            quality: quality.rounded(),
             date: WidgetSnapshotStore.isoDateString(from: Date()),
             requestId: UUID().uuidString
         )

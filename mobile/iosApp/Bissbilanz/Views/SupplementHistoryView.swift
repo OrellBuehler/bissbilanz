@@ -80,8 +80,11 @@ struct SupplementHistoryView: View {
         .sheet(isPresented: $showDatePicker) {
             NavigationStack {
                 Form {
-                    DatePicker(L10n.from, selection: $startDate, displayedComponents: .date)
-                    DatePicker(L10n.to, selection: $endDate, displayedComponents: .date)
+                    // Each picker is bounded by the other, so "from" can never
+                    // be moved past "to" (or the other way round) in the first
+                    // place — there is no invalid range to report.
+                    DatePicker(L10n.from, selection: $startDate, in: ...endDate, displayedComponents: .date)
+                    DatePicker(L10n.to, selection: $endDate, in: startDate..., displayedComponents: .date)
                 }
                 .navigationTitle(L10n.dateRange)
                 .navigationBarTitleDisplayMode(.inline)
@@ -99,16 +102,19 @@ struct SupplementHistoryView: View {
     }
 
     private func loadData() async {
-        history = supplementRepository.localHistory(
-            startDate: startDate.isoDateString,
-            endDate: endDate.isoDateString
-        )
+        // Belt and braces for the bounded pickers: an inverted range would ask
+        // the server for `startDate > endDate` and always come back empty.
+        if startDate > endDate {
+            let earlier = endDate
+            endDate = startDate
+            startDate = earlier
+        }
+        let start = startDate.isoDateString
+        let end = endDate.isoDateString
+        history = supplementRepository.localHistory(startDate: start, endDate: end)
         isLoading = history.isEmpty
         // Server-computed history; the repository falls back to cached logs offline.
-        history = await supplementRepository.history(
-            startDate: startDate.isoDateString,
-            endDate: endDate.isoDateString
-        )
+        history = await supplementRepository.history(startDate: start, endDate: end)
         isLoading = false
     }
 }

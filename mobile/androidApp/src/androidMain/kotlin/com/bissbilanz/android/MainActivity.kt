@@ -1,5 +1,6 @@
 package com.bissbilanz.android
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -10,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.BissbilanzApp
 import com.bissbilanz.auth.AuthManager
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +21,12 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
     private val authManager: AuthManager by inject()
     private val healthImporter: HealthImporter by inject()
+
+    // Below API 33 the platform has no per-app language, so the in-app choice has to be
+    // pushed into this activity's own resources before anything is inflated.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -35,6 +35,11 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
     /// refreshed `WatchState` (so the watch's Sleep glance updates at once).
     @MainActor var onSleepLog: ((WatchSleepLogRequest) async -> WatchState?)?
 
+    /// Builds the current `WatchState` for a watch that asked for one. No
+    /// write involved — the watch launched or came to the foreground and wants
+    /// to know it isn't showing state from before the phone's last change.
+    @MainActor var onStateRequest: (() async -> WatchState?)?
+
     private var session: WCSession? {
         WCSession.isSupported() ? .default : nil
     }
@@ -152,6 +157,15 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
                 let state = await onSleepLog?(request)
                 reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
             }
+        } else if WatchPayloadCodec.decode(
+            WatchStateRequest.self, from: message, key: WatchPayloadKey.stateRequest
+        ) != nil {
+            // Idempotent and carries no id, so it deliberately skips the
+            // applied-request dedup the log paths run through.
+            Task { @MainActor in
+                let state = await onStateRequest?()
+                reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
+            }
         } else {
             replyHandler([:])
         }
@@ -181,6 +195,16 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
             Task { @MainActor in
                 guard markApplied(request.requestId) else { return }
                 _ = await onSleepLog?(request)
+            }
+        } else if WatchPayloadCodec.decode(
+            WatchStateRequest.self, from: userInfo, key: WatchPayloadKey.stateRequest
+        ) != nil {
+            // Queued while the phone was unreachable, so there's no reply
+            // channel to answer on — push the state instead, which is what the
+            // watch would have got from the message reply.
+            Task { @MainActor in
+                guard let state = await onStateRequest?() else { return }
+                sendState(state)
             }
         }
     }

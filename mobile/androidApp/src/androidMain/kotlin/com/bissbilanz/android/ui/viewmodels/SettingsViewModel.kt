@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
@@ -17,6 +18,7 @@ import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.PreferencesField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +55,14 @@ class SettingsViewModel(
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    /**
+     * Localized snackbar messages, as string resource ids the screen resolves — a
+     * ViewModel has no Context, and the app-language override only reaches an activity
+     * context below API 33, so resolving here would leak the system locale.
+     */
+    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
+    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
 
     init {
         loadData()
@@ -101,7 +111,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update preference"
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
             }
         }
     }
@@ -114,7 +124,27 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update preference"
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
+    /**
+     * A `null` [value] is the "Not set" option. It is announced as an explicit clear so
+     * it survives the wire and the local cache — `PreferencesUpdate` encodes both
+     * "unchanged" and "cleared" as null, and the shared Json omits nulls.
+     */
+    fun updateBiologicalSex(value: GenPreferencesUpdate.BiologicalSex?) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(
+                    PreferencesUpdate(biologicalSex = value),
+                    cleared = if (value == null) setOf(PreferencesField.BIOLOGICAL_SEX) else emptySet(),
+                )
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
             }
         }
     }
@@ -232,5 +262,9 @@ class SettingsViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    fun clearSnackbarRes() {
+        _snackbarMessageRes.value = null
     }
 }

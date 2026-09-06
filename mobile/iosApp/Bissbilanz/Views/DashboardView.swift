@@ -1,8 +1,32 @@
+import Charts
 import Combine
 import SwiftUI
 
+/// One day of the dashboard calorie trend.
+private struct DashboardTrendPoint: Identifiable {
+    let date: Date
+    let calories: Double
+    var id: Date { date }
+}
+
+/// One row of the dashboard "top foods" card, aggregated over the trend window.
+private struct DashboardTopFood: Identifiable {
+    let name: String
+    let count: Int
+    let calories: Double
+    var id: String { name }
+}
+
+/// One meal's share of the selected day's calories.
+private struct DashboardMealSlice: Identifiable {
+    let meal: String
+    let calories: Double
+    var id: String { meal }
+}
+
 struct DashboardView: View {
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(GoalsRepository.self) private var goalsRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
     @Environment(SupplementRepository.self) private var supplementRepository
@@ -44,6 +68,17 @@ struct DashboardView: View {
     /// captioned by the entry's own date.
     @State private var closestWeight: WeightEntry?
     @State private var closestSleep: SleepEntry?
+    /// Everything below is derived from the local store, so the server-backed
+    /// widgets keep working in Local mode and offline instead of erroring.
+    @State private var calorieTrend: [DashboardTrendPoint] = []
+    @State private var topFoods: [DashboardTopFood] = []
+    @State private var favoriteFoods: [Food] = []
+    @State private var selectedFavorite: Food?
+
+    /// Days the trend chart and the top-foods card look back over, ending on
+    /// the selected day.
+    private static let trendWindowDays = 7
+    private static let topFoodsLimit = 5
 
     private var dateString: String {
         selectedDate.isoDateString
@@ -73,6 +108,15 @@ struct DashboardView: View {
         MealGrouping.group(entries)
     }
 
+    /// Calories per meal for the selected day, largest first. Derived from the
+    /// entries already on screen — no request, so it works in every mode.
+    private var mealCalories: [DashboardMealSlice] {
+        mealGroups
+            .map { DashboardMealSlice(meal: $0.0, calories: $0.1.reduce(0) { $0 + $1.totalCalories }) }
+            .filter { $0.calories > 0 }
+            .sorted { $0.calories > $1.calories }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -95,7 +139,7 @@ struct DashboardView: View {
             }
             .simultaneousGesture(dateSwipeGesture)
             .navigationTitle(L10n.appName)
-            .refreshable { await loadData() }
+            .refreshable { await loadData(paintFromStore: false) }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
             .sheet(isPresented: $showFoodSearch) {
@@ -116,6 +160,10 @@ struct DashboardView: View {
                 QuickEntrySheet(date: dateString) {
                     Task { await loadData() }
                 }
+            }
+            .sheet(item: $selectedFavorite) { food in
+                LogFoodSheet(food: food, date: dateString)
+                    .onDisappear { Task { await loadData() } }
             }
             .sheet(isPresented: $showAIMeal) {
                 AIMealSheet(date: dateString, onLogged: { count in
@@ -191,6 +239,14 @@ struct DashboardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
+            if preferences.showChartWidget {
+                calorieTrendWidget
+            }
+
+            if preferences.showFavoritesWidget {
+                favoritesWidget
+            }
+
             if (preferences.showWeightWidget && closestWeight != nil) || preferences.showSleepWidget {
                 // Weight and sleep share one row at half width each; a lone
                 // card stretches to the full width. `fixedSize` + `maxHeight`
@@ -238,6 +294,14 @@ struct DashboardView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
+
+            if preferences.showMealBreakdownWidget {
+                mealBreakdownWidget
+            }
+
+            if preferences.showTopFoodsWidget {
+                topFoodsWidget
             }
         }
     }
@@ -509,6 +573,195 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    // MARK: - Calorie Trend Widget
+
+    /// Same line/goal-rule shape as the insights calorie chart, sized for a
+    /// dashboard card. Hidden until the window holds at least two logged days —
+    /// a single point is not a trend.
+    @ViewBuilder
+    private var calorieTrendWidget: some View {
+        if calorieTrend.count(where: { $0.calories > 0 }) >= 2 {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.xyaxis.line")
+                        .foregroundStyle(MacroColors.calories)
+                    Text(L10n.caloriesTrend)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(L10n.last7Days)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Chart(calorieTrend) { point in
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("Calories", point.calories)
+                    )
+                    .foregroundStyle(MacroColors.calories)
+                    .interpolationMethod(.catmullRom)
+
+                    if goals.calorieGoal > 0 {
+                        RuleMark(y: .value("Goal", goals.calorieGoal))
+                            .foregroundStyle(.gray.opacity(0.5))
+                            .lineStyle(StrokeStyle(dash: [5, 5]))
+                    }
+                }
+                .frame(height: 120)
+                .chartXAxis(.hidden)
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Favorites Widget
+
+    /// A one-tap row of the user's favorites: the quick-log button logs one
+    /// serving at the meal the clock suggests, the card itself opens the full
+    /// log form. Reads the local store, so it works offline and in Local mode.
+    @ViewBuilder
+    private var favoritesWidget: some View {
+        if !favoriteFoods.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(.yellow)
+                    Text(L10n.favorites)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(favoriteFoods) { food in
+                            FavoriteCard(
+                                name: food.name,
+                                brand: food.brand,
+                                calories: Int(food.calories),
+                                protein: Int(food.protein),
+                                imageUrl: food.imageUrl,
+                                onTap: { selectedFavorite = food },
+                                onQuickLog: { Task { await quickLogFavorite(food) } }
+                            )
+                            .frame(width: 150)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Meal Breakdown Widget
+
+    /// Where the day's calories went, meal by meal. Bars are proportional to
+    /// the biggest meal so the shape reads at a glance.
+    @ViewBuilder
+    private var mealBreakdownWidget: some View {
+        if mealCalories.count > 1 {
+            let peak = mealCalories.first?.calories ?? 0
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.pie")
+                        .foregroundStyle(MacroColors.calories)
+                    Text(L10n.mealBreakdown)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                }
+
+                ForEach(mealCalories) { item in
+                    HStack(spacing: 10) {
+                        Text(L10n.mealName(item.meal))
+                            .font(.caption)
+                            .lineLimit(1)
+                            .frame(width: 76, alignment: .leading)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color(.systemGray5))
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(MacroColors.calories)
+                                    .frame(width: geo.size.width * (peak > 0 ? item.calories / peak : 0))
+                            }
+                        }
+                        .frame(height: 10)
+                        Text("\(MacroFormat.kcal(item.calories)) kcal")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 74, alignment: .trailing)
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Top Foods Widget
+
+    /// What the user logs most over the trend window, counted from the local
+    /// entry log rather than the server's `/api/stats/top-foods`, so the card
+    /// renders the same in Local mode.
+    @ViewBuilder
+    private var topFoodsWidget: some View {
+        if !topFoods.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "trophy")
+                        .foregroundStyle(MacroColors.fat)
+                    Text(L10n.topFoods)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(L10n.last7Days)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(Array(topFoods.enumerated()), id: \.element.id) { index, food in
+                    HStack(spacing: 8) {
+                        Text("\(index + 1).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20, alignment: .leading)
+                        Text(food.name)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(food.count)\u{00D7}")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                        Text("\(MacroFormat.kcal(food.calories)) kcal")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(MacroColors.calories)
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
@@ -604,13 +857,64 @@ struct DashboardView: View {
 
     /// Instant render from the local store; `loadData` refreshes from the API on top.
     private func loadFromStore() {
-        entries = entryRepository.entries(date: dateString)
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
         isFastingDay = entryRepository.isFastingDay(date: dateString)
         supplementChecklist = supplementRepository.localChecklist(date: dateString)
         closestWeight = weightRepository.closest(to: dateString)
         closestSleep = sleepRepository.closest(to: dateString)
+        favoriteFoods = preferences.showFavoritesWidget ? foodRepository.favorites() : []
+        loadEntriesFromStore()
+    }
+
+    /// Just the entry-derived state: the day's list and the two cards computed
+    /// from it. A local write that only touched entries (a favorite quick-log,
+    /// a copied day) re-reads this instead of the whole dashboard.
+    private func loadEntriesFromStore() {
+        let dayEntries = entryRepository.entries(date: dateString)
+        entries = dayEntries
+        loadTrendWindow(selectedDayEntries: dayEntries)
+    }
+
+    /// Walks the trend window once, building both the calorie series and the
+    /// most-logged tally. Skipped entirely when neither card is on.
+    ///
+    /// The window comes back in a single range fetch — it used to be one fetch
+    /// per day, on the main actor, on the app's most-used screen — and the
+    /// selected day reuses the list the caller just read rather than fetching
+    /// it again.
+    private func loadTrendWindow(selectedDayEntries: [Entry]) {
+        guard preferences.showChartWidget || preferences.showTopFoodsWidget else {
+            calorieTrend = []
+            topFoods = []
+            return
+        }
+        let selectedDay = dateString
+        let windowStart = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
+        let byDate = entryRepository.entriesByDate(from: windowStart, to: selectedDay)
+        var trend: [DashboardTrendPoint] = []
+        var tally: [String: (count: Int, calories: Double)] = [:]
+        for offset in stride(from: Self.trendWindowDays - 1, through: 0, by: -1) {
+            let day = selectedDate.adding(days: -offset)
+            let key = day.isoDateString
+            let dayEntries = key == selectedDay ? selectedDayEntries : (byDate[key] ?? [])
+            trend.append(DashboardTrendPoint(
+                date: day,
+                calories: dayEntries.reduce(0) { $0 + $1.totalCalories }
+            ))
+            for entry in dayEntries {
+                let name = entry.displayName
+                let running = tally[name] ?? (count: 0, calories: 0)
+                tally[name] = (count: running.count + 1, calories: running.calories + entry.totalCalories)
+            }
+        }
+        calorieTrend = trend
+        topFoods = Array(
+            tally
+                .map { DashboardTopFood(name: $0.key, count: $0.value.count, calories: $0.value.calories) }
+                .sorted { ($0.count, $0.calories) > ($1.count, $1.calories) }
+                .prefix(Self.topFoodsLimit)
+        )
     }
 
     private func entryDateCaption(_ isoDate: String) -> String {
@@ -625,11 +929,18 @@ struct DashboardView: View {
     /// most visibly, turning on the "couldn't refresh" retry state for a day
     /// that loaded fine, or clearing the spinner for a load still running.
     /// Only the newest load writes back.
-    private func loadData() async {
+    ///
+    /// `paintFromStore` is the read that renders the cached day before the
+    /// refreshes come back — a cold open, a day change or a sheet dismissal
+    /// (which leaves an optimistic write in the store) all need it. A
+    /// pull-to-refresh doesn't: the store hasn't changed under it and the
+    /// screen already shows it, so it skips straight to the network and lets
+    /// the single read at the end apply the result.
+    private func loadData(paintFromStore: Bool = true) async {
         loadGeneration += 1
         let generation = loadGeneration
         let loadDate = dateString
-        loadFromStore()
+        if paintFromStore { loadFromStore() }
         isLoading = true
         defer {
             if generation == loadGeneration { isLoading = false }
@@ -652,10 +963,17 @@ struct DashboardView: View {
         async let sleepTask: Void? = try? sleepRepository.refresh()
         // Report the device timezone so server-side analytics/MCP use the user's tz.
         async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
+        // The trend/top-foods cards read the whole window from the store, so the
+        // window has to be cached — a day the user never opened would otherwise
+        // read as zero calories. The favorites card needs the same for its list.
+        async let trendTask: Void = refreshTrendWindow()
+        async let favoritesTask: Void = refreshFavoritesWidget()
 
         let (entriesFailReason, _, _, _, _, _, _, _) = await (
             entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, sleepTask, tzTask
         )
+        await trendTask
+        await favoritesTask
         let checklist = await supplementsTask
 
         guard generation == loadGeneration, dateString == loadDate else { return }
@@ -702,11 +1020,55 @@ struct DashboardView: View {
         }
     }
 
+    /// Caches the trend window's entries. A no-op in Local mode (the store is
+    /// already the primary database) and silent on failure — the cards fall
+    /// back to whatever is cached rather than showing an error.
+    ///
+    /// Stops one day short of the selected day: `refreshEntries` owns that day
+    /// and both run concurrently. `refreshRange` deletes and re-inserts every
+    /// non-pending row in its window, so a slightly older range response that
+    /// predates a just-synced entry would drop it until the next refresh, and
+    /// whichever of the two landed last would win the row's contents.
+    private func refreshTrendWindow() async {
+        guard preferences.showChartWidget || preferences.showTopFoodsWidget else { return }
+        guard Self.trendWindowDays > 1 else { return }
+        let start = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
+        let end = selectedDate.adding(days: -1).isoDateString
+        try? await entryRepository.refreshRange(startDate: start, endDate: end)
+    }
+
+    private func refreshFavoritesWidget() async {
+        guard preferences.showFavoritesWidget else { return }
+        try? await foodRepository.refreshFavorites()
+    }
+
+    private func quickLogFavorite(_ food: Food) async {
+        let entry = EntryCreate(
+            foodId: food.id,
+            mealType: MealTiming.mealForCurrentTime(),
+            servings: 1,
+            date: dateString
+        )
+        do {
+            try await entryRepository.createEntry(entry, food: food)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            toastMessage = "\(food.name) \(L10n.logged)"
+            // Only the day's entries changed — no need to re-read goals,
+            // preferences, supplements, weight, sleep and favorites too.
+            loadEntriesFromStore()
+        } catch {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.failedToLog
+        }
+    }
+
     private func copyYesterday() async {
         let yesterday = selectedDate.adding(days: -1).isoDateString
         do {
             let count = try await entryRepository.copyEntries(fromDate: yesterday, toDate: dateString)
-            entries = entryRepository.entries(date: dateString)
+            // The copy lands on the selected day, so the trend/top-foods cards
+            // have to follow it — assigning `entries` alone left them stale.
+            loadEntriesFromStore()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             toastMessage = L10n.entriesCopied(count)
         } catch {

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Day overview widget -->
+    <string name="day_overview_widget_title">Tagesübersicht</string>
+    <string name="day_overview_widget_description">Heutige Mahlzeiten, Makro-Summen und eine Verknüpfung zum Erfassen</string>
+    <string name="day_overview_today">Heute</string>
+    <string name="day_overview_calorie_summary">%1$s / %2$s kcal</string>
+    <string name="day_overview_meal_empty">–</string>
+    <string name="day_overview_log_food">Essen erfassen</string>
+    <string name="widget_grams_format">%1$s g</string>
+    <string name="widget_macro_calories">Kal</string>
+    <string name="widget_macro_protein">Protein</string>
+    <string name="widget_macro_carbs">KH</string>
+    <string name="widget_macro_fat">Fett</string>
+    <string name="widget_macro_fiber">Ballast.</string>
+
+    <!-- Quick add widget -->
+    <string name="quick_add_widget_title">Schnellerfassung</string>
+    <string name="quick_add_widget_description">Häufig gegessene Lebensmittel mit einem Tippen erfassen</string>
+    <string name="quick_add_widget_empty">Noch nichts erfasst</string>
+    <string name="quick_add_widget_log">%1$s erfassen</string>
+    <string name="quick_add_widget_logged">Erfasst</string>
+
+    <!-- Macro widget configuration -->
+    <string name="macro_widget_config_title">Widget konfigurieren</string>
+    <string name="macro_widget_config_subtitle">Wähle die anzuzeigenden Makros:</string>
+    <string name="macro_widget_config_save">Speichern</string>
+
+    <string-array name="assistant_feature_log_food">
+        <item>Essensprotokoll</item>
+        <item>Essen erfassen</item>
+        <item>Ernährungstagebuch</item>
+        <item>Essen hinzufügen</item>
+    </string-array>
+    <string-array name="assistant_feature_scan_barcode">
+        <item>Barcode-Scanner</item>
+        <item>Barcode scannen</item>
+        <item>Scanner</item>
+    </string-array>
+    <string-array name="assistant_feature_log_weight">
+        <item>Gewicht</item>
+        <item>Gewicht erfassen</item>
+        <item>wiegen</item>
+    </string-array>
+    <string-array name="assistant_feature_fasting">
+        <item>Fasten</item>
+        <item>Fasten starten</item>
+        <item>Fasten-Timer</item>
+    </string-array>
+
+</resources>

@@ -3,7 +3,10 @@ package com.bissbilanz.wear
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WearStateTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -13,10 +16,16 @@ class WearStateTest {
             date = "2026-08-15",
             totals = WearMacros(calories = 1400.0, protein = 90.0),
             goals = WearMacros(calories = 2200.0, protein = 150.0),
+            meals =
+                listOf(
+                    WearMealTotal(mealType = "Breakfast", calories = 400.0),
+                    WearMealTotal(mealType = "Lunch", calories = 1000.0),
+                ),
             mealTypes = listOf("breakfast", "lunch"),
             favorites = listOf(WearFoodRef(id = "f1", name = "Skyr", calories = 120.0)),
             weight = WearWeightInfo(latestKg = 78.4, latestDate = "2026-08-15", delta7dKg = -0.3),
             sleep = WearSleepInfo(date = "2026-08-15", durationMinutes = 452, quality = 7.0),
+            localeCode = "de",
         )
 
     @Test
@@ -35,12 +44,19 @@ class WearStateTest {
         val fresh = state.resetIfStale("2026-08-16")
         assertEquals(0.0, fresh.totals.calories)
         assertEquals(0.0, fresh.totals.protein)
+        // Yesterday's meals are as day-bound as the totals they add up to.
+        assertEquals(emptyList(), fresh.meals)
         assertEquals("2026-08-16", fresh.date)
         // Goals, weight and sleep are reference data — they are not day-bound.
         assertEquals(2200.0, fresh.goals.calories)
         assertNotNull(fresh.weight)
         assertNotNull(fresh.sleep)
         assertEquals(state.favorites, fresh.favorites)
+    }
+
+    @Test
+    fun `same-day state keeps its meal breakdown`() {
+        assertEquals(2, state.resetIfStale("2026-08-15").meals.size)
     }
 
     @Test
@@ -52,6 +68,47 @@ class WearStateTest {
         assertEquals("2026-08-15", decoded.date)
         assertEquals(0.0, decoded.totals.calories)
         assertEquals(emptyList(), decoded.favorites)
+        assertEquals(emptyList(), decoded.meals)
+        // No language from the phone means the watch keeps its system locale.
+        assertNull(decoded.localeCode)
+    }
+
+    @Test
+    fun `a request from an older watch decodes without a request id`() {
+        val legacy = """{"mealType":"Lunch","servings":1.0,"date":"2026-08-15"}"""
+        assertNull(json.decodeFromString<WearLogRequest>(legacy).requestId)
+    }
+
+    @Test
+    fun `request ids survive the round trip that retries depend on`() {
+        val weight = WearWeightLogRequest(weightKg = 78.4, date = "2026-08-15", requestId = "w-1")
+        val sleep =
+            WearSleepLogRequest(durationMinutes = 452, quality = 7.0, date = "2026-08-15", requestId = "s-1")
+        assertEquals("w-1", json.decodeFromString<WearWeightLogRequest>(json.encodeToString(weight)).requestId)
+        assertEquals("s-1", json.decodeFromString<WearSleepLogRequest>(json.encodeToString(sleep)).requestId)
+    }
+
+    @Test
+    fun `an answer that is not a state says whether the write happened`() {
+        assertTrue(isWearWriteFailure(WearPaths.RESPONSE_ERROR.toByteArray()))
+        // A phone build predating the sentinels answered a failed write with an
+        // empty body, and the watch read that as "logged".
+        assertTrue(isWearWriteFailure(ByteArray(0)))
+        assertFalse(isWearWriteFailure(WearPaths.RESPONSE_OK.toByteArray()))
+        assertFalse(isWearWriteFailure(json.encodeToString(state).toByteArray()))
+    }
+
+    @Test
+    fun `neither answer sentinel can be mistaken for a state`() {
+        assertNull(runCatching { json.decodeFromString<WearState>(WearPaths.RESPONSE_OK) }.getOrNull())
+        assertNull(runCatching { json.decodeFromString<WearState>(WearPaths.RESPONSE_ERROR) }.getOrNull())
+    }
+
+    @Test
+    fun `the phone remembers at least as many requests as the watch can queue`() {
+        // A full queue flushes as one burst. A shorter window forgets the first
+        // ids of that burst before their own retries land, and writes them twice.
+        assertTrue(WearLimits.APPLIED_REQUESTS >= WearLimits.OUTBOX)
     }
 
     @Test

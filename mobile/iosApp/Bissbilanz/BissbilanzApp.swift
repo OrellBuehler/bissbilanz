@@ -163,10 +163,23 @@ struct BissbilanzApp: App {
             return WidgetSnapshotWriter.buildWatchState(context: context)
         }
         PhoneWatchConnectivity.shared.onSleepLog = { request in
+            // Quality is the app's 1–10 scale on both ends; clamped so a value
+            // from an older watch build (or a corrupted payload) can't become a
+            // local entry the server will reject on upload.
             _ = try? await sleepRepo.createEntry(
-                SleepCreate(durationMinutes: request.durationMinutes, quality: request.quality, entryDate: request.date)
+                SleepCreate(
+                    durationMinutes: request.durationMinutes,
+                    quality: min(max(request.quality, 1), 10),
+                    entryDate: request.date
+                )
             )
             return WidgetSnapshotWriter.buildWatchState(context: context)
+        }
+        // The watch asks for state on launch and on every foreground: nothing
+        // else prompts a push, so a watch that was out of range for the last
+        // one would otherwise show stale data until the phone next wrote.
+        PhoneWatchConnectivity.shared.onStateRequest = {
+            WidgetSnapshotWriter.buildWatchState(context: context)
         }
         // `activate()` is deliberately NOT called here: WCSession activation is
         // not needed before the first frame, and everything in this init runs

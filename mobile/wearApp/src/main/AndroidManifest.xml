@@ -23,10 +23,13 @@
 
         <!-- A LAUNCHER activity has to be exported; it holds no privileged
              control plane, only the watch UI. -->
+        <!-- singleTop so a complication tap reaches the running app through
+             onNewIntent instead of stacking a second copy of it. -->
         <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name=".WearMainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@android:style/Theme.DeviceDefault">
             <intent-filter>
@@ -45,7 +48,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="RANGED_VALUE,SHORT_TEXT" />
+                android:value="RANGED_VALUE,SHORT_TEXT,LONG_TEXT" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="900" />
@@ -60,6 +63,16 @@
                     android:scheme="wear"
                     android:host="*"
                     android:pathPrefix="/bissbilanz" />
+            </intent-filter>
+            <!-- The phone coming back into range: the moment to send anything
+                 logged while it was away. Only fires once the phone app declares
+                 this capability. -->
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.CAPABILITY_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/bissbilanz_phone" />
             </intent-filter>
         </service>
     </application>

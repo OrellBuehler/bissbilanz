@@ -258,6 +258,63 @@ final class FoodRepository {
         ))
     }
 
+    /// Re-reads the food's barcode in Open Food Facts and overlays the product's
+    /// detail — extended nutrients, NutriScore, NOVA, additives, ingredients,
+    /// image, category tags — onto the stored food, mirroring Android's
+    /// `FoodRepository.enrichFood`. Identity and core macros stay the user's:
+    /// they already committed to those values. There is no enrich endpoint —
+    /// it is the Open Food Facts lookup plus an ordinary food update, so it
+    /// goes through the same optimistic write and sync queue as any edit.
+    @discardableResult
+    func enrichFood(id: String, barcode: String) async throws -> Food {
+        guard let current = food(id: id) else { throw APIError.notFound }
+        let hit: BissbilanzAPI.OpenFoodFactsHit? = if appMode.isLocal {
+            try await OpenFoodFactsClient().lookupBarcode(barcode)
+                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
+        } else {
+            try await api.lookupBarcode(barcode)
+        }
+        guard let hit else { throw APIError.notFound }
+        return try await updateFood(id: id, Self.enrichmentPayload(baseline: current, hit: hit))
+    }
+
+    /// Baseline overlaid with the product, then the identity and core macro
+    /// fields forced back to the baseline. The product `Food` only encodes the
+    /// keys Open Food Facts actually returned (nil optionals are dropped), so
+    /// everything it doesn't know keeps the stored value — the `product.x ?:
+    /// baseline.x` rule of the shared Kotlin `mergeOpenFoodFactsOntoFood`.
+    static func enrichmentPayload(baseline: Food, hit: BissbilanzAPI.OpenFoodFactsHit) throws -> FoodCreate {
+        let baselineFields = try JSONPatch.dictionary(of: baseline)
+        let productFields = try JSONPatch.dictionary(of: hit.food)
+        var merged = baselineFields.merging(productFields) { _, new in new }
+        for key in userOwnedFoodKeys {
+            // A nil assignment removes the key, which leaves the stored value
+            // untouched on a partial PATCH — the same outcome as sending it.
+            merged[key] = baselineFields[key]
+        }
+        // The stored image is destructive to replace: `updateFood` on the
+        // server unlinks the previous `imageUrl` from disk once the write
+        // lands, so overwriting a photo the user took of this food deletes it
+        // irreversibly (in Local mode the `file://` copy is merely orphaned).
+        // Take the Open Food Facts product shot only when there is no image.
+        if let storedImage = baselineFields["imageUrl"] {
+            merged["imageUrl"] = storedImage
+        }
+        if let categoriesTags = hit.categoriesTags {
+            merged["categoriesTags"] = categoriesTags
+        } else {
+            merged.removeValue(forKey: "categoriesTags")
+        }
+        return try JSONPatch.decode(FoodCreate.self, from: merged)
+    }
+
+    /// Fields the user owns; Open Food Facts never overwrites them.
+    private static let userOwnedFoodKeys = [
+        "name", "brand", "servingSize", "servingUnit",
+        "calories", "protein", "carbs", "fat", "fiber",
+        "barcode", "isFavorite",
+    ]
+
     func findByBarcode(_ barcode: String) async throws -> Food? {
         if let local = findLocalByBarcode(barcode) {
             return local

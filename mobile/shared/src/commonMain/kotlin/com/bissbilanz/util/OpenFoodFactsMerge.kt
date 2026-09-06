@@ -11,8 +11,12 @@ import com.bissbilanz.api.generated.model.ServingUnit
  * Rules:
  * - Identity + core macros (name, serving, calories, P/C/F/fiber, brand, barcode,
  *   isFavorite) come from [baseline] — the user already committed to those values.
- * - Detailed nutrients, NutriScore, NOVA, additives, ingredients, imageUrl come from
+ * - Detailed nutrients, NutriScore, NOVA, additives and ingredients come from
  *   [product] with fallback to [baseline] when the product field is null.
+ * - The image is the one exception in the other direction: a photo the user already
+ *   has wins, and the product shot is only taken when the food has none. The server
+ *   unlinks the previous upload whenever imageUrl changes, so letting the product
+ *   win would delete the user's own photo from disk.
  *
  * Used both by the "enrich existing food" flow and (in later plans) by the
  * "create food from barcode after miss" flow.
@@ -37,7 +41,7 @@ fun mergeOpenFoodFactsOntoFood(
         novaGroup = product.novaGroup?.toInt(),
         additives = product.additives ?: baseline.additives,
         ingredientsText = product.ingredientsText ?: baseline.ingredientsText,
-        imageUrl = product.imageUrl ?: baseline.imageUrl,
+        imageUrl = baseline.imageUrl ?: product.imageUrl,
         // Raw OFF categories; the server derives the food's labels from them.
         categoriesTags = product.categoriesTags,
         saturatedFat = product.saturatedFat ?: baseline.saturatedFat,

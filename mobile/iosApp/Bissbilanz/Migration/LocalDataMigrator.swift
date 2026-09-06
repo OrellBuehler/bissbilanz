@@ -567,6 +567,7 @@ final class LocalDataMigrator {
             quickCarbs: entry.quickCarbs ?? (orphan ? entry.carbs : nil),
             quickFat: entry.quickFat ?? (orphan ? entry.fat : nil),
             quickFiber: entry.quickFiber ?? (orphan ? entry.fiber : nil),
+            quickNutrients: entry.quickNutrients,
             eatenAt: entry.eatenAt
         )
     }
@@ -587,6 +588,11 @@ final class LocalDataMigrator {
         update.favoriteTapAction = preferences.favoriteTapAction
         update.favoriteMealAssignmentMode = preferences.favoriteMealAssignmentMode
         update.visibleNutrients = preferences.visibleNutrients.isEmpty ? nil : preferences.visibleNutrients
+        // Only sent when actually set: the account's own value wins over an
+        // unset local one, and the server rejects anything but male/female/null.
+        if let biologicalSex = preferences.biologicalSex {
+            update.biologicalSex = .some(biologicalSex)
+        }
         update.locale = preferences.locale
         update.timeZone = preferences.timeZone
         return update

@@ -25,6 +25,8 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.EntryField
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
@@ -80,6 +82,16 @@ fun EntryEditSheet(
     var quickNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // A quick entry carries its own nutrition; a food- or recipe-backed one takes it
+    // from the record behind it, which is edited in that record's own sheet.
+    val isQuickEntry = entry?.let { it.foodId == null && it.recipeId == null } == true
+    val showQuickFields = !isEditing || isQuickEntry
+    // The server requires foodId, recipeId or positive quickCalories. For a quick entry
+    // that hasn't uploaded yet the edit is merged into the still-queued create
+    // (coalesceQueuedCreate); an emptied calorie field would drop quickCalories from
+    // that create, the POST would 400, and the sync queue dead-letters client errors,
+    // stranding the entry as a local temp_ row forever.
+    val canSave = !isQuickEntry || (quickCalories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
     val unknownName = stringResource(R.string.entry_edit_unknown)
     val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
     val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
@@ -99,6 +111,14 @@ fun EntryEditSheet(
                         ?.toLocalDateTime(TimeZone.currentSystemDefault())
                 eatenHour = seed?.hour
                 eatenMinute = seed?.minute
+                quickName = found.quickName ?: ""
+                quickCalories = found.quickCalories?.formatNutrient() ?: ""
+                quickProtein = found.quickProtein?.formatNutrient() ?: ""
+                quickCarbs = found.quickCarbs?.formatNutrient() ?: ""
+                quickFat = found.quickFat?.formatNutrient() ?: ""
+                quickFiber = found.quickFiber?.formatNutrient() ?: ""
+                quickNutrients =
+                    found.quickNutrients.orEmpty().mapValues { (_, value) -> value.formatNutrient() }
             }
         }
     }
@@ -203,7 +223,7 @@ fun EntryEditSheet(
                 }
             }
 
-            if (isEditing && entry != null) {
+            if (isEditing && entry != null && !isQuickEntry) {
                 val name = entry?.resolvedName() ?: unknownName
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -268,7 +288,7 @@ fun EntryEditSheet(
             }
 
             // Quick add fields
-            if (!isEditing) {
+            if (showQuickFields) {
                 OutlinedTextField(
                     value = quickName,
                     onValueChange = { quickName = it },
@@ -310,6 +330,14 @@ fun EntryEditSheet(
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
 
+            if (!canSave) {
+                Text(
+                    stringResource(R.string.entry_edit_calories_required),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             if (isSaving) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
@@ -342,6 +370,38 @@ fun EntryEditSheet(
                                             notes = notes.ifBlank { null },
                                             eatenAt =
                                                 buildEatenAt(entry?.date, eatenHour, eatenMinute),
+                                            quickName =
+                                                if (isQuickEntry) quickName.trim().ifBlank { null } else null,
+                                            quickCalories =
+                                                if (isQuickEntry) quickCalories.toLocalizedDoubleOrNull() else null,
+                                            quickProtein =
+                                                if (isQuickEntry) quickProtein.toLocalizedDoubleOrNull() else null,
+                                            quickCarbs =
+                                                if (isQuickEntry) quickCarbs.toLocalizedDoubleOrNull() else null,
+                                            quickFat =
+                                                if (isQuickEntry) quickFat.toLocalizedDoubleOrNull() else null,
+                                            quickFiber =
+                                                if (isQuickEntry) quickFiber.toLocalizedDoubleOrNull() else null,
+                                            quickNutrients =
+                                                if (isQuickEntry) {
+                                                    quickNutrients.toNutrientDoubles().ifEmpty { null }
+                                                } else {
+                                                    null
+                                                },
+                                        ),
+                                        // A field the user emptied has to travel as an
+                                        // explicit clear: `EntryUpdate` encodes both
+                                        // "unchanged" and "cleared" as null.
+                                        clearedEntryFields(
+                                            isQuickEntry = isQuickEntry,
+                                            notes = notes,
+                                            quickName = quickName,
+                                            quickCalories = quickCalories,
+                                            quickProtein = quickProtein,
+                                            quickCarbs = quickCarbs,
+                                            quickFat = quickFat,
+                                            quickFiber = quickFiber,
+                                            quickNutrients = quickNutrients,
                                         ),
                                     )
                                 } else {
@@ -379,7 +439,7 @@ fun EntryEditSheet(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isSaving,
+                    enabled = !isSaving && canSave,
                 ) {
                     Text(stringResource(R.string.weight_save))
                 }
@@ -422,3 +482,36 @@ internal fun buildEatenAt(
         .toInstant(tz)
         .toString()
 }
+
+/**
+ * The fields the editor is deliberately emptying.
+ *
+ * A blank input means "remove this value", but the generated `EntryUpdate` cannot tell
+ * that apart from "leave it alone" — both are null — so the repository is told
+ * explicitly. Quick fields only count for a quick entry: a food- or recipe-backed entry
+ * takes its nutrition from the record behind it and never owns them. An unparseable
+ * (but non-blank) number is left untouched rather than cleared, matching what the sheet
+ * did before: the user is mid-typing, not removing the value.
+ */
+internal fun clearedEntryFields(
+    isQuickEntry: Boolean,
+    notes: String,
+    quickName: String,
+    quickCalories: String,
+    quickProtein: String,
+    quickCarbs: String,
+    quickFat: String,
+    quickFiber: String,
+    quickNutrients: Map<String, String>,
+): Set<EntryField> =
+    buildSet {
+        if (notes.isBlank()) add(EntryField.NOTES)
+        if (!isQuickEntry) return@buildSet
+        if (quickName.isBlank()) add(EntryField.QUICK_NAME)
+        if (quickCalories.isBlank()) add(EntryField.QUICK_CALORIES)
+        if (quickProtein.isBlank()) add(EntryField.QUICK_PROTEIN)
+        if (quickCarbs.isBlank()) add(EntryField.QUICK_CARBS)
+        if (quickFat.isBlank()) add(EntryField.QUICK_FAT)
+        if (quickFiber.isBlank()) add(EntryField.QUICK_FIBER)
+        if (quickNutrients.toNutrientDoubles().isEmpty()) add(EntryField.QUICK_NUTRIENTS)
+    }

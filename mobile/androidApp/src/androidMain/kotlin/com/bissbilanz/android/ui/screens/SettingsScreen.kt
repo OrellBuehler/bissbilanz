@@ -32,6 +32,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.AccountDowngradeController
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -40,6 +41,7 @@ import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.PreferencesUpdate
@@ -65,6 +67,8 @@ fun SettingsScreen(navController: NavController) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val authState by authManager.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var showMealTypeDialog by remember { mutableStateOf(false) }
@@ -86,6 +90,16 @@ fun SettingsScreen(navController: NavController) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+    // Resolved in composition rather than with context.getString inside the effect:
+    // a Context read is not configuration-aware, so an app-language change would show
+    // the previous locale's text.
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbarRes()
         }
     }
 
@@ -558,6 +572,50 @@ fun SettingsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Biological sex — sits with the goals because that is what it feeds:
+                // the nutrient-gap analytics pick sex-specific reference intakes.
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.settings_biological_sex),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.settings_biological_sex_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val sexOptions =
+                            listOf(
+                                stringResource(R.string.settings_biological_sex_unset) to null,
+                                stringResource(R.string.settings_biological_sex_male) to
+                                    GenPreferencesUpdate.BiologicalSex.male,
+                                stringResource(R.string.settings_biological_sex_female) to
+                                    GenPreferencesUpdate.BiologicalSex.female,
+                            )
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            sexOptions.forEachIndexed { index, (label, value) ->
+                                SegmentedButton(
+                                    shape = SegmentedButtonDefaults.itemShape(index, sexOptions.size),
+                                    onClick = { viewModel.updateBiologicalSex(value) },
+                                    selected = prefs?.biologicalSex?.value == value?.value,
+                                ) {
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LanguageCard()
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Custom meal types (server-only, hidden in Local mode)
                 if (!isLocalMode) {
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -775,6 +833,37 @@ fun SettingsScreen(navController: NavController) {
                                 Text(stringResource(R.string.settings_sign_in_to_sync))
                             }
                         } else {
+                            // A dead session leaves the app fully usable on cached data,
+                            // so it is stated here rather than only as a passing toast —
+                            // the same warning row plus sign-in action iOS shows. Keyed on
+                            // "not signed in" rather than on SessionExpired alone: the
+                            // refresh already deleted both tokens, so after a restart the
+                            // same stranded user reads as Unauthenticated with a Synced
+                            // mode, and would otherwise have no way back in.
+                            if (authState !is AuthState.Authenticated && authState !is AuthState.Refreshing) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Icon(
+                                        Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        stringResource(R.string.session_expired_message),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { launchLoginFlow(context, authManager) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(stringResource(R.string.settings_sign_in_again))
+                                }
+                            }
                             // Queued offline writes: surfaced here (and only when
                             // there are any) so a stalled upload is visible instead
                             // of silently sitting in the queue.
@@ -1000,6 +1089,52 @@ fun nutrientCategories() =
                 "salt" to stringResource(R.string.nutrient_salt),
             ),
     )
+
+/**
+ * In-app language override, the Android counterpart of the iOS English/Deutsch picker.
+ *
+ * Device-local, not a server preference: which language the phone speaks is a property of
+ * the phone. On API 33+ the choice is handed to the platform's per-app language and also
+ * appears in Android's own app settings; below that it is stored locally and applied by
+ * rebuilding the activity, which is why picking a language restarts this screen there.
+ */
+@Composable
+private fun LanguageCard() {
+    val context = LocalContext.current
+    var selected by remember { mutableStateOf(AppLanguage.stored(context)) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val options =
+                listOf(
+                    AppLanguage.SYSTEM to stringResource(R.string.settings_language_system),
+                    "en" to stringResource(R.string.settings_language_english),
+                    "de" to stringResource(R.string.settings_language_german),
+                )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, (tag, label) ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                        onClick = {
+                            if (tag == selected) return@SegmentedButton
+                            selected = tag
+                            AppLanguage.applyAndRefresh(context, tag)
+                        },
+                        selected = selected == tag,
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Snooze duration for supplement reminders, plus the notification-permission status.
