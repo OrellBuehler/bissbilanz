@@ -2,6 +2,12 @@
 	import type { ConfidenceLevel } from '$lib/analytics/correlation';
 	import * as m from '$lib/paraglide/messages';
 	import type { Snippet } from 'svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import Pin from '@lucide/svelte/icons/pin';
+	import PinOff from '@lucide/svelte/icons/pin-off';
+	import { getInsightPinContext } from '$lib/insights/context';
+
+	const pinContext = getInsightPinContext();
 
 	let {
 		title,
@@ -45,7 +51,7 @@
 {:else}
 	<div class="rounded-lg border {cardBorderClass} bg-card overflow-hidden">
 		<div class="border-l-4 {borderColor} p-4 sm:p-5">
-			<div class="flex items-start justify-between gap-3">
+			<div class="flex items-start justify-between gap-2">
 				<div class="min-w-0 flex-1">
 					<p class="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
 						{title}
@@ -59,15 +65,35 @@
 						<p class="text-sm font-semibold leading-snug">{headline}</p>
 					{/if}
 				</div>
-				{#if confidence !== 'insufficient'}
-					<span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium {badgeClass}">
-						{#if confidence === 'high' || confidence === 'medium'}
-							{m.confidence_high({ days: sampleSize.toString() })}
-						{:else}
-							{m.confidence_low_badge()}
-						{/if}
-					</span>
-				{/if}
+				<div class="flex shrink-0 items-center gap-1">
+					{#if confidence !== 'insufficient'}
+						<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {badgeClass}">
+							{#if confidence === 'high' || confidence === 'medium'}
+								{m.confidence_high({ days: sampleSize.toString() })}
+							{:else}
+								{m.confidence_low_badge()}
+							{/if}
+						</span>
+					{/if}
+					{#if pinContext}
+						{@const ctx = pinContext()}
+						<Button
+							variant="ghost"
+							size="icon"
+							class="size-8 text-muted-foreground hover:text-foreground"
+							aria-pressed={ctx.pinned}
+							aria-label={ctx.pinned ? m.insights_unpin_action() : m.insights_pin_action()}
+							title={ctx.pinned ? m.insights_unpin_action() : m.insights_pin_action()}
+							onclick={() => ctx.toggle()}
+						>
+							{#if ctx.pinned}
+								<PinOff class="size-4" />
+							{:else}
+								<Pin class="size-4" />
+							{/if}
+						</Button>
+					{/if}
+				</div>
 			</div>
 
 			{#if confidence !== 'insufficient'}

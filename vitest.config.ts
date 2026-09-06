@@ -1,9 +1,11 @@
 import { defineConfig, configDefaults } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 import path from 'path';
 
 const lucideStub = path.resolve(__dirname, 'tests/helpers/__mocks__/lucide-stub.ts');
 
 export default defineConfig({
+	plugins: [svelte({ compilerOptions: { hmr: false } })],
 	resolve: {
 		alias: [
 			{ find: '$lib', replacement: path.resolve(__dirname, 'src/lib') },

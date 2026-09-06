@@ -35,6 +35,7 @@ async function refresh() {
 				favoriteTapAction: p.favoriteTapAction,
 				favoriteMealAssignmentMode: p.favoriteMealAssignmentMode,
 				visibleNutrients: p.visibleNutrients,
+				pinnedInsights: p.pinnedInsights ?? [],
 				updatedAt: p.updatedAt ?? null,
 				locale: p.locale,
 				timeZone: p.timeZone,

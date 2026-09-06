@@ -1521,6 +1521,33 @@ export interface components {
 			favoriteMealAssignmentMode?: 'time_based' | 'ask_meal';
 			favoriteMealTimeframes?: components['schemas']['FavoriteMealTimeframeInput'][];
 			mealOrder?: string[];
+			pinnedInsights?: (
+				| 'nova-score'
+				| 'omega-ratio'
+				| 'protein-distribution'
+				| 'weekday-weekend'
+				| 'calorie-front-loading'
+				| 'dii-score'
+				| 'tef'
+				| 'calorie-cycling'
+				| 'meal-regularity'
+				| 'food-diversity'
+				| 'eating-window'
+				| 'meal-spacing'
+				| 'nutrient-adequacy'
+				| 'adaptive-tdee'
+				| 'plateau-detection'
+				| 'weight-forecast'
+				| 'sodium-weight'
+				| 'caloric-lag'
+				| 'macro-impact'
+				| 'meal-timing-weight'
+				| 'micronutrient-gaps'
+				| 'food-sleep'
+				| 'nutrient-sleep'
+				| 'pre-sleep-window'
+				| 'caffeine-sleep'
+			)[];
 			visibleNutrients?: string[];
 			/** @enum {string} */
 			locale?: 'en' | 'de';
@@ -2173,6 +2200,7 @@ export interface components {
 			favoriteTapAction: string;
 			favoriteMealAssignmentMode: string;
 			visibleNutrients: string[];
+			pinnedInsights?: string[];
 			caloricLagDaysOverride?: number | null;
 			waterGoalMl: number;
 			biologicalSex?: ('male' | 'female') | null;
