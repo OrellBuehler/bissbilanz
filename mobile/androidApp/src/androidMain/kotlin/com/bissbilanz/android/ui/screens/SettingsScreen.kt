@@ -93,9 +93,13 @@ fun SettingsScreen(navController: NavController) {
             viewModel.clearSnackbar()
         }
     }
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let {
-            snackbarHostState.showSnackbar(context.getString(it))
+    // Resolved in composition rather than with context.getString inside the effect:
+    // a Context read is not configuration-aware, so an app-language change would show
+    // the previous locale's text.
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbarRes()
         }
     }
