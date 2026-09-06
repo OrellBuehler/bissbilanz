@@ -28,6 +28,7 @@
 	import WidgetOrderEditor, { type WidgetVisibility } from './WidgetOrderEditor.svelte';
 	import ConnectedAccounts from './ConnectedAccounts.svelte';
 	import DataImport from './DataImport.svelte';
+	import PushNotifications from './PushNotifications.svelte';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let deleteAccountOpen = $state(false);
@@ -287,6 +288,8 @@
 			<ConnectedAccounts />
 		</Card.Content>
 	</Card.Root>
+
+	<PushNotifications />
 
 	{#if prefsLoaded}
 		<WidgetOrderEditor
