@@ -39,6 +39,7 @@ async function refresh() {
 				locale: p.locale,
 				timeZone: p.timeZone,
 				biologicalSex: p.biologicalSex ?? null,
+				waterGoalMl: p.waterGoalMl ?? null,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({
 					id: t.id,
 					userId: 'me',

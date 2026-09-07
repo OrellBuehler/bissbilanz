@@ -31,6 +31,7 @@
 		data.calendarDays
 	);
 	let goalsCalorieGoal: number | null = $state(data.calorieGoal);
+	let notedDates: string[] = $state(data.notedDates ?? []);
 	let macroVisibility = $state<Record<MacroKey, boolean>>({
 		protein: true,
 		carbs: true,
@@ -91,6 +92,7 @@
 			});
 			if (!result) return;
 			calendarDays = result.days ?? {};
+			notedDates = result.notedDates ?? [];
 		} catch {
 			// Silently ignore — calendar data is unavailable offline
 		}
@@ -138,6 +140,7 @@
 			{year}
 			{month}
 			{dayStatus}
+			{notedDates}
 			onDayClick={goToDay}
 			onPrevMonth={prevMonth}
 			onNextMonth={nextMonth}

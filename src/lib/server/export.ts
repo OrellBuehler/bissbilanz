@@ -410,8 +410,15 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 			])
 		),
 		'csv/day-properties.csv': toCsv(
-			['date', 'is_fasting_day'],
-			data.dayProperties.map((day) => [day.date, day.isFastingDay])
+			['date', 'is_fasting_day', 'notes', 'water_ml', 'activity_calories', 'activity_note'],
+			data.dayProperties.map((day) => [
+				day.date,
+				day.isFastingDay,
+				day.notes,
+				day.waterMl,
+				day.activityCalories,
+				day.activityNote
+			])
 		),
 		'csv/fasting-sessions.csv': toCsv(
 			['id', 'started_at', 'ended_at', 'target_hours'],

@@ -12,14 +12,14 @@ import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { getDB, foodEntries } from '$lib/server/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { getFastingDays } from '$lib/server/day-properties';
+import { getFastingDays, getNotedDays } from '$lib/server/day-properties';
 import { listFastingSessions } from '$lib/server/fasting';
 import { fastLocalDates } from '$lib/utils/fasting';
 import type { CalendarDay } from '$lib/utils/insights';
 import type { FastingSessionRow } from '$lib/server/fasting';
 
 export type { CalendarDay };
-export type CalendarStats = { days: Record<string, CalendarDay> };
+export type CalendarStats = { days: Record<string, CalendarDay>; notedDates: string[] };
 
 const groupEntriesByDateWithFasting = (
 	entries: Array<{
@@ -193,16 +193,17 @@ export const getCalendarStats = async (
 	const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-	const [entries, fasts, timeZone] = await Promise.all([
+	const [entries, fasts, timeZone, notedDates] = await Promise.all([
 		listEntriesByDateRange(userId, startDate, endDate),
 		listFastsTouchingRange(userId, startDate, endDate),
-		getUserTimeZone(userId)
+		getUserTimeZone(userId),
+		getNotedDays(userId, startDate, endDate)
 	]);
 	const days = markFastDays(computeCalendarDays(entries), fasts, timeZone);
 	for (const date of Object.keys(days)) {
 		if (date < startDate || date > endDate) delete days[date];
 	}
-	return { days };
+	return { days, notedDates };
 };
 
 export const getDailyBreakdown = async (
