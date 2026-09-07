@@ -2,7 +2,9 @@ package com.bissbilanz.android.fasting
 
 import android.content.Context
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.FastingSessionUpsert
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -13,6 +15,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -33,6 +36,8 @@ class FastingManager(
     private val errorReporter: ErrorReporter,
     private val syncQueue: SyncQueue,
     private val json: Json,
+    private val api: BissbilanzApi,
+    private val appModeManager: AppModeManager,
 ) {
     private val _session = MutableStateFlow(store.loadCurrent())
     val session: StateFlow<FastingSession?> = _session.asStateFlow()
@@ -150,9 +155,10 @@ class FastingManager(
     /**
      * Reconciles in-memory state with the store — the notification's End Fast
      * action can clear the session from outside the UI — and re-posts the
-     * notification if it was dismissed while a fast is still running.
+     * notification if it was dismissed while a fast is still running. Synchronous
+     * (no network) so it can be called from a [android.content.BroadcastReceiver].
      */
-    fun refresh() {
+    fun reconcileLocal() {
         val stored = store.loadCurrent()
         _session.value = stored
         _history.value = store.loadHistory()
@@ -162,7 +168,62 @@ class FastingManager(
             FastingNotifier.clear(context)
         }
     }
+
+    /**
+     * [reconcileLocal] plus a pull of finished fasts from the server, so a fast
+     * completed elsewhere (web, iOS) shows up in this device's history. Called
+     * from the fasting screens, which have a coroutine scope to run it in.
+     */
+    suspend fun refresh() {
+        reconcileLocal()
+        pullFromServer()
+        _history.value = store.loadHistory()
+    }
+
+    /**
+     * Merges server-side fasts into the local history by id. Never touches the
+     * running fast (server never has it — only finished fasts are uploaded) and
+     * skips any history id with an un-uploaded (queued or in-flight) sync
+     * operation, so a local edit still waiting to upload is not clobbered by a
+     * stale server copy.
+     */
+    private suspend fun pullFromServer() {
+        if (appModeManager.isLocal) return
+        try {
+            val to = Clock.System.now()
+            val from = to - 90.days
+            val pending = pendingFastIds()
+            val runningId = _session.value?.id
+            for (remote in api.getFastingSessions(limit = 200, from = from.toString(), to = to.toString())) {
+                if (remote.id == runningId || remote.id in pending) continue
+                remote.toLocalOrNull()?.let(store::updateInHistory)
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+
+    /** Fast ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingFastIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "fasts" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 }
+
+/** Converts a server fast into the device-local, epoch-millis-based model. */
+private fun com.bissbilanz.api.generated.model.FastingSession.toLocalOrNull(): FastingSession? =
+    runCatching {
+        FastingSession(
+            id = id,
+            startedAtEpochMs = Instant.parse(startedAt).toEpochMilliseconds(),
+            targetHours = targetHours,
+            endedAtEpochMs = Instant.parse(endedAt).toEpochMilliseconds(),
+        )
+    }.getOrNull()
 
 /** Wire shape for a finished fast; the local id doubles as the server id. */
 fun FastingSession.toUpsert(): FastingSessionUpsert =

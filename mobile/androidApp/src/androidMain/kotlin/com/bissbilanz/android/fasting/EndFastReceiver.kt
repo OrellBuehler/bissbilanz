@@ -38,7 +38,7 @@ class EndFastReceiver : BroadcastReceiver() {
             // longer matches: without this a screen already in composition keeps
             // counting, and ending again from there would append a second history
             // record for the same fast.
-            koin.get<FastingManager>().refresh()
+            koin.get<FastingManager>().reconcileLocal()
             val endedDate = endedAt.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
             WorkManager.getInstance(context).enqueue(
                 OneTimeWorkRequestBuilder<EndFastWorker>()
