@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "pinned_insights" text[] DEFAULT ARRAY[]::text[] NOT NULL;

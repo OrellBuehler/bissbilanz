@@ -1,6 +1,7 @@
 import 'zod-openapi';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+import { INSIGHT_CARD_IDS, MAX_PINNED_INSIGHTS } from '$lib/insights/card-ids';
 
 const timeStringSchema = z.string().regex(/^\d{2}:\d{2}$/);
 
@@ -44,6 +45,7 @@ export const preferencesUpdateSchema = z
 		favoriteMealAssignmentMode: z.enum(['time_based', 'ask_meal']).optional(),
 		favoriteMealTimeframes: z.array(favoriteMealTimeframeInputSchema).max(50).optional(),
 		mealOrder: z.array(z.string().min(1).max(100)).max(50).optional(),
+		pinnedInsights: z.array(z.enum(INSIGHT_CARD_IDS)).max(MAX_PINNED_INSIGHTS).optional(),
 		visibleNutrients: z
 			.array(z.string().refine((v) => ALL_NUTRIENT_KEYS.includes(v), 'Invalid nutrient key'))
 			.optional(),

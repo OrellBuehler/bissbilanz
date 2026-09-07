@@ -8,82 +8,49 @@
 	import SleepHistoryList from './SleepHistoryList.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { sleepService } from '$lib/services/sleep-service.svelte';
-	import { api } from '$lib/api/client';
-	import type { components } from '$lib/api/generated/schema';
 	import type { DexieSleepEntry } from '$lib/db/types';
-	import FoodSleepCard from '$lib/components/analytics/FoodSleepCard.svelte';
-	import NutrientSleepCard from '$lib/components/analytics/NutrientSleepCard.svelte';
-	import PreSleepWindowCard from '$lib/components/analytics/PreSleepWindowCard.svelte';
-	import CaffeineSleepCard from '$lib/components/analytics/CaffeineSleepCard.svelte';
-	import { today, shiftDate } from '$lib/utils/dates';
+	import AnalyticsGroupSection from '$lib/components/insights/AnalyticsGroupSection.svelte';
+	import InsightsSummary from '$lib/components/insights/InsightsSummary.svelte';
+	import type { SummaryTile } from '$lib/insights/summary';
 	import * as m from '$lib/paraglide/messages';
-
-	type SleepFoodPoint = {
-		date: string;
-		eveningCalories: number | null;
-		sleepDurationMinutes: number | null;
-		sleepQuality: number | null;
-	};
-
-	type MealEntry = {
-		date: string;
-		mealType: string;
-		eatenAt: string | null;
-		foodId: string | null;
-		recipeId: string | null;
-		calories: number;
-		foodName: string;
-	};
-
-	type DailyNutrient = {
-		date: string;
-		calories: number;
-		protein: number;
-		carbs: number;
-		fat: number;
-		fiber: number;
-		[key: string]: number | string;
-	};
-
-	type SleepEntry = components['schemas']['SleepEntry'];
 
 	const live = useLiveQuery(() => sleepService.entries(), [] as DexieSleepEntry[]);
 	const entries = $derived(live.value);
 
-	let analyticsLoading = $state(true);
-	let sleepFoodData = $state<SleepFoodPoint[]>([]);
-	let mealEntries = $state<MealEntry[]>([]);
-	let nutrientSeries = $state<DailyNutrient[]>([]);
-	let sleepWithBedtime = $state<{ entryDate: string; bedtime: string }[]>([]);
+	const summaryTiles = $derived.by((): SummaryTile[] => {
+		const withDuration = entries.filter((e) => e.durationMinutes != null);
+		const withQuality = entries.filter((e) => e.quality != null);
+		const avgHours =
+			withDuration.length > 0
+				? withDuration.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0) /
+					withDuration.length /
+					60
+				: null;
+		const avgQuality =
+			withQuality.length > 0
+				? withQuality.reduce((sum, e) => sum + (e.quality ?? 0), 0) / withQuality.length
+				: null;
+		return [
+			{
+				label: m.insights_summary_avg_sleep(),
+				value: avgHours === null ? '—' : `${(Math.round(avgHours * 10) / 10).toFixed(1)} h`
+			},
+			{
+				label: m.insights_summary_sleep_quality(),
+				value: avgQuality === null ? '—' : `${(Math.round(avgQuality * 10) / 10).toFixed(1)}/5`
+			},
+			{ label: m.insights_summary_nights(), value: entries.length.toString() }
+		];
+	});
 
-	onMount(async () => {
+	onMount(() => {
 		sleepService.refresh();
-		const endDate = today();
-		const startDate = shiftDate(endDate, -59);
-		try {
-			const [sfRes, mRes, nRes, sleepRes] = await Promise.all([
-				api.GET('/api/analytics/sleep-food', { params: { query: { startDate, endDate } } }),
-				api.GET('/api/analytics/meal-timing', { params: { query: { startDate, endDate } } }),
-				api.GET('/api/analytics/nutrients-daily', { params: { query: { startDate, endDate } } }),
-				api.GET('/api/sleep', { params: { query: { from: startDate, to: endDate } } })
-			]);
-			if (sfRes.data) sleepFoodData = sfRes.data.data;
-			if (mRes.data) mealEntries = mRes.data.data;
-			if (nRes.data) nutrientSeries = nRes.data.data;
-			if (sleepRes.data) {
-				sleepWithBedtime = sleepRes.data.entries
-					.filter((e): e is SleepEntry & { bedtime: string } => e.bedtime !== null)
-					.map((e) => ({ entryDate: e.entryDate, bedtime: e.bedtime }));
-			}
-		} catch {
-			// analytics cards will show no-data state
-		} finally {
-			analyticsLoading = false;
-		}
 	});
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
+	<InsightsSummary tiles={summaryTiles} />
+
 	<Card.Root>
 		<Card.Header class="pb-3">
 			<div class="flex items-center gap-2">
@@ -140,15 +107,5 @@
 		</Card.Content>
 	</Card.Root>
 
-	<div class="space-y-4">
-		<FoodSleepCard {sleepFoodData} {mealEntries} loading={analyticsLoading} />
-		<NutrientSleepCard {sleepFoodData} {nutrientSeries} loading={analyticsLoading} />
-		<PreSleepWindowCard
-			{sleepFoodData}
-			{mealEntries}
-			{sleepWithBedtime}
-			loading={analyticsLoading}
-		/>
-		<CaffeineSleepCard />
-	</div>
+	<AnalyticsGroupSection group="sleep-insights" />
 </div>
