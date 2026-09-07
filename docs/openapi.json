@@ -204,6 +204,76 @@
 				}
 			}
 		},
+		"/api/foods/batch": {
+			"post": {
+				"operationId": "batchFoods",
+				"tags": ["Foods"],
+				"description": "Apply one action (delete, favorite, unfavorite, set/add/remove labels) to up to 200 foods in a single request. Ownership is checked per id and results are per id, so an unknown food — or one still referenced by diary entries — does not fail the rest. `delete` follows the single-delete rules: a food with entries comes back as `has_entries` unless `payload.force` is set.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodBatch"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodBatchResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/import": {
+			"post": {
+				"operationId": "importFoods",
+				"tags": ["Foods"],
+				"description": "Create up to 500 foods in one transaction. Rows whose name + brand + serving already exist, or whose barcode is taken, are skipped and reported instead of failing the import.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodImport"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodImportResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/foods/duplicates": {
 			"get": {
 				"operationId": "listFoodDuplicates",
@@ -4017,6 +4087,60 @@
 				"type": "string",
 				"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
 			},
+			"FoodBatch": {
+				"type": "object",
+				"properties": {
+					"ids": {
+						"minItems": 1,
+						"maxItems": 200,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					},
+					"action": {
+						"$ref": "#/components/schemas/FoodBatchAction"
+					},
+					"payload": {
+						"type": "object",
+						"properties": {
+							"labels": {
+								"maxItems": 20,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"minLength": 1,
+									"maxLength": 120
+								}
+							},
+							"force": {
+								"type": "boolean"
+							}
+						}
+					}
+				},
+				"required": ["ids", "action"]
+			},
+			"FoodBatchAction": {
+				"type": "string",
+				"enum": ["delete", "favorite", "unfavorite", "add_labels", "remove_labels", "set_labels"]
+			},
+			"FoodImport": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"minItems": 1,
+						"maxItems": 500,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodCreate"
+						}
+					}
+				},
+				"required": ["foods"]
+			},
 			"FoodMerge": {
 				"type": "object",
 				"properties": {
@@ -6893,6 +7017,14 @@
 					"lastServings": {
 						"type": "number"
 					},
+					"lastUsedAt": {
+						"type": ["string", "null"]
+					},
+					"logCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -6915,8 +7047,99 @@
 					"barcode",
 					"isFavorite",
 					"imageUrl",
-					"lastServings"
+					"lastServings",
+					"lastUsedAt",
+					"logCount"
 				],
+				"additionalProperties": false
+			},
+			"FoodBatchResponse": {
+				"type": "object",
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodBatchResult"
+						}
+					},
+					"succeeded": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"failed": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["results", "succeeded", "failed"],
+				"additionalProperties": false
+			},
+			"FoodBatchResult": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"ok": {
+						"type": "boolean"
+					},
+					"error": {
+						"type": "string"
+					},
+					"entryCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["id", "ok"],
+				"additionalProperties": false
+			},
+			"FoodImportResponse": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Food"
+						}
+					},
+					"created": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"skipped": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodImportSkipped"
+						}
+					}
+				},
+				"required": ["foods", "created", "skipped"],
+				"additionalProperties": false
+			},
+			"FoodImportSkipped": {
+				"type": "object",
+				"properties": {
+					"index": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string"
+					},
+					"reason": {
+						"type": "string",
+						"enum": ["duplicate", "duplicate_barcode"]
+					}
+				},
+				"required": ["index", "name", "reason"],
 				"additionalProperties": false
 			},
 			"FoodDuplicatesResponse": {

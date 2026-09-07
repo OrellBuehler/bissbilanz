@@ -339,7 +339,17 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 		.as('recent');
 
 	const rows = await db
-		.select({ ...getTableColumns(foods), lastServings: recentSq.lastServings })
+		.select({
+			...getTableColumns(foods),
+			lastServings: recentSq.lastServings,
+			lastUsedAt: recentSq.lastUsed,
+			// How often the food was logged overall — the signal that separates a
+			// staple from something tried once, which a "log again" list lives on.
+			logCount: sql<number>`(
+				SELECT count(*)::int FROM ${foodEntries} fe
+				WHERE fe.food_id = ${foods.id} AND fe.user_id = ${foods.userId}
+			)`
+		})
 		.from(foods)
 		.innerJoin(recentSq, eq(foods.id, recentSq.foodId))
 		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')))

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import NutriScoreBadge from '$lib/components/quality/NutriScoreBadge.svelte';
 	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -32,9 +33,24 @@
 		onDelete: (id: string) => void;
 		onEnrich?: (id: string, barcode: string) => void;
 		onMerge?: (id: string) => void;
+		/** Bulk-edit mode: a tap selects instead of opening the editor. */
+		selecting?: boolean;
+		selectedIds?: string[];
+		onToggleSelect?: (id: string) => void;
 	};
 
-	let { foods = [], onEdit, onDelete, onEnrich, onMerge }: Props = $props();
+	let {
+		foods = [],
+		onEdit,
+		onDelete,
+		onEnrich,
+		onMerge,
+		selecting = false,
+		selectedIds = [],
+		onToggleSelect
+	}: Props = $props();
+
+	const selected = $derived(new Set(selectedIds));
 
 	let enrichingId = $state<string | null>(null);
 
@@ -67,9 +83,18 @@
 		{#each foods as food (food.id)}
 			<button
 				type="button"
-				class="group flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50"
-				onclick={() => onEdit(food.id)}
+				class="group flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent/50 aria-pressed:border-primary aria-pressed:bg-accent"
+				aria-pressed={selecting ? selected.has(food.id) : undefined}
+				onclick={() => (selecting ? onToggleSelect?.(food.id) : onEdit(food.id))}
 			>
+				{#if selecting}
+					<Checkbox
+						checked={selected.has(food.id)}
+						tabindex={-1}
+						aria-label={m.foods_select_row({ name: food.name })}
+						onCheckedChange={() => onToggleSelect?.(food.id)}
+					/>
+				{/if}
 				<!-- Calorie badge -->
 				<div
 					class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950"
@@ -120,7 +145,11 @@
 
 				<!-- Actions dropdown -->
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<div role="presentation" onclick={(e) => e.stopPropagation()}>
+				<div
+					role="presentation"
+					class={selecting ? 'hidden' : ''}
+					onclick={(e) => e.stopPropagation()}
+				>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger>
 							{#snippet child({ props })}

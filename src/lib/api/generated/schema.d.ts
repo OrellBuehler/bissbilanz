@@ -57,6 +57,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/batch': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Apply one action (delete, favorite, unfavorite, set/add/remove labels) to up to 200 foods in a single request. Ownership is checked per id and results are per id, so an unknown food — or one still referenced by diary entries — does not fail the rest. `delete` follows the single-delete rules: a food with entries comes back as `has_entries` unless `payload.force` is set. */
+		post: operations['batchFoods'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Create up to 500 foods in one transaction. Rows whose name + brand + serving already exist, or whose barcode is taken, are skipped and reported instead of failing the import. */
+		post: operations['importFoods'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/duplicates': {
 		parameters: {
 			query?: never;
@@ -1146,6 +1180,20 @@ export interface components {
 		};
 		/** @enum {string} */
 		ServingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+		FoodBatch: {
+			ids: string[];
+			action: components['schemas']['FoodBatchAction'];
+			payload?: {
+				labels?: string[];
+				force?: boolean;
+			};
+		};
+		/** @enum {string} */
+		FoodBatchAction:
+			'delete' | 'favorite' | 'unfavorite' | 'add_labels' | 'remove_labels' | 'set_labels';
+		FoodImport: {
+			foods: components['schemas']['FoodCreate'][];
+		};
 		FoodMerge: {
 			/** Format: uuid */
 			keeperId: string;
@@ -1642,8 +1690,33 @@ export interface components {
 			isFavorite: boolean;
 			imageUrl: string | null;
 			lastServings: number;
+			lastUsedAt: string | null;
+			logCount: number;
 			createdAt?: string;
 			updatedAt?: string;
+		};
+		FoodBatchResponse: {
+			results: components['schemas']['FoodBatchResult'][];
+			succeeded: number;
+			failed: number;
+		};
+		FoodBatchResult: {
+			/** Format: uuid */
+			id: string;
+			ok: boolean;
+			error?: string;
+			entryCount?: number;
+		};
+		FoodImportResponse: {
+			foods: components['schemas']['Food'][];
+			created: number;
+			skipped: components['schemas']['FoodImportSkipped'][];
+		};
+		FoodImportSkipped: {
+			index: number;
+			name: string;
+			/** @enum {string} */
+			reason: 'duplicate' | 'duplicate_barcode';
 		};
 		FoodDuplicatesResponse: {
 			groups: components['schemas']['FoodDuplicateGroup'][];
@@ -2680,6 +2753,58 @@ export interface operations {
 					'application/json': components['schemas']['FoodsRecentResponse'];
 				};
 			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	batchFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodBatch'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodBatchResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	importFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodImport'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodImportResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};

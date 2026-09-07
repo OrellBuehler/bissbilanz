@@ -1,7 +1,13 @@
 import { createDocument, type ZodOpenApiResponseObject } from 'zod-openapi';
 import { z } from 'zod';
 import { goalsSchema } from './validation/goals';
-import { foodCreateSchema, foodUpdateSchema, foodMergeSchema } from './validation/foods';
+import {
+	foodCreateSchema,
+	foodUpdateSchema,
+	foodMergeSchema,
+	foodBatchSchema,
+	foodImportSchema
+} from './validation/foods';
 import { entryCreateSchema, entryUpdateSchema } from './validation/entries';
 import { recipeCreateSchema, recipeUpdateSchema } from './validation/recipes';
 import {
@@ -22,6 +28,8 @@ import {
 	foodsListResponseSchema,
 	foodResponseSchema,
 	foodsRecentResponseSchema,
+	foodBatchResponseSchema,
+	foodImportResponseSchema,
 	foodDuplicatesResponseSchema,
 	foodLabelsResponseSchema,
 	foodLabelsSetResponseSchema,
@@ -253,6 +261,46 @@ export function generateSpec() {
 							description: 'Success',
 							content: { 'application/json': { schema: foodsRecentResponseSchema } }
 						},
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/batch': {
+				post: {
+					operationId: 'batchFoods',
+					tags: ['Foods'],
+					description:
+						'Apply one action (delete, favorite, unfavorite, set/add/remove labels) to up to 200 foods in a single request. Ownership is checked per id and results are per id, so an unknown food — or one still referenced by diary entries — does not fail the rest. `delete` follows the single-delete rules: a food with entries comes back as `has_entries` unless `payload.force` is set.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodBatchSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodBatchResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/import': {
+				post: {
+					operationId: 'importFoods',
+					tags: ['Foods'],
+					description:
+						'Create up to 500 foods in one transaction. Rows whose name + brand + serving already exist, or whose barcode is taken, are skipped and reported instead of failing the import.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodImportSchema } }
+					},
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: foodImportResponseSchema } }
+						},
+						'400': res400,
 						'401': res401
 					}
 				}
