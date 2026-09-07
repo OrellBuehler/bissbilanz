@@ -70,6 +70,7 @@ struct FastingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             fastingManager.refresh()
+            await fastingManager.refreshFromServer()
         }
         .sheet(isPresented: $showAdjustStart) {
             if let session = fastingManager.session {

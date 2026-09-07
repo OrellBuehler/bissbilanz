@@ -22,3 +22,21 @@ struct FastingSessionRemote: Codable {
 struct FastingSessionResponse: Codable {
     let session: FastingSessionRemote
 }
+
+/// `GET /api/fasts` — finished fasts, newest first.
+struct FastingSessionsResponse: Codable {
+    let sessions: [FastingSessionRemote]
+}
+
+extension FastingSessionRemote {
+    /// Maps the server row onto the local `FastingSession` shape, or nil for
+    /// an unparseable id/timestamp (defensive — should never happen for a
+    /// finished fast the server itself produced).
+    var asFastingSession: FastingSession? {
+        guard let uuid = UUID(uuidString: id),
+              let started = DateFormatting.isoDateTime(from: startedAt),
+              let ended = DateFormatting.isoDateTime(from: endedAt)
+        else { return nil }
+        return FastingSession(id: uuid, startedAt: started, targetHours: targetHours, endedAt: ended)
+    }
+}

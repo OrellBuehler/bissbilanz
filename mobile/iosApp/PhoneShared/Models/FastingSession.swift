@@ -106,6 +106,19 @@ enum FastingSessionStore {
         saveHistory(loadHistory().filter { $0.id != id })
     }
 
+    /// Folds server-side fasts (finished elsewhere — the web app, another
+    /// device) into the local history, keyed by id. Only ids not already
+    /// present are added: an existing local row is left untouched even if the
+    /// server copy differs, so an edit still queued for upload is never
+    /// clobbered by a pull that raced ahead of the drain.
+    static func mergeFromServer(_ sessions: [FastingSession]) {
+        guard !sessions.isEmpty else { return }
+        let existingIds = Set(loadHistory().map(\.id))
+        let newOnes = sessions.filter { !existingIds.contains($0.id) }
+        guard !newOnes.isEmpty else { return }
+        saveHistory(loadHistory() + newOnes)
+    }
+
     private static func saveHistory(_ history: [FastingSession]) {
         let sorted = Array(history.sorted { $0.startedAt > $1.startedAt }.prefix(historyLimit))
         guard let defaults, let data = try? JSONEncoder().encode(sorted) else { return }
