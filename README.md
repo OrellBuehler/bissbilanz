@@ -179,7 +179,13 @@ bun run api:generate       # regenerate OpenAPI spec + TS/Kotlin clients
 bun run analytics:check    # verify the TS/Kotlin analytics parity vectors
 bun run constants:check    # verify the generated shared constants
 bun run security           # Semgrep + bun audit + Trivy
+bun run push:vapid         # print a fresh VAPID key pair for Web Push
 ```
+
+Web Push (supplement reminders in the PWA) is optional: set `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (a `mailto:` or `https://` contact URL) and the
+Notifications section appears in Settings. Leave them unset and the feature stays hidden.
+Rotating the public key invalidates existing browser subscriptions.
 
 Android:
 

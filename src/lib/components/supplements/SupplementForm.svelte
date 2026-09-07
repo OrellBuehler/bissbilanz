@@ -171,6 +171,13 @@
 	};
 
 	const MAX_REMINDERS = 6;
+
+	// Browser-side check only ($effect never runs during SSR); the settings page
+	// owns the actual push state.
+	let webPushOff = $state(false);
+	$effect(() => {
+		webPushOff = !('Notification' in window) || Notification.permission !== 'granted';
+	});
 	const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
 	// The time-of-day label is only a grouping header, but it is the best hint we have
 	// for what clock time the user actually means, so it seeds the first row.
@@ -420,6 +427,13 @@
 			</div>
 		{/if}
 		<p class="text-muted-foreground text-sm">{m.supplements_reminders_mobile_only()}</p>
+		{#if reminderTimes.length > 0 && webPushOff}
+			<p class="text-muted-foreground text-sm">
+				<a class="underline underline-offset-4" href="/settings"
+					>{m.supplements_reminders_enable_web()}</a
+				>
+			</p>
+		{/if}
 	</div>
 
 	<div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
