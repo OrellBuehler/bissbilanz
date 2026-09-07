@@ -3,15 +3,22 @@
 	import { extractMealTimingPatterns } from '$lib/analytics/meal-timing';
 	import { deviceTimeZone } from '$lib/analytics/local-time';
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
+	import { formatDuration, summarizeFasts, type CompletedFast } from '$lib/utils/fasting';
 	import * as m from '$lib/paraglide/messages';
 	import type { MealEntry } from './types';
 
 	type Props = {
 		mealTimingData: MealEntry[];
+		fasts?: CompletedFast[];
 		loading: boolean;
 	};
 
-	let { mealTimingData, loading }: Props = $props();
+	let { mealTimingData, fasts = [], loading }: Props = $props();
+
+	// Logged fasts are the user's own record of the fasting side of the day; the
+	// eating window above is only inferred from meal timestamps, so the two are
+	// shown side by side rather than merged.
+	const fastSummary = $derived(summarizeFasts(fasts, Date.now()));
 
 	const analysis = $derived.by(() => {
 		if (mealTimingData.length === 0) return null;
@@ -101,6 +108,20 @@
 								></div>
 							{/each}
 						</div>
+					</div>
+				{/if}
+
+				{#if fastSummary.total > 0}
+					<div class="flex items-baseline justify-between gap-2 border-t pt-3">
+						<div>
+							<p class="text-xs text-muted-foreground">{m.analytics_avg_logged_fast()}</p>
+							<p class="text-[10px] text-muted-foreground">
+								{m.analytics_logged_fasts_count({ count: fastSummary.total })}
+							</p>
+						</div>
+						<span class="text-sm font-semibold tabular-nums">
+							{formatDuration(fastSummary.averageMinutes * 60_000)}
+						</span>
 					</div>
 				{/if}
 

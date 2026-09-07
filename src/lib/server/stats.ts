@@ -13,7 +13,10 @@ import { getUserTimeZone } from '$lib/server/preferences';
 import { getDB, foodEntries } from '$lib/server/db';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays } from '$lib/server/day-properties';
+import { listFastingSessions } from '$lib/server/fasting';
+import { fastLocalDates } from '$lib/utils/fasting';
 import type { CalendarDay } from '$lib/utils/insights';
+import type { FastingSessionRow } from '$lib/server/fasting';
 
 export type { CalendarDay };
 export type CalendarStats = { days: Record<string, CalendarDay> };
@@ -141,6 +144,47 @@ export const getMealBreakdown = async (
 		});
 };
 
+/**
+ * Flags the local dates a completed fast covers. A fast that started before the
+ * range still marks the days it reaches into, and a fasting-only day (no food
+ * logged) gets an entry of its own so the heatmap can show the marker.
+ */
+export const markFastDays = (
+	days: Record<string, CalendarDay>,
+	fasts: FastingSessionRow[],
+	timeZone: string
+): Record<string, CalendarDay> => {
+	for (const fast of fasts) {
+		const dates = fastLocalDates(
+			{
+				id: fast.id,
+				startedAt: fast.startedAt.toISOString(),
+				endedAt: fast.endedAt.toISOString(),
+				targetHours: fast.targetHours
+			},
+			timeZone
+		);
+		for (const date of dates) {
+			const day = days[date];
+			if (day) day.hasFast = true;
+			else days[date] = { calories: 0, hasEntries: false, hasFast: true };
+		}
+	}
+	return days;
+};
+
+/**
+ * Fasts that can reach into [startDate, endDate]. The lower bound is pulled back
+ * a week because a fast is filtered by its start instant but marks every day it
+ * runs through.
+ */
+export const listFastsTouchingRange = (userId: string, startDate: string, endDate: string) =>
+	listFastingSessions(userId, {
+		from: `${shiftDate(startDate, -8)}T00:00:00Z`,
+		to: `${shiftDate(endDate, 1)}T00:00:00Z`,
+		limit: 500
+	});
+
 export const getCalendarStats = async (
 	userId: string,
 	year: number,
@@ -149,8 +193,16 @@ export const getCalendarStats = async (
 	const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 	const lastDay = new Date(year, month + 1, 0).getDate();
 	const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-	const entries = await listEntriesByDateRange(userId, startDate, endDate);
-	return { days: computeCalendarDays(entries) };
+	const [entries, fasts, timeZone] = await Promise.all([
+		listEntriesByDateRange(userId, startDate, endDate),
+		listFastsTouchingRange(userId, startDate, endDate),
+		getUserTimeZone(userId)
+	]);
+	const days = markFastDays(computeCalendarDays(entries), fasts, timeZone);
+	for (const date of Object.keys(days)) {
+		if (date < startDate || date > endDate) delete days[date];
+	}
+	return { days };
 };
 
 export const getDailyBreakdown = async (

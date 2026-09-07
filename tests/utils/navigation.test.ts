@@ -8,6 +8,7 @@ describe('breadcrumb label keys', () => {
 			'/foods',
 			'/recipes',
 			'/supplements',
+			'/fasting',
 			'/weight',
 			'/insights',
 			'/goals',

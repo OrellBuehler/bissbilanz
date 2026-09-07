@@ -4,7 +4,9 @@ import {
 	getMealBreakdown,
 	getTopFoods,
 	getStreaks,
-	computeCalendarDays
+	computeCalendarDays,
+	markFastDays,
+	listFastsTouchingRange
 } from '$lib/server/stats';
 import { listEntriesByDateRange } from '$lib/server/entries';
 import { getGoals } from '$lib/server/goals';
@@ -33,7 +35,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		topFoods,
 		initialChartData,
 		streaks,
-		calendarRangeEntries
+		calendarRangeEntries,
+		calendarRangeFasts,
+		timeZone
 	] = await Promise.all([
 		getDailyBreakdown(userId, start7, endDate),
 		getGoals(userId),
@@ -41,10 +45,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getTopFoods(userId, 7, 10),
 		getWeightWithTrend(userId, shiftDate(endDate, -29), endDate),
 		getStreaks(userId),
-		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd)
+		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd),
+		listFastsTouchingRange(userId, calendarRangeStart, calendarRangeEnd),
+		getUserTimeZone(userId)
 	]);
 
-	const allCalendarDays = computeCalendarDays(calendarRangeEntries);
+	const allCalendarDays = markFastDays(
+		computeCalendarDays(calendarRangeEntries),
+		calendarRangeFasts,
+		timeZone
+	);
 	const calendarDays: typeof allCalendarDays = {};
 	const streakDays: typeof allCalendarDays = {};
 	for (const [date, day] of Object.entries(allCalendarDays)) {

@@ -12,6 +12,7 @@ import type {
 	DexieWeightEntry,
 	DexieSleepEntry,
 	DexieDayProperties,
+	DexieFastingSession,
 	DexieSyncQueueItem,
 	DexieSyncMeta
 } from './types';
@@ -29,6 +30,7 @@ type BissbilanzDB = Dexie & {
 	weightEntries: EntityTable<DexieWeightEntry, 'id'>;
 	sleepEntries: EntityTable<DexieSleepEntry, 'id'>;
 	dayProperties: EntityTable<DexieDayProperties, 'date'>;
+	fastingSessions: EntityTable<DexieFastingSession, 'id'>;
 	syncQueue: EntityTable<DexieSyncQueueItem, 'id'>;
 	syncMeta: EntityTable<DexieSyncMeta, 'tableName'>;
 };
@@ -112,6 +114,13 @@ db.version(7)
 				item.nextAttemptAt ??= 0;
 			});
 	});
+
+// v8: completed fasting sessions mirror, so the fasting page renders and edits
+// offline. The running fast is not stored here — it stays in localStorage until
+// it is ended, matching the mobile apps.
+db.version(8).stores({
+	fastingSessions: 'id, startedAt'
+});
 
 export { db };
 

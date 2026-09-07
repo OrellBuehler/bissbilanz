@@ -61,7 +61,8 @@ const topFoodSchema = z
 const calendarDaySchema = z
 	.object({
 		calories: z.number(),
-		hasEntries: z.boolean()
+		hasEntries: z.boolean(),
+		hasFast: z.boolean().optional()
 	})
 	.meta({ id: 'CalendarDay' });
 

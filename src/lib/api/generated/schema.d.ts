@@ -2113,6 +2113,7 @@ export interface components {
 		CalendarDay: {
 			calories: number;
 			hasEntries: boolean;
+			hasFast?: boolean;
 		};
 		DayPropertiesResponse: {
 			properties: components['schemas']['DayProperties'] | null;

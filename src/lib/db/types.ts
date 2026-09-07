@@ -252,6 +252,19 @@ export type DexieSleepEntry = {
 	updatedAt: string | null;
 };
 
+// ── Fasting Sessions ──────────────────────────────────────────────
+// Completed fasts only. The running fast lives in localStorage and never
+// reaches Dexie or the server until it is ended.
+export type DexieFastingSession = {
+	id: string;
+	userId: string;
+	startedAt: string;
+	endedAt: string;
+	targetHours: number;
+	createdAt?: string | null;
+	updatedAt?: string | null;
+};
+
 // ── Day Properties ────────────────────────────────────────────────
 export type DexieDayProperties = {
 	date: string;

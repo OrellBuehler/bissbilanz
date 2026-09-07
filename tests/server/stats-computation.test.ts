@@ -1,5 +1,10 @@
 import { describe, test, expect } from 'vitest';
-import { computeAverages, computeDailyBreakdown, computeCalendarDays } from '$lib/server/stats';
+import {
+	computeAverages,
+	computeDailyBreakdown,
+	computeCalendarDays,
+	markFastDays
+} from '$lib/server/stats';
 
 const entry = (
 	date: string,
@@ -226,5 +231,47 @@ describe('computeCalendarDays', () => {
 	test('null calorie values treated as zero', () => {
 		const result = computeCalendarDays([nullEntry('2026-03-01')]);
 		expect(result['2026-03-01']).toEqual({ calories: 0, hasEntries: true });
+	});
+});
+
+describe('markFastDays', () => {
+	const fast = (id: string, startedAt: string, endedAt: string, targetHours = 16) =>
+		({
+			id,
+			userId: 'u1',
+			startedAt: new Date(startedAt),
+			endedAt: new Date(endedAt),
+			targetHours,
+			createdAt: new Date(startedAt),
+			updatedAt: new Date(endedAt)
+		}) as Parameters<typeof markFastDays>[1][number];
+
+	test('flags both days an overnight fast touches', () => {
+		const days = markFastDays(
+			{ '2026-01-01': { calories: 1800, hasEntries: true } },
+			[fast('a', '2026-01-01T20:00:00Z', '2026-01-02T12:00:00Z')],
+			'UTC'
+		);
+		expect(days['2026-01-01'].hasFast).toBe(true);
+		expect(days['2026-01-01'].calories).toBe(1800);
+		expect(days['2026-01-02']).toEqual({ calories: 0, hasEntries: false, hasFast: true });
+	});
+
+	test('leaves untouched days alone', () => {
+		const days = markFastDays(
+			{ '2026-01-05': { calories: 2000, hasEntries: true } },
+			[fast('a', '2026-01-01T20:00:00Z', '2026-01-02T12:00:00Z')],
+			'UTC'
+		);
+		expect(days['2026-01-05'].hasFast).toBeUndefined();
+	});
+
+	test('buckets by the given timezone', () => {
+		const days = markFastDays(
+			{},
+			[fast('a', '2026-01-01T23:00:00Z', '2026-01-02T10:00:00Z')],
+			'Europe/Zurich'
+		);
+		expect(Object.keys(days)).toEqual(['2026-01-02']);
 	});
 });

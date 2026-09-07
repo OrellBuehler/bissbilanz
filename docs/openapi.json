@@ -8706,6 +8706,9 @@
 					},
 					"hasEntries": {
 						"type": "boolean"
+					},
+					"hasFast": {
+						"type": "boolean"
 					}
 				},
 				"required": ["calories", "hasEntries"],

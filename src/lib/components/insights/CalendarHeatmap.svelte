@@ -10,7 +10,7 @@
 	import { heatmapStatus, type HeatmapStatus } from '$lib/utils/insights';
 	import * as m from '$lib/paraglide/messages';
 
-	type CalendarDay = { calories: number; hasEntries: boolean };
+	type CalendarDay = { calories: number; hasEntries: boolean; hasFast?: boolean };
 
 	let { initialDays }: { initialDays?: Record<string, CalendarDay> } = $props();
 
@@ -110,7 +110,9 @@
 
 	function cellTitle(date: string | null): string {
 		if (!date || !days[date]) return m.insights_no_entries();
-		return `${Math.round(days[date].calories)} kcal`;
+		const day = days[date];
+		const calories = day.hasEntries ? `${Math.round(day.calories)} kcal` : m.insights_no_entries();
+		return day.hasFast ? `${calories} · ${m.insights_fast_logged()}` : calories;
 	}
 
 	const dayHeaders = [
@@ -148,13 +150,18 @@
 			{#each calendarCells as cell}
 				{#if cell.date}
 					<button
-						class="flex aspect-square items-center justify-center rounded-md text-xs tabular-nums transition-colors {cellColor(
+						class="relative flex aspect-square items-center justify-center rounded-md text-xs tabular-nums transition-colors {cellColor(
 							cell.date
 						)}"
 						title={cellTitle(cell.date)}
 						onclick={() => goto(`/?date=${cell.date}`)}
 					>
 						{cell.day}
+						{#if days[cell.date]?.hasFast}
+							<span
+								class="absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-indigo-500 dark:bg-indigo-400"
+							></span>
+						{/if}
 					</button>
 				{:else}
 					<div></div>
@@ -178,6 +185,10 @@
 			<div class="flex items-center gap-1">
 				<div class="h-3 w-3 rounded bg-muted/30"></div>
 				<span>{m.insights_no_entries()}</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<div class="size-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400"></div>
+				<span>{m.insights_fast_logged()}</span>
 			</div>
 		</div>
 	{/if}
