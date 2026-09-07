@@ -605,6 +605,7 @@ final class LocalDataMigrator {
         }
         update.locale = preferences.locale
         update.timeZone = preferences.timeZone
+        update.waterGoalMl = preferences.waterGoalMl
         return update
     }
 
