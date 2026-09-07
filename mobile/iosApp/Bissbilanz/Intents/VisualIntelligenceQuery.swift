@@ -1,5 +1,4 @@
 import AppIntents
-import VisualIntelligence
 
 /// The app's single semantic-content query. Labels are normalized by the
 /// repository using the same vocabulary as the food pickers. No camera-frame
