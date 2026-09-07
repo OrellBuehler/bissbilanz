@@ -582,10 +582,10 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
-        case let .setDayProperties(date, isFastingDay):
+        case let .setDayProperties(date, patch):
             _ = try await api.setDayProperties(
                 date: date,
-                isFastingDay: isFastingDay,
+                patch: patch,
                 idempotencyKey: idempotencyKey,
                 clientEditedAt: clientEditedAt
             )

@@ -535,7 +535,17 @@ final class LocalDataMigrator {
         var done = startDone
         progress(done, total, .dayProperties)
         for row in fetchAll(LocalDayProperties.self) {
-            let server = try await api.setDayProperties(date: row.date, isFastingDay: row.isFastingDay)
+            let local = row.toDayProperties() ?? DayProperties(date: row.date, isFastingDay: row.isFastingDay)
+            // A fresh account has no existing row for the date, so every
+            // field is sent explicitly rather than as a sparse patch.
+            let patch = DayPropertiesPatch(
+                isFastingDay: local.isFastingDay,
+                notes: .some(local.notes),
+                waterMl: .some(local.waterMl),
+                activityCalories: .some(local.activityCalories),
+                activityNote: .some(local.activityNote)
+            )
+            let server = try await api.setDayProperties(date: row.date, patch: patch)
             row.update(from: server)
             try? context.save()
             done += 1
@@ -595,6 +605,7 @@ final class LocalDataMigrator {
         }
         update.locale = preferences.locale
         update.timeZone = preferences.timeZone
+        update.waterGoalMl = preferences.waterGoalMl
         return update
     }
 

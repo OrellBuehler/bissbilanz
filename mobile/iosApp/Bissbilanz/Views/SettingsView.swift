@@ -50,6 +50,10 @@ struct SettingsView: View {
     @State private var editCarbs = ""
     @State private var editFat = ""
     @State private var editFiber = ""
+    @State private var editTargetWeight = ""
+    @State private var hasTargetDate = false
+    @State private var editTargetDate = Date()
+    @State private var waterGoalDraft = "2000"
 
     var body: some View {
         NavigationStack {
@@ -67,8 +71,30 @@ struct SettingsView: View {
                         editCarbs = "\(Int(goals.carbGoal))"
                         editFat = "\(Int(goals.fatGoal))"
                         editFiber = "\(Int(goals.fiberGoal))"
+                        editTargetWeight = goals.targetWeightKg.map { String(format: "%.1f", $0) } ?? ""
+                        hasTargetDate = goals.targetDate != nil
+                        editTargetDate = goals.targetDate.flatMap(DateFormatting.date(from:)) ?? Date()
                         isEditingGoals = true
                     }
+                }
+
+                // Daily water goal — surfaced on the day card's water tracker.
+                Section {
+                    HStack {
+                        Text(L10n.settingsWaterGoalLabel)
+                        Spacer()
+                        TextField("", text: $waterGoalDraft)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                            .onSubmit { Task { await saveWaterGoal() } }
+                        Text(L10n.dayUnitMl)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text(L10n.settingsWaterGoal)
+                } footer: {
+                    Text(L10n.settingsWaterGoalDesc)
                 }
 
                 // Reference intakes for the nutrient-gap analytics differ by sex;
@@ -469,6 +495,21 @@ struct SettingsView: View {
                     goalField(L10n.fat + " (g)", text: $editFat)
                     goalField(L10n.fiber + " (g)", text: $editFiber)
                 }
+
+                Section(L10n.weightTarget) {
+                    goalField(L10n.goalsTargetWeightLabel, text: $editTargetWeight)
+                    Toggle(L10n.goalsTargetDateLabel, isOn: $hasTargetDate)
+                    if hasTargetDate {
+                        DatePicker("", selection: $editTargetDate, displayedComponents: .date)
+                            .labelsHidden()
+                    }
+                    if goals.targetWeightKg != nil || goals.targetDate != nil {
+                        Button(L10n.goalsTargetClear, role: .destructive) {
+                            editTargetWeight = ""
+                            hasTargetDate = false
+                        }
+                    }
+                }
             }
             .keyboardDismissable()
             .navigationTitle(L10n.editGoals)
@@ -508,7 +549,9 @@ struct SettingsView: View {
             fatGoal: Double.parseUserInput(editFat) ?? goals.fatGoal,
             fiberGoal: Double.parseUserInput(editFiber) ?? goals.fiberGoal,
             sodiumGoal: goals.sodiumGoal,
-            sugarGoal: goals.sugarGoal
+            sugarGoal: goals.sugarGoal,
+            targetWeightKg: Double.parseUserInput(editTargetWeight),
+            targetDate: hasTargetDate ? editTargetDate.isoDateString : nil
         )
         do {
             goals = try await goalsRepository.setGoals(newGoals)
@@ -633,6 +676,7 @@ struct SettingsView: View {
     private func loadData() async {
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
+        waterGoalDraft = String(preferences.waterGoalMl ?? 2000)
 
         async let g: Void? = try? goalsRepository.refresh()
         async let p: Void? = try? preferencesRepository.refresh()
@@ -644,6 +688,21 @@ struct SettingsView: View {
         }
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
+        waterGoalDraft = String(preferences.waterGoalMl ?? 2000)
+    }
+
+    private func saveWaterGoal() async {
+        guard let parsed = Int(waterGoalDraft.trimmingCharacters(in: .whitespaces)) else {
+            waterGoalDraft = String(preferences.waterGoalMl ?? 2000)
+            return
+        }
+        let clamped = min(max(parsed, 250), 10000)
+        waterGoalDraft = String(clamped)
+        guard clamped != (preferences.waterGoalMl ?? 2000) else { return }
+        var update = PreferencesUpdate()
+        update.waterGoalMl = clamped
+        preferences = await (try? preferencesRepository.update(update))
+            ?? (preferencesRepository.preferences() ?? .defaults)
     }
 
     private func addMealType() async {

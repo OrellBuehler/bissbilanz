@@ -32,7 +32,7 @@ enum SyncOperation: Codable {
     case deleteSupplement(id: String)
     case logSupplement(supplementId: String, date: String)
     case unlogSupplement(supplementId: String, date: String)
-    case setDayProperties(date: String, isFastingDay: Bool)
+    case setDayProperties(date: String, patch: DayPropertiesPatch)
     case deleteDayProperties(date: String)
     /// Uploads a finished fast. Keyed by the client UUID (see
     /// `FastingSession.upsertBody`), so no temp-id remap is involved.

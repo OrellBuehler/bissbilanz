@@ -145,7 +145,7 @@ struct RepositoryTests {
         let repo = harness.entryRepository
         harness.stub("PUT", "/api/day-properties", status: 500, json: #"{"error": "boom"}"#)
 
-        try await repo.setDayProperties(date: "2026-06-01", isFastingDay: true)
+        try await repo.setFastingDay(date: "2026-06-01", isFastingDay: true)
         await harness.syncManager.drainPendingQueue()
 
         #expect(repo.isFastingDay(date: "2026-06-01") == true)
@@ -1023,7 +1023,7 @@ struct RepositoryTests {
         )
         try await supplementRepo.logSupplement(id: supplement.id, date: "2026-06-01")
         _ = try await goalsRepo.setGoals(.defaults)
-        try await entryRepo.setDayProperties(date: "2026-06-01", isFastingDay: true)
+        try await entryRepo.setFastingDay(date: "2026-06-01", isFastingDay: true)
         try await foodRepo.deleteFood(id: food.id)
 
         // Even an explicit drain uploads nothing in Local mode.

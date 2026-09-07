@@ -331,6 +331,12 @@ final class EntryRepository {
         fetchDayPropertiesRow(date: date)?.isFastingDay ?? false
     }
 
+    /// The full stored row for a date (water/activity/notes/fasting), or nil
+    /// when nothing has been recorded for that day yet.
+    func dayProperties(date: String) -> DayProperties? {
+        fetchDayPropertiesRow(date: date)?.toDayProperties()
+    }
+
     func refreshDayProperties(date: String) async throws {
         guard !appMode.isLocal else { return }
         if let properties = try await api.getDayProperties(date: date) {
@@ -341,10 +347,25 @@ final class EntryRepository {
         save()
     }
 
-    func setDayProperties(date: String, isFastingDay: Bool) async throws {
-        upsertDayProperties(DayProperties(date: date, isFastingDay: isFastingDay))
+    /// Applies a partial patch to a day's properties: an omitted field keeps
+    /// its current value, an explicit null clears it (see `DayPropertiesPatch`).
+    /// The merge onto the current local value happens the same way
+    /// `PreferencesRepository.update` merges a `PreferencesUpdate`.
+    func setDayProperties(date: String, patch: DayPropertiesPatch) async throws {
+        let current = fetchDayPropertiesRow(date: date)?.toDayProperties()
+            ?? DayProperties(date: date, isFastingDay: false)
+        let dict = (try? JSONPatch.dictionary(of: patch)) ?? [:]
+        let merged = (try? JSONPatch.merged(DayProperties.self, base: current, patch: dict)) ?? current
+        upsertDayProperties(merged)
         save()
-        syncManager.enqueue(.setDayProperties(date: date, isFastingDay: isFastingDay))
+        syncManager.enqueue(.setDayProperties(date: date, patch: patch))
+    }
+
+    /// Convenience for the fasting-day toggle and the fasting timer's
+    /// end-of-fast mark, which only ever touch that one field and must not
+    /// disturb any notes/water/activity already stored for the day.
+    func setFastingDay(date: String, isFastingDay: Bool) async throws {
+        try await setDayProperties(date: date, patch: DayPropertiesPatch(isFastingDay: isFastingDay))
     }
 
     func deleteDayProperties(date: String) async throws {

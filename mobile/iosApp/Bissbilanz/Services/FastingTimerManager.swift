@@ -20,10 +20,12 @@ final class FastingTimerManager {
     private(set) var history: [FastingSession] = []
     private let entryRepository: EntryRepository
     private let syncManager: SyncManager
+    private let api: BissbilanzAPI
 
-    init(entryRepository: EntryRepository, syncManager: SyncManager) {
+    init(entryRepository: EntryRepository, syncManager: SyncManager, api: BissbilanzAPI) {
         self.entryRepository = entryRepository
         self.syncManager = syncManager
+        self.api = api
         session = FastingSessionStore.loadCurrent()
         history = FastingSessionStore.loadHistory()
     }
@@ -80,10 +82,27 @@ final class FastingTimerManager {
         history = FastingSessionStore.loadHistory()
         await endAllActivities()
         upload(current)
-        try? await entryRepository.setDayProperties(
+        try? await entryRepository.setFastingDay(
             date: DateFormatting.isoString(from: endDate),
             isFastingDay: true
         )
+    }
+
+    /// Pulls fasts finished elsewhere (the web app, another device) into the
+    /// local history. Skipped entirely while a fast upload/edit/delete is
+    /// still queued, so a pull racing the drain can't clobber it — mirrors
+    /// `GoalsRepository`/`PreferencesRepository`'s singleton `hasPending`
+    /// guard, scoped here to the "fasts" table instead.
+    func refreshFromServer() async {
+        guard !syncManager.hasPending(table: "fasts") else { return }
+        do {
+            let remote = try await api.listFastingSessions(limit: FastingSessionStore.historyLimit)
+            FastingSessionStore.mergeFromServer(remote.compactMap(\.asFastingSession))
+            history = FastingSessionStore.loadHistory()
+        } catch {
+            // Best-effort — the local history is still accurate for anything
+            // finished on this device.
+        }
     }
 
     /// Rewrites a finished fast's start, end or target. Ignored unless the

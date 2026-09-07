@@ -3295,6 +3295,129 @@ enum L10n {
         localized("weight_kg_value", en: "\(a1) kg", de: "\(a1) kg")
     }
 
+    // MARK: - Day Properties (water, activity, notes)
+
+    static var dayCardTitle: String {
+        localized("day_card_title", en: "Day", de: "Tag")
+    }
+
+    static var dayWaterTitle: String {
+        localized("day_water_title", en: "Water", de: "Wasser")
+    }
+
+    static func dayWaterProgress(current: Int, goal: Int) -> String {
+        localized("day_water_progress", en: "\(current) / \(goal) ml", de: "\(current) / \(goal) ml")
+    }
+
+    static func dayWaterAdd(_ amount: Int) -> String {
+        localized("day_water_add", en: "+\(amount) ml", de: "+\(amount) ml")
+    }
+
+    static var dayWaterInputLabel: String {
+        localized("day_water_input_label", en: "Water in millilitres", de: "Wasser in Millilitern")
+    }
+
+    static var dayWaterClear: String {
+        localized("day_water_clear", en: "Clear water", de: "Wasser zurücksetzen")
+    }
+
+    static var dayUnitMl: String {
+        localized("day_unit_ml", en: "ml", de: "ml")
+    }
+
+    static var dayActivityTitle: String {
+        localized("day_activity_title", en: "Activity", de: "Aktivität")
+    }
+
+    static var dayActivityInputLabel: String {
+        localized("day_activity_input_label", en: "Calories burned", de: "Verbrannte Kalorien")
+    }
+
+    static var dayActivityNotePlaceholder: String {
+        localized("day_activity_note_placeholder", en: "e.g. 45 min run", de: "z. B. 45 Min. Laufen")
+    }
+
+    static var dayActivityClear: String {
+        localized("day_activity_clear", en: "Clear activity", de: "Aktivität zurücksetzen")
+    }
+
+    static var dayActivityInformational: String {
+        localized(
+            "day_activity_informational",
+            en: "Tracked for reference only — never subtracted from your calorie goal.",
+            de: "Nur zur Information erfasst – wird nie von deinem Kalorienziel abgezogen."
+        )
+    }
+
+    static var dayNotesTitle: String {
+        localized("day_notes_title", en: "Notes", de: "Notizen")
+    }
+
+    static var dayNotesPlaceholder: String {
+        localized("day_notes_placeholder", en: "How did the day go?", de: "Wie war der Tag?")
+    }
+
+    static func daySummaryActivity(_ calories: Int) -> String {
+        localized("day_summary_activity", en: "Activity: +\(calories) kcal", de: "Aktivität: +\(calories) kcal")
+    }
+
+    static var daySummaryActivityHint: String {
+        localized(
+            "day_summary_activity_hint",
+            en: "informational, not counted",
+            de: "informativ, nicht verrechnet"
+        )
+    }
+
+    static var settingsWaterGoal: String {
+        localized("settings_water_goal", en: "Water goal", de: "Wasserziel")
+    }
+
+    static var settingsWaterGoalDesc: String {
+        localized(
+            "settings_water_goal_desc",
+            en: "Daily hydration target shown in the day log.",
+            de: "Tägliches Trinkziel, das im Tagesprotokoll angezeigt wird."
+        )
+    }
+
+    static var settingsWaterGoalLabel: String {
+        localized("settings_water_goal_label", en: "Millilitres per day", de: "Milliliter pro Tag")
+    }
+
+    // MARK: - Weight Target
+
+    static var goalsTargetWeightLabel: String {
+        localized("goals_target_weight_label", en: "Target weight (kg)", de: "Zielgewicht (kg)")
+    }
+
+    static var goalsTargetDateLabel: String {
+        localized("goals_target_date_label", en: "Target date (optional)", de: "Zieldatum (optional)")
+    }
+
+    static var goalsTargetClear: String {
+        localized("goals_target_clear", en: "Clear target", de: "Ziel entfernen")
+    }
+
+    static var weightTarget: String {
+        localized("weight_target", en: "Weight target", de: "Gewichtsziel")
+    }
+
+    static var weightTargetRemaining: String {
+        localized("weight_target_remaining", en: "To go", de: "Verbleibend")
+    }
+
+    static func weightTargetValue(_ kg: String, date: String?) -> String {
+        if let date {
+            return localized(
+                "weight_target_value_by_date",
+                en: "Target \(kg) kg by \(date)",
+                de: "Ziel \(kg) kg bis \(date)"
+            )
+        }
+        return localized("weight_target_value", en: "Target \(kg) kg", de: "Ziel \(kg) kg")
+    }
+
     private static func localized(_ key: String, en: String, de: String) -> String {
         switch currentLocale {
         case .en: en
