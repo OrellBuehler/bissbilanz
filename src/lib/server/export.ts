@@ -432,7 +432,9 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 				'fat_goal',
 				'fiber_goal',
 				'sodium_goal',
-				'sugar_goal'
+				'sugar_goal',
+				'target_weight',
+				'target_date'
 			],
 			[
 				[
@@ -442,7 +444,9 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 					data.goals.fatGoal,
 					data.goals.fiberGoal,
 					data.goals.sodiumGoal,
-					data.goals.sugarGoal
+					data.goals.sugarGoal,
+					data.goals.targetWeightKg,
+					data.goals.targetDate
 				]
 			]
 		);

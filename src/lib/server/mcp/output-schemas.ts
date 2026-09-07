@@ -15,7 +15,9 @@ const goalsSchema = z.looseObject({
 	proteinGoal: z.number(),
 	carbGoal: z.number(),
 	fatGoal: z.number(),
-	fiberGoal: z.number()
+	fiberGoal: z.number(),
+	targetWeightKg: z.number().nullable().optional(),
+	targetDate: z.string().nullable().optional()
 });
 
 const dailyStatusCore = {

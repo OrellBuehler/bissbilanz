@@ -23,6 +23,8 @@ async function refresh() {
 				fiberGoal: data.goals.fiberGoal,
 				sodiumGoal: data.goals.sodiumGoal ?? null,
 				sugarGoal: data.goals.sugarGoal ?? null,
+				targetWeightKg: data.goals.targetWeightKg ?? null,
+				targetDate: data.goals.targetDate ?? null,
 				updatedAt: data.goals.updatedAt ?? null
 			};
 			await db.userGoals.put(row);
@@ -32,13 +34,17 @@ async function refresh() {
 	}
 }
 
-async function save(form: {
+export type GoalsForm = {
 	calorieGoal: number;
 	proteinGoal: number;
 	carbGoal: number;
 	fatGoal: number;
 	fiberGoal: number;
-}): Promise<boolean> {
+	targetWeightKg?: number | null;
+	targetDate?: string | null;
+};
+
+async function save(form: GoalsForm): Promise<boolean> {
 	const existing = await db.userGoals.toCollection().first();
 	const row: DexieUserGoals = {
 		userId: existing?.userId ?? 'me',
@@ -49,6 +55,8 @@ async function save(form: {
 		fiberGoal: form.fiberGoal,
 		sodiumGoal: existing?.sodiumGoal ?? null,
 		sugarGoal: existing?.sugarGoal ?? null,
+		targetWeightKg: form.targetWeightKg ?? null,
+		targetDate: form.targetDate ?? null,
 		updatedAt: new Date().toISOString()
 	};
 	await db.userGoals.put(row);

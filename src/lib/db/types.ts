@@ -139,6 +139,8 @@ export type DexieUserGoals = {
 	fiberGoal: number;
 	sodiumGoal: number | null;
 	sugarGoal: number | null;
+	targetWeightKg: number | null;
+	targetDate: string | null;
 	updatedAt: string | null;
 };
 

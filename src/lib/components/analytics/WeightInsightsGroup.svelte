@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { api } from '$lib/api/client';
+	import { goalsService } from '$lib/services/goals-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
 	import AdaptiveTDEECard from './AdaptiveTDEECard.svelte';
 	import PlateauDetectionCard from './PlateauDetectionCard.svelte';
 	import WeightForecastCard from './WeightForecastCard.svelte';
@@ -18,6 +20,14 @@
 	let loading = $state(true);
 	let weightFoodData = $state<WeightFoodPoint[]>([]);
 	let nutrientData = $state<NutrientEntry[]>([]);
+
+	const cachedGoals = useLiveQuery(() => goalsService.goals(), undefined);
+	const targetWeightKg = $derived(cachedGoals.value?.targetWeightKg ?? null);
+	const targetDate = $derived(cachedGoals.value?.targetDate ?? null);
+
+	$effect(() => {
+		goalsService.refresh();
+	});
 
 	onMount(() => {
 		const controller = new AbortController();
@@ -53,7 +63,7 @@
 
 <div class="space-y-4">
 	<AdaptiveTDEECard {weightFoodData} {loading} />
-	<PlateauDetectionCard {weightFoodData} {loading} />
-	<WeightForecastCard {weightFoodData} {loading} />
+	<PlateauDetectionCard {weightFoodData} {loading} {targetWeightKg} {targetDate} />
+	<WeightForecastCard {weightFoodData} {loading} {targetWeightKg} {targetDate} />
 	<SodiumWeightCard {weightFoodData} {nutrientData} {loading} />
 </div>

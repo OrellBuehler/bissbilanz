@@ -317,6 +317,9 @@ export const userGoals = pgTable(
 		// Advanced nutrient goals (optional)
 		sodiumGoal: real('sodium_goal'),
 		sugarGoal: real('sugar_goal'),
+		// Body weight target (optional)
+		targetWeightKg: real('target_weight'),
+		targetDate: date('target_date'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
@@ -327,6 +330,10 @@ export const userGoals = pgTable(
 		check(
 			'user_goals_optional_nonnegative',
 			sql`(${table.sodiumGoal} IS NULL OR ${table.sodiumGoal} >= 0) AND (${table.sugarGoal} IS NULL OR ${table.sugarGoal} >= 0)`
+		),
+		check(
+			'user_goals_target_weight_range',
+			sql`${table.targetWeightKg} IS NULL OR (${table.targetWeightKg} > 0 AND ${table.targetWeightKg} <= 500)`
 		)
 	]
 );
