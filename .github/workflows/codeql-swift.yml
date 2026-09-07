@@ -182,7 +182,6 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages \
             -disableAutomaticPackageResolution \
             -jobs 1 \
-            -parallelizeTargets NO \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
