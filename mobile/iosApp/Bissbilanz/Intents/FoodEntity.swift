@@ -13,11 +13,13 @@ struct FoodEntity: AppEntity, IndexedEntity {
     let name: String
     let brand: String?
     let calories: Double
+    let imageUrl: String?
 
     init(food: Food) {
         id = food.id
         name = food.name
         brand = food.brand
+        imageUrl = food.imageUrl
         calories = food.calories
     }
 
@@ -30,7 +32,14 @@ struct FoodEntity: AppEntity, IndexedEntity {
     var displayRepresentation: DisplayRepresentation {
         let kcal = "\(Int(calories.rounded())) kcal"
         let subtitle = [brand, kcal].compactMap { $0 }.joined(separator: " · ")
-        return DisplayRepresentation(title: "\(name)", subtitle: "\(subtitle)")
+        // Use the same confined disk cache as FoodImageLoader. Never download
+        // images while the system is waiting for visual search results.
+        let image: DisplayRepresentation.Image = if let file = LocalImageStore.cachedFile(for: imageUrl) {
+            .init(url: file)
+        } else {
+            .init(systemName: "fork.knife")
+        }
+        return DisplayRepresentation(title: "\(name)", subtitle: "\(subtitle)", image: image)
     }
 
     /// Spotlight metadata, layered on top of the framework default so the title

@@ -43,6 +43,11 @@ final class EntryWriter {
         return await foodRepository.searchFoods(query: trimmed)
     }
 
+    /// Bounded, local-only label search for Visual Intelligence.
+    func foods(matchingLabels labels: [String]) -> [Food] {
+        foodRepository.foods(matchingLabels: labels)
+    }
+
     func food(id: String) -> Food? {
         foodRepository.food(id: id)
     }

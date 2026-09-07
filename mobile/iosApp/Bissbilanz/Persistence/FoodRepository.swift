@@ -67,6 +67,35 @@ final class FoodRepository {
         return rows.compactMap { $0.toFood() }
     }
 
+    /// Visual Intelligence supplies general English nouns, not a text search.
+    /// Match only stored labels so names/brands cannot introduce unrelated hits.
+    /// Local-only even in Synced mode: system queries must return promptly offline.
+    func foods(matchingLabels labels: [String], limit: Int = 5) -> [Food] {
+        guard limit > 0 else { return [] }
+        let normalized = Set(LabelNormalizer.normalizeAll(labels))
+        guard !normalized.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<LocalFood>(sortBy: [
+            SortDescriptor(\.name),
+            SortDescriptor(\.id),
+        ])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        var favorites: [Food] = []
+        var otherMatches: [Food] = []
+        var seen = Set<String>()
+        for row in rows where !normalized.isDisjoint(with: row.labels) {
+            guard row.isFavorite || otherMatches.count < limit,
+                  seen.insert(row.id).inserted, let food = row.toFood()
+            else { continue }
+            if row.isFavorite {
+                favorites.append(food)
+                if favorites.count == limit { break }
+            } else {
+                otherMatches.append(food)
+            }
+        }
+        return Array((favorites + otherMatches).prefix(limit))
+    }
+
     /// Rank name matches ahead of brand-only matches; both stay alphabetical.
     ///
     /// One pass, with each row's comparisons evaluated once. The previous shape
