@@ -592,11 +592,11 @@ final class BissbilanzAPI {
 
     func setDayProperties(
         date: String,
-        isFastingDay: Bool,
+        patch: DayPropertiesPatch,
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> DayProperties {
-        let body = DayPropertiesSet(date: date, isFastingDay: isFastingDay)
+        let body = DayPropertiesSet(date: date, patch: patch)
         let response: DayPropertiesResponse = try await put(
             "/api/day-properties", body: body,
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt

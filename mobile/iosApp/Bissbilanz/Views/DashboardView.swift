@@ -1080,11 +1080,10 @@ struct DashboardView: View {
     private func toggleFastingDay() async {
         let newValue = !isFastingDay
         do {
-            if newValue {
-                try await entryRepository.setDayProperties(date: dateString, isFastingDay: true)
-            } else {
-                try await entryRepository.deleteDayProperties(date: dateString)
-            }
+            // Only the flag changes — any notes/water/activity already stored
+            // for the day must survive the toggle, so this sets the field
+            // rather than deleting the whole row.
+            try await entryRepository.setFastingDay(date: dateString, isFastingDay: newValue)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch {
             toastMessage = L10n.error

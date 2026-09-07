@@ -35,13 +35,20 @@ enum FastingWriter {
         )
         let context = ModelContext(container)
 
-        let properties = DayProperties(date: date, isFastingDay: true)
+        // Merge onto whatever the day already has (notes/water/activity)
+        // rather than replacing the row outright — the same reasoning as
+        // `EntryRepository.setDayProperties`.
+        let patch = DayPropertiesPatch(isFastingDay: true)
         var descriptor = FetchDescriptor<LocalDayProperties>(predicate: #Predicate { $0.date == date })
         descriptor.fetchLimit = 1
-        if let row = (try? context.fetch(descriptor))?.first {
-            row.update(from: properties)
+        let existingRow = (try? context.fetch(descriptor))?.first
+        let current = existingRow?.toDayProperties() ?? DayProperties(date: date, isFastingDay: false)
+        let dict = (try? JSONPatch.dictionary(of: patch)) ?? [:]
+        let merged = (try? JSONPatch.merged(DayProperties.self, base: current, patch: dict)) ?? current
+        if let existingRow {
+            existingRow.update(from: merged)
         } else {
-            context.insert(LocalDayProperties(properties: properties))
+            context.insert(LocalDayProperties(properties: merged))
         }
 
         if !isLocal {
@@ -50,7 +57,7 @@ enum FastingWriter {
                 context.insert(PendingSyncOperation(seq: seq, operation: .upsertFast(id: id, body: body)))
                 seq += 1
             }
-            let operation = SyncOperation.setDayProperties(date: date, isFastingDay: true)
+            let operation = SyncOperation.setDayProperties(date: date, patch: patch)
             context.insert(PendingSyncOperation(seq: seq, operation: operation))
         }
 
