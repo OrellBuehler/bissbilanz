@@ -36,9 +36,11 @@ import kotlinx.serialization.encoding.*
  * @param favoriteMealAssignmentMode
  * @param favoriteMealTimeframes
  * @param mealOrder
+ * @param pinnedInsights
  * @param visibleNutrients
  * @param locale
  * @param caloricLagDaysOverride
+ * @param waterGoalMl
  * @param biologicalSex
  * @param timeZone
  */
@@ -57,9 +59,11 @@ data class PreferencesUpdate(
     @SerialName(value = "favoriteMealAssignmentMode") val favoriteMealAssignmentMode: PreferencesUpdate.FavoriteMealAssignmentMode? = null,
     @SerialName(value = "favoriteMealTimeframes") val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframeInput>? = null,
     @SerialName(value = "mealOrder") val mealOrder: kotlin.collections.List<kotlin.String>? = null,
+    @SerialName(value = "pinnedInsights") val pinnedInsights: kotlin.collections.List<PreferencesUpdate.PinnedInsights>? = null,
     @SerialName(value = "visibleNutrients") val visibleNutrients: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "locale") val locale: PreferencesUpdate.Locale? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
+    @SerialName(value = "waterGoalMl") val waterGoalMl: kotlin.Int? = null,
     @SerialName(value = "biologicalSex") val biologicalSex: PreferencesUpdate.BiologicalSex? = null,
     @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
 ) {
@@ -149,6 +153,91 @@ data class PreferencesUpdate(
 
         @SerialName(value = "ask_meal")
         ask_meal("ask_meal"),
+    }
+
+    /**
+     *
+     *
+     * Values: novaMinusScore,omegaMinusRatio,proteinMinusDistribution,weekdayMinusWeekend,calorieMinusFrontMinusLoading,diiMinusScore,tef,calorieMinusCycling,mealMinusRegularity,foodMinusDiversity,eatingMinusWindow,mealMinusSpacing,nutrientMinusAdequacy,adaptiveMinusTdee,plateauMinusDetection,weightMinusForecast,sodiumMinusWeight,caloricMinusLag,macroMinusImpact,mealMinusTimingMinusWeight,micronutrientMinusGaps,foodMinusSleep,nutrientMinusSleep,preMinusSleepMinusWindow,caffeineMinusSleep
+     */
+    @Serializable
+    enum class PinnedInsights(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "nova-score")
+        novaMinusScore("nova-score"),
+
+        @SerialName(value = "omega-ratio")
+        omegaMinusRatio("omega-ratio"),
+
+        @SerialName(value = "protein-distribution")
+        proteinMinusDistribution("protein-distribution"),
+
+        @SerialName(value = "weekday-weekend")
+        weekdayMinusWeekend("weekday-weekend"),
+
+        @SerialName(value = "calorie-front-loading")
+        calorieMinusFrontMinusLoading("calorie-front-loading"),
+
+        @SerialName(value = "dii-score")
+        diiMinusScore("dii-score"),
+
+        @SerialName(value = "tef")
+        tef("tef"),
+
+        @SerialName(value = "calorie-cycling")
+        calorieMinusCycling("calorie-cycling"),
+
+        @SerialName(value = "meal-regularity")
+        mealMinusRegularity("meal-regularity"),
+
+        @SerialName(value = "food-diversity")
+        foodMinusDiversity("food-diversity"),
+
+        @SerialName(value = "eating-window")
+        eatingMinusWindow("eating-window"),
+
+        @SerialName(value = "meal-spacing")
+        mealMinusSpacing("meal-spacing"),
+
+        @SerialName(value = "nutrient-adequacy")
+        nutrientMinusAdequacy("nutrient-adequacy"),
+
+        @SerialName(value = "adaptive-tdee")
+        adaptiveMinusTdee("adaptive-tdee"),
+
+        @SerialName(value = "plateau-detection")
+        plateauMinusDetection("plateau-detection"),
+
+        @SerialName(value = "weight-forecast")
+        weightMinusForecast("weight-forecast"),
+
+        @SerialName(value = "sodium-weight")
+        sodiumMinusWeight("sodium-weight"),
+
+        @SerialName(value = "caloric-lag")
+        caloricMinusLag("caloric-lag"),
+
+        @SerialName(value = "macro-impact")
+        macroMinusImpact("macro-impact"),
+
+        @SerialName(value = "meal-timing-weight")
+        mealMinusTimingMinusWeight("meal-timing-weight"),
+
+        @SerialName(value = "micronutrient-gaps")
+        micronutrientMinusGaps("micronutrient-gaps"),
+
+        @SerialName(value = "food-sleep")
+        foodMinusSleep("food-sleep"),
+
+        @SerialName(value = "nutrient-sleep")
+        nutrientMinusSleep("nutrient-sleep"),
+
+        @SerialName(value = "pre-sleep-window")
+        preMinusSleepMinusWindow("pre-sleep-window"),
+
+        @SerialName(value = "caffeine-sleep")
+        caffeineMinusSleep("caffeine-sleep"),
     }
 
     /**

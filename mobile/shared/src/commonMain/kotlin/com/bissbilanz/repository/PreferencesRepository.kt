@@ -93,6 +93,7 @@ class PreferencesRepository(
                 favoriteMealAssignmentMode = "time_based",
                 favoriteMealTimeframes = emptyList(),
                 visibleNutrients = emptyList(),
+                waterGoalMl = 2000,
                 locale = null,
                 timeZone = "UTC",
             )

@@ -176,7 +176,15 @@ class EntryRepository(
         date: String,
         isFastingDay: Boolean,
     ): DayProperties {
-        val props = DayProperties(date = date, isFastingDay = isFastingDay)
+        val props =
+            DayProperties(
+                date = date,
+                isFastingDay = isFastingDay,
+                notes = null,
+                waterMl = null,
+                activityCalories = null,
+                activityNote = null,
+            )
         cacheDayProperties(props)
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.SetDayProperties(date, isFastingDay))
@@ -195,7 +203,16 @@ class EntryRepository(
         db.userDataDatabaseQueries
             .selectDayProperties(date)
             .executeAsOneOrNull()
-            ?.let { DayProperties(date = it.date, isFastingDay = it.isFastingDay != 0L) }
+            ?.let {
+                DayProperties(
+                    date = it.date,
+                    isFastingDay = it.isFastingDay != 0L,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                )
+            }
 
     private fun cacheDayProperties(props: DayProperties) {
         db.userDataDatabaseQueries.upsertDayProperties(

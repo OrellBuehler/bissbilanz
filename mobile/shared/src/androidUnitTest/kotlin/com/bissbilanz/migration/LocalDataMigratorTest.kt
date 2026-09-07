@@ -696,7 +696,16 @@ class LocalDataMigratorTest {
         }
         coEvery { api.setGoals(any()) } answers { firstArg() }
         coEvery { api.updatePreferences(any()) } returns preferences()
-        coEvery { api.setDayProperties(any(), any()) } answers { DayProperties(firstArg(), secondArg()) }
+        coEvery { api.setDayProperties(any(), any()) } answers {
+            DayProperties(
+                date = firstArg(),
+                isFastingDay = secondArg(),
+                notes = null,
+                waterMl = null,
+                activityCalories = null,
+                activityNote = null,
+            )
+        }
         return ApiCaptures(foodCreates, recipeCreates, entryCreates, supplementCreates)
     }
 
@@ -943,6 +952,7 @@ class LocalDataMigratorTest {
             favoriteTapAction = "log",
             favoriteMealAssignmentMode = "auto",
             visibleNutrients = listOf("calories"),
+            waterGoalMl = 2000,
             locale = "en",
             timeZone = "UTC",
             favoriteMealTimeframes = emptyList(),
@@ -973,5 +983,7 @@ class LocalDataMigratorTest {
             isFavorite = false,
             imageUrl = null,
             lastServings = 1.0,
+            lastUsedAt = null,
+            logCount = 1,
         )
 }

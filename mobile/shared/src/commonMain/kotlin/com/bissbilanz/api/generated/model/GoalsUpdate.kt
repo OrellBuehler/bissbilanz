@@ -29,6 +29,8 @@ import kotlinx.serialization.encoding.*
  * @param fiberGoal
  * @param sodiumGoal
  * @param sugarGoal
+ * @param targetWeightKg
+ * @param targetDate
  */
 @Serializable
 data class GoalsUpdate(
@@ -39,4 +41,6 @@ data class GoalsUpdate(
     @SerialName(value = "fiberGoal") @Required val fiberGoal: kotlin.Double,
     @SerialName(value = "sodiumGoal") val sodiumGoal: kotlin.Double? = null,
     @SerialName(value = "sugarGoal") val sugarGoal: kotlin.Double? = null,
+    @SerialName(value = "targetWeightKg") val targetWeightKg: kotlin.Double? = null,
+    @SerialName(value = "targetDate") val targetDate: kotlin.String? = null,
 )

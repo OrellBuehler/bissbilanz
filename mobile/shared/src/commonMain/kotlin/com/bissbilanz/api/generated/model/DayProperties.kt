@@ -24,9 +24,17 @@ import kotlinx.serialization.encoding.*
  *
  * @param date
  * @param isFastingDay
+ * @param notes
+ * @param waterMl
+ * @param activityCalories
+ * @param activityNote
  */
 @Serializable
 data class DayProperties(
     @SerialName(value = "date") @Required val date: kotlin.String,
     @SerialName(value = "isFastingDay") @Required val isFastingDay: kotlin.Boolean,
+    @SerialName(value = "notes") @Required val notes: kotlin.String?,
+    @SerialName(value = "waterMl") @Required val waterMl: kotlin.Int?,
+    @SerialName(value = "activityCalories") @Required val activityCalories: kotlin.Int?,
+    @SerialName(value = "activityNote") @Required val activityNote: kotlin.String?,
 )
