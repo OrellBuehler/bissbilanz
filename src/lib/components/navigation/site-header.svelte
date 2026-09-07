@@ -27,6 +27,7 @@
 		fasting: () => m.nav_fasting(),
 		weight: () => m.nav_weight(),
 		insights: () => m.nav_insights(),
+		sleep: () => m.nav_sleep(),
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
 		mcp: () => 'MCP',

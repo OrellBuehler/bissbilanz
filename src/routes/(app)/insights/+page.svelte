@@ -599,6 +599,12 @@
 			<WeightInsightsGroup />
 		</div>
 	{:else if activeTab === 'sleep'}
+		<div class="mx-auto flex max-w-4xl justify-end">
+			<Button variant="outline" size="sm" href="/sleep">
+				{m.sleep_open_page()}
+				<ArrowRight class="size-3.5" />
+			</Button>
+		</div>
 		<SleepTabContent />
 	{/if}
 </div>

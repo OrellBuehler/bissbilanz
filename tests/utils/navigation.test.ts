@@ -11,6 +11,7 @@ describe('breadcrumb label keys', () => {
 			'/fasting',
 			'/weight',
 			'/insights',
+			'/sleep',
 			'/goals',
 			'/history',
 			'/maintenance',

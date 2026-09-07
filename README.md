@@ -156,7 +156,7 @@ tests/             unit, integration (Testcontainers) and Playwright e2e suites
 analytics-parity/  golden vectors keeping the TS and Kotlin analytics in step
 scripts/           codegen, security scans, release helpers
 store/             App Store and Play Console metadata
-docs/              generated OpenAPI spec and the MCP guide
+docs/              generated OpenAPI spec, the MCP guide and the import formats
 ```
 
 ## Development

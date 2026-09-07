@@ -25,7 +25,7 @@
 
 <DashboardCard title={m.sleep_widget_title()} Icon={Moon} tone="tertiary">
 	{#snippet headerRight()}
-		<Button variant="ghost" size="sm" href="/insights?tab=sleep" class="text-xs">
+		<Button variant="ghost" size="sm" href="/sleep" class="text-xs">
 			{m.insights_see_more()}
 		</Button>
 	{/snippet}
@@ -52,7 +52,7 @@
 		{/if}
 	{:else}
 		<p class="text-muted-foreground text-sm">{m.sleep_widget_no_data()}</p>
-		<Button variant="outline" size="sm" class="mt-2" onclick={() => goto('/insights?tab=sleep')}>
+		<Button variant="outline" size="sm" class="mt-2" onclick={() => goto('/sleep')}>
 			{m.sleep_widget_log_prompt()}
 		</Button>
 	{/if}
