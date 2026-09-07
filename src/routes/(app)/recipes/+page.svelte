@@ -17,6 +17,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
@@ -33,6 +34,14 @@
 			recipeService.refresh();
 			loadFoods();
 		}
+	});
+
+	// "New recipe" from the command palette.
+	$effect(() => {
+		if (!consumeQuickAction(['new-recipe'])) return;
+		editingRecipe = null;
+		editImageUrl = null;
+		showForm = true;
 	});
 
 	const loadFoods = async () => {

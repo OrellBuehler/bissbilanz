@@ -23,6 +23,8 @@
 		onTotalsChange?: (totals: MacroTotals) => void;
 		scanModalOpen?: boolean;
 		addModalOpen?: boolean;
+		initialFoodId?: string | null;
+		initialRecipeId?: string | null;
 	};
 
 	let {
@@ -30,7 +32,9 @@
 		dashboardStyle = false,
 		onTotalsChange,
 		scanModalOpen = $bindable(false),
-		addModalOpen = $bindable(false)
+		addModalOpen = $bindable(false),
+		initialFoodId = $bindable(null),
+		initialRecipeId = $bindable(null)
 	}: Props = $props();
 
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
@@ -235,10 +239,13 @@
 		{recipes}
 		{date}
 		mealType={activeMeal}
-		initialFoodId={barcodeFoodId}
+		initialFoodId={barcodeFoodId ?? initialFoodId}
+		{initialRecipeId}
 		onClose={() => {
 			addModalOpen = false;
 			barcodeFoodId = null;
+			initialFoodId = null;
+			initialRecipeId = null;
 		}}
 		onSave={addEntry}
 	/>

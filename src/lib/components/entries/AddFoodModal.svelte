@@ -15,6 +15,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { untrack } from 'svelte';
 	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
@@ -27,6 +28,7 @@
 		mealType?: string;
 		date: string;
 		initialFoodId?: string | null;
+		initialRecipeId?: string | null;
 		onClose: () => void;
 		onSave: (payload: {
 			foodId?: string;
@@ -51,6 +53,7 @@
 		mealType = 'Breakfast',
 		date,
 		initialFoodId,
+		initialRecipeId,
 		onClose,
 		onSave
 	}: Props = $props();
@@ -75,12 +78,32 @@
 		}
 		if (!wasOpen && open) {
 			eatenTime = currentTime24h();
-			if (initialFoodId) {
-				const food = foods.find((f) => f.id === initialFoodId);
-				if (food) handleSelect({ type: 'food', food });
-			}
 		}
 		wasOpen = open;
+	});
+
+	// Preselect the food or recipe the caller asked for. The lists can arrive
+	// after the modal opens (Dexie loads them asynchronously), so this retries
+	// until the item shows up, and only once per requested id.
+	let preselectedId: string | null = $state(null);
+	$effect(() => {
+		if (!open) {
+			preselectedId = null;
+			return;
+		}
+		const wanted = initialFoodId ?? initialRecipeId ?? null;
+		if (!wanted || untrack(() => preselectedId) === wanted) return;
+		if (initialFoodId) {
+			const food = foods.find((f) => f.id === initialFoodId);
+			if (!food) return;
+			preselectedId = wanted;
+			handleSelect({ type: 'food', food });
+		} else {
+			const recipe = recipes.find((r) => r.id === initialRecipeId);
+			if (!recipe) return;
+			preselectedId = wanted;
+			handleSelect({ type: 'recipe', recipe });
+		}
 	});
 
 	const handleSelect = async (selection: PickerSelection) => {
