@@ -331,6 +331,12 @@ final class EntryRepository {
         fetchDayPropertiesRow(date: date)?.isFastingDay ?? false
     }
 
+    /// The full stored row for a date (water/activity/notes/fasting), or nil
+    /// when nothing has been recorded for that day yet.
+    func dayProperties(date: String) -> DayProperties? {
+        fetchDayPropertiesRow(date: date)?.toDayProperties()
+    }
+
     func refreshDayProperties(date: String) async throws {
         guard !appMode.isLocal else { return }
         if let properties = try await api.getDayProperties(date: date) {

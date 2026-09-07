@@ -52,6 +52,9 @@ struct DashboardView: View {
     @State private var showCopyConfirmation = false
     @State private var toastMessage: String?
     @State private var isFastingDay = false
+    /// Reported by `DayPropertiesCard`; drives the "Activity: +N kcal" summary
+    /// line. Purely informational — never subtracted from the calorie goal.
+    @State private var dayActivityCalories: Int?
     /// Edge the incoming day content is pushed in from when the date changes.
     @State private var slideEdge: Edge = .trailing
     /// The calendar day that was "today" at last activation, so we can roll the
@@ -211,6 +214,10 @@ struct DashboardView: View {
         VStack(spacing: 16) {
             macroRings
 
+            if let dayActivityCalories, dayActivityCalories > 0 {
+                activitySummaryLine(dayActivityCalories)
+            }
+
             if selectedDate.isToday {
                 fastingCard
             }
@@ -238,6 +245,8 @@ struct DashboardView: View {
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+
+            DayPropertiesCard(date: dateString) { dayActivityCalories = $0 }
 
             if preferences.showChartWidget {
                 calorieTrendWidget
@@ -425,6 +434,19 @@ struct DashboardView: View {
                 showGoal: true,
                 animationDelay: 0.2
             )
+        }
+    }
+
+    /// Informational only — activity calories are tracked for reference and
+    /// never subtracted from the calorie ring/goal above.
+    private func activitySummaryLine(_ calories: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "flame.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+            Text(L10n.daySummaryActivity(calories))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

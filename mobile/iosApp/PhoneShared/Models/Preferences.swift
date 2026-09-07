@@ -26,6 +26,12 @@ struct Preferences: Codable {
     var biologicalSex: String? = nil
     let locale: String?
     let timeZone: String?
+    /// Daily water goal in ml (server default 2000, min 250, max 10000). Like
+    /// `biologicalSex`, optional and `var` with a default so a cached row from
+    /// before this field existed still decodes instead of failing the whole
+    /// object, and existing memberwise call sites keep compiling. Callers read
+    /// `waterGoalMl ?? 2000`.
+    var waterGoalMl: Int? = nil
 
     static let defaults = Preferences(
         showChartWidget: true,
@@ -42,7 +48,8 @@ struct Preferences: Codable {
         visibleNutrients: [],
         biologicalSex: nil,
         locale: nil,
-        timeZone: "UTC"
+        timeZone: "UTC",
+        waterGoalMl: nil
     )
 }
 
@@ -72,6 +79,7 @@ struct PreferencesUpdate: Codable {
     var locale: String?
     var timeZone: String?
     var favoriteMealTimeframes: [FavoriteMealTimeframe]?
+    var waterGoalMl: Int?
 }
 
 /// Declared in an extension so the memberwise initializer survives.
@@ -80,7 +88,7 @@ extension PreferencesUpdate {
         case showChartWidget, showFavoritesWidget, showSupplementsWidget, showWeightWidget
         case showMealBreakdownWidget, showTopFoodsWidget, showSleepWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
-        case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes
+        case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes, waterGoalMl
     }
 
     init(from decoder: Decoder) throws {
@@ -104,6 +112,7 @@ extension PreferencesUpdate {
             [FavoriteMealTimeframe].self,
             forKey: .favoriteMealTimeframes
         )
+        waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -124,6 +133,7 @@ extension PreferencesUpdate {
         try container.encodeIfPresent(locale, forKey: .locale)
         try container.encodeIfPresent(timeZone, forKey: .timeZone)
         try container.encodeIfPresent(favoriteMealTimeframes, forKey: .favoriteMealTimeframes)
+        try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
     }
 }
 

@@ -104,9 +104,11 @@ struct WeightView: View {
     /// are skipped in Local mode.
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AppModeManager.self) private var appModeManager
+    @Environment(GoalsRepository.self) private var goalsRepository
 
     @State private var entries: [WeightEntry] = []
     @State private var weightStats: WeightStats?
+    @State private var goals: Goals = .defaults
     @State private var isLoading = true
     @State private var showAddSheet = false
     @State private var editingEntry: WeightEntry?
@@ -241,6 +243,7 @@ struct WeightView: View {
                 } else {
                     List {
                         statsChipsSection
+                        if goals.targetWeightKg != nil { targetSection }
                         if chartEntries.count >= 2 { chartSection }
                         historySection
                     }
@@ -269,7 +272,13 @@ struct WeightView: View {
                 }
             }
             .refreshable { await loadEntries() }
-            .task { await loadEntries(showSpinner: true) }
+            .task {
+                await loadEntries(showSpinner: true)
+                goals = goalsRepository.goals() ?? .defaults
+                async let g: Void? = try? goalsRepository.refresh()
+                _ = await g
+                goals = goalsRepository.goals() ?? .defaults
+            }
             // Cheap local re-read when popping back from the history subpage,
             // where entries can be edited or deleted.
             .onAppear { entries = weightRepository.entries() }
@@ -323,6 +332,43 @@ struct WeightView: View {
                 .listRowSeparator(.hidden)
             }
         }
+    }
+
+    /// A single row surfacing the goal-editor's optional weight target (see
+    /// `SettingsView`'s goals sheet) and how far the latest entry sits from
+    /// it. No forecast math — that's `projectionData`'s job for the chart.
+    private var targetSection: some View {
+        Section {
+            HStack {
+                Image(systemName: "target")
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.weightTargetValue(targetWeightText, date: targetDateText))
+                        .font(.subheadline)
+                    if let targetDeltaText {
+                        Text("\(L10n.weightTargetRemaining): \(targetDeltaText)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+        }
+    }
+
+    private var targetWeightText: String {
+        String(format: "%.1f", goals.targetWeightKg ?? 0)
+    }
+
+    private var targetDateText: String? {
+        goals.targetDate.flatMap(DateFormatting.date(from:)).map(DateFormatting.displayString(from:))
+    }
+
+    /// Signed distance from the latest weight to the target, or nil when
+    /// there's no target or no logged weight yet.
+    private var targetDeltaText: String? {
+        guard let target = goals.targetWeightKg, let latest = entries.first?.weightKg else { return nil }
+        return MacroFormat.kg(latest - target, signed: true)
     }
 
     private var latestCard: some View {
