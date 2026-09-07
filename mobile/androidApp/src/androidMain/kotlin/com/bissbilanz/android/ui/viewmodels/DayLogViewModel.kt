@@ -86,11 +86,7 @@ class DayLogViewModel(
         _isFastingDay.value = newValue
         viewModelScope.launch {
             try {
-                if (newValue) {
-                    entryRepo.setDayProperties(date, isFastingDay = true)
-                } else {
-                    entryRepo.deleteDayProperties(date)
-                }
+                entryRepo.setDayProperties(date, isFastingDay = newValue)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)

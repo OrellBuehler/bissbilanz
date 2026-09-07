@@ -275,11 +275,13 @@ sealed class SyncOperation {
         override val description get() = "unlog supplement $supplementId"
     }
 
+    /** See [UpdateEntry] for [clearedKeys]. [body] is an encoded `DayPropertiesSet`. */
     @Serializable
     @SerialName("set_day_properties")
     data class SetDayProperties(
         val date: String,
-        val isFastingDay: Boolean,
+        val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "day_properties"
         override val affectedId get() = date

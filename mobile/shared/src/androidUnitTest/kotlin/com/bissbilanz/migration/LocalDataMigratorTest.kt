@@ -963,7 +963,7 @@ class LocalDataMigratorTest {
     }
 
     private fun insertDayProperties(date: String = "2024-01-15") {
-        queries.upsertDayProperties(date, 1L)
+        queries.upsertDayProperties(date, 1L, null, null, null, null)
     }
 
     private fun foodRecent(id: String) =

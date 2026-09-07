@@ -109,7 +109,11 @@ CREATE TABLE IF NOT EXISTS CachedPreferences (
 
 CREATE TABLE IF NOT EXISTS CachedDayProperties (
     date TEXT NOT NULL PRIMARY KEY,
-    isFastingDay INTEGER NOT NULL DEFAULT 0
+    isFastingDay INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    waterMl INTEGER,
+    activityCalories INTEGER,
+    activityNote TEXT
 );
 
 -- Tiny key/value store local to this database file. Currently only holds the
@@ -338,7 +342,7 @@ selectDayProperties:
 SELECT * FROM CachedDayProperties WHERE date = ?;
 
 upsertDayProperties:
-INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay) VALUES (?, ?);
+INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay, notes, waterMl, activityCalories, activityNote) VALUES (?, ?, ?, ?, ?, ?);
 
 deleteDayProperties:
 DELETE FROM CachedDayProperties WHERE date = ?;

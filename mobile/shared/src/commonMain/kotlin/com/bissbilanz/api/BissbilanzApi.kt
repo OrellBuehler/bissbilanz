@@ -247,6 +247,33 @@ class BissbilanzApi(
     }
 
     /**
+     * PUTs an already-serialized JSON body. Used by [setDayProperties], whose endpoint
+     * is a PUT but is PATCH-style server-side: an omitted field keeps its stored value
+     * and an explicit `null` clears it, so the request has to carry explicit nulls the
+     * generated model serializer would otherwise drop (`encodeDefaults = false`).
+     */
+    private suspend inline fun <reified T> putRawJson(
+        path: String,
+        body: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): T {
+        val response =
+            client.put(path) {
+                setBody(TextContent(body, ContentType.Application.Json))
+                applySyncHeaders(idempotencyKey, clientEditedAt)
+            }
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "PUT $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+                response,
+            )
+        }
+        return response.body()
+    }
+
+    /**
      * PATCHes an already-serialized JSON body. Used by the partial updates that have to
      * send an explicit `null` to clear a field: routing those through the model
      * serializer would drop the nulls again (`encodeDefaults = false`).
@@ -721,8 +748,17 @@ class BissbilanzApi(
     }
 
     // Fasting
-    suspend fun getFastingSessions(limit: Int = 60): List<FastingSession> {
-        val response: FastingSessionsResponse = get("/api/fasts") { parameter("limit", limit) }
+    suspend fun getFastingSessions(
+        limit: Int = 60,
+        from: String? = null,
+        to: String? = null,
+    ): List<FastingSession> {
+        val response: FastingSessionsResponse =
+            get("/api/fasts") {
+                parameter("limit", limit)
+                from?.let { parameter("from", it) }
+                to?.let { parameter("to", it) }
+            }
         return response.sessions
     }
 
@@ -941,19 +977,38 @@ class BissbilanzApi(
         return response.properties
     }
 
+    /**
+     * PATCH-style: a `null` parameter that is also named in [clearedKeys] clears the
+     * stored field; a `null` parameter that is not in [clearedKeys] is omitted from the
+     * request and leaves the stored value untouched. See [com.bissbilanz.util.PartialUpdate].
+     */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun setDayProperties(
         date: String,
-        isFastingDay: Boolean,
+        isFastingDay: Boolean? = null,
+        notes: String? = null,
+        waterMl: Int? = null,
+        activityCalories: Int? = null,
+        activityNote: String? = null,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): DayProperties? {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val set =
+            DayPropertiesSet(
+                date = date,
+                isFastingDay = isFastingDay,
+                notes = notes,
+                waterMl = waterMl,
+                activityCalories = activityCalories,
+                activityNote = activityNote,
+            )
         val response: DayPropertiesResponse =
-            put(
+            putRawJson(
                 "/api/day-properties",
-                DayPropertiesSet(date = date, isFastingDay = isFastingDay),
+                json.encodePartialUpdate(set, clearedKeys).toString(),
                 key,
                 editedAt,
             )

@@ -449,7 +449,18 @@ class SyncManager(
             }
 
             is SyncOperation.SetDayProperties -> {
-                api.setDayProperties(op.date, op.isFastingDay, idempotencyKey, clientEditedAt)
+                val set = json.decodeFromString<DayPropertiesSet>(op.body)
+                api.setDayProperties(
+                    date = op.date,
+                    isFastingDay = set.isFastingDay,
+                    notes = set.notes,
+                    waterMl = set.waterMl,
+                    activityCalories = set.activityCalories,
+                    activityNote = set.activityNote,
+                    idempotencyKey = idempotencyKey,
+                    clientEditedAt = clientEditedAt,
+                    clearedKeys = op.clearedKeys,
+                )
             }
 
             is SyncOperation.DeleteDayProperties -> {

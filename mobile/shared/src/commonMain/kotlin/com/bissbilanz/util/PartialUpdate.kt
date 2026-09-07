@@ -55,6 +55,16 @@ enum class SupplementField(
     SCHEDULE_DAYS("scheduleDays"),
 }
 
+/** Clearable fields of the `DayPropertiesSet` body the day-properties PUT sends. */
+enum class DayPropertiesField(
+    override val jsonKey: String,
+) : ClearableField {
+    NOTES("notes"),
+    WATER_ML("waterMl"),
+    ACTIVITY_CALORIES("activityCalories"),
+    ACTIVITY_NOTE("activityNote"),
+}
+
 /** Wire keys for a set of clearable fields, sorted so the queued payload is stable. */
 fun Collection<ClearableField>.jsonKeys(): List<String> = map { it.jsonKey }.sorted().distinct()
 

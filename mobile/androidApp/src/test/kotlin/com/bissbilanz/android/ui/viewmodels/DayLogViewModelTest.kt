@@ -130,7 +130,7 @@ class DayLogViewModelTest {
         }
 
     @Test
-    fun toggleFastingDayOffCallsDeleteDayProperties() =
+    fun toggleFastingDayOffCallsSetDayPropertiesFalseWithoutDeleting() =
         runTest {
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             // Toggle on first
@@ -141,7 +141,8 @@ class DayLogViewModelTest {
             viewModel.toggleFastingDay("2024-01-15")
 
             assertEquals(false, viewModel.isFastingDay.value)
-            coVerify { entryRepo.deleteDayProperties("2024-01-15") }
+            coVerify { entryRepo.setDayProperties("2024-01-15", isFastingDay = false) }
+            coVerify(exactly = 0) { entryRepo.deleteDayProperties(any()) }
         }
 
     @Test

@@ -57,7 +57,7 @@ class LegacyUserDataMigrationTest {
         legacy.insertSleepEntry("s-1", "2024-01-15", 480L, 4L, null, "{}")
         legacy.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0)
         legacy.insertPreferences("""{"startPage":"dashboard"}""")
-        legacy.upsertDayProperties("2024-01-15", 1L)
+        legacy.upsertDayProperties("2024-01-15", 1L, null, null, null, null)
     }
 
     @Test
