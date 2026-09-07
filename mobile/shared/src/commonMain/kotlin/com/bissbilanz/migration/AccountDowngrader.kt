@@ -284,6 +284,8 @@ class AccountDowngrader(
             carbGoal = goals.carbGoal,
             fatGoal = goals.fatGoal,
             fiberGoal = goals.fiberGoal,
+            targetWeightKg = goals.targetWeightKg,
+            targetDate = goals.targetDate,
         )
     }
 

@@ -55,7 +55,7 @@ class LegacyUserDataMigrationTest {
         legacy.insertSupplementLog("supp-1-2024-01-15", "supp-1", "2024-01-15", "2024-01-15T08:00:00Z")
         legacy.insertWeightEntry("w-1", "2024-01-15", 80.5, "2024-01-15T07:00:00Z", "{}")
         legacy.insertSleepEntry("s-1", "2024-01-15", 480L, 4L, null, "{}")
-        legacy.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0)
+        legacy.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0, null, null)
         legacy.insertPreferences("""{"startPage":"dashboard"}""")
         legacy.upsertDayProperties("2024-01-15", 1L, null, null, null, null)
     }

@@ -19,6 +19,19 @@
     <string name="weight_cancel">Abbrechen</string>
     <string name="fasting_day">Fastentag</string>
     <string name="fasting_day_description">Diesen Tag mit 0 Kalorien in die Statistik einbeziehen</string>
+    <!-- Day log: water, activity and notes card -->
+    <string name="day_water_title">Wasser</string>
+    <string name="day_water_progress">%1$d / %2$d ml</string>
+    <string name="day_water_add">+%1$d ml</string>
+    <string name="day_water_input_label">Wasser (ml)</string>
+    <string name="day_water_clear">Wasser löschen</string>
+    <string name="day_activity_title">Aktivität</string>
+    <string name="day_activity_calories_label">Verbrannte Kalorien</string>
+    <string name="day_activity_note_label">Aktivitätsnotiz (optional)</string>
+    <string name="day_activity_clear">Aktivität löschen</string>
+    <string name="day_activity_summary">Aktivität: +%1$d kcal</string>
+    <string name="day_notes_title">Notizen</string>
+    <string name="day_notes_placeholder">Notiz zum heutigen Tag hinzufügen…</string>
     <string name="favorites_widget_description">Lieblingsgerichte mit einem Tippen erfassen</string>
     <string name="favorites_widget_empty">Noch keine Favoriten</string>
     <string name="favorites_widget_logged">%1$s erfasst</string>
@@ -664,6 +677,18 @@
     <string name="weight_stats_delta">Δ %1$s kg</string>
     <string name="weight_stats_projected">Prognose %1$s kg</string>
 
+    <!-- Weight target -->
+    <string name="weight_target_line">Ziel %1$s kg bis %2$s</string>
+    <string name="weight_target_line_no_date">Ziel %1$s kg</string>
+    <string name="weight_target_remaining">Noch %1$s kg</string>
+    <string name="weight_target_reached">Ziel erreicht</string>
+    <string name="weight_target_set">Gewichtsziel festlegen</string>
+    <string name="weight_target_edit_content_desc">Gewichtsziel bearbeiten</string>
+    <string name="weight_target_dialog_title">Gewichtsziel</string>
+    <string name="weight_target_kg_label">Zielgewicht (kg)</string>
+    <string name="weight_target_date_label">Zieldatum (optional)</string>
+    <string name="weight_target_clear">Ziel löschen</string>
+
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Einfach ungesättigte Fettsäuren</string>
     <string name="nutrient_polyunsaturated_fat_full">Mehrfach ungesättigte Fettsäuren</string>
@@ -1008,6 +1033,10 @@
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
     <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+    <!-- Settings: water goal -->
+    <string name="settings_water_goal">Tägliches Wasserziel</string>
+    <string name="settings_water_goal_desc">Wird als Fortschrittsbalken im Tagesprotokoll angezeigt</string>
+    <string name="settings_water_goal_ml">Wasserziel (ml)</string>
 
     <!-- Food form: per-serving vs per-100 basis -->
     <string name="food_form_values_per">Werte pro</string>

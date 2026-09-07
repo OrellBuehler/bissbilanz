@@ -54,7 +54,9 @@ CREATE TABLE IF NOT EXISTS CachedGoals (
     proteinGoal REAL NOT NULL,
     carbGoal REAL NOT NULL,
     fatGoal REAL NOT NULL,
-    fiberGoal REAL NOT NULL
+    fiberGoal REAL NOT NULL,
+    targetWeightKg REAL,
+    targetDate TEXT
 );
 
 CREATE TABLE IF NOT EXISTS CachedRecipe (
@@ -215,8 +217,8 @@ selectGoals:
 SELECT * FROM CachedGoals WHERE id = 1;
 
 insertGoals:
-INSERT OR REPLACE INTO CachedGoals(id, calorieGoal, proteinGoal, carbGoal, fatGoal, fiberGoal)
-VALUES (1, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO CachedGoals(id, calorieGoal, proteinGoal, carbGoal, fatGoal, fiberGoal, targetWeightKg, targetDate)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?);
 
 -- Recipes
 selectAllRecipes:

@@ -934,7 +934,7 @@ class LocalDataMigratorTest {
     }
 
     private fun insertGoals() {
-        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0)
+        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0, null, null)
     }
 
     private fun preferences() =
