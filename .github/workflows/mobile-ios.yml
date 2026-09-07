@@ -105,6 +105,33 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
+      # VisualIntelligence is device-only. A simulator build cannot compile
+      # the semantic-content query, so validate the device SDK path as well.
+      - name: Build shared iOS device framework
+        run: ./gradlew shared:linkDebugFrameworkIosArm64
+
+      - name: Stage shared device framework for Xcode
+        run: |
+          SDK_NAME=$(xcrun --sdk iphoneos --show-sdk-version)
+          DEST="shared/build/xcode-frameworks/Debug/iphoneos${SDK_NAME}"
+          mkdir -p "$DEST"
+          cp -R shared/build/bin/iosArm64/debugFramework/shared.framework "$DEST/"
+
+      - name: Build iOS app for device
+        working-directory: mobile/iosApp
+        run: |
+          # Fail explicitly if the chosen device SDK cannot build the feature;
+          # otherwise canImport could silently exclude it from both builds.
+          SDK_ROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          test -d "$SDK_ROOT/System/Library/Frameworks/VisualIntelligence.framework"
+          xcodebuild build \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
+            -destination 'generic/platform=iOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
+
       # The suite (sync manager, migrator, repositories, quick-add writer,
       # schedule maths, view logic) existed and was structured to be runnable —
       # SyncManager.autoDrain and LocalStore.makeContainer(inMemory:) are
