@@ -37,6 +37,8 @@ import kotlinx.serialization.encoding.*
  * @param isFavorite
  * @param imageUrl
  * @param lastServings
+ * @param lastUsedAt
+ * @param logCount
  * @param createdAt
  * @param updatedAt
  */
@@ -57,6 +59,8 @@ data class FoodRecent(
     @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean,
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
     @SerialName(value = "lastServings") @Required val lastServings: kotlin.Double,
+    @SerialName(value = "lastUsedAt") @Required val lastUsedAt: kotlin.String?,
+    @SerialName(value = "logCount") @Required val logCount: kotlin.Int,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {

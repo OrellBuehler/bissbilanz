@@ -36,9 +36,11 @@ import kotlinx.serialization.encoding.*
  * @param favoriteTapAction
  * @param favoriteMealAssignmentMode
  * @param visibleNutrients
+ * @param waterGoalMl
  * @param locale
  * @param timeZone
  * @param favoriteMealTimeframes
+ * @param pinnedInsights
  * @param caloricLagDaysOverride
  * @param biologicalSex
  * @param updatedAt
@@ -58,9 +60,11 @@ data class Preferences(
     @SerialName(value = "favoriteTapAction") @Required val favoriteTapAction: kotlin.String,
     @SerialName(value = "favoriteMealAssignmentMode") @Required val favoriteMealAssignmentMode: kotlin.String,
     @SerialName(value = "visibleNutrients") @Required val visibleNutrients: kotlin.collections.List<kotlin.String>,
+    @SerialName(value = "waterGoalMl") @Required val waterGoalMl: kotlin.Int,
     @SerialName(value = "locale") @Required val locale: kotlin.String?,
     @SerialName(value = "timeZone") @Required val timeZone: kotlin.String,
     @SerialName(value = "favoriteMealTimeframes") @Required val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframe>,
+    @SerialName(value = "pinnedInsights") val pinnedInsights: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
     @SerialName(value = "biologicalSex") val biologicalSex: Preferences.BiologicalSex? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,

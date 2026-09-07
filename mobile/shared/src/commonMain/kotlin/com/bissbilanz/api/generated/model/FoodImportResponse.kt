@@ -15,7 +15,8 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.CalendarDay
+import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodImportSkipped
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,11 +24,13 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param days
- * @param notedDates
+ * @param foods
+ * @param created
+ * @param skipped
  */
 @Serializable
-data class CalendarResponse(
-    @SerialName(value = "days") @Required val days: kotlin.collections.Map<kotlin.String, CalendarDay>,
-    @SerialName(value = "notedDates") @Required val notedDates: kotlin.collections.List<kotlin.String>,
+data class FoodImportResponse(
+    @SerialName(value = "foods") @Required val foods: kotlin.collections.List<Food>,
+    @SerialName(value = "created") @Required val created: kotlin.Int,
+    @SerialName(value = "skipped") @Required val skipped: kotlin.collections.List<FoodImportSkipped>,
 )

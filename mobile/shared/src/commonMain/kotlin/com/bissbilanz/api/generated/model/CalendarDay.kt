@@ -24,9 +24,11 @@ import kotlinx.serialization.encoding.*
  *
  * @param calories
  * @param hasEntries
+ * @param hasFast
  */
 @Serializable
 data class CalendarDay(
     @SerialName(value = "calories") @Required val calories: kotlin.Double,
     @SerialName(value = "hasEntries") @Required val hasEntries: kotlin.Boolean,
+    @SerialName(value = "hasFast") val hasFast: kotlin.Boolean? = null,
 )

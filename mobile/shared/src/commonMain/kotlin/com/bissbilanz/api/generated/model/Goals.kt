@@ -31,6 +31,8 @@ import kotlinx.serialization.encoding.*
  * @param userId
  * @param sodiumGoal
  * @param sugarGoal
+ * @param targetWeightKg
+ * @param targetDate
  * @param createdAt
  * @param updatedAt
  */
@@ -45,6 +47,8 @@ data class Goals(
     @SerialName(value = "userId") val userId: kotlin.String? = null,
     @SerialName(value = "sodiumGoal") val sodiumGoal: kotlin.Double? = null,
     @SerialName(value = "sugarGoal") val sugarGoal: kotlin.Double? = null,
+    @SerialName(value = "targetWeightKg") val targetWeightKg: kotlin.Double? = null,
+    @SerialName(value = "targetDate") val targetDate: kotlin.String? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 )

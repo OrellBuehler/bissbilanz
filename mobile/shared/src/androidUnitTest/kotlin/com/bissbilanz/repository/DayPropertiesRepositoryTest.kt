@@ -59,7 +59,17 @@ class DayPropertiesRepositoryTest {
             assertNull(repo.getDayProperties("2024-01-15"))
 
             val set = repo.setDayProperties("2024-01-15", isFastingDay = true)
-            assertEquals(DayProperties(date = "2024-01-15", isFastingDay = true), set)
+            assertEquals(
+                DayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                ),
+                set,
+            )
             assertEquals(set, repo.getDayProperties("2024-01-15"))
 
             repo.deleteDayProperties("2024-01-15")
@@ -101,7 +111,14 @@ class DayPropertiesRepositoryTest {
             val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
             val repo = repository(AppMode.SYNCED, syncQueue)
             coEvery { api.getDayProperties("2024-01-15") } returns
-                DayProperties(date = "2024-01-15", isFastingDay = true)
+                DayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                )
 
             val fromApi = repo.getDayProperties("2024-01-15")
             assertEquals(true, fromApi?.isFastingDay)

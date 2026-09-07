@@ -266,7 +266,14 @@ class SyncManagerTest {
         runTest {
             syncQueue.enqueue(SyncOperation.SetDayProperties("2024-01-15", isFastingDay = true))
             coEvery { api.setDayProperties("2024-01-15", true, any(), any()) } returns
-                DayProperties(date = "2024-01-15", isFastingDay = true)
+                DayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                )
 
             val synced = manager.syncPendingQueue()
 
