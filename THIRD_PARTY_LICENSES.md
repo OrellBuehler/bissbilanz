@@ -1712,7 +1712,7 @@ This is the **x86_64-unknown-linux-musl** binary for `rollup`
 
 </details>
 
-### @sentry/browser-utils@10.72.0
+### @sentry/browser-utils@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -1747,7 +1747,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/browser@10.72.0
+### @sentry/browser@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -1974,7 +1974,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/cloudflare@10.72.0
+### @sentry/cloudflare@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2079,7 +2079,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/core@10.72.0
+### @sentry/core@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2114,7 +2114,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/feedback@10.72.0
+### @sentry/feedback@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2149,7 +2149,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node-core@10.72.0
+### @sentry/node-core@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2184,7 +2184,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/node@10.72.0
+### @sentry/node@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2219,7 +2219,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/opentelemetry@10.72.0
+### @sentry/opentelemetry@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2254,7 +2254,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/replay-canvas@10.72.0
+### @sentry/replay-canvas@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2289,7 +2289,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/replay@10.72.0
+### @sentry/replay@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2324,7 +2324,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/server-utils@10.72.0
+### @sentry/server-utils@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2362,7 +2362,7 @@ aws-serverless, google-cloud-serverless, vercel-edge).
 
 </details>
 
-### @sentry/svelte@10.72.0
+### @sentry/svelte@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
@@ -2397,7 +2397,7 @@ SOFTWARE.
 
 </details>
 
-### @sentry/sveltekit@10.72.0
+### @sentry/sveltekit@10.73.0
 
 - **License:** MIT
 - **Repository:** https://github.com/getsentry/sentry-javascript
