@@ -4,12 +4,22 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { ocrAssetBase, ocrAssets } from './scripts/ocr-assets';
+
+// Self-hosted Tesseract assets for the nutrition-label scanner, staged out of
+// node_modules by the plugin below and addressed by version so a bumped core is
+// never served out of a stale runtime cache.
+const ocrBase = ocrAssetBase();
 
 export default defineConfig({
 	server: {
 		port: 4000
 	},
+	define: {
+		__OCR_ASSET_BASE__: JSON.stringify(ocrBase)
+	},
 	plugins: [
+		ocrAssets(),
 		sentrySvelteKit({ autoUploadSourceMaps: false, autoInstrument: false }),
 		tailwindcss(),
 		paraglideVitePlugin({
@@ -83,9 +93,28 @@ export default defineConfig({
 					'client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm}',
 					'prerendered/**/*.{html,json}'
 				],
+				// The OCR worker, wasm core and language data are megabytes each and
+				// only needed when the label scanner is opened — they are cached at
+				// runtime on first use instead of precached for every visitor.
+				globIgnores: ['**/ocr/**'],
 				navigateFallback: '/',
 				navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/authorize/, /^\/token/],
 				runtimeCaching: [
+					{
+						// Keeps label scanning working offline once the assets have been
+						// fetched once. The URLs carry the Tesseract version, so a bump
+						// simply misses the cache instead of mixing core and worker.
+						urlPattern: new RegExp(`^.*${ocrBase}/`),
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'ocr-assets-cache',
+							expiration: {
+								maxEntries: 12,
+								maxAgeSeconds: 90 * 24 * 60 * 60
+							},
+							cacheableResponse: { statuses: [0, 200] }
+						}
+					},
 					{
 						urlPattern: /\/__data\.json(\?.*)?$/,
 						handler: 'NetworkFirst',
