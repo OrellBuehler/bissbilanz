@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -559,6 +560,13 @@ fun SettingsScreen(navController: NavController) {
                                             carbGoal = carbsG.toDouble(),
                                             fatGoal = fatG.toDouble(),
                                             fiberGoal = editFiberG.toDouble(),
+                                            // Preserved: this form only edits calories/macros, but Goals is
+                                            // saved as a whole object — omitting these would silently wipe
+                                            // the sodium/sugar/weight-target goals set elsewhere.
+                                            sodiumGoal = goals?.sodiumGoal,
+                                            sugarGoal = goals?.sugarGoal,
+                                            targetWeightKg = goals?.targetWeightKg,
+                                            targetDate = goals?.targetDate,
                                         ),
                                     )
                                 },
@@ -607,6 +615,46 @@ fun SettingsScreen(navController: NavController) {
                                 }
                             }
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Water goal — daily target shown as a progress bar on the day log.
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.settings_water_goal),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.settings_water_goal_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        var waterGoalDraft by
+                            remember(prefs?.waterGoalMl) {
+                                mutableStateOf((prefs?.waterGoalMl ?: 2000).toString())
+                            }
+                        OutlinedTextField(
+                            value = waterGoalDraft,
+                            onValueChange = { waterGoalDraft = it },
+                            label = { Text(stringResource(R.string.settings_water_goal_ml)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier =
+                                Modifier.fillMaxWidth().onFocusChanged { focus ->
+                                    if (!focus.isFocused) {
+                                        waterGoalDraft.toIntOrNull()?.coerceIn(250, 10000)?.let {
+                                            viewModel.updateWaterGoal(it)
+                                            waterGoalDraft = it.toString()
+                                        }
+                                    }
+                                },
+                        )
                     }
                 }
 

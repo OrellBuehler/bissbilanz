@@ -934,7 +934,7 @@ class LocalDataMigratorTest {
     }
 
     private fun insertGoals() {
-        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0)
+        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0, null, null)
     }
 
     private fun preferences() =
@@ -963,7 +963,7 @@ class LocalDataMigratorTest {
     }
 
     private fun insertDayProperties(date: String = "2024-01-15") {
-        queries.upsertDayProperties(date, 1L)
+        queries.upsertDayProperties(date, 1L, null, null, null, null)
     }
 
     private fun foodRecent(id: String) =

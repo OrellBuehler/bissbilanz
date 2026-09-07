@@ -136,6 +136,7 @@ class PreferencesRepository(
             visibleNutrients = update.visibleNutrients ?: current.visibleNutrients,
             locale = update.locale?.value ?: current.locale,
             timeZone = update.timeZone ?: current.timeZone,
+            waterGoalMl = update.waterGoalMl ?: current.waterGoalMl,
             biologicalSex =
                 if (PreferencesField.BIOLOGICAL_SEX in cleared) {
                     null

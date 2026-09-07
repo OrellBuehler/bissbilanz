@@ -1,0 +1,4 @@
+ALTER TABLE CachedDayProperties ADD COLUMN notes TEXT;
+ALTER TABLE CachedDayProperties ADD COLUMN waterMl INTEGER;
+ALTER TABLE CachedDayProperties ADD COLUMN activityCalories INTEGER;
+ALTER TABLE CachedDayProperties ADD COLUMN activityNote TEXT;

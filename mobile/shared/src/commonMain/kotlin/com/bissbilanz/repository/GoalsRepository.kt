@@ -38,6 +38,8 @@ class GoalsRepository(
                         carbGoal = it.carbGoal,
                         fatGoal = it.fatGoal,
                         fiberGoal = it.fiberGoal,
+                        targetWeightKg = it.targetWeightKg,
+                        targetDate = it.targetDate,
                     )
                 }
             }
@@ -53,6 +55,8 @@ class GoalsRepository(
                     carbGoal = it.carbGoal,
                     fatGoal = it.fatGoal,
                     fiberGoal = it.fiberGoal,
+                    targetWeightKg = it.targetWeightKg,
+                    targetDate = it.targetDate,
                 )
             }
 
@@ -77,6 +81,8 @@ class GoalsRepository(
             carbGoal = goals.carbGoal,
             fatGoal = goals.fatGoal,
             fiberGoal = goals.fiberGoal,
+            targetWeightKg = goals.targetWeightKg,
+            targetDate = goals.targetDate,
         )
         // SyncMeta lives in the cache database; written after the user-data write.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(

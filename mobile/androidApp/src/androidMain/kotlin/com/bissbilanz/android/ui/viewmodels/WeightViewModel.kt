@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.model.Goals
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
+import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,6 +23,7 @@ import kotlin.time.Clock
 
 class WeightViewModel(
     private val weightRepo: WeightRepository,
+    private val goalsRepo: GoalsRepository,
     private val errorReporter: ErrorReporter,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -31,6 +34,28 @@ class WeightViewModel(
         weightRepo
             .entries()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val goals: StateFlow<Goals?> =
+        goalsRepo
+            .goals()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Preserves every other goal field; only the target changes. */
+    fun setTarget(
+        targetWeightKg: Double?,
+        targetDate: String?,
+    ) {
+        viewModelScope.launch {
+            try {
+                val current = goals.value ?: return@launch
+                goalsRepo.setGoals(current.copy(targetWeightKg = targetWeightKg, targetDate = targetDate))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessage.value = "Failed to update target"
+            }
+        }
+    }
 
     // Backed by SavedStateHandle so range/projection survive process death.
     val selectedRange: StateFlow<Int> = savedStateHandle.getStateFlow(KEY_SELECTED_RANGE, 1) // default 30d

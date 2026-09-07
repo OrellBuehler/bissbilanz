@@ -100,7 +100,7 @@ fun FastingScreen(navController: NavController) {
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
-        ) { granted -> if (granted) fastingManager.refresh() }
+        ) { granted -> if (granted) scope.launch { fastingManager.refresh() } }
 
     if (showEndConfirmation) {
         AlertDialog(

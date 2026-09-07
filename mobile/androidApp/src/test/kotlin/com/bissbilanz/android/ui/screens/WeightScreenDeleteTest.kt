@@ -12,6 +12,7 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.model.WeightEntry
+import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.WeightRepository
 import io.mockk.coVerify
 import io.mockk.every
@@ -19,6 +20,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -74,6 +76,7 @@ class WeightScreenDeleteTest {
             modules(
                 module {
                     single<WeightRepository> { weightRepo }
+                    single<GoalsRepository> { mockk(relaxed = true) { every { goals() } returns flowOf(null) } }
                     single<RefreshManager> { mockk(relaxed = true) }
                     single<ErrorReporter> { mockk(relaxed = true) }
                     viewModelOf(::WeightViewModel)

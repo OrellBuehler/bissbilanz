@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +31,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.DayLogSkeleton
+import com.bissbilanz.android.ui.components.DayPropertiesCard
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -70,6 +72,11 @@ fun DayLogScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isFastingDay by viewModel.isFastingDay.collectAsStateWithLifecycle()
+    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val waterMl by viewModel.waterMl.collectAsStateWithLifecycle()
+    val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
+    val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
+    val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
@@ -213,7 +220,7 @@ fun DayLogScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     contentPadding = PaddingValues(bottom = 80.dp),
                 ) {
@@ -253,6 +260,32 @@ fun DayLogScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        DayPropertiesCard(
+                            notes = notes,
+                            waterMl = waterMl,
+                            waterGoalMl = waterGoalMl,
+                            activityCalories = activityCalories,
+                            activityNote = activityNote,
+                            onAddWater = { viewModel.addWater(date, it) },
+                            onSetWater = { viewModel.setWater(date, it) },
+                            onClearWater = { viewModel.clearWater(date) },
+                            onSetActivity = { cal, note -> viewModel.setActivity(date, cal, note) },
+                            onClearActivity = { viewModel.clearActivity(date) },
+                            onNotesChanged = { viewModel.setNotes(date, it) },
+                        )
+                        val activityCaloriesValue = activityCalories
+                        if (activityCaloriesValue != null && activityCaloriesValue > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                stringResource(R.string.day_activity_summary, activityCaloriesValue),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
 

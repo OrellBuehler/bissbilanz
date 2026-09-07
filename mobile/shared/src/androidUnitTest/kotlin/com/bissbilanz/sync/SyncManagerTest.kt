@@ -5,6 +5,7 @@ import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.DayProperties
+import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.RecipeCreate
@@ -264,8 +265,21 @@ class SyncManagerTest {
     @Test
     fun executesSetDayPropertiesViaApi() =
         runTest {
-            syncQueue.enqueue(SyncOperation.SetDayProperties("2024-01-15", isFastingDay = true))
-            coEvery { api.setDayProperties("2024-01-15", true, any(), any()) } returns
+            val body = json.encodeToString(DayPropertiesSet(date = "2024-01-15", isFastingDay = true))
+            syncQueue.enqueue(SyncOperation.SetDayProperties("2024-01-15", body))
+            coEvery {
+                api.setDayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                    idempotencyKey = any(),
+                    clientEditedAt = any(),
+                    clearedKeys = emptyList(),
+                )
+            } returns
                 DayProperties(
                     date = "2024-01-15",
                     isFastingDay = true,
@@ -279,7 +293,19 @@ class SyncManagerTest {
 
             assertEquals(1, synced)
             assertEquals(0, syncQueue.pendingCount())
-            coVerify { api.setDayProperties("2024-01-15", true, any(), any()) }
+            coVerify {
+                api.setDayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = null,
+                    activityCalories = null,
+                    activityNote = null,
+                    idempotencyKey = any(),
+                    clientEditedAt = any(),
+                    clearedKeys = emptyList(),
+                )
+            }
         }
 
     @Test

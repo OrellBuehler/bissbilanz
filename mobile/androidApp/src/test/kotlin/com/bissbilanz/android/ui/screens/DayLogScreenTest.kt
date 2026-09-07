@@ -2,8 +2,11 @@ package com.bissbilanz.android.ui.screens
 
 import android.app.Application
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
@@ -13,11 +16,13 @@ import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.PreferencesRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -47,6 +52,7 @@ class DayLogScreenTest {
     private lateinit var entryRepo: EntryRepository
     private lateinit var refreshManager: RefreshManager
     private lateinit var errorReporter: ErrorReporter
+    private lateinit var prefsRepo: PreferencesRepository
 
     @Before
     fun setup() {
@@ -58,6 +64,7 @@ class DayLogScreenTest {
             }
         refreshManager = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
+        prefsRepo = mockk(relaxed = true) { every { preferences() } returns flowOf(null) }
 
         startKoin {
             modules(
@@ -65,6 +72,7 @@ class DayLogScreenTest {
                     single<EntryRepository> { entryRepo }
                     single<RefreshManager> { refreshManager }
                     single<ErrorReporter> { errorReporter }
+                    single<PreferencesRepository> { prefsRepo }
                     viewModelOf(::DayLogViewModel)
                 },
             )
@@ -98,6 +106,7 @@ class DayLogScreenTest {
             }
         }
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dayLogList").performScrollToNode(hasText("No entries for this day"))
         composeTestRule.onNodeWithText("No entries for this day").assertIsDisplayed()
     }
 
@@ -116,8 +125,10 @@ class DayLogScreenTest {
             }
         }
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dayLogList").performScrollToNode(hasText("Lunch"))
         composeTestRule.onNodeWithText("Lunch").assertIsDisplayed()
         composeTestRule.onNodeWithText("Grilled Chicken", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithTag("dayLogList").performScrollToNode(hasText("Brown Rice", substring = true))
         composeTestRule.onNodeWithText("Brown Rice", substring = true).assertIsDisplayed()
     }
 
@@ -136,7 +147,9 @@ class DayLogScreenTest {
             }
         }
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dayLogList").performScrollToNode(hasText("Breakfast"))
         composeTestRule.onNodeWithText("Breakfast").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("dayLogList").performScrollToNode(hasText("Lunch"))
         composeTestRule.onNodeWithText("Lunch").assertIsDisplayed()
     }
 

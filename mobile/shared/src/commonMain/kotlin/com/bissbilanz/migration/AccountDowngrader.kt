@@ -250,6 +250,10 @@ class AccountDowngrader(
                     queries.upsertDayProperties(
                         date = day.date,
                         isFastingDay = if (day.isFastingDay) 1L else 0L,
+                        notes = day.notes,
+                        waterMl = day.waterMl?.toLong(),
+                        activityCalories = day.activityCalories?.toLong(),
+                        activityNote = day.activityNote,
                     )
                 }
             }
@@ -280,6 +284,8 @@ class AccountDowngrader(
             carbGoal = goals.carbGoal,
             fatGoal = goals.fatGoal,
             fiberGoal = goals.fiberGoal,
+            targetWeightKg = goals.targetWeightKg,
+            targetDate = goals.targetDate,
         )
     }
 

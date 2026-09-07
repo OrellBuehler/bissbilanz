@@ -89,7 +89,7 @@ class LocalDataWiperTest {
             barcode = null,
             jsonData = "{}",
         )
-        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0)
+        queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0, null, null)
         queries.insertRecipe(
             id = "r1",
             name = "Bowl",
@@ -114,7 +114,7 @@ class LocalDataWiperTest {
             jsonData = "{}",
         )
         queries.insertPreferences("{}")
-        queries.upsertDayProperties("2024-01-15", 1L)
+        queries.upsertDayProperties("2024-01-15", 1L, null, null, null, null)
         syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
         cacheQueries.insertMealType(id = "m1", name = "Brunch", sortOrder = 0L)
         cacheQueries.upsertSyncMeta("migration_normalized", "2024-01-15T00:00:00Z")

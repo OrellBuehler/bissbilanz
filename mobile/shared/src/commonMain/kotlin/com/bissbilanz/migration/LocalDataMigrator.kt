@@ -790,7 +790,14 @@ class LocalDataMigrator(
         var done = startDone
         progress(done, total, STEP_DAY_PROPERTIES)
         for (row in queries.selectAllDayProperties().executeAsList()) {
-            api.setDayProperties(row.date, row.isFastingDay != 0L)
+            api.setDayProperties(
+                date = row.date,
+                isFastingDay = row.isFastingDay != 0L,
+                notes = row.notes,
+                waterMl = row.waterMl?.toInt(),
+                activityCalories = row.activityCalories?.toInt(),
+                activityNote = row.activityNote,
+            )
             progress(++done, total, STEP_DAY_PROPERTIES)
         }
         return done

@@ -2,6 +2,7 @@ package com.bissbilanz.repository
 
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
+import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.sync.SyncOperation
@@ -14,6 +15,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -89,7 +91,45 @@ class DayPropertiesRepositoryTest {
             val queued = syncQueue.findByAffected("day_properties", "2024-01-15")
             val op = queued.single().operation as SyncOperation.SetDayProperties
             assertEquals("2024-01-15", op.date)
-            assertTrue(op.isFastingDay)
+            val body = json.decodeFromString<DayPropertiesSet>(op.body)
+            assertEquals(true, body.isFastingDay)
+            assertTrue(op.clearedKeys.isEmpty())
+        }
+
+    @Test
+    fun togglingFastingOffPreservesOtherCachedFields() =
+        runTest {
+            val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
+            val repo = repository(AppMode.SYNCED, syncQueue)
+
+            repo.setDayProperties("2024-01-15", isFastingDay = true, notes = "long run", waterMl = 500)
+            val updated = repo.setDayProperties("2024-01-15", isFastingDay = false)
+
+            assertEquals(false, updated.isFastingDay)
+            assertEquals("long run", updated.notes)
+            assertEquals(500, updated.waterMl)
+            assertEquals(updated, repo.getDayProperties("2024-01-15"))
+        }
+
+    @Test
+    fun clearingWaterSendsExplicitClearWithoutTouchingOtherFields() =
+        runTest {
+            val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
+            val repo = repository(AppMode.SYNCED, syncQueue)
+
+            repo.setDayProperties("2024-01-15", notes = "hydrated", waterMl = 750)
+            val updated =
+                repo.setDayProperties(
+                    "2024-01-15",
+                    cleared = setOf(com.bissbilanz.util.DayPropertiesField.WATER_ML),
+                )
+
+            assertEquals("hydrated", updated.notes)
+            assertNull(updated.waterMl)
+
+            val queued = syncQueue.findByAffected("day_properties", "2024-01-15").last()
+            val op = queued.operation as SyncOperation.SetDayProperties
+            assertEquals(listOf("waterMl"), op.clearedKeys)
         }
 
     @Test

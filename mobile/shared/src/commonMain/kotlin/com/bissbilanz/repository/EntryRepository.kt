@@ -4,6 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
@@ -11,6 +12,7 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.DayPropertiesField
 import com.bissbilanz.util.EntryField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
@@ -172,24 +174,43 @@ class EntryRepository(
         }
     }
 
+    /**
+     * PATCH-style: a parameter left `null` and not named in [cleared] keeps its
+     * currently cached/stored value; a parameter named in [cleared] is cleared
+     * regardless of the value passed for it. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun setDayProperties(
         date: String,
-        isFastingDay: Boolean,
+        isFastingDay: Boolean? = null,
+        notes: String? = null,
+        waterMl: Int? = null,
+        activityCalories: Int? = null,
+        activityNote: String? = null,
+        cleared: Set<DayPropertiesField> = emptySet(),
     ): DayProperties {
-        val props =
-            DayProperties(
-                date = date,
-                isFastingDay = isFastingDay,
-                notes = null,
-                waterMl = null,
-                activityCalories = null,
-                activityNote = null,
+        val current = cachedDayProperties(date)
+        val updated =
+            (current ?: emptyDayProperties(date)).copy(
+                isFastingDay = isFastingDay ?: current?.isFastingDay ?: false,
+                notes = cleared.pick(DayPropertiesField.NOTES, notes, current?.notes),
+                waterMl = cleared.pick(DayPropertiesField.WATER_ML, waterMl, current?.waterMl),
+                activityCalories = cleared.pick(DayPropertiesField.ACTIVITY_CALORIES, activityCalories, current?.activityCalories),
+                activityNote = cleared.pick(DayPropertiesField.ACTIVITY_NOTE, activityNote, current?.activityNote),
             )
-        cacheDayProperties(props)
+        cacheDayProperties(updated)
         if (!appModeManager.isLocal) {
-            syncQueue.enqueue(SyncOperation.SetDayProperties(date, isFastingDay))
+            val body =
+                DayPropertiesSet(
+                    date = date,
+                    isFastingDay = isFastingDay,
+                    notes = notes,
+                    waterMl = waterMl,
+                    activityCalories = activityCalories,
+                    activityNote = activityNote,
+                )
+            syncQueue.enqueue(SyncOperation.SetDayProperties(date, json.encodeToString(body), cleared.jsonKeys()))
         }
-        return props
+        return updated
     }
 
     suspend fun deleteDayProperties(date: String) {
@@ -199,6 +220,16 @@ class EntryRepository(
         }
     }
 
+    private fun emptyDayProperties(date: String): DayProperties =
+        DayProperties(
+            date = date,
+            isFastingDay = false,
+            notes = null,
+            waterMl = null,
+            activityCalories = null,
+            activityNote = null,
+        )
+
     private fun cachedDayProperties(date: String): DayProperties? =
         db.userDataDatabaseQueries
             .selectDayProperties(date)
@@ -207,10 +238,10 @@ class EntryRepository(
                 DayProperties(
                     date = it.date,
                     isFastingDay = it.isFastingDay != 0L,
-                    notes = null,
-                    waterMl = null,
-                    activityCalories = null,
-                    activityNote = null,
+                    notes = it.notes,
+                    waterMl = it.waterMl?.toInt(),
+                    activityCalories = it.activityCalories?.toInt(),
+                    activityNote = it.activityNote,
                 )
             }
 
@@ -218,8 +249,19 @@ class EntryRepository(
         db.userDataDatabaseQueries.upsertDayProperties(
             date = props.date,
             isFastingDay = if (props.isFastingDay) 1L else 0L,
+            notes = props.notes,
+            waterMl = props.waterMl?.toLong(),
+            activityCalories = props.activityCalories?.toLong(),
+            activityNote = props.activityNote,
         )
     }
+
+    /** The cache-side counterpart of the explicit null the request carries. */
+    private fun <T> Set<DayPropertiesField>.pick(
+        field: DayPropertiesField,
+        updated: T?,
+        existing: T?,
+    ): T? = if (field in this) null else updated ?: existing
 
     suspend fun copyEntries(
         fromDate: String,

@@ -149,6 +149,18 @@ class SettingsViewModel(
         }
     }
 
+    fun updateWaterGoal(ml: Int) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(waterGoalMl = ml))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
     fun updateVisibleNutrients(nutrients: List<String>) {
         viewModelScope.launch {
             try {
