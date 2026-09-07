@@ -1,9 +1,9 @@
+import AppIntents
 @testable import Bissbilanz
 import Foundation
 import SwiftData
 import Testing
 
-@Suite("App Intents")
 @MainActor
 struct IntentsTests {
     private func makeWriter(_ harness: RepositoryHarness) -> EntryWriter {
@@ -113,6 +113,63 @@ struct IntentsTests {
         let results = await writer.searchFoods("rice")
 
         #expect(results.map(\.id) == ["f1"])
+    }
+
+    @Test("Visual search matches normalized labels across languages without network access")
+    func visualSearchLabels() throws {
+        let harness = try RepositoryHarness(mode: .synced, online: true)
+        let banana = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "banana", name: "Banane"),
+            patch: ["labels": ["banana", "fruit"]]
+        )
+        try seedFood(harness, banana)
+        try seedFood(harness, harness.food(id: "unlabelled", name: "Banana"))
+        let bread = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "bread", name: "Brot"),
+            patch: ["labels": ["bread"]]
+        )
+        try seedFood(harness, bread)
+        let writer = makeWriter(harness)
+
+        #expect(writer.foods(matchingLabels: [" BANANAS ", "fruit", "banana"]).map(\.id) == ["banana"])
+        #expect(writer.foods(matchingLabels: ["breads"]).map(\.id) == ["bread"])
+        #expect(writer.foods(matchingLabels: ["ban"]).isEmpty)
+        #expect(writer.foods(matchingLabels: ["bottle"]).isEmpty)
+        #expect(writer.foods(matchingLabels: []).isEmpty)
+        #expect(writer.foods(matchingLabels: [" ", "!!!"]).isEmpty)
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
+    @Test("Visual search limits results and orders favorites before names with stable ID ties")
+    func visualSearchRanking() throws {
+        let harness = try RepositoryHarness(mode: .local)
+        for index in (0 ..< 8).reversed() {
+            let food = try JSONPatch.merged(
+                Food.self,
+                base: harness.food(id: "f\(index)", name: index == 7 ? "Zucchini" : "Food", isFavorite: index == 7),
+                patch: ["labels": ["vegetable"]]
+            )
+            try seedFood(harness, food)
+        }
+        let writer = makeWriter(harness)
+        #expect(writer.foods(matchingLabels: ["vegetables"]).map(\.id) == ["f7", "f0", "f1", "f2", "f3"])
+        #expect(harness.foodRepository.foods(matchingLabels: ["vegetable"], limit: 0).isEmpty)
+        #expect(harness.foodRepository.foods(matchingLabels: ["vegetable"], limit: -1).isEmpty)
+    }
+
+    @Test("Food entities provide a placeholder for missing or remote images")
+    func foodEntityImageFallback() throws {
+        let food = harness_food(id: "f1", name: "Banana", calories: 105, brand: nil)
+        let placeholder = DisplayRepresentation.Image(systemName: "fork.knife")
+        #expect(FoodEntity(food: food).displayRepresentation.image == placeholder)
+        for url in [
+            "https://images.openfoodfacts.org/front.jpg",
+            "/uploads/00000000-0000-0000-0000-000000000000.webp",
+        ] {
+            let pictured = try JSONPatch.merged(Food.self, base: food, patch: ["imageUrl": url])
+            #expect(FoodEntity(food: pictured).imageUrl == url)
+            #expect(FoodEntity(food: pictured).displayRepresentation.image == placeholder)
+        }
     }
 
     @Test("FoodEntity carries the fields the system displays and indexes")
