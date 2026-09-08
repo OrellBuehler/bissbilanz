@@ -101,6 +101,7 @@ const TEST_AI_TASK = {
 	photoUrls: ['/uploads/10000000-0000-4000-8000-000000000099.webp'],
 	date: '2026-02-10',
 	mealType: 'Lunch',
+	eatenAt: new Date('2026-02-10T12:30:00Z'),
 	source: 'ios',
 	resultSummary: null,
 	createdEntryIds: null,
@@ -1915,6 +1916,14 @@ describe('MCP handlers', () => {
 			expect(result.tasks[0].status).toBe('pending');
 		});
 
+		test('exposes eatenAt so the agent can log at the meal time', async () => {
+			mockAiTasks = [TEST_AI_TASK, { ...TEST_AI_TASK, id: 'ai-task-2', eatenAt: null }];
+			mockAiTasksTotal = 2;
+			const result = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.tasks[0].eatenAt).toEqual(TEST_AI_TASK.eatenAt);
+			expect(result.tasks[1].eatenAt).toBeNull();
+		});
+
 		test('defaults status to pending when not provided', async () => {
 			await handleListAiTasks(TEST_USER.id, {});
 			expect(mockListAiTasksArgs.status).toBe('pending');
@@ -1952,6 +1961,7 @@ describe('MCP handlers', () => {
 			const payload = JSON.parse((result.content[0] as { text: string }).text);
 			expect(payload.photoCount).toBe(0);
 			expect(payload).not.toHaveProperty('photoUrls');
+			expect(payload.eatenAt).toBe(TEST_AI_TASK.eatenAt.toISOString());
 		});
 
 		test('appends an unavailable note per photo when the files are missing', async () => {
