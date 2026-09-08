@@ -166,6 +166,14 @@ jobs:
           # -disableAutomaticPackageResolution keeps the tracer away from the
           # package fetch: it fails loudly if the pre-init resolve step did not
           # take, rather than quietly re-cloning sentry-cocoa for 10 minutes.
+          #
+          # Serialized (issue #570): the runner has 7 GB and every traced
+          # swift-frontend carries an extractor that re-type-checks the whole
+          # module. Left parallel, the 25-min app emit-module overlaps the
+          # Widgets/Watch frontends and the runner is starved to death
+          # ("lost communication") on most runs; ram: 4096 vs 3072 made no
+          # difference, so the concurrency is the lever. One build operation
+          # at a time trades wall-clock (150-min timeout) for a bounded peak.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
@@ -173,6 +181,7 @@ jobs:
             -configuration Debug \
             -clonedSourcePackagesDirPath build/SourcePackages \
             -disableAutomaticPackageResolution \
+            -jobs 1 \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
 
