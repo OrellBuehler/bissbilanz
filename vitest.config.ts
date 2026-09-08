@@ -20,6 +20,7 @@ export default defineConfig({
 		exclude: [
 			...configDefaults.exclude,
 			'.claude/**',
+			'.worktrees/**',
 			'crawler/**',
 			'tests/integration-db/**',
 			'tests/e2e/**'

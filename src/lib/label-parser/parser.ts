@@ -1,4 +1,4 @@
-import type { OcrTextLine, ParsedNutrition, ParsedNutritionKey } from './types';
+import type { ParsedNutrition, ParsedNutritionKey } from './types';
 
 /**
  * Heuristic parser that turns the text of a nutrition-facts panel into a
@@ -202,39 +202,3 @@ export const parseRows = (rows: string[]): ParsedNutrition => {
 	}
 	return result;
 };
-
-/**
- * Groups recognized lines that share a baseline into a single row (so a label in
- * the left column and its value in the right column are read together),
- * ordering each row left-to-right and rows top-to-bottom.
- */
-export const assembleRows = (lines: OcrTextLine[]): string[] => {
-	const midY = (line: OcrTextLine) => line.boundingBox.y + line.boundingBox.height / 2;
-
-	const usable = lines
-		.filter((line) => line.text.trim().length > 0)
-		.sort((a, b) => midY(b) - midY(a)); // top (high y) first
-
-	const rows: OcrTextLine[][] = [];
-	for (const line of usable) {
-		const index = rows.findIndex((row) => {
-			const reference = row[0];
-			if (!reference) return false;
-			const tolerance = Math.max(reference.boundingBox.height, line.boundingBox.height) * 0.6;
-			return Math.abs(midY(reference) - midY(line)) <= tolerance;
-		});
-		if (index >= 0) rows[index].push(line);
-		else rows.push([line]);
-	}
-
-	return rows.map((row) =>
-		row
-			.slice()
-			.sort((a, b) => a.boundingBox.x - b.boundingBox.x)
-			.map((line) => line.text)
-			.join(' ')
-	);
-};
-
-/** Convenience: cluster raw OCR lines into rows, then parse. */
-export const parseLines = (lines: OcrTextLine[]): ParsedNutrition => parseRows(assembleRows(lines));

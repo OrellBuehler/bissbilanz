@@ -1,22 +1,4 @@
 /**
- * A normalized rectangle using the Vision convention: origin bottom-left, all
- * coordinates in 0…1. Same convention as the shared mobile parser so the row
- * clustering behaves identically across platforms.
- */
-export type BoundingBox = {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-};
-
-/** A single recognized line of text with its normalized bounding box. */
-export type OcrTextLine = {
-	text: string;
-	boundingBox: BoundingBox;
-};
-
-/**
  * Nutrition values extracted from an OCR'd nutrition-facts panel. Every field is
  * optional — OCR is best-effort, so the user confirms and edits the result
  * before it is applied to the food form.

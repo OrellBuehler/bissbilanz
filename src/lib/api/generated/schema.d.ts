@@ -1552,7 +1552,7 @@ export interface components {
 			/** @enum {string} */
 			locale?: 'en' | 'de';
 			caloricLagDaysOverride?: number | null;
-			waterGoalMl?: number;
+			waterGoalMl?: number | null;
 			biologicalSex?: ('male' | 'female') | null;
 			timeZone?: string;
 		};
@@ -4033,6 +4033,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	getPreferences: {

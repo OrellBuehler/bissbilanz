@@ -22,7 +22,9 @@ const tick = async () => {
  * Run the supplement reminder dispatcher once a minute for the lifetime of the
  * server process. No-op when Web Push is unconfigured, during the build, or
  * under test. Ticks are aligned to the wall-clock minute so a reminder set for
- * 08:00 fires within that minute.
+ * 08:00 fires within that minute. The first tick runs immediately so a restart
+ * mid-minute doesn't skip a reminder due in that minute; `claimDue` makes the
+ * overlap with a previous instance's tick harmless.
  */
 export const startReminderScheduler = () => {
 	if (started || building || process.env.VITEST || process.env.NODE_ENV === 'test') return;
@@ -30,6 +32,7 @@ export const startReminderScheduler = () => {
 	started = true;
 
 	const schedule = () => {
+		void tick();
 		const msToNextMinute = 60000 - (Date.now() % 60000);
 		const timeout = setTimeout(() => {
 			void tick();

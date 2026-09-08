@@ -19,7 +19,7 @@ const TEST_DAY_PROPERTIES_RANGE = [
 let mockGetResult: any = null;
 let mockGetRangeResult: any = [];
 let mockSetResult: any = null;
-let mockDeleteResult: boolean = false;
+let mockDeleteResult: 'deleted' | 'missing' | 'stale' = 'missing';
 
 vi.mock('$lib/server/day-properties', () => ({
 	getDayProperties: async () => mockGetResult,
@@ -35,7 +35,7 @@ describe('api/day-properties', () => {
 		mockGetResult = null;
 		mockGetRangeResult = [];
 		mockSetResult = null;
-		mockDeleteResult = false;
+		mockDeleteResult = 'missing';
 	});
 
 	describe('GET /api/day-properties', () => {
@@ -226,10 +226,23 @@ describe('api/day-properties', () => {
 		});
 
 		test('deletes day properties and returns 204', async () => {
-			mockDeleteResult = true;
+			mockDeleteResult = 'deleted';
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: '2026-03-22' } });
 			const response = await DELETE(event);
 			expect(response.status).toBe(204);
+		});
+
+		test('returns 409 when an offline delete lost last-write-wins', async () => {
+			mockDeleteResult = 'stale';
+			const event = createMockEvent({
+				user: TEST_USER,
+				searchParams: { date: '2026-03-22' },
+				headers: { 'X-Client-Edited-At': '2026-03-22T08:00:00Z' }
+			});
+			const response = await DELETE(event);
+			const data = await response.json();
+			expect(response.status).toBe(409);
+			expect(data.error).toBe('conflict_server_newer');
 		});
 	});
 });

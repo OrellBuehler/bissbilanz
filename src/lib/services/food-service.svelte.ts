@@ -250,12 +250,27 @@ async function batch(body: FoodBatchBody): Promise<FoodBatchResult | null> {
 	return data;
 }
 
-/** Create many foods at once and put the server's rows into the mirror. */
+/** The server caps one import request at this many foods. */
+const IMPORT_CHUNK_SIZE = 500;
+
+/**
+ * Create many foods at once and put the server's rows into the mirror. Larger
+ * lists go up in chunks of the server's per-request cap; the results are merged
+ * so the caller sees one outcome. A chunk that fails after earlier ones landed
+ * still reports what was created so far.
+ */
 async function importFoods(foods: FoodCreate[]): Promise<FoodImportResult | null> {
-	const { data, error } = await api.POST('/api/foods/import', { body: { foods } });
-	if (error || !data) return null;
-	await db.foods.bulkPut(data.foods as unknown as DexieFood[]);
-	return data;
+	const merged: FoodImportResult = { foods: [], created: 0, skipped: [] };
+	for (let offset = 0; offset < foods.length; offset += IMPORT_CHUNK_SIZE) {
+		const chunk = foods.slice(offset, offset + IMPORT_CHUNK_SIZE);
+		const { data, error } = await api.POST('/api/foods/import', { body: { foods: chunk } });
+		if (error || !data) return merged.created > 0 ? merged : null;
+		await db.foods.bulkPut(data.foods as unknown as DexieFood[]);
+		merged.foods.push(...data.foods);
+		merged.created += data.created;
+		merged.skipped.push(...data.skipped.map((s) => ({ ...s, index: s.index + offset })));
+	}
+	return merged;
 }
 
 async function findByBarcode(barcode: string): Promise<DexieFood | null> {

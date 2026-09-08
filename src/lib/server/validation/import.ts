@@ -1,11 +1,15 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { isCalendarDate } from '$lib/import/csv';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { scheduleTypeValues } from '$lib/supplement-units';
 
 const uuid = z.string().uuid();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const isoDate = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/)
+	.refine(isCalendarDate, 'Invalid calendar date');
 const instant = z.string().datetime({ offset: true });
 const text = (max: number) => z.string().max(max);
 const optionalText = (max: number) => text(max).nullish();

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { unzipSync, strFromU8 } from 'fflate';
 import { getDB } from './db';
 import {
@@ -23,7 +23,9 @@ import { parseSleepCsv, parseWeightCsv, isInstant, type CsvIssue } from '$lib/im
 import { zonedTimeToInstant } from '$lib/import/time';
 
 export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
-const MAX_ARCHIVE_JSON_BYTES = 100 * 1024 * 1024;
+// The inflated JSON is parsed whole before the row cap applies, so keep it
+// within the same envelope as the upload itself.
+const MAX_ARCHIVE_JSON_BYTES = MAX_IMPORT_BYTES;
 const MAX_IMPORT_ROWS = 100_000;
 const MAX_ISSUES = 50;
 const MAX_SAMPLES = 5;
@@ -266,9 +268,46 @@ async function planImport(userId: string, data: ImportArchive) {
 	const recipeState = splitOwnership(userId, recipeOwners);
 	const supplementState = splitOwnership(userId, supplementOwners);
 
-	const newFoods = foodRows.filter(
+	const candidateFoods = foodRows.filter(
 		(row) => !foodState.owned.has(row.id) && !foodState.foreign.has(row.id)
 	);
+
+	// `foods` has a unique (user, barcode) index. A candidate whose barcode the
+	// user already owns (or that a candidate earlier in the archive also carries)
+	// would be dropped by ON CONFLICT DO NOTHING while entries and ingredients
+	// still pointed at its id, aborting the whole transaction on the FK. Point
+	// those references at the surviving food instead.
+	const foodIdRemap = new Map<string, string>();
+	const barcodeOwner = new Map<string, string>();
+	const candidateBarcodes = [
+		...new Set(
+			candidateFoods.map((row) => row.barcode?.trim()).filter((code): code is string => !!code)
+		)
+	];
+	const ownedByBarcode = await collect(candidateBarcodes, (part) =>
+		db
+			.select({ id: foods.id, barcode: foods.barcode })
+			.from(foods)
+			.where(and(eq(foods.userId, userId), isNotNull(foods.barcode), inArray(foods.barcode, part)))
+	);
+	for (const row of ownedByBarcode) barcodeOwner.set(row.barcode as string, row.id);
+
+	const newFoods = candidateFoods.filter((row) => {
+		const barcode = row.barcode?.trim();
+		if (!barcode) return true;
+		const existing = barcodeOwner.get(barcode);
+		if (existing) {
+			foodIdRemap.set(row.id, existing);
+			issues.push({
+				row: 0,
+				message: `Food "${row.name}" reuses the existing food with barcode ${barcode}`
+			});
+			return false;
+		}
+		barcodeOwner.set(barcode, row.id);
+		return true;
+	});
+	const remapFoodId = (id: string) => foodIdRemap.get(id) ?? id;
 	const newRecipes = recipeRows.filter(
 		(row) => !recipeState.owned.has(row.id) && !recipeState.foreign.has(row.id)
 	);
@@ -298,14 +337,16 @@ async function planImport(userId: string, data: ImportArchive) {
 	// so an existing recipe is never silently duplicated or re-stuffed.
 	const newRecipeIds = new Set(newRecipes.map((row) => row.id));
 	const newSupplementIds = new Set(newSupplements.map((row) => row.id));
-	const newRecipeIngredients = (data.recipeIngredients ?? []).filter(
-		(row) => newRecipeIds.has(row.recipeId) && usableFoods.has(row.foodId)
-	);
-	const newSupplementIngredients = (data.supplementIngredients ?? []).filter(
-		(row) => newSupplementIds.has(row.supplementId) && usableFoods.has(row.foodId)
-	);
+	const newRecipeIngredients = (data.recipeIngredients ?? [])
+		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))
+		.filter((row) => newRecipeIds.has(row.recipeId) && usableFoods.has(row.foodId));
+	const newSupplementIngredients = (data.supplementIngredients ?? [])
+		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))
+		.filter((row) => newSupplementIds.has(row.supplementId) && usableFoods.has(row.foodId));
 
-	const entryRows = dedupeBy(data.entries ?? [], (row) => row.id);
+	const entryRows = dedupeBy(data.entries ?? [], (row) => row.id).map((row) =>
+		row.foodId ? { ...row, foodId: remapFoodId(row.foodId) } : row
+	);
 	const existingEntryIds = new Set(
 		(
 			await collect(

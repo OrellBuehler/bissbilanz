@@ -1,6 +1,6 @@
 import { getDB, dayProperties } from '$lib/server/db';
 import { and, eq, gte, lte, inArray, isNotNull, ne, sql } from 'drizzle-orm';
-import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { lwwClamp, lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import type { DayPropertiesPatch } from '$lib/server/validation/day-properties';
 
 // Built lazily: the table object comes from a module that tests mock, so
@@ -13,6 +13,13 @@ const columns = () => ({
 	activityCalories: dayProperties.activityCalories,
 	activityNote: dayProperties.activityNote
 });
+
+export const isDayPropertiesRowEmpty = (row: DayPropertiesRow) =>
+	!row.isFastingDay &&
+	row.notes == null &&
+	row.waterMl == null &&
+	row.activityCalories == null &&
+	row.activityNote == null;
 
 export type DayPropertiesRow = {
 	date: string;
@@ -82,16 +89,52 @@ export const setDayProperties = async (
 		})
 		.returning(columns());
 	// Undefined when the LWW guard rejected a stale write (newer value on server).
+	if (!row) return row;
+
+	// The server holds the authoritative merge, so it decides when a day carries
+	// nothing any more and drops the row instead of keeping an all-defaults one.
+	// Guarded on the stamp just written so a concurrent later edit is kept.
+	if (isDayPropertiesRowEmpty(row)) {
+		await db
+			.delete(dayProperties)
+			.where(
+				and(
+					eq(dayProperties.userId, userId),
+					eq(dayProperties.date, date),
+					eq(dayProperties.updatedAt, stamp)
+				)
+			);
+	}
 	return row;
 };
 
-export const deleteDayProperties = async (userId: string, date: string) => {
+export type DayPropertiesDeleteResult = 'deleted' | 'missing' | 'stale';
+
+/**
+ * Last-write-wins delete. With a client edit time, a delete queued offline
+ * loses against a newer server-side edit (`'stale'`) instead of wiping it —
+ * the same rule the guarded PUT already follows.
+ */
+export const deleteDayProperties = async (
+	userId: string,
+	date: string,
+	clientEditedAt?: Date | null
+): Promise<DayPropertiesDeleteResult> => {
 	const db = getDB();
+	const clamped = lwwClamp(clientEditedAt);
+	if (clamped) {
+		const [existing] = await db
+			.select({ updatedAt: dayProperties.updatedAt })
+			.from(dayProperties)
+			.where(and(eq(dayProperties.userId, userId), eq(dayProperties.date, date)))
+			.limit(1);
+		if (existing?.updatedAt && existing.updatedAt > clamped) return 'stale';
+	}
 	const [deleted] = await db
 		.delete(dayProperties)
 		.where(and(eq(dayProperties.userId, userId), eq(dayProperties.date, date)))
 		.returning();
-	return !!deleted;
+	return deleted ? 'deleted' : 'missing';
 };
 
 /**

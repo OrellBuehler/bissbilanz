@@ -305,8 +305,16 @@ export const updatePreferences = async (
 		const {
 			locale,
 			favoriteMealTimeframes: favoriteMealTimeframesInput,
-			...prefsData
+			waterGoalMl: waterGoalMlInput,
+			...rest
 		} = result.data;
+		// The column is NOT NULL; null means "back to the default".
+		const prefsData = {
+			...rest,
+			...(waterGoalMlInput !== undefined
+				? { waterGoalMl: waterGoalMlInput ?? DEFAULT_PREFERENCES.waterGoalMl }
+				: {})
+		};
 		const normalizedTimeframes = await buildNormalizedTimeframeRows(
 			db,
 			userId,

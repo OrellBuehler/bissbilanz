@@ -1,19 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-	assembleRows,
 	hasCoreMacros,
 	isEmpty,
 	parseDecimal,
-	parseLines,
 	parseRows,
-	toFoodFormPatch,
-	type OcrTextLine
+	toFoodFormPatch
 } from '$lib/label-parser';
-
-const line = (text: string, x: number, y: number, height = 0.03): OcrTextLine => ({
-	text,
-	boundingBox: { x, y: y - height / 2, width: 0.2, height }
-});
 
 describe('nutrition label parser', () => {
 	it('parses a German panel', () => {
@@ -148,29 +140,6 @@ describe('nutrition label parser', () => {
 		expect(parseDecimal('1 569')).toBe(1569); // space grouping
 		expect(parseDecimal('1.569', true)).toBe(1569);
 		expect(parseDecimal('0.5', true)).toBe(0.5);
-	});
-
-	it('clusters columns into rows', () => {
-		const rows = assembleRows([
-			line('Protein', 0.1, 0.8),
-			line('9.7 g', 0.7, 0.8),
-			line('Fat', 0.1, 0.6),
-			line('4.5 g', 0.7, 0.61)
-		]);
-
-		expect(rows).toEqual(['Protein 9.7 g', 'Fat 4.5 g']); // top row first, left-to-right
-	});
-
-	it('parses clustered rows', () => {
-		const parsed = parseLines([
-			line('Protein', 0.1, 0.8),
-			line('9.7 g', 0.7, 0.8),
-			line('Fat', 0.1, 0.6),
-			line('4.5 g', 0.7, 0.6)
-		]);
-
-		expect(parsed.protein).toBe(9.7);
-		expect(parsed.fat).toBe(4.5);
 	});
 });
 

@@ -109,18 +109,25 @@ function headerIndex(headers: string[], aliases: string[]): number {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OF_DAY = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
 
+/** True for a YYYY-MM-DD string that names a real calendar day. */
+export function isCalendarDate(value: string): boolean {
+	if (!ISO_DATE.test(value)) return false;
+	const [year, month, day] = value.split('-').map(Number);
+	const date = new Date(Date.UTC(year, month - 1, day));
+	return (
+		date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+	);
+}
+
 export function parseDate(value: string): string | null {
 	const trimmed = value.trim();
-	if (ISO_DATE.test(trimmed)) {
-		const date = new Date(`${trimmed}T00:00:00Z`);
-		return Number.isNaN(date.getTime()) ? null : trimmed;
-	}
+	if (ISO_DATE.test(trimmed)) return isCalendarDate(trimmed) ? trimmed : null;
 	// dd.mm.yyyy and dd/mm/yyyy, the two forms spreadsheets produce here
 	const match = trimmed.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
 	if (!match) return null;
 	const [, day, month, year] = match;
 	const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-	return ISO_DATE.test(iso) ? iso : null;
+	return isCalendarDate(iso) ? iso : null;
 }
 
 export function parseNumber(value: string): number | null {
