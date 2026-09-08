@@ -40,18 +40,24 @@
 	const waterPercent = $derived(waterProgressPercent(waterMl, waterGoalMl));
 
 	let waterDraft = $state('');
+	let waterDirty = $state(false);
 	let activityDraft = $state('');
+	let activityDirty = $state(false);
 	let activityNoteDraft = $state('');
+	let activityNoteDirty = $state(false);
 	let notesDraft = $state('');
 	let notesDirty = $state(false);
 
 	// Server/mirror values are the source of truth; local drafts only exist while
-	// a field is being edited, so re-sync them whenever the stored row changes.
+	// a field is being edited, so re-sync them whenever the stored row changes —
+	// unless the user is mid-edit, in which case a background refresh must not
+	// overwrite what they typed.
 	$effect(() => {
 		const row = propsQuery.value ?? null;
-		waterDraft = row?.waterMl != null ? String(row.waterMl) : '';
-		activityDraft = row?.activityCalories != null ? String(row.activityCalories) : '';
-		activityNoteDraft = row?.activityNote ?? '';
+		if (!waterDirty) waterDraft = row?.waterMl != null ? String(row.waterMl) : '';
+		if (!activityDirty)
+			activityDraft = row?.activityCalories != null ? String(row.activityCalories) : '';
+		if (!activityNoteDirty) activityNoteDraft = row?.activityNote ?? '';
 		if (!notesDirty) notesDraft = row?.notes ?? '';
 	});
 
@@ -64,28 +70,57 @@
 	const save = (patch: Parameters<typeof dayPropertiesService.update>[1]) =>
 		dayPropertiesService.update(date, patch);
 
+	const draftWater = () => {
+		const parsed = waterDraft.trim() === '' ? null : Number(waterDraft);
+		return parsed != null && Number.isFinite(parsed) ? clampWaterMl(parsed) : null;
+	};
+
+	// Base the increment on the visible draft, not the stored row: a value typed
+	// a moment ago may not have landed in the mirror yet when the button fires.
 	const addWater = (delta: number) => {
-		save({ waterMl: clampWaterMl(waterMl + delta) });
+		waterDirty = false;
+		const base = draftWater() ?? waterMl;
+		const next = clampWaterMl(base + delta);
+		waterDraft = next != null ? String(next) : '';
+		save({ waterMl: next });
 	};
 
 	const commitWater = () => {
-		const parsed = waterDraft.trim() === '' ? null : Number(waterDraft);
-		save({ waterMl: clampWaterMl(parsed) });
+		waterDirty = false;
+		const next = draftWater();
+		if (next === (stored?.waterMl ?? null)) return;
+		save({ waterMl: next });
 	};
 
-	const clearWater = () => save({ waterMl: null });
+	const clearWater = () => {
+		waterDirty = false;
+		waterDraft = '';
+		save({ waterMl: null });
+	};
 
 	const commitActivity = () => {
+		activityDirty = false;
 		const parsed = activityDraft.trim() === '' ? null : Number(activityDraft);
-		save({ activityCalories: clampActivityCalories(parsed) });
+		const next = parsed != null && Number.isFinite(parsed) ? clampActivityCalories(parsed) : null;
+		if (next === (stored?.activityCalories ?? null)) return;
+		save({ activityCalories: next });
 	};
 
 	const commitActivityNote = () => {
+		activityNoteDirty = false;
 		const trimmed = activityNoteDraft.trim();
-		save({ activityNote: trimmed === '' ? null : trimmed.slice(0, 200) });
+		const next = trimmed === '' ? null : trimmed.slice(0, 200);
+		if (next === (stored?.activityNote ?? null)) return;
+		save({ activityNote: next });
 	};
 
-	const clearActivity = () => save({ activityCalories: null, activityNote: null });
+	const clearActivity = () => {
+		activityDirty = false;
+		activityNoteDirty = false;
+		activityDraft = '';
+		activityNoteDraft = '';
+		save({ activityCalories: null, activityNote: null });
+	};
 
 	const commitNotes = () => {
 		if (notesTimer) {
@@ -136,6 +171,7 @@
 						step="50"
 						class="h-9 w-24"
 						bind:value={waterDraft}
+						oninput={() => (waterDirty = true)}
 						onblur={commitWater}
 						onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitWater()}
 					/>
@@ -173,6 +209,7 @@
 						class="h-9 w-24"
 						placeholder="0"
 						bind:value={activityDraft}
+						oninput={() => (activityDirty = true)}
 						onblur={commitActivity}
 						onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitActivity()}
 					/>
@@ -184,6 +221,7 @@
 					placeholder={m.day_activity_note_placeholder()}
 					aria-label={m.day_activity_note_placeholder()}
 					bind:value={activityNoteDraft}
+					oninput={() => (activityNoteDirty = true)}
 					onblur={commitActivityNote}
 				/>
 				{#if stored?.activityCalories != null || stored?.activityNote}

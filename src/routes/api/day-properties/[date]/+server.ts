@@ -13,7 +13,7 @@ import {
 	deleteDayProperties
 } from '$lib/server/day-properties';
 import { dayPropertiesSetSchema } from '$lib/server/validation';
-import { respondUpdate } from '$lib/server/sync/conflict';
+import { respondUpdate, staleConflict } from '$lib/server/sync/conflict';
 import { readClientEditedAt } from '$lib/server/sync/headers';
 
 // Compatibility shim for legacy clients that put the date in the URL path
@@ -58,11 +58,12 @@ export const PUT: RequestHandler = async ({ locals, params, request }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
+export const DELETE: RequestHandler = async ({ locals, params, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const validDate = requireDate(params.date, 'date');
-		await deleteDayProperties(userId, validDate);
+		const result = await deleteDayProperties(userId, validDate, readClientEditedAt(request));
+		if (result === 'stale') return staleConflict();
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

@@ -48,8 +48,11 @@ async function refresh(date: string): Promise<DexieDayProperties | null> {
 
 /**
  * Offline-first PATCH-style update. The Dexie mirror is written first, then the
- * change is sent (or queued while offline). A day that ends up carrying no data
- * at all is deleted rather than stored as an all-defaults row.
+ * patch is sent (or queued while offline). Only the patch goes to the server —
+ * never a DELETE derived from the mirror — because the mirror can be stale
+ * (pre-v8 rows, a failed refresh) and would otherwise wipe fields set on
+ * another device. The server drops a day that ends up carrying no data, and the
+ * mirror mirrors that locally.
  */
 async function update(date: string, patch: DayPropertiesPatch): Promise<boolean> {
 	if (!browser) return false;
@@ -66,39 +69,20 @@ async function update(date: string, patch: DayPropertiesPatch): Promise<boolean>
 
 	let ok = true;
 	try {
-		if (shouldDelete) {
-			await withOfflineFallback(
-				async () => {
-					const result = await api.DELETE('/api/day-properties', {
-						params: { query: { date } }
-					});
-					if (!result.response.ok && result.response.status !== 204) ok = false;
-					return result;
-				},
-				{
-					method: 'DELETE',
-					url: `/api/day-properties?date=${encodeURIComponent(date)}`,
-					body: {},
-					affectedTable: 'dayProperties',
-					affectedId: date
-				}
-			);
-		} else {
-			await withOfflineFallback(
-				async () => {
-					const result = await api.PUT('/api/day-properties', { body: { date, ...patch } });
-					if (result.error) ok = false;
-					return result;
-				},
-				{
-					method: 'PUT',
-					url: '/api/day-properties',
-					body: { date, ...patch },
-					affectedTable: 'dayProperties',
-					affectedId: date
-				}
-			);
-		}
+		await withOfflineFallback(
+			async () => {
+				const result = await api.PUT('/api/day-properties', { body: { date, ...patch } });
+				if (result.error) ok = false;
+				return result;
+			},
+			{
+				method: 'PUT',
+				url: '/api/day-properties',
+				body: { date, ...patch },
+				affectedTable: 'dayProperties',
+				affectedId: date
+			}
+		);
 	} catch {
 		ok = false;
 	}

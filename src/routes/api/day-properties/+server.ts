@@ -14,7 +14,7 @@ import {
 	deleteDayProperties
 } from '$lib/server/day-properties';
 import { dayPropertiesSetSchema } from '$lib/server/validation';
-import { respondUpdate } from '$lib/server/sync/conflict';
+import { respondUpdate, staleConflict } from '$lib/server/sync/conflict';
 import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -66,7 +66,7 @@ export const PUT: RequestHandler = async ({ locals, request }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ locals, url }) => {
+export const DELETE: RequestHandler = async ({ locals, url, request }) => {
 	try {
 		const userId = requireAuth(locals);
 		const date = url.searchParams.get('date');
@@ -74,7 +74,9 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 			throw new ApiError(400, 'date parameter is required');
 		}
 		const validDate = requireDate(date, 'date');
-		await deleteDayProperties(userId, validDate);
+		// A delete queued offline must not destroy a newer server-side edit.
+		const result = await deleteDayProperties(userId, validDate, readClientEditedAt(request));
+		if (result === 'stale') return staleConflict();
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		return handleApiError(error);

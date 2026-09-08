@@ -1146,7 +1146,8 @@ export function generateSpec() {
 					},
 					responses: {
 						'204': res204,
-						'401': res401
+						'401': res401,
+						'409': res409
 					}
 				}
 			},

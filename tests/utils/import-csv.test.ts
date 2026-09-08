@@ -44,6 +44,14 @@ describe('cell parsers', () => {
 		expect(parseDate('nope')).toBeNull();
 	});
 
+	test('parseDate rejects dates that only look valid', () => {
+		expect(parseDate('03/15/2026')).toBeNull(); // US order → month 15
+		expect(parseDate('32.01.2026')).toBeNull();
+		expect(parseDate('2026-02-30')).toBeNull();
+		expect(parseDate('2026-15-03')).toBeNull();
+		expect(parseDate('29.02.2024')).toBe('2024-02-29');
+	});
+
 	test('parseNumber handles a decimal comma but not thousands separators', () => {
 		expect(parseNumber('75,5')).toBe(75.5);
 		expect(parseNumber('75.5')).toBe(75.5);

@@ -2046,6 +2046,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
@@ -6355,9 +6358,16 @@
 						]
 					},
 					"waterGoalMl": {
-						"type": "integer",
-						"minimum": 250,
-						"maximum": 10000
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 250,
+								"maximum": 10000
+							},
+							{
+								"type": "null"
+							}
+						]
 					},
 					"biologicalSex": {
 						"anyOf": [

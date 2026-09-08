@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER } from '../helpers/fixtures';
 
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, reset, getCalls } = createMockDB();
 
 const schema = await import('$lib/server/schema');
 
@@ -113,21 +113,78 @@ describe('day-properties-db', () => {
 		});
 	});
 
+	describe('setDayProperties (empty row cleanup)', () => {
+		test('drops the row when the merged result carries no data', async () => {
+			setResult([
+				{
+					date: '2026-03-01',
+					isFastingDay: false,
+					notes: null,
+					waterMl: null,
+					activityCalories: null,
+					activityNote: null
+				}
+			]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', { isFastingDay: false });
+			expect(getCalls().some((call) => call.method === 'delete')).toBe(true);
+		});
+
+		test('keeps the row when any field still holds data', async () => {
+			setResult([
+				{
+					date: '2026-03-01',
+					isFastingDay: false,
+					notes: 'rest day',
+					waterMl: null,
+					activityCalories: null,
+					activityNote: null
+				}
+			]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', { isFastingDay: false });
+			expect(getCalls().some((call) => call.method === 'delete')).toBe(false);
+		});
+	});
+
 	describe('deleteDayProperties', () => {
-		test('returns true when a row was deleted', async () => {
+		test("returns 'deleted' when a row was deleted", async () => {
 			setResult([
 				{ date: '2026-03-01', userId: TEST_USER.id, isFastingDay: false, updatedAt: new Date() }
 			]);
 
 			const result = await deleteDayProperties(TEST_USER.id, '2026-03-01');
-			expect(result).toBe(true);
+			expect(result).toBe('deleted');
 		});
 
-		test('returns false when no rows affected', async () => {
+		test("returns 'missing' when no rows affected", async () => {
 			setResult([]);
 
 			const result = await deleteDayProperties(TEST_USER.id, '2026-03-99');
-			expect(result).toBe(false);
+			expect(result).toBe('missing');
+		});
+
+		test("returns 'stale' when the server row is newer than the client edit", async () => {
+			setResult([{ updatedAt: new Date('2026-03-02T10:00:00Z') }]);
+
+			const result = await deleteDayProperties(
+				TEST_USER.id,
+				'2026-03-01',
+				new Date('2026-03-01T10:00:00Z')
+			);
+			expect(result).toBe('stale');
+			expect(getCalls().some((call) => call.method === 'delete')).toBe(false);
+		});
+
+		test('deletes when the client edit is at least as new as the row', async () => {
+			setResult([{ updatedAt: new Date('2026-03-01T10:00:00Z') }]);
+
+			const result = await deleteDayProperties(
+				TEST_USER.id,
+				'2026-03-01',
+				new Date('2026-03-01T12:00:00Z')
+			);
+			expect(result).toBe('deleted');
 		});
 	});
 

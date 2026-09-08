@@ -120,13 +120,21 @@
 	};
 
 	const saveWaterGoal = async () => {
+		const current = cachedPrefs.value?.waterGoalMl ?? 2000;
+		if (waterGoalMl.trim() === '') {
+			// Clearing the field restores the default goal.
+			waterGoalMl = '2000';
+			if (current === 2000) return;
+			await savePreference('waterGoalMl', null);
+			return;
+		}
 		const parsed = Math.round(Number(waterGoalMl));
 		if (!Number.isFinite(parsed) || parsed < 250 || parsed > 10000) {
-			waterGoalMl = String(cachedPrefs.value?.waterGoalMl ?? 2000);
+			waterGoalMl = String(current);
 			return;
 		}
 		waterGoalMl = String(parsed);
-		if (parsed === (cachedPrefs.value?.waterGoalMl ?? 2000)) return;
+		if (parsed === current) return;
 		await savePreference('waterGoalMl', parsed);
 	};
 
