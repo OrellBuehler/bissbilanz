@@ -44,6 +44,9 @@ enum ErrorReporter {
             // blocking stacktrace. On by default; set explicitly so it can't be
             // lost to a future default change.
             options.enableAppHangTracking = true
+            options.beforeSend = { event in
+                ErrorReporter.isSuspensionArtifactHang(event) ? nil : event
+            }
             // Let Sentry ingest MetricKit *diagnostics* — OS-sampled crashes,
             // hangs, CPU and disk-write exceptions — as events with stack
             // traces. Aggregate *metrics* (launch time, energy) are handled
@@ -161,6 +164,37 @@ enum ErrorReporter {
         case let .decodingError(_, statusCode, _): return "decoding_error_\(statusCode)"
         case nil: return "other: \(error.localizedDescription)"
         }
+    }
+
+    /// Longest hang worth believing. The OS watchdog terminates a genuinely
+    /// blocked app within roughly 20 seconds, so anything past this is not a
+    /// hang that happened.
+    private static let maxPlausibleAppHangSeconds = 30.0
+
+    /// Sentry's app-hang tracker keeps counting while the app is suspended, so
+    /// a night in the background comes back as a multi-hour "hang" whose main
+    /// thread is parked in the run loop waiting for events (BISSBILANZ-34/37).
+    /// Those durations are a suspension artifact and drown out real issues.
+    /// Fatal hangs report no duration and are always kept.
+    static func isSuspensionArtifactHang(_ event: Event) -> Bool {
+        guard let exception = event.exceptions?.first,
+              exception.mechanism?.type == "AppHang",
+              let description = exception.value
+        else { return false }
+        return isSuspensionArtifactHang(hangDescription: description)
+    }
+
+    static func isSuspensionArtifactHang(hangDescription: String) -> Bool {
+        guard let seconds = reportedHangSeconds(in: hangDescription) else { return false }
+        return seconds > maxPlausibleAppHangSeconds
+    }
+
+    /// Reads the lower bound out of "App hanging between 53799.2 and 53800.0
+    /// seconds." Returns nil for the fatal-hang wording, which carries none.
+    static func reportedHangSeconds(in value: String) -> Double? {
+        guard let range = value.range(of: "between ") else { return nil }
+        let digits = value[range.upperBound...].prefix { $0.isNumber || $0 == "." }
+        return Double(digits)
     }
 
     private static func shouldIgnore(_ error: Error) -> Bool {
