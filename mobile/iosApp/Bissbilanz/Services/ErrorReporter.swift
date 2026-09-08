@@ -178,9 +178,10 @@ enum ErrorReporter {
     /// Fatal hangs report no duration and are always kept.
     static func isSuspensionArtifactHang(_ event: Event) -> Bool {
         guard let exception = event.exceptions?.first,
-              exception.mechanism?.type == "AppHang"
+              exception.mechanism?.type == "AppHang",
+              let description = exception.value
         else { return false }
-        return isSuspensionArtifactHang(hangDescription: exception.value)
+        return isSuspensionArtifactHang(hangDescription: description)
     }
 
     static func isSuspensionArtifactHang(hangDescription: String) -> Bool {
