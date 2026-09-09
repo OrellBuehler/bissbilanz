@@ -277,7 +277,7 @@ final class AiTaskStore {
     /// Whether sending the same bytes again can succeed. A 4xx says the payload
     /// itself was refused (bar the two transient ones), so a relaunch must not
     /// keep re-sending it; everything else is the network or the server's day.
-    static func isRetryable(_ error: Error) -> Bool {
+    nonisolated static func isRetryable(_ error: Error) -> Bool {
         switch error as? APIError {
         case .badRequest, .notFound, .gone, .conflict:
             false
