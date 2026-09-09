@@ -62,7 +62,7 @@ ENV HOST=0.0.0.0
 # svelte-adapter-bun defaults the request body cap to 512K, and Bun answers a
 # larger Content-Length with an empty 413 before any route runs. The AI task
 # photo route accepts 5 x 10MB, so anything below that silently drops meals.
-ENV BODY_SIZE_LIMIT=60M
+ENV BODY_SIZE_LIMIT=100M
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/auth/me || exit 1
