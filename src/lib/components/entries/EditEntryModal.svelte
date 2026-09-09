@@ -46,6 +46,7 @@
 			id: string;
 			servings: number;
 			mealType: string;
+			date: string;
 			eatenAt?: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
@@ -70,6 +71,7 @@
 
 	let editServings = $state(1);
 	let editMealType = $state('');
+	let editDate = $state('');
 	let editTime = $state('');
 
 	let editQuickName = $state('');
@@ -109,6 +111,7 @@
 		if (entry) {
 			editServings = round2(entry.servings);
 			editMealType = entry.mealType;
+			editDate = date;
 			editTime = formatTime24h(entry.eatenAt);
 			if (entry.quickCalories != null) {
 				editQuickName = entry.quickName ?? '';
@@ -125,7 +128,7 @@
 
 	const handleSave = () => {
 		if (!entry) return;
-		const eatenAt = timeToIsoString(editTime, date) ?? undefined;
+		const eatenAt = timeToIsoString(editTime, editDate) ?? undefined;
 		if (isQuickEntry) {
 			const cal = editQuickCalories;
 			if (!cal || cal < 0) return;
@@ -133,6 +136,7 @@
 				id: entry.id,
 				servings: 1,
 				mealType: editMealType,
+				date: editDate,
 				eatenAt,
 				quickName: editQuickName.trim() || null,
 				quickCalories: cal,
@@ -143,7 +147,13 @@
 				quickNutrients: Object.keys(editQuickNutrients).length ? { ...editQuickNutrients } : null
 			});
 		} else {
-			onSave({ id: entry.id, servings: editServings, mealType: editMealType, eatenAt });
+			onSave({
+				id: entry.id,
+				servings: editServings,
+				mealType: editMealType,
+				date: editDate,
+				eatenAt
+			});
 		}
 	};
 
@@ -252,9 +262,15 @@
 			</Select.Root>
 		</div>
 
-		<div class="grid gap-2">
-			<Label>{m.edit_entry_time()}</Label>
-			<Input type="time" bind:value={editTime} />
+		<div class="grid grid-cols-2 gap-3">
+			<div class="grid gap-2">
+				<Label>{m.edit_entry_date()}</Label>
+				<Input type="date" bind:value={editDate} />
+			</div>
+			<div class="grid gap-2">
+				<Label>{m.edit_entry_time()}</Label>
+				<Input type="time" bind:value={editTime} />
+			</div>
 		</div>
 
 		<div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -276,7 +292,8 @@
 				<Button
 					class="flex-1 sm:flex-none"
 					aria-label={m.edit_entry_save()}
-					disabled={isQuickEntry && (editQuickCalories == null || editQuickCalories <= 0)}
+					disabled={!editDate ||
+						(isQuickEntry && (editQuickCalories == null || editQuickCalories <= 0))}
 					onclick={handleSave}
 				>
 					<Check class="size-4" />
