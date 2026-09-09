@@ -166,9 +166,9 @@ private struct PendingUploadRow: View {
                 }
             }
             Text(
-                upload.draft.description ?? (
-                    upload.draft.images.count > 1
-                        ? L10n.aiTasksPhotosOnly(upload.draft.images.count)
+                upload.description ?? (
+                    upload.photoCount > 1
+                        ? L10n.aiTasksPhotosOnly(upload.photoCount)
                         : L10n.aiTasksPhotoOnly
                 )
             )

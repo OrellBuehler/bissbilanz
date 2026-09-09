@@ -350,6 +350,8 @@ struct BissbilanzApp: App {
         // A dismissal is the one AI task outcome the user has to hear about — the meal
         // never got logged. No push channel exists, so this and the background pull are
         // the only chances to tell them.
+        // First, re-send any meal a previous launch was killed while uploading.
+        aiTaskStore.restorePendingUploads()
         try? await aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
         // Surface any widget-extension quick-add failures (the extension has no

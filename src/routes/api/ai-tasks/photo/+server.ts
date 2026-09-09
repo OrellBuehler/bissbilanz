@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { processImage } from '$lib/server/images';
-import { handleApiError, requireAuth } from '$lib/server/errors';
+import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
 import { MAX_AI_TASK_PHOTOS } from '$lib/server/validation';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -53,8 +53,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			photoUrls.push(await processImage(file, { maxDim: 1024, fit: 'inside' }));
 		}
 
+		Sentry.logger.info('AI task photos uploaded', {
+			fileCount: files.length,
+			totalBytes: files.reduce((sum, file) => sum + file.size, 0),
+			userAgent: request.headers.get('user-agent') ?? ''
+		});
 		return json({ photoUrl: photoUrls[0], photoUrls }, { status: 201 });
 	} catch (error) {
+		if (error instanceof ApiError && error.status === 401) {
+			Sentry.logger.warn('AI task request unauthenticated', {
+				path: '/api/ai-tasks/photo',
+				userAgent: request.headers.get('user-agent') ?? ''
+			});
+		}
 		return handleApiError(error);
 	}
 };
