@@ -230,6 +230,17 @@ struct APIRequestBuildingTests {
         #expect(json["notes"] == nil)
     }
 
+    @Test("Entry update encodes a changed date")
+    func entryUpdateDateEncoding() throws {
+        let update = EntryUpdate(mealType: "dinner", servings: 1.0, date: "2026-06-05", eatenAt: "2026-06-05T18:30:00Z")
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["date"] as? String == "2026-06-05")
+        #expect(json["eatenAt"] as? String == "2026-06-05T18:30:00Z")
+    }
+
     @Test("Preferences update partial encoding")
     func preferencesUpdateEncoding() throws {
         let update = PreferencesUpdate(

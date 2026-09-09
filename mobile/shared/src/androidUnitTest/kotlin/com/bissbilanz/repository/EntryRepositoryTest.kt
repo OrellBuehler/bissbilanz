@@ -285,6 +285,33 @@ class EntryRepositoryTest {
             assertEquals("extra sauce", after.notes)
         }
 
+    /**
+     * The Android edit sheet lets the user move an entry to another day (MCP agents
+     * sometimes log on the wrong day) by sending an updated `date` alongside the rest
+     * of the patch. The single cached row has to follow: it must disappear from the
+     * old day's flow and appear under the new one without waiting for a server round
+     * trip.
+     */
+    @Test
+    fun updateEntryWithNewDateMovesTheCachedRowToTheNewDay() =
+        runTest {
+            val entry = TestFixtures.entry(id = "e1", date = "2024-01-10")
+            coEvery { api.getEntries("2024-01-10") } returns listOf(entry)
+            coEvery { syncQueue.all() } returns emptyList()
+            repository.refresh("2024-01-10")
+
+            repository.updateEntry("e1", EntryUpdate(date = "2024-01-20"))
+
+            assertTrue(repository.entriesByDateOnce("2024-01-10").none { it.id == "e1" })
+            val moved = repository.entriesByDateOnce("2024-01-20").first { it.id == "e1" }
+            assertEquals("2024-01-20", moved.date)
+            coVerify {
+                syncQueue.enqueue(
+                    match<SyncOperation> { it is SyncOperation.UpdateEntry && it.id == "e1" },
+                )
+            }
+        }
+
     @Test
     fun refreshDropsTempRowWhoseCreateAlreadyUploaded() =
         runTest {

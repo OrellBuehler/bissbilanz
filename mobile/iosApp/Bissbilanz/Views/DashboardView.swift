@@ -6,7 +6,9 @@ import SwiftUI
 private struct DashboardTrendPoint: Identifiable {
     let date: Date
     let calories: Double
-    var id: Date { date }
+    var id: Date {
+        date
+    }
 }
 
 /// One row of the dashboard "top foods" card, aggregated over the trend window.
@@ -14,14 +16,18 @@ private struct DashboardTopFood: Identifiable {
     let name: String
     let count: Int
     let calories: Double
-    var id: String { name }
+    var id: String {
+        name
+    }
 }
 
 /// One meal's share of the selected day's calories.
 private struct DashboardMealSlice: Identifiable {
     let meal: String
     let calories: Double
-    var id: String { meal }
+    var id: String {
+        meal
+    }
 }
 
 struct DashboardView: View {
@@ -64,7 +70,7 @@ struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
-    // Widget data
+    /// Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
     /// Weight/sleep entries nearest the selected day, not simply the latest —
     /// browsing a past day must show that day's context, with each card
@@ -140,7 +146,7 @@ struct DashboardView: View {
                 // clear of the FAB instead of sitting permanently behind it.
                 .padding(.bottom, 104)
             }
-            .simultaneousGesture(dateSwipeGesture)
+            .keyboardDismissable()
             .navigationTitle(L10n.appName)
             .refreshable { await loadData(paintFromStore: false) }
             .toast(message: $toastMessage)
@@ -316,20 +322,6 @@ struct DashboardView: View {
     }
 
     // MARK: - Date Navigation
-
-    /// Horizontal swipe anywhere on the dashboard changes the day. Runs
-    /// simultaneously with the vertical scroll gesture; the dominance check in
-    /// `onEnded` keeps scrolling and pull-to-refresh unaffected, and the
-    /// minimum distance keeps taps intact.
-    private var dateSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20)
-            .onEnded { value in
-                let horizontal = value.translation.width
-                let vertical = value.translation.height
-                guard abs(horizontal) > 60, abs(horizontal) > abs(vertical) else { return }
-                changeDay(by: horizontal < 0 ? 1 : -1)
-            }
-    }
 
     /// Moves the selected date by `delta` days with a directional push
     /// animation. Moving past today is blocked — no future dates.
@@ -944,7 +936,7 @@ struct DashboardView: View {
         return DateFormatting.displayString(from: date)
     }
 
-    /// Every trigger — the day swipe, pull-to-refresh, each sheet's dismissal,
+    /// Every trigger — the day buttons, pull-to-refresh, each sheet's dismissal,
     /// the retry button — starts its own task, so several loads can be in
     /// flight at once with no ordering between them. A stale one finishing
     /// last would apply a previous day's result to the day now on screen:

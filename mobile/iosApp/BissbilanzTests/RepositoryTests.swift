@@ -139,6 +139,28 @@ struct RepositoryTests {
         #expect(repo.entries(date: "2026-06-01").first?.servings == 3)
     }
 
+    @Test("Updating an entry's date moves it between days and queues the patch")
+    func entryUpdateMovesBetweenDays() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: "e1", date: "2026-06-01"),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+
+        _ = try await repo.updateEntry(id: "e1", EntryUpdate(date: "2026-06-02"))
+
+        #expect(repo.entries(date: "2026-06-01").isEmpty)
+        #expect(repo.entries(date: "2026-06-02").first?.id == "e1")
+        guard case let .updateEntry(id, body)? = harness.syncManager.queuedRows().first?.operation() else {
+            Issue.record("expected a queued updateEntry operation")
+            return
+        }
+        #expect(id == "e1")
+        #expect(body.date == "2026-06-02")
+    }
+
     @Test("Day properties write locally first and queue the upload")
     func dayPropertiesWriteLocallyAndQueue() async throws {
         let harness = try RepositoryHarness()

@@ -774,6 +774,7 @@
     <string name="entry_edit_title">Edit Entry</string>
     <string name="entry_edit_quick_add_title">Quick Add</string>
     <string name="entry_edit_meal_type_label">Meal Type</string>
+    <string name="entry_edit_date_label">Date</string>
     <string name="entry_edit_time_label">Time</string>
 
     <!-- Supplements widget -->

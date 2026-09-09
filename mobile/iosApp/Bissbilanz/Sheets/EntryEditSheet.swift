@@ -10,6 +10,7 @@ struct EntryEditSheet: View {
 
     @State private var servings: Double
     @State private var mealType: String
+    @State private var entryDate: Date
     @State private var eatenTime: Date
     @State private var notes: String
     @State private var isSaving = false
@@ -34,6 +35,7 @@ struct EntryEditSheet: View {
         self.onSaved = onSaved
         _servings = State(initialValue: entry.servings)
         _mealType = State(initialValue: entry.mealType)
+        _entryDate = State(initialValue: Self.initialDate(for: entry))
         _eatenTime = State(initialValue: entry.loggedAt ?? Date())
         _notes = State(initialValue: entry.notes ?? "")
         _calories = State(initialValue: Self.field(entry.quickCalories))
@@ -48,6 +50,12 @@ struct EntryEditSheet: View {
 
     private static func field(_ value: Double?) -> String {
         value.map { MacroFormat.nutrient($0) } ?? ""
+    }
+
+    /// The entry's current day, as a `Date` for the date picker. Falls back to
+    /// the logged time or now if the stored date string can't be parsed.
+    private static func initialDate(for entry: Entry) -> Date {
+        entry.date.flatMap { DateFormatting.date(from: $0) } ?? entry.loggedAt ?? Date()
     }
 
     /// A quick entry — no food and no recipe resolves its macros, so the values
@@ -119,6 +127,7 @@ struct EntryEditSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    DatePicker(L10n.date, selection: $entryDate, in: ...Date(), displayedComponents: .date)
                     DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
 
@@ -221,7 +230,9 @@ struct EntryEditSheet: View {
     private func save() async {
         guard canSave else { return }
         isSaving = true
-        var update = EntryUpdate(mealType: mealType, servings: servings, eatenAt: eatenAtString())
+        var update = EntryUpdate(
+            mealType: mealType, servings: servings, date: entryDate.isoDateString, eatenAt: eatenAtString()
+        )
         // Always sent, never omitted: an emptied note has to reach the server as
         // an explicit null or the old text survives the edit.
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -247,18 +258,18 @@ struct EntryEditSheet: View {
         isSaving = false
     }
 
-    /// The picked time-of-day on the entry's day, as the UTC ISO-8601 `eatenAt`
-    /// wire value — mirrors `LogFoodSheet.eatenAtString()`. `nil` (eaten time
-    /// left unchanged) only if the components can't be combined.
+    /// The picked time-of-day on the picked entry date, as the UTC ISO-8601
+    /// `eatenAt` wire value — mirrors `LogFoodSheet.eatenAtString()`. `nil`
+    /// (eaten time left unchanged) only if the components can't be combined.
     private func eatenAtString() -> String? {
-        let day = entry.date.flatMap { DateFormatting.date(from: $0) } ?? entry.loggedAt ?? Date()
         let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
         guard let combined = Calendar.current.date(
             bySettingHour: time.hour ?? 0,
             minute: time.minute ?? 0,
             second: 0,
-            of: day
-        ) else { return nil }
+            of: entryDate
+        )
+        else { return nil }
         return DateFormatting.isoDateTimeString(from: combined)
     }
 }

@@ -120,6 +120,7 @@
 		id: string;
 		servings: number;
 		mealType: string;
+		date: string;
 		eatenAt?: string;
 		quickName?: string | null;
 		quickCalories?: number | null;

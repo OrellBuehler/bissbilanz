@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
@@ -70,8 +72,10 @@ fun EntryEditSheet(
     var servings by remember { mutableStateOf("1") }
     var mealType by remember { mutableStateOf("Lunch") }
     var notes by remember { mutableStateOf("") }
+    var eatenDate by remember { mutableStateOf<String?>(null) }
     var eatenHour by remember { mutableStateOf<Int?>(null) }
     var eatenMinute by remember { mutableStateOf<Int?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var quickName by remember { mutableStateOf("") }
     var quickCalories by remember { mutableStateOf("") }
@@ -105,6 +109,7 @@ fun EntryEditSheet(
                 servings = found.servings.toDisplayString()
                 mealType = normalizeMealType(found.mealType)
                 notes = found.notes ?: ""
+                eatenDate = found.date
                 val seed =
                     (found.eatenAt ?: found.createdAt)
                         ?.let { runCatching { Instant.parse(it) }.getOrNull() }
@@ -158,6 +163,44 @@ fun EntryEditSheet(
                 TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
+    }
+
+    if (showDatePicker) {
+        // Entries logged in the future would never show up in any day log or dashboard.
+        val maxSelectableMillis = LocalDate.parse(today).toEpochDays().toLong() * 86_400_000L
+        val initialMillis =
+            eatenDate
+                ?.let { runCatching { LocalDate.parse(it).toEpochDays().toLong() * 86_400_000L }.getOrNull() }
+                ?: maxSelectableMillis
+        val dateState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = initialMillis,
+                selectableDates =
+                    object : SelectableDates {
+                        override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= maxSelectableMillis
+                    },
+            )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        dateState.selectedDateMillis?.let { millis ->
+                            eatenDate =
+                                Instant
+                                    .fromEpochMilliseconds(millis)
+                                    .toLocalDateTime(TimeZone.UTC)
+                                    .date
+                                    .toString()
+                        }
+                        showDatePicker = false
+                    },
+                ) { Text(stringResource(R.string.dialog_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        ) { DatePicker(state = dateState) }
     }
 
     if (showTimePicker) {
@@ -270,6 +313,23 @@ fun EntryEditSheet(
                 )
             }
 
+            // Date (edit mode) — lets a wrong-day AI log get moved to the right day.
+            if (isEditing) {
+                Text(stringResource(R.string.entry_edit_date_label), style = MaterialTheme.typography.labelLarge)
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(eatenDate?.let { dayLabel(LocalDate.parse(it)) } ?: "--")
+                }
+            }
+
             // Time (edit mode)
             if (isEditing) {
                 Text(stringResource(R.string.entry_edit_time_label), style = MaterialTheme.typography.labelLarge)
@@ -368,8 +428,9 @@ fun EntryEditSheet(
                                             servings =
                                                 servings.toLocalizedDoubleOrNull() ?: 1.0,
                                             notes = notes.ifBlank { null },
+                                            date = eatenDate,
                                             eatenAt =
-                                                buildEatenAt(entry?.date, eatenHour, eatenMinute),
+                                                buildEatenAt(eatenDate, eatenHour, eatenMinute),
                                             quickName =
                                                 if (isQuickEntry) quickName.trim().ifBlank { null } else null,
                                             quickCalories =
