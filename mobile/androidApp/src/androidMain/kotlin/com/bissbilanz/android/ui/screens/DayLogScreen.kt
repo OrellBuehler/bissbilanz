@@ -186,7 +186,11 @@ fun DayLogScreen(
         if (editingEntryId != null) {
             EntryEditSheet(
                 entryId = editingEntryId,
-                date = null,
+                // Look the edited entry up on the day this screen is showing, not
+                // today: the sheet falls back to today when `date` is null, which
+                // left the form blank (and Save a no-op) whenever this screen was
+                // opened for any other day.
+                date = date,
                 onDismiss = { editingEntryId = null },
                 onSaved = {
                     editingEntryId = null
