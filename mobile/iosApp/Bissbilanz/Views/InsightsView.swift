@@ -171,15 +171,24 @@ struct InsightsView: View {
 
     // MARK: - Meal Breakdown Pie Chart
 
+    /// Meals with a finite, positive calorie share. `SectorMark` divides each
+    /// angle by the total, so an all-zero (or NaN) breakdown makes Charts
+    /// build a sector path from NaN and trap inside `Path.roundedSector` —
+    /// that was the "90d then back to 7d" crash on an empty week.
+    private var plottableMealBreakdown: [MealBreakdownEntry] {
+        mealBreakdown.filter { $0.calories.isFinite && $0.calories > 0 }
+    }
+
     @ViewBuilder
     private var mealBreakdownChart: some View {
-        if !mealBreakdown.isEmpty {
+        let meals = plottableMealBreakdown
+        if !meals.isEmpty {
             CardView {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(L10n.mealBreakdown, systemImage: "chart.pie")
                         .font(.headline)
 
-                    Chart(mealBreakdown, id: \.mealType) { meal in
+                    Chart(meals, id: \.mealType) { meal in
                         SectorMark(
                             angle: .value("Calories", meal.calories),
                             innerRadius: .ratio(0.5)

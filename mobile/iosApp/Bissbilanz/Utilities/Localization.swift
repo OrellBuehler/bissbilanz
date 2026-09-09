@@ -2345,6 +2345,14 @@ enum L10n {
         )
     }
 
+    static func aiTaskTimeOnDayHint(_ day: String) -> String {
+        localized(
+            "ai_task_time_on_day_hint",
+            en: "The meal is logged at this time on \(day).",
+            de: "Die Mahlzeit wird um diese Uhrzeit am \(day) eingetragen."
+        )
+    }
+
     static var aiTaskUploadSending: String {
         localized("ai_task_upload_sending", en: "Sending to your assistant…", de: "Wird an deinen Assistenten gesendet…")
     }
