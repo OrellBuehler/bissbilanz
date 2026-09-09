@@ -1532,6 +1532,7 @@ export function createHandlers(d: HandlerDeps) {
 		photoCount: task.photoUrls?.length ?? 0,
 		date: task.date,
 		mealType: task.mealType,
+		eatenAt: task.eatenAt,
 		source: task.source,
 		resultSummary: task.resultSummary,
 		createdEntryIds: task.createdEntryIds,
