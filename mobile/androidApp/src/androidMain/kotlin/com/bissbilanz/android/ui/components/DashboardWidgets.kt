@@ -221,13 +221,19 @@ fun FavoritesQuickLogWidget(
 
     fun log(
         food: Food,
-        meal: String,
-        servings: Double,
+        details: MealLogDetails,
     ) {
         scope.launch {
             try {
                 entryRepo.createEntry(
-                    EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = date),
+                    EntryCreate(
+                        foodId = food.id,
+                        mealType = details.mealType,
+                        servings = details.servings,
+                        date = details.date,
+                        eatenAt = details.eatenAt,
+                        notes = details.notes,
+                    ),
                     food = food,
                 )
                 onLogged(food.name)
@@ -241,10 +247,12 @@ fun FavoritesQuickLogWidget(
     pendingFood?.let { food ->
         MealPickerSheet(
             onDismiss = { pendingFood = null },
-            onConfirm = { meal, servings ->
+            onConfirm = { details ->
                 pendingFood = null
-                log(food, meal, servings)
+                log(food, details)
             },
+            date = date,
+            macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
         )
     }
 
@@ -275,7 +283,7 @@ fun FavoritesQuickLogWidget(
                             if (meal == null) {
                                 pendingFood = food
                             } else {
-                                log(food, meal, 1.0)
+                                log(food, MealLogDetails(mealType = meal, servings = 1.0, date = date, eatenAt = null, notes = null))
                             }
                         },
                         label = {

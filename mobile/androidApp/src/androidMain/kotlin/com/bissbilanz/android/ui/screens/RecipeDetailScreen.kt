@@ -19,6 +19,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
@@ -28,10 +29,7 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
-import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,12 +89,18 @@ fun RecipeDetailScreen(
     if (showLogDialog && recipe != null) {
         MealPickerSheet(
             onDismiss = { showLogDialog = false },
-            onConfirm = { meal, servings ->
+            onConfirm = { details ->
                 scope.launch {
                     try {
-                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         entryRepo.createEntry(
-                            EntryCreate(recipeId = recipe!!.id, mealType = meal, servings = servings, date = today),
+                            EntryCreate(
+                                recipeId = recipe!!.id,
+                                mealType = details.mealType,
+                                servings = details.servings,
+                                date = details.date,
+                                eatenAt = details.eatenAt,
+                                notes = details.notes,
+                            ),
                             recipe = recipe,
                         )
                         snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipe!!.name))
@@ -108,6 +112,7 @@ fun RecipeDetailScreen(
                 }
                 showLogDialog = false
             },
+            macros = recipe?.let { MealPickerMacros(it.calories, it.protein, it.carbs, it.fat, it.fiber) },
         )
     }
 

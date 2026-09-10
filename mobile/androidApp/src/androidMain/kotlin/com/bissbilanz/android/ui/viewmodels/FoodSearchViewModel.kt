@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
@@ -14,9 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 class FoodSearchViewModel(
     private val foodRepo: FoodRepository,
@@ -148,14 +146,19 @@ class FoodSearchViewModel(
 
     fun logFood(
         food: Food,
-        meal: String,
-        servings: Double,
+        details: MealLogDetails,
     ) {
         viewModelScope.launch {
             try {
-                val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                 entryRepo.createEntry(
-                    EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today),
+                    EntryCreate(
+                        foodId = food.id,
+                        mealType = details.mealType,
+                        servings = details.servings,
+                        date = details.date,
+                        eatenAt = details.eatenAt,
+                        notes = details.notes,
+                    ),
                     food = food,
                 )
                 _snackbarMessage.value = "Logged ${food.name}"

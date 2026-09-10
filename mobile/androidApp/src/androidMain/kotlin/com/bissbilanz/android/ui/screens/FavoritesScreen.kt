@@ -24,15 +24,20 @@ import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FavoritesSkeleton
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.MealLogDetails
+import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +57,7 @@ fun FavoritesScreen(navController: NavController) {
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
     var pendingServingsFood by remember { mutableStateOf<Food?>(null) }
     var pendingServingsRecipe by remember { mutableStateOf<Recipe?>(null) }
+    val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()).toString() }
 
     val favoriteRecipes = recipes.filter { it.isFavorite }
 
@@ -62,33 +68,35 @@ fun FavoritesScreen(navController: NavController) {
         }
     }
 
-    if (foodToLog != null) {
+    foodToLog?.let { food ->
         MealPickerSheet(
             onDismiss = { foodToLog = null },
-            onConfirm = { meal, servings ->
-                viewModel.logFood(foodToLog!!, meal, servings)
+            onConfirm = { details ->
+                viewModel.logFood(food, details)
                 foodToLog = null
             },
+            macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
         )
     }
 
-    if (recipeToLog != null) {
+    recipeToLog?.let { recipe ->
         MealPickerSheet(
             onDismiss = { recipeToLog = null },
-            onConfirm = { meal, servings ->
-                viewModel.logRecipe(recipeToLog!!, meal, servings)
+            onConfirm = { details ->
+                viewModel.logRecipe(recipe, details)
                 recipeToLog = null
             },
+            macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
         )
     }
 
-    if (pendingServingsFood != null) {
+    pendingServingsFood?.let { food ->
         MealPickerSheet(
             onDismiss = { pendingServingsFood = null },
-            onConfirm = { _, servings ->
+            onConfirm = { details ->
                 val meal = viewModel.resolveDefaultMeal()
                 if (meal != null) {
-                    viewModel.logFood(pendingServingsFood!!, meal, servings)
+                    viewModel.logFood(food, details.copy(mealType = meal))
                     pendingServingsFood = null
                 } else {
                     foodToLog = pendingServingsFood
@@ -97,16 +105,18 @@ fun FavoritesScreen(navController: NavController) {
             },
             title = stringResource(R.string.favorites_select_servings),
             showMealPicker = false,
+            showDateTimeNotes = false,
+            macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
         )
     }
 
-    if (pendingServingsRecipe != null) {
+    pendingServingsRecipe?.let { recipe ->
         MealPickerSheet(
             onDismiss = { pendingServingsRecipe = null },
-            onConfirm = { _, servings ->
+            onConfirm = { details ->
                 val meal = viewModel.resolveDefaultMeal()
                 if (meal != null) {
-                    viewModel.logRecipe(pendingServingsRecipe!!, meal, servings)
+                    viewModel.logRecipe(recipe, details.copy(mealType = meal))
                     pendingServingsRecipe = null
                 } else {
                     recipeToLog = pendingServingsRecipe
@@ -115,6 +125,8 @@ fun FavoritesScreen(navController: NavController) {
             },
             title = stringResource(R.string.favorites_select_servings),
             showMealPicker = false,
+            showDateTimeNotes = false,
+            macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
         )
     }
 
@@ -170,7 +182,17 @@ fun FavoritesScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(
                                                 viewModel = viewModel,
-                                                onInstantWithMeal = { meal -> viewModel.logFood(food, meal, 1.0) },
+                                                onInstantWithMeal = { meal ->
+                                                    val details =
+                                                        MealLogDetails(
+                                                            mealType = meal,
+                                                            servings = 1.0,
+                                                            date = today,
+                                                            eatenAt = null,
+                                                            notes = null,
+                                                        )
+                                                    viewModel.logFood(food, details)
+                                                },
                                                 onShowServingsPicker = { pendingServingsFood = food },
                                                 onShowMealPicker = { foodToLog = food },
                                             )
@@ -197,7 +219,17 @@ fun FavoritesScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(
                                                 viewModel = viewModel,
-                                                onInstantWithMeal = { meal -> viewModel.logRecipe(recipe, meal, 1.0) },
+                                                onInstantWithMeal = { meal ->
+                                                    val details =
+                                                        MealLogDetails(
+                                                            mealType = meal,
+                                                            servings = 1.0,
+                                                            date = today,
+                                                            eatenAt = null,
+                                                            notes = null,
+                                                        )
+                                                    viewModel.logRecipe(recipe, details)
+                                                },
                                                 onShowServingsPicker = { pendingServingsRecipe = recipe },
                                                 onShowMealPicker = { recipeToLog = recipe },
                                             )

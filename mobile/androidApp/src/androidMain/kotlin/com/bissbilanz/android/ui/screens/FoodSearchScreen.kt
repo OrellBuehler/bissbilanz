@@ -35,6 +35,7 @@ import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
+import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
@@ -79,13 +80,14 @@ fun FoodSearchScreen(navController: NavController) {
         }
     }
 
-    if (foodToLog != null) {
+    foodToLog?.let { food ->
         MealPickerSheet(
             onDismiss = { foodToLog = null },
-            onConfirm = { meal, servings ->
-                viewModel.logFood(foodToLog!!, meal, servings)
+            onConfirm = { details ->
+                viewModel.logFood(food, details)
                 foodToLog = null
             },
+            macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
         )
     }
 
