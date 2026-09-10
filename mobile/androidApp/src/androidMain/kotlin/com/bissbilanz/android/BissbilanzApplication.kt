@@ -9,6 +9,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskPollWorker
+import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -137,6 +138,7 @@ class BissbilanzApplication :
                 single { HealthSyncPreferences(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
+                single { AiTaskUploadQueue(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,23 +27,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskNotifier
+import com.bissbilanz.android.aitasks.AiTaskUploadStatus
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
+import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.api.generated.model.AiTask
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.qualifier.named
+import java.io.File
 import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,19 +54,13 @@ fun AiTasksScreen(navController: NavController) {
     val baseUrl: String = koinInject(named("baseUrl"))
     val context = LocalContext.current
     val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle(emptyList())
+    val queuedUploads by viewModel.queuedUploads.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
     var taskToDelete by remember { mutableStateOf<AiTask?>(null) }
-    val uploadsInFlight by
-        remember(context) {
-            WorkManager
-                .getInstance(context)
-                .getWorkInfosByTagFlow(AiTaskUploadWorker.TAG)
-                .map { infos -> infos.count { !it.state.isFinished } }
-        }.collectAsStateWithLifecycle(0)
 
     val filters =
         listOf(
@@ -144,11 +140,10 @@ fun AiTasksScreen(navController: NavController) {
                 onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                val showUploads = uploadsInFlight > 0 && selectedFilter == AiTasksViewModel.Filter.OPEN
                 Crossfade(targetState = isLoading, label = "ai-tasks") { loading ->
                     if (loading) {
                         LoadingScreen()
-                    } else if (tasks.isEmpty() && !showUploads) {
+                    } else if (tasks.isEmpty() && queuedUploads.isEmpty()) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
                         LazyColumn(
@@ -156,8 +151,13 @@ fun AiTasksScreen(navController: NavController) {
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                         ) {
-                            if (showUploads) {
-                                item(key = "uploads") { UploadsInFlightCard(uploadsInFlight) }
+                            items(queuedUploads, key = { "upload-${it.id}" }) { upload ->
+                                QueuedUploadCard(
+                                    upload = upload,
+                                    onRetry = { AiTaskUploadWorker.retry(context, upload.id) },
+                                    onDiscard = { AiTaskUploadWorker.discard(context, upload.id) },
+                                    modifier = Modifier.animateItem(),
+                                )
                             }
                             items(tasks, key = { it.id }) { task ->
                                 AiTaskListItem(
@@ -175,24 +175,87 @@ fun AiTasksScreen(navController: NavController) {
     }
 }
 
-/** Meals WorkManager is still sending; they turn into real tasks on the next refresh. */
+/**
+ * A meal still on its way to the server, or one that ran out of retries and can
+ * be sent again without re-entering anything — WorkManager keeps the photos and
+ * description in [AiTaskUploadQueue] rather than deleting them. Mirrors iOS's
+ * PendingUploadRow.
+ */
 @Composable
-private fun UploadsInFlightCard(count: Int) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            Text(
-                if (count == 1) {
-                    stringResource(R.string.ai_tasks_uploading_one)
-                } else {
-                    stringResource(R.string.ai_tasks_uploading_many, count)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
+private fun QueuedUploadCard(
+    upload: QueuedAiTaskUpload,
+    onRetry: () -> Unit,
+    onDiscard: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val failed = upload.status == AiTaskUploadStatus.FAILED
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                upload.photoPaths.firstOrNull()?.let { path ->
+                    AsyncImage(
+                        model = File(path),
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (failed) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                stringResource(R.string.ai_tasks_upload_failed_title),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        } else {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                            Text(
+                                stringResource(R.string.ai_task_upload_sending),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    val description = upload.description
+                    Text(
+                        if (!description.isNullOrBlank()) {
+                            description
+                        } else if (upload.photoPaths.size > 1) {
+                            stringResource(R.string.ai_tasks_photos_only, upload.photoPaths.size)
+                        } else {
+                            stringResource(R.string.ai_tasks_photo_only)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (failed) {
+                        upload.lastError?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (failed && upload.retryable) {
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
+                }
+                TextButton(onClick = onDiscard) { Text(stringResource(R.string.action_discard)) }
+            }
         }
     }
 }

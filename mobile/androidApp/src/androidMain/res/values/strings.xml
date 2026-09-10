@@ -212,8 +212,7 @@
     <string name="ai_tasks_notification_summary">Dismissed AI tasks</string>
     <string name="ai_tasks_upload_failed_title">Could not send meal to your assistant</string>
     <string name="ai_tasks_upload_failed_body">Check your connection and send it again.</string>
-    <string name="ai_tasks_uploading_one">Sending 1 meal to your assistant…</string>
-    <string name="ai_tasks_uploading_many">Sending %1$d meals to your assistant…</string>
+    <string name="ai_task_upload_sending">Sending to your assistant…</string>
 
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
