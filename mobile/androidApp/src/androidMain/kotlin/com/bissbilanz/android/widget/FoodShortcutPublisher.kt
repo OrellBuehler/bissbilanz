@@ -22,12 +22,13 @@ import kotlin.time.Clock
  * logs most often, published as dynamic shortcuts so the launcher's long-press menu
  * and the Assistant can offer them by name.
  *
- * Each shortcut carries the same `navigate_to` extra the static shortcuts use, so it
- * lands on the food's detail screen through [MainActivity] and `PendingNavigation`
- * even on a cold start. The capability binding is what makes "Log <food> with
- * Bissbilanz" resolve — it supplies the inline inventory for the
- * `actions.intent.RECORD_FOOD_OBSERVATION` capability declared in
- * `res/xml/shortcuts.xml`.
+ * Each shortcut carries the food's id as [MainActivity.EXTRA_FOOD_ID], so tapping it —
+ * from the launcher's long-press menu or resolved by the Assistant — logs the food
+ * straight away through `AssistantFoodLogger`, the same as the fallback capability
+ * intent below does for a spoken name. The capability binding is what makes "Log
+ * <food> with Bissbilanz" resolve to *this* shortcut rather than the fallback — it
+ * supplies the inline inventory for the `actions.intent.RECORD_FOOD_OBSERVATION`
+ * capability declared in `res/xml/shortcuts.xml`.
  */
 object FoodShortcutPublisher {
     const val FOOD_CAPABILITY = "actions.intent.RECORD_FOOD_OBSERVATION"
@@ -82,7 +83,7 @@ object FoodShortcutPublisher {
         val intent =
             Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_VIEW
-                putExtra(MainActivity.EXTRA_NAVIGATE_TO, "food/${food.id}")
+                putExtra(MainActivity.EXTRA_FOOD_ID, food.id)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
         return ShortcutInfoCompat

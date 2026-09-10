@@ -159,6 +159,25 @@ class FoodRepository(
         return cached?.let { json.decodeOrNull<Food>(it.jsonData) }
     }
 
+    /**
+     * Local-only name resolution for the Assistant / shortcut logging fallback,
+     * which has to resolve offline and instantly: an exact (case-insensitive) match
+     * first, then the best prefix match, then the best substring match among the
+     * user's own foods.
+     */
+    fun resolveByName(query: String): Food? {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return null
+        val foods =
+            db.userDataDatabaseQueries
+                .selectAllFoods()
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
+        foods.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it }
+        foods.firstOrNull { it.name.startsWith(trimmed, ignoreCase = true) }?.let { return it }
+        return foods.firstOrNull { it.name.contains(trimmed, ignoreCase = true) }
+    }
+
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
         cacheFood(tempFood)

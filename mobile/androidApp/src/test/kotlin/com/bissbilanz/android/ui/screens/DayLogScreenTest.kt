@@ -18,13 +18,11 @@ import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
-import com.bissbilanz.repository.PreferencesRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -54,7 +52,6 @@ class DayLogScreenTest {
     private lateinit var entryRepo: EntryRepository
     private lateinit var refreshManager: RefreshManager
     private lateinit var errorReporter: ErrorReporter
-    private lateinit var prefsRepo: PreferencesRepository
     private lateinit var appModeManager: AppModeManager
 
     @Before
@@ -67,7 +64,6 @@ class DayLogScreenTest {
             }
         refreshManager = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
-        prefsRepo = mockk(relaxed = true) { every { preferences() } returns flowOf(null) }
         appModeManager =
             mockk(relaxed = true) {
                 every { mode } returns MutableStateFlow(AppMode.SYNCED)
@@ -79,7 +75,6 @@ class DayLogScreenTest {
                     single<EntryRepository> { entryRepo }
                     single<RefreshManager> { refreshManager }
                     single<ErrorReporter> { errorReporter }
-                    single<PreferencesRepository> { prefsRepo }
                     single<AppModeManager> { appModeManager }
                     viewModelOf(::DayLogViewModel)
                 },

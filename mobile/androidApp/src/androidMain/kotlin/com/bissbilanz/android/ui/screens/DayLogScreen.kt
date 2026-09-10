@@ -30,10 +30,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.DayLogSkeleton
-import com.bissbilanz.android.ui.components.DayPropertiesCard
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -76,14 +76,9 @@ fun DayLogScreen(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    val isFastingDay by viewModel.isFastingDay.collectAsStateWithLifecycle()
-    val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val waterMl by viewModel.waterMl.collectAsStateWithLifecycle()
-    val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
-    val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
-    val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
     val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
     val isLocalMode = appMode == AppMode.LOCAL
+    val pendingLogConfirmation by PendingLogConfirmation.confirmation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
@@ -103,6 +98,22 @@ fun DayLogScreen(
         error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    // An Assistant / shortcut log always lands here through a fresh navigation, so
+    // this is the first SnackbarHostState around to show its confirmation on.
+    LaunchedEffect(pendingLogConfirmation) {
+        val confirmation = pendingLogConfirmation ?: return@LaunchedEffect
+        PendingLogConfirmation.consume()
+        val result =
+            snackbarHostState.showSnackbar(
+                message = confirmation.message,
+                actionLabel = context.getString(R.string.undo),
+                duration = SnackbarDuration.Short,
+            )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.deleteEntry(confirmation.entryId)
         }
     }
 
@@ -242,85 +253,15 @@ fun DayLogScreen(
         if (isLoading) {
             DayLogSkeleton()
         } else {
-            val totalCalories = remember(visibleEntries) { visibleEntries.sumOf { it.resolvedCalories() } }
-
             PullToRefreshWrapper(
-                onRefresh = {
-                    refreshManager.refreshAll(date)
-                    viewModel.refreshFastingDay(date)
-                },
+                onRefresh = { refreshManager.refreshAll(date) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
                 ) {
-                    if (totalCalories == 0.0) {
-                        item {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors =
-                                    CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    ),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            stringResource(R.string.fasting_day),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                        )
-                                        Text(
-                                            stringResource(R.string.fasting_day_description),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Switch(
-                                        checked = isFastingDay,
-                                        onCheckedChange = {
-                                            haptic(HapticFeedbackType.LongPress)
-                                            viewModel.toggleFastingDay(date)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        DayPropertiesCard(
-                            notes = notes,
-                            waterMl = waterMl,
-                            waterGoalMl = waterGoalMl,
-                            activityCalories = activityCalories,
-                            activityNote = activityNote,
-                            onAddWater = { viewModel.addWater(date, it) },
-                            onSetWater = { viewModel.setWater(date, it) },
-                            onClearWater = { viewModel.clearWater(date) },
-                            onSetActivity = { cal, note -> viewModel.setActivity(date, cal, note) },
-                            onClearActivity = { viewModel.clearActivity(date) },
-                            onNotesChanged = { viewModel.setNotes(date, it) },
-                        )
-                        val activityCaloriesValue = activityCalories
-                        if (activityCaloriesValue != null && activityCaloriesValue > 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                stringResource(R.string.day_activity_summary, activityCaloriesValue),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-
                     if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))

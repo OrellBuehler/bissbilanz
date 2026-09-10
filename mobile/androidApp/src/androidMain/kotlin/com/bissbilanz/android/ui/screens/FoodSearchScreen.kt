@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
@@ -72,6 +73,10 @@ fun FoodSearchScreen(navController: NavController) {
     var showCreateRecipeSheet by remember { mutableStateOf(false) }
     var showCreateMenu by remember { mutableStateOf(false) }
     var foodToEdit by remember { mutableStateOf<Food?>(null) }
+
+    LaunchedEffect(Unit) {
+        PendingNavigation.consumeFoodQuery()?.let { viewModel.updateQuery(it) }
+    }
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
