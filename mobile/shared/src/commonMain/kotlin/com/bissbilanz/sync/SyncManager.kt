@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.cacheEntryRow
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CoroutineScope
@@ -124,6 +125,40 @@ class SyncManager(
             for (req in drained) {
                 try {
                     val op = remapTempIds(req.operation, remaps, json)
+
+                    // A create can reference a food/recipe that is itself still an
+                    // unresolved `temp_` id — the peer create is either still queued
+                    // (possibly backed off ahead of this due row, since a batch is a
+                    // snapshot of only what's currently due) or was already dropped
+                    // without ever resolving. Catch this before spending a network
+                    // round trip on a request that would otherwise fail (a temp id is
+                    // never valid UUID shape) and get misreported as a remote delete.
+                    val unresolved = unresolvedReference(op)
+                    if (unresolved != null) {
+                        val (table, id) = unresolved
+                        if (syncQueue.findByAffected(table, id).isNotEmpty()) {
+                            // The peer create hasn't drained yet. Wait for it without
+                            // treating this as a failure of this operation.
+                            val count = syncQueue.incrementAndGetRetryCount(req.id)
+                            syncQueue.setNextAttemptAt(
+                                req.id,
+                                Clock.System.now().toEpochMilliseconds() + backoffMs(count, req.id),
+                            )
+                            syncQueue.releaseForRetry(req.id)
+                            continue
+                        }
+                        // Nothing will ever resolve this `temp_` id: the create it
+                        // depended on was dropped/failed for good.
+                        syncQueue.remove(req.id)
+                        synced++
+                        addConflict(
+                            "Offline change to ${req.operation.description} was dropped: " +
+                                "the food or recipe it depended on was never created.",
+                        )
+                        sawConflict = true
+                        continue
+                    }
+
                     val remap = execute(op, req.idempotencyKey, req.clientEditedAt)
                     if (remap != null) {
                         remaps[remap.tempId] = remap.serverId
@@ -137,6 +172,7 @@ class SyncManager(
                     break
                 } catch (e: ApiException) {
                     val isDelete = isDeleteOperation(req.operation)
+                    val isCreate = isCreateOperation(req.operation)
                     val conflictHeader = e.rawResponse?.headers?.get("X-Sync-Conflict")
                     when {
                         // 404/410 on DELETE → idempotent; treat as success
@@ -145,7 +181,25 @@ class SyncManager(
                             synced++
                         }
 
-                        // 404/410 on PATCH/PUT/POST → record deleted elsewhere; surface notice
+                        // 404/410 on a create → it has no row of its own that could have
+                        // been "deleted on another device"; its only 404 comes from a
+                        // foodId/recipeId reference the server rejected as unowned/
+                        // missing. The pre-flight check above already ruled out a
+                        // still-`temp_` reference, so this is a real server id that
+                        // existed when the op was queued and is gone now (e.g. the food
+                        // was deleted before the offline create finally drained).
+                        e.statusCode in listOf(404, 410) && isCreate -> {
+                            syncQueue.remove(req.id)
+                            synced++
+                            addConflict(
+                                "Offline change to ${req.operation.description} was dropped: " +
+                                    "the referenced food or recipe no longer exists.",
+                            )
+                            sawConflict = true
+                        }
+
+                        // 404/410 on other (non-create, non-delete) PATCH/PUT/POST →
+                        // record deleted elsewhere; surface notice
                         e.statusCode in listOf(404, 410) -> {
                             syncQueue.remove(req.id)
                             synced++
@@ -520,6 +574,53 @@ class SyncManager(
             op is SyncOperation.DeleteSleep ||
             op is SyncOperation.DeleteDayProperties ||
             op is SyncOperation.UnlogSupplement
+
+    /**
+     * Ops that insert a brand-new server row. These have no prior record of their
+     * own — a 404 they hit can only be a rejected foodId/recipeId reference, never
+     * "this row was deleted elsewhere".
+     */
+    private fun isCreateOperation(op: SyncOperation): Boolean =
+        op is SyncOperation.CreateFood ||
+            op is SyncOperation.CreateEntry ||
+            op is SyncOperation.CreateRecipe ||
+            op is SyncOperation.CreateWeight ||
+            op is SyncOperation.CreateSleep ||
+            op is SyncOperation.CreateSupplement
+
+    /**
+     * The first still-`temp_` foodId/recipeId [op]'s payload references, paired with
+     * the queue table it would have been created under, or null when every reference
+     * is already a resolved server id (or the op carries none, or its body can no
+     * longer be decoded — [execute] will hit that same decode failure right after and
+     * report it through the normal payload-failure path). Only
+     * CreateEntry/CreateRecipe/CreateSupplement point at another entity.
+     */
+    private fun unresolvedReference(op: SyncOperation): Pair<String, String>? {
+        val candidates: List<Pair<String, String>> =
+            when (op) {
+                is SyncOperation.CreateEntry -> {
+                    val entry = json.decodeOrNull<EntryCreate>(op.body) ?: return null
+                    listOfNotNull(
+                        entry.foodId?.let { "foods" to it },
+                        entry.recipeId?.let { "recipes" to it },
+                    )
+                }
+
+                is SyncOperation.CreateRecipe -> {
+                    val recipe = json.decodeOrNull<RecipeCreate>(op.body) ?: return null
+                    recipe.ingredients.map { "foods" to it.foodId }
+                }
+
+                is SyncOperation.CreateSupplement -> {
+                    val supplement = json.decodeOrNull<SupplementCreate>(op.body) ?: return null
+                    supplement.ingredients.mapNotNull { ingredient -> ingredient.foodId?.let { "foods" to it } }
+                }
+
+                else -> emptyList()
+            }
+        return candidates.firstOrNull { (_, id) -> id.isTempId() }
+    }
 
     /**
      * Whether [e] blames the operation's payload rather than the server or the network:
