@@ -14,6 +14,8 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
@@ -53,6 +55,7 @@ class DayLogScreenTest {
     private lateinit var refreshManager: RefreshManager
     private lateinit var errorReporter: ErrorReporter
     private lateinit var prefsRepo: PreferencesRepository
+    private lateinit var appModeManager: AppModeManager
 
     @Before
     fun setup() {
@@ -65,6 +68,10 @@ class DayLogScreenTest {
         refreshManager = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
         prefsRepo = mockk(relaxed = true) { every { preferences() } returns flowOf(null) }
+        appModeManager =
+            mockk(relaxed = true) {
+                every { mode } returns MutableStateFlow(AppMode.SYNCED)
+            }
 
         startKoin {
             modules(
@@ -73,6 +80,7 @@ class DayLogScreenTest {
                     single<RefreshManager> { refreshManager }
                     single<ErrorReporter> { errorReporter }
                     single<PreferencesRepository> { prefsRepo }
+                    single<AppModeManager> { appModeManager }
                     viewModelOf(::DayLogViewModel)
                 },
             )

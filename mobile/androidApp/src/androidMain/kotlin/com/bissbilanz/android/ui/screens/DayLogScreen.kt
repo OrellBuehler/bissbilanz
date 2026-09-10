@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -30,6 +31,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.DayPropertiesCard
 import com.bissbilanz.android.ui.components.EntryEditSheet
@@ -39,6 +41,8 @@ import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.formatAsInt
@@ -67,6 +71,7 @@ fun DayLogScreen(
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val appModeManager: AppModeManager = koinInject()
     val context = LocalContext.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -77,13 +82,17 @@ fun DayLogScreen(
     val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
     val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
     val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val isLocalMode = appMode == AppMode.LOCAL
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
     var editingEntryId by remember { mutableStateOf<String?>(null) }
     var showQuickAddSheet by remember { mutableStateOf(false) }
+    var showAiMealSheet by remember { mutableStateOf(false) }
     var showCopyDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(date) {
@@ -162,6 +171,13 @@ fun DayLogScreen(
                     }
                 },
                 actions = {
+                    // Queuing a meal for the assistant needs the server, so it is
+                    // hidden in local mode — same rule as the dashboard and iOS.
+                    if (!isLocalMode) {
+                        IconButton(onClick = { showAiMealSheet = true }) {
+                            Icon(Icons.Default.AutoAwesome, stringResource(R.string.ai_task_content_desc))
+                        }
+                    }
                     IconButton(onClick = { showCopyDialog = true }) {
                         Icon(Icons.Default.ContentCopy, stringResource(R.string.dashboard_copy_from_yesterday))
                     }
@@ -208,6 +224,17 @@ fun DayLogScreen(
                 onSaved = {
                     showQuickAddSheet = false
                     viewModel.loadEntries(date, force = true)
+                },
+            )
+        }
+
+        if (showAiMealSheet) {
+            AiMealSheet(
+                date = date,
+                onDismiss = { showAiMealSheet = false },
+                onQueued = {
+                    showAiMealSheet = false
+                    scope.launch { snackbarHostState.showSnackbar(aiQueuedMessage) }
                 },
             )
         }
