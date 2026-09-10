@@ -190,7 +190,12 @@ fun AiMealSheet(
                 }
             }
 
-            Text(stringResource(R.string.ai_task_time_label), style = MaterialTheme.typography.labelLarge)
+            // The picker only shows a clock, and the sheet can be open for
+            // yesterday's day card after midnight — name the day the time lands on.
+            Text(
+                stringResource(R.string.ai_task_time_label) + " · " + formatDayLabel(date),
+                style = MaterialTheme.typography.labelLarge,
+            )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 OutlinedButton(
                     onClick = { showTimePicker = true },
@@ -212,7 +217,11 @@ fun AiMealSheet(
                 }
             }
             Text(
-                stringResource(R.string.ai_task_time_hint),
+                if (eatenHour != null) {
+                    stringResource(R.string.ai_task_time_on_day_hint, formatDayLabel(date))
+                } else {
+                    stringResource(R.string.ai_task_time_hint)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -345,3 +354,13 @@ fun AiMealSheet(
         }
     }
 }
+
+/** The task's day (yyyy-MM-dd) as shown on the day card, e.g. "Sep 9, 2026". */
+private fun formatDayLabel(date: String): String =
+    runCatching { java.time.LocalDate.parse(date) }
+        .getOrNull()
+        ?.format(
+            java.time.format.DateTimeFormatter
+                .ofLocalizedDate(java.time.format.FormatStyle.MEDIUM),
+        )
+        ?: date

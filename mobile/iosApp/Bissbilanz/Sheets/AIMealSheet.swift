@@ -62,12 +62,22 @@ struct AIMealSheet: View {
                     if !appMode.isLocal {
                         Toggle(L10n.aiTaskSetTime, isOn: $setsTime)
                         if setsTime {
-                            DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                            // The picker only shows a clock, and the sheet
+                            // can be open for yesterday's day card after
+                            // midnight — name the day the time lands on.
+                            DatePicker(selection: $eatenTime, displayedComponents: .hourAndMinute) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(L10n.time)
+                                    Text(dayLabel)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
                 } footer: {
                     if !appMode.isLocal {
-                        Text(L10n.aiTaskTimeHint)
+                        Text(setsTime ? L10n.aiTaskTimeOnDayHint(dayLabel) : L10n.aiTaskTimeHint)
                     }
                 }
 
@@ -342,6 +352,11 @@ struct AIMealSheet: View {
             of: day
         ) else { return nil }
         return DateFormatting.isoDateTimeString(from: combined)
+    }
+
+    /// The task's day as shown on the day card, e.g. "Sep 9, 2026".
+    private var dayLabel: String {
+        DateFormatting.date(from: date).map { DateFormatting.displayString(from: $0) } ?? date
     }
 
     private static func mealForCurrentTime() -> String {
