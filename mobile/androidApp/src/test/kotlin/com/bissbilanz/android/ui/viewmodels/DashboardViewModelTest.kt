@@ -218,6 +218,70 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun toggleFastingDayOnCallsSetDayProperties() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val date = viewModel.selectedDate.value.toString()
+            assertEquals(false, viewModel.isFastingDay.value)
+
+            viewModel.toggleFastingDay()
+
+            assertEquals(true, viewModel.isFastingDay.value)
+            coVerify { entryRepo.setDayProperties(date, isFastingDay = true) }
+        }
+
+    @Test
+    fun toggleFastingDayOffCallsSetDayPropertiesFalseWithoutDeleting() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val date = viewModel.selectedDate.value.toString()
+            viewModel.toggleFastingDay()
+            assertEquals(true, viewModel.isFastingDay.value)
+
+            viewModel.toggleFastingDay()
+
+            assertEquals(false, viewModel.isFastingDay.value)
+            coVerify { entryRepo.setDayProperties(date, isFastingDay = false) }
+            coVerify(exactly = 0) { entryRepo.deleteDayProperties(any()) }
+        }
+
+    @Test
+    fun toggleFastingDayRevertsOnError() =
+        runTest {
+            coEvery { entryRepo.setDayProperties(any(), any()) } throws RuntimeException("Network error")
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            viewModel.toggleFastingDay()
+
+            assertEquals(false, viewModel.isFastingDay.value)
+            assertEquals("Failed to update fasting day", viewModel.snackbarMessage.value)
+        }
+
+    @Test
+    fun setNotesCallsSetDayProperties() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val date = viewModel.selectedDate.value.toString()
+
+            viewModel.setNotes("Felt great today")
+
+            assertEquals("Felt great today", viewModel.notes.value)
+            coVerify { entryRepo.setDayProperties(date, notes = "Felt great today") }
+        }
+
+    @Test
+    fun addWaterClampsToMaxWaterMl() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val date = viewModel.selectedDate.value.toString()
+
+            viewModel.addWater(MAX_WATER_ML + 500)
+
+            assertEquals(MAX_WATER_ML, viewModel.waterMl.value)
+            coVerify { entryRepo.setDayProperties(date, waterMl = MAX_WATER_ML) }
+        }
+
+    @Test
     fun entriesWithCapitalizedMealTypeGroupCorrectly() =
         runTest {
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())

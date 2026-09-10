@@ -33,6 +33,7 @@ import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.CalorieTrendWidget
 import com.bissbilanz.android.ui.components.DashboardSkeleton
+import com.bissbilanz.android.ui.components.DayPropertiesCard
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FastingCard
 import com.bissbilanz.android.ui.components.FavoritesQuickLogWidget
@@ -73,6 +74,12 @@ fun DashboardScreen(navController: NavController) {
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val refreshFailed by viewModel.refreshFailed.collectAsStateWithLifecycle()
+    val isFastingDay by viewModel.isFastingDay.collectAsStateWithLifecycle()
+    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val waterMl by viewModel.waterMl.collectAsStateWithLifecycle()
+    val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
+    val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
+    val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
@@ -339,10 +346,72 @@ fun DashboardScreen(navController: NavController) {
                     )
                 }
 
+                val activityCaloriesValue = activityCalories
+                if (activityCaloriesValue != null && activityCaloriesValue > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.day_activity_summary, activityCaloriesValue),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 if (selectedDate == today) {
                     Spacer(modifier = Modifier.height(16.dp))
                     FastingCard(onClick = { navController.navigate("fasting") })
                 }
+
+                if (totalCalories == 0.0 && !refreshFailed) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            ),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.fasting_day),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    stringResource(R.string.fasting_day_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = isFastingDay,
+                                onCheckedChange = {
+                                    haptic(HapticFeedbackType.LongPress)
+                                    viewModel.toggleFastingDay()
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                DayPropertiesCard(
+                    notes = notes,
+                    waterMl = waterMl,
+                    waterGoalMl = waterGoalMl,
+                    activityCalories = activityCalories,
+                    activityNote = activityNote,
+                    onAddWater = { viewModel.addWater(it) },
+                    onSetWater = { viewModel.setWater(it) },
+                    onClearWater = { viewModel.clearWater() },
+                    onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
+                    onClearActivity = { viewModel.clearActivity() },
+                    onNotesChanged = { viewModel.setNotes(it) },
+                )
 
                 Spacer(modifier = Modifier.height(28.dp))
 
