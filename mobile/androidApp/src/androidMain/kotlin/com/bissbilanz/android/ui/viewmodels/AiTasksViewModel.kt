@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskUploadQueue
+import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.repository.AiTaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.launch
 
 class AiTasksViewModel(
     private val aiTaskRepo: AiTaskRepository,
+    private val uploadQueue: AiTaskUploadQueue,
     private val errorReporter: ErrorReporter,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -47,6 +50,11 @@ class AiTasksViewModel(
 
     val visibleTasks: StateFlow<List<AiTask>> =
         combine(aiTaskRepo.tasks, filter) { tasks, active -> tasks.filter { active.matches(it) } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Meals still queued for upload, shown only on the Open tab like their iOS counterpart. */
+    val queuedUploads: StateFlow<List<QueuedAiTaskUpload>> =
+        combine(uploadQueue.items, filter) { uploads, active -> if (active == Filter.OPEN) uploads else emptyList() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoading = MutableStateFlow(true)
