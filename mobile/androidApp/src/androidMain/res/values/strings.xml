@@ -242,6 +242,7 @@
     <string name="shortcut_weight_long">Log your weight</string>
     <string name="shortcut_fasting_short">Fasting</string>
     <string name="shortcut_fasting_long">Start or end a fast</string>
+    <string name="assistant_food_logged">Logged %1$s — %2$s, %3$d kcal</string>
 
     <!-- Food image -->
     <string name="food_image_label">Food photo</string>

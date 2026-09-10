@@ -45,3 +45,22 @@ fun resolveDefaultMeal(preferences: Preferences?): String? {
     }
     return null
 }
+
+/**
+ * Time-of-day meal fallback for a caller that has no picker to fall back to — an
+ * Assistant or shortcut food log has to resolve a meal outright. Mirrors iOS
+ * `MealTiming.mealForCurrentTime`, so the two platforms default to the same meal.
+ */
+fun mealForCurrentTime(
+    hour: Int =
+        Clock.System
+            .now()
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+            .hour,
+): String =
+    when (hour) {
+        in 5..10 -> "Breakfast"
+        in 11..13 -> "Lunch"
+        in 14..16 -> "Snacks"
+        else -> "Dinner"
+    }

@@ -240,6 +240,7 @@
     <string name="shortcut_weight_long">Gewicht erfassen</string>
     <string name="shortcut_fasting_short">Fasten</string>
     <string name="shortcut_fasting_long">Fasten starten oder beenden</string>
+    <string name="assistant_food_logged">%1$s eingetragen — %2$s, %3$d kcal</string>
 
     <!-- Food image -->
     <string name="food_image_label">Lebensmittelfoto</string>

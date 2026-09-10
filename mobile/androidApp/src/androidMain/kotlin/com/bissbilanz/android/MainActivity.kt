@@ -8,19 +8,28 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.health.HealthImporter
+import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.BissbilanzApp
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
+import com.bissbilanz.android.widget.AssistantFoodLogger
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.util.resolvedCalories
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private val authManager: AuthManager by inject()
     private val healthImporter: HealthImporter by inject()
+    private val assistantFoodLogger: AssistantFoodLogger by inject()
+    private val errorReporter: ErrorReporter by inject()
 
     // Below API 33 the platform has no per-app language, so the in-app choice has to be
     // pushed into this activity's own resources before anything is inflated.
@@ -65,6 +74,17 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // "Log <food> with Bissbilanz": a published per-food shortcut carries the food's
+        // id, the Assistant's fallback capability intent carries the raw spoken name.
+        val foodId = intent.getStringExtra(EXTRA_FOOD_ID)
+        val foodName = intent.getStringExtra(EXTRA_FOOD_NAME)
+        if (foodId != null || foodName != null) {
+            intent.removeExtra(EXTRA_FOOD_ID)
+            intent.removeExtra(EXTRA_FOOD_NAME)
+            logFoodFromAssistant(foodId, foodName)
+            return
+        }
+
         val uri = intent.data ?: return
         if (uri.scheme == "bissbilanz" && uri.host == "oauth" && uri.path == "/callback") {
             val state = uri.getQueryParameter("state")
@@ -79,8 +99,46 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Android always launches the activity for an App Action — unlike iOS's headless
+     * `LogFoodIntent` — so full silence isn't possible, but the entry still gets
+     * written without any further tap. A match logs 1 serving to the default meal and
+     * lands on today's day log with an undo-able confirmation; no match falls back to
+     * food search prefilled with the query.
+     */
+    private fun logFoodFromAssistant(
+        foodId: String?,
+        foodName: String?,
+    ) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                when (val result = assistantFoodLogger.log(foodId, foodName)) {
+                    is AssistantFoodLogger.Result.Logged -> {
+                        val message =
+                            getString(
+                                R.string.assistant_food_logged,
+                                result.food.name,
+                                mealTypeDisplayName(this@MainActivity, result.meal),
+                                result.entry.resolvedCalories().roundToInt(),
+                            )
+                        PendingLogConfirmation.request(result.entry.id, message)
+                        PendingNavigation.request("daylog/${result.entry.date}")
+                    }
+
+                    is AssistantFoodLogger.Result.NoMatch -> {
+                        PendingNavigation.requestFoodSearch(result.query)
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
     companion object {
         const val EXTRA_NAVIGATE_TO = "navigate_to"
         const val EXTRA_FOOD_ID = "food_id"
+        const val EXTRA_FOOD_NAME = "food_name"
     }
 }

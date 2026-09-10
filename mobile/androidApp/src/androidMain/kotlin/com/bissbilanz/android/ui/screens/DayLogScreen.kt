@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.DayPropertiesCard
@@ -77,6 +78,7 @@ fun DayLogScreen(
     val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
     val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
     val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
+    val pendingLogConfirmation by PendingLogConfirmation.confirmation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
@@ -94,6 +96,22 @@ fun DayLogScreen(
         error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    // An Assistant / shortcut log always lands here through a fresh navigation, so
+    // this is the first SnackbarHostState around to show its confirmation on.
+    LaunchedEffect(pendingLogConfirmation) {
+        val confirmation = pendingLogConfirmation ?: return@LaunchedEffect
+        PendingLogConfirmation.consume()
+        val result =
+            snackbarHostState.showSnackbar(
+                message = confirmation.message,
+                actionLabel = context.getString(R.string.undo),
+                duration = SnackbarDuration.Short,
+            )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.deleteEntry(confirmation.entryId)
         }
     }
 
