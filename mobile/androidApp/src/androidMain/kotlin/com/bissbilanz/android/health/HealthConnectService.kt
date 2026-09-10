@@ -69,6 +69,11 @@ class HealthConnectService(
 
     suspend fun has(permission: String): Boolean = permission in grantedPermissions()
 
+    /** Revokes every Health Connect permission this app was granted. */
+    suspend fun disconnect() {
+        client()?.permissionController?.revokeAllPermissions()
+    }
+
     // MARK: - Weight
 
     suspend fun readWeights(since: Instant): List<WeightSample> {
@@ -168,6 +173,7 @@ class HealthConnectService(
         carbs: Double,
         fat: Double,
         fiber: Double,
+        extended: Map<String, Double> = emptyMap(),
     ): Boolean {
         val client = client() ?: return false
         if (!has(HealthPermission.getWritePermission(NutritionRecord::class))) return false
@@ -188,6 +194,39 @@ class HealthConnectService(
                         totalCarbohydrate = Mass.grams(carbs),
                         totalFat = Mass.grams(fat),
                         dietaryFiber = Mass.grams(fiber),
+                        sugar = extended.massOf("sugar"),
+                        saturatedFat = extended.massOf("saturatedFat"),
+                        monounsaturatedFat = extended.massOf("monounsaturatedFat"),
+                        polyunsaturatedFat = extended.massOf("polyunsaturatedFat"),
+                        cholesterol = extended.massOf("cholesterol"),
+                        sodium = extended.massOf("sodium"),
+                        potassium = extended.massOf("potassium"),
+                        calcium = extended.massOf("calcium"),
+                        iron = extended.massOf("iron"),
+                        magnesium = extended.massOf("magnesium"),
+                        phosphorus = extended.massOf("phosphorus"),
+                        zinc = extended.massOf("zinc"),
+                        copper = extended.massOf("copper"),
+                        manganese = extended.massOf("manganese"),
+                        chloride = extended.massOf("chloride"),
+                        selenium = extended.massOf("selenium"),
+                        iodine = extended.massOf("iodine"),
+                        chromium = extended.massOf("chromium"),
+                        molybdenum = extended.massOf("molybdenum"),
+                        vitaminA = extended.massOf("vitaminA"),
+                        thiamin = extended.massOf("vitaminB1"),
+                        riboflavin = extended.massOf("vitaminB2"),
+                        niacin = extended.massOf("vitaminB3"),
+                        pantothenicAcid = extended.massOf("vitaminB5"),
+                        vitaminB6 = extended.massOf("vitaminB6"),
+                        biotin = extended.massOf("vitaminB7"),
+                        folate = extended.massOf("vitaminB9"),
+                        vitaminB12 = extended.massOf("vitaminB12"),
+                        vitaminC = extended.massOf("vitaminC"),
+                        vitaminD = extended.massOf("vitaminD"),
+                        vitaminE = extended.massOf("vitaminE"),
+                        vitaminK = extended.massOf("vitaminK"),
+                        caffeine = extended.massOf("caffeine"),
                         metadata = upsertMetadata("nutrition-$date"),
                     ),
                 ),

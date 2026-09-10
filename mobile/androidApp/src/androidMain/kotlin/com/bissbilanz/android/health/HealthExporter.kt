@@ -44,6 +44,7 @@ class HealthExporter(
             // permission or a failed write would skip that value forever.
             if (health.writeWeight(latest.weightKg, latest.entryDate)) {
                 markers.edit().putString(KEY_WEIGHT, marker).apply()
+                prefs.lastSyncedAt = Instant.now()
             }
         }
     }
@@ -58,6 +59,7 @@ class HealthExporter(
             if (markers.getString(KEY_SLEEP, null) == marker) return@runSafely
             if (health.writeSleep(Instant.parse(bedtime), Instant.parse(wakeTime), latest.entryDate)) {
                 markers.edit().putString(KEY_SLEEP, marker).apply()
+                prefs.lastSyncedAt = Instant.now()
             }
         }
     }
@@ -81,11 +83,13 @@ class HealthExporter(
             val carbs = entries.sumOf { it.resolvedCarbs() }
             val fat = entries.sumOf { it.resolvedFat() }
             val fiber = entries.sumOf { it.resolvedFiber() }
-            val marker = "$calories:$protein:$carbs:$fat:$fiber"
+            val extended = extendedNutrientTotals(entries, prefs.enabledNutrientKeys())
+            val marker = "$calories:$protein:$carbs:$fat:$fiber:${extended.toSortedMap()}"
             if (previous == marker) return@runSafely
-            if (health.writeNutrition(date, calories, protein, carbs, fat, fiber)) {
+            if (health.writeNutrition(date, calories, protein, carbs, fat, fiber, extended)) {
                 markers.edit().putString(key, marker).apply()
                 pruneNutritionMarkers(date)
+                prefs.lastSyncedAt = Instant.now()
             }
         }
     }

@@ -231,6 +231,19 @@
     <string name="health_import_now">Import now</string>
     <string name="health_import_done">Imported from Health Connect</string>
     <string name="health_import_nothing">Nothing new to import</string>
+    <string name="health_last_synced">Last synced %1$s</string>
+    <string name="health_disconnect">Disconnect</string>
+    <string name="health_disconnect_confirm_title">Disconnect Health Connect?</string>
+    <string name="health_disconnect_confirm_text">Turns off all syncing and revokes Bissbilanz\'s Health Connect permissions.</string>
+    <string name="health_disconnected">Disconnected from Health Connect</string>
+    <string name="health_reimport_sleep">Re-import Nights from Health Connect</string>
+    <string name="health_reimport_sleep_confirm">Replace the last 90 days of sleep entries with what Health Connect has recorded. Nights you edited by hand and nights Health Connect has no record of will be overwritten or left behind.</string>
+    <string name="health_extended_nutrients_section">Additional Nutrients</string>
+    <string name="health_extended_nutrients_footer">Choose which extra nutrients are included in the daily totals written to Health Connect, alongside calories, protein, carbs, fat and fiber.</string>
+    <plurals name="health_reimport_sleep_result">
+        <item quantity="one">1 night updated</item>
+        <item quantity="other">%1$d nights updated</item>
+    </plurals>
 
     <!-- Launcher shortcuts -->
     <string name="shortcut_log_food_short">Log food</string>
