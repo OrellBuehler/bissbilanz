@@ -356,7 +356,7 @@ struct AIMealSheet: View {
 
     /// The task's day as shown on the day card, e.g. "Sep 9, 2026".
     private var dayLabel: String {
-        DateFormatting.date(from: date).map { DateFormatting.displayString(from: $0) } ?? date
+        DateFormatting.date(from: date).map { L10n.dayLabel($0) } ?? date
     }
 
     private static func mealForCurrentTime() -> String {

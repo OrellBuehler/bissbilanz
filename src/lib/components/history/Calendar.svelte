@@ -64,11 +64,21 @@
 <Card.Root>
 	<Card.Content class="p-4">
 		<div class="mb-4 flex items-center justify-between">
-			<Button variant="outline" size="icon" onclick={onPrevMonth}>
+			<Button
+				variant="outline"
+				size="icon"
+				onclick={onPrevMonth}
+				aria-label={m.calendar_previous_month()}
+			>
 				<ChevronLeft class="size-4" />
 			</Button>
 			<span class="font-semibold">{getMonthName(month)} {year}</span>
-			<Button variant="outline" size="icon" onclick={onNextMonth}>
+			<Button
+				variant="outline"
+				size="icon"
+				onclick={onNextMonth}
+				aria-label={m.calendar_next_month()}
+			>
 				<ChevronRight class="size-4" />
 			</Button>
 		</div>

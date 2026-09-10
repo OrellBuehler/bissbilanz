@@ -8,6 +8,8 @@ process.env.UPLOAD_DIR = UPLOAD_DIR;
 
 type Rows = { foods: string[]; recipes: string[]; aiTasks: string[] };
 let referenced: Rows = { foods: [], recipes: [], aiTasks: [] };
+let uploadOwned = true;
+let forgetCalls = 0;
 let dbError: Error | null = null;
 
 const schema = await import('$lib/server/schema');
@@ -16,6 +18,10 @@ const fakeDB = {
 	select() {
 		return {
 			from(table: unknown) {
+				if (table === schema.uploads)
+					return {
+						where: () => ({ limit: async () => (uploadOwned ? [{ filename: 'owned' }] : []) })
+					};
 				const key =
 					table === schema.foods ? 'foods' : table === schema.recipes ? 'recipes' : 'aiTasks';
 				return {
@@ -29,6 +35,13 @@ const fakeDB = {
 										: referenced[key].map((imageUrl) => ({ imageUrl }))
 								)
 				};
+			}
+		};
+	},
+	delete(table: unknown) {
+		return {
+			where: async () => {
+				if (table === schema.uploads) forgetCalls++;
 			}
 		};
 	}
@@ -62,6 +75,8 @@ beforeEach(async () => {
 	await mkdir(UPLOAD_DIR, { recursive: true });
 	referenced = { foods: [], recipes: [], aiTasks: [] };
 	dbError = null;
+	uploadOwned = true;
+	forgetCalls = 0;
 });
 
 afterAll(async () => {
@@ -85,27 +100,37 @@ describe('uploadFilename', () => {
 });
 
 describe('unlinkUpload', () => {
+	test('forged image references cannot delete another owner upload', async () => {
+		await write(NAMES[0]);
+		uploadOwned = false;
+		await unlinkUpload(`/uploads/${NAMES[0]}`, 'attacker');
+		expect(await listDir()).toEqual([NAMES[0]]);
+	});
 	test('removes the referenced upload file', async () => {
 		await write(NAMES[0]);
-		await unlinkUpload(`/uploads/${NAMES[0]}`);
+		await unlinkUpload(`/uploads/${NAMES[0]}`, 'owner');
 		expect(await listDir()).toEqual([]);
+		expect(forgetCalls).toBe(1);
 	});
 
 	test('never unlinks a file named after an Open Food Facts URL', async () => {
 		await write(NAMES[0]);
 		await writeFile(join(UPLOAD_DIR, 'front.jpg'), 'x');
 
-		await unlinkUpload('https://images.openfoodfacts.org/images/products/1/front.jpg');
-		await unlinkUploads([
-			'https://images.openfoodfacts.org/images/products/1/front.jpg',
-			`https://static.openfoodfacts.org/${NAMES[0]}`
-		]);
+		await unlinkUpload('https://images.openfoodfacts.org/images/products/1/front.jpg', 'owner');
+		await unlinkUploads(
+			[
+				'https://images.openfoodfacts.org/images/products/1/front.jpg',
+				`https://static.openfoodfacts.org/${NAMES[0]}`
+			],
+			'owner'
+		);
 
 		expect((await listDir()).sort()).toEqual(['front.jpg', NAMES[0]].sort());
 	});
 
 	test('tolerates a file that is already gone', async () => {
-		await expect(unlinkUpload(`/uploads/${NAMES[0]}`)).resolves.toBeUndefined();
+		await expect(unlinkUpload(`/uploads/${NAMES[0]}`, 'owner')).resolves.toBeUndefined();
 	});
 });
 
@@ -117,6 +142,16 @@ describe('cleanupOrphanedImages', () => {
 
 		expect(await cleanupOrphanedImages()).toBe(1);
 		expect(await listDir()).toEqual([NAMES[1]]);
+		// The ownership row authorizes /uploads/<file>, so it must not outlive it.
+		expect(forgetCalls).toBe(1);
+	});
+
+	test('leaves the ownership rows alone when nothing is swept', async () => {
+		await write(NAMES[0], 5 * 60 * 1000);
+		referenced.foods = [`/uploads/${NAMES[0]}`];
+
+		expect(await cleanupOrphanedImages()).toBe(0);
+		expect(forgetCalls).toBe(0);
 	});
 
 	test('an upload from 5 minutes ago survives the sweep', async () => {

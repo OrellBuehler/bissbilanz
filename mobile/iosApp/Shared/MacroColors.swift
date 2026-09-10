@@ -9,4 +9,9 @@ enum MacroColors {
     // Not a macro, but part of the same fixed color language: fasting surfaces
     // (tracker screen, dashboard card, Live Activity) all tint with this.
     static let fasting = Color(red: 0.388, green: 0.400, blue: 0.945) // #6366F1
+    // The day-properties metrics. Deliberately outside the five macro hues so a
+    // water or activity figure is never mistaken for calories or carbs, and the
+    // same two tones are used on web and Android.
+    static let water = Color(red: 0.024, green: 0.714, blue: 0.831) // #06B6D4
+    static let activity = Color(red: 0.545, green: 0.361, blue: 0.965) // #8B5CF6
 }

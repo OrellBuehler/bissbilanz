@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import WeightChart from '$lib/components/weight/WeightChart.svelte';
 	import WeightHistoryList from '$lib/components/weight/WeightHistoryList.svelte';
 	import WeightLogForm from '$lib/components/weight/WeightLogForm.svelte';
@@ -100,49 +101,28 @@
 </svelte:head>
 
 <div class="mx-auto max-w-4xl space-y-4">
-	<div class="flex items-center gap-3">
-		<div
-			class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
-		>
-			<Weight class="size-4" />
+	<h1 class="sr-only">{m.weight_page_title()}</h1>
+	<DashboardCard title={m.weight_page_title()} Icon={Weight} tone="primary">
+		{#snippet headerRight()}
+			<Button variant="ghost" size="sm" href="/insights?tab=weight" class="gap-1.5"
+				><ChartLine class="size-3.5" />{m.insights_tab_weight()}</Button
+			>
+		{/snippet}
+		<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+			{#each summary as stat}
+				<div class="rounded-lg bg-muted/30 p-2">
+					<p class="text-[11px] text-muted-foreground">{stat.label}</p>
+					<p class="mt-0.5 text-sm font-semibold tabular-nums {stat.tone}">{stat.value}</p>
+				</div>
+			{/each}
 		</div>
-		<h1 class="text-lg font-semibold tracking-tight">{m.weight_page_title()}</h1>
-		<Button variant="ghost" size="sm" href="/insights?tab=weight" class="ml-auto gap-1.5">
-			<ChartLine class="size-3.5" />
-			{m.insights_tab_weight()}
-		</Button>
-	</div>
-
-	<Card.Root>
-		<Card.Content class="p-4">
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-				{#each summary as stat}
-					<div class="rounded-lg bg-muted/30 p-2">
-						<p class="text-[11px] text-muted-foreground">{stat.label}</p>
-						<p class="mt-0.5 text-sm font-semibold tabular-nums {stat.tone}">{stat.value}</p>
-					</div>
-				{/each}
-			</div>
-		</Card.Content>
-	</Card.Root>
+	</DashboardCard>
 
 	<WeightGoalCard {projection} />
 
-	<Card.Root>
-		<Card.Header class="pb-3">
-			<div class="flex items-center gap-2">
-				<div
-					class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
-				>
-					<Weight class="size-4" />
-				</div>
-				<Card.Title class="text-base tracking-tight">{m.weight_log()}</Card.Title>
-			</div>
-		</Card.Header>
-		<Card.Content class="p-4 pt-0 sm:p-5 sm:pt-0">
-			<WeightLogForm onLogged={() => loadChart()} />
-		</Card.Content>
-	</Card.Root>
+	<DashboardCard title={m.weight_log()} Icon={Weight} tone="primary">
+		<WeightLogForm onLogged={() => loadChart()} />
+	</DashboardCard>
 
 	<Card.Root class="overflow-hidden">
 		<Card.Content class="p-3 sm:p-4">
@@ -150,25 +130,16 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="overflow-hidden">
-		<Card.Header class="flex flex-row items-center justify-between gap-2 pb-3">
-			<div class="flex items-center gap-2">
-				<div
-					class="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-				>
-					<History class="size-4" />
-				</div>
-				<Card.Title class="text-base">{m.weight_history()}</Card.Title>
-			</div>
+	<DashboardCard title={m.weight_history()} Icon={History} tone="primary">
+		{#snippet headerRight()}
 			<div
 				class="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[11px] font-medium tabular-nums text-muted-foreground"
 			>
 				<Weight class="size-3.5" />
 				{entries.length}
 			</div>
-		</Card.Header>
-		<Card.Content class="pt-0">
-			<WeightHistoryList {entries} onChanged={() => loadChart()} />
-		</Card.Content>
-	</Card.Root>
+		{/snippet}
+
+		<WeightHistoryList {entries} onChanged={() => loadChart()} />
+	</DashboardCard>
 </div>

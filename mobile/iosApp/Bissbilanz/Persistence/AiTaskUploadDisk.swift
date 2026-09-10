@@ -19,6 +19,7 @@ struct PersistedAiTaskUpload: Codable, Equatable, Sendable {
     /// same bytes cannot succeed, so a relaunch shows it as failed instead of
     /// re-sending it.
     var retryable: Bool = true
+    var restoreReportedAt: Date?
 }
 
 /// Disk layout for `AiTaskStore`'s upload queue: one directory per upload under
@@ -87,6 +88,27 @@ enum AiTaskUploadDisk {
                 return (id, meta)
             }
             .sorted { $0.meta.queuedAt < $1.meta.queuedAt }
+    }
+
+    /// Bound abandoned failures, but never reap an upload that can still succeed.
+    /// Active IDs are protected from cleanup while a save is in flight.
+    static func sweep(root: URL, protecting active: Set<UUID> = [], now: Date = Date()) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
+        for name in names {
+            guard let id = UUID(uuidString: name), !active.contains(id) else { continue }
+            if loadMeta(id: id, root: root) == nil {
+                let values = try? directory(for: id, root: root).resourceValues(forKeys: [.contentModificationDateKey])
+                if now.timeIntervalSince(values?.contentModificationDate ?? now) > 3600 {
+                    remove(id: id, root: root)
+                }
+            }
+        }
+        let failures = loadAll(root: root).filter { !$0.meta.retryable && !active.contains($0.id) }
+        for (index, item) in failures.reversed().enumerated() {
+            if index >= 100 || now.timeIntervalSince(item.meta.queuedAt) > 30 * 86400 {
+                remove(id: item.id, root: root)
+            }
+        }
     }
 
     /// The photos in upload order. A missing file is skipped rather than failing

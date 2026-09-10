@@ -173,13 +173,15 @@ private struct PendingUploadRow: View {
                 )
             )
             .font(.body)
-            if case let .failed(message) = upload.state {
+            if case let .failed(message, retryable) = upload.state {
                 Text(message)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Button(L10n.retry) { store.retryUpload(id: upload.id) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                if retryable {
+                    Button(L10n.retry) { store.retryUpload(id: upload.id) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
             }
         }
         .padding(.vertical, 4)

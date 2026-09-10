@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Target from '@lucide/svelte/icons/target';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -41,87 +41,78 @@
 	});
 </script>
 
-<Card.Root>
-	<Card.Header class="flex flex-row items-center justify-between gap-2 pb-3">
-		<div class="flex items-center gap-2">
-			<div
-				class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
-			>
-				<Target class="size-4" />
-			</div>
-			<Card.Title class="text-base tracking-tight">{m.weight_target()}</Card.Title>
-		</div>
+<DashboardCard title={m.weight_target()} Icon={Target} tone="primary">
+	{#snippet headerRight()}
 		<Button variant="ghost" size="sm" href="/goals" class="gap-1.5">
 			<Settings2 class="size-3.5" />
 			{projection ? m.weight_target_edit() : m.weight_target_set()}
 		</Button>
-	</Card.Header>
-	<Card.Content class="pt-0">
-		{#if !projection}
-			<p class="text-sm text-muted-foreground">{m.weight_target_none()}</p>
-		{:else}
-			<div class="space-y-3">
-				<div class="flex flex-wrap items-center gap-2">
-					<span
-						class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium {statusClass}"
-					>
-						{#if projection.reached}
-							<CircleCheck class="size-3.5" />
-						{/if}
-						{statusLabel}
-					</span>
-					{#if projection.daysUntilTargetDate != null}
-						<span class="text-xs text-muted-foreground">
-							{projection.daysUntilTargetDate > 0
-								? m.weight_target_days_left({ days: String(projection.daysUntilTargetDate) })
-								: m.weight_target_date_passed()}
-						</span>
+	{/snippet}
+
+	{#if !projection}
+		<p class="text-sm text-muted-foreground">{m.weight_target_none()}</p>
+	{:else}
+		<div class="space-y-3">
+			<div class="flex flex-wrap items-center gap-2">
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium {statusClass}"
+				>
+					{#if projection.reached}
+						<CircleCheck class="size-3.5" />
 					{/if}
-				</div>
-
-				<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-					<div class="rounded-lg bg-muted/30 p-2">
-						<p class="text-[11px] text-muted-foreground">{m.weight_target_value()}</p>
-						<p class="mt-0.5 text-sm font-semibold tabular-nums">
-							{formatKg(projection.targetWeightKg)} kg
-						</p>
-					</div>
-					<div class="rounded-lg bg-muted/30 p-2">
-						<p class="text-[11px] text-muted-foreground">{m.weight_target_remaining()}</p>
-						<p class="mt-0.5 text-sm font-semibold tabular-nums">
-							{projection.reached ? '—' : `${formatKg(Math.abs(projection.remainingKg))} kg`}
-						</p>
-					</div>
-					<div class="rounded-lg bg-muted/30 p-2">
-						<p class="text-[11px] text-muted-foreground">{m.weight_target_projected()}</p>
-						<p class="mt-0.5 text-sm font-semibold tabular-nums">
-							{projection.projectedDate ? formatDateLabel(projection.projectedDate) : '—'}
-						</p>
-					</div>
-					<div class="rounded-lg bg-muted/30 p-2">
-						<p class="text-[11px] text-muted-foreground">{m.weight_target_by_date()}</p>
-						<p class="mt-0.5 text-sm font-semibold tabular-nums">
-							{projection.targetDate ? formatDateLabel(projection.targetDate) : '—'}
-						</p>
-					</div>
-				</div>
-
-				{#if projection.requiredRatePerWeekKg != null}
-					<div class="flex items-center justify-between border-t pt-2">
-						<span class="text-xs text-muted-foreground">{m.weight_target_required_rate()}</span>
-						<span class="text-sm font-semibold tabular-nums">
-							{projection.requiredRatePerWeekKg >= 0
-								? '+'
-								: ''}{projection.requiredRatePerWeekKg.toFixed(2)}
-							{m.analytics_kg_per_week()}
-						</span>
-					</div>
-				{/if}
-
-				{#if !projection.reached && projection.projectedDate === null}
-					<p class="text-[11px] text-muted-foreground">{m.weight_target_no_projection()}</p>
+					{statusLabel}
+				</span>
+				{#if projection.daysUntilTargetDate != null}
+					<span class="text-xs text-muted-foreground">
+						{projection.daysUntilTargetDate > 0
+							? m.weight_target_days_left({ days: String(projection.daysUntilTargetDate) })
+							: m.weight_target_date_passed()}
+					</span>
 				{/if}
 			</div>
-		{/if}
-	</Card.Content>
-</Card.Root>
+
+			<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<div class="rounded-lg bg-muted/30 p-2">
+					<p class="text-[11px] text-muted-foreground">{m.weight_target_value()}</p>
+					<p class="mt-0.5 text-sm font-semibold tabular-nums">
+						{formatKg(projection.targetWeightKg)} kg
+					</p>
+				</div>
+				<div class="rounded-lg bg-muted/30 p-2">
+					<p class="text-[11px] text-muted-foreground">{m.weight_target_remaining()}</p>
+					<p class="mt-0.5 text-sm font-semibold tabular-nums">
+						{projection.reached ? '—' : `${formatKg(Math.abs(projection.remainingKg))} kg`}
+					</p>
+				</div>
+				<div class="rounded-lg bg-muted/30 p-2">
+					<p class="text-[11px] text-muted-foreground">{m.weight_target_projected()}</p>
+					<p class="mt-0.5 text-sm font-semibold tabular-nums">
+						{projection.projectedDate ? formatDateLabel(projection.projectedDate) : '—'}
+					</p>
+				</div>
+				<div class="rounded-lg bg-muted/30 p-2">
+					<p class="text-[11px] text-muted-foreground">{m.weight_target_by_date()}</p>
+					<p class="mt-0.5 text-sm font-semibold tabular-nums">
+						{projection.targetDate ? formatDateLabel(projection.targetDate) : '—'}
+					</p>
+				</div>
+			</div>
+
+			{#if projection.requiredRatePerWeekKg != null}
+				<div class="flex items-center justify-between border-t pt-2">
+					<span class="text-xs text-muted-foreground">{m.weight_target_required_rate()}</span>
+					<span class="text-sm font-semibold tabular-nums">
+						{projection.requiredRatePerWeekKg >= 0
+							? '+'
+							: ''}{projection.requiredRatePerWeekKg.toFixed(2)}
+						{m.analytics_kg_per_week()}
+					</span>
+				</div>
+			{/if}
+
+			{#if !projection.reached && projection.projectedDate === null}
+				<p class="text-[11px] text-muted-foreground">{m.weight_target_no_projection()}</p>
+			{/if}
+		</div>
+	{/if}
+</DashboardCard>

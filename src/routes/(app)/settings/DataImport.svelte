@@ -139,7 +139,9 @@
 
 				{#if preview.issues.length > 0}
 					<div>
-						<p class="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-600">
+						<p
+							class="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+						>
 							<TriangleAlert class="size-3.5" />
 							{m.settings_import_issues({ count: String(preview.issues.length) })}
 						</p>

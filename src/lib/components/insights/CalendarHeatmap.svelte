@@ -128,11 +128,16 @@
 
 <div class="space-y-3">
 	<div class="flex items-center justify-between">
-		<Button variant="ghost" size="icon" onclick={prevMonth}>
+		<Button
+			variant="ghost"
+			size="icon"
+			onclick={prevMonth}
+			aria-label={m.calendar_previous_month()}
+		>
 			<ChevronLeft class="size-4" />
 		</Button>
 		<span class="text-sm font-medium">{getMonthName(currentMonth)} {currentYear}</span>
-		<Button variant="ghost" size="icon" onclick={nextMonth}>
+		<Button variant="ghost" size="icon" onclick={nextMonth} aria-label={m.calendar_next_month()}>
 			<ChevronRight class="size-4" />
 		</Button>
 	</div>

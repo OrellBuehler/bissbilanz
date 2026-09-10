@@ -65,6 +65,7 @@
 			<Button
 				variant="ghost"
 				size="icon"
+				aria-label={m.common_back()}
 				class="size-9 shrink-0"
 				onclick={() => {
 					// Guard against iOS PWA showing browser chrome when history is empty

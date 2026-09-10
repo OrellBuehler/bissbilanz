@@ -16,6 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.theme.ActivityViolet
+import com.bissbilanz.android.ui.theme.WaterCyan
+import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlinx.coroutines.delay
 
 /**
@@ -73,7 +76,7 @@ private fun WaterSection(
     var draft by remember(waterMl) { mutableStateOf(waterMl?.toString() ?: "") }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.WaterDrop, contentDescription = null)
+        Icon(Icons.Default.WaterDrop, contentDescription = null, tint = WaterCyan.macroTextTone())
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             stringResource(R.string.day_water_title),
@@ -133,7 +136,7 @@ private fun ActivitySection(
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.DirectionsRun, contentDescription = null)
+        Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = ActivityViolet.macroTextTone())
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             stringResource(R.string.day_activity_title),

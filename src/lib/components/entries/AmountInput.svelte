@@ -5,6 +5,8 @@
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 
+	const inputId = $props.id();
+
 	type Props = {
 		servings: number;
 		servingSize?: number | null;
@@ -75,7 +77,7 @@
 <div class="grid gap-2">
 	{#if hasServingInfo}
 		<div class="flex items-center gap-2">
-			<Label class="shrink-0"
+			<Label for={inputId} class="shrink-0"
 				>{mode === 'servings' ? m.amount_mode_servings() : m.amount_mode_unit()}</Label
 			>
 			<ToggleGroup.Root type="single" value={mode} onValueChange={handleModeChange} class="ml-auto">
@@ -88,12 +90,16 @@
 			</ToggleGroup.Root>
 		</div>
 	{:else}
-		<Label>{m.amount_mode_servings()}</Label>
+		<Label for={inputId}>{m.amount_mode_servings()}</Label>
 	{/if}
 
 	{#if mode === 'servings'}
 		<div class="flex items-center gap-2">
-			<NumberInput bind:value={() => servingsValue, handleServingsChange} class="min-w-0 flex-1" />
+			<NumberInput
+				id={inputId}
+				bind:value={() => servingsValue, handleServingsChange}
+				class="min-w-0 flex-1"
+			/>
 			{#if previewAmount || previewKcal}
 				<span class="shrink-0 text-xs text-muted-foreground">
 					{#if previewAmount}{previewAmount}{/if}
@@ -104,7 +110,11 @@
 		</div>
 	{:else}
 		<div class="flex items-center gap-2">
-			<NumberInput bind:value={() => unitAmount, handleUnitChange} class="min-w-0 flex-1" />
+			<NumberInput
+				id={inputId}
+				bind:value={() => unitAmount, handleUnitChange}
+				class="min-w-0 flex-1"
+			/>
 			<span class="shrink-0 text-sm text-muted-foreground">{servingUnit}</span>
 		</div>
 		{#if previewKcal}

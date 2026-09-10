@@ -324,10 +324,12 @@ struct DashboardView: View {
     // MARK: - Date Navigation
 
     /// Moves the selected date by `delta` days with a directional push
-    /// animation. Moving past today is blocked — no future dates.
+    /// animation within the supported entry date range.
     private func changeDay(by delta: Int) {
-        guard delta != 0 else { return }
-        if delta > 0, selectedDate.isToday { return }
+        guard delta != 0,
+              DateFormatting.entryDateRange
+              .contains(Calendar.current.startOfDay(for: selectedDate.adding(days: delta)))
+        else { return }
         slideEdge = delta > 0 ? .trailing : .leading
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.3)) {
             selectedDate = selectedDate.adding(days: delta)
@@ -358,7 +360,7 @@ struct DashboardView: View {
             Spacer()
 
             VStack(spacing: 2) {
-                Text(selectedDate.isToday ? L10n.today : DateFormatting.displayString(from: selectedDate))
+                Text(L10n.dayLabel(selectedDate))
                     .font(.title3)
                     .fontWeight(.semibold)
                 if !selectedDate.isToday {
@@ -378,7 +380,6 @@ struct DashboardView: View {
                     .font(.title3)
                     .frame(width: 44, height: 44)
             }
-            .disabled(selectedDate.isToday)
         }
         .padding(.horizontal)
     }

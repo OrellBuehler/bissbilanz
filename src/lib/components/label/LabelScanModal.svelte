@@ -248,7 +248,7 @@
 				{m.label_scan_capture()}
 			</Button>
 		{:else if stage === 'scanning'}
-			<div class="space-y-3 py-6">
+			<div class="space-y-3 py-6" role="status" aria-live="polite">
 				<p class="text-center text-sm">
 					{phase === 'recognizing' ? m.label_scan_recognizing() : m.label_scan_loading()}
 				</p>

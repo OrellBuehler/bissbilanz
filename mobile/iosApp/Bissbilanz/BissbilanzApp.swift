@@ -337,6 +337,7 @@ struct BissbilanzApp: App {
         // registry has no parameter values, and tapping Log Food / Log Recipe
         // in Spotlight shows an empty picker card.
         BissbilanzShortcuts.updateAppShortcutParameters()
+        await aiTaskStore.restorePendingUploads()
         // Pull any new Apple Health weight/sleep data on every activation (not
         // only when those pages are visited) so it reaches the local store and
         // the queued backend upload immediately.
@@ -351,7 +352,6 @@ struct BissbilanzApp: App {
         // never got logged. No push channel exists, so this and the background pull are
         // the only chances to tell them.
         // First, re-send any meal a previous launch was killed while uploading.
-        aiTaskStore.restorePendingUploads()
         try? await aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
         // Surface any widget-extension quick-add failures (the extension has no

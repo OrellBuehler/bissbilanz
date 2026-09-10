@@ -23,6 +23,8 @@
 	import FoodLabelsInput from '$lib/components/foods/FoodLabelsInput.svelte';
 	import type { FoodFormPatch } from '$lib/label-parser';
 
+	const formId = $props.id();
+
 	const unitLabels: Record<ServingUnit, () => string> = {
 		g: () => m.food_form_unit_g(),
 		kg: () => m.food_form_unit_kg(),
@@ -198,7 +200,13 @@
 		<Label for="barcode">{m.food_form_barcode()}</Label>
 		<div class="flex min-w-0 gap-2">
 			<Input id="barcode" bind:value={form.barcode} class="min-w-0 flex-1" />
-			<Button type="button" variant="outline" size="icon" onclick={() => (scanOpen = true)}>
+			<Button
+				type="button"
+				variant="outline"
+				size="icon"
+				aria-label={m.dashboard_scan()}
+				onclick={() => (scanOpen = true)}
+			>
 				<ScanBarcode class="size-4" />
 			</Button>
 		</div>
@@ -221,9 +229,9 @@
 			/>
 		</div>
 		<div class="grid gap-1.5">
-			<Label>{m.food_form_unit()}</Label>
+			<Label for={`${formId}-field-1`}>{m.food_form_unit()}</Label>
 			<Select.Root type="single" bind:value={form.servingUnit}>
-				<Select.Trigger>
+				<Select.Trigger id={`${formId}-field-1`}>
 					{unitOptions.find((o) => o.value === form.servingUnit)?.label() ?? form.servingUnit}
 				</Select.Trigger>
 				<Select.Content>

@@ -15,7 +15,9 @@ export const entryBaseSchema = z.object({
 	mealType: z.string().min(1).max(50).transform(normalizeMealType),
 	servings: z.coerce.number().positive(),
 	notes: z.string().max(2000).optional().nullable(),
-	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	date: z.iso.date().refine((date) => date >= '1900-01-01' && date <= '2100-12-31', {
+		message: 'Date must be between 1900-01-01 and 2100-12-31'
+	}),
 	quickName: z.string().max(200).optional().nullable(),
 	quickCalories: z.coerce.number().nonnegative().optional().nullable(),
 	quickProtein: z.coerce.number().nonnegative().optional().nullable(),

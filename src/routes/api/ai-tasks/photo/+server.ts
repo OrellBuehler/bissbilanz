@@ -9,7 +9,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
-		requireAuth(locals);
+		const userId = requireAuth(locals);
 
 		const formData = await request.formData();
 		// getAll so one request can carry a whole meal; a single-photo client
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// parallel only trades throughput for peak memory.
 		const photoUrls: string[] = [];
 		for (const file of files) {
-			photoUrls.push(await processImage(file, { maxDim: 1024, fit: 'inside' }));
+			photoUrls.push(await processImage(file, userId, { maxDim: 1024, fit: 'inside' }));
 		}
 
 		Sentry.logger.info('AI task photos uploaded', {

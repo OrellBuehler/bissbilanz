@@ -3,21 +3,26 @@ import SwiftUI
 /// One "Label ........ [value] unit" row of a nutrient form. Shared by the
 /// quick-entry sheet and the entry editor so both render identically.
 struct NutrientInputField: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let label: String
     @Binding var text: String
     let unit: String
 
     var body: some View {
-        HStack {
+        let layout = dynamicTypeSize
+            .isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading)) : AnyLayout(HStackLayout())
+        layout {
             Text(label)
             Spacer()
             TextField("0", text: $text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .frame(width: 80)
+                .frame(minWidth: 80)
             Text(unit)
                 .foregroundStyle(.secondary)
-                .frame(width: 30, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minWidth: 30, alignment: .leading)
         }
     }
 }

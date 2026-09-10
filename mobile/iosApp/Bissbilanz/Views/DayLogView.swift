@@ -103,7 +103,11 @@ struct DayLogView: View {
         }
         .sheet(item: $editingEntry) { entry in
             // PATCH responses are raw DB rows without resolved macros — reload instead
-            EntryEditSheet(entry: entry) { _ in
+            EntryEditSheet(entry: entry) { updated in
+                if let movedDate = updated.date, movedDate != date {
+                    let label = DateFormatting.date(from: movedDate).map { L10n.dayLabel($0) } ?? movedDate
+                    toastMessage = L10n.entryMoved(to: label)
+                }
                 Task { await loadEntries() }
             }
         }
@@ -128,10 +132,7 @@ struct DayLogView: View {
 
     private var displayDate: String {
         if let parsed = DateFormatting.date(from: date) {
-            if parsed.isToday {
-                return L10n.today
-            }
-            return DateFormatting.displayString(from: parsed)
+            return L10n.dayLabel(parsed)
         }
         return date
     }

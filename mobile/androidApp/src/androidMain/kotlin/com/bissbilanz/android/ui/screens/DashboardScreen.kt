@@ -150,8 +150,6 @@ fun DashboardScreen(navController: NavController) {
                             haptic(HapticFeedbackType.LongPress)
                             viewModel.nextDay()
                         },
-                        // No future days — today is the last one.
-                        enabled = selectedDate < today,
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -257,7 +255,7 @@ fun DashboardScreen(navController: NavController) {
                         .fillMaxSize()
                         .pointerInput(Unit) {
                             // Swipe right → previous day, swipe left → next day,
-                            // mirroring the iOS dashboard date gesture.
+                            // for quick navigation between logged days.
                             var dragAmount = 0f
                             detectHorizontalDragGestures(
                                 onDragStart = { dragAmount = 0f },

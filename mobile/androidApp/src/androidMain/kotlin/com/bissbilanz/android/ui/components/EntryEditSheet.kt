@@ -54,6 +54,7 @@ fun EntryEditSheet(
     date: String?,
     onDismiss: () -> Unit,
     onSaved: () -> Unit,
+    onMoved: (String) -> Unit = {},
 ) {
     val entryRepo: EntryRepository = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
@@ -99,6 +100,8 @@ fun EntryEditSheet(
     val unknownName = stringResource(R.string.entry_edit_unknown)
     val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
     val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
+    val selectedDayLabel = dayLabel(LocalDate.parse(eatenDate ?: date ?: today))
+    val movedMessage = stringResource(R.string.entry_edit_moved, selectedDayLabel)
 
     LaunchedEffect(entryId) {
         if (entryId != null) {
@@ -166,19 +169,15 @@ fun EntryEditSheet(
     }
 
     if (showDatePicker) {
-        // Entries logged in the future would never show up in any day log or dashboard.
-        val maxSelectableMillis = LocalDate.parse(today).toEpochDays().toLong() * 86_400_000L
+        val todayMillis = LocalDate.parse(today).toEpochDays().toLong() * 86_400_000L
         val initialMillis =
             eatenDate
                 ?.let { runCatching { LocalDate.parse(it).toEpochDays().toLong() * 86_400_000L }.getOrNull() }
-                ?: maxSelectableMillis
+                ?: todayMillis
         val dateState =
             rememberDatePickerState(
                 initialSelectedDateMillis = initialMillis,
-                selectableDates =
-                    object : SelectableDates {
-                        override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= maxSelectableMillis
-                    },
+                yearRange = 1900..2100,
             )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -326,7 +325,7 @@ fun EntryEditSheet(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(eatenDate?.let { dayLabel(LocalDate.parse(it)) } ?: "--")
+                    Text(selectedDayLabel)
                 }
             }
 
@@ -489,6 +488,9 @@ fun EntryEditSheet(
                                     )
                                 }
                                 sheetState.hide()
+                                if (isEditing && eatenDate != null && eatenDate != entry?.date) {
+                                    onMoved(movedMessage)
+                                }
                                 onSaved()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e

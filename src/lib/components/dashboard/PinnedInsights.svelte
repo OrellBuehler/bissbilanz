@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
+	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Pin from '@lucide/svelte/icons/pin';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -49,33 +49,24 @@
 </script>
 
 {#if cards.length > 0}
-	<Card.Root>
-		<Card.Header class="flex flex-row items-center justify-between gap-2 pb-3">
-			<div class="flex items-center gap-2">
-				<div
-					class="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400"
-				>
-					<Pin class="size-4" />
-				</div>
-				<Card.Title class="text-base tracking-tight">{m.insights_pinned_section()}</Card.Title>
-			</div>
+	<DashboardCard title={m.insights_pinned_section()} Icon={Pin} tone="primary">
+		{#snippet headerRight()}
 			<Button variant="ghost" size="sm" href="/insights" class="gap-1.5">
 				{m.insights_title()}
 				<ArrowRight class="size-3.5" />
 			</Button>
-		</Card.Header>
-		<Card.Content class="pt-0">
-			<div class="grid gap-4 lg:grid-cols-2">
-				{#each cards as card (card.id)}
-					<InsightCardHost
-						{card}
-						{bundle}
-						{loading}
-						pinned={true}
-						onTogglePin={() => pinStore.toggle(card.id)}
-					/>
-				{/each}
-			</div>
-		</Card.Content>
-	</Card.Root>
+		{/snippet}
+
+		<div class="grid gap-4 lg:grid-cols-2">
+			{#each cards as card (card.id)}
+				<InsightCardHost
+					{card}
+					{bundle}
+					{loading}
+					pinned={true}
+					onTogglePin={() => pinStore.toggle(card.id)}
+				/>
+			{/each}
+		</div>
+	</DashboardCard>
 {/if}

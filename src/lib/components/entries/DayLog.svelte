@@ -20,7 +20,8 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { fastingService } from '$lib/services/fasting-service.svelte';
 	import { deviceTimeZone } from '$lib/analytics/local-time';
-	import { formatTime } from '$lib/utils/dates';
+	import { toast } from 'svelte-sonner';
+	import { formatTime, formatDateLabel } from '$lib/utils/dates';
 	import { fastsOnDate, formatDuration } from '$lib/utils/fasting';
 	import * as m from '$lib/paraglide/messages';
 
@@ -131,7 +132,26 @@
 		quickNutrients?: Record<string, number> | null;
 	}) => {
 		const { id, ...body } = payload;
+		const previousDate = date;
+		const previousTime = editingEntry?.eatenAt;
 		await entryService.update(id, body);
+		if (body.date !== previousDate) {
+			toast.success(m.entry_moved_to({ day: formatDateLabel(body.date) }), {
+				action: {
+					label: m.favorites_undo(),
+					onClick: async () => {
+						try {
+							await entryService.update(id, {
+								date: previousDate,
+								...(previousTime ? { eatenAt: previousTime } : {})
+							});
+						} catch {
+							toast.error(m.detail_save_failed());
+						}
+					}
+				}
+			});
+		}
 		editModalOpen = false;
 		editingEntry = null;
 	};

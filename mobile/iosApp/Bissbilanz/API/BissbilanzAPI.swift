@@ -1,6 +1,21 @@
 import Foundation
 import Observation
 
+struct AiTaskRequestInProgress: Error {
+    let retryAfter: TimeInterval
+
+    static func retryDelay(header: String?, now: Date = Date()) -> TimeInterval {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        let seconds = header.flatMap(TimeInterval.init)
+            ?? header.flatMap { formatter.date(from: $0)?.timeIntervalSince(now) }
+            ?? 60
+        return max(1, min(seconds.isFinite ? seconds : 60, 86400))
+    }
+}
+
 enum APIError: Error, LocalizedError {
     case unauthorized
     case notFound
@@ -721,10 +736,18 @@ final class BissbilanzAPI {
 
 
     func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
-        let response: AiTaskResponse = try await post(
-            "/api/ai-tasks", body: task, idempotencyKey: idempotencyKey
-        )
-        return response.task
+        for attempt in 0 ... 3 {
+            do {
+                let response: AiTaskResponse = try await post(
+                    "/api/ai-tasks", body: task, idempotencyKey: idempotencyKey
+                )
+                return response.task
+            } catch let pending as AiTaskRequestInProgress {
+                guard attempt < 3 else { throw pending }
+                try await Task.sleep(nanoseconds: UInt64(min(pending.retryAfter, 86400) * 1_000_000_000))
+            }
+        }
+        throw AiTaskRequestInProgress(retryAfter: 60)
     }
 
     func listAiTasks(
@@ -975,6 +998,7 @@ final class BissbilanzAPI {
             }
             return data
         } catch {
+            if error is AiTaskRequestInProgress { throw error }
             ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
             throw error
         }
@@ -1020,6 +1044,7 @@ final class BissbilanzAPI {
         do {
             return try await executeRequest(request)
         } catch {
+            if error is AiTaskRequestInProgress { throw error }
             ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
             throw error
         }
@@ -1139,6 +1164,13 @@ final class BissbilanzAPI {
     /// the first attempt and the post-refresh 401 retry so both paths handle
     /// errors identically.
     private func decodeResponse<T: Decodable>(_ data: Data, _ httpResponse: HTTPURLResponse) throws -> T {
+        if httpResponse.statusCode == 503,
+           let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           body["error"] as? String == "request_in_progress"
+        {
+            let header = httpResponse.value(forHTTPHeaderField: "Retry-After")
+            throw AiTaskRequestInProgress(retryAfter: AiTaskRequestInProgress.retryDelay(header: header))
+        }
         if httpResponse.statusCode == 409 {
             let conflictHeader = httpResponse.value(forHTTPHeaderField: "X-Sync-Conflict")
             throw APIError.conflict(serverNewer: conflictHeader == "server-newer")

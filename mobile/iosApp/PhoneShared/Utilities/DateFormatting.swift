@@ -80,6 +80,15 @@ enum DateFormatting {
         monthYearFormatter.string(from: date)
     }
 
+    /// The span every client lets an entry be dated into, matching the server's
+    /// own bound. Wide enough that no real log is refused, narrow enough that a
+    /// few flicks of a date picker can't park a meal in the year 3000.
+    static let entryDateRange: ClosedRange<Date> = {
+        let start = date(from: "1900-01-01") ?? Date(timeIntervalSince1970: -2_208_988_800)
+        let end = date(from: "2100-12-31") ?? Date(timeIntervalSince1970: 4_133_894_400)
+        return start ... end
+    }()
+
     static var today: String {
         isoString(from: Date())
     }

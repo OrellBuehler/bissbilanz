@@ -1062,4 +1062,6 @@
     <string name="dashboard_favorite_logged">Logged %1$s</string>
     <string name="dashboard_top_foods_count">%1$d\u00d7</string>
     <string name="unit_kcal">kcal</string>
+    <string name="entry_edit_moved">Moved to %1$s</string>
+    <string name="ai_task_time_day_label">%1$s · %2$s</string>
 </resources>

@@ -18,9 +18,9 @@
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
 	<div class="flex items-center gap-3">
 		<div
-			class="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400"
+			class="flex size-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400"
 		>
-			<Moon class="size-5" />
+			<Moon class="size-4" />
 		</div>
 		<div>
 			<h1 class="text-lg font-semibold tracking-tight">{m.sleep_page_title()}</h1>

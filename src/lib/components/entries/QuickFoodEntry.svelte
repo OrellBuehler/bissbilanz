@@ -14,6 +14,8 @@
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
+	const formId = $props.id();
+
 	export type QuickLogPayload = {
 		quickName?: string;
 		quickCalories: number;
@@ -86,8 +88,8 @@
 <div class="grid gap-3">
 	<Input placeholder={m.quick_log_name_placeholder()} bind:value={quickName} />
 	<div class="grid gap-1.5">
-		<Label>{m.quick_log_calories()}</Label>
-		<NumberInput bind:value={quickCalories} />
+		<Label for={`${formId}-input-1`}>{m.quick_log_calories()}</Label>
+		<NumberInput id={`${formId}-input-1`} bind:value={quickCalories} />
 	</div>
 	<button
 		type="button"
@@ -104,20 +106,20 @@
 	{#if quickMacrosOpen}
 		<div class="grid grid-cols-2 gap-3">
 			<div class="grid gap-1.5">
-				<Label class="text-xs">{m.quick_log_protein()}</Label>
-				<NumberInput bind:value={quickProtein} />
+				<Label class="text-xs" for={`${formId}-input-2`}>{m.quick_log_protein()}</Label>
+				<NumberInput id={`${formId}-input-2`} bind:value={quickProtein} />
 			</div>
 			<div class="grid gap-1.5">
-				<Label class="text-xs">{m.quick_log_carbs()}</Label>
-				<NumberInput bind:value={quickCarbs} />
+				<Label class="text-xs" for={`${formId}-input-3`}>{m.quick_log_carbs()}</Label>
+				<NumberInput id={`${formId}-input-3`} bind:value={quickCarbs} />
 			</div>
 			<div class="grid gap-1.5">
-				<Label class="text-xs">{m.quick_log_fat()}</Label>
-				<NumberInput bind:value={quickFat} />
+				<Label class="text-xs" for={`${formId}-input-4`}>{m.quick_log_fat()}</Label>
+				<NumberInput id={`${formId}-input-4`} bind:value={quickFat} />
 			</div>
 			<div class="grid gap-1.5">
-				<Label class="text-xs">{m.quick_log_fiber()}</Label>
-				<NumberInput bind:value={quickFiber} />
+				<Label class="text-xs" for={`${formId}-input-5`}>{m.quick_log_fiber()}</Label>
+				<NumberInput id={`${formId}-input-5`} bind:value={quickFiber} />
 			</div>
 		</div>
 		{#if hasMacros}
@@ -158,8 +160,9 @@
 		</div>
 	{/if}
 	<div class="grid gap-1.5">
-		<Label class="text-xs">{m.add_food_time()}</Label>
+		<Label class="text-xs" for={`${formId}-input-6`}>{m.add_food_time()}</Label>
 		<Input
+			id={`${formId}-input-6`}
 			type="time"
 			value={eatenTime}
 			oninput={(e) => onEatenTimeChange((e.target as HTMLInputElement).value)}

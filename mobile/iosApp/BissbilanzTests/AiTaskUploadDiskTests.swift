@@ -74,6 +74,79 @@ struct AiTaskUploadDiskTests {
         #expect(AiTaskUploadDisk.photos(id: id, root: root) == [Data([9])])
     }
 
+    @Test("Sweeps abandoned failures and incomplete saves, preserving recoverable uploads")
+    func sweepsAbandonedUploads() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let now = Date()
+        let failed = UUID(), retryable = UUID(), orphan = UUID(), active = UUID()
+        var meta = PersistedAiTaskUpload(
+            description: "Lunch", date: "2026-09-09", mealType: nil, eatenAt: nil,
+            photoCount: 1, queuedAt: now.addingTimeInterval(-31 * 86400)
+        )
+        try AiTaskUploadDisk.save(meta, photos: [Data([1])], id: retryable, root: root)
+        meta.retryable = false
+        try AiTaskUploadDisk.save(meta, photos: [Data([1])], id: failed, root: root)
+        for id in [orphan, active] {
+            try FileManager.default.createDirectory(
+                at: AiTaskUploadDisk.directory(for: id, root: root),
+                withIntermediateDirectories: true
+            )
+        }
+        try FileManager.default.setAttributes(
+            [.modificationDate: now.addingTimeInterval(-7200)],
+            ofItemAtPath: AiTaskUploadDisk.directory(for: orphan, root: root).path
+        )
+        AiTaskUploadDisk.sweep(root: root, protecting: [active], now: now)
+        #expect(AiTaskUploadDisk.loadAll(root: root).map(\.id) == [retryable])
+        #expect(!FileManager.default.fileExists(atPath: AiTaskUploadDisk.directory(for: orphan, root: root).path))
+        #expect(FileManager.default.fileExists(atPath: AiTaskUploadDisk.directory(for: active, root: root).path))
+    }
+
+    @Test("Keeps at most one hundred permanent failures, newest first")
+    func capsFailedQueue() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let now = Date()
+        var ids: [UUID] = []
+        for index in 0 ... 100 {
+            let id = UUID()
+            ids.append(id)
+            var meta = PersistedAiTaskUpload(
+                description: nil,
+                date: "2026-09-09",
+                mealType: nil,
+                eatenAt: nil,
+                photoCount: 0,
+                queuedAt: now.addingTimeInterval(Double(index - 100))
+            )
+            meta.retryable = false
+            try AiTaskUploadDisk.save(meta, photos: [], id: id, root: root)
+        }
+        AiTaskUploadDisk.sweep(root: root, now: now)
+        #expect(AiTaskUploadDisk.loadAll(root: root).map(\.id) == Array(ids.dropFirst()))
+    }
+
+    @Test("Restore reporting marker survives relaunch")
+    func persistsRestoreMarker() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        var meta = PersistedAiTaskUpload(
+            description: nil,
+            date: "2026-09-09",
+            mealType: nil,
+            eatenAt: nil,
+            photoCount: 0,
+            queuedAt: Date()
+        )
+        try AiTaskUploadDisk.save(meta, photos: [], id: id, root: root)
+        #expect(AiTaskUploadDisk.loadMeta(id: id, root: root)?.restoreReportedAt == nil)
+        meta.restoreReportedAt = Date(timeIntervalSince1970: 1000)
+        try AiTaskUploadDisk.writeMeta(meta, id: id, root: root)
+        #expect(AiTaskUploadDisk.loadMeta(id: id, root: root)?.restoreReportedAt == meta.restoreReportedAt)
+    }
+
     @Test("Only payload rejections are permanent")
     func retryability() {
         #expect(!AiTaskStore.isRetryable(APIError.badRequest("nope")))

@@ -32,12 +32,14 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
@@ -192,8 +194,14 @@ fun AiMealSheet(
 
             // The picker only shows a clock, and the sheet can be open for
             // yesterday's day card after midnight — name the day the time lands on.
+            val parsedDate = remember(date) { runCatching { LocalDate.parse(date) }.getOrNull() }
+            val dayName = parsedDate?.let { dayLabel(it) } ?: date
             Text(
-                stringResource(R.string.ai_task_time_label) + " · " + formatDayLabel(date),
+                stringResource(
+                    R.string.ai_task_time_day_label,
+                    stringResource(R.string.ai_task_time_label),
+                    dayName,
+                ),
                 style = MaterialTheme.typography.labelLarge,
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -218,7 +226,7 @@ fun AiMealSheet(
             }
             Text(
                 if (eatenHour != null) {
-                    stringResource(R.string.ai_task_time_on_day_hint, formatDayLabel(date))
+                    stringResource(R.string.ai_task_time_on_day_hint, dayName)
                 } else {
                     stringResource(R.string.ai_task_time_hint)
                 },
@@ -354,13 +362,3 @@ fun AiMealSheet(
         }
     }
 }
-
-/** The task's day (yyyy-MM-dd) as shown on the day card, e.g. "Sep 9, 2026". */
-private fun formatDayLabel(date: String): String =
-    runCatching { java.time.LocalDate.parse(date) }
-        .getOrNull()
-        ?.format(
-            java.time.format.DateTimeFormatter
-                .ofLocalizedDate(java.time.format.FormatStyle.MEDIUM),
-        )
-        ?: date

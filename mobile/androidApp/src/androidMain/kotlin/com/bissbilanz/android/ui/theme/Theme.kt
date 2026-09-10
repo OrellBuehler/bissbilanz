@@ -33,6 +33,12 @@ val ProjectionPurple = Color(0xFF8B5CF6)
 // Not a macro, but part of the same fixed colour language: fasting surfaces.
 val FastingIndigo = Color(0xFF6366F1)
 
+// The day-properties metrics. Deliberately outside the five macro hues so a
+// water or activity figure is never mistaken for calories or carbs, and the
+// same two tones are used on web and iOS.
+val WaterCyan = Color(0xFF06B6D4)
+val ActivityViolet = Color(0xFF8B5CF6)
+
 /**
  * Text-safe equivalents of the macro colours, resolved per theme.
  *
@@ -49,6 +55,8 @@ data class MacroPalette(
     val fat: Color,
     val fiber: Color,
     val fasting: Color,
+    val water: Color,
+    val activity: Color,
 )
 
 private val LightMacroPalette =
@@ -59,6 +67,8 @@ private val LightMacroPalette =
         fat = Color(0xFFA16207),
         fiber = Color(0xFF15803D),
         fasting = Color(0xFF4F46E5),
+        water = Color(0xFF0891B2),
+        activity = Color(0xFF7C3AED),
     )
 
 private val DarkMacroPalette =
@@ -69,6 +79,8 @@ private val DarkMacroPalette =
         fat = Color(0xFFFDE047),
         fiber = Color(0xFF86EFAC),
         fasting = Color(0xFFA5B4FC),
+        water = Color(0xFF22D3EE),
+        activity = Color(0xFFA78BFA),
     )
 
 val LocalMacroPalette = staticCompositionLocalOf { LightMacroPalette }
@@ -95,6 +107,8 @@ fun Color.macroTextTone(): Color {
         FatYellow -> palette.fat
         FiberGreen, TrendGreen -> palette.fiber
         FastingIndigo -> palette.fasting
+        WaterCyan -> palette.water
+        ActivityViolet -> palette.activity
         else -> this
     }
 }

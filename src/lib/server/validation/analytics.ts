@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { ApiError } from '$lib/server/errors';
 
 export const dateRangeShape = {
-	startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+	startDate: z.iso.date(),
+	endDate: z.iso.date()
 };
 
 export const analyticsDateRangeSchema = z

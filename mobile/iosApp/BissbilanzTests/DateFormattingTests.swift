@@ -4,6 +4,16 @@ import Testing
 
 @Suite("DateFormatting Tests")
 struct DateFormattingTests {
+    @Test("Day labels describe neighboring days, including across midnight")
+    func relativeDayLabels() throws {
+        let now = try #require(DateFormatting.date(from: "2026-09-10"))
+        #expect(L10n.dayLabel(now, now: now) == L10n.today)
+        #expect(L10n.dayLabel(now.adding(days: -1), now: now) == L10n.yesterday)
+        #expect(L10n.dayLabel(now.adding(days: 1), now: now) == L10n.tomorrow)
+        #expect(L10n.dayLabel(now.adding(days: -2), now: now) == DateFormatting
+            .displayString(from: now.adding(days: -2)))
+    }
+
     @Test("ISO string format is yyyy-MM-dd")
     func isoStringFormat() throws {
         let components = DateComponents(year: 2026, month: 3, day: 12)
