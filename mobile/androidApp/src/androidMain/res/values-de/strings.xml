@@ -230,6 +230,19 @@
     <string name="health_import_now">Jetzt importieren</string>
     <string name="health_import_done">Aus Health Connect importiert</string>
     <string name="health_import_nothing">Nichts Neues zu importieren</string>
+    <string name="health_last_synced">Zuletzt synchronisiert %1$s</string>
+    <string name="health_disconnect">Trennen</string>
+    <string name="health_disconnect_confirm_title">Health Connect trennen?</string>
+    <string name="health_disconnect_confirm_text">Schaltet die gesamte Synchronisierung aus und widerruft die Health-Connect-Berechtigungen von Bissbilanz.</string>
+    <string name="health_disconnected">Von Health Connect getrennt</string>
+    <string name="health_reimport_sleep">Nächte aus Health Connect neu importieren</string>
+    <string name="health_reimport_sleep_confirm">Ersetzt die Schlafeinträge der letzten 90 Tage durch die Aufzeichnungen aus Health Connect. Von Hand bearbeitete Nächte und Nächte ohne Health-Connect-Aufzeichnung werden überschrieben bzw. bleiben unverändert.</string>
+    <string name="health_extended_nutrients_section">Weitere Nährstoffe</string>
+    <string name="health_extended_nutrients_footer">Wähle, welche zusätzlichen Nährstoffe in die Tagessummen einfließen, die an Health Connect geschrieben werden — neben Kalorien, Eiweiß, Kohlenhydraten, Fett und Ballaststoffen.</string>
+    <plurals name="health_reimport_sleep_result">
+        <item quantity="one">1 Nacht aktualisiert</item>
+        <item quantity="other">%1$d Nächte aktualisiert</item>
+    </plurals>
 
     <!-- Launcher-Shortcuts -->
     <string name="shortcut_log_food_short">Erfassen</string>
