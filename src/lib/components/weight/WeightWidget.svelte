@@ -39,7 +39,7 @@
 			await weightService.create({ weightKg: kg, entryDate: today() });
 			inputValue = null;
 		} catch {
-			toast.error('Failed to log weight');
+			toast.error(m.weight_log_failed());
 		} finally {
 			saving = false;
 		}

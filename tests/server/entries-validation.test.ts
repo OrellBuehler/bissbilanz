@@ -321,3 +321,12 @@ describe('entryUpdateSchema', () => {
 		expect(result.success).toBe(false);
 	});
 });
+
+describe('entry date bounds', () => {
+	test.each(['2026-02-30', '0000-01-01', '1800-01-01', '2101-01-01'])(
+		'rejects invalid date %s',
+		(date) => {
+			expect(entryUpdateSchema.safeParse({ date }).success).toBe(false);
+		}
+	);
+});

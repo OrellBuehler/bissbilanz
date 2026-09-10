@@ -80,7 +80,7 @@
 						<Button
 							variant="ghost"
 							size="icon"
-							class="size-8 text-muted-foreground hover:text-foreground"
+							class="text-muted-foreground hover:text-foreground"
 							aria-pressed={ctx.pinned}
 							aria-label={ctx.pinned ? m.insights_unpin_action() : m.insights_pin_action()}
 							title={ctx.pinned ? m.insights_unpin_action() : m.insights_pin_action()}

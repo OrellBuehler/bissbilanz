@@ -9,8 +9,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
-		// userId used for auth check only; images are not user-scoped by directory
-		void userId;
 
 		const formData = await request.formData();
 		const file = formData.get('image');
@@ -36,7 +34,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'File must be 10MB or smaller' }, { status: 400 });
 		}
 
-		const imageUrl = await processImage(file);
+		const imageUrl = await processImage(file, userId);
 		return json({ imageUrl }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);

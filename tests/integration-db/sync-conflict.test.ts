@@ -8,7 +8,7 @@ import {
 	getTestDB,
 	closeTestDB
 } from './helpers';
-import { users, foods, foodEntries, idempotencyKeys } from '$lib/server/schema';
+import { users, foods, foodEntries, idempotencyKeys, userPreferences } from '$lib/server/schema';
 
 const DB_NAME = 'test_sync_conflict';
 let dbUrl: string;
@@ -317,5 +317,22 @@ describe('idempotency (withIdempotency)', () => {
 			'key-reuse'
 		);
 		expect(reusedMethod.status).toBe(422);
+	});
+});
+
+describe('date-only edits', () => {
+	it('preserves local clock time across the winter/summer offset change', async () => {
+		const db = getTestDB(dbUrl);
+		await db.insert(userPreferences).values({ userId, timeZone: 'Europe/Zurich' });
+		await db
+			.update(foodEntries)
+			.set({ date: '2026-01-05', eatenAt: new Date('2026-01-05T07:30:00Z') })
+			.where(eq(foodEntries.id, entryId));
+		const { updateEntry } = await import('$lib/server/entries');
+		const result = await updateEntry(userId, entryId, { date: '2026-07-05' });
+		expect(result.success).toBe(true);
+		if (!result.success) throw result.error;
+		expect(result.data?.date).toBe('2026-07-05');
+		expect(result.data?.eatenAt.toISOString()).toBe('2026-07-05T06:30:00.000Z');
 	});
 });

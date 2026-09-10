@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatDateLabel } from '$lib/utils/dates';
 	import { onMount } from 'svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -73,12 +74,12 @@
 		await fastingService.delete(id);
 	};
 
-	const fastDate = (iso: string) =>
-		new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric'
-		});
+	const fastDate = (iso: string) => {
+		const d = new Date(iso);
+		return formatDateLabel(
+			`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+		);
+	};
 </script>
 
 <svelte:head>

@@ -3,6 +3,19 @@ import Foundation
 import Testing
 
 struct APIErrorTests {
+    @Test("Idempotency retries honor Retry-After seconds and HTTP dates")
+    func inProgressRetryDelay() {
+        #expect(AiTaskRequestInProgress.retryDelay(header: "10") == 10)
+        #expect(AiTaskRequestInProgress.retryDelay(header: nil) == 60)
+        #expect(AiTaskRequestInProgress.retryDelay(header: "invalid") == 60)
+        #expect(AiTaskRequestInProgress.retryDelay(header: "-1") == 1)
+        #expect(AiTaskRequestInProgress.retryDelay(header: "nan") == 60)
+        #expect(AiTaskRequestInProgress.retryDelay(
+            header: "Thu, 01 Jan 1970 00:01:00 GMT",
+            now: Date(timeIntervalSince1970: 0)
+        ) == 60)
+    }
+
     @Test("Unauthorized error description")
     func unauthorizedDescription() {
         let error = APIError.unauthorized

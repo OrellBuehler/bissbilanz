@@ -16,3 +16,6 @@ export const MEAL_COLORS: Record<string, string> = {
 	Dinner: '#8B5CF6',
 	Snacks: '#10B981'
 };
+
+/** Fallback for meal types without an assigned chart colour. */
+export const DEFAULT_MEAL_COLOR = '#6B7280';

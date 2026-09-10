@@ -3,7 +3,7 @@ import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER } from '../helpers/fixtures';
 import { acceptsBearerAuth } from '$lib/server/auth-paths';
 
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, reset, getCalls } = createMockDB();
 const schema = await import('$lib/server/schema');
 
 vi.mock('$lib/server/db', () => ({
@@ -46,6 +46,16 @@ describe('uploads/[filename]', () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get('Content-Type')).toBe('image/webp');
 		expect(response.headers.get('Cache-Control')).toContain('private');
+	});
+
+	test('authorizes against upload ownership, never editable food references', async () => {
+		setResult([]);
+		await statusOf(invoke({ user: TEST_USER }));
+		expect(
+			getCalls()
+				.filter((c) => c.method === 'from')
+				.map((c) => c.args[0])
+		).toEqual([schema.uploads]);
 	});
 
 	test("another user's image is 403, not served", async () => {

@@ -40,7 +40,8 @@
 		</span>
 		<Button
 			variant="ghost"
-			size="sm"
+			size="icon"
+			class="sm:w-auto sm:px-3"
 			onclick={allSelected ? onClear : onSelectAll}
 			aria-label={allSelected ? m.foods_select_none() : m.foods_select_all()}
 		>
@@ -55,25 +56,27 @@
 		</Button>
 		<Button
 			variant="outline"
-			size="sm"
+			size="icon"
 			disabled={busy || count === 0}
+			class="w-auto px-3"
 			aria-label={m.foods_bulk_favorite()}
 			onclick={() => onFavorite(true)}
 		>
-			<Heart class="size-4" />
+			<Heart class="size-4" /><span>{m.foods_bulk_favorite()}</span>
 		</Button>
 		<Button
 			variant="outline"
-			size="sm"
+			size="icon"
 			disabled={busy || count === 0}
+			class="w-auto px-3"
 			aria-label={m.foods_bulk_unfavorite()}
 			onclick={() => onFavorite(false)}
 		>
-			<HeartOff class="size-4" />
+			<HeartOff class="size-4" /><span>{m.foods_bulk_unfavorite()}</span>
 		</Button>
 		<Button
 			variant="outline"
-			size="sm"
+			size="icon"
 			disabled={busy || count === 0}
 			aria-label={m.foods_bulk_labels()}
 			onclick={onLabels}
@@ -82,7 +85,7 @@
 		</Button>
 		<Button
 			variant="destructive"
-			size="sm"
+			size="icon"
 			disabled={busy || count === 0}
 			aria-label={m.foods_delete()}
 			onclick={onDelete}

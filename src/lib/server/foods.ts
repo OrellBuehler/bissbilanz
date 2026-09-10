@@ -230,7 +230,7 @@ export const updateFood = (
 			// Only once the write actually landed, and only when the image really
 			// changed — an LWW-rejected update leaves the old URL in place.
 			if (updated && previous?.imageUrl && previous.imageUrl !== updated.imageUrl) {
-				await unlinkUpload(previous.imageUrl);
+				await unlinkUpload(previous.imageUrl, userId);
 			}
 			// "Enrich from Open Food Facts" is an update, so it seeds too; the
 			// returned array is the one the client will cache, so merge the seeds in.
@@ -305,7 +305,7 @@ export const deleteFood = async (
 	});
 
 	// After commit, so a rolled-back delete never destroys the file.
-	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl);
+	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl, userId);
 	return result.deleted;
 };
 

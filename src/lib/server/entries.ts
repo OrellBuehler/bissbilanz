@@ -1,11 +1,12 @@
 import { getDB } from '$lib/server/db';
 import { foodEntries, foods, recipes, customMealTypes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { getUserTimeZone } from '$lib/server/preferences';
 import { ApiError } from '$lib/server/errors';
 import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
 import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
@@ -148,7 +149,10 @@ const normalizeQuickNutrients = (rec: Record<string, number> | null | undefined)
 
 type EntryUpdateInput = typeof entryUpdateSchema._output;
 
-export const toEntryUpdate = (input: EntryUpdateInput) => {
+export const toEntryUpdate = (
+	input: EntryUpdateInput,
+	timeZone = 'UTC'
+): Omit<EntryUpdateInput, 'eatenAt'> & { eatenAt?: Date | SQL<Date> } => {
 	const { eatenAt, ...rest } = input;
 	return {
 		...rest,
@@ -161,7 +165,16 @@ export const toEntryUpdate = (input: EntryUpdateInput) => {
 		...(input.quickNutrients !== undefined
 			? { quickNutrients: normalizeQuickNutrients(input.quickNutrients) }
 			: {}),
-		...(eatenAt !== undefined ? { eatenAt: eatenAt ? new Date(eatenAt) : new Date() } : {})
+		...(eatenAt !== undefined
+			? { eatenAt: eatenAt ? new Date(eatenAt) : new Date() }
+			: input.date !== undefined
+				? {
+						eatenAt: sql<Date>`CASE WHEN ${foodEntries.date} = ${input.date}::date
+                    THEN ${foodEntries.eatenAt}
+                    ELSE ((${input.date}::date + (${foodEntries.eatenAt} AT TIME ZONE ${timeZone})::time)
+                        AT TIME ZONE ${timeZone}) END`
+					}
+				: {})
 	};
 };
 
@@ -188,12 +201,16 @@ export const updateEntry = async (
 		// Reject references to foods/recipes the caller doesn't own (IDOR).
 		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
 		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
+		const timeZone =
+			result.data.date !== undefined && result.data.eatenAt === undefined
+				? await getUserTimeZone(userId)
+				: 'UTC';
 		// LWW: skip the write when a newer edit already won (guard), and stamp the
 		// row with the client's edit time so it stays the logical clock for the next
 		// conflict. No row returned ⇒ stale edit or deleted elsewhere (handler 409s).
 		const [updated] = await db
 			.update(foodEntries)
-			.set({ ...toEntryUpdate(result.data), updatedAt: lwwStamp(clientEditedAt) })
+			.set({ ...toEntryUpdate(result.data, timeZone), updatedAt: lwwStamp(clientEditedAt) })
 			.where(
 				and(
 					eq(foodEntries.id, id),

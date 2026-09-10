@@ -916,7 +916,9 @@ private fun MealBreakdownLegend(
     entries: List<MealBreakdownEntry>,
     totalCalories: Double,
 ) {
+    if (!totalCalories.isFinite() || totalCalories <= 0) return
     entries.forEachIndexed { index, entry ->
+        if (!entry.calories.isFinite()) return@forEachIndexed
         val pct = (entry.calories / totalCalories * 100).formatAsInt()
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),

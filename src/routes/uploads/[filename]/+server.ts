@@ -2,17 +2,12 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { UPLOAD_DIR } from '$lib/server/images';
-import { getDB } from '$lib/server/db';
-import { foods, recipes, aiTasks } from '$lib/server/schema';
-import { and, arrayContains, eq } from 'drizzle-orm';
-
-const FILENAME_PATTERN = /^[a-f0-9-]+\.webp$/;
+import { UPLOAD_DIR, ownsUpload, UPLOAD_FILENAME_PATTERN } from '$lib/server/images';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const { filename } = params;
 
-	if (!FILENAME_PATTERN.test(filename)) {
+	if (!UPLOAD_FILENAME_PATTERN.test(filename)) {
 		error(400, 'Invalid filename');
 	}
 
@@ -20,29 +15,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		error(401, 'Authentication required');
 	}
 
-	const db = getDB();
-	const imageUrl = `/uploads/${filename}`;
-	const userId = locals.user.id;
-
-	const [owner] = await db
-		.select({ id: foods.id })
-		.from(foods)
-		.where(and(eq(foods.imageUrl, imageUrl), eq(foods.userId, userId)))
-		.union(
-			db
-				.select({ id: recipes.id })
-				.from(recipes)
-				.where(and(eq(recipes.imageUrl, imageUrl), eq(recipes.userId, userId)))
-		)
-		.union(
-			db
-				.select({ id: aiTasks.id })
-				.from(aiTasks)
-				.where(and(arrayContains(aiTasks.photoUrls, [imageUrl]), eq(aiTasks.userId, userId)))
-		)
-		.limit(1);
-
-	if (!owner) {
+	if (!(await ownsUpload(locals.user.id, filename))) {
 		error(403, 'Access denied');
 	}
 

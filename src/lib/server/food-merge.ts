@@ -211,7 +211,7 @@ export async function mergeFoods(
 			return { updated, orphaned };
 		});
 
-		await unlinkUploads(result.orphaned);
+		await unlinkUploads(result.orphaned, userId);
 
 		return { success: true, data: roundNutrition(result.updated) };
 	} catch (error) {

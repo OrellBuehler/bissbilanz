@@ -24,7 +24,7 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
-	import { MEAL_COLORS } from '$lib/colors';
+	import { MEAL_COLORS, DEFAULT_MEAL_COLOR } from '$lib/colors';
 	import MacroValue from '$lib/components/shared/MacroValue.svelte';
 	import { formatKcal, formatGrams, formatKg as formatKgValue } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
@@ -83,8 +83,7 @@
 	let foods: TopFood[] = $state(pageData.topFoods);
 	let topFoodsLoading = $state(false);
 
-	const DEFAULT_COLOR = '#6B7280';
-	const getMealColor = (mealType: string) => MEAL_COLORS[mealType] ?? DEFAULT_COLOR;
+	const getMealColor = (mealType: string) => MEAL_COLORS[mealType] ?? DEFAULT_MEAL_COLOR;
 
 	const fetchData = async (r: Range) => {
 		mealLoading = true;

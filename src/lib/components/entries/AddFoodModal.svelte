@@ -21,6 +21,8 @@
 	import { toast } from 'svelte-sonner';
 	import { foodService } from '$lib/services/food-service.svelte';
 
+	const formId = $props.id();
+
 	type Props = {
 		open?: boolean;
 		foods?: PickerFoodItem[];
@@ -192,7 +194,13 @@
 		{#if selectedFood}
 			<div class="space-y-4">
 				<div class="flex min-w-0 items-center gap-2">
-					<Button variant="ghost" size="icon" onclick={goBack} class="shrink-0 size-8">
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={goBack}
+						class="shrink-0"
+						aria-label={m.common_back()}
+					>
 						<ArrowLeft class="size-4" />
 					</Button>
 					<span class="min-w-0 truncate text-sm font-medium">{selectedFood.name}</span>
@@ -207,8 +215,8 @@
 				/>
 
 				<div class="grid gap-1.5">
-					<Label class="text-xs">{m.add_food_time()}</Label>
-					<Input type="time" bind:value={eatenTime} />
+					<Label class="text-xs" for={`${formId}-input-1`}>{m.add_food_time()}</Label>
+					<Input id={`${formId}-input-1`} type="time" bind:value={eatenTime} />
 				</div>
 
 				<Button class="w-full" onclick={confirmAdd}>

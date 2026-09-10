@@ -149,6 +149,33 @@ enum L10n {
         localized("today", en: "Today", de: "Heute")
     }
 
+    static var yesterday: String {
+        localized("yesterday", en: "Yesterday", de: "Gestern")
+    }
+
+    static var tomorrow: String {
+        localized("tomorrow", en: "Tomorrow", de: "Morgen")
+    }
+
+    static func dayLabel(_ date: Date, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: now),
+            to: calendar.startOfDay(for: date)
+        ).day
+        switch days {
+        case 0: return today
+        case -1: return yesterday
+        case 1: return tomorrow
+        default: return DateFormatting.displayString(from: date)
+        }
+    }
+
+    static func entryMoved(to day: String) -> String {
+        localized("entry_moved", en: "Moved to \(day)", de: "Nach \(day) verschoben")
+    }
+
     static var log: String {
         localized("log", en: "Log", de: "Eintragen")
     }

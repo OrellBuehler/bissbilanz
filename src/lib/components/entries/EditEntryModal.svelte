@@ -21,6 +21,8 @@
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
+	const formId = $props.id();
+
 	type Props = {
 		open?: boolean;
 		date: string;
@@ -176,29 +178,29 @@
 		{#if isQuickEntry}
 			<div class="grid gap-3">
 				<div class="grid gap-1.5">
-					<Label>{m.quick_log_name_placeholder()}</Label>
-					<Input bind:value={editQuickName} />
+					<Label for={`${formId}-field-1`}>{m.quick_log_name_placeholder()}</Label>
+					<Input id={`${formId}-field-1`} bind:value={editQuickName} />
 				</div>
 				<div class="grid gap-1.5">
-					<Label>{m.quick_log_calories()}</Label>
-					<NumberInput bind:value={editQuickCalories} />
+					<Label for={`${formId}-input-1`}>{m.quick_log_calories()}</Label>
+					<NumberInput id={`${formId}-input-1`} bind:value={editQuickCalories} />
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div class="grid gap-1.5">
-						<Label class="text-xs">{m.quick_log_protein()}</Label>
-						<NumberInput bind:value={editQuickProtein} />
+						<Label class="text-xs" for={`${formId}-input-2`}>{m.quick_log_protein()}</Label>
+						<NumberInput id={`${formId}-input-2`} bind:value={editQuickProtein} />
 					</div>
 					<div class="grid gap-1.5">
-						<Label class="text-xs">{m.quick_log_carbs()}</Label>
-						<NumberInput bind:value={editQuickCarbs} />
+						<Label class="text-xs" for={`${formId}-input-3`}>{m.quick_log_carbs()}</Label>
+						<NumberInput id={`${formId}-input-3`} bind:value={editQuickCarbs} />
 					</div>
 					<div class="grid gap-1.5">
-						<Label class="text-xs">{m.quick_log_fat()}</Label>
-						<NumberInput bind:value={editQuickFat} />
+						<Label class="text-xs" for={`${formId}-input-4`}>{m.quick_log_fat()}</Label>
+						<NumberInput id={`${formId}-input-4`} bind:value={editQuickFat} />
 					</div>
 					<div class="grid gap-1.5">
-						<Label class="text-xs">{m.quick_log_fiber()}</Label>
-						<NumberInput bind:value={editQuickFiber} />
+						<Label class="text-xs" for={`${formId}-input-5`}>{m.quick_log_fiber()}</Label>
+						<NumberInput id={`${formId}-input-5`} bind:value={editQuickFiber} />
 					</div>
 				</div>
 				{#if editHasMacros}
@@ -249,9 +251,9 @@
 		{/if}
 
 		<div class="grid gap-2">
-			<Label>{m.edit_entry_meal()}</Label>
+			<Label for={`${formId}-field-2`}>{m.edit_entry_meal()}</Label>
 			<Select.Root type="single" bind:value={editMealType}>
-				<Select.Trigger>
+				<Select.Trigger id={`${formId}-field-2`}>
 					{mealOptions.find((o) => o.value === editMealType)?.label || m.edit_entry_select_meal()}
 				</Select.Trigger>
 				<Select.Content>
@@ -264,12 +266,18 @@
 
 		<div class="grid grid-cols-2 gap-3">
 			<div class="grid gap-2">
-				<Label>{m.edit_entry_date()}</Label>
-				<Input type="date" bind:value={editDate} />
+				<Label for={`${formId}-field-3`}>{m.edit_entry_date()}</Label>
+				<Input
+					id={`${formId}-field-3`}
+					type="date"
+					min="1900-01-01"
+					max="2100-12-31"
+					bind:value={editDate}
+				/>
 			</div>
 			<div class="grid gap-2">
-				<Label>{m.edit_entry_time()}</Label>
-				<Input type="time" bind:value={editTime} />
+				<Label for={`${formId}-field-4`}>{m.edit_entry_time()}</Label>
+				<Input id={`${formId}-field-4`} type="time" bind:value={editTime} />
 			</div>
 		</div>
 
@@ -293,6 +301,8 @@
 					class="flex-1 sm:flex-none"
 					aria-label={m.edit_entry_save()}
 					disabled={!editDate ||
+						editDate < '1900-01-01' ||
+						editDate > '2100-12-31' ||
 						(isQuickEntry && (editQuickCalories == null || editQuickCalories <= 0))}
 					onclick={handleSave}
 				>

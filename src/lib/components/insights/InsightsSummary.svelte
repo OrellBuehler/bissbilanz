@@ -1,16 +1,11 @@
 <script lang="ts">
+	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
 	import type { SummaryTile } from '$lib/insights/summary';
 
 	let { tiles }: { tiles: SummaryTile[] } = $props();
 
-	const accentClass = (accent: SummaryTile['accent']) => {
-		if (accent === 'calories') return 'text-blue-600 dark:text-blue-400';
-		if (accent === 'protein') return 'text-red-600 dark:text-red-400';
-		if (accent === 'carbs') return 'text-orange-600 dark:text-orange-400';
-		if (accent === 'fat') return 'text-yellow-600 dark:text-yellow-400';
-		if (accent === 'fiber') return 'text-green-600 dark:text-green-400';
-		return 'text-foreground';
-	};
+	const accentClass = (accent: SummaryTile['accent']) =>
+		!accent || accent === 'neutral' ? 'text-foreground' : MACRO_TEXT_CLASS[accent];
 </script>
 
 <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">

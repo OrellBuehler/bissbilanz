@@ -212,6 +212,6 @@ export const deleteRecipe = async (
 	});
 
 	// After commit, so a rolled-back delete never destroys the file.
-	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl);
+	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl, userId);
 	return result.deleted;
 };

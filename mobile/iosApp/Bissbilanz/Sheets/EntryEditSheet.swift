@@ -127,7 +127,12 @@ struct EntryEditSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    DatePicker(L10n.date, selection: $entryDate, in: ...Date(), displayedComponents: .date)
+                    DatePicker(
+                        L10n.date,
+                        selection: $entryDate,
+                        in: DateFormatting.entryDateRange,
+                        displayedComponents: .date
+                    )
                     DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
                 }
 

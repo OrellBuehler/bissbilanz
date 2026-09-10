@@ -101,6 +101,16 @@ describe('api/stats - extended endpoints', () => {
 	});
 
 	describe('GET /api/stats/daily', () => {
+		test.each([
+			['0001-01-01', '9999-12-31'],
+			['2026-02-10', '2026-02-01'],
+			['2026-02-30', '2026-03-01']
+		])('rejects unsafe range %s to %s', async (startDate, endDate) => {
+			const response = await dailyModule.GET(
+				createMockEvent({ user: TEST_USER, searchParams: { startDate, endDate } })
+			);
+			expect(response.status).toBe(400);
+		});
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({
 				user: null,

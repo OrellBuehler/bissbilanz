@@ -187,7 +187,7 @@
 
 	const removeMealType = async (id: string) => {
 		if (referencedCustomMealTypeIds.has(id)) {
-			toast.error('Remove the favorites timeframe configuration for this meal first.');
+			toast.error(m.settings_remove_favorites_timeframe_first());
 			return;
 		}
 		const meal = mealTypes.find((mt) => mt.id === id);
@@ -335,6 +335,7 @@
 											variant="outline"
 											size="icon"
 											disabled={referencedCustomMealTypeIds.has(customMeal.id)}
+											aria-label={m.settings_remove()}
 											onclick={() => removeMealType(customMeal.id)}
 										>
 											<Trash2 class="h-4 w-4" />

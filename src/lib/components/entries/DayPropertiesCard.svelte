@@ -145,14 +145,17 @@
 		<div class="space-y-2">
 			<div class="flex items-center justify-between gap-2">
 				<div class="flex items-center gap-2">
-					<GlassWater class="size-4 text-blue-600 dark:text-blue-400" />
+					<GlassWater class="size-4 text-cyan-600 dark:text-cyan-400" />
 					<span class="text-sm font-medium">{m.day_water_title()}</span>
 				</div>
 				<span class="text-xs tabular-nums text-muted-foreground">
 					{m.day_water_progress({ current: waterMl, goal: waterGoalMl })}
 				</span>
 			</div>
-			<Progress value={waterPercent} class="h-2 bg-blue-500/15 [&>*]:bg-blue-500" />
+			<Progress
+				value={waterPercent}
+				class="h-2 bg-cyan-500/15 [&>[data-slot=progress-indicator]]:bg-cyan-500"
+			/>
 			<div class="flex flex-wrap items-center gap-2">
 				<Button variant="outline" size="sm" onclick={() => addWater(250)}>
 					{m.day_water_add({ amount: 250 })}
@@ -193,7 +196,7 @@
 
 		<div class="space-y-2 border-t border-border/50 pt-4">
 			<div class="flex items-center gap-2">
-				<Flame class="size-4 text-orange-600 dark:text-orange-400" />
+				<Flame class="size-4 text-violet-600 dark:text-violet-400" />
 				<span class="text-sm font-medium">{m.day_activity_title()}</span>
 			</div>
 			<div class="flex flex-wrap items-center gap-2">

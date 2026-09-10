@@ -14,6 +14,7 @@ struct DayPropertiesCard: View {
     private static let maxActivityCalories = 20000
     private static let notesDebounce: UInt64 = 1_200_000_000
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
 
@@ -71,6 +72,12 @@ struct DayPropertiesCard: View {
         }
     }
 
+    private var adaptiveInputLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+
     // MARK: - Water
 
     private var waterSection: some View {
@@ -78,7 +85,7 @@ struct DayPropertiesCard: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "drop.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(MacroColors.water)
                     Text(L10n.dayWaterTitle)
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -90,9 +97,9 @@ struct DayPropertiesCard: View {
                     .foregroundStyle(.secondary)
             }
             ProgressView(value: waterProgress)
-                .tint(.blue)
+                .tint(MacroColors.water)
 
-            HStack(spacing: 8) {
+            adaptiveInputLayout {
                 Button(L10n.dayWaterAdd(250)) { addWater(250) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -102,7 +109,7 @@ struct DayPropertiesCard: View {
                 TextField(L10n.dayWaterInputLabel, text: $waterDraft)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 68)
+                    .frame(minWidth: 68)
                     .focused($focusedField, equals: .water)
                     .onSubmit(commitWater)
                 Text(L10n.dayUnitMl)
@@ -112,6 +119,8 @@ struct DayPropertiesCard: View {
                     Button(action: clearWater) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.dayWaterClear)
@@ -144,16 +153,16 @@ struct DayPropertiesCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "flame.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(MacroColors.activity)
                 Text(L10n.dayActivityTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
             }
-            HStack(spacing: 8) {
+            adaptiveInputLayout {
                 TextField("0", text: $activityDraft)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 68)
+                    .frame(minWidth: 68)
                     .focused($focusedField, equals: .activity)
                     .onSubmit(commitActivity)
                 Text(L10n.insightsKcalUnit)
@@ -167,6 +176,8 @@ struct DayPropertiesCard: View {
                     Button(action: clearActivity) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.dayActivityClear)

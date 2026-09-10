@@ -192,6 +192,7 @@ fun DayLogScreen(
                 // opened for any other day.
                 date = date,
                 onDismiss = { editingEntryId = null },
+                onMoved = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
                 onSaved = {
                     editingEntryId = null
                     viewModel.loadEntries(date, force = true)

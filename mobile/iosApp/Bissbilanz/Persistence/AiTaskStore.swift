@@ -17,7 +17,7 @@ struct AiTaskUploadDraft: Sendable {
 struct PendingAiTaskUpload: Identifiable, Equatable {
     enum State: Equatable {
         case sending
-        case failed(String)
+        case failed(String, retryable: Bool)
     }
 
     let id: UUID
@@ -62,6 +62,7 @@ final class AiTaskStore {
     private var attempts: [UUID: Int] = [:]
     /// Uploads whose background grant ran out — a cancellation that is a real failure.
     private var expiredInBackground: Set<UUID> = []
+    private var restoringUploads = false
 
     init(api: BissbilanzAPI, appMode: AppModeManager, uploadRoot: URL = AiTaskUploadDisk.defaultRoot) {
         self.api = api
@@ -102,12 +103,27 @@ final class AiTaskStore {
     /// A non-empty result means the app was terminated with a meal in flight —
     /// precisely the case that used to lose it — so it is reported as a warning,
     /// not just a breadcrumb.
-    func restorePendingUploads() {
-        guard !appMode.isLocal else { return }
-        let restored = AiTaskUploadDisk.loadAll(root: uploadRoot)
-            .filter { item in !pendingUploads.contains { $0.id == item.id } }
+    func restorePendingUploads() async {
+        guard !appMode.isLocal, !restoringUploads else { return }
+        restoringUploads = true
+        defer { restoringUploads = false }
+        let root = uploadRoot
+        let active = Set(pendingUploads.map(\.id))
+        let records = await Task.detached(priority: .utility) {
+            AiTaskUploadDisk.sweep(root: root, protecting: active)
+            return AiTaskUploadDisk.loadAll(root: root)
+        }.value
+        let restored = records.filter { item in !pendingUploads.contains { $0.id == item.id } }
         guard !restored.isEmpty else { return }
 
+        let unreported = restored.filter { $0.meta.restoreReportedAt == nil }
+        await Task.detached(priority: .utility) {
+            for item in unreported {
+                guard var meta = AiTaskUploadDisk.loadMeta(id: item.id, root: root) else { continue }
+                meta.restoreReportedAt = Date()
+                try? AiTaskUploadDisk.writeMeta(meta, id: item.id, root: root)
+            }
+        }.value
         var resumed = 0
         for item in restored {
             let failed = item.meta.retryable ? nil : (item.meta.failure ?? L10n.aiTaskUploadFailedBody)
@@ -118,14 +134,15 @@ final class AiTaskStore {
                 date: item.meta.date,
                 mealType: item.meta.mealType,
                 eatenAt: item.meta.eatenAt,
-                state: failed.map { .failed($0) } ?? .sending
+                state: failed.map { .failed($0, retryable: false) } ?? .sending
             ))
             if item.meta.retryable {
                 resumed += 1
                 start(item.id)
             }
         }
-        let oldest = restored.map(\.meta.queuedAt).min() ?? Date()
+        guard !unreported.isEmpty else { return }
+        let oldest = unreported.map(\.meta.queuedAt).min() ?? Date()
         ErrorReporter.captureWarning("AI task uploads restored from disk", context: [
             "count": restored.count,
             "resumed": resumed,
@@ -136,6 +153,12 @@ final class AiTaskStore {
 
     func retryUpload(id: UUID) {
         guard let index = pendingUploads.firstIndex(where: { $0.id == id }) else { return }
+        guard case .failed(_, retryable: true) = pendingUploads[index].state else { return }
+        if var meta = AiTaskUploadDisk.loadMeta(id: id, root: uploadRoot) {
+            meta.retryable = true
+            meta.failure = nil
+            try? AiTaskUploadDisk.writeMeta(meta, id: id, root: uploadRoot)
+        }
         pendingUploads[index].state = .sending
         ErrorReporter.addBreadcrumb("AI task upload retried", category: "ai_task", data: [
             "upload_id": id.uuidString
@@ -149,7 +172,8 @@ final class AiTaskStore {
         uploadTasks[id]?.cancel()
         uploadTasks[id] = nil
         attempts[id] = nil
-        AiTaskUploadDisk.remove(id: id, root: uploadRoot)
+        let root = uploadRoot
+        Task.detached(priority: .utility) { AiTaskUploadDisk.remove(id: id, root: root) }
         ErrorReporter.addBreadcrumb("AI task upload discarded", category: "ai_task", data: [
             "upload_id": id.uuidString
         ])
@@ -176,8 +200,14 @@ final class AiTaskStore {
             uploadTasks[id]?.cancel()
             endBackgroundTask(id)
         }
-        defer { endBackgroundTask(id) }
+        defer {
+            if generations[id] == generation || generations[id] == nil {
+                endBackgroundTask(id)
+                expiredInBackground.remove(id)
+            }
+        }
 
+        let root = uploadRoot
         var phase = "encode"
         let startedAt = Date()
         do {
@@ -188,17 +218,25 @@ final class AiTaskStore {
                 let encoded: [Data] = await Task.detached(priority: .userInitiated) {
                     images.compactMap { $0.downscaledJPEGData(maxDimension: maxDimension, quality: quality) }
                 }.value
-                try AiTaskUploadDisk.save(
-                    PersistedAiTaskUpload(
-                        description: pending.description,
-                        date: pending.date,
-                        mealType: pending.mealType,
-                        eatenAt: pending.eatenAt,
-                        photoCount: encoded.count,
-                        queuedAt: Date()
-                    ),
-                    photos: encoded, id: id, root: uploadRoot
-                )
+                try await Task.detached(priority: .userInitiated) {
+                    try AiTaskUploadDisk.save(
+                        PersistedAiTaskUpload(
+                            description: pending.description,
+                            date: pending.date,
+                            mealType: pending.mealType,
+                            eatenAt: pending.eatenAt,
+                            photoCount: encoded.count,
+                            queuedAt: Date()
+                        ),
+                        photos: encoded, id: id, root: root
+                    )
+                }.value
+                guard generations[id] == generation, pendingUploads.contains(where: { $0.id == id }) else {
+                    if !pendingUploads.contains(where: { $0.id == id }) {
+                        await Task.detached(priority: .utility) { AiTaskUploadDisk.remove(id: id, root: root) }.value
+                    }
+                    return
+                }
                 freshImages[id] = nil
                 if encoded.count != images.count {
                     ErrorReporter.captureWarning("AI task photos dropped while encoding", context: [
@@ -210,7 +248,10 @@ final class AiTaskStore {
             }
             try Task.checkCancellation()
 
-            let photos = AiTaskUploadDisk.photos(id: id, root: uploadRoot)
+            let photos = await Task.detached(priority: .userInitiated) {
+                AiTaskUploadDisk.photos(id: id, root: root)
+            }.value
+            try Task.checkCancellation()
             phase = "photos"
             let photoUrls = photos.isEmpty ? nil : try await api.uploadAiTaskPhotos(
                 photos.enumerated().map { (data: $0.element, filename: "meal_\($0.offset).jpg") }
@@ -237,7 +278,7 @@ final class AiTaskStore {
                 "attempt": attempt,
                 "seconds": Int(Date().timeIntervalSince(startedAt))
             ])
-            AiTaskUploadDisk.remove(id: id, root: uploadRoot)
+            await Task.detached(priority: .utility) { AiTaskUploadDisk.remove(id: id, root: root) }.value
             pendingUploads.removeAll { $0.id == id }
             uploadTasks[id] = nil
             attempts[id] = nil
@@ -328,7 +369,7 @@ final class AiTaskStore {
 
     private func markFailed(_ id: UUID, message: String, retryable: Bool) {
         guard let index = pendingUploads.firstIndex(where: { $0.id == id }) else { return }
-        pendingUploads[index].state = .failed(message)
+        pendingUploads[index].state = .failed(message, retryable: retryable)
         uploadTasks[id] = nil
         if var meta = AiTaskUploadDisk.loadMeta(id: id, root: uploadRoot) {
             meta.failure = message

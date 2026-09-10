@@ -51,6 +51,19 @@ export const users = pgTable('users', {
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
 
+// Ownership is recorded when bytes are uploaded, never inferred from editable URLs.
+export const uploads = pgTable(
+	'uploads',
+	{
+		filename: text('filename').primaryKey(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('uploads_user_id_idx').on(table.userId)]
+);
+
 // Linked OIDC provider identities (one user can have several)
 export const identities = pgTable(
 	'identities',

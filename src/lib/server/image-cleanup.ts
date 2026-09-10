@@ -3,12 +3,17 @@ import { join } from 'node:path';
 import { isNotNull } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
 import { foods, recipes, aiTasks } from '$lib/server/schema';
-import { UPLOAD_DIR, UPLOAD_FILENAME_PATTERN, uploadFilename } from '$lib/server/images';
+import {
+	UPLOAD_DIR,
+	UPLOAD_FILENAME_PATTERN,
+	forgetUploads,
+	uploadFilename
+} from '$lib/server/images';
 
 /**
  * How long an unreferenced upload is kept before the sweep may remove it.
  *
- * `POST /api/images/upload` returns a URL and stores nothing, so a file is
+ * `POST /api/images/upload` returns a URL before it is attached to a food or meal, so a file is
  * legitimately unreferenced for as long as the user is still filling in the
  * create form that will attach it. 24h is comfortably longer than any create
  * flow, including one interrupted by a backgrounded app.
@@ -66,7 +71,7 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 	}
 
 	const cutoff = now - ORPHAN_GRACE_MS;
-	let removed = 0;
+	const removed: string[] = [];
 	for (const filename of candidates) {
 		if (referenced.has(filename)) continue;
 		const path = join(UPLOAD_DIR, filename);
@@ -74,14 +79,18 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 			const info = await stat(path);
 			if (info.mtimeMs > cutoff) continue;
 			await unlink(path);
-			removed++;
+			removed.push(filename);
 		} catch {
 			// Raced with another delete, or unreadable — skip it.
 		}
 	}
 
-	if (removed > 0) {
-		console.log(`[image-cleanup] Removed ${removed} orphaned image file(s)`);
+	// The ownership rows are what authorize `/uploads/<file>`, so they go with
+	// the bytes rather than accumulating for every abandoned create form.
+	await forgetUploads(removed);
+
+	if (removed.length > 0) {
+		console.log(`[image-cleanup] Removed ${removed.length} orphaned image file(s)`);
 	}
-	return removed;
+	return removed.length;
 };

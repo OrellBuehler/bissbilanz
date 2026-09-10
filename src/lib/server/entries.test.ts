@@ -11,11 +11,11 @@ describe('toEntryUpdate', () => {
 		const result = toEntryUpdate({ date: '2026-01-05', eatenAt: '2026-01-05T08:30:00.000Z' });
 		expect(result.date).toBe('2026-01-05');
 		expect(result.eatenAt).toBeInstanceOf(Date);
-		expect(result.eatenAt?.toISOString()).toBe('2026-01-05T08:30:00.000Z');
+		expect((result.eatenAt as Date)?.toISOString()).toBe('2026-01-05T08:30:00.000Z');
 	});
 
-	it('leaves eatenAt untouched when the caller omits it entirely', () => {
-		const result = toEntryUpdate({ date: '2026-01-05' });
+	it('leaves eatenAt untouched when neither date nor eatenAt is sent', () => {
+		const result = toEntryUpdate({ servings: 2 });
 		expect('eatenAt' in result).toBe(false);
 	});
 

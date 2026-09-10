@@ -250,7 +250,7 @@ export const deleteAiTask = async (userId: string, id: string): Promise<boolean>
 		.delete(aiTasks)
 		.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
 		.returning();
-	if (deleted) await unlinkUploads(deleted.photoUrls ?? []);
+	if (deleted) await unlinkUploads(deleted.photoUrls ?? [], userId);
 	return !!deleted;
 };
 
@@ -260,6 +260,6 @@ export const cleanupAiTasks = async (): Promise<void> => {
 	const deleted = await db
 		.delete(aiTasks)
 		.where(and(inArray(aiTasks.status, ['completed', 'dismissed']), lt(aiTasks.updatedAt, cutoff)))
-		.returning({ photoUrls: aiTasks.photoUrls });
-	await unlinkUploads(deleted.flatMap((row) => row.photoUrls ?? []));
+		.returning({ photoUrls: aiTasks.photoUrls, userId: aiTasks.userId });
+	await Promise.all(deleted.map((row) => unlinkUploads(row.photoUrls ?? [], row.userId)));
 };

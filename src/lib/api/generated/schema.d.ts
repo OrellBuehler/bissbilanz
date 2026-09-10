@@ -1371,6 +1371,7 @@ export interface components {
 			mealType: string;
 			servings: number;
 			notes?: string | null;
+			/** Format: date */
 			date: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
@@ -1392,6 +1393,7 @@ export interface components {
 			mealType?: string;
 			servings?: number;
 			notes?: string | null;
+			/** Format: date */
 			date?: string;
 			quickName?: string | null;
 			quickCalories?: number | null;
