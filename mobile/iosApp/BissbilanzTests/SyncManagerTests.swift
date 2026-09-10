@@ -61,6 +61,41 @@ struct SyncManagerTests {
         #expect(harness.recordedRequests.contains("POST /api/goals"))
     }
 
+    @Test("A create_entry 404 for a real foodId reports a missing reference, not a remote delete")
+    func createEntry404WithRealFoodIdReportsReferenceMissing() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", status: 404, json: #"{"error": "Food not found"}"#)
+
+        // The referenced foodId is a real (already-synced) server id, not a
+        // `temp_` one — this can only be the server's ownership check failing
+        // because the food was deleted before this offline create drained.
+        harness.syncManager.enqueue(.createEntry(
+            body: EntryCreate(foodId: "real-food-id", mealType: "lunch", servings: 1, date: "2026-06-01"),
+            localId: LocalStore.makeTempId()
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.conflictNotices.first?.contains("no longer exists") == true)
+        #expect(harness.syncManager.conflictNotices.first?.contains("deleted on another device") == false)
+    }
+
+    @Test("A 404 on a non-create op is still reported as deleted elsewhere")
+    func nonCreateOp404StillReportsDeletedElsewhere() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("PATCH", "/api/weight/w1", status: 404, json: #"{"error": "not found"}"#)
+
+        harness.syncManager.enqueue(.updateWeight(id: "w1", body: WeightUpdate(weightKg: 80)))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.conflictNotices.first?.contains("deleted on another device") == true)
+    }
+
     @Test("5xx ends the drain so the ops behind it keep their retry budget, then drops after the cap")
     func serverErrorEndsDrainThenDropsAfterCap() async throws {
         let harness = try RepositoryHarness()
@@ -251,6 +286,67 @@ struct SyncManagerTests {
         // The queued log was re-keyed: it POSTed against the server id.
         #expect(harness.recordedRequests == ["POST /api/supplements", "POST /api/supplements/s-server/log"])
         #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A chained entry create waits for its still-backed-off food create instead of failing")
+    func chainedEntryCreateWaitsForBackedOffFoodCreate() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
+        // No /api/entries stub — an unstubbed request would 404, so the test
+        // fails loudly if the entry create is (wrongly) attempted early.
+
+        let tempFoodId = LocalStore.makeTempId()
+        harness.syncManager.enqueue(.createFood(body: makeFoodCreate(), localId: tempFoodId))
+        harness.syncManager.enqueue(.createEntry(
+            body: EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            localId: LocalStore.makeTempId()
+        ))
+
+        // Drain 1: the food create 500s, backs off (retryCount 1), and a
+        // server-scoped failure ends the drain before it ever reaches the
+        // entry create behind it.
+        let firstDrain = await harness.syncManager.drainPendingQueue()
+        #expect(firstDrain == 0)
+        #expect(harness.recordedRequests == ["POST /api/foods"])
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["create_food", "create_entry"])
+        #expect(harness.syncManager.queuedRows().first?.retryCount == 1)
+
+        // Drain 2: `nextDueRow` now skips the backed-off food create, so the
+        // entry create — still referencing its `temp_` foodId — becomes the
+        // head of the queue. It must wait rather than upload a request that
+        // can only fail (a `temp_` id is never valid UUID shape).
+        let secondDrain = await harness.syncManager.drainPendingQueue()
+        #expect(secondDrain == 0)
+        #expect(harness.recordedRequests == ["POST /api/foods"])
+        #expect(harness.syncManager.queuedRows().count == 2)
+        #expect(harness.syncManager.queuedRows().last?.retryCount == 1)
+        #expect(harness.syncManager.errors.isEmpty)
+        #expect(harness.syncManager.conflictNotices.isEmpty)
+    }
+
+    @Test("A chained entry create drops as 'never created' once its food create is permanently gone")
+    func chainedEntryCreateDropsAfterFoodCreateDropped() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
+        // No /api/entries stub: the entry create must never be attempted —
+        // its referenced food was never created, so there is nothing to POST.
+
+        let tempFoodId = LocalStore.makeTempId()
+        harness.syncManager.enqueue(.createFood(body: makeFoodCreate(), localId: tempFoodId))
+        harness.syncManager.enqueue(.createEntry(
+            body: EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            localId: LocalStore.makeTempId()
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        // The food create 400s and is dropped permanently; the entry create
+        // right behind it sees its reference is gone for good and drops too,
+        // in the same pass, without ever hitting the network.
+        #expect(drained == 2)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests == ["POST /api/foods"])
+        #expect(harness.syncManager.conflictNotices.first?.contains("was never created") == true)
     }
 
     @Test("Connectivity failures stop draining without consuming the retry budget")
