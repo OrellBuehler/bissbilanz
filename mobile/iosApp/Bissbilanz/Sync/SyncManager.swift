@@ -15,7 +15,15 @@ import SwiftData
 ///   conflict notice is surfaced via `conflictNotices`, refresh triggered.
 /// - HTTP 409 without header → real validation conflict; dead-letter (drop + error).
 /// - HTTP 404/410 on DELETE → idempotent; treat as success, remove silently.
-/// - HTTP 404/410 on other ops → record deleted elsewhere; remove + conflict notice.
+/// - HTTP 404/410 on a create (create_entry/create_recipe/create_supplement) →
+///   the create has no row of its own to have been deleted; a referenced
+///   foodId/recipeId no longer exists. Still-`temp_` references are caught
+///   before the request even goes out (see `unresolvedReference`) and either
+///   kept queued (the peer create is still pending) or dropped as
+///   "never created"; a resolved-but-now-missing reference is dropped as
+///   "no longer exists". Both remove + conflict notice, distinct from below.
+/// - HTTP 404/410 on other (non-create, non-delete) ops → record deleted
+///   elsewhere; remove + conflict notice.
 /// - 401 → `performRequest` already refreshed and retried once, so a final 401
 ///   means the session is dead: draining stops, the queue is kept.
 /// - 5xx / network errors → retryCount increments, exponential backoff via
@@ -258,6 +266,37 @@ final class SyncManager {
                 continue
             }
             let isDelete = isDeleteOperation(operation)
+
+            // A create can reference a food/recipe that is itself still an
+            // unresolved `temp_` id — the peer create is either still queued
+            // behind its own backoff (this row's seq is due first because
+            // `nextDueRow` skips backed-off rows) or was already dropped
+            // without ever resolving. Catch this before spending a network
+            // round trip on a request that would otherwise fail (a temp id
+            // is never valid UUID shape) and get misreported.
+            if let unresolved = unresolvedReference(operation) {
+                if !queuedOperations(table: unresolved.table, affectedId: unresolved.id).isEmpty {
+                    // The peer create hasn't drained yet. Wait for it without
+                    // treating this as a failure of this operation.
+                    row.retryCount += 1
+                    row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
+                    save()
+                    continue
+                }
+                remove(row)
+                processed += 1
+                sawConflict = true
+                conflictDates.formUnion(dayKeys(for: operation))
+                noteConflict(
+                    "Offline change to \(operation.summary) was dropped: the food or recipe it depended on was never created."
+                )
+                ErrorReporter.captureWarning(
+                    "Sync op dropped: referenced create was never created",
+                    context: dropContext(operation, row, outcome: "dropped_reference_not_created", status: nil)
+                )
+                continue
+            }
+
             ErrorReporter.addBreadcrumb(
                 "drain \(operation.typeName)",
                 category: "sync",
@@ -297,6 +336,28 @@ final class SyncManager {
                 case .notFound where isDelete:
                     remove(row)
                     processed += 1
+
+                // A create has no prior record of its own that could have been
+                // "deleted on another device" — its only 404 comes from a
+                // foodId/recipeId reference the server rejected as unowned/
+                // missing (see `assertFoodOwned`/`assertRecipeOwned`
+                // server-side). By this point `unresolvedReference` above has
+                // already ruled out a still-`temp_` reference, so this is a
+                // real server id that existed when the op was queued and is
+                // gone now (e.g. the food was deleted before the offline
+                // create finally drained).
+                case .notFound where isCreateOperation(operation):
+                    remove(row)
+                    processed += 1
+                    sawConflict = true
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    noteConflict(
+                        "Offline change to \(operation.summary) was dropped: the referenced food or recipe no longer exists."
+                    )
+                    ErrorReporter.captureWarning(
+                        "Sync op dropped: referenced record missing",
+                        context: dropContext(operation, row, outcome: "dropped_reference_missing", status: 404)
+                    )
 
                 case .notFound:
                     remove(row)
@@ -687,6 +748,44 @@ final class SyncManager {
         }
     }
 
+    /// Ops that insert a brand-new server row. These have no prior record of
+    /// their own — a 404 they hit can only be a rejected foodId/recipeId
+    /// reference, never "this row was deleted elsewhere".
+    private func isCreateOperation(_ operation: SyncOperation) -> Bool {
+        switch operation {
+        case .createFood, .createEntry, .createRecipe, .createWeight, .createSleep, .createSupplement:
+            true
+        default:
+            false
+        }
+    }
+
+    /// The first still-`temp_` foodId/recipeId a create's payload references,
+    /// with the queue table it would have been created under, or nil when
+    /// every reference is already a resolved server id (or the op has none).
+    /// Only `create_entry`/`create_recipe`/`create_supplement` carry such a
+    /// reference — the other create ops don't point at another entity.
+    private func unresolvedReference(_ operation: SyncOperation) -> (table: String, id: String)? {
+        let candidates: [(table: String, id: String)]
+        switch operation {
+        case let .createEntry(body, _):
+            var refs: [(table: String, id: String)] = []
+            if let foodId = body.foodId { refs.append((table: "foods", id: foodId)) }
+            if let recipeId = body.recipeId { refs.append((table: "recipes", id: recipeId)) }
+            candidates = refs
+        case let .createRecipe(body, _):
+            candidates = body.ingredients.map { (table: "foods", id: $0.foodId) }
+        case let .createSupplement(body, _):
+            candidates = body.ingredients.compactMap { ingredient -> (table: String, id: String)? in
+                guard let foodId = ingredient.foodId else { return nil }
+                return (table: "foods", id: foodId)
+            }
+        default:
+            candidates = []
+        }
+        return candidates.first { LocalStore.isTempId($0.id) }
+    }
+
     // MARK: - Backoff
 
     private func backoffDate(retryCount: Int, id: UUID) -> Date {
@@ -751,7 +850,87 @@ final class SyncManager {
         if let status {
             context["status_code"] = status
         }
+        for (key, value) in referenceIds(operation) {
+            context[key] = value
+        }
         return context
+    }
+
+    /// Every entity id an operation carries (its own row plus anything it
+    /// references), keyed for Sentry so a dropped-sync event shows exactly
+    /// which record(s) were involved without decoding `sync.summary`. Ids
+    /// only — never notes, food/recipe/supplement names, or other user
+    /// content.
+    private func referenceIds(_ operation: SyncOperation) -> [String: Any] {
+        var ids: [String: Any] = [:]
+        switch operation {
+        case let .createFood(_, localId):
+            ids["sync.food_id"] = localId
+        case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
+             let .setFoodImage(id, _), let .setFoodLabels(id, _):
+            ids["sync.food_id"] = id
+
+        case let .createEntry(body, localId):
+            ids["sync.entry_id"] = localId
+            if let foodId = body.foodId { ids["sync.food_id"] = foodId }
+            if let recipeId = body.recipeId { ids["sync.recipe_id"] = recipeId }
+        // `EntryUpdate` carries no foodId/recipeId — the app never lets an
+        // edit reassign an entry's food or recipe, only servings/meal/notes/
+        // date/eatenAt/quick fields, so there is no reference to record here.
+        case let .updateEntry(id, _):
+            ids["sync.entry_id"] = id
+        case let .deleteEntry(id):
+            ids["sync.entry_id"] = id
+
+        case let .createRecipe(body, localId):
+            ids["sync.recipe_id"] = localId
+            ids["sync.ingredient_food_ids"] = body.ingredients.map(\.foodId)
+        case let .updateRecipe(id, body):
+            ids["sync.recipe_id"] = id
+            if let ingredients = body.ingredients {
+                ids["sync.ingredient_food_ids"] = ingredients.map(\.foodId)
+            }
+        case let .deleteRecipe(id):
+            ids["sync.recipe_id"] = id
+
+        case .setGoals:
+            break
+
+        case let .createWeight(_, localId):
+            ids["sync.weight_id"] = localId
+        case let .updateWeight(id, _), let .deleteWeight(id):
+            ids["sync.weight_id"] = id
+
+        case let .createSleep(_, localId):
+            ids["sync.sleep_id"] = localId
+        case let .updateSleep(id, _), let .deleteSleep(id):
+            ids["sync.sleep_id"] = id
+
+        case let .createSupplement(body, localId):
+            ids["sync.supplement_id"] = localId
+            let foodIds = body.ingredients.compactMap(\.foodId)
+            if !foodIds.isEmpty { ids["sync.ingredient_food_ids"] = foodIds }
+        case let .updateSupplement(id, body):
+            ids["sync.supplement_id"] = id
+            if let ingredients = body.ingredients {
+                let foodIds = ingredients.compactMap(\.foodId)
+                if !foodIds.isEmpty { ids["sync.ingredient_food_ids"] = foodIds }
+            }
+        case let .deleteSupplement(id):
+            ids["sync.supplement_id"] = id
+        case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
+            ids["sync.supplement_id"] = supplementId
+
+        case let .setDayProperties(date, _), let .deleteDayProperties(date):
+            ids["sync.day"] = date
+
+        case let .upsertFast(id, _), let .deleteFast(id):
+            ids["sync.fast_id"] = id
+
+        case .updatePreferences:
+            break
+        }
+        return ids
     }
 
     /// After a drain leaves backed-off rows behind, schedule a single delayed

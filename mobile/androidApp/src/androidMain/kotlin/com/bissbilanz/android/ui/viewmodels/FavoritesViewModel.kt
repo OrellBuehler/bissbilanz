@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Preferences
@@ -18,9 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 class FavoritesViewModel(
     private val foodRepo: FoodRepository,
@@ -80,13 +78,21 @@ class FavoritesViewModel(
 
     fun logFood(
         food: Food,
-        meal: String,
-        servings: Double,
+        details: MealLogDetails,
     ) {
         viewModelScope.launch {
             try {
-                val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                entryRepo.createEntry(EntryCreate(foodId = food.id, mealType = meal, servings = servings, date = today), food = food)
+                entryRepo.createEntry(
+                    EntryCreate(
+                        foodId = food.id,
+                        mealType = details.mealType,
+                        servings = details.servings,
+                        date = details.date,
+                        eatenAt = details.eatenAt,
+                        notes = details.notes,
+                    ),
+                    food = food,
+                )
                 _snackbarMessage.value = "Logged ${food.name}"
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -98,14 +104,19 @@ class FavoritesViewModel(
 
     fun logRecipe(
         recipe: Recipe,
-        meal: String,
-        servings: Double,
+        details: MealLogDetails,
     ) {
         viewModelScope.launch {
             try {
-                val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                 entryRepo.createEntry(
-                    EntryCreate(recipeId = recipe.id, mealType = meal, servings = servings, date = today),
+                    EntryCreate(
+                        recipeId = recipe.id,
+                        mealType = details.mealType,
+                        servings = details.servings,
+                        date = details.date,
+                        eatenAt = details.eatenAt,
+                        notes = details.notes,
+                    ),
                     recipe = recipe,
                 )
                 _snackbarMessage.value = "Logged ${recipe.name}"

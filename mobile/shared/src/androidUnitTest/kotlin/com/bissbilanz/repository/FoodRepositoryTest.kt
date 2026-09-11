@@ -231,6 +231,44 @@ class FoodRepositoryTest {
         assertTrue(repository.recentFoods.value.isEmpty())
     }
 
+    @Test
+    fun resolveByNamePrefersExactCaseInsensitiveMatch() {
+        seedFoodInCache(TestFixtures.food(id = "1", name = "Banana Bread"))
+        seedFoodInCache(TestFixtures.food(id = "2", name = "banana"))
+
+        val result = repository.resolveByName("Banana")
+
+        assertEquals("2", result?.id)
+    }
+
+    @Test
+    fun resolveByNameFallsBackToPrefixMatch() {
+        seedFoodInCache(TestFixtures.food(id = "1", name = "Greek Yogurt"))
+        seedFoodInCache(TestFixtures.food(id = "2", name = "Yogurt Drink"))
+
+        val result = repository.resolveByName("Yogurt")
+
+        assertEquals("2", result?.id)
+    }
+
+    @Test
+    fun resolveByNameFallsBackToContainsMatch() {
+        seedFoodInCache(TestFixtures.food(id = "1", name = "Whole Wheat Bread"))
+
+        val result = repository.resolveByName("Wheat")
+
+        assertEquals("1", result?.id)
+    }
+
+    @Test
+    fun resolveByNameReturnsNullWhenNothingMatches() {
+        seedFoodInCache(TestFixtures.food(id = "1", name = "Apple"))
+
+        val result = repository.resolveByName("Pizza")
+
+        assertNull(result)
+    }
+
     private fun seedFoodInCache(food: Food) {
         db.userDataDatabaseQueries.insertFood(
             id = food.id,

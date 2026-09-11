@@ -20,6 +20,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
@@ -28,10 +29,7 @@ import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
-import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,12 +63,18 @@ fun RecipeListScreen(navController: NavController) {
     recipeToLog?.let { recipe ->
         MealPickerSheet(
             onDismiss = { recipeToLog = null },
-            onConfirm = { meal, servings ->
+            onConfirm = { details ->
                 scope.launch {
                     try {
-                        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         entryRepo.createEntry(
-                            EntryCreate(recipeId = recipe.id, mealType = meal, servings = servings, date = today),
+                            EntryCreate(
+                                recipeId = recipe.id,
+                                mealType = details.mealType,
+                                servings = details.servings,
+                                date = details.date,
+                                eatenAt = details.eatenAt,
+                                notes = details.notes,
+                            ),
                             recipe = recipe,
                         )
                         snackbarHostState.showSnackbar(String.format(loggedMessageTemplate, recipe.name))
@@ -82,6 +86,7 @@ fun RecipeListScreen(navController: NavController) {
                 }
                 recipeToLog = null
             },
+            macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
         )
     }
 

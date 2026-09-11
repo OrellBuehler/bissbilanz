@@ -210,8 +210,7 @@
     <string name="ai_tasks_notification_summary">Verworfene KI-Aufgaben</string>
     <string name="ai_tasks_upload_failed_title">Mahlzeit konnte nicht an den Assistenten gesendet werden</string>
     <string name="ai_tasks_upload_failed_body">Prüfe deine Verbindung und sende sie erneut.</string>
-    <string name="ai_tasks_uploading_one">1 Mahlzeit wird an deinen Assistenten gesendet…</string>
-    <string name="ai_tasks_uploading_many">%1$d Mahlzeiten werden an deinen Assistenten gesendet…</string>
+    <string name="ai_task_upload_sending">Wird an deinen Assistenten gesendet…</string>
 
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
@@ -230,6 +229,19 @@
     <string name="health_import_now">Jetzt importieren</string>
     <string name="health_import_done">Aus Health Connect importiert</string>
     <string name="health_import_nothing">Nichts Neues zu importieren</string>
+    <string name="health_last_synced">Zuletzt synchronisiert %1$s</string>
+    <string name="health_disconnect">Trennen</string>
+    <string name="health_disconnect_confirm_title">Health Connect trennen?</string>
+    <string name="health_disconnect_confirm_text">Schaltet die gesamte Synchronisierung aus und widerruft die Health-Connect-Berechtigungen von Bissbilanz.</string>
+    <string name="health_disconnected">Von Health Connect getrennt</string>
+    <string name="health_reimport_sleep">Nächte aus Health Connect neu importieren</string>
+    <string name="health_reimport_sleep_confirm">Ersetzt die Schlafeinträge der letzten 90 Tage durch die Aufzeichnungen aus Health Connect. Von Hand bearbeitete Nächte und Nächte ohne Health-Connect-Aufzeichnung werden überschrieben bzw. bleiben unverändert.</string>
+    <string name="health_extended_nutrients_section">Weitere Nährstoffe</string>
+    <string name="health_extended_nutrients_footer">Wähle, welche zusätzlichen Nährstoffe in die Tagessummen einfließen, die an Health Connect geschrieben werden — neben Kalorien, Eiweiß, Kohlenhydraten, Fett und Ballaststoffen.</string>
+    <plurals name="health_reimport_sleep_result">
+        <item quantity="one">1 Nacht aktualisiert</item>
+        <item quantity="other">%1$d Nächte aktualisiert</item>
+    </plurals>
 
     <!-- Launcher-Shortcuts -->
     <string name="shortcut_log_food_short">Erfassen</string>
@@ -240,6 +252,7 @@
     <string name="shortcut_weight_long">Gewicht erfassen</string>
     <string name="shortcut_fasting_short">Fasten</string>
     <string name="shortcut_fasting_long">Fasten starten oder beenden</string>
+    <string name="assistant_food_logged">%1$s eingetragen — %2$s, %3$d kcal</string>
 
     <!-- Food image -->
     <string name="food_image_label">Lebensmittelfoto</string>

@@ -29,12 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
+import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
@@ -72,6 +74,10 @@ fun FoodSearchScreen(navController: NavController) {
     var showCreateMenu by remember { mutableStateOf(false) }
     var foodToEdit by remember { mutableStateOf<Food?>(null) }
 
+    LaunchedEffect(Unit) {
+        PendingNavigation.consumeFoodQuery()?.let { viewModel.updateQuery(it) }
+    }
+
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -79,13 +85,14 @@ fun FoodSearchScreen(navController: NavController) {
         }
     }
 
-    if (foodToLog != null) {
+    foodToLog?.let { food ->
         MealPickerSheet(
             onDismiss = { foodToLog = null },
-            onConfirm = { meal, servings ->
-                viewModel.logFood(foodToLog!!, meal, servings)
+            onConfirm = { details ->
+                viewModel.logFood(food, details)
                 foodToLog = null
             },
+            macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
         )
     }
 

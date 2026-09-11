@@ -140,6 +140,50 @@ class SyncManagerTest {
         }
 
     @Test
+    fun create404WithRealFoodIdReportsReferenceMissingNotDeletedElsewhere() =
+        runTest {
+            // A real (already-synced) server foodId, not a `temp_` one — this can only
+            // be the server's ownership check failing because the food was deleted
+            // before this offline create drained.
+            syncQueue.enqueue(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(
+                        EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "real-food-id"),
+                    ),
+                    localId = "temp_e1",
+                ),
+            )
+            coEvery { api.createEntry(any(), any(), any()) } throws ApiException("not found", 404)
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(1, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            val notice =
+                manager.state.value.conflictNotices
+                    .single()
+            assertTrue(notice.contains("no longer exists"))
+            assertTrue(!notice.contains("deleted on another device"))
+        }
+
+    @Test
+    fun nonCreate404StillReportsDeletedElsewhere() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UpdateFood("f1", json.encodeToString(foodCreate())))
+            coEvery { api.updateFood(any(), any(), any(), any()) } throws ApiException("not found", 404)
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(1, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .single()
+                    .contains("deleted on another device"),
+            )
+        }
+
+    @Test
     fun serverErrorBacksOffAndGivesUpAfterMaxRetries() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
@@ -582,6 +626,82 @@ class SyncManagerTest {
             assertEquals(1, remaining.size)
             assertEquals("srv-food-1", (remaining.single().operation as SyncOperation.UpdateFood).id)
             assertTrue(syncQueue.findByAffected("foods", "temp_f1").isEmpty())
+        }
+
+    @Test
+    fun chainedEntryCreateWaitsForBackedOffFoodCreateInsteadOfFailing() =
+        runTest {
+            enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
+            enqueueAt(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(
+                        EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1"),
+                    ),
+                    localId = "temp_e1",
+                ),
+                createdAt = 2,
+            )
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("server error", 500)
+            // No stub for api.createEntry: if the entry create is (wrongly) attempted
+            // early, MockK throws loudly instead of the test silently passing.
+
+            // Drain 1: the food create 500s, backs off, and a server-scoped failure
+            // ends the drain before it ever reaches the entry create behind it.
+            val firstDrain = manager.syncPendingQueue()
+            assertEquals(0, firstDrain)
+            assertEquals(2, syncQueue.pendingCount())
+            coVerify(exactly = 1) { api.createFood(any(), any(), any()) }
+
+            // Drain 2: the food create's backoff excludes it from this batch, so the
+            // entry create — still referencing its `temp_` foodId — is next in line.
+            // It must wait rather than upload a request that can only fail (a `temp_`
+            // id is never valid UUID shape).
+            val secondDrain = manager.syncPendingQueue()
+            assertEquals(0, secondDrain)
+            assertEquals(2, syncQueue.pendingCount())
+            coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
+            assertTrue(
+                manager.state.value.errors
+                    .isEmpty(),
+            )
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .isEmpty(),
+            )
+            val entryRow = syncQueue.all().single { it.operation is SyncOperation.CreateEntry }
+            assertEquals(1, entryRow.retryCount)
+        }
+
+    @Test
+    fun chainedEntryCreateDropsAsNeverCreatedOnceFoodCreateIsPermanentlyGone() =
+        runTest {
+            enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
+            enqueueAt(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(
+                        EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1"),
+                    ),
+                    localId = "temp_e1",
+                ),
+                createdAt = 2,
+            )
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("invalid", 400)
+            // No stub for api.createEntry: its referenced food was never created, so
+            // it must never be attempted.
+
+            // The food create 400s and is dropped permanently; the entry create right
+            // behind it in the same batch sees its reference is gone for good and
+            // drops too, without ever hitting the network.
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(2, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .single()
+                    .contains("was never created"),
+            )
         }
 
     private fun serverEntry(

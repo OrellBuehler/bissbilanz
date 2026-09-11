@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.screens
 
 import android.content.Intent
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.health.EXTENDED_HEALTH_NUTRIENTS
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
@@ -48,13 +50,29 @@ fun HealthConnectScreen(navController: NavController) {
     var writeSleep by remember { mutableStateOf(prefs.writeSleep) }
     var writeNutrition by remember { mutableStateOf(prefs.writeNutrition) }
     var isImporting by remember { mutableStateOf(false) }
+    var isReimporting by remember { mutableStateOf(false) }
+    var showReimportConfirm by remember { mutableStateOf(false) }
+    var showDisconnectConfirm by remember { mutableStateOf(false) }
+    val nutrientsEnabled =
+        remember {
+            mutableStateMapOf<String, Boolean>().apply {
+                EXTENDED_HEALTH_NUTRIENTS.forEach { put(it.key, prefs.nutrientEnabled(it.key)) }
+            }
+        }
 
     val available = remember { health.isAvailable() }
     val needsUpdate = remember { health.needsProviderUpdate() }
     val isConnected = granted.isNotEmpty()
+    val exportableKeys = remember { EXTENDED_HEALTH_NUTRIENTS.map { it.key }.toSet() }
+    val extendedNutrientCategories =
+        nutrientCategories().mapNotNull { (category, nutrients) ->
+            val filtered = nutrients.filter { (key, _) -> key in exportableKeys }
+            if (filtered.isEmpty()) null else category to filtered
+        }
 
     val importedMessage = stringResource(R.string.health_import_done)
     val nothingMessage = stringResource(R.string.health_import_nothing)
+    val disconnectedMessage = stringResource(R.string.health_disconnected)
 
     val permissionLauncher =
         rememberLauncherForActivityResult(
@@ -64,6 +82,68 @@ fun HealthConnectScreen(navController: NavController) {
         }
 
     LaunchedEffect(Unit) { granted = health.grantedPermissions() }
+
+    if (showDisconnectConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectConfirm = false },
+            title = { Text(stringResource(R.string.health_disconnect_confirm_title)) },
+            text = { Text(stringResource(R.string.health_disconnect_confirm_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDisconnectConfirm = false
+                        scope.launch {
+                            health.disconnect()
+                            prefs.reset()
+                            readWeight = false
+                            writeWeight = false
+                            readSleep = false
+                            writeSleep = false
+                            writeNutrition = false
+                            EXTENDED_HEALTH_NUTRIENTS.forEach { nutrientsEnabled[it.key] = false }
+                            granted = health.grantedPermissions()
+                            snackbarHostState.showSnackbar(disconnectedMessage)
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.health_disconnect)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectConfirm = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
+    }
+
+    if (showReimportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showReimportConfirm = false },
+            title = { Text(stringResource(R.string.health_reimport_sleep)) },
+            text = { Text(stringResource(R.string.health_reimport_sleep_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showReimportConfirm = false
+                        isReimporting = true
+                        scope.launch {
+                            val updated = importer.reimportSleep()
+                            isReimporting = false
+                            snackbarHostState.showSnackbar(
+                                context.resources.getQuantityString(
+                                    R.plurals.health_reimport_sleep_result,
+                                    updated,
+                                    updated,
+                                ),
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.health_reimport_sleep)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReimportConfirm = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -111,6 +191,20 @@ fun HealthConnectScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            prefs.lastSyncedAt?.let { syncedAt ->
+                                val relativeTime =
+                                    DateUtils
+                                        .getRelativeTimeSpanString(
+                                            syncedAt.toEpochMilli(),
+                                            System.currentTimeMillis(),
+                                            DateUtils.MINUTE_IN_MILLIS,
+                                        ).toString()
+                                Text(
+                                    stringResource(R.string.health_last_synced, relativeTime),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
 
@@ -134,6 +228,17 @@ fun HealthConnectScreen(navController: NavController) {
                                     if (isConnected) R.string.health_manage_permissions else R.string.health_connect_action,
                                 ),
                             )
+                        }
+                    }
+
+                    if (available && isConnected) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { showDisconnectConfirm = true },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.health_disconnect))
                         }
                     }
                 }
@@ -160,6 +265,19 @@ fun HealthConnectScreen(navController: NavController) {
                         HealthToggle(stringResource(R.string.sleep_section_title), readSleep) {
                             readSleep = it
                             prefs.readSleep = it
+                        }
+                        if (readSleep) {
+                            OutlinedButton(
+                                onClick = { showReimportConfirm = true },
+                                enabled = !isReimporting,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                if (isReimporting) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(stringResource(R.string.health_reimport_sleep))
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -210,6 +328,61 @@ fun HealthConnectScreen(navController: NavController) {
                         HealthToggle(stringResource(R.string.health_nutrition), writeNutrition) {
                             writeNutrition = it
                             prefs.writeNutrition = it
+                        }
+                    }
+                }
+
+                if (writeNutrition) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                stringResource(R.string.health_extended_nutrients_section),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                stringResource(R.string.health_extended_nutrients_footer),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        prefs.setAllNutrientsEnabled(true)
+                                        EXTENDED_HEALTH_NUTRIENTS.forEach { nutrientsEnabled[it.key] = true }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.settings_select_all)) }
+                                OutlinedButton(
+                                    onClick = {
+                                        prefs.setAllNutrientsEnabled(false)
+                                        EXTENDED_HEALTH_NUTRIENTS.forEach { nutrientsEnabled[it.key] = false }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.settings_deselect_all)) }
+                            }
+                            extendedNutrientCategories.forEach { (category, nutrients) ->
+                                Text(
+                                    category,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                )
+                                nutrients.forEach { (key, label) ->
+                                    ToggleRow(
+                                        label = label,
+                                        checked = nutrientsEnabled[key] ?: false,
+                                        onCheckedChange = { checked ->
+                                            nutrientsEnabled[key] = checked
+                                            prefs.setNutrientEnabled(key, checked)
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

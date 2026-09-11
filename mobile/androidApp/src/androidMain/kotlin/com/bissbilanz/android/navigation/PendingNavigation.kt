@@ -24,6 +24,8 @@ object PendingNavigation {
     private val _route = MutableStateFlow<String?>(null)
     val route: StateFlow<String?> = _route.asStateFlow()
 
+    private val pendingFoodQuery = MutableStateFlow<String?>(null)
+
     fun request(route: String) {
         _route.value = route
     }
@@ -31,6 +33,52 @@ object PendingNavigation {
     /** Clears [route], unless a newer request already replaced it. */
     fun consume(route: String) {
         _route.compareAndSet(route, null)
+    }
+
+    /**
+     * Sends the app to food search prefilled with [query] — the fallback when an
+     * Assistant utterance or shortcut names a food that doesn't match anything in
+     * the user's own database. [request] alone would land on a blank search box, so
+     * the query rides alongside it for `FoodSearchScreen` to claim with
+     * [consumeFoodQuery].
+     */
+    fun requestFoodSearch(query: String) {
+        pendingFoodQuery.value = query
+        request("foods")
+    }
+
+    /** Claims the query [requestFoodSearch] queued, if it hasn't been read yet. */
+    fun consumeFoodQuery(): String? {
+        val query = pendingFoodQuery.value
+        pendingFoodQuery.value = null
+        return query
+    }
+}
+
+/**
+ * A one-shot "you just logged this" snackbar, queued alongside a [PendingNavigation]
+ * request to the day log. An Assistant / shortcut log always lands on the day log
+ * through a fresh navigation, so — unlike an in-screen quick-log — there is no
+ * `SnackbarHostState` around yet to show the confirmation on until that screen mounts.
+ */
+object PendingLogConfirmation {
+    data class Confirmation(
+        val entryId: String,
+        val message: String,
+    )
+
+    private val _confirmation = MutableStateFlow<Confirmation?>(null)
+    val confirmation: StateFlow<Confirmation?> = _confirmation.asStateFlow()
+
+    fun request(
+        entryId: String,
+        message: String,
+    ) {
+        _confirmation.value = Confirmation(entryId, message)
+    }
+
+    fun consume() {
+        _confirmation.value = null
     }
 }
 

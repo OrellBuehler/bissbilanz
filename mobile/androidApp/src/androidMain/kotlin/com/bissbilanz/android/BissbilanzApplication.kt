@@ -9,6 +9,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskPollWorker
+import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -37,6 +38,7 @@ import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.wear.WearStatePublisher
+import com.bissbilanz.android.widget.AssistantFoodLogger
 import com.bissbilanz.android.widget.DayOverviewWidget
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.FoodShortcutPublisher
@@ -137,9 +139,11 @@ class BissbilanzApplication :
                 single { HealthSyncPreferences(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
+                single { AiTaskUploadQueue(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }
+                single { AssistantFoodLogger(get(), get(), get()) }
 
                 viewModelOf(::AiTasksViewModel)
                 viewModelOf(::DashboardViewModel)

@@ -19,6 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 @RunWith(RobolectricTestRunner::class)
@@ -32,6 +33,8 @@ class PendingNavigationTest {
     @Before
     fun clearPendingRoute() {
         PendingNavigation.route.value?.let { PendingNavigation.consume(it) }
+        PendingNavigation.consumeFoodQuery()
+        PendingLogConfirmation.consume()
     }
 
     @Test
@@ -71,6 +74,28 @@ class PendingNavigationTest {
 
         PendingNavigation.request("weight")
         awaitText("weight screen")
+    }
+
+    @Test
+    fun requestFoodSearchQueuesTheRouteAndTheQuery() {
+        PendingNavigation.requestFoodSearch("banana")
+
+        assertEquals("foods", PendingNavigation.route.value)
+        assertEquals("banana", PendingNavigation.consumeFoodQuery())
+        // Claimed once; a second read finds nothing left to consume.
+        assertNull(PendingNavigation.consumeFoodQuery())
+    }
+
+    @Test
+    fun pendingLogConfirmationIsClearedOnceConsumed() {
+        PendingLogConfirmation.request("entry-1", "Logged Banana")
+
+        val confirmation = PendingLogConfirmation.confirmation.value
+        assertEquals("entry-1", confirmation?.entryId)
+        assertEquals("Logged Banana", confirmation?.message)
+
+        PendingLogConfirmation.consume()
+        assertNull(PendingLogConfirmation.confirmation.value)
     }
 
     private fun awaitText(text: String) {
