@@ -34,6 +34,7 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.decodeUprightBitmap
+import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.Dispatchers
@@ -99,7 +100,7 @@ fun AiMealSheet(
         }
 
     val takePicture =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        rememberCameraCaptureLauncher { success ->
             val uri = cameraUri
             if (success && uri != null) {
                 scope.launch {

@@ -38,6 +38,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.decodeUprightBitmap
+import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -89,7 +90,7 @@ fun FoodImageField(
             if (uri != null) load(uri)
         }
     val takePicture =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        rememberCameraCaptureLauncher { success ->
             cameraUri?.takeIf { success }?.let { load(it) }
         }
 
