@@ -160,9 +160,7 @@ final class FoodRepository {
         // EntryRepository.refresh, PR #416).
         let pendingFoodIds = syncManager.pendingAffectedIds(table: "foods")
         let pendingRecipeIds = syncManager.pendingAffectedIds(table: "recipes")
-        for stale in favorites() where !favoriteIds.contains(stale.id)
-            && !LocalStore.isTempId(stale.id) && !pendingFoodIds.contains(stale.id)
-        {
+        for stale in favorites() where !favoriteIds.contains(stale.id) && !pendingFoodIds.contains(stale.id) {
             if let row = fetchRow(id: stale.id), let patched = patchedFavorite(stale, isFavorite: false) {
                 row.update(from: patched)
             }

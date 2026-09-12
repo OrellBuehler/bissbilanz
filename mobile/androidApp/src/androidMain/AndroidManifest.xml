@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -34,6 +35,20 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.Bissbilanz">
+
+        <!-- Glance registers two trampoline activities that only serve click
+             actions inside LazyColumn/LazyVerticalGrid widget items, which none
+             of our widgets use. Started with no extras they throw, and the Play
+             pre-launch crawler starts them exactly like that (Sentry
+             BISSBILANZ-28: every event is a crawler device on Android 11), so the
+             pre-launch report showed a crash on every release. Drop them from
+             the merged manifest; re-add if a widget ever gets a lazy list. -->
+        <activity
+            android:name="androidx.glance.appwidget.action.ActionTrampolineActivity"
+            tools:node="remove" />
+        <activity
+            android:name="androidx.glance.appwidget.action.InvisibleActionTrampolineActivity"
+            tools:node="remove" />
 
         <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity

@@ -67,16 +67,16 @@ final class SupplementRepository {
         guard !appMode.isLocal else { return }
         let fetched = try await api.getSupplements()
         // The list endpoint returns the complete set — replace wholesale
-        // (mirrors Android's getAllSupplements), keeping optimistic temp rows.
+        // (mirrors Android's getAllSupplements).
         let serverIds = Set(fetched.map(\.id))
-        // Rows with an un-uploaded queued write must survive the server
-        // response: a refresh racing the sync-queue upload would otherwise
-        // reapply the stale server copy over the user's edit (see
-        // EntryRepository.refresh, PR #416).
+        // Rows with an un-uploaded queued write — including optimistic temp
+        // rows whose create is still queued — must survive the server response:
+        // a refresh racing the sync-queue upload would otherwise reapply the
+        // stale server copy over the user's edit (see EntryRepository.refresh,
+        // PR #416). A temp row with no queued op left is a dropped create and
+        // goes with the rest.
         let pendingIds = syncManager.pendingAffectedIds(table: "supplements")
-        for stale in supplements() where !serverIds.contains(stale.id)
-            && !LocalStore.isTempId(stale.id) && !pendingIds.contains(stale.id)
-        {
+        for stale in supplements() where !serverIds.contains(stale.id) && !pendingIds.contains(stale.id) {
             deleteRow(id: stale.id)
         }
         for supplement in fetched where !pendingIds.contains(supplement.id) {

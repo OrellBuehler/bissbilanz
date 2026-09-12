@@ -52,6 +52,10 @@ enum ErrorReporter {
             // traces. Aggregate *metrics* (launch time, energy) are handled
             // separately by `MetricKitReporter` (MetricKit splits the two).
             options.enableMetricKit = true
+            // MetricKit's daily aggregate metrics ship as a structured log line
+            // (see `MetricKitReporter`), not an event, so they stay out of the
+            // issue list.
+            options.enableLogs = true
             #if DEBUG
             options.environment = "development"
             #else

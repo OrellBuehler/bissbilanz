@@ -81,8 +81,10 @@ enum BackgroundRefresher {
         let work = Task {
             await pull(deps)
             // Publish even after a partial pull — whatever did land is newer
-            // than what the widgets currently show.
-            WidgetSnapshotWriter.write(context: deps.context)
+            // than what the widgets currently show. Off the main actor: this
+            // ran the snapshot fetches on the main context and the watchdog
+            // killed the app for it (BISSBILANZ-39).
+            await WidgetSnapshotWriter.publish(container: deps.context.container)
             task.setTaskCompleted(success: !Task.isCancelled)
         }
         task.expirationHandler = {

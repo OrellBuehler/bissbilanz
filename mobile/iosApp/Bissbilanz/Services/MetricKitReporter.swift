@@ -3,8 +3,10 @@ import MetricKit
 import Sentry
 
 /// Forwards MetricKit's aggregated daily *metrics* (app launch time, hang
-/// rate, memory, CPU, disk, energy) to Sentry as a single info-level event per
-/// payload, tagged `source=metrickit` so it filters apart from real issues.
+/// rate, memory, CPU, disk, energy) to Sentry as one structured log line per
+/// payload, tagged `source=metrickit`. A log, not an event: as an event every
+/// payload grouped into a permanent "MetricKit daily metrics" issue that
+/// outnumbered every real crash and hang in the list (BISSBILANZ-20/32).
 ///
 /// Crash / hang / CPU-exception / disk-write *diagnostics* are a different
 /// MetricKit payload type (`MXDiagnosticPayload`) and are handled by Sentry's
@@ -44,18 +46,13 @@ final class MetricKitReporter: NSObject, MXMetricManagerSubscriber, @unchecked S
         let json = String(data: payload.jsonRepresentation(), encoding: .utf8)
         let appVersion = payload.latestApplicationVersion
         let multipleVersions = payload.includesMultipleApplicationVersions
-        SentrySDK.capture(message: "MetricKit daily metrics") { scope in
-            scope.setLevel(.info)
-            scope.setTag(value: "metrickit", key: "source")
-            scope.setContext(value: [
-                "app_version": appVersion,
-                "multiple_versions": multipleVersions,
-            ], key: "metrickit")
-            if let json {
-                // Full Apple-schema payload: launch time, hang rate, memory,
-                // CPU, disk I/O and energy in one blob (a few KB).
-                scope.setExtra(value: json, key: "metrickit_payload")
-            }
-        }
+        SentrySDK.logger.info("MetricKit daily metrics", attributes: [
+            "source": "metrickit",
+            "app_version": appVersion,
+            "multiple_versions": multipleVersions,
+            // Full Apple-schema payload: launch time, hang rate, memory, CPU,
+            // disk I/O and energy in one blob (a few KB).
+            "metrickit_payload": json ?? "",
+        ])
     }
 }
