@@ -36,7 +36,7 @@ vite.config.ts.timestamp-*
 
 # Superpowers
 .superpowers/
-docs/superpowers/plans/
+docs/superpowers/
 
 # Paraglide generated
 src/lib/paraglide/
