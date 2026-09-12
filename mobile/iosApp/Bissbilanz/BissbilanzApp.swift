@@ -206,6 +206,16 @@ struct BissbilanzApp: App {
             try? await foodRepo.refreshFavorites()
         }
 
+        // A dropped createEntry named a foodId the server no longer has (see
+        // BISSBILANZ-33). Re-fetch each one — `refreshFood` prunes the local
+        // row on a 404/410 — so the food stops surfacing in search/recents/
+        // favorites for the next offline log.
+        sync.onFoodReferenceMissing = { foodIds in
+            for id in foodIds {
+                try? await foodRepo.refreshFood(id: id)
+            }
+        }
+
         // Periodic background pull so server-side changes (MCP agent logs,
         // other devices) reach the widgets while the app is closed. Must be
         // registered before launch completes — see BackgroundRefresher.

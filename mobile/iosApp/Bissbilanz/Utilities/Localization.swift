@@ -1082,6 +1082,18 @@ enum L10n {
         localized("dismiss", en: "Dismiss", de: "Schließen")
     }
 
+    static func syncDroppedEntryMissingFood(name: String, day: String) -> String {
+        localized(
+            "sync_dropped_entry_missing_food",
+            en: "Couldn't save \(name) for \(day): the food no longer exists.",
+            de: "\(name) für \(day) konnte nicht gespeichert werden: Das Lebensmittel existiert nicht mehr."
+        )
+    }
+
+    static var syncDroppedEntryUnknownFood: String {
+        localized("sync_dropped_entry_unknown_food", en: "that food", de: "dieses Lebensmittel")
+    }
+
     // MARK: - Pending changes (sync queue) screen
 
     static var pendingChanges: String {
