@@ -89,14 +89,40 @@ class FoodRepository(
         return response
     }
 
-    suspend fun refreshFoods(
-        limit: Int = 100,
-        offset: Int = 0,
-    ) {
+    /**
+     * Pages through every food on the server (not just the first [pageSize]) and
+     * replaces the local cache with the full set, pruning any cached food the server
+     * no longer has — e.g. one deleted by a duplicate merge (`src/lib/server/
+     * food-merge.ts`). Without the full page-through and prune, a merged-away food
+     * stayed cached forever and a later create against it 404ed. [pageSize] is capped
+     * by the server at 200 (`paginationSchema` in `src/lib/server/validation/
+     * pagination.ts`); bounded to [MAX_REFRESH_PAGES] pages per call as a defensive
+     * cap against a runaway loop.
+     */
+    suspend fun refreshFoods(pageSize: Int = 200) {
         if (appModeManager.isLocal) return
-        val foods = api.getFoods(limit, offset)
-        withContext(ioDispatcher) { cacheFoods(foods) }
+        val allFoods = mutableListOf<Food>()
+        var offset = 0
+        var pages = 0
+        while (pages < MAX_REFRESH_PAGES) {
+            pages++
+            val page = api.getFoods(pageSize, offset)
+            allFoods.addAll(page)
+            if (page.size < pageSize) break
+            offset += pageSize
+        }
+        val protectedIds = pendingFoodIds()
+        withContext(ioDispatcher) { cacheAllFoods(allFoods, protectedIds) }
     }
+
+    /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingFoodIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "foods" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     suspend fun refreshFavorites() {
         if (appModeManager.isLocal) return
@@ -462,6 +488,36 @@ class FoodRepository(
         )
     }
 
+    /**
+     * Like [cacheFoods], but [foods] is the complete server set (every page), so any
+     * cached food not in it is gone server-side and pruned — except a temp id (not
+     * yet uploaded) or one in [protectedIds] (a pending/in-flight sync op), which
+     * would otherwise be deleted out from under an offline create or edit racing
+     * this refresh.
+     */
+    private fun cacheAllFoods(
+        foods: List<Food>,
+        protectedIds: Set<String>,
+    ) {
+        db.userDataDatabaseQueries.transaction {
+            foods.forEach { food -> cacheFood(food) }
+            val serverIds = foods.mapTo(mutableSetOf()) { it.id }
+            db.userDataDatabaseQueries
+                .selectAllFoodIds()
+                .executeAsList()
+                .filter { it !in serverIds && it !in protectedIds && !it.isTempId() }
+                .forEach { id ->
+                    db.userDataDatabaseQueries.deleteFoodLabels(id)
+                    db.userDataDatabaseQueries.deleteFood(id)
+                }
+        }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "foods",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
+    }
+
     private fun foodCreateToFood(
         food: FoodCreate,
         id: String = newTempId(),
@@ -529,4 +585,9 @@ class FoodRepository(
             water = food.water,
             salt = food.salt,
         )
+
+    companion object {
+        /** Caps how many [refreshFoods] pages a single call fetches. */
+        private const val MAX_REFRESH_PAGES = 100
+    }
 }
