@@ -629,14 +629,18 @@ struct AddSleepSheet: View {
 
         do {
             if let existing = existingEntry {
+                // The form always shows the entry's full current state, so every
+                // clearable field is sent explicitly (`.some`) rather than
+                // omitted — an emptied field must reach the server as a null or
+                // the old value survives the edit.
                 let update = SleepUpdate(
                     durationMinutes: durationMinutes,
                     quality: quality,
                     entryDate: dateStr,
-                    bedtime: bedtimeIso,
-                    wakeTime: wakeTimeIso,
-                    wakeUps: wakeUps,
-                    notes: notes.isEmpty ? nil : notes
+                    bedtime: .some(bedtimeIso),
+                    wakeTime: .some(wakeTimeIso),
+                    wakeUps: .some(wakeUps),
+                    notes: .some(notes.isEmpty ? nil : notes)
                 )
                 try await sleepRepository.updateEntry(id: existing.id, update)
             } else {
