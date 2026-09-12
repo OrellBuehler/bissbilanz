@@ -128,9 +128,41 @@ export async function nextRetryAt(): Promise<number | null> {
 	return soonest;
 }
 
-export async function markFailed(id: number, reason: string): Promise<void> {
-	if (!browser) return;
+/** Reason recorded on a queued item dead-lettered because it depends on one that failed. */
+export const DEPENDENCY_FAILED_REASON = 'depends on a change that failed';
+
+/**
+ * Marks `id` failed and returns every id dead-lettered as a result (itself
+ * plus any queued item cascaded because it depended on `id`), so a caller
+ * iterating the same drain batch can skip them instead of sending a request
+ * that can only fail.
+ */
+export async function markFailed(id: number, reason: string): Promise<number[]> {
+	if (!browser) return [];
+	const item = await db.syncQueue.get(id);
+	// Already dead-lettered by an earlier step of the same cascade (two
+	// dependents sharing one affectedId each try to sweep the other in).
+	if (item?.failedAt) return [];
 	await db.syncQueue.update(id, { failedAt: Date.now(), failureReason: reason });
+	const deadLettered = [id];
+
+	// A create's temp id lives on in every queued write that targets or
+	// references the row it made — an edit's URL, a delete's URL, an entry's
+	// foodId in its body, ... Once the create is dead, those can only ever
+	// fail too (the row they depend on never gets a real id), so dead-letter
+	// them now instead of letting each one fail on its own confusing 404/400.
+	const affectedId = item?.affectedId;
+	if (!affectedId) return deadLettered;
+	const dependents = await db.syncQueue
+		.filter(
+			(q) =>
+				!q.failedAt && q.id !== id && (q.url.includes(affectedId) || q.body.includes(affectedId))
+		)
+		.toArray();
+	for (const dependent of dependents) {
+		deadLettered.push(...(await markFailed(dependent.id!, DEPENDENCY_FAILED_REASON)));
+	}
+	return deadLettered;
 }
 
 export async function listFailed(): Promise<QueuedRequest[]> {
