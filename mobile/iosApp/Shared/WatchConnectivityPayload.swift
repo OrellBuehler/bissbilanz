@@ -15,7 +15,7 @@ import Foundation
 /// A loggable food/recipe reference shown in the watch's quick-log list
 /// (favorites and recents). Carries just enough to render a row and build a
 /// log request.
-struct WatchFoodRef: Codable, Identifiable, Hashable {
+struct WatchFoodRef: Codable, Identifiable, Hashable, Sendable {
     /// Server/local id of the underlying food (`foodId`) or recipe (`recipeId`).
     let id: String
     let name: String
@@ -35,7 +35,7 @@ struct WatchFoodRef: Codable, Identifiable, Hashable {
 /// Latest weight plus a glanceable 7-day delta for the watch's Weight tab.
 /// Computed phone-side from the local weight history so it works offline and
 /// in Local mode (the server stats API isn't reachable from the watch).
-struct WatchWeightInfo: Codable {
+struct WatchWeightInfo: Codable, Sendable {
     let latestKg: Double?
     let latestDate: String?
     /// Latest weight minus the weight ~7 days earlier (kg). Negative = lost.
@@ -46,7 +46,7 @@ struct WatchWeightInfo: Codable {
 
 /// Last night's sleep for the watch's Sleep tab. `quality` is 1–10 to match the
 /// phone's (and the server's) scale; `durationMinutes` is the total time asleep.
-struct WatchSleepInfo: Codable {
+struct WatchSleepInfo: Codable, Sendable {
     /// ISO day ("yyyy-MM-dd") the entry refers to.
     let date: String
     let durationMinutes: Int
@@ -60,7 +60,7 @@ struct WatchSleepInfo: Codable {
 /// locale) and adds what the watch's tabs need that the widgets don't: the
 /// server-driven meal-type list, a recents list, the weight glance, and last
 /// night's sleep.
-struct WatchState: Codable {
+struct WatchState: Codable, Sendable {
     var snapshot: WidgetSnapshot
     /// Meal-type keys the watch offers in its log picker. Server-driven — the
     /// phone learns them from the synced log rather than hardcoding, so custom

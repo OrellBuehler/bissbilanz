@@ -10,13 +10,13 @@ import Foundation
 /// targets only), rebuilding and re-caching this snapshot afterward so the
 /// read path here stays unchanged. The watch never touches SwiftData; it
 /// only ever reads this via `WatchState`.
-struct WidgetSnapshot: Codable {
-    struct Meal: Codable {
+struct WidgetSnapshot: Codable, Sendable {
+    struct Meal: Codable, Sendable {
         let mealType: String
         let calories: Double
     }
 
-    struct FavoriteFood: Codable, Identifiable {
+    struct FavoriteFood: Codable, Identifiable, Sendable {
         let id: String
         let name: String
         let calories: Double

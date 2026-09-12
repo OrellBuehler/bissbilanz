@@ -20,7 +20,7 @@ enum WidgetSnapshotWriter {
     /// A row is ~95 bytes of JSON, so the whole list is under 2 KB inside a
     /// `WatchState` of a few KB — far below WatchConnectivity's 256 KB
     /// application-context limit.
-    static let favoritesLimit = 20
+    nonisolated static let favoritesLimit = 20
 
     /// Saves the snapshot to the App Group store and asks WidgetKit to reload
     /// every widget's timeline. Portable — safe to call from the widget
@@ -36,7 +36,7 @@ enum WidgetSnapshotWriter {
     /// `L10n.currentLocale`; the widget extension reads the locale already
     /// cached in the on-disk snapshot) rather than read internally, since this
     /// type has no access to the app's `UserDefaults.standard`-backed locale.
-    static func buildSnapshot(context: ModelContext, localeCode: String) -> WidgetSnapshot {
+    nonisolated static func buildSnapshot(context: ModelContext, localeCode: String) -> WidgetSnapshot {
         let today = DateFormatting.today
 
         let entryDescriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == today })

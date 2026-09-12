@@ -13,17 +13,17 @@ extension WidgetSnapshotWriter {
 
     /// How far back the watch payload looks. Both builders below sit behind
     /// every repository `save()` (via `scheduleUpdate`) and run again on every
-    /// foreground activation, on the main actor — and for a daily-use tracker
-    /// the entry table only grows, so an unwindowed scan gets slower every day
-    /// the app is used. A custom meal type unused for three months drops off
+    /// foreground activation — and for a daily-use tracker the entry table
+    /// only grows, so an unwindowed scan gets slower every day the app is
+    /// used. A custom meal type unused for three months drops off
     /// the watch picker until it is logged again, which is the intended
     /// trade: the picker is "what you actually log", not "what you ever did".
-    private static let mealTypeWindowDays = 90
-    private static let recentsWindowDays = 30
+    private nonisolated static let mealTypeWindowDays = 90
+    private nonisolated static let recentsWindowDays = 30
     /// Upper bound on rows examined for the recents list, so a dense window
     /// costs no more than a sparse one. Ten distinct foods are found well
     /// inside this.
-    private static let recentsScanLimit = 300
+    private nonisolated static let recentsScanLimit = 300
 
     /// Whether the debounced refresh below actually runs. Off under XCTest.
     ///
@@ -48,24 +48,45 @@ extension WidgetSnapshotWriter {
     static func scheduleUpdate(context: ModelContext) {
         guard !isRunningTests else { return }
         pendingTask?.cancel()
+        let container = context.container
         pendingTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            write(context: context)
+            await publish(container: container)
         }
     }
 
+    /// Builds off the main actor (see `WidgetSnapshotBuilder`), then persists
+    /// the snapshot and pushes the watch state. The reads happen on a fresh
+    /// background context over the same store, so callers must have saved
+    /// first — every repository does before scheduling.
+    static func publish(container: ModelContainer) async {
+        let localeCode = L10n.currentLocale.rawValue
+        let built = await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
+        saveAndReload(built.snapshot)
+        PhoneWatchConnectivity.shared.sendState(built.watchState)
+    }
+
+    /// Synchronous, main-context variant of `publish` for callers that already
+    /// hold the main context and need the snapshot written before they return.
     static func write(context: ModelContext) {
-        let snapshot = buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+        let localeCode = L10n.currentLocale.rawValue
+        let snapshot = buildSnapshot(context: context, localeCode: localeCode)
         saveAndReload(snapshot)
-        PhoneWatchConnectivity.shared.sendState(buildWatchState(context: context, snapshot: snapshot))
+        PhoneWatchConnectivity.shared.sendState(
+            buildWatchState(context: context, snapshot: snapshot, localeCode: localeCode)
+        )
     }
 
     /// Assembles the watch payload: the widget snapshot plus what the watch's
     /// tabs need that the widgets don't — the meal-type list, a recents list,
     /// the weight glance (latest + 7-day delta) and last night's sleep.
-    static func buildWatchState(context: ModelContext, snapshot: WidgetSnapshot? = nil) -> WatchState {
-        let snapshot = snapshot ?? buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+    nonisolated static func buildWatchState(
+        context: ModelContext,
+        snapshot: WidgetSnapshot? = nil,
+        localeCode: String = L10n.currentLocale.rawValue
+    ) -> WatchState {
+        let snapshot = snapshot ?? buildSnapshot(context: context, localeCode: localeCode)
         return WatchState(
             snapshot: snapshot,
             mealTypes: mealTypes(context: context),
@@ -80,21 +101,13 @@ extension WidgetSnapshotWriter {
     /// entries carry locally, so `mealTypes` recognizes them rather than
     /// re-appending them as "custom". The watch list starts from these and
     /// appends any custom meal types found in the log (see `mealTypes`).
-    static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
-
-    /// Day-granularity ISO formatter for the on-device 7-day weight delta.
-    private static let isoDayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    nonisolated static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     /// Latest weight plus the change versus ~7 days ago, computed from the local
     /// weight history so it works offline and in Local mode. `entryDate` strings
     /// ("yyyy-MM-dd") sort chronologically, so the newest row at or before the
     /// cutoff is the reference point.
-    private static func watchWeight(context: ModelContext) -> WatchWeightInfo {
+    private nonisolated static func watchWeight(context: ModelContext) -> WatchWeightInfo {
         var descriptor = FetchDescriptor<LocalWeightEntry>(
             sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
         )
@@ -103,10 +116,10 @@ extension WidgetSnapshotWriter {
         guard let latest = rows.first else { return .empty }
 
         var delta7d: Double?
-        if let latestDay = isoDayFormatter.date(from: latest.entryDate),
+        if let latestDay = DateFormatting.date(from: latest.entryDate),
            let cutoffDay = Calendar.current.date(byAdding: .day, value: -7, to: latestDay)
         {
-            let cutoff = isoDayFormatter.string(from: cutoffDay)
+            let cutoff = DateFormatting.isoString(from: cutoffDay)
             if let reference = rows.first(where: { $0.entryDate <= cutoff }) {
                 delta7d = latest.weightKg - reference.weightKg
             }
@@ -117,7 +130,7 @@ extension WidgetSnapshotWriter {
     /// Last night's sleep (the most recent entry), or `nil` when none is logged.
     /// Decoded through `toSleepEntry()` so the decimal quality is preserved (the
     /// index column is an `Int`).
-    private static func watchSleep(context: ModelContext) -> WatchSleepInfo? {
+    private nonisolated static func watchSleep(context: ModelContext) -> WatchSleepInfo? {
         var descriptor = FetchDescriptor<LocalSleepEntry>(
             sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
         )
@@ -134,7 +147,7 @@ extension WidgetSnapshotWriter {
     /// first, then any custom meal types the user has actually logged. Never a
     /// hardcoded-only list, so custom server meal types reach the watch — and,
     /// since `LogFoodForm` reads the same list, the phone's log form too.
-    static func mealTypes(context: ModelContext) -> [String] {
+    nonisolated static func mealTypes(context: ModelContext) -> [String] {
         let cutoff = DateFormatting.isoString(from: Date().adding(days: -mealTypeWindowDays))
         let entries = (try? context.fetch(
             FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date >= cutoff })
@@ -152,7 +165,7 @@ extension WidgetSnapshotWriter {
     /// Recently logged foods (most recent first), derived from the local entry
     /// log the same way the in-app recents list is. Recipes are skipped — the
     /// watch logs by food id in Phase 1.
-    private static func watchRecents(context: ModelContext, limit: Int = 10) -> [WatchFoodRef] {
+    private nonisolated static func watchRecents(context: ModelContext, limit: Int = 10) -> [WatchFoodRef] {
         // Read off the typed columns instead of decoding `jsonData`: `foodName`
         // and `calories` are stored already coalesced with their `quick*`
         // counterparts, so `displayName`/`totalCalories` add nothing here. That
