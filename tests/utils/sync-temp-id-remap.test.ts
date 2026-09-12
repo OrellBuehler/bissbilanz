@@ -14,11 +14,15 @@ vi.mock('$lib/stores/sync-state.svelte', () => ({
 	setLastSyncedAt: vi.fn(),
 	addSyncError: vi.fn(),
 	clearSyncErrors: vi.fn(),
-	addSyncConflict: vi.fn()
+	addSyncConflict: vi.fn(),
+	setAuthRequired: vi.fn()
 }));
 vi.mock('$lib/paraglide/messages', () => ({
 	sync_conflict_superseded: () => 'superseded',
-	sync_conflict_deleted: () => 'deleted'
+	sync_conflict_deleted: () => 'deleted',
+	sync_error_item: () => 'error item',
+	sync_error_gave_up: () => 'gave up',
+	sync_error_dependency: () => 'dependency'
 }));
 vi.mock('$lib/services/food-service.svelte', () => ({ foodService: { refresh: vi.fn() } }));
 vi.mock('$lib/services/recipe-service.svelte', () => ({ recipeService: { refresh: vi.fn() } }));

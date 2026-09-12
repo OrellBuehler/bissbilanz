@@ -20,7 +20,8 @@ import {
 	setLastSyncedAt,
 	addSyncError,
 	clearSyncErrors,
-	addSyncConflict
+	addSyncConflict,
+	setAuthRequired
 } from '$lib/stores/sync-state.svelte';
 import {
 	IDEMPOTENCY_KEY_HEADER,
@@ -59,12 +60,19 @@ export async function syncQueue(): Promise<number> {
 	syncing = true;
 	setSyncing(true);
 	clearSyncErrors();
+	// Re-derived fresh each pass: a drain that gets past the item that 401'd
+	// last time (e.g. after the user signs back in) clears the flag.
+	setAuthRequired(false);
 	let synced = 0;
 	let queuedCount = 0;
 	const affectedTables = new Set<string>();
 	const trackAffected = (req: { affectedTable?: string }) => {
 		if (req.affectedTable) affectedTables.add(req.affectedTable);
 	};
+	// Ids dead-lettered by a markFailed() cascade earlier in this same pass —
+	// their dependency already failed, so skip the request instead of sending
+	// one that can only fail again.
+	const deadLetteredThisPass = new Set<number>();
 
 	try {
 		const queued = await drainQueue();
@@ -72,6 +80,11 @@ export async function syncQueue(): Promise<number> {
 		setPendingCount(queued.length);
 
 		for (const [index, req] of queued.entries()) {
+			if (deadLetteredThisPass.has(req.id!)) {
+				synced++;
+				setPendingCount(queued.length - synced);
+				continue;
+			}
 			try {
 				// All queued bodies are JSON-stringified strings (FormData is excluded
 				// from queuing — see apiFetch), so application/json is always correct.
@@ -116,26 +129,32 @@ export async function syncQueue(): Promise<number> {
 				} else if (response.status === 401 || response.status === 403) {
 					// Auth expired — stop syncing; user needs to re-authenticate.
 					// Don't remove items from queue so they can be retried after re-login.
-					addSyncError('Session expired. Please log in again to sync pending changes.');
+					setAuthRequired(true);
 					break;
 				} else if (response.status >= 400 && response.status < 500) {
 					// Client errors (400, 409 duplicate/validation, 422, …) are unrecoverable
 					// as-is. Park them so the user can retry or discard.
 					const data = await response.json().catch(() => ({}));
 					const reason = (data as Record<string, string>).error ?? `HTTP ${response.status}`;
-					await markFailed(req.id!, reason);
+					const deadLettered = await markFailed(req.id!, reason);
+					for (const id of deadLettered) deadLetteredThisPass.add(id);
 					synced++;
-					addSyncError(`Failed to sync ${req.method} ${req.url}: ${reason}`);
+					addSyncError(m.sync_error_item({ reason }));
+					if (deadLettered.length > 1) addSyncError(m.sync_error_dependency());
 				} else {
 					// Server error (5xx, incl. 503 request_in_progress for an idempotency
 					// claim still in flight) — transient; retry with exponential backoff.
 					const count = (req.retryCount ?? 0) + 1;
 					if (count >= MAX_RETRIES) {
-						await markFailed(req.id!, `HTTP ${response.status} after ${MAX_RETRIES} retries`);
-						synced++;
-						addSyncError(
-							`Gave up syncing ${req.method} ${req.url} after ${MAX_RETRIES} retries (server error).`
+						const reason = `HTTP ${response.status}`;
+						const deadLettered = await markFailed(
+							req.id!,
+							`${reason} after ${MAX_RETRIES} retries`
 						);
+						for (const id of deadLettered) deadLetteredThisPass.add(id);
+						synced++;
+						addSyncError(m.sync_error_gave_up({ retries: MAX_RETRIES, reason }));
+						if (deadLettered.length > 1) addSyncError(m.sync_error_dependency());
 					} else {
 						await scheduleRetry(req.id!, count, Date.now() + backoffDelay(count));
 						// Stop this pass; the backoff timer (or next event) re-drains.
