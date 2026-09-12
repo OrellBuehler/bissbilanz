@@ -160,6 +160,9 @@ DELETE FROM CachedEntry WHERE date = ?;
 selectAllFoods:
 SELECT * FROM CachedFood ORDER BY name;
 
+selectAllFoodIds:
+SELECT id FROM CachedFood;
+
 selectFoodById:
 SELECT * FROM CachedFood WHERE id = ?;
 

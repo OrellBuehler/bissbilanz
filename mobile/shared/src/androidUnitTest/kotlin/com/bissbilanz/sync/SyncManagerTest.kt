@@ -88,6 +88,22 @@ class SyncManagerTest {
         }
 
     @Test
+    fun syncDrainsBeyondOnePageWithinASingleCall() =
+        runTest {
+            // The queue page size is 50: a backlog of 60 due items must drain fully in
+            // one syncPendingQueue() call instead of stranding the last 10 until the
+            // next write or connectivity flip.
+            repeat(60) { i -> syncQueue.enqueue(SyncOperation.DeleteEntry("e$i")) }
+            coEvery { api.deleteEntry(any(), any(), any()) } returns Unit
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(60, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            coVerify(exactly = 60) { api.deleteEntry(any(), any(), any()) }
+        }
+
+    @Test
     fun lostConflictSurfacesANoticeAndTriggersOneRefresh() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))

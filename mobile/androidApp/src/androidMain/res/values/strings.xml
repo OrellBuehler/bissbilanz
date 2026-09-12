@@ -189,6 +189,7 @@
     <string name="ai_task_remove_photo">Remove photo</string>
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
+    <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
 
     <!-- AI task list -->
     <string name="ai_tasks_title">AI Tasks</string>
@@ -292,6 +293,10 @@
     <string name="scan_barcode_grant_permission">Grant permission</string>
     <string name="scan_barcode_unavailable">Barcode scanning is not available on this device</string>
     <string name="scan_barcode_camera_error">Could not start the camera</string>
+    <string name="scan_barcode_open_settings">Open settings</string>
+    <string name="scan_barcode_lookup_failed">Couldn\'t look up the barcode</string>
+    <string name="scan_barcode_lookup_failed_hint">Check your connection and try again</string>
+    <string name="scan_barcode_retry">Retry</string>
 
     <!-- Common actions -->
     <string name="app_name">Bissbilanz</string>

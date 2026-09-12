@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -63,7 +64,7 @@ class WeightRepository(
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
         val temp = weightCreateToEntry(entry)
-        cacheWeightEntry(temp)
+        withContext(Dispatchers.IO) { cacheWeightEntry(temp) }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
         onWeightChanged?.invoke()
         return temp
@@ -83,7 +84,7 @@ class WeightRepository(
                         entryDate = entry.entryDate ?: existing.entryDate,
                         notes = entry.notes ?: existing.notes,
                     )
-                cacheWeightEntry(updated)
+                withContext(Dispatchers.IO) { cacheWeightEntry(updated) }
                 updated
             } else {
                 WeightEntry(
@@ -153,7 +154,7 @@ class WeightRepository(
             .map { WeightTrendEntry(entryDate = it.date, weightKg = it.weightKg, movingAvg = it.movingAvg) }
 
     suspend fun deleteEntry(id: String) {
-        db.userDataDatabaseQueries.deleteWeightEntry(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("weight", id)
         } else {
@@ -190,16 +191,18 @@ class WeightRepository(
                 .executeAsList()
                 .filter { it.id in pendingIds }
                 .mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }
-        queries.transaction {
-            queries.deleteAllWeightEntries()
-            entries.forEach { entry -> if (entry.id !in pendingIds) cacheWeightEntry(entry) }
-            preserved.forEach { cacheWeightEntry(it) }
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                queries.deleteAllWeightEntries()
+                entries.forEach { entry -> if (entry.id !in pendingIds) cacheWeightEntry(entry) }
+                preserved.forEach { cacheWeightEntry(it) }
+            }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "weight",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "weight",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
 
     /** Weight-entry ids with an un-uploaded (queued or in-flight) sync operation. */

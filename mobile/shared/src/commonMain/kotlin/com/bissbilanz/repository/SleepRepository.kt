@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -48,7 +49,7 @@ class SleepRepository(
         if (appModeManager.isLocal) return
         try {
             val entries = api.getSleepEntries(from, to)
-            cacheSleepEntries(entries)
+            withContext(Dispatchers.IO) { cacheSleepEntries(entries) }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -57,7 +58,7 @@ class SleepRepository(
 
     suspend fun createEntry(entry: SleepCreate): SleepEntry {
         val temp = sleepCreateToEntry(entry)
-        cacheSleepEntry(temp)
+        withContext(Dispatchers.IO) { cacheSleepEntry(temp) }
         syncQueue.enqueue(SyncOperation.CreateSleep(json.encodeToString(entry), localId = temp.id))
         return temp
     }
@@ -80,7 +81,7 @@ class SleepRepository(
                         wakeUps = entry.wakeUps ?: existing.wakeUps,
                         notes = entry.notes ?: existing.notes,
                     )
-                cacheSleepEntry(updated)
+                withContext(Dispatchers.IO) { cacheSleepEntry(updated) }
                 updated
             } else {
                 SleepEntry(
@@ -109,7 +110,7 @@ class SleepRepository(
     }
 
     suspend fun deleteEntry(id: String) {
-        db.userDataDatabaseQueries.deleteSleepEntry(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSleepEntry(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("sleep", id)
         } else {

@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -84,23 +85,49 @@ class FoodRepository(
             return FoodsListResponse(foods = all.drop(offset).take(limit), total = all.size)
         }
         val response = api.getFoodsPaginated(limit, offset)
-        cacheFoods(response.foods)
+        withContext(ioDispatcher) { cacheFoods(response.foods) }
         return response
     }
 
-    suspend fun refreshFoods(
-        limit: Int = 100,
-        offset: Int = 0,
-    ) {
+    /**
+     * Pages through every food on the server (not just the first [pageSize]) and
+     * replaces the local cache with the full set, pruning any cached food the server
+     * no longer has — e.g. one deleted by a duplicate merge (`src/lib/server/
+     * food-merge.ts`). Without the full page-through and prune, a merged-away food
+     * stayed cached forever and a later create against it 404ed. [pageSize] is capped
+     * by the server at 200 (`paginationSchema` in `src/lib/server/validation/
+     * pagination.ts`); bounded to [MAX_REFRESH_PAGES] pages per call as a defensive
+     * cap against a runaway loop.
+     */
+    suspend fun refreshFoods(pageSize: Int = 200) {
         if (appModeManager.isLocal) return
-        val foods = api.getFoods(limit, offset)
-        cacheFoods(foods)
+        val allFoods = mutableListOf<Food>()
+        var offset = 0
+        var pages = 0
+        while (pages < MAX_REFRESH_PAGES) {
+            pages++
+            val page = api.getFoods(pageSize, offset)
+            allFoods.addAll(page)
+            if (page.size < pageSize) break
+            offset += pageSize
+        }
+        val protectedIds = pendingFoodIds()
+        withContext(ioDispatcher) { cacheAllFoods(allFoods, protectedIds) }
     }
+
+    /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingFoodIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "foods" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     suspend fun refreshFavorites() {
         if (appModeManager.isLocal) return
         val favs = api.getFavorites()
-        favs.forEach { cacheFood(it) }
+        withContext(ioDispatcher) { favs.forEach { cacheFood(it) } }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
@@ -144,7 +171,7 @@ class FoodRepository(
         }
         return try {
             val food = api.getFood(id)
-            cacheFood(food)
+            withContext(ioDispatcher) { cacheFood(food) }
             food
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -180,7 +207,7 @@ class FoodRepository(
 
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
-        cacheFood(tempFood)
+        withContext(ioDispatcher) { cacheFood(tempFood) }
         syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food), localId = tempFood.id))
         onFoodChanged?.invoke()
         return tempFood
@@ -191,7 +218,7 @@ class FoodRepository(
         food: FoodCreate,
     ): Food {
         val tempFood = foodCreateToFood(food, id)
-        cacheFood(tempFood)
+        withContext(ioDispatcher) { cacheFood(tempFood) }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, food)
         } else {
@@ -214,7 +241,7 @@ class FoodRepository(
     ): Food? {
         // A food shown from a server search need not be cached locally; the flag
         // still has to reach the server, so only the local mirror is conditional.
-        val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { cacheFood(it) }
+        val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (id.isTempId()) {
             syncQueue.rewriteQueuedCreate("foods", id) { op ->
                 val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
@@ -239,7 +266,7 @@ class FoodRepository(
         imageUrl: String?,
     ): Food? {
         val previous = getFoodCached(id)
-        val updated = previous?.copy(imageUrl = imageUrl)?.also { cacheFood(it) }
+        val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (id.isTempId()) {
             syncQueue.rewriteQueuedCreate("foods", id) { op ->
                 val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
@@ -266,7 +293,7 @@ class FoodRepository(
         labels: List<String>,
     ): Food? {
         val normalized = normalizeLabels(labels).sorted()
-        val updated = getFoodCached(id)?.copy(labels = normalized)?.also { cacheFood(it) }
+        val updated = getFoodCached(id)?.copy(labels = normalized)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
         onFoodChanged?.invoke()
         return updated
@@ -274,8 +301,10 @@ class FoodRepository(
 
     suspend fun deleteFood(id: String) {
         val imageUrl = getFoodCached(id)?.imageUrl
-        db.userDataDatabaseQueries.deleteFoodLabels(id)
-        db.userDataDatabaseQueries.deleteFood(id)
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries.deleteFoodLabels(id)
+            db.userDataDatabaseQueries.deleteFood(id)
+        }
         if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
         } else {
@@ -373,7 +402,7 @@ class FoodRepository(
         val current = api.getFood(id)
         val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
         val updated = api.updateFood(id, enriched)
-        cacheFood(updated)
+        withContext(ioDispatcher) { cacheFood(updated) }
         onFoodChanged?.invoke()
         return updated
     }
@@ -408,7 +437,7 @@ class FoodRepository(
             val cachedFood = cacheResult.await()
 
             if (apiFood != null) {
-                cacheFood(apiFood)
+                withContext(ioDispatcher) { cacheFood(apiFood) }
                 apiFood
             } else {
                 cachedFood
@@ -420,17 +449,13 @@ class FoodRepository(
      * Resolves a scanned barcode to a usable food: the user's own food first,
      * then an Open Food Facts hit (created locally so the user lands on its
      * detail, mirroring iOS), else null. Used by the barcode scanner.
+     *
+     * A failed Open Food Facts lookup propagates instead of collapsing into
+     * null, so callers can tell "offline" apart from "unknown product".
      */
     suspend fun findOrCreateByBarcode(barcode: String): Food? {
         findByBarcode(barcode)?.let { return it }
-        val product =
-            try {
-                lookupOpenFoodFacts(barcode)
-            } catch (e: Exception) {
-                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                errorReporter.captureException(e)
-                null
-            } ?: return null
+        val product = lookupOpenFoodFacts(barcode) ?: return null
         return createFood(openFoodFactsProductToFoodCreate(product, barcode))
     }
 
@@ -455,6 +480,36 @@ class FoodRepository(
     private fun cacheFoods(foods: List<Food>) {
         db.userDataDatabaseQueries.transaction {
             foods.forEach { food -> cacheFood(food) }
+        }
+        // SyncMeta lives in the cache database; written after the user-data commit.
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+            entityType = "foods",
+            lastSyncedAt = Clock.System.now().toString(),
+        )
+    }
+
+    /**
+     * Like [cacheFoods], but [foods] is the complete server set (every page), so any
+     * cached food not in it is gone server-side and pruned — except a temp id (not
+     * yet uploaded) or one in [protectedIds] (a pending/in-flight sync op), which
+     * would otherwise be deleted out from under an offline create or edit racing
+     * this refresh.
+     */
+    private fun cacheAllFoods(
+        foods: List<Food>,
+        protectedIds: Set<String>,
+    ) {
+        db.userDataDatabaseQueries.transaction {
+            foods.forEach { food -> cacheFood(food) }
+            val serverIds = foods.mapTo(mutableSetOf()) { it.id }
+            db.userDataDatabaseQueries
+                .selectAllFoodIds()
+                .executeAsList()
+                .filter { it !in serverIds && it !in protectedIds && !it.isTempId() }
+                .forEach { id ->
+                    db.userDataDatabaseQueries.deleteFoodLabels(id)
+                    db.userDataDatabaseQueries.deleteFood(id)
+                }
         }
         // SyncMeta lives in the cache database; written after the user-data commit.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
@@ -530,4 +585,9 @@ class FoodRepository(
             water = food.water,
             salt = food.salt,
         )
+
+    companion object {
+        /** Caps how many [refreshFoods] pages a single call fetches. */
+        private const val MAX_REFRESH_PAGES = 100
+    }
 }
