@@ -876,10 +876,14 @@ struct AddWeightSheet: View {
 
         do {
             if let existing = existingEntry {
+                // The form always shows the entry's full current state, so notes
+                // is sent explicitly (`.some`) rather than omitted — an emptied
+                // note must reach the server as a null or the old text survives
+                // the edit.
                 let update = WeightUpdate(
                     weightKg: kg,
                     entryDate: dateStr,
-                    notes: notes.isEmpty ? nil : notes
+                    notes: .some(notes.isEmpty ? nil : notes)
                 )
                 try await weightRepository.updateEntry(id: existing.id, update)
             } else {

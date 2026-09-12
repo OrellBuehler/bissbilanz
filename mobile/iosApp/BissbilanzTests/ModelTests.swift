@@ -556,6 +556,66 @@ struct WeightModelTests {
         #expect(json["weightKg"] as? Double == 74.0)
         #expect(json["notes"] == nil)
     }
+
+    // notes is a double optional on WeightUpdate so a cleared note reaches the
+    // server as an explicit JSON null rather than being silently dropped by
+    // JSONEncoder — see the EntryUpdate/DayPropertiesPatch rationale.
+
+    @Test("WeightUpdate encodes an explicit null for a cleared note")
+    func weightUpdateExplicitNullNote() throws {
+        var update = WeightUpdate(weightKg: 74.0)
+        update.notes = .some(nil)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["weightKg"] as? Double == 74.0)
+        #expect(json.keys.contains("notes"))
+        #expect(json["notes"] is NSNull)
+    }
+
+    @Test("WeightUpdate omits an untouched note")
+    func weightUpdateOmitsUntouchedNote() throws {
+        let update = WeightUpdate(weightKg: 74.0)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["weightKg"] as? Double == 74.0)
+        #expect(json["notes"] == nil)
+    }
+}
+
+@Suite("Sleep Model Tests")
+struct SleepModelTests {
+    // bedtime/wakeTime/wakeUps/notes are double optionals on SleepUpdate so a
+    // cleared field reaches the server as an explicit JSON null rather than
+    // being silently dropped by JSONEncoder — see the EntryUpdate/
+    // DayPropertiesPatch rationale.
+
+    @Test("SleepUpdate encodes an explicit null for a cleared bedtime")
+    func sleepUpdateExplicitNullBedtime() throws {
+        var update = SleepUpdate(durationMinutes: 420, quality: 7)
+        update.bedtime = .some(nil)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["durationMinutes"] as? Int == 420)
+        #expect(json.keys.contains("bedtime"))
+        #expect(json["bedtime"] is NSNull)
+    }
+
+    @Test("SleepUpdate omits an untouched bedtime")
+    func sleepUpdateOmitsUntouchedBedtime() throws {
+        let update = SleepUpdate(durationMinutes: 420, quality: 7)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["durationMinutes"] as? Int == 420)
+        #expect(json["bedtime"] == nil)
+    }
 }
 
 @Suite("AppLocale Tests")

@@ -17,10 +17,37 @@ struct WeightCreate: Codable {
     var notes: String?
 }
 
+/// Partial PATCH body for `/api/weight/{id}`.
+///
+/// `notes` is a double optional on purpose — see `EntryUpdate` in Entry.swift
+/// for the full rationale. `nil` omits the key (leave the stored value
+/// alone), `.some(nil)` sends an explicit JSON null (clear it). `weightKg`/
+/// `entryDate` aren't nullable server-side, so they stay plain optionals.
 struct WeightUpdate: Codable {
     var weightKg: Double?
     var entryDate: String?
-    var notes: String?
+    var notes: String??
+}
+
+/// Declared in an extension so the memberwise initializer survives.
+extension WeightUpdate {
+    private enum CodingKeys: String, CodingKey {
+        case weightKg, entryDate, notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+        entryDate = try container.decodeIfPresent(String.self, forKey: .entryDate)
+        notes = try container.decodeNullable(String.self, forKey: .notes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(weightKg, forKey: .weightKg)
+        try container.encodeIfPresent(entryDate, forKey: .entryDate)
+        try container.encodeNullable(notes, forKey: .notes)
+    }
 }
 
 struct WeightEntriesResponse: Codable {

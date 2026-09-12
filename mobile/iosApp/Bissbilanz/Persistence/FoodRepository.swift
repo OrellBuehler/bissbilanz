@@ -140,12 +140,32 @@ final class FoodRepository {
 
     // MARK: - Refresh (API → store)
 
+    /// Also prunes the local row when the server no longer has it (deleted, or
+    /// merged into another food via `mergeFoods` server-side — which re-points
+    /// entries that already existed server-side but not a still-queued
+    /// offline create, see `SyncManager.onFoodReferenceMissing`). Without this
+    /// the same stale food keeps surfacing in search/recents/favorites.
     func refreshFood(id: String) async throws {
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
-        let food = try await api.getFood(id: id)
-        guard !syncManager.pendingAffectedIds(table: "foods").contains(id) else { return }
-        upsert(food)
-        save()
+        do {
+            let food = try await api.getFood(id: id)
+            guard !syncManager.pendingAffectedIds(table: "foods").contains(id) else { return }
+            upsert(food)
+            save()
+        } catch let error as APIError where Self.isMissing(error) {
+            if !syncManager.pendingAffectedIds(table: "foods").contains(id) {
+                deleteRow(id: id)
+                save()
+            }
+            throw error
+        }
+    }
+
+    private static func isMissing(_ error: APIError) -> Bool {
+        switch error {
+        case .notFound, .gone: true
+        default: false
+        }
     }
 
     /// Refreshes favorites and reconciles un-favorited rows. Also caches the
@@ -182,19 +202,42 @@ final class FoodRepository {
     /// omega-3/6, NOVA group…) needs the food behind every entry, including ones
     /// logged months ago and never opened since.
     ///
-    /// Paging stops on the first short page. Rows with an un-uploaded queued
-    /// write are skipped, as everywhere else.
+    /// Paging stops on the first short page. A mirror that completes that way
+    /// (i.e. really did enumerate the whole catalog) also prunes local rows
+    /// absent from the response — `/api/foods` is the user's entire personal
+    /// database, so anything left over was deleted or merged away server-side
+    /// (see `mergeFoods`) while this device was offline. An interrupted
+    /// mirror (an error, or hitting `maxPages`) prunes nothing: a partial
+    /// listing is not grounds for deleting rows it simply didn't get to yet.
+    /// Rows with an un-uploaded queued write are skipped on upsert and kept on
+    /// prune either way, as everywhere else.
     func mirrorAll(pageSize: Int = 200, maxPages: Int = 50) async throws {
         guard !appMode.isLocal else { return }
         let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+        var serverIds: Set<String> = []
         for page in 0 ..< maxPages {
             let foods = try await api.getFoods(limit: pageSize, offset: page * pageSize)
-            for food in foods where !pendingIds.contains(food.id) {
-                upsert(food)
+            for food in foods {
+                serverIds.insert(food.id)
+                if !pendingIds.contains(food.id) {
+                    upsert(food)
+                }
             }
             save()
-            if foods.count < pageSize { return }
+            if foods.count < pageSize {
+                pruneMissing(serverIds: serverIds, pendingIds: pendingIds)
+                return
+            }
         }
+    }
+
+    /// Deletes local food rows absent from `serverIds` — see `mirrorAll`.
+    private func pruneMissing(serverIds: Set<String>, pendingIds: Set<String>) {
+        let rows = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
+        for row in rows where !serverIds.contains(row.id) && !pendingIds.contains(row.id) {
+            context.delete(row)
+        }
+        save()
     }
 
     /// Server-ordered recents (trimmed foods, not cached — mirrors Android);
