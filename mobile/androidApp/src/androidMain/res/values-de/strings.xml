@@ -290,6 +290,10 @@
     <string name="scan_barcode_grant_permission">Berechtigung erteilen</string>
     <string name="scan_barcode_unavailable">Barcode-Scannen ist auf diesem Gerät nicht verfügbar</string>
     <string name="scan_barcode_camera_error">Kamera konnte nicht gestartet werden</string>
+    <string name="scan_barcode_open_settings">Einstellungen öffnen</string>
+    <string name="scan_barcode_lookup_failed">Barcode konnte nicht nachgeschlagen werden</string>
+    <string name="scan_barcode_lookup_failed_hint">Verbindung prüfen und erneut versuchen</string>
+    <string name="scan_barcode_retry">Erneut versuchen</string>
 
     <!-- Common actions -->
     <string name="app_name">Bissbilanz</string>
