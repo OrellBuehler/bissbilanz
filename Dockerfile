@@ -37,6 +37,11 @@ RUN bun install --frozen-lockfile --production
 FROM oven/bun:1.4.0-alpine AS runner
 WORKDIR /app
 
+# Runtime-visible version, read by GET /api/health so the post-deploy smoke
+# check can confirm the release tag actually made it to the running container.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # The base image ships openssl 3.5.6-r0 (CVE-2026-45447). Alpine has the fix,
 # so pull it in here rather than waiting for a rebased bun image.
 RUN apk --no-cache upgrade libcrypto3 libssl3

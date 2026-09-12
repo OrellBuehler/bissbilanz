@@ -94,7 +94,10 @@ export const config = {
 		url: process.env.PUBLIC_APP_URL!,
 		// Whether auth cookies get the Secure attribute. Derived from the public app
 		// URL so it stays correct behind a TLS-terminating proxy.
-		secureCookies: (process.env.PUBLIC_APP_URL ?? '').startsWith('https')
+		secureCookies: (process.env.PUBLIC_APP_URL ?? '').startsWith('https'),
+		// Set at build time from the release tag (Dockerfile ARG APP_VERSION), so
+		// GET /api/health can report which release is actually running.
+		version: process.env.APP_VERSION ?? 'dev'
 	},
 	mcp: {
 		enabled: process.env.MCP_ENDPOINT_ENABLED === 'true'
