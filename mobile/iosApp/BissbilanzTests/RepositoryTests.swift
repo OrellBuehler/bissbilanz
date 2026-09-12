@@ -8,17 +8,12 @@ import Testing
 struct RepositoryTests {
     // MARK: Entries
 
-    @Test("Entry refresh replaces the cached day, keeping temp rows and other days")
+    @Test("Entry refresh replaces the cached day, keeping queued temp rows and other days")
     func entryRefreshReplacesByDate() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.entryRepository
-        let tempId = LocalStore.makeTempId()
         try harness.context.insert(LocalEntry(
             entry: harness.entry(id: "old-1", date: "2026-06-01"),
-            date: "2026-06-01"
-        ))
-        try harness.context.insert(LocalEntry(
-            entry: harness.entry(id: tempId, date: "2026-06-01"),
             date: "2026-06-01"
         ))
         try harness.context.insert(LocalEntry(
@@ -26,6 +21,12 @@ struct RepositoryTests {
             date: "2026-06-02"
         ))
         try harness.context.save()
+        // A temp row whose create is still queued is the user's un-uploaded
+        // change and must survive the server response.
+        let queued = try await repo.createEntry(
+            EntryCreate(foodId: "f1", mealType: "lunch", servings: 1, date: "2026-06-01"),
+            food: harness.food(id: "f1", name: "Rice")
+        )
 
         harness.stub("GET", "/api/entries", json: """
         {"entries": [{
@@ -38,8 +39,28 @@ struct RepositoryTests {
         try await repo.refresh(date: "2026-06-01")
 
         let day = repo.entries(date: "2026-06-01")
-        #expect(Set(day.map(\.id)) == [tempId, "new-1"])
+        #expect(Set(day.map(\.id)) == [queued.id, "new-1"])
         #expect(repo.entries(date: "2026-06-02").map(\.id) == ["other-1"])
+    }
+
+    @Test("Entry refresh drops a temp row whose queued create was dead-lettered")
+    func entryRefreshDropsDeadLetteredTempRow() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        // A temp row with no queued operation left is what a dropped create
+        // (404 on its food reference, 409, max retries) leaves behind. Sentry
+        // BISSBILANZ-33: kept forever, it showed an entry the server never had.
+        let deadTempId = LocalStore.makeTempId()
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: deadTempId, date: "2026-06-01"),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+        harness.stub("GET", "/api/entries", json: #"{"entries": []}"#)
+
+        try await repo.refresh(date: "2026-06-01")
+
+        #expect(repo.entries(date: "2026-06-01").isEmpty)
     }
 
     @Test("Entry create writes the temp row locally and queues the upload")
@@ -523,14 +544,20 @@ struct RepositoryTests {
 
     // MARK: Recipes
 
-    @Test("Recipe refresh upserts by id, drops server-deleted rows and keeps temp rows")
+    @Test("Recipe refresh upserts by id, drops server-deleted and dead-lettered rows, keeps queued temp rows")
     func recipeRefreshUpserts() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.recipeRepository
-        let tempId = LocalStore.makeTempId()
+        // Inserted directly with no queued create: a dead-lettered temp row.
+        let deadTempId = LocalStore.makeTempId()
         try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: "r1", name: "Stale")))
-        try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: tempId, name: "Pending")))
+        try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: deadTempId, name: "Dropped")))
         try harness.context.save()
+        let pending = try await repo.createRecipe(RecipeCreate(
+            name: "Pending",
+            totalServings: 1,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 100, servingUnit: .g)]
+        ))
         harness.stub("GET", "/api/recipes", json: """
         {"recipes": [{
             "id": "r2", "userId": "u1", "name": "Fresh", "totalServings": 4,
@@ -541,7 +568,7 @@ struct RepositoryTests {
         try await repo.refresh()
 
         let ids = Set(repo.recipes().map(\.id))
-        #expect(ids == [tempId, "r2"])
+        #expect(ids == [pending.id, "r2"])
         #expect(repo.recipe(id: "r2")?.calories == 800)
     }
 

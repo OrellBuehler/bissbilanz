@@ -87,12 +87,19 @@ final class EntryRepository {
             return
         }
         let fetched = try await api.getEntries(date: date)
-        // Preserve local rows the server response must not clobber: optimistic
-        // `temp_` creates (their queued creates replace them on drain) and any
-        // row with an un-uploaded queued write. A forced refresh right after an
-        // edit (see DayLogView.loadEntries) races the async sync-queue upload,
-        // so the still-stale server row would otherwise overwrite the edit until
-        // the next manual refresh.
+        // Preserve local rows the server response must not clobber: any row
+        // with an un-uploaded queued write, which covers optimistic `temp_`
+        // creates (their queued create carries the temp id as affectedId). A
+        // forced refresh right after an edit (see DayLogView.loadEntries) races
+        // the async sync-queue upload, so the still-stale server row would
+        // otherwise overwrite the edit until the next manual refresh.
+        //
+        // Temp rows are deliberately NOT exempt on their own: once the queue
+        // has dropped a create (404 on its food reference, 409, max retries)
+        // nothing will ever upload it, and keeping the row made the entry live
+        // on in the day log forever while the server never had it (Sentry
+        // BISSBILANZ-33). Android's `cacheEntries` keeps only pending ids for
+        // the same reason.
         let pendingIds = syncManager.pendingAffectedIds(table: "entries")
         let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.date == date })
         // Keyed off the bulk fetch the delete pass already needs, so the upsert
@@ -101,7 +108,7 @@ final class EntryRepository {
             ((try? context.fetch(descriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        for (id, row) in rowsById where !LocalStore.isTempId(id) && !pendingIds.contains(id) {
+        for (id, row) in rowsById where !pendingIds.contains(id) {
             context.delete(row)
             rowsById.removeValue(forKey: id)
         }
@@ -145,7 +152,7 @@ final class EntryRepository {
             ((try? context.fetch(descriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        for (id, row) in rowsById where !LocalStore.isTempId(id) && !pendingIds.contains(id) {
+        for (id, row) in rowsById where !pendingIds.contains(id) {
             context.delete(row)
             rowsById.removeValue(forKey: id)
         }

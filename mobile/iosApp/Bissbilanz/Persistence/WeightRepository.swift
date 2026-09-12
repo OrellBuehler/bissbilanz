@@ -106,9 +106,7 @@ final class WeightRepository {
             ((try? context.fetch(rowsDescriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        for (id, row) in rowsById where !serverIds.contains(id)
-            && !LocalStore.isTempId(id) && !pendingIds.contains(id)
-        {
+        for (id, row) in rowsById where !serverIds.contains(id) && !pendingIds.contains(id) {
             context.delete(row)
             rowsById.removeValue(forKey: id)
         }
