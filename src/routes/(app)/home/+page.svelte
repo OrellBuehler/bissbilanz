@@ -216,24 +216,26 @@
 		</div>
 
 		<!-- Mobile FAB for AI task capture -->
-		<button
-			type="button"
-			class="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-6 z-50 flex size-12 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-lg active:scale-95 md:hidden"
+		<Button
+			variant="outline"
+			size="icon"
+			class="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] right-6 z-50 size-12 rounded-full border-border/60 bg-background text-foreground shadow-lg hover:bg-background active:scale-95 md:hidden"
 			onclick={() => (aiTaskCaptureOpen = true)}
 			aria-label={m.ai_tasks_capture_button()}
 		>
 			<Sparkles class="size-5" />
-		</button>
+		</Button>
 
 		<!-- Mobile FAB for barcode scanner -->
-		<button
-			type="button"
-			class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
+		<Button
+			variant="default"
+			size="icon"
+			class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 z-50 size-14 rounded-full shadow-lg active:scale-95 md:hidden"
 			onclick={() => (scanModalOpen = true)}
 			aria-label={m.dashboard_scan()}
 		>
 			<ScanBarcode class="size-6" />
-		</button>
+		</Button>
 
 		<AiTaskCaptureModal bind:open={aiTaskCaptureOpen} />
 

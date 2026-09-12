@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import * as m from '$lib/paraglide/messages';
+	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
 	import {
 		type Macro,
 		gramsToPct,
@@ -52,21 +53,21 @@
 		{
 			key: 'protein' as Macro,
 			label: () => m.goals_protein(),
-			color: 'text-red-500',
+			color: MACRO_TEXT_CLASS.protein,
 			trackColor:
 				'[&_[data-slot=slider-range]]:bg-red-500 [&_[data-slot=slider-thumb]]:border-red-500'
 		},
 		{
 			key: 'carbs' as Macro,
 			label: () => m.goals_carbs(),
-			color: 'text-orange-500',
+			color: MACRO_TEXT_CLASS.carbs,
 			trackColor:
 				'[&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:border-orange-500'
 		},
 		{
 			key: 'fat' as Macro,
 			label: () => m.goals_fat(),
-			color: 'text-yellow-500',
+			color: MACRO_TEXT_CLASS.fat,
 			trackColor:
 				'[&_[data-slot=slider-range]]:bg-yellow-500 [&_[data-slot=slider-thumb]]:border-yellow-500'
 		}
