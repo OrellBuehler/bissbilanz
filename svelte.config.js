@@ -11,6 +11,12 @@ const config = {
 		serviceWorker: {
 			register: false
 		},
+		// Poll for a newer deploy so `updated.current` flips while a PWA tab
+		// sits open for days; the root layout then hard-navigates instead of
+		// importing chunks that no longer exist (see hooks.client.ts).
+		version: {
+			pollInterval: 5 * 60 * 1000
+		},
 		// Disable SvelteKit's built-in CSRF to allow cross-origin MCP/OAuth requests.
 		// MCP clients (Claude, OpenAI, etc.) connect from unpredictable origins.
 		// Manual CSRF origin checking is applied in hooks.server.ts for non-exempt routes.
