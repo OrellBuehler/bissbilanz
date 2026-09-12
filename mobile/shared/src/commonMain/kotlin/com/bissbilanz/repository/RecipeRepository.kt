@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -63,45 +64,47 @@ class RecipeRepository(
                 .executeAsList()
                 .filter { it.id.isTempId() || it.id in pendingIds }
                 .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
-        queries.transaction {
-            queries.deleteAllRecipes()
-            summaries.forEach { s ->
-                if (s.id in pendingIds) return@forEach
-                val recipe =
-                    RecipeDetail(
-                        id = s.id,
-                        userId = "",
-                        name = s.name,
-                        totalServings = s.totalServings,
-                        isFavorite = s.isFavorite,
-                        imageUrl = s.imageUrl,
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                queries.deleteAllRecipes()
+                summaries.forEach { s ->
+                    if (s.id in pendingIds) return@forEach
+                    val recipe =
+                        RecipeDetail(
+                            id = s.id,
+                            userId = "",
+                            name = s.name,
+                            totalServings = s.totalServings,
+                            isFavorite = s.isFavorite,
+                            imageUrl = s.imageUrl,
+                            calories = s.calories,
+                            protein = s.protein,
+                            carbs = s.carbs,
+                            fat = s.fat,
+                            fiber = s.fiber,
+                            ingredients = emptyList(),
+                        )
+                    queries.insertRecipe(
+                        id = recipe.id,
+                        name = recipe.name,
+                        totalServings = recipe.totalServings,
+                        isFavorite = if (recipe.isFavorite) 1L else 0L,
                         calories = s.calories,
                         protein = s.protein,
                         carbs = s.carbs,
                         fat = s.fat,
                         fiber = s.fiber,
-                        ingredients = emptyList(),
+                        jsonData = json.encodeToString(recipe),
                     )
-                queries.insertRecipe(
-                    id = recipe.id,
-                    name = recipe.name,
-                    totalServings = recipe.totalServings,
-                    isFavorite = if (recipe.isFavorite) 1L else 0L,
-                    calories = s.calories,
-                    protein = s.protein,
-                    carbs = s.carbs,
-                    fat = s.fat,
-                    fiber = s.fiber,
-                    jsonData = json.encodeToString(recipe),
-                )
+                }
+                preserved.forEach { cacheRecipe(it) }
             }
-            preserved.forEach { cacheRecipe(it) }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "recipes",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "recipes",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
 
     /** Recipe ids with an un-uploaded (queued or in-flight) sync operation. */
@@ -121,7 +124,7 @@ class RecipeRepository(
         }
         return try {
             val recipe = api.getRecipe(id)
-            cacheRecipe(recipe)
+            withContext(Dispatchers.IO) { cacheRecipe(recipe) }
             recipe
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -133,7 +136,7 @@ class RecipeRepository(
 
     suspend fun createRecipe(recipe: RecipeCreate): RecipeDetail {
         val temp = recipeCreateToRecipe(recipe)
-        cacheRecipe(temp)
+        withContext(Dispatchers.IO) { cacheRecipe(temp) }
         syncQueue.enqueue(SyncOperation.CreateRecipe(json.encodeToString(recipe), localId = temp.id))
         return temp
     }
@@ -155,7 +158,7 @@ class RecipeRepository(
                             imageUrl = recipe.imageUrl ?: existing.imageUrl,
                             ingredients = recipe.ingredients?.toRecipeIngredients() ?: existing.ingredients,
                         ).withRecomputedMacros()
-                cacheRecipe(updated)
+                withContext(Dispatchers.IO) { cacheRecipe(updated) }
                 updated
             } else {
                 RecipeDetail(
@@ -188,7 +191,7 @@ class RecipeRepository(
                 .executeAsOneOrNull()
                 ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
                 ?.imageUrl
-        db.userDataDatabaseQueries.deleteRecipe(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
         } else {

@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -84,7 +85,7 @@ class FoodRepository(
             return FoodsListResponse(foods = all.drop(offset).take(limit), total = all.size)
         }
         val response = api.getFoodsPaginated(limit, offset)
-        cacheFoods(response.foods)
+        withContext(ioDispatcher) { cacheFoods(response.foods) }
         return response
     }
 
@@ -94,13 +95,13 @@ class FoodRepository(
     ) {
         if (appModeManager.isLocal) return
         val foods = api.getFoods(limit, offset)
-        cacheFoods(foods)
+        withContext(ioDispatcher) { cacheFoods(foods) }
     }
 
     suspend fun refreshFavorites() {
         if (appModeManager.isLocal) return
         val favs = api.getFavorites()
-        favs.forEach { cacheFood(it) }
+        withContext(ioDispatcher) { favs.forEach { cacheFood(it) } }
     }
 
     suspend fun refreshRecentFoods(limit: Int = 20) {
@@ -144,7 +145,7 @@ class FoodRepository(
         }
         return try {
             val food = api.getFood(id)
-            cacheFood(food)
+            withContext(ioDispatcher) { cacheFood(food) }
             food
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -180,7 +181,7 @@ class FoodRepository(
 
     suspend fun createFood(food: FoodCreate): Food {
         val tempFood = foodCreateToFood(food)
-        cacheFood(tempFood)
+        withContext(ioDispatcher) { cacheFood(tempFood) }
         syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food), localId = tempFood.id))
         onFoodChanged?.invoke()
         return tempFood
@@ -191,7 +192,7 @@ class FoodRepository(
         food: FoodCreate,
     ): Food {
         val tempFood = foodCreateToFood(food, id)
-        cacheFood(tempFood)
+        withContext(ioDispatcher) { cacheFood(tempFood) }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, food)
         } else {
@@ -214,7 +215,7 @@ class FoodRepository(
     ): Food? {
         // A food shown from a server search need not be cached locally; the flag
         // still has to reach the server, so only the local mirror is conditional.
-        val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { cacheFood(it) }
+        val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (id.isTempId()) {
             syncQueue.rewriteQueuedCreate("foods", id) { op ->
                 val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
@@ -239,7 +240,7 @@ class FoodRepository(
         imageUrl: String?,
     ): Food? {
         val previous = getFoodCached(id)
-        val updated = previous?.copy(imageUrl = imageUrl)?.also { cacheFood(it) }
+        val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (id.isTempId()) {
             syncQueue.rewriteQueuedCreate("foods", id) { op ->
                 val create = op as? SyncOperation.CreateFood ?: return@rewriteQueuedCreate null
@@ -266,7 +267,7 @@ class FoodRepository(
         labels: List<String>,
     ): Food? {
         val normalized = normalizeLabels(labels).sorted()
-        val updated = getFoodCached(id)?.copy(labels = normalized)?.also { cacheFood(it) }
+        val updated = getFoodCached(id)?.copy(labels = normalized)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
         onFoodChanged?.invoke()
         return updated
@@ -274,8 +275,10 @@ class FoodRepository(
 
     suspend fun deleteFood(id: String) {
         val imageUrl = getFoodCached(id)?.imageUrl
-        db.userDataDatabaseQueries.deleteFoodLabels(id)
-        db.userDataDatabaseQueries.deleteFood(id)
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries.deleteFoodLabels(id)
+            db.userDataDatabaseQueries.deleteFood(id)
+        }
         if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
         } else {
@@ -373,7 +376,7 @@ class FoodRepository(
         val current = api.getFood(id)
         val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
         val updated = api.updateFood(id, enriched)
-        cacheFood(updated)
+        withContext(ioDispatcher) { cacheFood(updated) }
         onFoodChanged?.invoke()
         return updated
     }
@@ -408,7 +411,7 @@ class FoodRepository(
             val cachedFood = cacheResult.await()
 
             if (apiFood != null) {
-                cacheFood(apiFood)
+                withContext(ioDispatcher) { cacheFood(apiFood) }
                 apiFood
             } else {
                 cachedFood
