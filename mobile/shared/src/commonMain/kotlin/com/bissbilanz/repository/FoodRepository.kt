@@ -420,17 +420,13 @@ class FoodRepository(
      * Resolves a scanned barcode to a usable food: the user's own food first,
      * then an Open Food Facts hit (created locally so the user lands on its
      * detail, mirroring iOS), else null. Used by the barcode scanner.
+     *
+     * A failed Open Food Facts lookup propagates instead of collapsing into
+     * null, so callers can tell "offline" apart from "unknown product".
      */
     suspend fun findOrCreateByBarcode(barcode: String): Food? {
         findByBarcode(barcode)?.let { return it }
-        val product =
-            try {
-                lookupOpenFoodFacts(barcode)
-            } catch (e: Exception) {
-                if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-                errorReporter.captureException(e)
-                null
-            } ?: return null
+        val product = lookupOpenFoodFacts(barcode) ?: return null
         return createFood(openFoodFactsProductToFoodCreate(product, barcode))
     }
 
