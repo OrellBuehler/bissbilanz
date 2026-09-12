@@ -430,6 +430,7 @@
 	"barcode_camera_not_found": "No camera found on this device.",
 	"barcode_camera_overconstrained": "Camera does not support the required settings. Try a different camera.",
 	"barcode_camera_error": "Could not access the camera. Please try again.",
+	"barcode_viewfinder": "Camera viewfinder for barcode scanning",
 	"label_scan_title": "Scan Nutrition Label",
 	"label_scan_button": "Scan label",
 	"label_scan_hint": "Frame the whole nutrition table, hold steady and keep the text sharp.",
