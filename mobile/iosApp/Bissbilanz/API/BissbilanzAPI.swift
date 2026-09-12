@@ -851,7 +851,7 @@ final class BissbilanzAPI {
     /// the account's bearer token cannot be sent anywhere but our own host.
     func downloadImage(path: String) async throws -> Data {
         guard path.hasPrefix("/") else { throw APIError.badRequest("Not a server path") }
-        let request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        let request = URLRequest(url: try makeURL(path))
         let (data, httpResponse) = try await executeRequestData(request)
         if httpResponse.statusCode >= 400 {
             throw APIError.serverError(httpResponse.statusCode, nil)
@@ -860,6 +860,17 @@ final class BissbilanzAPI {
     }
 
     // MARK: - HTTP helpers
+
+    /// Builds `baseURL + path` as a `URL`, throwing instead of the force-unwrap
+    /// every call site used to repeat — `baseURL` comes from user-editable
+    /// settings (a self-hosted deployment's own host), so a malformed value
+    /// should surface as an error rather than crash the app.
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: "\(baseURL)\(path)") else {
+            throw APIError.badRequest("Invalid URL: \(path)")
+        }
+        return url
+    }
 
     private func get<T: Decodable>(_ path: String, params: [String: String] = [:]) async throws -> T {
         var components = URLComponents(string: "\(baseURL)\(path)")!
@@ -881,7 +892,7 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> T {
-        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
@@ -895,7 +906,7 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> T {
-        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
@@ -909,7 +920,7 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> T {
-        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(body)
@@ -941,7 +952,7 @@ final class BissbilanzAPI {
         parts: [(data: Data, filename: String)],
         mimeType: String = "image/jpeg"
     ) async throws -> T {
-        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "POST"
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -987,7 +998,7 @@ final class BissbilanzAPI {
     /// response is a binary archive, not the JSON envelope `performRequest`
     /// expects.
     func exportAccountData() async throws -> Data {
-        var request = URLRequest(url: URL(string: "\(baseURL)/api/account/export")!)
+        var request = URLRequest(url: try makeURL("/api/account/export"))
         // Full-account archive incl. photos — allow more than the default 60s
         request.timeoutInterval = 120
         ErrorReporter.addBreadcrumb("GET /api/account/export", category: "http")
@@ -1009,7 +1020,7 @@ final class BissbilanzAPI {
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws {
-        var request = URLRequest(url: URL(string: "\(baseURL)\(path)")!)
+        var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "DELETE"
         applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
         let _: EmptyResponse = try await performRequest(request)
