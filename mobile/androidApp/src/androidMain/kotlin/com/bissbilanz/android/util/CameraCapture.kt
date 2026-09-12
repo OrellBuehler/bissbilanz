@@ -16,7 +16,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import org.koin.compose.koinInject
 
 /** Hands a capture URI to the camera app; see [rememberCameraCaptureLauncher]. */
 class CameraCaptureLauncher internal constructor(
@@ -38,6 +40,7 @@ class CameraCaptureLauncher internal constructor(
 @Composable
 fun rememberCameraCaptureLauncher(onResult: (Boolean) -> Unit): CameraCaptureLauncher {
     val context = LocalContext.current
+    val errorReporter: ErrorReporter = koinInject()
     val currentOnResult by rememberUpdatedState(onResult)
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
     val permissionRequired = stringResource(R.string.scan_barcode_permission_required)
@@ -51,6 +54,13 @@ fun rememberCameraCaptureLauncher(onResult: (Boolean) -> Unit): CameraCaptureLau
         try {
             takePicture.launch(uri)
         } catch (_: ActivityNotFoundException) {
+            currentOnResult(false)
+        } catch (e: SecurityException) {
+            // The permission check above narrows this to a race: the permission
+            // was revoked (auto-reset, or toggled off) between the check and this
+            // launch. Same fallback as a cancelled camera intent instead of
+            // crashing (Sentry BISSBILANZ-3A).
+            errorReporter.captureException(e)
             currentOnResult(false)
         }
     }
