@@ -629,7 +629,7 @@ struct SettingsView: View {
                     downgradePhase = phase
                 }
                 downgradeFinished = true
-            } catch AccountDowngrader.DowngradeError.pendingChanges {
+            } catch let error as AccountDowngrader.DowngradeError {
                 ErrorReporter.captureWarning("Account downgrade blocked by pending changes", context: ["reason": ErrorReporter.reason(for: error)])
                 downgradeError = L10n.downgradePendingChanges
             } catch {
