@@ -9,6 +9,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { round2, parseDecimalInput } from '$lib/utils/number';
+	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
 	import Target from '@lucide/svelte/icons/target';
 	import * as m from '$lib/paraglide/messages';
 
@@ -98,7 +99,7 @@
 
 			<div class="touch-none space-y-2">
 				<div class="flex items-center justify-between text-sm">
-					<span class="text-green-500">{m.goals_fiber()}</span>
+					<span class={MACRO_TEXT_CLASS.fiber}>{m.goals_fiber()}</span>
 					<span class="text-muted-foreground">{form.fiberGoal}g</span>
 				</div>
 				<Slider

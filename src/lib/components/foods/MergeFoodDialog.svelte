@@ -8,6 +8,8 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import Search from '@lucide/svelte/icons/search';
+	import Check from '@lucide/svelte/icons/check';
+	import X from '@lucide/svelte/icons/x';
 	import * as m from '$lib/paraglide/messages';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
@@ -446,7 +448,17 @@
 										<RadioGroup.Item value={choice.key} class="mt-0.5" />
 										<span class="min-w-0 flex-1">
 											<span class="text-muted-foreground">{choice.label}:</span>
-											<span class="ml-1 break-words">{fmt(choice.value)}</span>
+											<span class="ml-1 inline-flex items-center break-words align-middle">
+												{#if typeof choice.value === 'boolean'}
+													{#if choice.value}
+														<Check class="size-3.5 text-green-600" />
+													{:else}
+														<X class="size-3.5 text-muted-foreground" />
+													{/if}
+												{:else}
+													{fmt(choice.value)}
+												{/if}
+											</span>
 										</span>
 									</label>
 								{/each}

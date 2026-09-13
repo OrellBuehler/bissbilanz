@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import X from '@lucide/svelte/icons/x';
 	import Download from '@lucide/svelte/icons/download';
 	import Share from '@lucide/svelte/icons/share';
@@ -45,9 +46,15 @@
 		<button onclick={install} class="font-medium text-primary underline">
 			{m.pwa_install()}
 		</button>
-		<button onclick={dismiss} class="text-muted-foreground">
+		<Button
+			variant="ghost"
+			size="icon"
+			class="h-6 w-6 shrink-0 text-muted-foreground"
+			onclick={dismiss}
+			aria-label={m.pwa_install_dismiss()}
+		>
 			<X class="h-4 w-4" />
-		</button>
+		</Button>
 	</div>
 {:else if showIosBanner}
 	<div class="flex items-center gap-3 bg-primary/10 px-4 py-2 text-sm">
@@ -56,8 +63,14 @@
 			{m.pwa_ios_install_prompt({ shareIcon: '' })}
 			<Share class="inline h-4 w-4 align-text-bottom" />
 		</span>
-		<button onclick={dismiss} class="text-muted-foreground">
+		<Button
+			variant="ghost"
+			size="icon"
+			class="h-6 w-6 shrink-0 text-muted-foreground"
+			onclick={dismiss}
+			aria-label={m.pwa_install_dismiss()}
+		>
 			<X class="h-4 w-4" />
-		</button>
+		</Button>
 	</div>
 {/if}

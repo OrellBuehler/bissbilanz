@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { logout, getUser } from '$lib/stores/auth.svelte';
+	import { getSyncState } from '$lib/stores/sync-state.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -13,6 +16,23 @@
 	const user = $derived(getUser());
 	const userInitial = $derived((user?.name || user?.email || '?').charAt(0).toUpperCase());
 	const userDisplay = $derived(user?.name || user?.email || '');
+	const sync = getSyncState();
+
+	let confirmLogoutOpen = $state(false);
+	let resolveConfirmLogout: ((proceed: boolean) => void) | null = null;
+
+	function confirmDiscardOnLogout(): Promise<boolean> {
+		confirmLogoutOpen = true;
+		return new Promise((resolve) => {
+			resolveConfirmLogout = resolve;
+		});
+	}
+
+	function settleConfirmLogout(proceed: boolean) {
+		confirmLogoutOpen = false;
+		resolveConfirmLogout?.(proceed);
+		resolveConfirmLogout = null;
+	}
 
 	const labelMap: Record<string, () => string> = {
 		app: () => m.nav_dashboard(),
@@ -55,6 +75,12 @@
 		}
 
 		return crumbs;
+	});
+
+	// The AlertDialog can also close via outside click/Escape — settle the
+	// pending logout() promise as "cancelled" instead of leaving it hanging.
+	$effect(() => {
+		if (!confirmLogoutOpen && resolveConfirmLogout) settleConfirmLogout(false);
 	});
 </script>
 
@@ -117,7 +143,7 @@
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item onclick={logout}>
+					<DropdownMenu.Item onclick={() => logout(confirmDiscardOnLogout)}>
 						<LogOut />
 						{m.auth_logout()}
 					</DropdownMenu.Item>
@@ -126,3 +152,29 @@
 		</div>
 	</div>
 </header>
+
+<AlertDialog.Root bind:open={confirmLogoutOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title class="text-left">{m.auth_logout_confirm_title()}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{m.auth_logout_confirm_desc({ count: sync.pendingCount })}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => settleConfirmLogout(false)}>
+				{m.cancel()}
+			</AlertDialog.Cancel>
+			<AlertDialog.Action
+				class={buttonVariants({ variant: 'destructive' })}
+				onclick={(e) => {
+					e.preventDefault();
+					settleConfirmLogout(true);
+				}}
+			>
+				<LogOut class="size-4" />
+				{m.auth_logout_confirm_action()}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

@@ -77,17 +77,31 @@
 <form onsubmit={submit} class="space-y-4">
 	<div class="grid gap-4 sm:grid-cols-2">
 		<div>
-			<label class="mb-1.5 block text-sm font-medium">{m.sleep_duration()}</label>
+			<span class="mb-1.5 block text-sm font-medium">{m.sleep_duration()}</span>
 			<div class="flex items-center gap-2">
 				<div class="relative min-w-0 flex-1">
-					<Input type="number" min="0" max="23" bind:value={hours} class="pr-7" />
+					<Input
+						type="number"
+						min="0"
+						max="23"
+						bind:value={hours}
+						class="pr-7"
+						aria-label={m.sleep_duration_hours()}
+					/>
 					<span
 						class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs font-medium text-muted-foreground"
 						>h</span
 					>
 				</div>
 				<div class="relative min-w-0 flex-1">
-					<Input type="number" min="0" max="59" bind:value={minutes} class="pr-8" />
+					<Input
+						type="number"
+						min="0"
+						max="59"
+						bind:value={minutes}
+						class="pr-8"
+						aria-label={m.sleep_duration_minutes()}
+					/>
 					<span
 						class="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs font-medium text-muted-foreground"
 						>m</span
@@ -97,19 +111,21 @@
 		</div>
 
 		<div class="min-w-0">
-			<label class="mb-1.5 block text-sm font-medium">{m.sleep_date_label()}</label>
-			<Input type="date" bind:value={entryDate} max={today()} required />
+			<label for="sleep-date" class="mb-1.5 block text-sm font-medium">{m.sleep_date_label()}</label
+			>
+			<Input id="sleep-date" type="date" bind:value={entryDate} max={today()} required />
 		</div>
 	</div>
 
 	<div>
 		<div class="mb-2 flex items-center justify-between">
-			<label class="text-sm font-medium">{m.sleep_quality()}</label>
+			<label for="sleep-quality" class="text-sm font-medium">{m.sleep_quality()}</label>
 			<span class="text-sm font-semibold tabular-nums" style="color: #a78bfa">{quality}/10</span>
 		</div>
 		<div class="flex items-center gap-3">
 			<span class="shrink-0 text-xs text-muted-foreground">{m.sleep_quality_poor()}</span>
 			<Slider
+				id="sleep-quality"
 				type="single"
 				value={quality}
 				min={1}
@@ -135,20 +151,28 @@
 		{#if showDetails}
 			<div class="mt-3 grid gap-3 sm:grid-cols-2">
 				<div class="min-w-0">
-					<label class="mb-1 block text-sm font-medium">{m.sleep_bedtime()}</label>
-					<Input type="time" bind:value={bedtime} />
+					<label for="sleep-bedtime" class="mb-1 block text-sm font-medium"
+						>{m.sleep_bedtime()}</label
+					>
+					<Input id="sleep-bedtime" type="time" bind:value={bedtime} />
 				</div>
 				<div class="min-w-0">
-					<label class="mb-1 block text-sm font-medium">{m.sleep_wake_time()}</label>
-					<Input type="time" bind:value={wakeTime} />
+					<label for="sleep-wake-time" class="mb-1 block text-sm font-medium"
+						>{m.sleep_wake_time()}</label
+					>
+					<Input id="sleep-wake-time" type="time" bind:value={wakeTime} />
 				</div>
 				<div class="min-w-0">
-					<label class="mb-1 block text-sm font-medium">{m.sleep_wake_ups()}</label>
-					<Input type="number" min="0" bind:value={wakeUps} />
+					<label for="sleep-wake-ups" class="mb-1 block text-sm font-medium"
+						>{m.sleep_wake_ups()}</label
+					>
+					<Input id="sleep-wake-ups" type="number" min="0" bind:value={wakeUps} />
 				</div>
 				<div class="sm:col-span-2">
-					<label class="mb-1 block text-sm font-medium">{m.sleep_notes_label()}</label>
-					<Textarea bind:value={notes} rows={2} />
+					<label for="sleep-notes" class="mb-1 block text-sm font-medium"
+						>{m.sleep_notes_label()}</label
+					>
+					<Textarea id="sleep-notes" bind:value={notes} rows={2} />
 				</div>
 			</div>
 		{/if}

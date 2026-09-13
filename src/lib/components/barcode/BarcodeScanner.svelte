@@ -18,6 +18,7 @@
 	let scanner: { stop: () => void } | null = null;
 	let scannerReady = $state(false);
 	let error = $state('');
+	let destroyed = false;
 
 	onMount(async () => {
 		if (!browser || !videoEl) return;
@@ -42,8 +43,21 @@
 			return;
 		}
 
+		if (destroyed) {
+			stopCamera(stream);
+			stream = null;
+			return;
+		}
+
 		try {
 			scanner = await createBarcodeScanner(videoEl, onScan);
+			if (destroyed) {
+				scanner.stop();
+				scanner = null;
+				stopCamera(stream);
+				stream = null;
+				return;
+			}
 			scannerReady = true;
 		} catch (err) {
 			Sentry.captureException(err, {
@@ -55,6 +69,7 @@
 	});
 
 	onDestroy(() => {
+		destroyed = true;
 		scanner?.stop();
 		stopCamera(stream);
 	});
@@ -68,7 +83,7 @@
 			muted
 			playsinline
 			autoplay
-			aria-label="Camera viewfinder for barcode scanning"
+			aria-label={m.barcode_viewfinder()}
 		></video>
 		{#if scannerReady}
 			<div class="pointer-events-none absolute inset-0 flex items-center justify-center">

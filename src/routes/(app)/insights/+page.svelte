@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { toast } from 'svelte-sonner';
 	import { PieChart } from 'layerchart';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -103,6 +105,7 @@
 			}
 		} catch {
 			data = [];
+			if (browser && navigator.onLine) toast.error(m.error_generic());
 		} finally {
 			mealLoading = false;
 		}
@@ -116,7 +119,7 @@
 				foods = result.data;
 			}
 		} catch {
-			// silently ignore
+			if (browser && navigator.onLine) toast.error(m.error_generic());
 		} finally {
 			topFoodsLoading = false;
 		}

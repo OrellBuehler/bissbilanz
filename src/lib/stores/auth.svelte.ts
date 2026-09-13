@@ -1,5 +1,8 @@
+import { browser } from '$app/environment';
 import type { UserProfile } from '$lib/server/types';
 import { clearAllData, clearCacheStorage } from '$lib/db';
+import { getSyncState } from '$lib/stores/sync-state.svelte';
+import { syncQueue } from '$lib/stores/sync';
 
 interface AuthState {
 	user: UserProfile | null;
@@ -54,8 +57,20 @@ export function login(provider = 'infomaniak'): void {
 	window.location.href = `/api/auth/login?provider=${encodeURIComponent(provider)}`;
 }
 
-export async function logout(): Promise<void> {
+/**
+ * Signs the user out. If offline writes are still queued, tries one sync
+ * drain first; if changes remain pending after that, `confirmDiscard` (when
+ * given) decides whether to proceed and lose them.
+ */
+export async function logout(confirmDiscard?: () => Promise<boolean>): Promise<void> {
 	try {
+		if (browser && getSyncState().pendingCount > 0) {
+			if (navigator.onLine) await syncQueue();
+			if (getSyncState().pendingCount > 0) {
+				const proceed = confirmDiscard ? await confirmDiscard() : true;
+				if (!proceed) return;
+			}
+		}
 		await fetch('/api/auth/logout', { method: 'POST' });
 		// Clear all cached data from Dexie and Cache Storage to prevent data leaking between users
 		await clearAllData().catch(() => {});

@@ -254,7 +254,7 @@
 							<Button
 								variant="ghost"
 								size="icon"
-								aria-label="Remove timeframe"
+								aria-label={m.settings_timeframe_remove()}
 								onclick={() => removeRow(row.id)}
 							>
 								<Trash2 class="size-4" />

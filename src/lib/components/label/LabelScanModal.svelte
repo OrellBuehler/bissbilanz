@@ -52,6 +52,7 @@
 	let fileInput = $state<HTMLInputElement>();
 	let videoEl = $state<HTMLVideoElement>();
 	let stream: MediaStream | null = null;
+	let destroyed = false;
 
 	const coreLabels: Partial<Record<ParsedNutritionKey, () => string>> = {
 		calories: m.food_form_calories,
@@ -97,7 +98,10 @@
 		if (!open) reset();
 	});
 
-	onDestroy(releaseCamera);
+	onDestroy(() => {
+		destroyed = true;
+		releaseCamera();
+	});
 
 	const openCamera = async () => {
 		if (!browser) return;
@@ -105,9 +109,14 @@
 		notFound = false;
 		stage = 'camera';
 		await Promise.resolve();
-		if (!videoEl) return;
+		if (!videoEl || destroyed || !open) return;
 		try {
 			stream = await startCamera(videoEl);
+			if (destroyed || !open) {
+				stopCamera(stream);
+				stream = null;
+				return;
+			}
 		} catch (err) {
 			const kind = mapCameraError(err);
 			if (kind !== 'permission_denied' && kind !== 'not_found') {

@@ -28,6 +28,7 @@
 			foods = data?.foods ?? [];
 		} catch {
 			foods = [];
+			if (browser && navigator.onLine) toast.error(m.error_generic());
 		} finally {
 			loading = false;
 		}
