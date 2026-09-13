@@ -457,6 +457,7 @@ private fun WeightStatsRow(
     trendData: List<com.bissbilanz.model.WeightTrendEntry>,
     projectionDays: Int,
 ) {
+    val errorReporter: ErrorReporter = koinInject()
     val latest = trendData.lastOrNull() ?: return
     val first = trendData.firstOrNull() ?: return
     val delta = latest.weightKg - first.weightKg
@@ -525,7 +526,8 @@ private fun WeightStatsRow(
                     val lastDayIndex = regressionPoints.last().first
                     val (slope, intercept) = linearRegression(regressionPoints) ?: (0f to trendData.last().weightKg.toFloat())
                     slope * (lastDayIndex + projectionDays) + intercept
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    errorReporter.captureException(e)
                     null
                 }
 

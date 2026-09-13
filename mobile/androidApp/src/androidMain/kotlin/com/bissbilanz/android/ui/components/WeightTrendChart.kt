@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
@@ -42,6 +43,7 @@ import com.bissbilanz.model.WeightTrendEntry
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
+import org.koin.compose.koinInject
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -86,11 +88,13 @@ fun WeightTrendChart(
     val labelSizeSp = 10.sp
     val labelSizePx = with(density) { labelSizeSp.toPx() }
 
+    val errorReporter: ErrorReporter = koinInject()
     val chartState =
         remember(trendData, projectionDays) {
             try {
                 computeChartState(trendData, projectionDays)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                errorReporter.captureException(e)
                 null
             }
         }

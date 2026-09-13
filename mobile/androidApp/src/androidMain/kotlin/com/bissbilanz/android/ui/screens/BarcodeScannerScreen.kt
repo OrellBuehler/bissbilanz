@@ -22,6 +22,11 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FlashOff
@@ -189,6 +194,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                         cameraError = true
                     },
                     onScanFailure = { e -> errorReporter.captureException(e) },
+                    onScannerUnavailable = { e -> errorReporter.captureException(e) },
                     onBarcodeScanned = { barcode ->
                         if (scanState == ScanState.SCANNING) {
                             haptic(HapticFeedbackType.LongPress)
@@ -390,14 +396,16 @@ private fun CameraPreview(
     onCameraReady: (Camera) -> Unit,
     onCameraError: (Exception) -> Unit,
     onScanFailure: (Exception) -> Unit,
+    onScannerUnavailable: (Exception) -> Unit,
     onBarcodeScanned: (String) -> Unit,
 ) {
     val analyzerExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    var scannerError by remember { mutableStateOf<Exception?>(null) }
     val scanner =
         remember {
-            // ML Kit's unbundled scanner resolves through Google Play services; on
-            // devices without a working GMS it can throw from getClient() itself.
+            // getClient() can throw (Play-crawler crash BISSBILANZ-25); keep the
+            // cause visible on screen and in Sentry instead of a blind fallback.
             try {
                 BarcodeScanning.getClient(
                     BarcodeScannerOptions
@@ -409,17 +417,32 @@ private fun CameraPreview(
                             Barcode.FORMAT_UPC_E,
                         ).build(),
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                scannerError = e
+                onScannerUnavailable(e)
                 null
             }
         }
     if (scanner == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
             Text(
                 stringResource(R.string.scan_barcode_unavailable),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )
+            scannerError?.let { e ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    e.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         return
     }
