@@ -187,6 +187,7 @@
     <string name="ai_task_remove_photo">Foto entfernen</string>
     <string name="ai_task_photo_hint">Bis zu %1$d Fotos – das Gericht, die Verpackung, eine Nährwerttabelle.</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
+    <string name="ai_task_camera_permission_required">Kameraberechtigung erforderlich, um ein Foto aufzunehmen</string>
 
     <!-- KI-Aufgabenliste -->
     <string name="ai_tasks_title">KI-Aufgaben</string>

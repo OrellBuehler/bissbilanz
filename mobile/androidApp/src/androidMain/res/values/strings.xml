@@ -189,6 +189,7 @@
     <string name="ai_task_remove_photo">Remove photo</string>
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
+    <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
 
     <!-- AI task list -->
     <string name="ai_tasks_title">AI Tasks</string>

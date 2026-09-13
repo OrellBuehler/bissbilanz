@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -74,7 +75,7 @@ class EntryRepository(
         recipe: Recipe? = null,
     ): Entry {
         val tempEntry = entryCreateToEntry(entry, food, recipe)
-        cacheEntry(tempEntry)
+        withContext(Dispatchers.IO) { cacheEntry(tempEntry) }
         syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
         onEntryChanged?.invoke()
         return tempEntry
@@ -103,7 +104,7 @@ class EntryRepository(
         val result =
             if (existing != null) {
                 val updated = applyUpdate(existing, entry, cleared)
-                cacheEntry(updated)
+                withContext(Dispatchers.IO) { cacheEntry(updated) }
                 updated
             } else {
                 Entry(
@@ -124,7 +125,7 @@ class EntryRepository(
     }
 
     suspend fun deleteEntry(id: String) {
-        db.userDataDatabaseQueries.deleteEntry(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("entries", id)
         } else {
@@ -161,10 +162,12 @@ class EntryRepository(
         if (appModeManager.isLocal) return cachedDayProperties(date)
         return try {
             val props = api.getDayProperties(date)
-            if (props != null) {
-                cacheDayProperties(props)
-            } else {
-                db.userDataDatabaseQueries.deleteDayProperties(date)
+            withContext(Dispatchers.IO) {
+                if (props != null) {
+                    cacheDayProperties(props)
+                } else {
+                    db.userDataDatabaseQueries.deleteDayProperties(date)
+                }
             }
             props
         } catch (e: Exception) {
@@ -197,7 +200,7 @@ class EntryRepository(
                 activityCalories = cleared.pick(DayPropertiesField.ACTIVITY_CALORIES, activityCalories, current?.activityCalories),
                 activityNote = cleared.pick(DayPropertiesField.ACTIVITY_NOTE, activityNote, current?.activityNote),
             )
-        cacheDayProperties(updated)
+        withContext(Dispatchers.IO) { cacheDayProperties(updated) }
         if (!appModeManager.isLocal) {
             val body =
                 DayPropertiesSet(
@@ -214,7 +217,7 @@ class EntryRepository(
     }
 
     suspend fun deleteDayProperties(date: String) {
-        db.userDataDatabaseQueries.deleteDayProperties(date)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteDayProperties(date) }
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
         }
@@ -323,21 +326,23 @@ class EntryRepository(
                 .executeAsList()
                 .filter { it.id in pendingIds }
                 .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
-        queries.transaction {
-            queries.deleteEntriesByDate(date)
-            // Skip any server row whose id still has a queued local op: a queued
-            // update is re-applied from `preserved` below, and a queued delete must
-            // not be resurrected by the (still-present) server copy.
-            entries.forEach { entry ->
-                if (entry.id !in pendingIds) cacheEntry(entry.copy(date = date))
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                queries.deleteEntriesByDate(date)
+                // Skip any server row whose id still has a queued local op: a queued
+                // update is re-applied from `preserved` below, and a queued delete must
+                // not be resurrected by the (still-present) server copy.
+                entries.forEach { entry ->
+                    if (entry.id !in pendingIds) cacheEntry(entry.copy(date = date))
+                }
+                preserved.forEach { cacheEntry(it) }
             }
-            preserved.forEach { cacheEntry(it) }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "entries:$date",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "entries:$date",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
 
     /** Entry ids with an un-uploaded (queued or in-flight) sync operation. */

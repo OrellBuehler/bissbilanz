@@ -6,6 +6,7 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
@@ -63,12 +64,72 @@ class FoodRepositoryTest {
                     TestFixtures.food(id = "1", name = "Apple"),
                     TestFixtures.food(id = "2", name = "Banana"),
                 )
-            coEvery { api.getFoods(100, 0) } returns foods
+            coEvery { api.getFoods(200, 0) } returns foods
 
             repository.refreshFoods()
 
             val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
             assertEquals(2, cached.size)
+        }
+
+    @Test
+    fun refreshFoodsPagesThroughEveryServerFood() =
+        runTest {
+            val firstPage = (1..200).map { TestFixtures.food(id = "food-$it", name = "Food $it") }
+            val secondPage = listOf(TestFixtures.food(id = "food-201", name = "Food 201"))
+            coEvery { api.getFoods(200, 0) } returns firstPage
+            coEvery { api.getFoods(200, 200) } returns secondPage
+
+            repository.refreshFoods()
+
+            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
+            assertEquals(201, cached.size)
+            coVerify { api.getFoods(200, 200) }
+        }
+
+    @Test
+    fun refreshFoodsPrunesACacheFoodTheServerNoLongerHas() =
+        runTest {
+            // Simulates the duplicate-merge case (src/lib/server/food-merge.ts deletes
+            // the losing food rows): a food that used to exist server-side is gone from
+            // the full refresh and must not linger in the cache forever.
+            seedFoodInCache(TestFixtures.food(id = "merged-away", name = "Stale Duplicate"))
+            coEvery { api.getFoods(200, 0) } returns listOf(TestFixtures.food(id = "1", name = "Survivor"))
+
+            repository.refreshFoods()
+
+            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
+            assertEquals(listOf("1"), cached.map { it.id })
+        }
+
+    @Test
+    fun refreshFoodsKeepsTempAndPendingFoodsWhenPruning() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "temp_offline", name = "Not Yet Uploaded"))
+            seedFoodInCache(TestFixtures.food(id = "pending-edit", name = "Edited Offline"))
+            coEvery { api.getFoods(200, 0) } returns emptyList()
+            coEvery { syncQueue.all() } returns
+                listOf(
+                    QueuedRequest(
+                        id = 1L,
+                        operation = SyncOperation.UpdateFood("pending-edit", "{}"),
+                        createdAt = 0L,
+                        retryCount = 0L,
+                        idempotencyKey = "k",
+                        clientEditedAt = "t",
+                        nextAttemptAt = 0L,
+                    ),
+                )
+
+            repository.refreshFoods()
+
+            val cachedIds =
+                db.userDataDatabaseQueries
+                    .selectAllFoods()
+                    .executeAsList()
+                    .map { it.id }
+                    .toSet()
+            assertEquals(setOf("temp_offline", "pending-edit"), cachedIds)
         }
 
     @Test

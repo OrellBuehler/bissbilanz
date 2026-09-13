@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -64,12 +65,12 @@ class GoalsRepository(
         if (appModeManager.isLocal) return
         val goals = api.getGoals()
         if (goals != null) {
-            cacheGoals(goals)
+            withContext(Dispatchers.IO) { cacheGoals(goals) }
         }
     }
 
     suspend fun setGoals(goals: Goals): Goals {
-        cacheGoals(goals)
+        withContext(Dispatchers.IO) { cacheGoals(goals) }
         syncQueue.enqueue(SyncOperation.SetGoals(json.encodeToString(goals)))
         return goals
     }

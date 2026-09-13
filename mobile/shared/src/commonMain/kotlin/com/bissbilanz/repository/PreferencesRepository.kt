@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -37,7 +38,7 @@ class PreferencesRepository(
             .map { cached ->
                 cached?.let {
                     json.decodeOrNull<Preferences>(it.jsonData) ?: run {
-                        db.userDataDatabaseQueries.deletePreferences()
+                        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deletePreferences() }
                         null
                     }
                 }
@@ -46,7 +47,7 @@ class PreferencesRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val prefs = api.getPreferences()
-        cachePreferences(prefs)
+        withContext(Dispatchers.IO) { cachePreferences(prefs) }
     }
 
     /**
@@ -75,7 +76,7 @@ class PreferencesRepository(
         val current =
             cached?.let {
                 json.decodeOrNull<Preferences>(it.jsonData) ?: run {
-                    db.userDataDatabaseQueries.deletePreferences()
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deletePreferences() }
                     null
                 }
             } ?: Preferences(
@@ -98,7 +99,7 @@ class PreferencesRepository(
                 timeZone = "UTC",
             )
         val updated = applyUpdate(current, update, cleared)
-        cachePreferences(updated)
+        withContext(Dispatchers.IO) { cachePreferences(updated) }
         syncQueue.enqueue(SyncOperation.UpdatePreferences(json.encodeToString(update), cleared.jsonKeys()))
         return updated
     }

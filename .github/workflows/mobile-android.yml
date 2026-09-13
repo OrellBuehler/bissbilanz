@@ -49,6 +49,9 @@ jobs:
           restore-keys: |
             gradle-android-${{ runner.os }}-
 
+      - name: Run ktlint
+        run: ./gradlew shared:ktlintCheck androidApp:ktlintCheck wearApp:ktlintCheck wearProtocol:ktlintCheck
+
       - name: Build shared module
         run: ./gradlew shared:compileDebugKotlinAndroid
 

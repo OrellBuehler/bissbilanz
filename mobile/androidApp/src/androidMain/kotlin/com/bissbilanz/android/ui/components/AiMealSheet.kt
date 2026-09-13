@@ -1,7 +1,9 @@
 package com.bissbilanz.android.ui.components
 
+import android.Manifest
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +36,9 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.decodeUprightBitmap
+import com.bissbilanz.android.util.hasPermission
+import com.bissbilanz.android.util.isPermanentlyDenied
+import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
 import com.bissbilanz.util.mealTypes
@@ -80,6 +85,7 @@ fun AiMealSheet(
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var cameraPermanentlyDenied by remember { mutableStateOf(false) }
 
     val sendFailed = stringResource(R.string.ai_task_send_failed)
 
@@ -99,14 +105,26 @@ fun AiMealSheet(
             }
         }
 
+    val activity = LocalActivity.current
+
+    // rememberCameraCaptureLauncher (BISSBILANZ-3A) already checks/requests the
+    // CAMERA permission before every launch and shows a Toast on denial. That
+    // Toast alone leaves the user stuck once the system stops showing the
+    // request dialog, so surface a persistent "Open settings" path for that
+    // case — mirroring BarcodeScannerScreen's pattern — instead of nothing.
     val takePicture =
         rememberCameraCaptureLauncher { success ->
             val uri = cameraUri
             if (success && uri != null) {
+                cameraPermanentlyDenied = false
                 scope.launch {
                     val decoded = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) }
                     if (decoded != null && attached.size < MAX_AI_TASK_PHOTOS) attached.add(decoded)
                 }
+            } else {
+                cameraPermanentlyDenied =
+                    !context.hasPermission(Manifest.permission.CAMERA) &&
+                    activity.isPermanentlyDenied(Manifest.permission.CAMERA)
             }
         }
 
@@ -298,6 +316,22 @@ fun AiMealSheet(
                         Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(stringResource(R.string.scan_label_choose_photo))
+                    }
+                }
+            }
+
+            if (cameraPermanentlyDenied) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(R.string.ai_task_camera_permission_required),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(
+                        onClick = { context.openAppSettings() },
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Text(stringResource(R.string.scan_barcode_open_settings))
                     }
                 }
             }

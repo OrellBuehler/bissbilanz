@@ -106,13 +106,86 @@ class SyncManager(
         // listener can keep running; it simply becomes a no-op.
         if (appModeManager.isLocal) return 0
         if (!syncMutex.tryLock()) return 0
-        var synced = 0
+        var totalSynced = 0
         var sawConflict = false
-        var drained: List<QueuedRequest> = emptyList()
         try {
             if (!connectivityProvider.isOnline.value) return 0
 
             _state.value = _state.value.copy(isSyncing = true, errors = emptyList())
+
+            // A single call drains up to MAX_BATCHES_PER_CALL pages of up to 50 due items
+            // each: a backlog left over from a long offline stretch (or any queue past
+            // the page limit) drains fully in one call instead of stalling until the next
+            // write or connectivity flip picks up the leftovers. Bounded so a
+            // pathological queue can't loop forever.
+            var batches = 0
+            while (batches < MAX_BATCHES_PER_CALL) {
+                batches++
+                val batch = drainOneBatch()
+                totalSynced += batch.synced
+                if (batch.sawConflict) sawConflict = true
+                if (batch.stoppedEarly) break
+                if (batch.drainedCount == 0) break
+                if (!connectivityProvider.isOnline.value) break
+            }
+        } finally {
+            val pending = syncQueue.pendingCount()
+            _state.value =
+                _state.value.copy(
+                    isSyncing = false,
+                    pendingCount = pending,
+                    lastSyncedAt =
+                        if (totalSynced > 0) {
+                            Clock.System.now().toEpochMilliseconds()
+                        } else {
+                            _state.value.lastSyncedAt
+                        },
+                )
+            syncMutex.unlock()
+            // An item parked in exponential backoff gets no enqueue or connectivity
+            // event to nudge it, so without this the whole queue sits until the user
+            // happens to write again. Armed after the unlock so the timer's own drain
+            // can take the mutex.
+            scheduleRetryDrain()
+        }
+
+        // Once per call, not once per conflict: a call that lost several edits across
+        // multiple batches needs one refresh, and this runs outside the mutex so it
+        // can't deadlock the drain.
+        if (sawConflict) {
+            try {
+                onConflictResolved?.invoke()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+
+        return totalSynced
+    }
+
+    private data class BatchOutcome(
+        val synced: Int,
+        val sawConflict: Boolean,
+        val stoppedEarly: Boolean,
+        val drainedCount: Int,
+    )
+
+    /**
+     * Drains and processes a single page (up to 50) of due queue items. [syncPendingQueue]
+     * calls this in a loop, bounded by [MAX_BATCHES_PER_CALL], so a backlog beyond one
+     * page still fully drains within a single call. [BatchOutcome.stoppedEarly] mirrors
+     * the previous single-batch `break` semantics (session expiry, exhausted backoff
+     * retries pending, or a non-payload transport failure) so the caller stops looping
+     * for the same reasons the old single-batch drain used to stop for good.
+     */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private suspend fun drainOneBatch(): BatchOutcome {
+        var synced = 0
+        var sawConflict = false
+        var stoppedEarly = false
+        var drained: List<QueuedRequest> = emptyList()
+        try {
             drained = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
@@ -169,6 +242,7 @@ class SyncManager(
                 } catch (e: UnauthorizedException) {
                     syncQueue.releaseForRetry(req.id)
                     addError("Session expired. Please log in again to sync pending changes.")
+                    stoppedEarly = true
                     break
                 } catch (e: ApiException) {
                     val isDelete = isDeleteOperation(req.operation)
@@ -246,6 +320,7 @@ class SyncManager(
                                 val delay = backoffMs(count, req.id)
                                 syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
                                 syncQueue.releaseForRetry(req.id)
+                                stoppedEarly = true
                                 break
                             }
                         }
@@ -269,7 +344,10 @@ class SyncManager(
                         // Everything else caught here is a transport failure that every remaining
                         // upload would hit too, so stop — continuing would spend all five retries
                         // of every queued item on one outage and dead-letter the lot.
-                        if (!isPayloadFailure(e)) break
+                        if (!isPayloadFailure(e)) {
+                            stoppedEarly = true
+                            break
+                        }
                     }
                 }
 
@@ -284,38 +362,8 @@ class SyncManager(
             // releaseForRetry() already cleared the processed items, so this is a no-op
             // for them and frees only the stranded tail for the next drain.
             drained.forEach { syncQueue.releaseForRetry(it.id) }
-            val pending = syncQueue.pendingCount()
-            _state.value =
-                _state.value.copy(
-                    isSyncing = false,
-                    pendingCount = pending,
-                    lastSyncedAt =
-                        if (synced > 0) {
-                            Clock.System.now().toEpochMilliseconds()
-                        } else {
-                            _state.value.lastSyncedAt
-                        },
-                )
-            syncMutex.unlock()
-            // An item parked in exponential backoff gets no enqueue or connectivity
-            // event to nudge it, so without this the whole queue sits until the user
-            // happens to write again. Armed after the unlock so the timer's own drain
-            // can take the mutex.
-            scheduleRetryDrain()
         }
-
-        // Once per drain, not once per conflict: a batch that lost three edits needs
-        // one refresh, and this runs outside the mutex so it can't deadlock the drain.
-        if (sawConflict) {
-            try {
-                onConflictResolved?.invoke()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            }
-        }
-
-        return synced
+        return BatchOutcome(synced, sawConflict, stoppedEarly, drained.size)
     }
 
     /**
@@ -770,6 +818,10 @@ class SyncManager(
 
     companion object {
         private const val MAX_RETRIES = 5
+
+        /** Caps how many 50-item pages a single [syncPendingQueue] call drains, so a
+         * pathological queue can't loop forever within one call. */
+        private const val MAX_BATCHES_PER_CALL = 20
         private const val BACKOFF_BASE_MS = 2_000L
         private const val BACKOFF_CAP_MS = 5 * 60 * 1_000L
         private const val BACKOFF_JITTER_MS = 500L

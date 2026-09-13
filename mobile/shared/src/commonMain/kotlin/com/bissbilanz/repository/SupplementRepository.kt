@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -67,12 +68,12 @@ class SupplementRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val supplements = api.getSupplements()
-        cacheSupplements(supplements)
+        withContext(Dispatchers.IO) { cacheSupplements(supplements) }
     }
 
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
         val temp = supplementCreateToSupplement(supplement)
-        cacheSupplement(temp)
+        withContext(Dispatchers.IO) { cacheSupplement(temp) }
         syncQueue.enqueue(SyncOperation.CreateSupplement(json.encodeToString(supplement), localId = temp.id))
         return temp
     }
@@ -89,7 +90,7 @@ class SupplementRepository(
         cleared: Set<SupplementField> = emptySet(),
     ): Supplement {
         val temp = supplementCreateToSupplement(supplement, id)
-        cacheSupplement(temp)
+        withContext(Dispatchers.IO) { cacheSupplement(temp) }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, supplement)
         } else {
@@ -101,7 +102,7 @@ class SupplementRepository(
     }
 
     suspend fun deleteSupplement(id: String) {
-        db.userDataDatabaseQueries.deleteSupplement(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSupplement(id) }
         onSupplementsChanged?.invoke()
         if (id.isTempId()) {
             syncQueue.removeByAffected("supplements", id)
@@ -140,13 +141,15 @@ class SupplementRepository(
                         entryIds = emptyList(),
                     )
                 }
-            logs.forEach { log ->
-                db.userDataDatabaseQueries.insertSupplementLog(
-                    id = cacheKeyFor(log.supplementId, log.date),
-                    supplementId = log.supplementId,
-                    date = log.date,
-                    takenAt = log.takenAt,
-                )
+            withContext(Dispatchers.IO) {
+                logs.forEach { log ->
+                    db.userDataDatabaseQueries.insertSupplementLog(
+                        id = cacheKeyFor(log.supplementId, log.date),
+                        supplementId = log.supplementId,
+                        date = log.date,
+                        takenAt = log.takenAt,
+                    )
+                }
             }
             logs
         } catch (e: Exception) {
@@ -182,12 +185,14 @@ class SupplementRepository(
                 takenAt = now,
                 entryIds = emptyList(),
             )
-        db.userDataDatabaseQueries.insertSupplementLog(
-            id = cacheKeyFor(temp.supplementId, temp.date),
-            supplementId = temp.supplementId,
-            date = temp.date,
-            takenAt = temp.takenAt,
-        )
+        withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries.insertSupplementLog(
+                id = cacheKeyFor(temp.supplementId, temp.date),
+                supplementId = temp.supplementId,
+                date = temp.date,
+                takenAt = temp.takenAt,
+            )
+        }
         syncQueue.enqueue(SyncOperation.LogSupplement(supplementId, date))
         return temp
     }
@@ -196,8 +201,10 @@ class SupplementRepository(
         supplementId: String,
         date: String,
     ) {
-        db.userDataDatabaseQueries.deleteSupplementLog(supplementId, date)
-        deleteCachedSupplementEntries(supplementId, date)
+        withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries.deleteSupplementLog(supplementId, date)
+            deleteCachedSupplementEntries(supplementId, date)
+        }
         syncQueue.enqueue(SyncOperation.UnlogSupplement(supplementId, date))
     }
 
@@ -270,7 +277,7 @@ class SupplementRepository(
         }
         return try {
             val all = api.getAllSupplements().supplements
-            cacheSupplements(all, includeInactive = true)
+            withContext(Dispatchers.IO) { cacheSupplements(all, includeInactive = true) }
             all
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
