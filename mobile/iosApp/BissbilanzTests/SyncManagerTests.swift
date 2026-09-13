@@ -82,6 +82,46 @@ struct SyncManagerTests {
         #expect(harness.syncManager.conflictNotices.first?.contains("deleted on another device") == false)
     }
 
+    @Test("A create_entry 404 names the food and day, and reports it via onFoodReferenceMissing")
+    func createEntry404NamesFoodAndReportsMissingReference() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", status: 404, json: #"{"error": "Food not found"}"#)
+        // Seed the local food mirror so the notice can name it, mirroring what
+        // the create's optimistic local row would already hold.
+        try harness.context.insert(LocalFood(food: harness.food(id: "real-food-id", name: "Skyr")))
+        try harness.context.save()
+
+        var reportedMissingFoodIds: Set<String>?
+        harness.syncManager.onFoodReferenceMissing = { reportedMissingFoodIds = $0 }
+
+        harness.syncManager.enqueue(.createEntry(
+            body: EntryCreate(foodId: "real-food-id", mealType: "lunch", servings: 1, date: "2026-06-01"),
+            localId: LocalStore.makeTempId()
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.conflictNotices.first?.contains("Skyr") == true)
+        #expect(harness.syncManager.conflictNotices.first?.contains("2026-06-01") == true)
+        #expect(reportedMissingFoodIds == Set(["real-food-id"]))
+    }
+
+    @Test("A create_entry 404 for a foodId not in the local mirror falls back to generic wording")
+    func createEntry404WithUncachedFoodFallsBackToGenericWording() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", status: 404, json: #"{"error": "Food not found"}"#)
+
+        harness.syncManager.enqueue(.createEntry(
+            body: EntryCreate(foodId: "uncached-food-id", mealType: "lunch", servings: 1, date: "2026-06-01"),
+            localId: LocalStore.makeTempId()
+        ))
+
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(harness.syncManager.conflictNotices.first?.contains("that food") == true)
+    }
+
     @Test("A 404 on a non-create op is still reported as deleted elsewhere")
     func nonCreateOp404StillReportsDeletedElsewhere() async throws {
         let harness = try RepositoryHarness()

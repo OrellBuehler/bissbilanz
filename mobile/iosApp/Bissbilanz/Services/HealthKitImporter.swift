@@ -170,12 +170,14 @@ enum HealthKitImporter {
                     || entry.wakeUps != night.wakeUps
                 else { continue }
 
+                // notes is left omitted (nil, not `.some`) so a re-import never
+                // clobbers a note the user added by hand.
                 let update = SleepUpdate(
                     durationMinutes: night.asleepMinutes,
                     quality: night.quality,
-                    bedtime: bedtime,
-                    wakeTime: wakeTime,
-                    wakeUps: night.wakeUps
+                    bedtime: .some(bedtime),
+                    wakeTime: .some(wakeTime),
+                    wakeUps: .some(night.wakeUps)
                 )
                 if await (try? repository.updateEntry(id: entry.id, update)) != nil {
                     updated += 1

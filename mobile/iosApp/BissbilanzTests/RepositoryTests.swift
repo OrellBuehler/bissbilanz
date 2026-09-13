@@ -542,6 +542,88 @@ struct RepositoryTests {
         #expect(harness.recordedRequests.isEmpty)
     }
 
+    // BISSBILANZ-33: a food deleted or merged away server-side (`mergeFoods`
+    // re-points entries that already exist server-side, but not a still-
+    // queued offline create) must stop surfacing from the local mirror once a
+    // full listing confirms it is gone — otherwise the same stale food keeps
+    // producing dropped creates.
+
+    @Test("mirrorAll prunes a local food absent from a completed full listing")
+    func mirrorAllPrunesStaleFood() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "kept", name: "Kept")))
+        try harness.context.insert(LocalFood(food: harness.food(id: "stale", name: "Stale")))
+        try harness.context.save()
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [{
+            "id": "kept", "userId": "u1", "name": "Kept", "servingSize": 100, "servingUnit": "g",
+            "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false
+        }]}
+        """)
+
+        try await repo.mirrorAll()
+
+        #expect(repo.food(id: "kept") != nil)
+        #expect(repo.food(id: "stale") == nil)
+    }
+
+    @Test("mirrorAll keeps a stale food that still has a queued local write")
+    func mirrorAllKeepsPendingStaleFood() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "pending", name: "Pending Edit")))
+        try harness.context.save()
+        harness.syncManager.enqueue(.updateFood(
+            id: "pending",
+            body: FoodCreate(
+                name: "Pending Edit", servingSize: 100, servingUnit: .g,
+                calories: 100, protein: 10, carbs: 20, fat: 5, fiber: 3
+            )
+        ))
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+
+        try await repo.mirrorAll()
+
+        #expect(repo.food(id: "pending") != nil)
+    }
+
+    @Test("mirrorAll prunes nothing when the listing is interrupted before a short page")
+    func mirrorAllSkipsPruneOnPartialListing() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "stale", name: "Stale")))
+        try harness.context.save()
+        harness.stubError("GET", "/api/foods", code: .notConnectedToInternet)
+
+        do {
+            try await repo.mirrorAll()
+            Issue.record("expected mirrorAll to throw")
+        } catch {
+            // expected — a network failure mid-listing must not prune.
+        }
+
+        #expect(repo.food(id: "stale") != nil)
+    }
+
+    @Test("refreshFood prunes the local row when the server no longer has it")
+    func refreshFoodPrunesOnNotFound() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "gone", name: "Gone")))
+        try harness.context.save()
+        harness.stub("GET", "/api/foods/gone", status: 404, json: #"{"error": "not found"}"#)
+
+        do {
+            try await repo.refreshFood(id: "gone")
+            Issue.record("expected refreshFood to throw for a missing food")
+        } catch {
+            // expected
+        }
+
+        #expect(repo.food(id: "gone") == nil)
+    }
+
     // MARK: Recipes
 
     @Test("Recipe refresh upserts by id, drops server-deleted and dead-lettered rows, keeps queued temp rows")

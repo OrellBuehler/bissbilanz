@@ -67,6 +67,15 @@ final class SyncManager {
     /// one case this callback exists to prevent.
     @ObservationIgnored var onConflictResolved: ((Set<String>) async -> Void)?
 
+    /// Invoked once per drain that dropped a `createEntry` for a foodId the
+    /// server no longer has (see BISSBILANZ-33: the food was deleted, or
+    /// merged into another food on web/MCP — `mergeFoods` re-points entries
+    /// that already existed server-side, but not a still-queued offline
+    /// create). Carries the affected foodIds so the app can re-fetch and, on a
+    /// 404, prune each from the local mirror — otherwise the same stale food
+    /// keeps surfacing in search/recents/favorites for the next offline log.
+    @ObservationIgnored var onFoodReferenceMissing: ((Set<String>) async -> Void)?
+
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
@@ -230,6 +239,10 @@ final class SyncManager {
         var processed = 0
         var sawConflict = false
         var conflictDates: Set<String> = []
+        /// foodIds a dropped `createEntry` referenced that the server no longer
+        /// has — collected so the caller can prune them from the local food
+        /// mirror once, after the drain, rather than per-operation.
+        var missingFoodIds: Set<String> = []
         ErrorReporter.addBreadcrumb("drain start", category: "sync", data: ["sync.pending": pendingCount])
         defer {
             isSyncing = false
@@ -351,9 +364,10 @@ final class SyncManager {
                     processed += 1
                     sawConflict = true
                     conflictDates.formUnion(dayKeys(for: operation))
-                    noteConflict(
-                        "Offline change to \(operation.summary) was dropped: the referenced food or recipe no longer exists."
-                    )
+                    noteConflict(droppedReferenceNotice(for: operation))
+                    if case let .createEntry(body, _) = operation, let foodId = body.foodId {
+                        missingFoodIds.insert(foodId)
+                    }
                     ErrorReporter.captureWarning(
                         "Sync op dropped: referenced record missing",
                         context: dropContext(operation, row, outcome: "dropped_reference_missing", status: 404)
@@ -422,6 +436,9 @@ final class SyncManager {
         if sawConflict {
             await onConflictResolved?(conflictDates)
         }
+        if !missingFoodIds.isEmpty {
+            await onFoodReferenceMissing?(missingFoodIds)
+        }
         return processed
     }
 
@@ -453,6 +470,24 @@ final class SyncManager {
         var descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first?.date
+    }
+
+    /// User-facing notice for a dropped create whose foodId/recipeId
+    /// reference no longer exists server-side. Names the food and day for a
+    /// `createEntry` so the user knows exactly what to re-log; every other
+    /// create kind keeps the generic wording.
+    private func droppedReferenceNotice(for operation: SyncOperation) -> String {
+        guard case let .createEntry(body, _) = operation else {
+            return "Offline change to \(operation.summary) was dropped: the referenced food or recipe no longer exists."
+        }
+        let name = body.foodId.flatMap(localFoodName) ?? body.quickName ?? L10n.syncDroppedEntryUnknownFood
+        return L10n.syncDroppedEntryMissingFood(name: name, day: body.date)
+    }
+
+    private func localFoodName(id: String) -> String? {
+        var descriptor = FetchDescriptor<LocalFood>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.name
     }
 
     /// Rewrites still-queued operation payloads (and their affected table/id
