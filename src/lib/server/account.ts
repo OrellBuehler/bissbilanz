@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { and, eq, isNotNull, max, min } from 'drizzle-orm';
 import { unlink } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -45,7 +46,11 @@ export async function deleteAccount(userId: string): Promise<void> {
 	});
 
 	await Promise.all(
-		imageUrls.map((url) => unlink(join(UPLOAD_DIR, basename(url))).catch(() => {}))
+		imageUrls.map((url) =>
+			unlink(join(UPLOAD_DIR, basename(url))).catch((err) => {
+				if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
+			})
+		)
 	);
 }
 

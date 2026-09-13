@@ -33,8 +33,9 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 	let entries: string[];
 	try {
 		entries = await readdir(UPLOAD_DIR);
-	} catch {
+	} catch (err) {
 		// No directory yet (nothing uploaded on this instance) — nothing to do.
+		console.error('[image-cleanup] Could not read UPLOAD_DIR', err);
 		return 0;
 	}
 
@@ -80,8 +81,9 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 			if (info.mtimeMs > cutoff) continue;
 			await unlink(path);
 			removed.push(filename);
-		} catch {
+		} catch (err) {
 			// Raced with another delete, or unreadable — skip it.
+			console.error(`[image-cleanup] Could not remove ${filename}`, err);
 		}
 	}
 

@@ -1,10 +1,18 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import type { DexieFood, DexieSupplement, DexieSupplementLog } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';
 import { entryService } from './entry-service.svelte';
 import type { paths } from '$lib/api/generated/schema';
+
+function reportIfOnline(err: unknown, context: string): void {
+	if (!(browser && !navigator.onLine)) {
+		Sentry.captureException(err, { extra: { context } });
+	}
+}
 
 type SupplementCreate =
 	paths['/api/supplements']['post']['requestBody']['content']['application/json'];
@@ -56,7 +64,11 @@ function refresh() {
 		.GET('/api/supplements', { params: { query: { all: true } } })
 		.then(({ data }) => {
 			if (data) {
-				db.supplements.bulkPut(data.supplements as unknown as DexieSupplement[]).catch(() => {});
+				db.supplements
+					.bulkPut(data.supplements as unknown as DexieSupplement[])
+					.catch((err) =>
+						Sentry.captureException(err, { extra: { context: 'supplement-service.refresh' } })
+					);
 				// Cache backing foods so the form/checklist can look them up offline
 				const backingFoods: DexieFood[] = [];
 				for (const s of data.supplements) {
@@ -64,10 +76,16 @@ function refresh() {
 						if (ing.food) backingFoods.push(ing.food as unknown as DexieFood);
 					}
 				}
-				if (backingFoods.length > 0) db.foods.bulkPut(backingFoods).catch(() => {});
+				if (backingFoods.length > 0) {
+					db.foods
+						.bulkPut(backingFoods)
+						.catch((err) =>
+							Sentry.captureException(err, { extra: { context: 'supplement-service.refresh' } })
+						);
+				}
 			}
 		})
-		.catch(() => {});
+		.catch((err) => reportIfOnline(err, 'supplement-service.refresh'));
 }
 
 function refreshChecklist(date: string) {
@@ -94,11 +112,29 @@ function refreshChecklist(date: string) {
 					});
 				}
 			}
-			if (supsToPut.length > 0) db.supplements.bulkPut(supsToPut).catch(() => {});
-			if (foodsToPut.length > 0) db.foods.bulkPut(foodsToPut).catch(() => {});
-			if (logsToPut.length > 0) db.supplementLogs.bulkPut(logsToPut).catch(() => {});
+			if (supsToPut.length > 0) {
+				db.supplements.bulkPut(supsToPut).catch((err) =>
+					Sentry.captureException(err, {
+						extra: { context: 'supplement-service.refreshChecklist' }
+					})
+				);
+			}
+			if (foodsToPut.length > 0) {
+				db.foods.bulkPut(foodsToPut).catch((err) =>
+					Sentry.captureException(err, {
+						extra: { context: 'supplement-service.refreshChecklist' }
+					})
+				);
+			}
+			if (logsToPut.length > 0) {
+				db.supplementLogs.bulkPut(logsToPut).catch((err) =>
+					Sentry.captureException(err, {
+						extra: { context: 'supplement-service.refreshChecklist' }
+					})
+				);
+			}
 		})
-		.catch(() => {});
+		.catch((err) => reportIfOnline(err, 'supplement-service.refreshChecklist'));
 }
 
 async function create(supplement: SupplementCreate) {
@@ -203,7 +239,7 @@ async function log(supplementId: string, date: string) {
 			// The server logs a calorie-bearing supplement as a `Snacks` food entry,
 			// so refresh the day's entries to surface it in the log and macro totals.
 			onSuccess: () => {
-				entryService.refresh(date).catch(() => {});
+				entryService.refresh(date).catch((err) => Sentry.captureException(err));
 			}
 		}
 	);
@@ -226,7 +262,7 @@ async function unlog(supplementId: string, date: string) {
 			// Unlogging deletes the supplement's `Snacks` food entry server-side, so
 			// refresh the day's entries to drop it from the log and macro totals.
 			onSuccess: () => {
-				entryService.refresh(date).catch(() => {});
+				entryService.refresh(date).catch((err) => Sentry.captureException(err));
 			}
 		}
 	);

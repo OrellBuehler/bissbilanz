@@ -1,4 +1,5 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
+import * as Sentry from '@sentry/sveltekit';
 import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { strToU8, zip, type Zippable } from 'fflate';
@@ -483,8 +484,9 @@ async function gatherImages(data: ExportData): Promise<Record<string, Uint8Array
 			try {
 				const buffer = await readFile(join(UPLOAD_DIR, name));
 				images[`images/${name}`] = new Uint8Array(buffer);
-			} catch {
+			} catch (err) {
 				// Missing file on disk — skip rather than fail the whole export
+				Sentry.captureException(err, { extra: { name } });
 			}
 		})
 	);

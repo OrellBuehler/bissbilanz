@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { getDB } from './db';
 import { uploads } from './schema';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -24,7 +25,8 @@ export const processImage = async (
 			.resize(maxDim, maxDim, { fit, withoutEnlargement: true })
 			.webp({ quality: 80 })
 			.toBuffer();
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw new ApiError(400, 'Invalid or corrupted image file');
 	}
 
@@ -35,8 +37,11 @@ export const processImage = async (
 		await mkdir(dir, { recursive: true });
 		await writeFile(join(dir, filename), processed);
 		await getDB().insert(uploads).values({ filename, userId });
-	} catch {
-		await unlink(join(dir, filename)).catch(() => {});
+	} catch (err) {
+		await unlink(join(dir, filename)).catch((unlinkErr) => {
+			Sentry.captureException(unlinkErr, { level: 'warning' });
+		});
+		Sentry.captureException(err);
 		throw new ApiError(500, 'Failed to save image');
 	}
 
@@ -81,12 +86,14 @@ export const unlinkUpload = async (
 	if (!filename) return;
 	try {
 		if (!(await ownsUpload(userId, filename))) return;
-		await unlink(join(UPLOAD_DIR, filename)).catch(() => {
+		await unlink(join(UPLOAD_DIR, filename)).catch((err) => {
 			// The file may already be gone; the ownership row still has to go.
+			if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
 		});
 		await forgetUploads([filename]);
-	} catch {
+	} catch (err) {
 		// Best-effort — the file may already be gone.
+		Sentry.captureException(err, { level: 'warning' });
 	}
 };
 

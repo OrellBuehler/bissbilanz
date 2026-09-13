@@ -6,6 +6,8 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import BellRing from '@lucide/svelte/icons/bell-ring';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
+	import { browser } from '$app/environment';
 	import * as m from '$lib/paraglide/messages';
 
 	type Status = 'loading' | 'unavailable' | 'unsupported' | 'blocked' | 'ready';
@@ -51,7 +53,10 @@
 				return;
 			}
 			publicKey = data.publicKey;
-		} catch {
+		} catch (err) {
+			if (!(browser && !navigator.onLine)) {
+				Sentry.captureException(err);
+			}
 			status = 'unavailable';
 			return;
 		}
@@ -90,7 +95,8 @@
 			if (!res.ok) throw new Error('subscribe failed');
 			subscribed = true;
 			status = 'ready';
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_notifications_failed());
 		} finally {
 			busy = false;
@@ -110,7 +116,8 @@
 				await subscription.unsubscribe();
 			}
 			subscribed = false;
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_notifications_failed());
 		} finally {
 			busy = false;
@@ -125,7 +132,8 @@
 			const res = await fetch('/api/push/test', { method: 'POST' });
 			if (!res.ok) throw new Error('test failed');
 			toast.success(m.settings_notifications_test_sent());
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_notifications_test_failed());
 		} finally {
 			testing = false;

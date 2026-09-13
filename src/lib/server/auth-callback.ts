@@ -1,4 +1,5 @@
 import { error, redirect, type Cookies } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { JOSEError } from 'jose/errors';
 import { config } from './env';
 import { getProvider, type ProviderConfig, type ProviderProfile } from './auth-providers';
@@ -36,7 +37,8 @@ export async function resolveProviderProfile(input: {
 			redirectUri: input.redirectUri,
 			codeVerifier: input.codeVerifier
 		});
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { providerId: provider.id } });
 		throw error(500, 'Failed to exchange authorization code');
 	}
 
@@ -55,7 +57,8 @@ export async function resolveProviderProfile(input: {
 	let userInfo;
 	try {
 		userInfo = await fetchUserInfo(provider, tokens.access_token);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { providerId: provider.id } });
 		throw error(500, 'Failed to fetch user info');
 	}
 
@@ -146,7 +149,8 @@ export async function handleWebCallback(input: {
 
 	try {
 		rateLimit(`auth:callback:${input.clientAddress}`, 5, 60_000);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(429, 'Too many requests');
 	}
 
@@ -190,7 +194,8 @@ export function parseAppleUserField(raw: string | null): string | undefined {
 		const parsed = JSON.parse(raw) as { name?: { firstName?: string; lastName?: string } };
 		const name = [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(' ').trim();
 		return name.length > 0 ? name : undefined;
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return undefined;
 	}
 }
@@ -215,7 +220,8 @@ export async function handleFormPostCallback(input: {
 
 	try {
 		rateLimit(`auth:callback:${input.clientAddress}`, 5, 60_000);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(429, 'Too many requests');
 	}
 
@@ -268,7 +274,8 @@ export async function handleMobileCallback(input: {
 
 	try {
 		rateLimit(`auth:mobile:callback:${input.clientAddress}`, 5, 60_000);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(429, 'Too many requests');
 	}
 

@@ -6,6 +6,7 @@
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { MEAL_COLORS } from '$lib/colors';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	type MealData = {
@@ -33,7 +34,8 @@
 			if (result) {
 				data = result.data;
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { date: d } });
 			data = [];
 		} finally {
 			loading = false;

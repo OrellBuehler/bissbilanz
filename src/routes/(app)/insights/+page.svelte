@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import { PieChart } from 'layerchart';
 	import { ChartContainer, type ChartConfig } from '$lib/components/ui/chart/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -103,9 +104,12 @@
 			if (result) {
 				data = result.data;
 			}
-		} catch {
+		} catch (err) {
 			data = [];
-			if (browser && navigator.onLine) toast.error(m.error_generic());
+			if (browser && navigator.onLine) {
+				Sentry.captureException(err, { extra: { range: r } });
+				toast.error(m.error_generic());
+			}
 		} finally {
 			mealLoading = false;
 		}
@@ -118,8 +122,11 @@
 			if (result) {
 				foods = result.data;
 			}
-		} catch {
-			if (browser && navigator.onLine) toast.error(m.error_generic());
+		} catch (err) {
+			if (browser && navigator.onLine) {
+				Sentry.captureException(err, { extra: { topFoodsDays } });
+				toast.error(m.error_generic());
+			}
 		} finally {
 			topFoodsLoading = false;
 		}

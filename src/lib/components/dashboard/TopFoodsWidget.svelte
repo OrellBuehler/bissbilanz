@@ -5,6 +5,7 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { onMount } from 'svelte';
 	import { formatKcal } from '$lib/utils/number';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	type TopFood = {
@@ -28,8 +29,8 @@
 			if (result) {
 				foods = result.data;
 			}
-		} catch {
-			// silently ignore
+		} catch (err) {
+			Sentry.captureException(err, { extra: { context: 'load top foods widget' } });
 		} finally {
 			loading = false;
 		}

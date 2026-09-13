@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
@@ -151,7 +152,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 	try {
 		rateLimitMcp(auth.userId);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return jsonRpcError(429, -32000, 'Rate limit exceeded');
 	}
 
@@ -169,7 +171,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	let body: unknown;
 	try {
 		body = await request.clone().json();
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return jsonRpcError(400, -32700, 'Parse error: Invalid JSON');
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import * as Sentry from '@sentry/sveltekit';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import AiTaskList from '$lib/components/ai-tasks/AiTaskList.svelte';
@@ -15,7 +16,8 @@
 	const requestNotifications = async () => {
 		try {
 			notificationPermission = await Notification.requestPermission();
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.error_generic());
 		}
 	};
@@ -23,7 +25,8 @@
 	const dismissTask = async (id: string) => {
 		try {
 			await aiTaskService.updateStatus(id, 'dismissed');
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { id } });
 			toast.error(m.error_generic());
 		}
 	};
@@ -31,7 +34,8 @@
 	const deleteTask = async (id: string) => {
 		try {
 			await aiTaskService.remove(id);
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { id } });
 			toast.error(m.error_generic());
 		}
 	};

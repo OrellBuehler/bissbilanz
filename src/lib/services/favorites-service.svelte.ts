@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 
@@ -21,17 +23,24 @@ async function refresh() {
 
 			if (Array.isArray(data.foods)) {
 				for (const fav of data.foods) {
-					await db.foods.update(fav.id, { isFavorite: true }).catch(() => {});
+					await db.foods
+						.update(fav.id, { isFavorite: true })
+						.catch((err) => Sentry.captureException(err, { level: 'warning' }));
 				}
 			}
 			if (Array.isArray(data.recipes)) {
 				for (const fav of data.recipes) {
-					await db.recipes.update(fav.id, { isFavorite: true }).catch(() => {});
+					await db.recipes
+						.update(fav.id, { isFavorite: true })
+						.catch((err) => Sentry.captureException(err, { level: 'warning' }));
 				}
 			}
 		});
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'favorites-service.refresh' } });
+		}
 	}
 }
 

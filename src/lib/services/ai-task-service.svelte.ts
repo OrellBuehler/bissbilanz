@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
 import { apiFetch } from '$lib/utils/api';
 import type { paths } from '$lib/api/generated/schema';
@@ -25,7 +26,8 @@ function readNotified(): Set<string> {
 	try {
 		const raw = localStorage.getItem(NOTIFIED_KEY);
 		return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning', extra: { context: 'readNotified' } });
 		return new Set();
 	}
 }
@@ -34,8 +36,9 @@ function writeNotified(ids: Set<string>): void {
 	if (!browser) return;
 	try {
 		localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...ids]));
-	} catch {
+	} catch (err) {
 		// Private mode or blocked storage — worst case a notification repeats.
+		Sentry.captureException(err, { level: 'warning', extra: { context: 'writeNotified' } });
 	}
 }
 
@@ -45,8 +48,9 @@ function syncAppBadge(): void {
 	try {
 		if (count > 0) void navigator.setAppBadge?.(count);
 		else void navigator.clearAppBadge?.();
-	} catch {
+	} catch (err) {
 		// Unsupported or denied — the in-app badge still shows the count.
+		Sentry.captureException(err, { level: 'warning', extra: { context: 'syncAppBadge' } });
 	}
 }
 
@@ -66,7 +70,8 @@ async function showSystemNotification(title: string, body: string): Promise<bool
 		}
 		new Notification(title, { body, tag: 'ai-task-dismissed' });
 		return true;
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { context: 'showSystemNotification' } });
 		return false;
 	}
 }
@@ -104,8 +109,11 @@ async function refresh(): Promise<void> {
 	try {
 		const { data } = await api.GET('/api/ai-tasks', { params: { query: { limit: 100 } } });
 		if (data) tasks = data.tasks;
-	} catch {
+	} catch (err) {
 		// fire-and-forget — offline or network error; keep showing stale state
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'ai-task-service.refresh' } });
+		}
 	} finally {
 		loading = false;
 		loaded = true;
@@ -180,8 +188,11 @@ async function acknowledgeAll(): Promise<void> {
 		await api.POST('/api/ai-tasks/acknowledge', { body: {} });
 		const seenAt = new Date().toISOString();
 		tasks = tasks.map((t) => (isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t));
-	} catch {
+	} catch (err) {
 		// Leave the badge up rather than pretending it was read.
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'ai-task-service.acknowledgeAll' } });
+		}
 	} finally {
 		syncAppBadge();
 	}

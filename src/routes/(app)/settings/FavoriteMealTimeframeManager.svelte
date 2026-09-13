@@ -8,6 +8,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import { DEFAULT_MEAL_TYPES, validateFavoriteMealTimeframes } from '$lib/utils/meals';
 	import * as m from '$lib/paraglide/messages';
 
@@ -150,7 +151,8 @@
 			});
 			if (ok) toast.success(m.settings_saved(), { duration: 1500 });
 			else toast.error(m.settings_save_failed());
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_save_failed());
 		} finally {
 			saving = false;

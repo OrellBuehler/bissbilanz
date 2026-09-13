@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';
@@ -35,8 +37,11 @@ async function refresh(date: string) {
 				entries.filter((e) => !pendingIds.has(e.id)) as DexieFoodEntry[]
 			);
 		});
-	} catch {
+	} catch (err) {
 		// background cache refresh — leave stale cache on failure
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'entry-service.refresh' } });
+		}
 	}
 }
 
@@ -130,7 +135,7 @@ async function create(entry: {
 
 	await withOfflineFallback(() => api.POST('/api/entries', { body: entry }), {
 		onSuccess: () => {
-			refresh(entry.date).catch(() => {});
+			refresh(entry.date).catch((err) => Sentry.captureException(err));
 		},
 		method: 'POST',
 		url: '/api/entries',
@@ -203,7 +208,7 @@ async function update(
 			}),
 		{
 			onSuccess: () => {
-				refresh(date).catch(() => {});
+				refresh(date).catch((err) => Sentry.captureException(err));
 			},
 			method: 'PATCH',
 			url: `/api/entries/${id}`,
@@ -227,7 +232,7 @@ async function del(id: string) {
 			}),
 		{
 			onSuccess: () => {
-				refresh(date).catch(() => {});
+				refresh(date).catch((err) => Sentry.captureException(err));
 			},
 			method: 'DELETE',
 			url: `/api/entries/${id}`,

@@ -1,4 +1,5 @@
 import type { EntityTable, Table } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { enqueue, pendingIdsFor } from '$lib/stores/offline-queue';
@@ -46,8 +47,11 @@ export async function refreshTable<T extends { id: string }>(
 			await opts.table.bulkPut(rowsToPut);
 			await db.syncMeta.put({ tableName: opts.syncTableName, lastSyncedAt: Date.now() });
 		});
-	} catch {
+	} catch (err) {
 		// fire-and-forget — offline or network error is fine
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { syncTableName: opts.syncTableName } });
+		}
 	}
 }
 

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
 import type {
 	DexieFood,
 	DexieFoodEntry,
@@ -149,7 +150,7 @@ export async function ensureUserScope(userId: string): Promise<void> {
 	if (stored && stored.userId !== userId) {
 		// Different user — clear all cached data to prevent leaks
 		await clearAllData();
-		await clearCacheStorage().catch(() => {});
+		await clearCacheStorage().catch((err) => Sentry.captureException(err, { level: 'warning' }));
 	}
 	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: 0, userId });
 }
@@ -215,7 +216,8 @@ export async function migrateOldOfflineQueue(): Promise<void> {
 
 		oldDb.close();
 		indexedDB.deleteDatabase(OLD_DB_NAME);
-	} catch {
+	} catch (err) {
 		// Best-effort migration — don't crash the app
+		Sentry.captureException(err, { extra: { context: 'migrateOldOfflineQueue' } });
 	}
 }

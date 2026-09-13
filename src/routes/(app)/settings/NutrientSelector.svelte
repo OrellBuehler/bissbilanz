@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import {
 		ALL_NUTRIENTS,
 		CATEGORY_ORDER,
@@ -50,7 +51,8 @@
 			const ok = await onSave([...visibleNutrients]);
 			if (ok) toast.success(m.settings_saved(), { duration: 1500 });
 			else toast.error(m.settings_save_failed());
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_save_failed());
 		} finally {
 			saving = false;

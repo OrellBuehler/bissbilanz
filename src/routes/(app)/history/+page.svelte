@@ -11,6 +11,8 @@
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
+	import { browser } from '$app/environment';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
 	type DayStatus = 'on-target' | 'off-target' | 'logged' | 'none';
@@ -77,24 +79,30 @@
 			if (!result) return;
 			chartData = result.data ?? [];
 			calorieGoal = result.goals?.calorieGoal ?? undefined;
-		} catch {
-			// Silently ignore — chart data is unavailable offline
+		} catch (err) {
+			// Chart data is unavailable offline — only report unexpected failures
+			if (!(browser && !navigator.onLine)) {
+				Sentry.captureException(err, { extra: { startDate, endDate } });
+			}
 		} finally {
 			chartLoading = false;
 		}
 	};
 
 	const loadCalendarData = async (y: number, mo: number) => {
+		const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
 		try {
-			const monthStr = `${y}-${String(mo + 1).padStart(2, '0')}`;
 			const { data: result } = await api.GET('/api/stats/calendar', {
 				params: { query: { month: monthStr } }
 			});
 			if (!result) return;
 			calendarDays = result.days ?? {};
 			notedDates = result.notedDates ?? [];
-		} catch {
-			// Silently ignore — calendar data is unavailable offline
+		} catch (err) {
+			// Calendar data is unavailable offline — only report unexpected failures
+			if (!(browser && !navigator.onLine)) {
+				Sentry.captureException(err, { extra: { month: monthStr } });
+			}
 		}
 	};
 

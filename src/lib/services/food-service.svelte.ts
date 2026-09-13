@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
@@ -67,8 +69,11 @@ async function refreshById(id: string) {
 		if (data) {
 			await db.foods.put(data.food as unknown as DexieFood);
 		}
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'food-service.refreshById' } });
+		}
 	}
 }
 
@@ -284,7 +289,10 @@ async function findByBarcode(barcode: string): Promise<DexieFood | null> {
 			return food;
 		}
 		return null;
-	} catch {
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'food-service.findByBarcode' } });
+		}
 		const cached = await db.foods.where('barcode').equals(barcode).first();
 		return cached ?? null;
 	}

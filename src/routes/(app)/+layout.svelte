@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { setUser } from '$lib/stores/auth.svelte';
 	import { startSyncListener, refreshPendingCount } from '$lib/stores/sync';
 	import { migrateOldOfflineQueue, ensureUserScope } from '$lib/db';
@@ -75,7 +76,7 @@
 		// Ensure Dexie data belongs to the current user (clears on user switch).
 		// Awaited so no component reads stale data from a previous user.
 		if (data.user?.id) {
-			await ensureUserScope(data.user.id).catch(() => {});
+			await ensureUserScope(data.user.id).catch((err) => Sentry.captureException(err));
 		}
 		// Migrate any pending items from the old bissbilanz-offline IndexedDB
 		migrateOldOfflineQueue().then(() => refreshPendingCount());

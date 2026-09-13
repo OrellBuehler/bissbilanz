@@ -14,6 +14,7 @@
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { favoritesService } from '$lib/services/favorites-service.svelte';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type FavoriteItem = {
 		id: string;
@@ -97,8 +98,8 @@
 					(mealTypesResult.data.mealTypes ?? []).map((meal: { name: string }) => meal.name)
 				);
 			}
-		} catch {
-			// silently ignore
+		} catch (err) {
+			Sentry.captureException(err);
 		} finally {
 			prefsLoaded = true;
 		}

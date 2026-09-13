@@ -3,6 +3,7 @@
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { onMount, type Snippet } from 'svelte';
+	import * as Sentry from '@sentry/sveltekit';
 
 	let {
 		title,
@@ -35,16 +36,16 @@
 					localStorage.removeItem(legacyKey);
 				}
 			}
-		} catch {
-			/* Blocked storage keeps the data-driven default. */
+		} catch (err) {
+			Sentry.captureException(err, { level: 'warning', extra: { storageKey } });
 		}
 	});
 	function changeOpen(value: boolean) {
 		userChoice = value;
 		try {
 			localStorage.setItem(storageKey, String(!value));
-		} catch {
-			/* Storage is optional. */
+		} catch (err) {
+			Sentry.captureException(err, { level: 'warning', extra: { storageKey } });
 		}
 	}
 </script>

@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { parseDecimalInput } from '$lib/utils/number';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onLogged }: { onLogged?: () => void } = $props();
@@ -33,7 +34,8 @@
 			entryDate = today();
 			notes = '';
 			onLogged?.();
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { kg, entryDate } });
 			error = m.error_generic();
 		} finally {
 			saving = false;

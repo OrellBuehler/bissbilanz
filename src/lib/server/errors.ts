@@ -115,7 +115,8 @@ export function handleApiError(error: unknown): Response {
 export async function parseJsonBody(request: Request): Promise<unknown> {
 	try {
 		return await request.json();
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw new ApiError(400, 'Invalid JSON body');
 	}
 }

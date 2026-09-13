@@ -18,6 +18,7 @@
 	import { nutrientLabel } from '$lib/nutrients-i18n';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { formatKcal, formatGrams } from '$lib/utils/number';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type Food = components['schemas']['Food'];
 
@@ -313,7 +314,10 @@
 			await foodService.refresh();
 			onCompleted?.();
 			onClose();
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, {
+				extra: { keeperId: keeper.id, sourceIds: sources.map((s) => s.id) }
+			});
 			toast.error(m.foods_merge_failed());
 		} finally {
 			merging = false;

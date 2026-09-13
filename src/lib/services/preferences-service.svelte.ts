@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import * as Sentry from '@sentry/sveltekit';
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
@@ -54,8 +55,11 @@ async function refresh() {
 			await db.userPreferences.where('userId').notEqual('me').delete();
 			await db.userPreferences.put(row);
 		}
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'preferences-service.refresh' } });
+		}
 	}
 }
 
@@ -90,7 +94,8 @@ async function reportTimeZone() {
 	let deviceTz: string;
 	try {
 		deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { context: 'preferences-service.reportTimeZone' } });
 		return;
 	}
 	if (!deviceTz) return;
@@ -99,8 +104,11 @@ async function reportTimeZone() {
 		if (!data) return;
 		if (data.preferences.timeZone === deviceTz) return;
 		await update({ timeZone: deviceTz });
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'preferences-service.reportTimeZone' } });
+		}
 	}
 }
 

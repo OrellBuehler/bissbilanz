@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/sveltekit';
+
 export type SessionEntry = {
 	transport: { close(): void };
 	userId: string;
@@ -10,8 +12,8 @@ export function sweepExpiredSessions(sessions: Map<string, SessionEntry>, ttlMs:
 		if (now - session.lastActivity > ttlMs) {
 			try {
 				session.transport.close();
-			} catch {
-				// ignore close errors
+			} catch (err) {
+				Sentry.captureException(err, { level: 'warning' });
 			}
 			sessions.delete(id);
 		}
@@ -29,8 +31,8 @@ export function enforceUserSessionCap(
 	for (const [id, session] of own.slice(0, own.length - maxPerUser + 1)) {
 		try {
 			session.transport.close();
-		} catch {
-			// ignore close errors
+		} catch (err) {
+			Sentry.captureException(err, { level: 'warning' });
 		}
 		sessions.delete(id);
 	}

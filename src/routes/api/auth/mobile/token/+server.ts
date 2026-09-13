@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { consumeOneTimeCode, MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
 import { createAccessToken, refreshAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
@@ -17,14 +18,16 @@ export const POST: RequestHandler = async (event) => {
 	const { request } = event;
 	try {
 		rateLimit(`auth:mobile:token:${getRequestIp(event)}`, 10, 60_000);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(429, 'Too many requests');
 	}
 
 	let rawBody: unknown;
 	try {
 		rawBody = await request.json();
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(400, 'Invalid JSON body');
 	}
 

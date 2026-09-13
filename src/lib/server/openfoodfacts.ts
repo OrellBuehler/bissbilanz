@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { extractAllNutrients } from '$lib/server/nutrient-extract';
 
@@ -146,7 +147,8 @@ export async function searchProducts(query: string, limit?: number): Promise<OFF
 		return parsed.data.products
 			.filter((p) => p.product_name.length > 0)
 			.map((p) => mapSearchProduct(p, p.code ?? ''));
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { query } });
 		return [];
 	}
 }

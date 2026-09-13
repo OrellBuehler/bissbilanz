@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,7 +30,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				'Cache-Control': 'private, max-age=31536000, immutable'
 			}
 		});
-	} catch {
+	} catch (err) {
+		const level = (err as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'warning' : 'error';
+		Sentry.captureException(err, { level });
 		error(404, 'Image not found');
 	}
 };

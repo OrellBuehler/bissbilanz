@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import * as Sentry from '@sentry/sveltekit';
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
@@ -29,8 +30,11 @@ async function refresh() {
 			};
 			await db.userGoals.put(row);
 		}
-	} catch {
+	} catch (err) {
 		// fire-and-forget — offline or network error
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'goals-service.refresh' } });
+		}
 	}
 }
 

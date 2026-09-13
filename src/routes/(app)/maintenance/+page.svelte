@@ -16,6 +16,7 @@
 	import Loader from '@lucide/svelte/icons/loader';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type MaintenanceResult = {
 		maintenanceCalories: number;
@@ -104,7 +105,8 @@
 
 			result = data.result;
 			meta = data.meta;
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { startDate, endDate } });
 			error = m.maintenance_calculate_error();
 		} finally {
 			loading = false;

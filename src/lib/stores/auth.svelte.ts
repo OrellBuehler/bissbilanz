@@ -73,8 +73,8 @@ export async function logout(confirmDiscard?: () => Promise<boolean>): Promise<v
 		}
 		await fetch('/api/auth/logout', { method: 'POST' });
 		// Clear all cached data from Dexie and Cache Storage to prevent data leaking between users
-		await clearAllData().catch(() => {});
-		await clearCacheStorage().catch(() => {});
+		await clearAllData().catch((err) => console.error('Clear data failed:', err));
+		await clearCacheStorage().catch((err) => console.error('Clear cache failed:', err));
 		state.user = null;
 		state.isAuthenticated = false;
 		window.location.href = '/login';

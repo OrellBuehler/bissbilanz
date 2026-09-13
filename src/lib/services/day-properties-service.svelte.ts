@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import * as Sentry from '@sentry/sveltekit';
 import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
@@ -41,7 +42,10 @@ async function refresh(date: string): Promise<DexieDayProperties | null> {
 		// No properties for this date — clear cache
 		await db.dayProperties.delete(date);
 		return null;
-	} catch {
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'day-properties-service.refresh' } });
+		}
 		return null;
 	}
 }
@@ -83,8 +87,11 @@ async function update(date: string, patch: DayPropertiesPatch): Promise<boolean>
 				affectedId: date
 			}
 		);
-	} catch {
+	} catch (err) {
 		ok = false;
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'day-properties-service.update' } });
+		}
 	}
 
 	if (!ok) {
