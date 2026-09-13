@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.AppNavigation
 import com.bissbilanz.android.ui.screens.LoginScreen
@@ -64,6 +65,7 @@ fun resolveRootDestination(
 fun BissbilanzApp() {
     val authManager: AuthManager = koinInject()
     val appModeManager: AppModeManager = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val mode by appModeManager.mode.collectAsStateWithLifecycle()
 
@@ -74,7 +76,7 @@ fun BissbilanzApp() {
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated || authState is AuthState.Refreshing) {
             val token = authManager.getAccessToken()
-            val userId = token?.let { extractSubFromJwt(it) }
+            val userId = token?.let { extractSubFromJwt(it, errorReporter) }
             if (userId != null) {
                 Sentry.setUser(User().apply { id = userId })
             }
@@ -134,7 +136,10 @@ fun BissbilanzApp() {
     }
 }
 
-private fun extractSubFromJwt(token: String): String? =
+private fun extractSubFromJwt(
+    token: String,
+    errorReporter: ErrorReporter,
+): String? =
     try {
         val parts = token.split(".")
         if (parts.size >= 2) {
@@ -143,6 +148,7 @@ private fun extractSubFromJwt(token: String): String? =
         } else {
             null
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        errorReporter.captureException(e)
         null
     }

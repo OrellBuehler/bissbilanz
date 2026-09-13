@@ -33,6 +33,7 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.theme.CaloriesBlue
@@ -41,6 +42,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 class MacroWidgetConfigActivity : ComponentActivity() {
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
@@ -70,6 +72,7 @@ class MacroWidgetConfigActivity : ComponentActivity() {
                 var showFiber by remember { mutableStateOf(true) }
                 val scope = rememberCoroutineScope()
                 val context = this@MacroWidgetConfigActivity
+                val errorReporter: ErrorReporter = koinInject()
 
                 LaunchedEffect(Unit) {
                     try {
@@ -80,8 +83,10 @@ class MacroWidgetConfigActivity : ComponentActivity() {
                         showCarbs = prefs[MacroWidget.ShowCarbsKey] ?: true
                         showFat = prefs[MacroWidget.ShowFatKey] ?: true
                         showFiber = prefs[MacroWidget.ShowFiberKey] ?: true
-                    } catch (_: Exception) {
-                        // New widget, use defaults
+                    } catch (e: Exception) {
+                        // New widget, use defaults — but a new widget has no
+                        // state to read, so anything thrown here is a real failure.
+                        errorReporter.captureException(e)
                     }
                 }
 

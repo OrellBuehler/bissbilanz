@@ -53,7 +53,8 @@ fun rememberCameraCaptureLauncher(onResult: (Boolean) -> Unit): CameraCaptureLau
     fun capture(uri: Uri) {
         try {
             takePicture.launch(uri)
-        } catch (_: ActivityNotFoundException) {
+        } catch (e: ActivityNotFoundException) {
+            errorReporter.captureException(e)
             currentOnResult(false)
         } catch (e: SecurityException) {
             // The permission check above narrows this to a race: the permission

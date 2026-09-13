@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 inline fun <reified T> Json.decodeOrNull(jsonString: String): T? =
     try {
         decodeFromString<T>(jsonString)
-    } catch (_: SerializationException) {
+    } catch (e: SerializationException) {
+        Failures.report(e)
         null
     }

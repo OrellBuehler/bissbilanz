@@ -1,6 +1,7 @@
 package com.bissbilanz.android.fasting
 
 import android.content.Context
+import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration
@@ -59,7 +60,7 @@ class FastingSessionStore(
 
     fun loadCurrent(): FastingSession? =
         prefs.getString(KEY_CURRENT, null)?.let {
-            runCatching { json.decodeFromString<FastingSession>(it) }.getOrNull()
+            json.decodeOrNull<FastingSession>(it)
         }
 
     fun saveCurrent(session: FastingSession) {
@@ -73,7 +74,7 @@ class FastingSessionStore(
     /** Finished fasts, most recent first. */
     fun loadHistory(): List<FastingSession> =
         prefs.getString(KEY_HISTORY, null)?.let {
-            runCatching { json.decodeFromString<List<FastingSession>>(it) }.getOrNull()
+            json.decodeOrNull<List<FastingSession>>(it)
         } ?: emptyList()
 
     fun appendToHistory(session: FastingSession) {
