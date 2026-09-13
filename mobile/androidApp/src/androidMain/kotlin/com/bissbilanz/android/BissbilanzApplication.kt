@@ -165,6 +165,7 @@ class BissbilanzApplication :
             modules(androidModule, sharedModule)
         }
         Failures.reporter = get()
+        MlKitInit.initialize(this)
 
         if (BuildConfig.TEST_AUTH_TOKEN.isNotEmpty() && isInstrumentedTest()) {
             val koinForAuth =

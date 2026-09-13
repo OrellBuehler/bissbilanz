@@ -50,6 +50,14 @@
             android:name="androidx.glance.appwidget.action.InvisibleActionTrampolineActivity"
             tools:node="remove" />
 
+        <!-- ML Kit is initialised from BissbilanzApplication with an explicit
+             registrar list (see MlKitInit); the provider's reflective discovery
+             silently found nothing on Android 11 devices (Sentry BISSBILANZ-25). -->
+        <provider
+            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+            android:authorities="${applicationId}.mlkitinitprovider"
+            tools:node="remove" />
+
         <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name=".MainActivity"
