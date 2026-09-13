@@ -41,7 +41,8 @@ function reloadOnceForStaleChunk(): boolean {
 		const marker = `${location.pathname}${location.search}`;
 		if (sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY) === marker) return false;
 		sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, marker);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return false;
 	}
 	location.reload();
