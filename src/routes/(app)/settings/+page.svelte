@@ -254,8 +254,8 @@
 			const response = await fetch('/api/account', { method: 'DELETE' });
 			if (!response.ok) throw new Error('Request failed');
 			const { clearAllData, clearCacheStorage } = await import('$lib/db');
-			await clearAllData().catch(() => {});
-			await clearCacheStorage().catch(() => {});
+			await clearAllData().catch((err) => Sentry.captureException(err, { level: 'warning' }));
+			await clearCacheStorage().catch((err) => Sentry.captureException(err, { level: 'warning' }));
 			window.location.href = '/';
 		} catch (err) {
 			Sentry.captureException(err);

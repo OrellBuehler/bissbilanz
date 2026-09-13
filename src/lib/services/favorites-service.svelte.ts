@@ -23,12 +23,16 @@ async function refresh() {
 
 			if (Array.isArray(data.foods)) {
 				for (const fav of data.foods) {
-					await db.foods.update(fav.id, { isFavorite: true }).catch(() => {});
+					await db.foods
+						.update(fav.id, { isFavorite: true })
+						.catch((err) => Sentry.captureException(err, { level: 'warning' }));
 				}
 			}
 			if (Array.isArray(data.recipes)) {
 				for (const fav of data.recipes) {
-					await db.recipes.update(fav.id, { isFavorite: true }).catch(() => {});
+					await db.recipes
+						.update(fav.id, { isFavorite: true })
+						.catch((err) => Sentry.captureException(err, { level: 'warning' }));
 				}
 			}
 		});

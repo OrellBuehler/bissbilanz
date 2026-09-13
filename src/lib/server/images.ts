@@ -37,8 +37,11 @@ export const processImage = async (
 		await mkdir(dir, { recursive: true });
 		await writeFile(join(dir, filename), processed);
 		await getDB().insert(uploads).values({ filename, userId });
-	} catch {
-		await unlink(join(dir, filename)).catch(() => {});
+	} catch (err) {
+		await unlink(join(dir, filename)).catch((unlinkErr) => {
+			Sentry.captureException(unlinkErr, { level: 'warning' });
+		});
+		Sentry.captureException(err);
 		throw new ApiError(500, 'Failed to save image');
 	}
 
@@ -83,8 +86,9 @@ export const unlinkUpload = async (
 	if (!filename) return;
 	try {
 		if (!(await ownsUpload(userId, filename))) return;
-		await unlink(join(UPLOAD_DIR, filename)).catch(() => {
+		await unlink(join(UPLOAD_DIR, filename)).catch((err) => {
 			// The file may already be gone; the ownership row still has to go.
+			if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
 		});
 		await forgetUploads([filename]);
 	} catch (err) {

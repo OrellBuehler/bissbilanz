@@ -75,7 +75,9 @@ export const sendToSubscriptions = async (
 					return;
 				}
 				console.error('[push] Delivery failed:', error);
-				await recordFailure(sub.id).catch(() => {});
+				await recordFailure(sub.id).catch((recordErr) => {
+					console.error('[push] Failed to record failure:', recordErr);
+				});
 			}
 		})
 	);

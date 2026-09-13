@@ -150,7 +150,7 @@ export async function ensureUserScope(userId: string): Promise<void> {
 	if (stored && stored.userId !== userId) {
 		// Different user — clear all cached data to prevent leaks
 		await clearAllData();
-		await clearCacheStorage().catch(() => {});
+		await clearCacheStorage().catch((err) => Sentry.captureException(err, { level: 'warning' }));
 	}
 	await db.syncMeta.put({ tableName: USER_KEY, lastSyncedAt: 0, userId });
 }

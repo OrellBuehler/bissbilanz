@@ -436,7 +436,9 @@
 						visibleNutrients = data.preferences.visibleNutrients;
 					}
 				})
-				.catch(() => {});
+				.catch((err) => {
+					if (!(browser && !navigator.onLine)) Sentry.captureException(err);
+				});
 		}
 	});
 

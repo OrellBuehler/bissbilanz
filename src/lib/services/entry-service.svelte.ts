@@ -135,7 +135,7 @@ async function create(entry: {
 
 	await withOfflineFallback(() => api.POST('/api/entries', { body: entry }), {
 		onSuccess: () => {
-			refresh(entry.date).catch(() => {});
+			refresh(entry.date).catch((err) => Sentry.captureException(err));
 		},
 		method: 'POST',
 		url: '/api/entries',
@@ -208,7 +208,7 @@ async function update(
 			}),
 		{
 			onSuccess: () => {
-				refresh(date).catch(() => {});
+				refresh(date).catch((err) => Sentry.captureException(err));
 			},
 			method: 'PATCH',
 			url: `/api/entries/${id}`,
@@ -232,7 +232,7 @@ async function del(id: string) {
 			}),
 		{
 			onSuccess: () => {
-				refresh(date).catch(() => {});
+				refresh(date).catch((err) => Sentry.captureException(err));
 			},
 			method: 'DELETE',
 			url: `/api/entries/${id}`,

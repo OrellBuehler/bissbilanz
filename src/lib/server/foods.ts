@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { getDB } from '$lib/server/db';
 import {
 	foods,
@@ -43,7 +44,10 @@ async function handleBarcodeConflict(
 	dbOverride?: ReturnType<typeof getDB>
 ): Promise<ApiError | null> {
 	if (!isDuplicateBarcodeError(error) || !barcode) return null;
-	const existing = await findFoodByBarcode(userId, barcode, dbOverride).catch(() => null);
+	const existing = await findFoodByBarcode(userId, barcode, dbOverride).catch((err) => {
+		Sentry.captureException(err, { level: 'warning' });
+		return null;
+	});
 	const name = existing?.name ?? 'unknown';
 	return new ApiError(409, `A food with barcode ${barcode} already exists: "${name}"`);
 }
