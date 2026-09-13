@@ -47,6 +47,17 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: no-swallowed-exceptions
+        name: no swallowed exceptions
+        entry: perl scripts/check-swallowed-exceptions.pl
+        language: system
+        types_or:
+          - kotlin
+          - swift
+          - ts
+          - javascript
+          - svelte
+
       - id: no-catalog-data
         name: no committed catalog datasets
         entry: >-
