@@ -148,6 +148,7 @@ struct FoodImageField: View {
             imageLoader.seed(data, for: url)
             imageUrl = url
         } catch {
+            ErrorReporter.captureWarning("Food image upload failed", context: ["reason": ErrorReporter.reason(for: error)])
             errorMessage = L10n.photoSaveFailed
         }
     }

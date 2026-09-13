@@ -120,6 +120,7 @@ struct NutritionLabelScanView: View {
                     dismiss()
                 }
             } catch {
+                ErrorReporter.captureWarning("Nutrition label scan failed", context: ["reason": ErrorReporter.reason(for: error)])
                 fail(L10n.scanLabelFailed)
             }
         }

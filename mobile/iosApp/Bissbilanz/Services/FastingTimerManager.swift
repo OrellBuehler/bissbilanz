@@ -102,6 +102,7 @@ final class FastingTimerManager {
         } catch {
             // Best-effort — the local history is still accurate for anything
             // finished on this device.
+            ErrorReporter.captureWarning("Fasting history refresh failed", context: ["reason": ErrorReporter.reason(for: error)])
         }
     }
 

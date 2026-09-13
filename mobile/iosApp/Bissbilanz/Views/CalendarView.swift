@@ -217,6 +217,7 @@ struct CalendarView: View {
                     calorieGoal: goalsRepository.goals()?.calorieGoal
                 )
             } catch {
+                ErrorReporter.captureWarning("Calendar stats fetch failed", context: ["reason": ErrorReporter.reason(for: error)])
                 calendarDays = []
             }
         }

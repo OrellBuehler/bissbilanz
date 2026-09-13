@@ -175,6 +175,7 @@ struct FavoritesView: View {
             _ = try await foodRepository.toggleFavorite(foodId: food.id, isFavorite: false)
             await loadFavorites()
         } catch {
+            ErrorReporter.captureWarning("Removing favorite failed", context: ["reason": ErrorReporter.reason(for: error)])
             toastMessage = L10n.somethingWentWrong
         }
     }

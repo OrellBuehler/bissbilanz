@@ -71,6 +71,7 @@ enum LocalImageStore {
             try data.write(to: url, options: .atomic)
             return url
         } catch {
+            QuickAddDiagnostics.record(phase: "local_image_write", error: error)
             return nil
         }
     }

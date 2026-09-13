@@ -215,6 +215,7 @@ struct FoodSearchView: View {
             }
             selectedFood = food
         } catch {
+            ErrorReporter.captureWarning("Open Food Facts food resolution failed", context: ["reason": ErrorReporter.reason(for: error)])
             errorMessage = L10n.openFoodFactsAddFailed
         }
     }
