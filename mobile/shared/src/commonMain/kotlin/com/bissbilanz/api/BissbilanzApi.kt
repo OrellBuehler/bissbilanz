@@ -483,13 +483,17 @@ class BissbilanzApi(
             null
         }
 
+    /**
+     * Null only when Open Food Facts does not know the barcode (404). Every other
+     * failure — offline, 5xx, a response the generated model cannot decode —
+     * propagates so callers can report it instead of showing "not found".
+     */
     suspend fun lookupOpenFoodFacts(barcode: String): OpenFoodFactsProduct? =
         try {
             val response: OpenFoodFactsResponse = get("/api/openfoodfacts/$barcode")
             response.product
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            null
+        } catch (e: ApiException) {
+            if (e.statusCode == 404) null else throw e
         }
 
     suspend fun searchOpenFoodFacts(

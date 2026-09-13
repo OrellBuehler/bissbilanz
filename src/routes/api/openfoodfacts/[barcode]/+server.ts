@@ -20,7 +20,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			return json({ error: 'Product not found' }, { status: 404 });
 		}
 
-		return json({ product });
+		// `id` mirrors the barcode: the OpenFoodFactsProduct schema requires it and the
+		// mobile decoders reject a product without it (the search endpoint does the same).
+		return json({ product: { ...product, id: barcode } });
 	} catch (error) {
 		return handleApiError(error);
 	}

@@ -682,6 +682,11 @@ final class BissbilanzAPI {
               var product = root["product"] as? [String: Any]
         else { return nil }
 
+        // `Food.id` is required; older servers omit `id` on this endpoint, so the
+        // barcode stands in for it like the Local-mode client does.
+        if !(product["id"] is String) {
+            product["id"] = barcode
+        }
         product["userId"] = ""
         product["isFavorite"] = false
         if !(product["servingSize"] is NSNumber) {

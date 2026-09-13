@@ -542,6 +542,32 @@ struct RepositoryTests {
         #expect(harness.recordedRequests.isEmpty)
     }
 
+    // TestFlight 2026-09-13 ("cannot log foods from OFF"): the proxy's barcode
+    // response carried no `id`, `Food` requires one, so every OFF search hit
+    // and every scan in Synced mode decoded to nil and surfaced as "Couldn't
+    // add from Open Food Facts". The barcode stands in for the missing id.
+    @Test("An Open Food Facts hit becomes a food even when the proxy omits `id`")
+    func findOrCreateFromOpenFoodFactsToleratesMissingId() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/openfoodfacts/3760049790214", json: """
+        {"product": {
+            "name": "Pain De Mie Bio", "brand": "La Boulangère", "barcode": "3760049790214",
+            "imageUrl": null, "nutriScore": "c", "novaGroup": 4, "servingSize": 100, "servingUnit": "g",
+            "calories": 268, "protein": 8.1, "carbs": 47, "fat": 4.2, "fiber": 4.9,
+            "additives": [], "ingredientsText": null, "categoriesTags": ["en:breads"]
+        }}
+        """)
+
+        let food = try #require(try await repo.findOrCreateFromOpenFoodFacts(barcode: "3760049790214"))
+
+        #expect(food.name == "Pain De Mie Bio")
+        #expect(food.barcode == "3760049790214")
+        #expect(food.calories == 268)
+        #expect(repo.food(id: food.id) != nil)
+    }
+
     // BISSBILANZ-33: a food deleted or merged away server-side (`mergeFoods`
     // re-points entries that already exist server-side, but not a still-
     // queued offline create) must stop surfacing from the local mirror once a
