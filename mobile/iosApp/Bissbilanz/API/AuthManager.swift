@@ -122,6 +122,7 @@ final class AuthManager {
             let (data, _) = try await URLSession.shared.data(from: url)
             return try JSONDecoder().decode(LoginProvidersResponse.self, from: data).providers
         } catch {
+            ErrorReporter.captureWarning("Failed to fetch login providers", context: ["reason": ErrorReporter.reason(for: error)])
             return nil
         }
     }
@@ -162,6 +163,7 @@ final class AuthManager {
             authState = .authenticated
             return true
         } catch {
+            ErrorReporter.captureWarning("OAuth callback token exchange failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -194,6 +196,7 @@ final class AuthManager {
             authState = .authenticated
             return true
         } catch {
+            ErrorReporter.captureWarning("Sign in with Apple token exchange failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -259,6 +262,7 @@ final class AuthManager {
                 return false
             }
         } catch {
+            ErrorReporter.captureWarning("Token refresh failed", context: ["reason": ErrorReporter.reason(for: error)])
             authState = .authenticated
             return false
         }

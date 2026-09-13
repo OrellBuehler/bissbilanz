@@ -281,6 +281,7 @@ struct FoodPicker: View {
             onPicked(food)
             dismiss()
         } catch {
+            ErrorReporter.captureWarning("Open Food Facts ingredient resolution failed", context: ["reason": ErrorReporter.reason(for: error)])
             errorMessage = L10n.openFoodFactsAddFailed
         }
     }

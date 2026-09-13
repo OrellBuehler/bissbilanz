@@ -133,6 +133,7 @@ final class SupplementRepository {
         do {
             return try await api.getSupplementHistory(startDate: startDate, endDate: endDate)
         } catch {
+            ErrorReporter.captureWarning("Supplement history fetch failed, falling back to local", context: ["reason": ErrorReporter.reason(for: error)])
             return localHistory(startDate: startDate, endDate: endDate)
         }
     }

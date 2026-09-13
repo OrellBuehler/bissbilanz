@@ -54,6 +54,7 @@ final class HealthKitService {
             isAuthorized = true
             return true
         } catch {
+            ErrorReporter.captureWarning("HealthKit read authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -65,6 +66,7 @@ final class HealthKitService {
             isAuthorized = true
             return true
         } catch {
+            ErrorReporter.captureWarning("HealthKit write authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -82,6 +84,7 @@ final class HealthKitService {
             try await healthStore.requestAuthorization(toShare: [], read: [sleep])
             return true
         } catch {
+            ErrorReporter.captureWarning("HealthKit sleep read authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -94,6 +97,7 @@ final class HealthKitService {
             try await healthStore.requestAuthorization(toShare: [sleep], read: [])
             return true
         } catch {
+            ErrorReporter.captureWarning("HealthKit sleep write authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -139,6 +143,7 @@ final class HealthKitService {
             do {
                 try await saveWeight(weightKg, date: date)
             } catch {
+                ErrorReporter.captureWarning("HealthKit weight write-back failed", context: ["reason": ErrorReporter.reason(for: error)])
                 return
             }
         }
@@ -163,6 +168,7 @@ final class HealthKitService {
             do {
                 try await saveSleep(bedtime: bedtime, wakeTime: wakeTime)
             } catch {
+                ErrorReporter.captureWarning("HealthKit sleep write-back failed", context: ["reason": ErrorReporter.reason(for: error)])
                 return
             }
         }
@@ -186,6 +192,7 @@ final class HealthKitService {
             try await healthStore.requestAuthorization(toShare: types, read: [])
             return true
         } catch {
+            ErrorReporter.captureWarning("HealthKit nutrition write authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -249,6 +256,7 @@ final class HealthKitService {
             // Permission denied or Health unavailable — silent by design. The
             // day's samples were already deleted, so drop any stored marker to
             // force a full rewrite on the next sync.
+            ErrorReporter.captureWarning("HealthKit nutrition sync failed", context: ["reason": ErrorReporter.reason(for: error)])
             UserDefaults.standard.removeObject(forKey: markerKey)
         }
     }

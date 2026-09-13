@@ -169,6 +169,7 @@ struct AIMealReviewView: View {
             } catch {
                 // Keep logging the remaining items; surface a single error if
                 // nothing at all made it through.
+                ErrorReporter.captureWarning("AI meal review item log failed", context: ["reason": ErrorReporter.reason(for: error)])
             }
         }
         isLogging = false

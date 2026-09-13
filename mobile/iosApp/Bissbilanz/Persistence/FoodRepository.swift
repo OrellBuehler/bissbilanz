@@ -262,6 +262,7 @@ final class FoodRepository {
             save()
             return results
         } catch {
+            ErrorReporter.captureWarning("Food search failed, falling back to local", context: ["reason": ErrorReporter.reason(for: error)])
             return searchLocal(query)
         }
     }
@@ -289,6 +290,7 @@ final class FoodRepository {
             }
             return try await api.searchOpenFoodFacts(query: query)
         } catch {
+            ErrorReporter.captureWarning("Open Food Facts search failed", context: ["reason": ErrorReporter.reason(for: error)])
             return []
         }
     }

@@ -629,9 +629,11 @@ struct SettingsView: View {
                     downgradePhase = phase
                 }
                 downgradeFinished = true
-            } catch AccountDowngrader.DowngradeError.pendingChanges {
+            } catch let error as AccountDowngrader.DowngradeError {
+                ErrorReporter.captureWarning("Account downgrade blocked by pending changes", context: ["reason": ErrorReporter.reason(for: error)])
                 downgradeError = L10n.downgradePendingChanges
             } catch {
+                ErrorReporter.captureWarning("Account downgrade failed", context: ["reason": ErrorReporter.reason(for: error)])
                 downgradeError = L10n.downgradeFailed
             }
             downgradePhase = nil
@@ -651,6 +653,7 @@ struct SettingsView: View {
                 try data.write(to: url, options: .atomic)
                 exportedArchive = ExportedArchive(url: url)
             } catch {
+                ErrorReporter.captureWarning("Account data export failed", context: ["reason": ErrorReporter.reason(for: error)])
                 errorMessage = L10n.exportDataFailed
             }
         }
@@ -667,6 +670,7 @@ struct SettingsView: View {
                 authManager.logout()
                 appModeManager.clear()
             } catch {
+                ErrorReporter.captureWarning("Account deletion failed", context: ["reason": ErrorReporter.reason(for: error)])
                 errorMessage = L10n.deleteAccountFailed
             }
             isDeletingAccount = false
