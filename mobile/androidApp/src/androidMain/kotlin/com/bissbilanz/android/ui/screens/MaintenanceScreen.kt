@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.MaintenanceResponse
@@ -29,6 +30,7 @@ import kotlin.time.Clock
 @Composable
 fun MaintenanceScreen(navController: NavController) {
     val analyticsRepo: AnalyticsRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
@@ -54,6 +56,8 @@ fun MaintenanceScreen(navController: NavController) {
                 }
                 result = response
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
                 error = errorMessage
                 result = null
             }

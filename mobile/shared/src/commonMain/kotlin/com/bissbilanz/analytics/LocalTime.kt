@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import com.bissbilanz.util.Failures
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
@@ -121,6 +122,7 @@ private fun parseInstant(isoString: String): Instant? =
     try {
         Instant.parse(isoString)
     } catch (e: IllegalArgumentException) {
+        Failures.report(e)
         null
     }
 
@@ -128,5 +130,6 @@ private fun parseZone(timeZone: String): TimeZone? =
     try {
         TimeZone.of(timeZone)
     } catch (e: IllegalArgumentException) {
+        Failures.report(e)
         null
     }

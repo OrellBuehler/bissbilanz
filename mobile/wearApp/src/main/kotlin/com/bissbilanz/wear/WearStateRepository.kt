@@ -1,6 +1,7 @@
 package com.bissbilanz.wear
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageClient
@@ -259,6 +260,7 @@ object WearStateRepository {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            Log.w("WearStateRepository", "Data Layer call failed", e)
             null
         }
 }

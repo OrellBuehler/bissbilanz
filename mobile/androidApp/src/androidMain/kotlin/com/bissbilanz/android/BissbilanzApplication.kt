@@ -59,7 +59,7 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.storage.PlainStorage
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
-import com.bissbilanz.util.JsonDecodeFailures
+import com.bissbilanz.util.Failures
 import io.sentry.android.core.SentryAndroid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -164,7 +164,7 @@ class BissbilanzApplication :
             androidContext(this@BissbilanzApplication)
             modules(androidModule, sharedModule)
         }
-        JsonDecodeFailures.reporter = get()
+        Failures.reporter = get()
 
         if (BuildConfig.TEST_AUTH_TOKEN.isNotEmpty() && isInstrumentedTest()) {
             val koinForAuth =
@@ -345,13 +345,8 @@ class BissbilanzApplication :
             }.build()
     }
 
-    private fun isInstrumentedTest(): Boolean =
-        try {
-            Class.forName("androidx.test.InstrumentationRegistry")
-            true
-        } catch (_: ClassNotFoundException) {
-            false
-        }
+    // A class-presence probe: the ClassNotFoundException is the expected "no".
+    private fun isInstrumentedTest(): Boolean = runCatching { Class.forName("androidx.test.InstrumentationRegistry") }.isSuccess
 }
 
 private fun Throwable.isAuthOrTransient(): Boolean {
