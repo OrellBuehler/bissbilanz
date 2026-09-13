@@ -1,4 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { getProvider } from '$lib/server/auth-providers';
 import {
 	generateCodeVerifier,
@@ -23,7 +24,8 @@ export const GET: RequestHandler = async (event) => {
 
 	try {
 		rateLimit(`auth:mobile:${getRequestIp(event)}`, 10, 60_000);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw error(429, 'Too many requests');
 	}
 

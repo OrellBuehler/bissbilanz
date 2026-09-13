@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import { clampStart, clampTargetHours } from '$lib/utils/fasting';
 
@@ -35,8 +36,12 @@ const persist = () => {
 	try {
 		if (running) localStorage.setItem(STORAGE_KEY, JSON.stringify(running));
 		else localStorage.removeItem(STORAGE_KEY);
-	} catch {
+	} catch (err) {
 		// Private mode / quota — the in-memory timer still works for this session.
+		Sentry.captureException(err, {
+			level: 'warning',
+			extra: { context: 'fasting-timer.persist' }
+		});
 	}
 };
 
@@ -47,7 +52,11 @@ export const loadRunningFast = (): RunningFast | null => {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		const parsed = raw ? JSON.parse(raw) : null;
 		running = isRunningFast(parsed) ? parsed : null;
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, {
+			level: 'warning',
+			extra: { context: 'fasting-timer.loadRunningFast' }
+		});
 		running = null;
 	}
 	return running;

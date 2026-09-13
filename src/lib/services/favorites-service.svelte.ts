@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 
@@ -30,8 +32,11 @@ async function refresh() {
 				}
 			}
 		});
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'favorites-service.refresh' } });
+		}
 	}
 }
 

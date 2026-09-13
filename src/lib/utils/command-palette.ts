@@ -1,9 +1,11 @@
+import * as Sentry from '@sentry/sveltekit';
 import { isValidIsoDate, shiftDate, today as todayIso } from '$lib/utils/dates';
 
 const isRealIsoDate = (iso: string): boolean => {
 	try {
 		return isValidIsoDate(iso);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { extra: { context: 'command-palette.isRealIsoDate', iso } });
 		return false;
 	}
 };

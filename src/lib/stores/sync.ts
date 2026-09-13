@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import {
 	DRAIN_BATCH_SIZE,
@@ -163,8 +164,11 @@ export async function syncQueue(): Promise<number> {
 				}
 
 				setPendingCount(queued.length - synced);
-			} catch {
+			} catch (err) {
 				// Network error — stop syncing, will retry on next online event
+				if (!(browser && !navigator.onLine)) {
+					Sentry.captureException(err, { extra: { context: 'sync.syncQueue', url: req.url } });
+				}
 				break;
 			}
 		}

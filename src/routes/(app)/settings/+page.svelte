@@ -15,6 +15,7 @@
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { getUser } from '$lib/stores/auth.svelte';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import { api } from '$lib/api/client';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
@@ -114,7 +115,8 @@
 			>[0]);
 			if (ok) toast.success(m.settings_saved(), { duration: 1500 });
 			else toast.error(m.settings_save_failed());
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { key } });
 			toast.error(m.settings_save_failed());
 		}
 	};
@@ -237,7 +239,8 @@
 			anchor.download = filename;
 			anchor.click();
 			URL.revokeObjectURL(url);
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_export_failed());
 		} finally {
 			exportingData = false;
@@ -254,7 +257,8 @@
 			await clearAllData().catch(() => {});
 			await clearCacheStorage().catch(() => {});
 			window.location.href = '/';
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.settings_delete_account_failed());
 			deletingAccount = false;
 			deleteAccountOpen = false;

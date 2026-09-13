@@ -4,6 +4,7 @@
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { radarAverages, type DayRow, type Goals, type MacroKey } from '$lib/utils/insights';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals | null } } = $props();
@@ -64,7 +65,8 @@
 				data = result.data;
 				goals = result.goals;
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { range: r } });
 			data = [];
 		} finally {
 			loading = false;

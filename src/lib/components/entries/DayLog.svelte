@@ -23,6 +23,7 @@
 	import { toast } from 'svelte-sonner';
 	import { formatTime, formatDateLabel } from '$lib/utils/dates';
 	import { fastsOnDate, formatDuration } from '$lib/utils/fasting';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -145,7 +146,8 @@
 								date: previousDate,
 								...(previousTime ? { eatenAt: previousTime } : {})
 							});
-						} catch {
+						} catch (err) {
+							Sentry.captureException(err, { extra: { entryId: id, previousDate } });
 							toast.error(m.detail_save_failed());
 						}
 					}
@@ -203,8 +205,8 @@
 						return;
 					}
 				}
-			} catch {
-				// fall through to OFF prefill
+			} catch (err) {
+				Sentry.captureException(err, { extra: { barcode } });
 			}
 			goto(`/foods?barcode=${encodeURIComponent(barcode)}`);
 		};

@@ -14,6 +14,7 @@
 	import { formatDateLabel, today } from '$lib/utils/dates';
 	import { formatKcal } from '$lib/utils/number';
 	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type RecentFood = components['schemas']['FoodRecent'];
 
@@ -26,9 +27,12 @@
 		try {
 			const { data } = await api.GET('/api/foods/recent');
 			foods = data?.foods ?? [];
-		} catch {
+		} catch (err) {
 			foods = [];
-			if (browser && navigator.onLine) toast.error(m.error_generic());
+			if (browser && navigator.onLine) {
+				Sentry.captureException(err);
+				toast.error(m.error_generic());
+			}
 		} finally {
 			loading = false;
 		}
@@ -51,7 +55,8 @@
 				date: today()
 			});
 			toast.success(m.foods_recent_logged_toast({ name: food.name, meal }));
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { foodId: food.id } });
 			toast.error(m.foods_recent_log_failed());
 		} finally {
 			loggingId = null;

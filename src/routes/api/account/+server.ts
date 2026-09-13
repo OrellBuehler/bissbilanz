@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { deleteAccount, getAccountDataRange } from '$lib/server/account';
@@ -33,7 +34,8 @@ export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 		const userId = requireAuth(locals);
 		try {
 			rateLimit(`account:delete:${userId}`, 3, 60_000);
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { level: 'warning' });
 			throw new ApiError(429, 'Too many requests');
 		}
 

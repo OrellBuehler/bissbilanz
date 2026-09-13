@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import type { DexieRecipe, DexieRecipeIngredient } from '$lib/db/types';
 import { api } from '$lib/api/client';
@@ -54,8 +56,11 @@ async function refreshById(id: string) {
 				);
 			}
 		}
-	} catch {
+	} catch (err) {
 		// fire-and-forget
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'recipe-service.refreshById' } });
+		}
 	}
 }
 

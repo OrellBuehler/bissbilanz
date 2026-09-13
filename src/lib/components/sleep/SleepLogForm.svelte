@@ -9,6 +9,7 @@
 	import { toast } from 'svelte-sonner';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	let { onLogged }: { onLogged?: () => void } = $props();
@@ -66,7 +67,8 @@
 			notes = '';
 			toast.success(m.sleep_log());
 			onLogged?.();
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { entryDate, durationMinutes } });
 			toast.error(m.error_generic());
 		} finally {
 			saving = false;

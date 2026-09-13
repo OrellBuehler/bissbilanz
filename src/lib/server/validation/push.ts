@@ -1,4 +1,5 @@
 import 'zod-openapi';
+import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 
 /**
@@ -23,7 +24,8 @@ export const isPushServiceEndpoint = (value: string): boolean => {
 	let url: URL;
 	try {
 		url = new URL(value);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return false;
 	}
 	if (url.protocol !== 'https:' || url.username || url.password) return false;

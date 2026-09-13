@@ -1,4 +1,6 @@
 import { liveQuery } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
+import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';
@@ -35,8 +37,11 @@ async function refresh(date: string) {
 				entries.filter((e) => !pendingIds.has(e.id)) as DexieFoodEntry[]
 			);
 		});
-	} catch {
+	} catch (err) {
 		// background cache refresh — leave stale cache on failure
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'entry-service.refresh' } });
+		}
 	}
 }
 

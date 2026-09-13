@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { getDB } from './db';
 import { uploads } from './schema';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -24,7 +25,8 @@ export const processImage = async (
 			.resize(maxDim, maxDim, { fit, withoutEnlargement: true })
 			.webp({ quality: 80 })
 			.toBuffer();
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		throw new ApiError(400, 'Invalid or corrupted image file');
 	}
 
@@ -85,8 +87,9 @@ export const unlinkUpload = async (
 			// The file may already be gone; the ownership row still has to go.
 		});
 		await forgetUploads([filename]);
-	} catch {
+	} catch (err) {
 		// Best-effort — the file may already be gone.
+		Sentry.captureException(err, { level: 'warning' });
 	}
 };
 

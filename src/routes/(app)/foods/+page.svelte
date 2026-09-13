@@ -28,6 +28,7 @@
 
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import { uploadImage } from '$lib/utils/image-upload';
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
@@ -73,7 +74,8 @@
 		try {
 			const { data } = await api.GET('/api/foods/duplicates');
 			if (data) duplicateGroups = data.groups;
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			duplicateGroups = [];
 		}
 	};
@@ -175,7 +177,8 @@
 				}
 				return;
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.detail_create_failed());
 			return;
 		}
@@ -212,7 +215,8 @@
 				if (dropped.length > 0) {
 					toast.info(m.detail_labels_dropped({ labels: dropped.join(', ') }));
 				}
-			} catch {
+			} catch (err) {
+				Sentry.captureException(err, { extra: { foodId: editingFood.id } });
 				toast.error(m.detail_save_failed());
 				return;
 			}
@@ -407,7 +411,8 @@
 			} else {
 				offData = data.product;
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { code } });
 			offNotFound = true;
 		} finally {
 			offLoading = false;

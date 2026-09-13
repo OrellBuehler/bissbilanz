@@ -5,6 +5,7 @@
 	import { getConfidenceLevel } from '$lib/analytics/correlation';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { api } from '$lib/api/client';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
 
@@ -74,8 +75,8 @@
 				overrideLag = saved;
 				initialOverride = saved;
 			}
-		} catch {
-			// use default
+		} catch (err) {
+			Sentry.captureException(err, { extra: { context: 'load caloric lag override preference' } });
 		}
 	});
 </script>

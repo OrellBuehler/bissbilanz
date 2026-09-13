@@ -10,6 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import Star from '@lucide/svelte/icons/star';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	type FavoriteItem = {
@@ -56,8 +57,8 @@
 			const allItems: FavoriteItem[] = [...(data.foods ?? []), ...(data.recipes ?? [])];
 			allItems.sort((a, b) => b.logCount - a.logCount);
 			items = allItems.slice(0, 5);
-		} catch {
-			// silently ignore
+		} catch (err) {
+			Sentry.captureException(err, { extra: { context: 'load favorites' } });
 		}
 	};
 
@@ -69,7 +70,8 @@
 				[...DEFAULT_MEAL_TYPES],
 				(data.mealTypes ?? []).map((meal: { name: string }) => meal.name)
 			);
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { context: 'load meal options' } });
 			mealOptions = [...DEFAULT_MEAL_TYPES];
 		}
 	};

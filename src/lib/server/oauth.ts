@@ -1,4 +1,5 @@
 import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+import * as Sentry from '@sentry/sveltekit';
 import { compareSync, hashSync } from 'bcrypt';
 import { eq, and, gt, lt, isNull } from 'drizzle-orm';
 import {
@@ -72,7 +73,8 @@ export function isValidRedirectUriFormat(uri: string): boolean {
 			);
 		}
 		return CUSTOM_APP_SCHEME.test(url.protocol) && !BROWSER_SCHEMES.has(url.protocol);
-	} catch {
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
 		return false;
 	}
 }

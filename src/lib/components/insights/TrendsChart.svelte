@@ -5,6 +5,7 @@
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	type MacroKey = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
@@ -73,7 +74,8 @@
 				data = result.data;
 				goals = result.goals;
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { range: r } });
 			data = [];
 		} finally {
 			loading = false;

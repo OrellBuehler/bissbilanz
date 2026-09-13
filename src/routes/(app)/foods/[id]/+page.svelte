@@ -11,6 +11,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -145,7 +146,8 @@
 			} else {
 				toast.error(m.detail_save_failed());
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { foodId: food?.id } });
 			toast.error(m.detail_save_failed());
 		} finally {
 			saving = false;
@@ -181,7 +183,8 @@
 			initialized = false;
 			foodService.refreshById(food.id);
 			toast.success(m.quality_enrich_success());
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { foodId: food.id } });
 			toast.error(m.quality_enrich_failed());
 		} finally {
 			enriching = false;

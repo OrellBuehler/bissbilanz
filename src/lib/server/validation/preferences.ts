@@ -1,4 +1,5 @@
 import 'zod-openapi';
+import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { INSIGHT_CARD_IDS, MAX_PINNED_INSIGHTS } from '$lib/insights/card-ids';
@@ -63,7 +64,8 @@ export const preferencesUpdateSchema = z
 					try {
 						new Intl.DateTimeFormat('en-US', { timeZone: tz });
 						return true;
-					} catch {
+					} catch (err) {
+						Sentry.captureException(err, { level: 'warning' });
 						return false;
 					}
 				},

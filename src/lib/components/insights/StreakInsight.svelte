@@ -3,6 +3,7 @@
 	import Trophy from '@lucide/svelte/icons/trophy';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { today, shiftDate } from '$lib/utils/dates';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import type { CalendarDay } from '$lib/utils/insights';
 
@@ -50,8 +51,8 @@
 				}
 				days = map;
 			}
-		} catch {
-			// silently ignore
+		} catch (err) {
+			Sentry.captureException(err, { extra: { context: 'load streak insight' } });
 		} finally {
 			loading = false;
 		}

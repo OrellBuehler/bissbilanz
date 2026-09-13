@@ -9,6 +9,7 @@
 	import { formatKg } from '$lib/utils/number';
 	import { toast } from 'svelte-sonner';
 	import Weight from '@lucide/svelte/icons/weight';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
 	let {
@@ -38,7 +39,8 @@
 		try {
 			await weightService.create({ weightKg: kg, entryDate: today() });
 			inputValue = null;
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err, { extra: { kg } });
 			toast.error(m.weight_log_failed());
 		} finally {
 			saving = false;

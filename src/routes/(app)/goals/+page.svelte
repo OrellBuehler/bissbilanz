@@ -6,6 +6,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import MacroSliders from '$lib/components/MacroSliders.svelte';
 	import { toast } from 'svelte-sonner';
+	import * as Sentry from '@sentry/sveltekit';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { round2, parseDecimalInput } from '$lib/utils/number';
@@ -73,7 +74,8 @@
 			} else {
 				toast.error(m.goals_save_failed());
 			}
-		} catch {
+		} catch (err) {
+			Sentry.captureException(err);
 			toast.error(m.goals_save_failed());
 		} finally {
 			saving = false;

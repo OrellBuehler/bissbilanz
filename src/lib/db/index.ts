@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import * as Sentry from '@sentry/sveltekit';
 import type {
 	DexieFood,
 	DexieFoodEntry,
@@ -215,7 +216,8 @@ export async function migrateOldOfflineQueue(): Promise<void> {
 
 		oldDb.close();
 		indexedDB.deleteDatabase(OLD_DB_NAME);
-	} catch {
+	} catch (err) {
 		// Best-effort migration — don't crash the app
+		Sentry.captureException(err, { extra: { context: 'migrateOldOfflineQueue' } });
 	}
 }

@@ -16,6 +16,8 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieSupplement } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
+	import { browser } from '$app/environment';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type IngredientInfo = {
 		name: string;
@@ -66,8 +68,11 @@
 			if (data) {
 				history = data.history;
 			}
-		} catch {
-			// Silently ignore -- history data may be unavailable offline
+		} catch (err) {
+			// History data may be unavailable offline -- only report unexpected failures
+			if (!(browser && !navigator.onLine)) {
+				Sentry.captureException(err, { extra: { from, to } });
+			}
 		}
 	};
 
