@@ -32,6 +32,10 @@ for my $f (@ARGV) {
       my ($v, $body) = ($1, $2);
       push @hits, pos($s) if discards($v, $body);
     }
+    # Promise handlers: .catch(() => {}), .catch(() => null), .catch(noop)
+    while ($s =~ /\.catch\(\s*(?:\(\s*\)\s*=>\s*(?:\{\s*\}|null|undefined|false|void 0)|noop)\s*\)/g) {
+      push @hits, pos($s);
+    }
   }
   for my $p (@hits) {
     my $line = 1 + (substr($s, 0, $p) =~ tr/\n//);
