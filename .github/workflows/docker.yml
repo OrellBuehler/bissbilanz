@@ -96,6 +96,41 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST" \
             'deploy bissbilanz'
 
+      - name: Verify production deployment
+        # deploy-docker.sh forces "deploy <service>" as the only allowed
+        # SSH_ORIGINAL_COMMAND for this key (see docker-server's authorized_keys
+        # command= restriction), so this can't piggyback a curl on that SSH
+        # session. It doesn't need to: bissbilanz.orellbuehler.ch is the live
+        # public site (only the SSH management port is IP-restricted, per
+        # deploy-connectivity.yml's tunnel), so hit it straight from the
+        # runner. Polls GET /api/health, which does a cheap `SELECT 1` and
+        # reports the running release via config.app.version (baked from the
+        # Dockerfile's APP_VERSION build arg).
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          url="https://bissbilanz.orellbuehler.ch/api/health"
+          echo "Waiting for $url to report status=ok version=$RELEASE_TAG..."
+          status="none"
+          version="none"
+          for attempt in $(seq 1 18); do
+            if body=$(curl -fsS --max-time 5 "$url" 2>/dev/null); then
+              status=$(echo "$body" | jq -r '.status // "none"')
+              version=$(echo "$body" | jq -r '.version // "none"')
+              echo "attempt $attempt/18: status=$status version=$version"
+              if [ "$status" = "ok" ] && [ "$version" = "$RELEASE_TAG" ]; then
+                echo "Deployment verified: $RELEASE_TAG is live."
+                exit 0
+              fi
+            else
+              echo "attempt $attempt/18: request failed"
+            fi
+            sleep 10
+          done
+          echo "::error::Timed out after 3 minutes waiting for $url to report status=ok version=$RELEASE_TAG (last seen status=$status version=$version)."
+          exit 1
+
       - name: Disconnect WireGuard
         if: always()
         run: sudo wg-quick down wg0 || true
