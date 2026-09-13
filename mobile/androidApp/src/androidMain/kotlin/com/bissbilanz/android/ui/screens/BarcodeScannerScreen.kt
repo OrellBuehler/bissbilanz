@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Size
 import android.view.MotionEvent
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -50,6 +51,8 @@ import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.util.isPermanentlyDenied
+import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.repository.FoodRepository
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -63,13 +66,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import androidx.compose.ui.geometry.Size as ComposeSize
 
-enum class ScanState { SCANNING, SEARCHING, NOT_FOUND }
+enum class ScanState { SCANNING, SEARCHING, NOT_FOUND, LOOKUP_FAILED }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(ExperimentalGetImage::class)
 @Composable
 fun BarcodeScannerScreen(navController: NavController) {
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val foodRepo: FoodRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
@@ -79,6 +83,7 @@ fun BarcodeScannerScreen(navController: NavController) {
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
         )
     }
+    var permanentlyDenied by remember { mutableStateOf(false) }
     var scanState by remember { mutableStateOf(ScanState.SCANNING) }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
@@ -98,7 +103,35 @@ fun BarcodeScannerScreen(navController: NavController) {
     val permissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
-        ) { granted -> hasPermission = granted }
+        ) { granted ->
+            hasPermission = granted
+            // Once the system stops showing the dialog, re-requesting is a silent
+            // no-op; the only way back in is the app's settings page.
+            if (!granted) permanentlyDenied = activity.isPermanentlyDenied(Manifest.permission.CAMERA)
+        }
+
+    fun lookup(barcode: String) {
+        scannedBarcode = barcode
+        scanState = ScanState.SEARCHING
+        scope.launch {
+            try {
+                val food = foodRepo.findOrCreateByBarcode(barcode)
+                if (food != null) {
+                    navController.navigate("food/${food.id}") {
+                        popUpTo("scanner") { inclusive = true }
+                    }
+                } else {
+                    scanState = ScanState.NOT_FOUND
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                // A failed lookup (offline, OFF down) is not a missing product;
+                // offering "Create food" here would duplicate a known barcode.
+                scanState = ScanState.LOOKUP_FAILED
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!hasPermission) {
@@ -155,28 +188,11 @@ fun BarcodeScannerScreen(navController: NavController) {
                         errorReporter.captureException(e)
                         cameraError = true
                     },
+                    onScanFailure = { e -> errorReporter.captureException(e) },
                     onBarcodeScanned = { barcode ->
                         if (scanState == ScanState.SCANNING) {
                             haptic(HapticFeedbackType.LongPress)
-                            scannedBarcode = barcode
-                            scanState = ScanState.SEARCHING
-                            scope.launch {
-                                try {
-                                    val food = foodRepo.findOrCreateByBarcode(barcode)
-                                    if (food != null) {
-                                        navController.navigate("food/${food.id}") {
-                                            popUpTo("scanner") { inclusive = true }
-                                        }
-                                    } else {
-                                        scanState = ScanState.NOT_FOUND
-                                    }
-                                } catch (e: Exception) {
-                                    if (e is kotlinx.coroutines.CancellationException) throw e
-                                    errorReporter.captureException(e)
-                                    // Recover the UI instead of leaving it stuck on SEARCHING.
-                                    scanState = ScanState.NOT_FOUND
-                                }
-                            }
+                            lookup(barcode)
                         }
                     },
                 )
@@ -217,7 +233,7 @@ fun BarcodeScannerScreen(navController: NavController) {
                         when (scanState) {
                             ScanState.SCANNING -> Color.White
                             ScanState.SEARCHING -> CaloriesBlue
-                            ScanState.NOT_FOUND -> ProteinRed
+                            ScanState.NOT_FOUND, ScanState.LOOKUP_FAILED -> ProteinRed
                         }
                     drawRoundRect(
                         color = borderColor,
@@ -297,6 +313,36 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 }
                             }
                         }
+
+                        ScanState.LOOKUP_FAILED -> {
+                            Text(
+                                stringResource(R.string.scan_barcode_lookup_failed),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                stringResource(R.string.scan_barcode_lookup_failed_hint),
+                                color = Color.White.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        scanState = ScanState.SCANNING
+                                        scannedBarcode = null
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                ) {
+                                    Text(stringResource(R.string.scan_barcode_scan_again))
+                                }
+                                Button(onClick = { scannedBarcode?.let { lookup(it) } }) {
+                                    Text(stringResource(R.string.scan_barcode_retry))
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -318,8 +364,14 @@ fun BarcodeScannerScreen(navController: NavController) {
                         )
                         if (!cameraError) {
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                                Text(stringResource(R.string.scan_barcode_grant_permission))
+                            if (permanentlyDenied) {
+                                Button(onClick = { context.openAppSettings() }) {
+                                    Text(stringResource(R.string.scan_barcode_open_settings))
+                                }
+                            } else {
+                                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                                    Text(stringResource(R.string.scan_barcode_grant_permission))
+                                }
                             }
                         }
                     }
@@ -337,6 +389,7 @@ private fun CameraPreview(
     isScanning: () -> Boolean,
     onCameraReady: (Camera) -> Unit,
     onCameraError: (Exception) -> Unit,
+    onScanFailure: (Exception) -> Unit,
     onBarcodeScanned: (String) -> Unit,
 ) {
     val analyzerExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
@@ -371,6 +424,12 @@ private fun CameraPreview(
         return
     }
     val disposed = remember { AtomicBoolean(false) }
+    // The analyzer runs per frame, so a broken detector would otherwise flood
+    // Sentry; one report per screen visit is enough to see that it fails.
+    val scanFailureReported = remember { AtomicBoolean(false) }
+    val reportScanFailure = { e: Exception ->
+        if (scanFailureReported.compareAndSet(false, true)) mainHandler.post { onScanFailure(e) }
+    }
     val cameraProviderRef = remember { arrayOfNulls<ProcessCameraProvider>(1) }
     val imageAnalysisRef = remember { arrayOfNulls<ImageAnalysis>(1) }
 
@@ -451,9 +510,12 @@ private fun CameraPreview(
                                             mainHandler.post { onBarcodeScanned(value) }
                                         }
                                     }
+                                }.addOnFailureListener(analyzerExecutor) { e ->
+                                    if (!disposed.get()) reportScanFailure(e)
                                 }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
                             imageProxy.close()
+                            reportScanFailure(e)
                         }
                     }
 
@@ -481,18 +543,24 @@ private fun CameraPreview(
                     onCameraReady(cam)
 
                     previewView.setOnTouchListener { view, event ->
-                        if (event.action == MotionEvent.ACTION_UP) {
-                            val point = previewView.meteringPointFactory.createPoint(event.x, event.y)
-                            val action =
-                                FocusMeteringAction
-                                    .Builder(point)
-                                    .setAutoCancelDuration(3, TimeUnit.SECONDS)
-                                    .build()
-                            cam.cameraControl.startFocusAndMetering(action)
-                            view.performClick()
-                            true
-                        } else {
-                            false
+                        when (event.action) {
+                            // Rejecting ACTION_DOWN tells the system this view does
+                            // not want the gesture, so the ACTION_UP that triggers
+                            // focusing never arrived and "tap to focus" did nothing.
+                            MotionEvent.ACTION_DOWN -> true
+                            MotionEvent.ACTION_UP -> {
+                                val point = previewView.meteringPointFactory.createPoint(event.x, event.y)
+                                val action =
+                                    FocusMeteringAction
+                                        .Builder(point)
+                                        .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                                        .build()
+                                cam.cameraControl.startFocusAndMetering(action)
+                                view.performClick()
+                                true
+                            }
+
+                            else -> false
                         }
                     }
                 } catch (e: Exception) {
