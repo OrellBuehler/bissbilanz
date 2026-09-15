@@ -91,6 +91,8 @@ describe('preferences', () => {
 
 		test('preserves a complete valid order unchanged', async () => {
 			const order = [
+				'fasting',
+				'day-properties',
 				'chart',
 				'streaks',
 				'favorites',
@@ -107,6 +109,15 @@ describe('preferences', () => {
 			const result = await getPreferences(TEST_USER.id);
 
 			expect(result?.widgetOrder).toEqual(order);
+		});
+
+		test('puts the mobile-first sections before an order that predates them', async () => {
+			setResult([makePrefsRow(['chart', 'favorites', 'summary', 'daylog'])]);
+
+			const result = await getPreferences(TEST_USER.id);
+
+			expect(result?.widgetOrder?.slice(0, 3)).toEqual(['fasting', 'day-properties', 'chart']);
+			expect(result?.widgetOrder?.at(-1)).toBe('daylog');
 		});
 
 		test('inserts missing keys before daylog', async () => {

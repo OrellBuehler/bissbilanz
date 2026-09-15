@@ -23,6 +23,8 @@ const preferencesSchema = z
 		showMealBreakdownWidget: z.boolean(),
 		showTopFoodsWidget: z.boolean(),
 		showSleepWidget: z.boolean(),
+		showFastingWidget: z.boolean(),
+		showDayPropertiesWidget: z.boolean(),
 		widgetOrder: z.array(z.string()),
 		mealOrder: z.array(z.string()),
 		startPage: z.string(),
