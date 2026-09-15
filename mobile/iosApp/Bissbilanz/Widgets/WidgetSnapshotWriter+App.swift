@@ -62,7 +62,17 @@ extension WidgetSnapshotWriter {
     /// first — every repository does before scheduling.
     static func publish(container: ModelContainer) async {
         let localeCode = L10n.currentLocale.rawValue
-        let built = await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
+        // Detached on purpose: a `@ModelActor` runs its work on whichever
+        // executor it was *created* on, and both callers of `publish` (the
+        // debounced `scheduleUpdate` task and `BackgroundRefresher`) run on
+        // the main actor. Created inline, the "background" builder did all
+        // its fetches on the main thread after all — the same watchdog hang
+        // (Sentry BISSBILANZ-3H, `watchRecents`, on a build that already
+        // shipped the builder). A detached task creates the actor off main,
+        // so its executor is off main too.
+        let built = await Task.detached(priority: .utility) {
+            await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
+        }.value
         saveAndReload(built.snapshot)
         PhoneWatchConnectivity.shared.sendState(built.watchState)
     }

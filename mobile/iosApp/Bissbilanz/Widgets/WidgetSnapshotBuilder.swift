@@ -12,6 +12,10 @@ import SwiftData
 /// `WidgetSnapshotWriter.watchWeight`; BISSBILANZ-34 is the same stall behind
 /// a save). The builders only read, so a throwaway context on the actor's
 /// executor sees the same committed rows without touching the main thread.
+///
+/// Must be created from a non-main context (see `WidgetSnapshotWriter.publish`):
+/// the actor's executor is bound where `init` runs, so an instance created on
+/// the main actor fetches on the main thread regardless of this declaration.
 @ModelActor
 actor WidgetSnapshotBuilder {
     func build(localeCode: String) -> (snapshot: WidgetSnapshot, watchState: WatchState) {

@@ -67,6 +67,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        # The legacy 'tools' package the action installs by default was removed
+        # from the SDK repository (android-actions/setup-android#537), so the
+        # default 'tools platform-tools' list makes sdkmanager exit 1.
         with:
           packages: platform-tools
 
