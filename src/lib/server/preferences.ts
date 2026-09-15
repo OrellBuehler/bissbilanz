@@ -41,7 +41,11 @@ export const DEFAULT_PREFERENCES = {
 	showMealBreakdownWidget: true,
 	showTopFoodsWidget: true,
 	showSleepWidget: true,
+	showFastingWidget: true,
+	showDayPropertiesWidget: true,
 	widgetOrder: [
+		'fasting',
+		'day-properties',
 		'chart',
 		'favorites',
 		'supplements',
@@ -66,6 +70,8 @@ export const DEFAULT_PREFERENCES = {
 };
 
 const ALL_SECTION_KEYS = [
+	'fasting',
+	'day-properties',
 	'chart',
 	'streaks',
 	'favorites',
@@ -78,10 +84,19 @@ const ALL_SECTION_KEYS = [
 	'daylog'
 ];
 
+// Sections that sit at the top of the day on mobile; when a stored order
+// predates them they go first, every other new key slots in before the day log.
+const LEADING_SECTION_KEYS = ['fasting', 'day-properties'];
+
 const normalizeSectionOrder = (order: string[]): string[] => {
 	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));
+	let leadingInsertAt = 0;
 	for (const key of ALL_SECTION_KEYS) {
 		if (!result.includes(key)) {
+			if (LEADING_SECTION_KEYS.includes(key)) {
+				result.splice(leadingInsertAt++, 0, key);
+				continue;
+			}
 			const daylogIndex = result.indexOf('daylog');
 			if (daylogIndex >= 0) {
 				result.splice(daylogIndex, 0, key);

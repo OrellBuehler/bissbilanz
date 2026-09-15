@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,6 @@ import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
-import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -45,7 +45,6 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
-import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.sync.SyncManager
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -703,37 +702,11 @@ fun SettingsScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // Dashboard Widgets
+                // Dashboard layout
                 prefs?.let { p ->
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                stringResource(R.string.settings_dashboard_widgets),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            WidgetToggle(stringResource(R.string.settings_widget_chart), p.showChartWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showChartWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.favorites_title), p.showFavoritesWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showFavoritesWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.chart_supplements), p.showSupplementsWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showSupplementsWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.weight_widget_title), p.showWeightWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showWeightWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.sleep_section_title), p.showSleepWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showSleepWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.settings_widget_meal_breakdown), p.showMealBreakdownWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showMealBreakdownWidget = value))
-                            }
-                            WidgetToggle(stringResource(R.string.settings_widget_top_foods), p.showTopFoodsWidget) { value ->
-                                viewModel.updatePreference(PreferencesUpdate(showTopFoodsWidget = value))
-                            }
+                        SettingsNavItem(stringResource(R.string.dashboard_layout_title), Icons.Outlined.Tune) {
+                            navController.navigate("dashboard-layout")
                         }
                     }
 
@@ -1017,15 +990,6 @@ fun SettingsNavItem(
         },
         modifier = Modifier.clickable(onClick = onClick),
     )
-}
-
-@Composable
-fun WidgetToggle(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    ToggleRow(label = label, checked = checked, onCheckedChange = onCheckedChange)
 }
 
 val ALL_NUTRIENT_KEYS =

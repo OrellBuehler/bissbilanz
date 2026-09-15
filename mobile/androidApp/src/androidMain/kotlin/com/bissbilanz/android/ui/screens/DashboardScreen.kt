@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,7 +51,9 @@ import com.bissbilanz.android.ui.components.TopFoodsWidget
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.util.DashboardSection
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.resolveDashboardSections
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
@@ -166,6 +169,9 @@ fun DashboardScreen(navController: NavController) {
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             stringResource(R.string.dashboard_next_day),
                         )
+                    }
+                    IconButton(onClick = { navController.navigate("dashboard-layout") }) {
+                        Icon(Icons.Outlined.Tune, stringResource(R.string.dashboard_layout_title))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -381,64 +387,10 @@ fun DashboardScreen(navController: NavController) {
                     )
                 }
 
-                if (selectedDate == today) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    FastingCard(onClick = { navController.navigate("fasting") })
-                }
-
-                if (totalCalories == 0.0 && !refreshFailed) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            ),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.fasting_day),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Text(
-                                    stringResource(R.string.fasting_day_description),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = isFastingDay,
-                                onCheckedChange = {
-                                    haptic(HapticFeedbackType.LongPress)
-                                    viewModel.toggleFastingDay()
-                                },
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                DayPropertiesCard(
-                    notes = notes,
-                    waterMl = waterMl,
-                    waterGoalMl = waterGoalMl,
-                    activityCalories = activityCalories,
-                    activityNote = activityNote,
-                    onAddWater = { viewModel.addWater(it) },
-                    onSetWater = { viewModel.setWater(it) },
-                    onClearWater = { viewModel.clearWater() },
-                    onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
-                    onClearActivity = { viewModel.clearActivity() },
-                    onNotesChanged = { viewModel.setNotes(it) },
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
+                // Order and visibility come from prefs.widgetOrder; see DashboardSection
+                // for the key-to-card mapping and the "prefs not loaded yet" fallback.
+                val sections =
+                    remember(prefs) { resolveDashboardSections(prefs?.widgetOrder, prefs) }
 
                 Crossfade(targetState = isLoading, label = "dashboard") { loading ->
                     if (loading) {
@@ -447,104 +399,177 @@ fun DashboardScreen(navController: NavController) {
                         Column {
                             val mealGroups = remember(entries) { entries.groupBy { normalizeMealType(it.mealType) } }
 
-                            mealTypes.forEach { meal ->
-                                val mealEntries = mealGroups[meal] ?: emptyList()
-                                MealCard(
-                                    meal,
-                                    mealEntries,
-                                    onClick = { navController.navigate("daylog/$selectedDate") },
-                                    onAddClick = { addFoodForMeal = meal },
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                            mealGroups.keys.filter { it !in mealTypes }.forEach { meal ->
-                                val mealEntries = mealGroups[meal] ?: emptyList()
-                                MealCard(
-                                    meal,
-                                    mealEntries,
-                                    onClick = { navController.navigate("daylog/$selectedDate") },
-                                    onAddClick = { addFoodForMeal = meal },
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
+                            sections.forEach { section ->
+                                key(section) {
+                                    when (section) {
+                                        DashboardSection.FASTING -> {
+                                            if (selectedDate == today) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                FastingCard(onClick = { navController.navigate("fasting") })
+                                            }
 
-                            if (entries.isEmpty()) {
-                                if (refreshFailed) {
-                                    RefreshErrorState(onRetry = { viewModel.loadData() })
-                                } else {
-                                    OutlinedButton(
-                                        onClick = { copyEntries() },
-                                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                                    ) {
-                                        Icon(
-                                            Icons.Default.ContentCopy,
-                                            stringResource(R.string.dashboard_copy),
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                            if (totalCalories == 0.0 && !refreshFailed) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors =
+                                                        CardDefaults.cardColors(
+                                                            containerColor =
+                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                                    .copy(alpha = 0.5f),
+                                                        ),
+                                                ) {
+                                                    Row(
+                                                        modifier =
+                                                            Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                stringResource(R.string.fasting_day),
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                fontWeight = FontWeight.Medium,
+                                                            )
+                                                            Text(
+                                                                stringResource(R.string.fasting_day_description),
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            )
+                                                        }
+                                                        Switch(
+                                                            checked = isFastingDay,
+                                                            onCheckedChange = {
+                                                                haptic(HapticFeedbackType.LongPress)
+                                                                viewModel.toggleFastingDay()
+                                                            },
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        DashboardSection.DAY_PROPERTIES -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            DayPropertiesCard(
+                                                notes = notes,
+                                                waterMl = waterMl,
+                                                waterGoalMl = waterGoalMl,
+                                                activityCalories = activityCalories,
+                                                activityNote = activityNote,
+                                                onAddWater = { viewModel.addWater(it) },
+                                                onSetWater = { viewModel.setWater(it) },
+                                                onClearWater = { viewModel.clearWater() },
+                                                onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
+                                                onClearActivity = { viewModel.clearActivity() },
+                                                onNotesChanged = { viewModel.setNotes(it) },
+                                            )
+                                        }
+
+                                        DashboardSection.DAYLOG -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Column {
+                                                mealTypes.forEach { meal ->
+                                                    val mealEntries = mealGroups[meal] ?: emptyList()
+                                                    MealCard(
+                                                        meal,
+                                                        mealEntries,
+                                                        onClick = { navController.navigate("daylog/$selectedDate") },
+                                                        onAddClick = { addFoodForMeal = meal },
+                                                    )
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                }
+                                                mealGroups.keys.filter { it !in mealTypes }.forEach { meal ->
+                                                    val mealEntries = mealGroups[meal] ?: emptyList()
+                                                    MealCard(
+                                                        meal,
+                                                        mealEntries,
+                                                        onClick = { navController.navigate("daylog/$selectedDate") },
+                                                        onAddClick = { addFoodForMeal = meal },
+                                                    )
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                }
+
+                                                if (entries.isEmpty()) {
+                                                    if (refreshFailed) {
+                                                        RefreshErrorState(onRetry = { viewModel.loadData() })
+                                                    } else {
+                                                        OutlinedButton(
+                                                            onClick = { copyEntries() },
+                                                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.ContentCopy,
+                                                                stringResource(R.string.dashboard_copy),
+                                                                modifier = Modifier.size(18.dp),
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(stringResource(R.string.dashboard_copy_from_yesterday))
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        DashboardSection.CHART -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
+                                        }
+
+                                        DashboardSection.FAVORITES -> {
+                                            // Logging into a past day from a quick-log row would be a
+                                            // surprise, so favourites only appear on today — same rule
+                                            // as the web dashboard.
+                                            if (selectedDate == today) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                FavoritesQuickLogWidget(
+                                                    date = selectedDate.toString(),
+                                                    onViewAll = { navController.navigate("favorites") },
+                                                    onLogged = { name ->
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar(loggedFormat.format(name))
+                                                        }
+                                                        viewModel.loadData()
+                                                    },
+                                                )
+                                            }
+                                        }
+
+                                        DashboardSection.SUPPLEMENTS -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            SupplementsWidget(
+                                                date = selectedDate.toString(),
+                                                onViewAll = { navController.navigate("supplements") },
+                                            )
+                                        }
+
+                                        DashboardSection.WEIGHT -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            WeightWidget(
+                                                date = selectedDate.toString(),
+                                                onViewAll = { navController.navigate("weight") },
+                                                onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
+                                            )
+                                        }
+
+                                        DashboardSection.SLEEP -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            SleepWidget(onViewAll = { navController.navigate("sleep") })
+                                        }
+
+                                        DashboardSection.MEAL_BREAKDOWN -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            MealBreakdownWidget(entries = entries)
+                                        }
+
+                                        DashboardSection.TOP_FOODS -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
+                                        }
                                     }
                                 }
-                            }
-
-                            // The optional cards follow the order of the widget list in
-                            // Settings: chart, favorites, supplements, weight, sleep,
-                            // meal breakdown, top foods.
-                            if (prefs?.showChartWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
-                            }
-
-                            // Logging into a past day from a quick-log row would be a
-                            // surprise, so favourites only appear on today — same rule
-                            // as the web dashboard.
-                            if (prefs?.showFavoritesWidget == true && selectedDate == today) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                FavoritesQuickLogWidget(
-                                    date = selectedDate.toString(),
-                                    onViewAll = { navController.navigate("favorites") },
-                                    onLogged = { name ->
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(loggedFormat.format(name))
-                                        }
-                                        viewModel.loadData()
-                                    },
-                                )
-                            }
-
-                            // Supplements widget
-                            if (prefs?.showSupplementsWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                SupplementsWidget(
-                                    date = selectedDate.toString(),
-                                    onViewAll = { navController.navigate("supplements") },
-                                )
-                            }
-
-                            // Weight widget
-                            if (prefs?.showWeightWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                WeightWidget(
-                                    date = selectedDate.toString(),
-                                    onViewAll = { navController.navigate("weight") },
-                                    onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
-                                )
-                            }
-
-                            // Sleep widget
-                            if (prefs?.showSleepWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                SleepWidget(onViewAll = { navController.navigate("sleep") })
-                            }
-
-                            if (prefs?.showMealBreakdownWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                MealBreakdownWidget(entries = entries)
-                            }
-
-                            if (prefs?.showTopFoodsWidget == true) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))

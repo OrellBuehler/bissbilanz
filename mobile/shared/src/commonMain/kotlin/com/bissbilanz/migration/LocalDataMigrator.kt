@@ -965,6 +965,8 @@ class LocalDataMigrator(
             showMealBreakdownWidget = showMealBreakdownWidget,
             showTopFoodsWidget = showTopFoodsWidget,
             showSleepWidget = showSleepWidget,
+            showFastingWidget = showFastingWidget,
+            showDayPropertiesWidget = showDayPropertiesWidget,
             widgetOrder =
                 widgetOrder
                     .mapNotNull { value -> PreferencesUpdate.WidgetOrder.entries.firstOrNull { it.value == value } }

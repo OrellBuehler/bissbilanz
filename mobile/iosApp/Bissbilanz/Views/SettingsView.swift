@@ -214,16 +214,11 @@ struct SettingsView: View {
 
                 // Dashboard widgets
                 Section(L10n.dashboardWidgets) {
-                    Toggle(L10n.caloriesTrend, isOn: widgetBinding(\.showChartWidget, key: "showChartWidget"))
-                    Toggle(L10n.favorites, isOn: widgetBinding(\.showFavoritesWidget, key: "showFavoritesWidget"))
-                    Toggle(L10n.supplements, isOn: widgetBinding(\.showSupplementsWidget, key: "showSupplementsWidget"))
-                    Toggle(L10n.weight, isOn: widgetBinding(\.showWeightWidget, key: "showWeightWidget"))
-                    Toggle(L10n.sleep, isOn: widgetBinding(\.showSleepWidget, key: "showSleepWidget"))
-                    Toggle(
-                        L10n.mealBreakdown,
-                        isOn: widgetBinding(\.showMealBreakdownWidget, key: "showMealBreakdownWidget")
-                    )
-                    Toggle(L10n.topFoods, isOn: widgetBinding(\.showTopFoodsWidget, key: "showTopFoodsWidget"))
+                    NavigationLink {
+                        DashboardLayoutView()
+                    } label: {
+                        Label(L10n.dashboardLayout, systemImage: "square.grid.2x2")
+                    }
                 }
 
                 supplementRemindersSection
@@ -422,31 +417,6 @@ struct SettingsView: View {
                 if let errorMessage { Text(errorMessage) }
             }
         }
-    }
-
-    // MARK: - Widget Toggle Binding
-
-    private func widgetBinding(_ keyPath: KeyPath<Preferences, Bool>, key: String) -> Binding<Bool> {
-        Binding(
-            get: { preferences[keyPath: keyPath] },
-            set: { newValue in
-                Task {
-                    var update = PreferencesUpdate()
-                    switch key {
-                    case "showChartWidget": update.showChartWidget = newValue
-                    case "showFavoritesWidget": update.showFavoritesWidget = newValue
-                    case "showSupplementsWidget": update.showSupplementsWidget = newValue
-                    case "showWeightWidget": update.showWeightWidget = newValue
-                    case "showSleepWidget": update.showSleepWidget = newValue
-                    case "showMealBreakdownWidget": update.showMealBreakdownWidget = newValue
-                    case "showTopFoodsWidget": update.showTopFoodsWidget = newValue
-                    default: break
-                    }
-                    preferences = await (try? preferencesRepository.update(update))
-                        ?? (preferencesRepository.preferences() ?? .defaults)
-                }
-            }
-        )
     }
 
     // MARK: - Biological Sex
