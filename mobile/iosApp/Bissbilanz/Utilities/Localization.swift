@@ -509,6 +509,10 @@ enum L10n {
         localized("add_food", en: "Add Food", de: "Essen hinzufügen")
     }
 
+    static var searchFood: String {
+        localized("search_food", en: "Search Food", de: "Essen suchen")
+    }
+
     // MARK: - Recipes
 
     static var recipes: String {

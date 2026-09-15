@@ -10,9 +10,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,6 +57,7 @@ import com.bissbilanz.android.util.resolveDashboardSections
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
+import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedCalories
@@ -110,6 +113,7 @@ fun DashboardScreen(navController: NavController) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showAiMealSheet by remember { mutableStateOf(false) }
+    var fabMenuExpanded by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
     var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
@@ -174,38 +178,59 @@ fun DashboardScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            Column {
-                // Queuing a meal for the assistant needs the server, so it is
-                // hidden in local mode — same rule as iOS.
-                if (!isLocalMode) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            haptic(HapticFeedbackType.LongPress)
-                            showAiMealSheet = true
-                        },
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    ) {
-                        Icon(Icons.Default.AutoAwesome, stringResource(R.string.ai_task_content_desc))
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-                SmallFloatingActionButton(
-                    onClick = {
-                        haptic(HapticFeedbackType.LongPress)
-                        navController.navigate("scanner")
-                    },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                ) {
-                    Icon(Icons.Default.QrCodeScanner, stringResource(R.string.scan_widget_content_desc))
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+            // One FAB that opens a menu with the four ways to log. The menu
+            // opens upward from the bottom corner, so the most common action
+            // (search) is declared last to sit closest to the thumb — the
+            // same nearest-first order as iOS.
+            Box {
                 FloatingActionButton(
                     onClick = {
                         haptic(HapticFeedbackType.LongPress)
-                        showQuickAddSheet = true
+                        fabMenuExpanded = true
                     },
                 ) {
                     Icon(Icons.Default.Add, stringResource(R.string.dashboard_add_entry))
+                }
+                DropdownMenu(
+                    expanded = fabMenuExpanded,
+                    onDismissRequest = { fabMenuExpanded = false },
+                ) {
+                    // Queuing a meal for the assistant needs the server, so it is
+                    // hidden in local mode — same rule as iOS.
+                    if (!isLocalMode) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.ai_task_title)) },
+                            leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
+                            onClick = {
+                                fabMenuExpanded = false
+                                showAiMealSheet = true
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.scan_widget_content_desc)) },
+                        leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
+                        onClick = {
+                            fabMenuExpanded = false
+                            navController.navigate("scanner")
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.daylog_quick_add)) },
+                        leadingIcon = { Icon(Icons.Default.Bolt, contentDescription = null) },
+                        onClick = {
+                            fabMenuExpanded = false
+                            showQuickAddSheet = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.dashboard_menu_search_food)) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        onClick = {
+                            fabMenuExpanded = false
+                            addFoodForMeal = mealForCurrentTime()
+                        },
+                    )
                 }
             }
         },

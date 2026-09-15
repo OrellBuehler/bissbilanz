@@ -390,6 +390,7 @@
     <!-- Dashboard -->
     <string name="dashboard_yesterday">Gestern</string>
     <string name="dashboard_tomorrow">Morgen</string>
+    <string name="dashboard_menu_search_food">Essen suchen</string>
     <string name="dashboard_add_entry">Eintrag hinzufügen</string>
     <string name="dashboard_previous_day">Vorheriger Tag</string>
     <string name="dashboard_go_to_today">Zu heute springen</string>

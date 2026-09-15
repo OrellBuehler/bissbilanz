@@ -903,55 +903,46 @@ struct DashboardView: View {
 
     // MARK: - FAB
 
+    /// One glass button that opens a system menu with the four ways to log.
+    /// Items are declared most-common-first; the menu flips them so the first
+    /// sits nearest the thumb when anchored at the bottom of the screen.
     private var fab: some View {
         FloatingControlGroup {
-            VStack(spacing: 12) {
+            Menu {
                 Button {
-                    showAIMeal = true
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Image(systemName: "sparkles")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.aiMealEstimate)
-
-                Button {
-                    showScanner = true
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                } label: {
-                    Image(systemName: "barcode.viewfinder")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.scanBarcode)
-
-                Button {
-                    showQuickEntry = true
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Image(systemName: "bolt")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.quickEntry)
-
-                Button {
                     showFoodSearch = true
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
+                    Label(L10n.searchFood, systemImage: "magnifyingglass")
                 }
-                .circularGlassBackground(tint: MacroColors.calories)
-                .accessibilityLabel(L10n.addFood)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showQuickEntry = true
+                } label: {
+                    Label(L10n.quickEntry, systemImage: "bolt")
+                }
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showScanner = true
+                } label: {
+                    Label(L10n.scanBarcode, systemImage: "barcode.viewfinder")
+                }
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showAIMeal = true
+                } label: {
+                    Label(L10n.aiMealEstimate, systemImage: "sparkles")
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
             }
+            .buttonStyle(.plain)
+            .circularGlassBackground(tint: MacroColors.calories)
+            .accessibilityLabel(L10n.addFood)
             .padding()
         }
     }
