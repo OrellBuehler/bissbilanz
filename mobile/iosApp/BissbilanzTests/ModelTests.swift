@@ -518,6 +518,8 @@ struct PreferencesDefaultsTests {
         #expect(prefs.showFavoritesWidget == true)
         #expect(prefs.showSupplementsWidget == true)
         #expect(prefs.showWeightWidget == true)
+        #expect(prefs.showFastingWidget == true)
+        #expect(prefs.showDayPropertiesWidget == true)
         #expect(prefs.startPage == "dashboard")
         #expect(prefs.favoriteTapAction == "instant")
         #expect(prefs.favoriteMealAssignmentMode == "time_based")
