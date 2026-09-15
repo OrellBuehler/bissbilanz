@@ -56,7 +56,7 @@
 		"@types/web-push": "^3.6.4",
 		"@typescript/native": "npm:typescript@7",
 		"@vite-pwa/sveltekit": "^1.1.0",
-		"bits-ui": "^2.18.1",
+		"bits-ui": "^2.19.2",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.10",
 		"embla-carousel-svelte": "^8.6.0",
