@@ -1503,7 +1503,11 @@ export interface components {
 			showMealBreakdownWidget?: boolean;
 			showTopFoodsWidget?: boolean;
 			showSleepWidget?: boolean;
+			showFastingWidget?: boolean;
+			showDayPropertiesWidget?: boolean;
 			widgetOrder?: (
+				| 'fasting'
+				| 'day-properties'
 				| 'chart'
 				| 'streaks'
 				| 'favorites'
@@ -2196,6 +2200,8 @@ export interface components {
 			showMealBreakdownWidget: boolean;
 			showTopFoodsWidget: boolean;
 			showSleepWidget: boolean;
+			showFastingWidget: boolean;
+			showDayPropertiesWidget: boolean;
 			widgetOrder: string[];
 			mealOrder: string[];
 			startPage: string;

@@ -414,6 +414,13 @@
       "when": 1789029338745,
       "tag": "0058_wakeful_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1789497182649,
+      "tag": "0059_superb_klaw",
+      "breakpoints": true
     }
   ]
 }

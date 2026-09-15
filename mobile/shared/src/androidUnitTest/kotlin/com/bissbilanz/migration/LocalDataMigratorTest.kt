@@ -946,6 +946,8 @@ class LocalDataMigratorTest {
             showMealBreakdownWidget = true,
             showTopFoodsWidget = false,
             showSleepWidget = true,
+            showFastingWidget = true,
+            showDayPropertiesWidget = true,
             widgetOrder = listOf("chart"),
             mealOrder = listOf("breakfast", "lunch"),
             startPage = "dashboard",

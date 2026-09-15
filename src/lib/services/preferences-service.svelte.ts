@@ -30,6 +30,8 @@ async function refresh() {
 				showMealBreakdownWidget: p.showMealBreakdownWidget,
 				showTopFoodsWidget: p.showTopFoodsWidget,
 				showSleepWidget: p.showSleepWidget,
+				showFastingWidget: p.showFastingWidget,
+				showDayPropertiesWidget: p.showDayPropertiesWidget,
 				widgetOrder: p.widgetOrder,
 				mealOrder: p.mealOrder,
 				startPage: p.startPage,

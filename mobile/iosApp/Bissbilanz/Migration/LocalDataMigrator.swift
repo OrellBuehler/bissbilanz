@@ -593,6 +593,8 @@ final class LocalDataMigrator {
         update.showMealBreakdownWidget = preferences.showMealBreakdownWidget
         update.showTopFoodsWidget = preferences.showTopFoodsWidget
         update.showSleepWidget = preferences.showSleepWidget
+        update.showFastingWidget = preferences.showFastingWidget
+        update.showDayPropertiesWidget = preferences.showDayPropertiesWidget
         update.widgetOrder = preferences.widgetOrder.isEmpty ? nil : preferences.widgetOrder
         update.startPage = preferences.startPage
         update.favoriteTapAction = preferences.favoriteTapAction

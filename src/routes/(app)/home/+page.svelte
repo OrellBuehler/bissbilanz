@@ -61,7 +61,16 @@
 
 	const isToday = $derived(activeDate === today());
 	const order = $derived(
-		userPrefs?.widgetOrder ?? ['chart', 'streaks', 'favorites', 'supplements', 'weight', 'daylog']
+		userPrefs?.widgetOrder ?? [
+			'fasting',
+			'day-properties',
+			'chart',
+			'streaks',
+			'favorites',
+			'supplements',
+			'weight',
+			'daylog'
+		]
 	);
 
 	const SIDEBAR_WIDGETS = new Set(['streaks', 'favorites', 'sleep', 'supplements', 'weight']);
@@ -191,6 +200,8 @@
 			dashboardStyle={true}
 			onTotalsChange={(t) => (daylogTotals = t)}
 			onActivityChange={(kcal) => (daylogActivityCalories = kcal)}
+			showFasting={userPrefs?.showFastingWidget ?? true}
+			showDayProperties={userPrefs?.showDayPropertiesWidget ?? true}
 			bind:scanModalOpen
 			bind:addModalOpen
 			bind:initialFoodId={addFoodId}

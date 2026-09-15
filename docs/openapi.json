@@ -6275,11 +6275,19 @@
 					"showSleepWidget": {
 						"type": "boolean"
 					},
+					"showFastingWidget": {
+						"type": "boolean"
+					},
+					"showDayPropertiesWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
 							"type": "string",
 							"enum": [
+								"fasting",
+								"day-properties",
 								"chart",
 								"streaks",
 								"favorites",
@@ -9028,6 +9036,12 @@
 					"showSleepWidget": {
 						"type": "boolean"
 					},
+					"showFastingWidget": {
+						"type": "boolean"
+					},
+					"showDayPropertiesWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
@@ -9113,6 +9127,8 @@
 					"showMealBreakdownWidget",
 					"showTopFoodsWidget",
 					"showSleepWidget",
+					"showFastingWidget",
+					"showDayPropertiesWidget",
 					"widgetOrder",
 					"mealOrder",
 					"startPage",

@@ -148,6 +148,15 @@ struct DashboardView: View {
             }
             .keyboardDismissable()
             .navigationTitle(L10n.appName)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        DashboardLayoutView()
+                    } label: {
+                        Label(L10n.editDashboard, systemImage: "slider.horizontal.3")
+                    }
+                }
+            }
             .refreshable { await loadData(paintFromStore: false) }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
@@ -192,6 +201,13 @@ struct DashboardView: View {
             // Keyed on the day so switching dates cancels the previous load
             // instead of racing it (see `loadData`).
             .task(id: dateString) { await loadData() }
+            // Coming back from the layout editor (or Settings) with changed
+            // preferences: repaint from the store, which is the only path
+            // that also (re)loads the data a newly enabled card needs.
+            .onAppear {
+                guard let stored = preferencesRepository.preferences(), stored != preferences else { return }
+                loadFromStore()
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 let newToday = Calendar.current.startOfDay(for: Date())
@@ -220,104 +236,176 @@ struct DashboardView: View {
         VStack(spacing: 16) {
             macroRings
 
-            if let dayActivityCalories, dayActivityCalories > 0 {
+            if preferences.showDayPropertiesWidget, let dayActivityCalories, dayActivityCalories > 0 {
                 activitySummaryLine(dayActivityCalories)
             }
 
-            if selectedDate.isToday {
-                fastingCard
+            ForEach(renderedSections, id: \.self) { section in
+                sectionView(for: section)
             }
+        }
+    }
 
-            if totalCalories == 0, !refreshFailed {
-                HStack {
-                    Image(systemName: "fork.knife")
-                        .foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.fastingDay)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text(L10n.fastingDayDescription)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { isFastingDay },
-                        set: { _ in Task { await toggleFastingDay() } }
-                    ))
-                    .labelsHidden()
-                }
-                .padding(12)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+    /// Resolves `preferences.widgetOrder` into the sections the dashboard can
+    /// draw, respecting each one's visibility toggle. `summary` (the macro
+    /// header above, always pinned ahead of this list) and `streaks` (no
+    /// dashboard card exists) never appear here — see `DashboardSection`.
+    private var visibleSections: [DashboardSection] {
+        DashboardSection.resolve(order: preferences.widgetOrder, preferences: preferences)
+    }
 
+    /// `visibleSections` plus each section's own data-presence guard — today
+    /// only `weight` has one (no entry near the selected day to show it).
+    /// Drives both the `ForEach` below and the weight/sleep pairing rule, so
+    /// the two always agree on what actually lands on screen.
+    private var renderedSections: [DashboardSection] {
+        visibleSections.filter { $0 != .weight || closestWeight != nil }
+    }
+
+    /// Weight and sleep share one row at half width each when they land next
+    /// to each other in `renderedSections`; otherwise each renders full width
+    /// on its own.
+    private func isPaired(_ section: DashboardSection) -> Bool {
+        guard let index = renderedSections.firstIndex(of: section) else { return false }
+        switch section {
+        case .weight:
+            return index + 1 < renderedSections.count && renderedSections[index + 1] == .sleep
+        case .sleep:
+            return index > 0 && renderedSections[index - 1] == .weight
+        default:
+            return false
+        }
+    }
+
+    @ViewBuilder
+    private func sectionView(for section: DashboardSection) -> some View {
+        switch section {
+        case .fasting:
+            fastingSection
+        case .dayProperties:
             DayPropertiesCard(date: dateString) { dayActivityCalories = $0 }
-
-            if preferences.showChartWidget {
-                calorieTrendWidget
+        case .daylog:
+            daylogSection
+        case .chart:
+            calorieTrendWidget
+        case .favorites:
+            favoritesWidget
+        case .supplements:
+            if !supplementChecklist.isEmpty {
+                supplementsWidget
             }
+        case .weight:
+            weightSection
+        case .sleep:
+            sleepSection
+        case .mealBreakdown:
+            mealBreakdownWidget
+        case .topFoods:
+            topFoodsWidget
+        case .streaks, .summary:
+            EmptyView()
+        }
+    }
 
-            if preferences.showFavoritesWidget {
-                favoritesWidget
+    @ViewBuilder
+    private var fastingSection: some View {
+        if selectedDate.isToday {
+            fastingCard
+        }
+        if totalCalories == 0, !refreshFailed {
+            fastingDayToggleCard
+        }
+    }
+
+    private var fastingDayToggleCard: some View {
+        HStack {
+            Image(systemName: "fork.knife")
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.fastingDay)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(L10n.fastingDayDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+            Spacer()
+            Toggle("", isOn: Binding(
+                get: { isFastingDay },
+                set: { _ in Task { await toggleFastingDay() } }
+            ))
+            .labelsHidden()
+        }
+        .padding(12)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
 
-            if (preferences.showWeightWidget && closestWeight != nil) || preferences.showSleepWidget {
+    @ViewBuilder
+    private var daylogSection: some View {
+        if mealGroups.isEmpty, !isLoading {
+            if refreshFailed {
+                refreshErrorState
+            } else {
+                emptyState
+            }
+        } else {
+            ForEach(mealGroups, id: \.0) { meal, mealEntries in
+                // Label-based link like the fasting/weight/sleep cards —
+                // the value-based variant stopped resolving its
+                // destination on iOS 26.6 (card highlighted, no push).
+                NavigationLink {
+                    DayLogView(date: dateString)
+                } label: {
+                    MealCard(mealType: meal, entries: mealEntries)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var weightSection: some View {
+        if let weight = closestWeight {
+            if isPaired(.weight) {
                 // Weight and sleep share one row at half width each; a lone
                 // card stretches to the full width. `fixedSize` + `maxHeight`
                 // keeps the two cards equal-height when their content differs.
                 HStack(spacing: 16) {
-                    if preferences.showWeightWidget, let weight = closestWeight {
-                        NavigationLink {
-                            WeightView()
-                        } label: {
-                            weightWidget(weight)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if preferences.showSleepWidget {
-                        NavigationLink {
-                            SleepView()
-                        } label: {
-                            sleepWidget
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if preferences.showSupplementsWidget, !supplementChecklist.isEmpty {
-                supplementsWidget
-            }
-
-            if mealGroups.isEmpty, !isLoading {
-                if refreshFailed {
-                    refreshErrorState
-                } else {
-                    emptyState
-                }
-            } else {
-                ForEach(mealGroups, id: \.0) { meal, mealEntries in
-                    // Label-based link like the fasting/weight/sleep cards —
-                    // the value-based variant stopped resolving its
-                    // destination on iOS 26.6 (card highlighted, no push).
                     NavigationLink {
-                        DayLogView(date: dateString)
+                        WeightView()
                     } label: {
-                        MealCard(mealType: meal, entries: mealEntries)
+                        weightWidget(weight)
+                    }
+                    .buttonStyle(.plain)
+                    NavigationLink {
+                        SleepView()
+                    } label: {
+                        sleepWidget
                     }
                     .buttonStyle(.plain)
                 }
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                NavigationLink {
+                    WeightView()
+                } label: {
+                    weightWidget(weight)
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
 
-            if preferences.showMealBreakdownWidget {
-                mealBreakdownWidget
+    @ViewBuilder
+    private var sleepSection: some View {
+        if !isPaired(.sleep) {
+            NavigationLink {
+                SleepView()
+            } label: {
+                sleepWidget
             }
-
-            if preferences.showTopFoodsWidget {
-                topFoodsWidget
-            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -815,55 +903,46 @@ struct DashboardView: View {
 
     // MARK: - FAB
 
+    /// One glass button that opens a system menu with the four ways to log.
+    /// Items are declared most-common-first; the menu flips them so the first
+    /// sits nearest the thumb when anchored at the bottom of the screen.
     private var fab: some View {
         FloatingControlGroup {
-            VStack(spacing: 12) {
+            Menu {
                 Button {
-                    showAIMeal = true
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Image(systemName: "sparkles")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.aiMealEstimate)
-
-                Button {
-                    showScanner = true
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                } label: {
-                    Image(systemName: "barcode.viewfinder")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.scanBarcode)
-
-                Button {
-                    showQuickEntry = true
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Image(systemName: "bolt")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .circularGlassBackground()
-                .accessibilityLabel(L10n.quickEntry)
-
-                Button {
                     showFoodSearch = true
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
+                    Label(L10n.searchFood, systemImage: "magnifyingglass")
                 }
-                .circularGlassBackground(tint: MacroColors.calories)
-                .accessibilityLabel(L10n.addFood)
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showQuickEntry = true
+                } label: {
+                    Label(L10n.quickEntry, systemImage: "bolt")
+                }
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showScanner = true
+                } label: {
+                    Label(L10n.scanBarcode, systemImage: "barcode.viewfinder")
+                }
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showAIMeal = true
+                } label: {
+                    Label(L10n.aiMealEstimate, systemImage: "sparkles")
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
             }
+            .buttonStyle(.plain)
+            .circularGlassBackground(tint: MacroColors.calories)
+            .accessibilityLabel(L10n.addFood)
             .padding()
         }
     }

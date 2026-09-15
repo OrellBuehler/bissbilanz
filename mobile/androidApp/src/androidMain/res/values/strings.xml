@@ -392,6 +392,7 @@
     <!-- Dashboard -->
     <string name="dashboard_yesterday">Yesterday</string>
     <string name="dashboard_tomorrow">Tomorrow</string>
+    <string name="dashboard_menu_search_food">Search food</string>
     <string name="dashboard_add_entry">Add entry</string>
     <string name="dashboard_previous_day">Previous day</string>
     <string name="dashboard_go_to_today">Go to today</string>
@@ -735,10 +736,22 @@
     <string name="settings_custom_meal_types">Custom Meal Types</string>
     <string name="settings_add_meal_type">Add meal type</string>
     <string name="settings_default_meals_only">Default meals only (Breakfast, Lunch, Dinner, Snack)</string>
-    <string name="settings_dashboard_widgets">Dashboard Widgets</string>
-    <string name="settings_widget_chart">Chart</string>
     <string name="settings_widget_meal_breakdown">Meal Breakdown</string>
     <string name="settings_widget_top_foods">Top Foods</string>
+    <string name="dashboard_layout_title">Dashboard layout</string>
+    <string name="dashboard_layout_drag_handle">Drag to reorder</string>
+    <string name="dashboard_layout_row_daylog">Day log</string>
+    <string name="dashboard_layout_row_daylog_desc">Meals and their entries</string>
+    <string name="dashboard_calorie_trend_desc">Calories logged over the last 7 days</string>
+    <string name="settings_widget_fasting_desc">Fasting day toggle and the running fast</string>
+    <string name="settings_widget_day_properties">Day details</string>
+    <string name="settings_widget_day_properties_desc">Water, activity and notes for the day</string>
+    <string name="settings_widget_favorites_desc">Shows your top 5 favorite foods</string>
+    <string name="settings_widget_supplements_desc">Shows today\'s supplement checklist</string>
+    <string name="settings_widget_weight_desc">Shows your latest weight entry</string>
+    <string name="settings_widget_sleep_desc">Last night\'s sleep duration and quality</string>
+    <string name="settings_widget_meal_breakdown_desc">Calorie distribution across meals</string>
+    <string name="settings_widget_top_foods_desc">Most frequently logged foods</string>
     <string name="settings_favorite_logging">Favorite Logging</string>
     <string name="settings_auto_assign_by_time">Auto-assign by time</string>
     <string name="settings_always_ask">Always ask</string>

@@ -41,8 +41,8 @@ struct SyncConflictBanner: View {
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
         }
     }
 }

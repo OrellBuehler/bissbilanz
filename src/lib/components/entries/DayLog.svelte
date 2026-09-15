@@ -35,6 +35,8 @@
 		initialFoodId?: string | null;
 		initialRecipeId?: string | null;
 		onActivityChange?: (activityCalories: number | null) => void;
+		showFasting?: boolean;
+		showDayProperties?: boolean;
 	};
 
 	let {
@@ -45,7 +47,9 @@
 		addModalOpen = $bindable(false),
 		initialFoodId = $bindable(null),
 		initialRecipeId = $bindable(null),
-		onActivityChange
+		onActivityChange,
+		showFasting = true,
+		showDayProperties = true
 	}: Props = $props();
 
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
@@ -238,7 +242,7 @@
 </script>
 
 <div class="space-y-4">
-	{#each fastsToday as fast (fast.id)}
+	{#each showFasting ? fastsToday : [] as fast (fast.id)}
 		<a
 			href="/fasting"
 			class="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 transition-colors hover:bg-muted/50"
@@ -260,7 +264,7 @@
 		</a>
 	{/each}
 
-	{#if !totals.calories}
+	{#if showFasting && !totals.calories}
 		<div
 			class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
 		>
@@ -278,7 +282,9 @@
 		</div>
 	{/if}
 
-	<DayPropertiesCard {date} {onActivityChange} />
+	{#if showDayProperties}
+		<DayPropertiesCard {date} {onActivityChange} />
+	{/if}
 
 	<div class="grid gap-4">
 		{#each mealTypes as mealType}

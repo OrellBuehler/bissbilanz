@@ -1,0 +1,2 @@
+ALTER TABLE "user_preferences" ADD COLUMN "show_fasting_widget" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD COLUMN "show_day_properties_widget" boolean DEFAULT true NOT NULL;

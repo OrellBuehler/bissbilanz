@@ -58,6 +58,21 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        # The legacy 'tools' package the action installs by default was removed
+        # from the SDK repository (android-actions/setup-android#537), so the
+        # default 'tools platform-tools' list makes sdkmanager exit 1.
+        with:
+          packages: platform-tools
+
+        with:
+          # Google dropped the legacy 'tools' package the action installs by default
+
+          packages: platform-tools
+
+        with:
+          # Google dropped the legacy 'tools' package the action installs by default
+
+          packages: platform-tools
 
       - name: Cache Gradle dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6

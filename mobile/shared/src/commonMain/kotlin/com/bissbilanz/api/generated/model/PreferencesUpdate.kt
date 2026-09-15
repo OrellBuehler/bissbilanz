@@ -30,6 +30,8 @@ import kotlinx.serialization.encoding.*
  * @param showMealBreakdownWidget
  * @param showTopFoodsWidget
  * @param showSleepWidget
+ * @param showFastingWidget
+ * @param showDayPropertiesWidget
  * @param widgetOrder
  * @param startPage
  * @param favoriteTapAction
@@ -53,6 +55,8 @@ data class PreferencesUpdate(
     @SerialName(value = "showMealBreakdownWidget") val showMealBreakdownWidget: kotlin.Boolean? = null,
     @SerialName(value = "showTopFoodsWidget") val showTopFoodsWidget: kotlin.Boolean? = null,
     @SerialName(value = "showSleepWidget") val showSleepWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showFastingWidget") val showFastingWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showDayPropertiesWidget") val showDayPropertiesWidget: kotlin.Boolean? = null,
     @SerialName(value = "widgetOrder") val widgetOrder: kotlin.collections.List<PreferencesUpdate.WidgetOrder>? = null,
     @SerialName(value = "startPage") val startPage: PreferencesUpdate.StartPage? = null,
     @SerialName(value = "favoriteTapAction") val favoriteTapAction: PreferencesUpdate.FavoriteTapAction? = null,
@@ -70,12 +74,18 @@ data class PreferencesUpdate(
     /**
      *
      *
-     * Values: chart,streaks,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
+     * Values: fasting,dayMinusProperties,chart,streaks,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
      */
     @Serializable
     enum class WidgetOrder(
         val value: kotlin.String,
     ) {
+        @SerialName(value = "fasting")
+        fasting("fasting"),
+
+        @SerialName(value = "day-properties")
+        dayMinusProperties("day-properties"),
+
         @SerialName(value = "chart")
         chart("chart"),
 
