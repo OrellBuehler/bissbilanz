@@ -1251,6 +1251,104 @@ enum L10n {
         )
     }
 
+    // MARK: - Dashboard Layout
+
+    static var dashboardLayout: String {
+        localized("dashboard_layout", en: "Dashboard layout", de: "Dashboard-Layout")
+    }
+
+    static var editDashboard: String {
+        localized("edit_dashboard", en: "Edit dashboard", de: "Dashboard bearbeiten")
+    }
+
+    static var dashboardSectionFastingDescription: String {
+        localized(
+            "dashboard_section_fasting_description",
+            en: "Fasting day toggle and the running fast",
+            de: "Fastentag-Umschalter und der laufende Fastenzeitraum"
+        )
+    }
+
+    static var dashboardSectionDayDetailsTitle: String {
+        localized("dashboard_section_day_details_title", en: "Day details", de: "Tagesdetails")
+    }
+
+    static var dashboardSectionDayDetailsDescription: String {
+        localized(
+            "dashboard_section_day_details_description",
+            en: "Water, activity and notes for the day",
+            de: "Wasser, Aktivität und Notizen für den Tag"
+        )
+    }
+
+    static var dashboardSectionDayLogTitle: String {
+        localized("dashboard_section_day_log_title", en: "Day log", de: "Tagesprotokoll")
+    }
+
+    static var dashboardSectionDayLogDescription: String {
+        localized(
+            "dashboard_section_day_log_description",
+            en: "Meals and their entries",
+            de: "Mahlzeiten und ihre Einträge"
+        )
+    }
+
+    static var dashboardSectionChartDescription: String {
+        localized(
+            "dashboard_section_chart_description",
+            en: "7-day calorie trend",
+            de: "7-Tage-Kalorientrend"
+        )
+    }
+
+    static var dashboardSectionFavoritesDescription: String {
+        localized(
+            "dashboard_section_favorites_description",
+            en: "Quick-log your favorite foods",
+            de: "Favoriten schnell eintragen"
+        )
+    }
+
+    static var dashboardSectionSupplementsDescription: String {
+        localized(
+            "dashboard_section_supplements_description",
+            en: "Today's supplement checklist",
+            de: "Heutige Nahrungsergänzungs-Checkliste"
+        )
+    }
+
+    static var dashboardSectionWeightDescription: String {
+        localized(
+            "dashboard_section_weight_description",
+            en: "Your latest logged weight",
+            de: "Dein zuletzt erfasstes Gewicht"
+        )
+    }
+
+    static var dashboardSectionSleepDescription: String {
+        localized(
+            "dashboard_section_sleep_description",
+            en: "Your latest logged night",
+            de: "Deine zuletzt erfasste Nacht"
+        )
+    }
+
+    static var dashboardSectionMealBreakdownDescription: String {
+        localized(
+            "dashboard_section_meal_breakdown_description",
+            en: "Where today's calories went",
+            de: "Wohin die heutigen Kalorien gingen"
+        )
+    }
+
+    static var dashboardSectionTopFoodsDescription: String {
+        localized(
+            "dashboard_section_top_foods_description",
+            en: "Your most logged foods this week",
+            de: "Deine meistgeloggten Lebensmittel diese Woche"
+        )
+    }
+
     static var favoriteBehavior: String {
         localized(
             "favorite_behavior",

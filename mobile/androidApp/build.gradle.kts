@@ -150,6 +150,7 @@ android {
         implementation(libs.play.services.wearable)
         implementation(libs.kotlinx.coroutines.play.services)
         implementation(libs.work.runtime)
+        implementation(libs.reorderable)
         implementation("com.google.guava:guava:33.7.1-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)

@@ -10,6 +10,14 @@
 
 	const WIDGET_DEFS: Record<WidgetKey, { name: () => string; desc: () => string }> &
 		Record<string, { name: () => string; desc: () => string }> = {
+		fasting: {
+			name: () => m.settings_widget_fasting(),
+			desc: () => m.settings_widget_fasting_desc()
+		},
+		'day-properties': {
+			name: () => m.settings_widget_day_properties(),
+			desc: () => m.settings_widget_day_properties_desc()
+		},
 		chart: {
 			name: () => m.settings_section_chart(),
 			desc: () => m.settings_section_chart_desc()
@@ -60,6 +68,8 @@
 		mealBreakdown: boolean;
 		topFoods: boolean;
 		sleep: boolean;
+		fasting: boolean;
+		dayProperties: boolean;
 	};
 
 	type Props = {
@@ -142,6 +152,16 @@
 							<Switch
 								checked={visibility.sleep}
 								onCheckedChange={(v) => onSavePreference('showSleepWidget', v)}
+							/>
+						{:else if widget.key === 'fasting'}
+							<Switch
+								checked={visibility.fasting}
+								onCheckedChange={(v) => onSavePreference('showFastingWidget', v)}
+							/>
+						{:else if widget.key === 'day-properties'}
+							<Switch
+								checked={visibility.dayProperties}
+								onCheckedChange={(v) => onSavePreference('showDayPropertiesWidget', v)}
 							/>
 						{/if}
 					</div>

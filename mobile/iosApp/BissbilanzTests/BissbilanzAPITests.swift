@@ -848,7 +848,9 @@ struct APIResponseDecodingTests {
         // The server wraps preferences as { preferences: {...} } and the inner
         // object carries showSleepWidget (NOT showSummary/DayLog/Streak) plus keys
         // iOS doesn't model (mealOrder, favoriteMealTimeframes, updatedAt) — the
-        // decode must succeed via the envelope and ignore the extras.
+        // decode must succeed via the envelope and ignore the extras. This
+        // payload also predates showFastingWidget/showDayPropertiesWidget —
+        // both must default to true rather than fail the whole decode.
         let json = """
         {
             "preferences": {
@@ -879,6 +881,8 @@ struct APIResponseDecodingTests {
         #expect(response.preferences.widgetOrder == ["chart", "sleep"])
         #expect(response.preferences.locale == nil)
         #expect(response.preferences.timeZone == "Europe/Zurich")
+        #expect(response.preferences.showFastingWidget == true)
+        #expect(response.preferences.showDayPropertiesWidget == true)
     }
 
     @Test("Daily stats response decodes")

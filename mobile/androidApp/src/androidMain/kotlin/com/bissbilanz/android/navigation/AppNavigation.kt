@@ -250,6 +250,10 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
         com.bissbilanz.android.ui.screens
             .FastingScreen(navController)
     }
+    composable("dashboard-layout") {
+        com.bissbilanz.android.ui.screens
+            .DashboardLayoutScreen(navController)
+    }
     composable("pending-sync") {
         com.bissbilanz.android.ui.screens
             .PendingSyncScreen(navController)

@@ -6,7 +6,7 @@ import Foundation
 /// section keys server-side, so there are no `showSummary/DayLog/StreakWidget`
 /// columns. Keep this in sync with the server contract: a field iOS marks
 /// required but the server omits makes the whole response fail to decode.
-struct Preferences: Codable {
+struct Preferences: Codable, Equatable {
     let showChartWidget: Bool
     let showFavoritesWidget: Bool
     let showSupplementsWidget: Bool
@@ -14,6 +14,12 @@ struct Preferences: Codable {
     let showMealBreakdownWidget: Bool
     let showTopFoodsWidget: Bool
     let showSleepWidget: Bool
+    /// `var` with a default like `biologicalSex`/`waterGoalMl` below: a cached
+    /// row written by a version of the app that predates these two widgets
+    /// lacks the keys entirely, and the custom decode in the extension below
+    /// falls back to `true` rather than failing the whole object.
+    var showFastingWidget: Bool = true
+    var showDayPropertiesWidget: Bool = true
     let widgetOrder: [String]
     let startPage: String
     let favoriteTapAction: String
@@ -41,6 +47,8 @@ struct Preferences: Codable {
         showMealBreakdownWidget: true,
         showTopFoodsWidget: true,
         showSleepWidget: true,
+        showFastingWidget: true,
+        showDayPropertiesWidget: true,
         widgetOrder: [],
         startPage: "dashboard",
         favoriteTapAction: "instant",
@@ -51,6 +59,65 @@ struct Preferences: Codable {
         timeZone: "UTC",
         waterGoalMl: nil
     )
+}
+
+/// Declared in an extension so the memberwise initializer survives (see
+/// `PreferencesUpdate` below for the same trick). Needed only so
+/// `showFastingWidget`/`showDayPropertiesWidget` can default to `true` when a
+/// cached row or server response omits them — every other field keeps the
+/// exact required/optional shape the compiler would have synthesized anyway.
+extension Preferences {
+    private enum CodingKeys: String, CodingKey {
+        case showChartWidget, showFavoritesWidget, showSupplementsWidget, showWeightWidget
+        case showMealBreakdownWidget, showTopFoodsWidget, showSleepWidget
+        case showFastingWidget, showDayPropertiesWidget
+        case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
+        case visibleNutrients, biologicalSex, locale, timeZone, waterGoalMl
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        showChartWidget = try container.decode(Bool.self, forKey: .showChartWidget)
+        showFavoritesWidget = try container.decode(Bool.self, forKey: .showFavoritesWidget)
+        showSupplementsWidget = try container.decode(Bool.self, forKey: .showSupplementsWidget)
+        showWeightWidget = try container.decode(Bool.self, forKey: .showWeightWidget)
+        showMealBreakdownWidget = try container.decode(Bool.self, forKey: .showMealBreakdownWidget)
+        showTopFoodsWidget = try container.decode(Bool.self, forKey: .showTopFoodsWidget)
+        showSleepWidget = try container.decode(Bool.self, forKey: .showSleepWidget)
+        showFastingWidget = try container.decodeIfPresent(Bool.self, forKey: .showFastingWidget) ?? true
+        showDayPropertiesWidget = try container.decodeIfPresent(Bool.self, forKey: .showDayPropertiesWidget) ?? true
+        widgetOrder = try container.decode([String].self, forKey: .widgetOrder)
+        startPage = try container.decode(String.self, forKey: .startPage)
+        favoriteTapAction = try container.decode(String.self, forKey: .favoriteTapAction)
+        favoriteMealAssignmentMode = try container.decode(String.self, forKey: .favoriteMealAssignmentMode)
+        visibleNutrients = try container.decode([String].self, forKey: .visibleNutrients)
+        biologicalSex = try container.decodeIfPresent(String.self, forKey: .biologicalSex)
+        locale = try container.decodeIfPresent(String.self, forKey: .locale)
+        timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone)
+        waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(showChartWidget, forKey: .showChartWidget)
+        try container.encode(showFavoritesWidget, forKey: .showFavoritesWidget)
+        try container.encode(showSupplementsWidget, forKey: .showSupplementsWidget)
+        try container.encode(showWeightWidget, forKey: .showWeightWidget)
+        try container.encode(showMealBreakdownWidget, forKey: .showMealBreakdownWidget)
+        try container.encode(showTopFoodsWidget, forKey: .showTopFoodsWidget)
+        try container.encode(showSleepWidget, forKey: .showSleepWidget)
+        try container.encode(showFastingWidget, forKey: .showFastingWidget)
+        try container.encode(showDayPropertiesWidget, forKey: .showDayPropertiesWidget)
+        try container.encode(widgetOrder, forKey: .widgetOrder)
+        try container.encode(startPage, forKey: .startPage)
+        try container.encode(favoriteTapAction, forKey: .favoriteTapAction)
+        try container.encode(favoriteMealAssignmentMode, forKey: .favoriteMealAssignmentMode)
+        try container.encode(visibleNutrients, forKey: .visibleNutrients)
+        try container.encodeIfPresent(biologicalSex, forKey: .biologicalSex)
+        try container.encodeIfPresent(locale, forKey: .locale)
+        try container.encodeIfPresent(timeZone, forKey: .timeZone)
+        try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
+    }
 }
 
 /// The server wraps the preferences body as `{ preferences: {...} }` on both GET
@@ -67,6 +134,8 @@ struct PreferencesUpdate: Codable {
     var showMealBreakdownWidget: Bool?
     var showTopFoodsWidget: Bool?
     var showSleepWidget: Bool?
+    var showFastingWidget: Bool?
+    var showDayPropertiesWidget: Bool?
     var widgetOrder: [String]?
     var startPage: String?
     var favoriteTapAction: String?
@@ -87,6 +156,7 @@ extension PreferencesUpdate {
     private enum CodingKeys: String, CodingKey {
         case showChartWidget, showFavoritesWidget, showSupplementsWidget, showWeightWidget
         case showMealBreakdownWidget, showTopFoodsWidget, showSleepWidget
+        case showFastingWidget, showDayPropertiesWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes, waterGoalMl
     }
@@ -100,6 +170,8 @@ extension PreferencesUpdate {
         showMealBreakdownWidget = try container.decodeIfPresent(Bool.self, forKey: .showMealBreakdownWidget)
         showTopFoodsWidget = try container.decodeIfPresent(Bool.self, forKey: .showTopFoodsWidget)
         showSleepWidget = try container.decodeIfPresent(Bool.self, forKey: .showSleepWidget)
+        showFastingWidget = try container.decodeIfPresent(Bool.self, forKey: .showFastingWidget)
+        showDayPropertiesWidget = try container.decodeIfPresent(Bool.self, forKey: .showDayPropertiesWidget)
         widgetOrder = try container.decodeIfPresent([String].self, forKey: .widgetOrder)
         startPage = try container.decodeIfPresent(String.self, forKey: .startPage)
         favoriteTapAction = try container.decodeIfPresent(String.self, forKey: .favoriteTapAction)
@@ -124,6 +196,8 @@ extension PreferencesUpdate {
         try container.encodeIfPresent(showMealBreakdownWidget, forKey: .showMealBreakdownWidget)
         try container.encodeIfPresent(showTopFoodsWidget, forKey: .showTopFoodsWidget)
         try container.encodeIfPresent(showSleepWidget, forKey: .showSleepWidget)
+        try container.encodeIfPresent(showFastingWidget, forKey: .showFastingWidget)
+        try container.encodeIfPresent(showDayPropertiesWidget, forKey: .showDayPropertiesWidget)
         try container.encodeIfPresent(widgetOrder, forKey: .widgetOrder)
         try container.encodeIfPresent(startPage, forKey: .startPage)
         try container.encodeIfPresent(favoriteTapAction, forKey: .favoriteTapAction)
