@@ -80,9 +80,12 @@ struct ContentView: View {
             }
         }
         .minimizableTabBar()
-        // Above the tabs so a lost offline edit is visible wherever the user
-        // happens to be. Zero-height while there are no notices.
-        .safeAreaInset(edge: .top, spacing: 0) {
+        // Outside the tabs so a lost offline edit is visible wherever the user
+        // happens to be. Sits above the tab bar, where every other transient
+        // message (`.toast`) already appears — at the top it covered the
+        // navigation title and read as a system alert (TestFlight feedback,
+        // 1.42.0). Zero-height while there are no notices.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             SyncConflictBanner()
         }
         // Widget deep links land here as sheets so they work regardless of

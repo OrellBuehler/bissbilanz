@@ -101,8 +101,13 @@ final class FastingTimerManager {
             history = FastingSessionStore.loadHistory()
         } catch {
             // Best-effort — the local history is still accurate for anything
-            // finished on this device.
-            ErrorReporter.captureWarning("Fasting history refresh failed", context: ["reason": ErrorReporter.reason(for: error)])
+            // finished on this device, and nothing tells the user it failed.
+            // So this goes through `capture`'s noise filter rather than
+            // `captureWarning`: a phone that is offline, signed out or timing
+            // out is not a bug (Sentry BISSBILANZ-3F was exactly that during a
+            // deploy), while a 5xx or a payload this build can't decode still
+            // reports.
+            ErrorReporter.capture(error, context: ["operation": "fasting_history_refresh"])
         }
     }
 
