@@ -65,14 +65,7 @@ struct AIMealSheet: View {
                             // The picker only shows a clock, and the sheet
                             // can be open for yesterday's day card after
                             // midnight — name the day the time lands on.
-                            DatePicker(selection: $eatenTime, displayedComponents: .hourAndMinute) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(L10n.time)
-                                    Text(dayLabel)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                            TimePickerRow(L10n.time, selection: $eatenTime, caption: dayLabel)
                         }
                     }
                 } footer: {
@@ -344,14 +337,7 @@ struct AIMealSheet: View {
     /// mirroring `EntryEditSheet.eatenAtString()`.
     private func eatenAtString() -> String? {
         guard let day = DateFormatting.date(from: date) else { return nil }
-        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
-        guard let combined = Calendar.current.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: 0,
-            of: day
-        ) else { return nil }
-        return DateFormatting.isoDateTimeString(from: combined)
+        return DateFormatting.eatenAtString(time: eatenTime, on: day)
     }
 
     /// The task's day as shown on the day card, e.g. "Sep 9, 2026".

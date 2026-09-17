@@ -133,7 +133,7 @@ struct EntryEditSheet: View {
                         in: DateFormatting.entryDateRange,
                         displayedComponents: .date
                     )
-                    DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                    TimePickerRow(L10n.time, selection: $eatenTime)
                 }
 
                 if isQuickEntry {
@@ -264,17 +264,9 @@ struct EntryEditSheet: View {
     }
 
     /// The picked time-of-day on the picked entry date, as the UTC ISO-8601
-    /// `eatenAt` wire value — mirrors `LogFoodSheet.eatenAtString()`. `nil`
-    /// (eaten time left unchanged) only if the components can't be combined.
+    /// `eatenAt` wire value. `nil` (eaten time left unchanged) only if the
+    /// components can't be combined.
     private func eatenAtString() -> String? {
-        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
-        guard let combined = Calendar.current.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: 0,
-            of: entryDate
-        )
-        else { return nil }
-        return DateFormatting.isoDateTimeString(from: combined)
+        DateFormatting.eatenAtString(time: eatenTime, on: entryDate)
     }
 }

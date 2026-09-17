@@ -339,3 +339,58 @@ struct JSONEncodingTests {
         #expect(json["notes"] as? String == "After workout")
     }
 }
+
+@Suite("Eaten-At Combining Tests")
+struct EatenAtStringTests {
+    /// Fixed to UTC so the wire string the formatter produces is the same
+    /// wall-clock time the components describe, whatever zone the runner is in.
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        return calendar
+    }
+
+    private func date(_ components: DateComponents) throws -> Date {
+        try #require(utc.date(from: components))
+    }
+
+    @Test("Picked time lands on the picked day, seconds zeroed")
+    func combinesTimeOntoDay() throws {
+        let day = try date(DateComponents(year: 2026, month: 3, day: 12))
+        let time = try date(DateComponents(year: 1999, month: 1, day: 1, hour: 14, minute: 37, second: 52))
+
+        let result = DateFormatting.eatenAtString(time: time, on: day, calendar: utc)
+        #expect(result == "2026-03-12T14:37:00Z")
+    }
+
+    @Test("The day's own time of day is replaced, not added to")
+    func dayTimeOfDayIsReplaced() throws {
+        let day = try date(DateComponents(year: 2026, month: 3, day: 12, hour: 23, minute: 59))
+        let time = try date(DateComponents(year: 2026, month: 9, day: 1, hour: 5, minute: 5))
+
+        let result = DateFormatting.eatenAtString(time: time, on: day, calendar: utc)
+        #expect(result == "2026-03-12T05:05:00Z")
+    }
+
+    @Test("Midnight stays on the picked day")
+    func midnightKeepsTheDay() throws {
+        let day = try date(DateComponents(year: 2026, month: 12, day: 31, hour: 18))
+        let time = try date(DateComponents(year: 2020, month: 1, day: 1, hour: 0, minute: 0))
+
+        let result = DateFormatting.eatenAtString(time: time, on: day, calendar: utc)
+        #expect(result == "2026-12-31T00:00:00Z")
+    }
+
+    @Test("Result parses back to the same instant")
+    func roundTripsThroughTheParser() throws {
+        let day = try date(DateComponents(year: 2026, month: 6, day: 1))
+        let time = try date(DateComponents(year: 2026, month: 6, day: 1, hour: 7, minute: 8))
+
+        let result = try #require(DateFormatting.eatenAtString(time: time, on: day, calendar: utc))
+        let parsed = try #require(DateFormatting.isoDateTime(from: result))
+        let components = utc.dateComponents([.hour, .minute, .second], from: parsed)
+        #expect(components.hour == 7)
+        #expect(components.minute == 8)
+        #expect(components.second == 0)
+    }
+}

@@ -63,6 +63,25 @@ enum DateFormatting {
         timeFormatter.string(from: date)
     }
 
+    /// A picked time-of-day placed on a picked day, as the UTC ISO-8601 `eatenAt`
+    /// wire value. Seconds are zeroed so a re-save doesn't nudge the timestamp.
+    /// `nil` when the two can't be combined — the caller then leaves `eatenAt`
+    /// alone rather than writing a wrong time.
+    ///
+    /// Assembled from components rather than with `date(bySettingHour:of:)`: that
+    /// one searches *forward* from `day`, so an afternoon `day` (the picker falls
+    /// back to the logged instant when an entry carries no date string) plus a
+    /// morning `time` lands the meal on tomorrow.
+    static func eatenAtString(time: Date, on day: Date, calendar: Calendar = .current) -> String? {
+        let clock = calendar.dateComponents([.hour, .minute], from: time)
+        var components = calendar.dateComponents([.year, .month, .day], from: day)
+        components.hour = clock.hour ?? 0
+        components.minute = clock.minute ?? 0
+        components.second = 0
+        guard let combined = calendar.date(from: components) else { return nil }
+        return isoDateTimeString(from: combined)
+    }
+
     static func date(from isoString: String) -> Date? {
         // ICU parsing is lenient about punctuation (e.g. "2026/03/12" matches
         // "yyyy-MM-dd"); round-trip to accept canonical ISO strings only.
