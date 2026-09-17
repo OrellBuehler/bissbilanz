@@ -38,6 +38,8 @@ struct FastingView: View {
     /// Nil means "now" — the start row shows a plain "Now" until the user
     /// back-dates the start, so a fast started on time carries no stale instant.
     @State private var customStart: Date?
+    /// Whether the back-dating wheels are open under the start row.
+    @State private var showsCustomStartPicker = false
     @State private var showAdjustStart = false
     @State private var editingSession: FastingSession?
 
@@ -237,42 +239,72 @@ struct FastingView: View {
 
             // Forgot to start the timer before bed? Back-date the start here;
             // the ring, the Live Activity and the history all count from it.
-            HStack {
-                Text(L10n.fastingStartedAt)
-                    .font(.subheadline)
-                Spacer()
-                if let start = customStart {
+            // The wheels drop in below the row rather than into the system's
+            // compact popover, which throws away a wheel that hasn't settled
+            // when it is dismissed by a tap outside — see `TimePickerRow`.
+            VStack(spacing: 8) {
+                HStack {
+                    Text(L10n.fastingStartedAt)
+                        .font(.subheadline)
+                    Spacer()
+                    if let start = customStart {
+                        Button {
+                            withAnimation(.snappy) { showsCustomStartPicker.toggle() }
+                        } label: {
+                            Text(
+                                "\(DateFormatting.displayString(from: start)), "
+                                    + DateFormatting.timeString(from: start)
+                            )
+                            .font(.subheadline)
+                            .monospacedDigit()
+                            .foregroundStyle(showsCustomStartPicker ? Color.accentColor : Color.primary)
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 6)
+                            .background(
+                                Color(.tertiarySystemFill),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            customStart = nil
+                            showsCustomStartPicker = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel(L10n.fastingStartNow)
+                    } else {
+                        Button {
+                            customStart = Date()
+                            showsCustomStartPicker = true
+                        } label: {
+                            Label(L10n.fastingStartNow, systemImage: "pencil")
+                                .font(.subheadline)
+                        }
+                    }
+                }
+                .frame(minHeight: 44)
+
+                if showsCustomStartPicker, customStart != nil {
                     DatePicker(
                         L10n.fastingStartedAt,
                         selection: Binding(
-                            get: { start },
+                            get: { customStart ?? Date() },
                             set: { customStart = min($0, Date()) }
                         ),
-                        in: ...Date(),
+                        in: DateFormatting.entryDateRange.lowerBound ... Date(),
                         displayedComponents: [.date, .hourAndMinute]
                     )
+                    .datePickerStyle(.wheel)
                     .labelsHidden()
-                    Button {
-                        customStart = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityLabel(L10n.fastingStartNow)
-                } else {
-                    Button {
-                        customStart = Date()
-                    } label: {
-                        Label(L10n.fastingStartNow, systemImage: "pencil")
-                            .font(.subheadline)
-                    }
                 }
             }
-            .frame(minHeight: 44)
 
             Button {
                 fastingManager.start(targetHours: targetHours, startedAt: customStart ?? Date())
                 customStart = nil
+                showsCustomStartPicker = false
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             } label: {
                 Text(L10n.startFast)
@@ -419,10 +451,10 @@ struct FastingStartSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker(
+                    TimePickerRow(
                         L10n.fastingStartedAt,
                         selection: $startedAt,
-                        in: ...Date(),
+                        in: DateFormatting.entryDateRange.lowerBound ... Date(),
                         displayedComponents: [.date, .hourAndMinute]
                     )
                 } footer: {
@@ -480,16 +512,16 @@ struct FastingEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker(
+                    TimePickerRow(
                         L10n.fastingStarted,
                         selection: $startedAt,
-                        in: ...Date(),
+                        in: DateFormatting.entryDateRange.lowerBound ... Date(),
                         displayedComponents: [.date, .hourAndMinute]
                     )
-                    DatePicker(
+                    TimePickerRow(
                         L10n.fastingEnded,
                         selection: $endedAt,
-                        in: ...Date(),
+                        in: DateFormatting.entryDateRange.lowerBound ... Date(),
                         displayedComponents: [.date, .hourAndMinute]
                     )
                     Picker(L10n.fastingTarget, selection: $targetHours) {

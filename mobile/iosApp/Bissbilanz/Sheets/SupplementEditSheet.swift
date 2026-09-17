@@ -192,6 +192,12 @@ struct SupplementEditSheet: View {
         ingredientRows = rows.isEmpty ? [IngredientInputRow()] : rows
     }
 
+    /// Distinct and sorted, once, on the way out — two rows on the same time would
+    /// arm two notifications against one identifier, and the server stores them sorted.
+    private var storedReminderTimes: [String] {
+        Array(Set(reminderTimes)).sorted()
+    }
+
     private func save() async {
         isSaving = true
         errorMessage = nil
@@ -230,7 +236,7 @@ struct SupplementEditSheet: View {
                     scheduleDays: scheduleDays.isEmpty ? nil : Array(scheduleDays).sorted(),
                     isActive: isActive,
                     timeOfDay: timeOfDay,
-                    reminderTimes: reminderTimes.sorted(),
+                    reminderTimes: storedReminderTimes,
                     ingredients: ingredientInputs
                 )
                 saved = try await supplementRepository.updateSupplement(id: existing.id, update)
@@ -241,7 +247,7 @@ struct SupplementEditSheet: View {
                     scheduleDays: scheduleDays.isEmpty ? nil : Array(scheduleDays).sorted(),
                     isActive: isActive,
                     timeOfDay: timeOfDay,
-                    reminderTimes: reminderTimes.sorted(),
+                    reminderTimes: storedReminderTimes,
                     ingredients: ingredientInputs
                 )
                 saved = try await supplementRepository.createSupplement(create)
@@ -281,14 +287,8 @@ private extension SupplementEditSheet {
                     .foregroundStyle(.secondary)
                     .font(.footnote)
             } else {
-                ForEach(Array(reminderTimes.enumerated()), id: \.offset) { index, time in
-                    DatePicker(
-                        L10n.reminders,
-                        selection: reminderBinding(at: index),
-                        displayedComponents: .hourAndMinute
-                    )
-                    .labelsHidden()
-                    .accessibilityLabel(time)
+                ForEach(Array(reminderTimes.enumerated()), id: \.offset) { index, _ in
+                    TimePickerRow(selection: reminderBinding(at: index))
                 }
                 .onDelete { offsets in
                     reminderTimes.remove(atOffsets: offsets)
@@ -334,23 +334,27 @@ private extension SupplementEditSheet {
         }
     }
 
-    /// Bridges the stored "HH:MM" string to the DatePicker's Date. Rewrites the whole list
-    /// distinct + sorted on every change: duplicates would arm two notifications on the
-    /// same identifier, and the server stores them sorted anyway.
+    /// Bridges the stored "HH:MM" string to the DatePicker's Date. Writes the row in
+    /// place and leaves the order alone: the picker fires on every wheel stop, so
+    /// re-sorting here would shuffle the row out from under the wheel mid-edit and
+    /// de-duplicating would shorten the list while a later row is still bound to its
+    /// old index. `save()` sorts and de-duplicates once, which is all the server (and
+    /// the notification identifiers) need.
     func reminderBinding(at index: Int) -> Binding<Date> {
         Binding(
             get: {
+                guard reminderTimes.indices.contains(index) else { return Date() }
                 let parsed = SupplementSchedule.parseTime(reminderTimes[index]) ?? (hour: 8, minute: 0)
                 return Calendar.current.date(
                     bySettingHour: parsed.hour, minute: parsed.minute, second: 0, of: Date()
                 ) ?? Date()
             },
             set: { newValue in
+                guard reminderTimes.indices.contains(index) else { return }
                 let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                let formatted = String(format: "%02d:%02d", components.hour ?? 8, components.minute ?? 0)
-                var updated = reminderTimes
-                updated[index] = formatted
-                reminderTimes = Array(Set(updated)).sorted()
+                reminderTimes[index] = String(
+                    format: "%02d:%02d", components.hour ?? 8, components.minute ?? 0
+                )
             }
         )
     }

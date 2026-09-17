@@ -588,7 +588,7 @@ struct LogFoodForm: View {
                 }
                 .pickerStyle(.menu)
                 DatePicker(L10n.date, selection: $logDate, displayedComponents: .date)
-                DatePicker(L10n.time, selection: $eatenTime, displayedComponents: .hourAndMinute)
+                TimePickerRow(L10n.time, selection: $eatenTime)
             }
 
             Section(L10n.notes) {
@@ -675,13 +675,6 @@ struct LogFoodForm: View {
     /// `eatenAt` wire value. `nil` (log time falls back to `createdAt`) only if
     /// the components can't be combined.
     private func eatenAtString() -> String? {
-        let time = Calendar.current.dateComponents([.hour, .minute], from: eatenTime)
-        guard let combined = Calendar.current.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: 0,
-            of: logDate
-        ) else { return nil }
-        return DateFormatting.isoDateTimeString(from: combined)
+        DateFormatting.eatenAtString(time: eatenTime, on: logDate)
     }
 }

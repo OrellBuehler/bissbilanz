@@ -516,8 +516,8 @@ struct AddSleepSheet: View {
                 Section {
                     Toggle(L10n.bedAndWakeTimes, isOn: $timesEnabled)
                     if timesEnabled {
-                        DatePicker(L10n.bedtime, selection: $bedtimeTime, displayedComponents: .hourAndMinute)
-                        DatePicker(L10n.wakeTime, selection: $wakeTimeTime, displayedComponents: .hourAndMinute)
+                        TimePickerRow(L10n.bedtime, selection: $bedtimeTime)
+                        TimePickerRow(L10n.wakeTime, selection: $wakeTimeTime)
                     }
                 }
 
