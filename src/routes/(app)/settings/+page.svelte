@@ -20,6 +20,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
+	import { inputText } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import NutrientSelector from './NutrientSelector.svelte';
 	import FavoriteMealTimeframeManager, {
@@ -127,14 +128,15 @@
 
 	const saveWaterGoal = async () => {
 		const current = cachedPrefs.value?.waterGoalMl ?? 2000;
-		if (waterGoalMl.trim() === '') {
+		const goalText = inputText(waterGoalMl);
+		if (goalText === '') {
 			// Clearing the field restores the default goal.
 			waterGoalMl = '2000';
 			if (current === 2000) return;
 			await savePreference('waterGoalMl', null);
 			return;
 		}
-		const parsed = Math.round(Number(waterGoalMl));
+		const parsed = Math.round(Number(goalText));
 		if (!Number.isFinite(parsed) || parsed < 250 || parsed > 10000) {
 			waterGoalMl = String(current);
 			return;

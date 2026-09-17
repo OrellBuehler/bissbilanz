@@ -3,6 +3,7 @@ import {
 	round2,
 	roundMacroValue,
 	parseDecimalInput,
+	inputText,
 	formatKcal,
 	formatGrams,
 	formatKg,
@@ -147,5 +148,22 @@ describe('formatNutrient', () => {
 		expect(formatNutrient(4.24, 'g')).toBe('4.2g');
 		expect(formatNutrient(150, 'mg')).toBe('150mg');
 		expect(formatNutrient(0, 'µg')).toBe('0µg');
+	});
+});
+
+describe('inputText', () => {
+	test('trims string input', () => {
+		expect(inputText('  75.5 ')).toBe('75.5');
+		expect(inputText('   ')).toBe('');
+	});
+
+	test('stringifies numbers coerced by a `type="number"` binding', () => {
+		expect(inputText(75.5)).toBe('75.5');
+		expect(inputText(0)).toBe('0');
+	});
+
+	test('treats null/undefined as empty', () => {
+		expect(inputText(null)).toBe('');
+		expect(inputText(undefined)).toBe('');
 	});
 });

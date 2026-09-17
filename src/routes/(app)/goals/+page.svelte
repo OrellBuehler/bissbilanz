@@ -9,7 +9,7 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
-	import { round2, parseDecimalInput } from '$lib/utils/number';
+	import { round2, parseDecimalInput, inputText } from '$lib/utils/number';
 	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
 	import Target from '@lucide/svelte/icons/target';
 	import * as m from '$lib/paraglide/messages';
@@ -25,6 +25,11 @@
 	let targetDate = $state('');
 	let saving = $state(false);
 	let macroValid = $state(true);
+
+	// `targetWeight` is a raw text field (comma or dot decimals, parsed with
+	// `parseDecimalInput` on save), so never call string methods on the state
+	// directly — see `inputText`.
+	const targetWeightText = $derived(inputText(targetWeight));
 
 	const cachedGoals = useLiveQuery(() => goalsService.goals(), undefined);
 
@@ -57,7 +62,7 @@
 	};
 
 	const saveGoals = async () => {
-		const kg = targetWeight.trim() === '' ? null : parseDecimalInput(targetWeight);
+		const kg = targetWeightText === '' ? null : parseDecimalInput(targetWeightText);
 		if (kg != null && (isNaN(kg) || kg < 20 || kg > 500)) {
 			toast.error(m.error_weight_range());
 			return;
@@ -133,10 +138,8 @@
 						<Label for="target-weight">{m.goals_target_weight_label()}</Label>
 						<Input
 							id="target-weight"
-							type="number"
-							step="0.1"
-							min="20"
-							max="500"
+							type="text"
+							inputmode="decimal"
 							placeholder="75.0"
 							bind:value={targetWeight}
 						/>
@@ -147,12 +150,12 @@
 							id="target-date"
 							type="date"
 							bind:value={targetDate}
-							disabled={targetWeight.trim() === ''}
+							disabled={targetWeightText === ''}
 						/>
 					</div>
 				</div>
 
-				{#if targetWeight.trim() !== '' || targetDate !== ''}
+				{#if targetWeightText !== '' || targetDate !== ''}
 					<div>
 						<Button variant="ghost" size="sm" onclick={clearTarget}>
 							{m.goals_target_clear()}
