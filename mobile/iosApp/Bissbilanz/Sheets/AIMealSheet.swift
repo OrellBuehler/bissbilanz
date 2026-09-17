@@ -92,45 +92,33 @@ struct AIMealSheet: View {
                     }
                 }
 
-                if mealEstimator.availability == .available {
-                    Section {
-                        Button {
-                            Task { await runEstimate() }
-                        } label: {
-                            HStack {
-                                Spacer()
-                                if isEstimating {
-                                    ProgressView()
-                                    Text(L10n.aiMealEstimating)
-                                } else {
-                                    Text(L10n.aiMealEstimateButton)
-                                }
-                                Spacer()
+                // Both actions live in one row so they sit a single small gap
+                // apart instead of in two grouped sections with the list's
+                // section spacing between them.
+                Section {
+                    VStack(spacing: 8) {
+                        if mealEstimator.availability == .available {
+                            estimateButton
+                        } else {
+                            Label {
+                                Text(availabilityMessage)
+                            } icon: {
+                                Image(systemName: "sparkles")
                             }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
-                        .buttonStyle(.borderedProminent)
-                    }
-                } else {
-                    Section {
-                        Label {
-                            Text(availabilityMessage)
-                        } icon: {
-                            Image(systemName: "sparkles")
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
 
-                if !appMode.isLocal {
-                    Section {
-                        sendToAssistantButton
-
-                        if let pendingTaskCount, pendingTaskCount > 0 {
-                            Text(L10n.aiTaskPendingCount(pendingTaskCount))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        if !appMode.isLocal {
+                            sendToAssistantButton
                         }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                } footer: {
+                    if let pendingTaskCount, pendingTaskCount > 0 {
+                        Text(L10n.aiTaskPendingCount(pendingTaskCount))
                     }
                 }
             }
@@ -184,6 +172,25 @@ struct AIMealSheet: View {
             .task { await loadPendingCount() }
         }
         .presentationDetents([.medium, .large], selection: $detent)
+    }
+
+    private var estimateButton: some View {
+        Button {
+            Task { await runEstimate() }
+        } label: {
+            HStack {
+                Spacer()
+                if isEstimating {
+                    ProgressView()
+                    Text(L10n.aiMealEstimating)
+                } else {
+                    Text(L10n.aiMealEstimateButton)
+                }
+                Spacer()
+            }
+        }
+        .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
+        .buttonStyle(.borderedProminent)
     }
 
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
