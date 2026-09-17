@@ -43,16 +43,6 @@ jobs:
         with:
           packages: platform-tools
 
-        with:
-          # Google dropped the legacy 'tools' package the action installs by default
-
-          packages: platform-tools
-
-        with:
-          # Google dropped the legacy 'tools' package the action installs by default
-
-          packages: platform-tools
-
       - name: Cache Gradle dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -107,16 +97,6 @@ jobs:
         # from the SDK repository (android-actions/setup-android#537), so the
         # default 'tools platform-tools' list makes sdkmanager exit 1.
         with:
-          packages: platform-tools
-
-        with:
-          # Google dropped the legacy 'tools' package the action installs by default
-
-          packages: platform-tools
-
-        with:
-          # Google dropped the legacy 'tools' package the action installs by default
-
           packages: platform-tools
 
       - name: Cache Gradle dependencies
