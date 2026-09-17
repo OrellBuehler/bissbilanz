@@ -59,6 +59,7 @@ import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.repository.FoodRepository
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -447,6 +448,9 @@ private fun CameraPreview(
         return
     }
     val disposed = remember { AtomicBoolean(false) }
+    // Owns the detector's lifetime: closing it while a frame is still being
+    // processed is what crashed the app (see ScannerLease).
+    val lease = remember(scanner) { ScannerLease(scanner) }
     // The analyzer runs per frame, so a broken detector would otherwise flood
     // Sentry; one report per screen visit is enough to see that it fails.
     val scanFailureReported = remember { AtomicBoolean(false) }
@@ -459,10 +463,16 @@ private fun CameraPreview(
     DisposableEffect(Unit) {
         onDispose {
             disposed.set(true)
+            // clearAnalyzer() and unbindAll() stop new frames from reaching the
+            // executor before it is shut down; CameraX itself catches a rejected
+            // frame dispatch, the Tasks API below does not.
             imageAnalysisRef[0]?.clearAnalyzer()
             cameraProviderRef[0]?.unbindAll()
             analyzerExecutor.shutdown()
-            scanner.close()
+            // Closes the detector right away when nothing is in flight, otherwise
+            // the last completion listener does it — on the main thread, which is
+            // where ML Kit requires close() to run.
+            lease.release()
         }
     }
 
@@ -519,24 +529,40 @@ private fun CameraPreview(
                             imageProxy.close()
                             return@setAnalyzer
                         }
-                        val image =
-                            InputImage.fromMediaImage(
-                                mediaImage,
-                                imageProxy.imageInfo.rotationDegrees,
-                            )
+                        // Reserves the detector for this frame so onDispose cannot
+                        // close it (and cancel the task) while it is being used.
+                        val detector = lease.acquire()
+                        if (detector == null) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
                         try {
-                            scanner
+                            val image =
+                                InputImage.fromMediaImage(
+                                    mediaImage,
+                                    imageProxy.imageInfo.rotationDegrees,
+                                )
+                            detector
                                 .process(image)
-                                .addOnSuccessListener(analyzerExecutor) { barcodes ->
+                                // Deliberately without an executor: the Tasks API then
+                                // dispatches to the main thread, which — unlike the
+                                // analyzer executor — is never shut down. Handing these
+                                // listeners the executor that onDispose terminates made
+                                // a task completing (or being cancelled) afterwards
+                                // throw RejectedExecutionException from the Tasks
+                                // dispatcher, killing the process (BISSBILANZ-3G).
+                                .addOnSuccessListener { barcodes ->
                                     if (!disposed.get()) {
-                                        barcodes.firstOrNull()?.rawValue?.let { value ->
-                                            mainHandler.post { onBarcodeScanned(value) }
-                                        }
+                                        barcodes.firstOrNull()?.rawValue?.let(onBarcodeScanned)
                                     }
-                                }.addOnFailureListener(analyzerExecutor) { e ->
+                                }.addOnFailureListener { e ->
                                     if (!disposed.get()) reportScanFailure(e)
-                                }.addOnCompleteListener(analyzerExecutor) { imageProxy.close() }
+                                }.addOnCompleteListener {
+                                    imageProxy.close()
+                                    lease.finish()
+                                }
                         } catch (e: Exception) {
+                            lease.finish()
                             imageProxy.close()
                             reportScanFailure(e)
                         }
@@ -597,4 +623,61 @@ private fun CameraPreview(
         },
         modifier = Modifier.fillMaxSize(),
     )
+}
+
+/**
+ * Keeps the ML Kit detector alive until every frame handed to it has been
+ * processed, and closes it exactly once afterwards.
+ *
+ * `BarcodeScanner.close()` cancels the tasks still in flight, and the
+ * play-services Tasks API then dispatches that cancellation to each listener's
+ * executor. Closing the detector and shutting the analyzer executor down in the
+ * same `onDispose` therefore posted the cancellation to a terminated executor,
+ * which throws `RejectedExecutionException` on the main thread and takes the
+ * process down (Sentry BISSBILANZ-3G).
+ *
+ * `acquire`/`finish` run on the analyzer thread and the main thread
+ * respectively, so the bookkeeping is guarded by a lock.
+ */
+private class ScannerLease(
+    private val scanner: BarcodeScanner,
+) {
+    private val lock = Any()
+    private var inFlight = 0
+    private var released = false
+    private var closed = false
+
+    /** The detector to process one frame with, or null once the screen is gone. */
+    fun acquire(): BarcodeScanner? =
+        synchronized(lock) {
+            if (released) {
+                null
+            } else {
+                inFlight++
+                scanner
+            }
+        }
+
+    /** Called once per [acquire], when that frame's task has completed. */
+    fun finish() {
+        synchronized(lock) {
+            inFlight--
+            closeIfIdle()
+        }
+    }
+
+    /** No more frames will be processed; close as soon as the last one is done. */
+    fun release() {
+        synchronized(lock) {
+            released = true
+            closeIfIdle()
+        }
+    }
+
+    private fun closeIfIdle() {
+        if (released && inFlight == 0 && !closed) {
+            closed = true
+            scanner.close()
+        }
+    }
 }
