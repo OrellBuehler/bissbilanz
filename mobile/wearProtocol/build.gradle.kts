@@ -30,5 +30,5 @@ kotlin {
 dependencies {
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.kotlin.test)
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.20")
 }
