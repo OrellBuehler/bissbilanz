@@ -16,6 +16,7 @@
 		MAX_ACTIVITY_CALORIES,
 		MAX_WATER_ML
 	} from '$lib/utils/day-properties';
+	import { inputText } from '$lib/utils/number';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import GlassWater from '@lucide/svelte/icons/glass-water';
 	import Flame from '@lucide/svelte/icons/flame';
@@ -71,7 +72,8 @@
 		dayPropertiesService.update(date, patch);
 
 	const draftWater = () => {
-		const parsed = waterDraft.trim() === '' ? null : Number(waterDraft);
+		const text = inputText(waterDraft);
+		const parsed = text === '' ? null : Number(text);
 		return parsed != null && Number.isFinite(parsed) ? clampWaterMl(parsed) : null;
 	};
 
@@ -100,7 +102,8 @@
 
 	const commitActivity = () => {
 		activityDirty = false;
-		const parsed = activityDraft.trim() === '' ? null : Number(activityDraft);
+		const text = inputText(activityDraft);
+		const parsed = text === '' ? null : Number(text);
 		const next = parsed != null && Number.isFinite(parsed) ? clampActivityCalories(parsed) : null;
 		if (next === (stored?.activityCalories ?? null)) return;
 		save({ activityCalories: next });

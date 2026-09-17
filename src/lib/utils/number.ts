@@ -27,6 +27,18 @@ export const parseDecimalInput = (value: string | number | null | undefined): nu
 	return Number(normalized);
 };
 
+/**
+ * Read a value bound to an `<input>` as trimmed text.
+ *
+ * Svelte's `bind:value` coerces the state of a `type="number"` input to a
+ * `number` (or `null` when empty), so a field that starts life as a string
+ * silently stops being one as soon as the user types — and `value.trim()`
+ * then throws `TypeError: value.trim is not a function`. Go through this
+ * helper instead of calling string methods on the bound state directly.
+ */
+export const inputText = (value: string | number | null | undefined): string =>
+	value == null ? '' : String(value).trim();
+
 /** Integer kcal, e.g. `formatKcal(1234.6)` -> `"1235"`. */
 export const formatKcal = (value: number): string => String(Math.round(value));
 
