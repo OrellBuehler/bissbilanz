@@ -347,6 +347,23 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SENTRY_DSN="$SENTRY_DSN"
 
+      - name: Revoke the cloud-signing development certificates
+        # Cloud signing mints a fresh "Apple Development: Created via API" cert
+        # on every run (the ephemeral runner never holds a previous cert's
+        # private key). Apple caps development certs per team, so after ~10
+        # releases Archive fails with "Your account has reached the maximum
+        # number of certificates". Export re-signs with the distribution cert
+        # from secrets, so the cert is dead weight once Archive is done —
+        # revoke them all, including this run's, even when Archive failed.
+        if: always()
+        working-directory: ${{ github.workspace }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          ASC_PRIVATE_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_"$ASC_KEY_ID".p8 \
+            node scripts/ios/revoke-ci-certs.mjs --apply
+
       - name: Upload dSYMs to Sentry
         # Missing symbols must never block a build that already archived.
         continue-on-error: true
