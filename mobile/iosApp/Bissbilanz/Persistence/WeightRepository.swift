@@ -106,9 +106,14 @@ final class WeightRepository {
             ((try? context.fetch(rowsDescriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        // Only the rows the response actually changed reach Spotlight: this
+        // refresh runs on every pull-to-refresh and background pull, and
+        // re-indexing the whole history each time would be pure churn.
+        var changedIds = Set<String>()
         for (id, row) in rowsById where !serverIds.contains(id) && !pendingIds.contains(id) {
             context.delete(row)
             rowsById.removeValue(forKey: id)
+            changedIds.insert(id)
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
             if let row = rowsById[entry.id] {
@@ -118,14 +123,17 @@ final class WeightRepository {
                 // BISSBILANZ-34 was.
                 if row.jsonData != LocalStoreCoding.encode(entry) {
                     row.update(from: entry)
+                    changedIds.insert(entry.id)
                 }
             } else {
                 let row = LocalWeightEntry(entry: entry)
                 context.insert(row)
                 rowsById[entry.id] = row
+                changedIds.insert(entry.id)
             }
         }
         save()
+        IntentDonations.weightChanged(changedIds)
     }
 
     // MARK: - Writes (local first + queued upload)
@@ -136,6 +144,7 @@ final class WeightRepository {
         upsert(temp)
         save()
         syncManager.enqueue(.createWeight(body: create, localId: temp.id))
+        IntentDonations.weightChanged([temp.id])
         return temp
     }
 
@@ -158,6 +167,7 @@ final class WeightRepository {
         } else {
             syncManager.enqueue(.updateWeight(id: id, body: update))
         }
+        IntentDonations.weightChanged([id])
         return updated
     }
 
@@ -169,6 +179,7 @@ final class WeightRepository {
         } else {
             syncManager.enqueue(.deleteWeight(id: id))
         }
+        IntentDonations.weightChanged([id])
     }
 
     /// Rewrites the still-queued create for a temp-id weight entry so the

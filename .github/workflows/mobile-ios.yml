@@ -16,7 +16,10 @@ permissions:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    runs-on: macos-15
+    # GitHub's arm64 Xcode 27 image (macOS 27, Xcode 27.0 / Swift 6.4 by
+    # default) — the first runner whose SDK declares the iOS 27 App Intents
+    # types the Siri data queries adopt behind `#if compiler(>=6.4)`.
+    runs-on: xcode-27
     timeout-minutes: 60
     defaults:
       run:
@@ -26,7 +29,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Xcode 26+ so the compiler(>=6.2)-gated Liquid Glass code compiles in CI
+      # Pins the image's Xcode explicitly so a version-gated feature can never
+      # silently drop out of the build: compiler(>=6.2) for Liquid Glass,
+      # compiler(>=6.4) for the iOS 27 App Intents adoption.
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
@@ -56,7 +61,10 @@ jobs:
           path: |
             ~/Library/Caches/Homebrew
             /opt/homebrew/Cellar/xcodegen
-          key: brew-xcodegen-${{ runner.os }}
+          # Homebrew bottles are built per macOS release, so the key names the
+          # image and not just runner.os — a Cellar restored from the macOS 15
+          # image would be the wrong bottle on macOS 27.
+          key: brew-xcodegen-xcode27-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install XcodeGen
         # When the Cellar is restored from cache, `brew install` sees the formula

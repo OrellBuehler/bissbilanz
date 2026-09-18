@@ -127,6 +127,7 @@ final class EntryRepository {
         // totals stay frozen at the last in-app mutation. The unchanged-day
         // guard in syncNutrition keeps repeated refreshes free.
         syncDayToHealth(date)
+        IntentDonations.dayChanged([date])
     }
 
     /// Replaces the cached entries for a whole date span in one request.
@@ -169,6 +170,10 @@ final class EntryRepository {
             }
         }
         save()
+        // Only the days the response actually carried entries for: a 90-day
+        // backfill must not rebuild a Spotlight entry for every empty day in
+        // the window.
+        IntentDonations.dayChanged(Set(fetched.compactMap(\.date)))
     }
 
     // MARK: - Writes (local first + queued upload)
@@ -185,6 +190,7 @@ final class EntryRepository {
         if food != nil || recipe != nil {
             IntentDonations.donateLog(food: food, recipe: recipe, mealType: create.mealType)
         }
+        IntentDonations.dayChanged([create.date])
         return temp
     }
 
@@ -215,6 +221,7 @@ final class EntryRepository {
         if previousDate != currentDate {
             syncDayToHealth(previousDate)
         }
+        IntentDonations.dayChanged([currentDate, previousDate])
         return updated
     }
 
@@ -229,6 +236,7 @@ final class EntryRepository {
         }
         if let date {
             syncDayToHealth(date)
+            IntentDonations.dayChanged([date])
         }
     }
 
@@ -248,6 +256,7 @@ final class EntryRepository {
             }
             save()
             syncDayToHealth(toDate)
+            IntentDonations.dayChanged([toDate])
             return serverCopies.count
         }
         var copied = 0
@@ -284,6 +293,7 @@ final class EntryRepository {
         if copied > 0 {
             save()
             syncDayToHealth(toDate)
+            IntentDonations.dayChanged([toDate])
         }
         return copied
     }
@@ -338,6 +348,16 @@ final class EntryRepository {
         fetchDayPropertiesRow(date: date)?.isFastingDay ?? false
     }
 
+    /// The fasting-day flags for a whole span in one fetch. The Siri day
+    /// summaries walk up to a year at a time and would otherwise need one
+    /// `isFastingDay` fetch per day — the same reason `entriesByDate` exists.
+    func fastingDays(from startDate: String, to endDate: String) -> Set<String> {
+        let descriptor = FetchDescriptor<LocalDayProperties>(
+            predicate: #Predicate { $0.date >= startDate && $0.date <= endDate && $0.isFastingDay == true }
+        )
+        return Set(((try? context.fetch(descriptor)) ?? []).map(\.date))
+    }
+
     /// The full stored row for a date (water/activity/notes/fasting), or nil
     /// when nothing has been recorded for that day yet.
     func dayProperties(date: String) -> DayProperties? {
@@ -352,6 +372,7 @@ final class EntryRepository {
             context.delete(row)
         }
         save()
+        IntentDonations.dayChanged([date])
     }
 
     /// Applies a partial patch to a day's properties: an omitted field keeps
@@ -366,6 +387,7 @@ final class EntryRepository {
         upsertDayProperties(merged)
         save()
         syncManager.enqueue(.setDayProperties(date: date, patch: patch))
+        IntentDonations.dayChanged([date])
     }
 
     /// Convenience for the fasting-day toggle and the fasting timer's
@@ -381,6 +403,7 @@ final class EntryRepository {
             save()
         }
         syncManager.enqueue(.deleteDayProperties(date: date))
+        IntentDonations.dayChanged([date])
     }
 
     // MARK: - Conversion helpers

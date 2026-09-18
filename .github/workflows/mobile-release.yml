@@ -141,7 +141,10 @@ jobs:
 
   ios-release:
     if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'android'
-    runs-on: macos-15
+    # GitHub's arm64 Xcode 27 image, matching the iOS PR build
+    # (mobile-ios.yml): its SDK is the first that declares the iOS 27 App
+    # Intents types the Siri data queries adopt.
+    runs-on: xcode-27
     timeout-minutes: 45
     permissions:
       contents: read
@@ -223,7 +226,9 @@ jobs:
             exit 1
           fi
 
-      # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml).
+      # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml), pinned
+      # explicitly so a version-gated feature can never silently drop out of the
+      # archive.
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
@@ -236,7 +241,10 @@ jobs:
             ~/Library/Caches/Homebrew
             /opt/homebrew/Cellar/xcodegen
             /opt/homebrew/Cellar/sentry-cli
-          key: brew-xcodegen-sentry-cli-${{ runner.os }}
+          # Keyed on the image as well: Homebrew bottles are built per macOS
+          # release, so a Cellar restored from the macOS 15 image would be the
+          # wrong bottle on macOS 27 (see mobile-ios.yml).
+          key: brew-xcodegen-sentry-cli-xcode27-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install XcodeGen
         # Link explicitly: a cache-restored Cellar makes `brew install` skip

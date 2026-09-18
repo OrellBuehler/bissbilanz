@@ -44,6 +44,9 @@ struct DayLogView: View {
                 entryList
             }
         }
+        // Lets Siri resolve "this day" against the day on screen (iOS 18.4+;
+        // a no-op before).
+        .siriEntity(DaySummaryEntity.self, id: date)
         .navigationTitle(displayDate)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

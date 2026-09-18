@@ -707,6 +707,9 @@ struct WeightEntryRow: View {
             }
         }
         .buttonStyle(.plain)
+        // Lets Siri resolve "this entry" against the row on screen (iOS 18.4+;
+        // a no-op before).
+        .siriEntity(WeightEntity.self, id: entry.id)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive, action: onDelete) {
                 Label(L10n.delete, systemImage: "trash")
