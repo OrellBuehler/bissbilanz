@@ -288,7 +288,7 @@ struct BodyReaderTests {
     func sleepResolution() throws {
         let harness = try RepositoryHarness(mode: .local)
         let now = try #require(DateFormatting.date(from: "2026-09-16"))
-        try seedSleep(harness, id: "s1", date: "2026-09-14", minutes: 420)
+        try seedSleep(harness, id: "s1", date: "2026-09-13", minutes: 420)
         try seedSleep(harness, id: "s2", date: "2026-09-16", minutes: 450)
         let reader = makeReader(harness)
 
