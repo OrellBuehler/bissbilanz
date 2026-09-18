@@ -74,30 +74,35 @@ struct DaySummaryQuery: EntityStringQuery, EntityPropertyQuery {
 
     // MARK: - Property query
 
-    static var properties: QueryProperties {
-        QueryProperties {
-            Property(\DaySummaryEntity.$date) {
-                EqualToComparator { DaySummaryComparator.dateEqualTo($0) }
-                LessThanComparator { DaySummaryComparator.dateBefore($0) }
-                GreaterThanComparator { DaySummaryComparator.dateAfter($0) }
-            }
-            Property(\DaySummaryEntity.$calories) {
-                GreaterThanComparator { DaySummaryComparator.caloriesAbove($0) }
-                LessThanComparator { DaySummaryComparator.caloriesBelow($0) }
-            }
-            Property(\DaySummaryEntity.$protein) {
-                GreaterThanComparator { DaySummaryComparator.proteinAbove($0) }
-                LessThanComparator { DaySummaryComparator.proteinBelow($0) }
-            }
+    // Stored with the builder as its initializer rather than computed:
+    // `appintentsmetadataprocessor` reads this declaration syntactically at
+    // build time and expects the `Property` calls directly inside the
+    // `QueryProperties { }` on the right-hand side. A computed property fails
+    // the metadata export ("expected 'Property' but got 'QueryProperties'"),
+    // which takes the whole target out of App Intents with it.
+    // `nonisolated(unsafe)` because a `static let` of a non-Sendable type is
+    // global shared state under Swift 6; this one is written once and only
+    // ever read.
+    nonisolated(unsafe) static let properties = QueryProperties {
+        Property(\DaySummaryEntity.$date) {
+            EqualToComparator { DaySummaryComparator.dateEqualTo($0) }
+            LessThanComparator { DaySummaryComparator.dateBefore($0) }
+            GreaterThanComparator { DaySummaryComparator.dateAfter($0) }
+        }
+        Property(\DaySummaryEntity.$calories) {
+            GreaterThanComparator { DaySummaryComparator.caloriesAbove($0) }
+            LessThanComparator { DaySummaryComparator.caloriesBelow($0) }
+        }
+        Property(\DaySummaryEntity.$protein) {
+            GreaterThanComparator { DaySummaryComparator.proteinAbove($0) }
+            LessThanComparator { DaySummaryComparator.proteinBelow($0) }
         }
     }
 
-    static var sortingOptions: SortingOptions {
-        SortingOptions {
-            SortableBy(\DaySummaryEntity.$date)
-            SortableBy(\DaySummaryEntity.$calories)
-            SortableBy(\DaySummaryEntity.$protein)
-        }
+    nonisolated(unsafe) static let sortingOptions = SortingOptions {
+        SortableBy(\DaySummaryEntity.$date)
+        SortableBy(\DaySummaryEntity.$calories)
+        SortableBy(\DaySummaryEntity.$protein)
     }
 
     func entities(

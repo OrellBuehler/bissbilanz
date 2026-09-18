@@ -61,25 +61,23 @@ struct SleepEntityQuery: EntityStringQuery, EntityPropertyQuery {
 
     // MARK: - Property query
 
-    static var properties: QueryProperties {
-        QueryProperties {
-            Property(\SleepEntity.$date) {
-                EqualToComparator { SleepComparator.dateEqualTo($0) }
-                LessThanComparator { SleepComparator.dateBefore($0) }
-                GreaterThanComparator { SleepComparator.dateAfter($0) }
-            }
-            Property(\SleepEntity.$durationMinutes) {
-                GreaterThanComparator { SleepComparator.durationAbove($0) }
-                LessThanComparator { SleepComparator.durationBelow($0) }
-            }
+    // Stored, not computed, and `nonisolated(unsafe)` — see the note in
+    // DaySummaryQuery.
+    nonisolated(unsafe) static let properties = QueryProperties {
+        Property(\SleepEntity.$date) {
+            EqualToComparator { SleepComparator.dateEqualTo($0) }
+            LessThanComparator { SleepComparator.dateBefore($0) }
+            GreaterThanComparator { SleepComparator.dateAfter($0) }
+        }
+        Property(\SleepEntity.$durationMinutes) {
+            GreaterThanComparator { SleepComparator.durationAbove($0) }
+            LessThanComparator { SleepComparator.durationBelow($0) }
         }
     }
 
-    static var sortingOptions: SortingOptions {
-        SortingOptions {
-            SortableBy(\SleepEntity.$date)
-            SortableBy(\SleepEntity.$durationMinutes)
-        }
+    nonisolated(unsafe) static let sortingOptions = SortingOptions {
+        SortableBy(\SleepEntity.$date)
+        SortableBy(\SleepEntity.$durationMinutes)
     }
 
     func entities(

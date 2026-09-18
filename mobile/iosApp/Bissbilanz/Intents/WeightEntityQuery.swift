@@ -61,25 +61,23 @@ struct WeightEntityQuery: EntityStringQuery, EntityPropertyQuery {
 
     // MARK: - Property query
 
-    static var properties: QueryProperties {
-        QueryProperties {
-            Property(\WeightEntity.$date) {
-                EqualToComparator { WeightComparator.dateEqualTo($0) }
-                LessThanComparator { WeightComparator.dateBefore($0) }
-                GreaterThanComparator { WeightComparator.dateAfter($0) }
-            }
-            Property(\WeightEntity.$weightKg) {
-                GreaterThanComparator { WeightComparator.weightAbove($0) }
-                LessThanComparator { WeightComparator.weightBelow($0) }
-            }
+    // Stored, not computed, and `nonisolated(unsafe)` — see the note in
+    // DaySummaryQuery.
+    nonisolated(unsafe) static let properties = QueryProperties {
+        Property(\WeightEntity.$date) {
+            EqualToComparator { WeightComparator.dateEqualTo($0) }
+            LessThanComparator { WeightComparator.dateBefore($0) }
+            GreaterThanComparator { WeightComparator.dateAfter($0) }
+        }
+        Property(\WeightEntity.$weightKg) {
+            GreaterThanComparator { WeightComparator.weightAbove($0) }
+            LessThanComparator { WeightComparator.weightBelow($0) }
         }
     }
 
-    static var sortingOptions: SortingOptions {
-        SortingOptions {
-            SortableBy(\WeightEntity.$date)
-            SortableBy(\WeightEntity.$weightKg)
-        }
+    nonisolated(unsafe) static let sortingOptions = SortingOptions {
+        SortableBy(\WeightEntity.$date)
+        SortableBy(\WeightEntity.$weightKg)
     }
 
     func entities(
