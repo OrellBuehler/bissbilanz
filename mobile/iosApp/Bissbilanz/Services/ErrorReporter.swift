@@ -45,7 +45,9 @@ enum ErrorReporter {
             // lost to a future default change.
             options.enableAppHangTracking = true
             options.beforeSend = { event in
-                ErrorReporter.isSuspensionArtifactHang(event) ? nil : event
+                if ErrorReporter.isSuspensionArtifactHang(event) { return nil }
+                if ErrorReporter.isIdleRunLoopFatalHang(event) { return nil }
+                return event
             }
             // Let Sentry ingest MetricKit *diagnostics* — OS-sampled crashes,
             // hangs, CPU and disk-write exceptions — as events with stack
@@ -199,6 +201,38 @@ enum ErrorReporter {
         guard let range = value.range(of: "between ") else { return nil }
         let digits = value[range.upperBound...].prefix { $0.isNumber || $0 == "." }
         return Double(digits)
+    }
+
+    /// A fatal hang is reported on the next launch when the previous process
+    /// died while the hang tracker believed the main thread was blocked. The
+    /// OS killing a suspended app (memory pressure after the phone locked with
+    /// the app in front) produces exactly that, but the main thread it records
+    /// is not blocked at all: it is parked in `__CFRunLoopServiceMachPort`
+    /// waiting for events (BISSBILANZ-35). A real hang always has app or
+    /// framework work above the run loop, so the idle signature is dropped.
+    static func isIdleRunLoopFatalHang(_ event: Event) -> Bool {
+        guard let exception = event.exceptions?.first,
+              exception.mechanism?.type == "AppHang",
+              let description = exception.value,
+              reportedHangSeconds(in: description) == nil
+        else { return false }
+        let frames = exception.stacktrace?.frames ?? mainThreadFrames(of: event)
+        return isIdleRunLoopStack(frames.compactMap(\.function))
+    }
+
+    /// `functions` in Sentry frame order: outermost first, innermost last.
+    static func isIdleRunLoopStack(_ functions: [String]) -> Bool {
+        var inner = functions.reversed().drop { $0.hasPrefix("mach_msg") }
+        guard inner.count < functions.count else { return false }
+        return inner.popFirst() == "__CFRunLoopServiceMachPort"
+    }
+
+    private static func mainThreadFrames(of event: Event) -> [Frame] {
+        let threads = event.threads ?? []
+        let main = threads.first { $0.current?.boolValue == true }
+            ?? threads.first { $0.crashed?.boolValue == true }
+            ?? threads.first
+        return main?.stacktrace?.frames ?? []
     }
 
     private static func shouldIgnore(_ error: Error) -> Bool {
