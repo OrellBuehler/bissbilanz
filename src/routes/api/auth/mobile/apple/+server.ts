@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { JOSEError } from 'jose/errors';
 import { config } from '$lib/server/env';
 import { providerDefs } from '$lib/server/auth-providers';
@@ -53,12 +54,16 @@ export const POST: RequestHandler = async (event) => {
 	}
 	const body = parsed.data;
 
+	// The app hands Apple the SHA-256 of the raw nonce, and that hash is what Apple
+	// signs into the token's nonce claim — so hash the raw value before comparing.
+	const expectedNonce = createHash('sha256').update(body.nonce).digest('hex');
+
 	let claims;
 	try {
 		claims = await verifyIdToken(body.identity_token, {
 			issuer: providerDefs.apple.issuer,
 			audience: config.apple.bundleId,
-			nonce: body.nonce
+			nonce: expectedNonce
 		});
 	} catch (e) {
 		if (e instanceof JOSEError) throw error(401, 'Identity token verification failed');
