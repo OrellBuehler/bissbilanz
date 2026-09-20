@@ -39,6 +39,7 @@ struct DashboardView: View {
     @Environment(WeightRepository.self) private var weightRepository
     @Environment(SleepRepository.self) private var sleepRepository
     @Environment(FastingTimerManager.self) private var fastingManager
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
 
     @State private var entries: [Entry] = []
     @State private var goals: Goals = .defaults
@@ -224,6 +225,12 @@ struct DashboardView: View {
             // weight/sleep cards pick up freshly imported entries.
             .onReceive(NotificationCenter.default.publisher(for: HealthKitImporter.didImportNotification)) { _ in
                 loadFromStore()
+            }
+            // A widget/Siri deep link (scan, log, weight, food, recipe) is
+            // presented by ContentView above the tabs; the sheets this view
+            // presents itself reload on dismiss, so this one must too.
+            .onChange(of: deepLinkRouter.dismissedCount) { _, _ in
+                Task { await loadData() }
             }
         }
     }

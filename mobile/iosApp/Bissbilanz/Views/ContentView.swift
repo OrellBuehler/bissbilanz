@@ -92,7 +92,7 @@ struct ContentView: View {
         // which tabs the user has configured. Each case picks its own
         // container: the scanner and WeightView bring their own
         // NavigationStack, the rest need one supplied.
-        .sheet(item: $deepLinkRouter.pending) { link in
+        .sheet(item: $deepLinkRouter.pending, onDismiss: { deepLinkRouter.dismissedCount += 1 }) { link in
             switch link {
             case .logFood:
                 NavigationStack {
