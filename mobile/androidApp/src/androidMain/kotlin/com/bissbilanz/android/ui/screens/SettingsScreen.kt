@@ -351,6 +351,10 @@ fun SettingsScreen(navController: NavController) {
                             SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) {
                                 navController.navigate("ai-tasks")
                             }
+                            HorizontalDivider()
+                            SettingsNavItem(stringResource(R.string.connect_claude_title), Icons.Default.SmartToy) {
+                                navController.navigate("connect-claude")
+                            }
                         }
                         HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) {

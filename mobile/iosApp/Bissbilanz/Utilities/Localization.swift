@@ -2602,6 +2602,108 @@ enum L10n {
         )
     }
 
+    // MARK: - Connect Claude
+
+    static var connectClaudeTitle: String {
+        localized("connect_claude_title", en: "Connect Claude", de: "Claude verbinden")
+    }
+
+    static var connectClaudeIntro: String {
+        localized(
+            "connect_claude_intro",
+            en: "Connecting Claude lets you log meals by chatting, get daily and weekly reviews, "
+                + "and build meal plans — right from Claude.",
+            de: "Wenn du Claude verbindest, kannst du Mahlzeiten im Chat erfassen, dir tägliche und "
+                + "wöchentliche Rückblicke geben lassen und Essenspläne erstellen lassen — direkt in Claude."
+        )
+    }
+
+    static var connectClaudeServerUrlTitle: String {
+        localized("connect_claude_server_url_title", en: "Server URL", de: "Server-URL")
+    }
+
+    static var connectClaudeCopy: String {
+        localized("connect_claude_copy", en: "Copy", de: "Kopieren")
+    }
+
+    static var connectClaudeCopied: String {
+        localized("connect_claude_copied", en: "Copied", de: "Kopiert")
+    }
+
+    static var connectClaudeCopyUrl: String {
+        localized("connect_claude_copy_url", en: "Copy URL", de: "URL kopieren")
+    }
+
+    static var connectClaudeAppTitle: String {
+        localized("connect_claude_app_title", en: "Claude app / claude.ai", de: "Claude-App / claude.ai")
+    }
+
+    static var connectClaudeStep1: String {
+        localized(
+            "connect_claude_step_1",
+            en: "Open Claude, then go to Settings → Connectors (Customize → Connectors on the web).",
+            de: "Öffne Claude und gehe zu Einstellungen → Connectors (im Web: Anpassen → Connectors)."
+        )
+    }
+
+    static var connectClaudeStep2: String {
+        localized(
+            "connect_claude_step_2",
+            en: "Tap \"Add custom connector\".",
+            de: "Tippe auf \"Benutzerdefinierten Connector hinzufügen\"."
+        )
+    }
+
+    static var connectClaudeStep3: String {
+        localized(
+            "connect_claude_step_3",
+            en: "Paste the server URL, keep \"Use Claude's published identity\" selected "
+                + "(the default), then tap Add.",
+            de: "Füge die Server-URL ein, lass \"Claudes veröffentlichte Identität verwenden\" "
+                + "ausgewählt (Standardeinstellung) und tippe auf Hinzufügen."
+        )
+    }
+
+    static var connectClaudeStep4: String {
+        localized(
+            "connect_claude_step_4",
+            en: "Tap Connect and approve access on the Bissbilanz page that opens.",
+            de: "Tippe auf Verbinden und bestätige den Zugriff auf der Bissbilanz-Seite, die sich öffnet."
+        )
+    }
+
+    static var connectClaudeOpenClaude: String {
+        localized("connect_claude_open_claude", en: "Open Claude", de: "Claude öffnen")
+    }
+
+    static var connectClaudeCodeTitle: String {
+        localized("connect_claude_code_title", en: "Claude Code", de: "Claude Code")
+    }
+
+    static var connectClaudeCodeThenMcp: String {
+        localized(
+            "connect_claude_code_then_mcp",
+            en: "Then run /mcp to sign in.",
+            de: "Führe danach /mcp aus, um dich anzumelden."
+        )
+    }
+
+    static var connectClaudeOtherClientsTitle: String {
+        localized("connect_claude_other_clients_title", en: "Other MCP clients", de: "Andere MCP-Clients")
+    }
+
+    static var connectClaudeOtherClientsBody: String {
+        localized(
+            "connect_claude_other_clients_body",
+            en: "Any client that supports remote Streamable HTTP with OAuth works the same way — "
+                + "advanced options, like using your own OAuth client, are on the website under "
+                + "Settings → MCP.",
+            de: "Jeder Client, der Remote Streamable HTTP mit OAuth unterstützt, funktioniert genauso — "
+                + "erweiterte Optionen wie ein eigener OAuth-Client finden sich auf der Website unter "
+                + "Einstellungen → MCP."
+        )
+    }
+
     // MARK: - Weekday Abbreviations
 
     static var weekdayHeaders: [String] {
