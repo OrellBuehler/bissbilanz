@@ -17,7 +17,6 @@
 		MAX_WATER_ML
 	} from '$lib/utils/day-properties';
 	import { inputText } from '$lib/utils/number';
-	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import GlassWater from '@lucide/svelte/icons/glass-water';
 	import Flame from '@lucide/svelte/icons/flame';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
@@ -143,122 +142,117 @@
 	};
 </script>
 
-<DashboardCard title={m.day_card_title()} Icon={CalendarDays} tone="neutral">
-	<div class="space-y-4">
-		<div class="space-y-2">
-			<div class="flex items-center justify-between gap-2">
-				<div class="flex items-center gap-2">
-					<GlassWater class="size-4 text-cyan-600 dark:text-cyan-400" />
-					<span class="text-sm font-medium">{m.day_water_title()}</span>
-				</div>
-				<span class="text-xs tabular-nums text-muted-foreground">
-					{m.day_water_progress({ current: waterMl, goal: waterGoalMl })}
-				</span>
-			</div>
-			<Progress
-				value={waterPercent}
-				class="h-2 bg-cyan-500/15 [&>[data-slot=progress-indicator]]:bg-cyan-500"
-			/>
-			<div class="flex flex-wrap items-center gap-2">
-				<Button variant="outline" size="sm" onclick={() => addWater(250)}>
-					{m.day_water_add({ amount: 250 })}
-				</Button>
-				<Button variant="outline" size="sm" onclick={() => addWater(500)}>
-					{m.day_water_add({ amount: 500 })}
-				</Button>
-				<div class="flex items-center gap-1.5">
-					<Label class="sr-only" for="day-water-input">{m.day_water_input_label()}</Label>
-					<Input
-						id="day-water-input"
-						type="number"
-						inputmode="numeric"
-						min="0"
-						max={MAX_WATER_ML}
-						step="50"
-						class="h-9 w-24"
-						bind:value={waterDraft}
-						oninput={() => (waterDirty = true)}
-						onblur={commitWater}
-						onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitWater()}
-					/>
-					<span class="text-xs text-muted-foreground">{m.day_unit_ml()}</span>
-				</div>
-				{#if waterMl > 0}
-					<Button
-						variant="ghost"
-						size="icon"
-						class="size-9"
-						aria-label={m.day_water_clear()}
-						onclick={clearWater}
-					>
-						<X class="size-4" />
-					</Button>
-				{/if}
-			</div>
-		</div>
+{#snippet waterProgress()}
+	<span class="text-xs tabular-nums text-muted-foreground">
+		{m.day_water_progress({ current: waterMl, goal: waterGoalMl })}
+	</span>
+{/snippet}
 
-		<div class="space-y-2 border-t border-border/50 pt-4">
-			<div class="flex items-center gap-2">
-				<Flame class="size-4 text-violet-600 dark:text-violet-400" />
-				<span class="text-sm font-medium">{m.day_activity_title()}</span>
-			</div>
-			<div class="flex flex-wrap items-center gap-2">
-				<div class="flex items-center gap-1.5">
-					<Label class="sr-only" for="day-activity-input">{m.day_activity_input_label()}</Label>
-					<Input
-						id="day-activity-input"
-						type="number"
-						inputmode="numeric"
-						min="0"
-						max={MAX_ACTIVITY_CALORIES}
-						step="10"
-						class="h-9 w-24"
-						placeholder="0"
-						bind:value={activityDraft}
-						oninput={() => (activityDirty = true)}
-						onblur={commitActivity}
-						onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitActivity()}
-					/>
-					<span class="text-xs text-muted-foreground">{m.foods_kcal()}</span>
-				</div>
+<DashboardCard
+	title={m.day_water_title()}
+	Icon={GlassWater}
+	tone="neutral"
+	headerRight={waterProgress}
+>
+	<div class="space-y-2">
+		<Progress
+			value={waterPercent}
+			class="h-2 bg-cyan-500/15 [&>[data-slot=progress-indicator]]:bg-cyan-500"
+		/>
+		<div class="flex flex-wrap items-center gap-2">
+			<Button variant="outline" size="sm" onclick={() => addWater(250)}>
+				{m.day_water_add({ amount: 250 })}
+			</Button>
+			<Button variant="outline" size="sm" onclick={() => addWater(500)}>
+				{m.day_water_add({ amount: 500 })}
+			</Button>
+			<div class="flex items-center gap-1.5">
+				<Label class="sr-only" for="day-water-input">{m.day_water_input_label()}</Label>
 				<Input
-					class="h-9 min-w-40 flex-1"
-					maxlength={200}
-					placeholder={m.day_activity_note_placeholder()}
-					aria-label={m.day_activity_note_placeholder()}
-					bind:value={activityNoteDraft}
-					oninput={() => (activityNoteDirty = true)}
-					onblur={commitActivityNote}
+					id="day-water-input"
+					type="number"
+					inputmode="numeric"
+					min="0"
+					max={MAX_WATER_ML}
+					step="50"
+					class="h-9 w-24"
+					bind:value={waterDraft}
+					oninput={() => (waterDirty = true)}
+					onblur={commitWater}
+					onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitWater()}
 				/>
-				{#if stored?.activityCalories != null || stored?.activityNote}
-					<Button
-						variant="ghost"
-						size="icon"
-						class="size-9"
-						aria-label={m.day_activity_clear()}
-						onclick={clearActivity}
-					>
-						<X class="size-4" />
-					</Button>
-				{/if}
+				<span class="text-xs text-muted-foreground">{m.day_unit_ml()}</span>
 			</div>
-			<p class="text-xs text-muted-foreground">{m.day_activity_informational()}</p>
-		</div>
-
-		<div class="space-y-2 border-t border-border/50 pt-4">
-			<div class="flex items-center gap-2">
-				<NotebookPen class="size-4 text-muted-foreground" />
-				<Label class="text-sm font-medium" for="day-notes-input">{m.day_notes_title()}</Label>
-			</div>
-			<Textarea
-				id="day-notes-input"
-				rows={3}
-				maxlength={2000}
-				placeholder={m.day_notes_placeholder()}
-				bind:value={notesDraft}
-				oninput={onNotesInput}
-				onblur={commitNotes}
-			/>
+			{#if waterMl > 0}
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-9"
+					aria-label={m.day_water_clear()}
+					onclick={clearWater}
+				>
+					<X class="size-4" />
+				</Button>
+			{/if}
 		</div>
 	</div>
+</DashboardCard>
+
+<DashboardCard title={m.day_activity_title()} Icon={Flame} tone="neutral">
+	<div class="space-y-2">
+		<div class="flex flex-wrap items-center gap-2">
+			<div class="flex items-center gap-1.5">
+				<Label class="sr-only" for="day-activity-input">{m.day_activity_input_label()}</Label>
+				<Input
+					id="day-activity-input"
+					type="number"
+					inputmode="numeric"
+					min="0"
+					max={MAX_ACTIVITY_CALORIES}
+					step="10"
+					class="h-9 w-24"
+					placeholder="0"
+					bind:value={activityDraft}
+					oninput={() => (activityDirty = true)}
+					onblur={commitActivity}
+					onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && commitActivity()}
+				/>
+				<span class="text-xs text-muted-foreground">{m.foods_kcal()}</span>
+			</div>
+			<Input
+				class="h-9 min-w-40 flex-1"
+				maxlength={200}
+				placeholder={m.day_activity_note_placeholder()}
+				aria-label={m.day_activity_note_placeholder()}
+				bind:value={activityNoteDraft}
+				oninput={() => (activityNoteDirty = true)}
+				onblur={commitActivityNote}
+			/>
+			{#if stored?.activityCalories != null || stored?.activityNote}
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-9"
+					aria-label={m.day_activity_clear()}
+					onclick={clearActivity}
+				>
+					<X class="size-4" />
+				</Button>
+			{/if}
+		</div>
+		<p class="text-xs text-muted-foreground">{m.day_activity_informational()}</p>
+	</div>
+</DashboardCard>
+
+<DashboardCard title={m.day_notes_title()} Icon={NotebookPen} tone="neutral">
+	<Label class="sr-only" for="day-notes-input">{m.day_notes_title()}</Label>
+	<Textarea
+		id="day-notes-input"
+		rows={3}
+		maxlength={2000}
+		placeholder={m.day_notes_placeholder()}
+		bind:value={notesDraft}
+		oninput={onNotesInput}
+		onblur={commitNotes}
+	/>
 </DashboardCard>
