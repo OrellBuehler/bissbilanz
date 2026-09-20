@@ -62,4 +62,9 @@ enum DeepLink: Equatable, Identifiable {
 @Observable
 final class DeepLinkRouter {
     var pending: DeepLink?
+    /// Bumped each time a deep-link sheet is dismissed. The sheet is presented
+    /// from ContentView, above the tabs, so the dashboard underneath never
+    /// sees the log it just collapsed from (widget scan → log → dismiss left
+    /// the day stale until a pull-to-refresh). Observing this lets it reload.
+    var dismissedCount = 0
 }
