@@ -111,20 +111,60 @@ export function isPublicIp(ip: string): boolean {
 	return isIPv4(ip) ? isPublicIpv4(ip) : isPublicIpv6(ip);
 }
 
-/** Refuses hosts that resolve into private or loopback space so the metadata fetch cannot probe the server's own network. */
-async function resolvesToPublicAddress(hostname: string): Promise<boolean> {
+/**
+ * Resolves the host and refuses any address in private or loopback space so
+ * the metadata fetch cannot probe the server's own network. Returns the
+ * vetted addresses so the fetch can dial exactly those instead of resolving
+ * the name a second time (DNS rebinding between check and use).
+ */
+async function resolvePublicAddresses(
+	hostname: string
+): Promise<{ address: string; family: number }[]> {
 	const addresses = await lookup(hostname, { all: true, verbatim: true });
-	return addresses.length > 0 && addresses.every(({ address }) => isPublicIp(address));
+	if (addresses.length === 0 || !addresses.every(({ address }) => isPublicIp(address))) return [];
+	return addresses;
+}
+
+/**
+ * Fetches `clientId` from one pre-validated address: the URL carries the IP,
+ * while the `Host` header and TLS SNI/certificate check keep the original
+ * host name. `proxy: false` stops Bun from judging proxy rules against the
+ * IP, and `redirect: 'manual'` keeps a redirect from escaping the pin.
+ */
+function fetchPinned(
+	target: URL,
+	{ address, family }: { address: string; family: number }
+): Promise<Response> {
+	const pinned = new URL(target);
+	pinned.hostname = family === 6 ? `[${address}]` : address;
+	// `tls` and `proxy` are Bun extensions to RequestInit that the project's
+	// tsconfig (no bun-types) does not know about.
+	const init: RequestInit & { tls: { serverName: string }; proxy: false } = {
+		headers: { Accept: 'application/json', Host: target.host },
+		tls: { serverName: target.hostname },
+		proxy: false,
+		redirect: 'manual',
+		signal: AbortSignal.timeout(CIMD_FETCH_TIMEOUT_MS)
+	};
+	return fetch(pinned, init);
 }
 
 async function fetchClientIdMetadata(clientId: string): Promise<ClientIdMetadata | undefined> {
-	if (!(await resolvesToPublicAddress(new URL(clientId).hostname))) return undefined;
+	const target = new URL(clientId);
+	const addresses = await resolvePublicAddresses(target.hostname);
+	if (addresses.length === 0) return undefined;
 
-	const response = await fetch(clientId, {
-		headers: { Accept: 'application/json' },
-		redirect: 'manual',
-		signal: AbortSignal.timeout(CIMD_FETCH_TIMEOUT_MS)
-	});
+	let response: Response | undefined;
+	let lastError: unknown;
+	for (const candidate of addresses) {
+		try {
+			response = await fetchPinned(target, candidate);
+			break;
+		} catch (err) {
+			lastError = err;
+		}
+	}
+	if (!response) throw lastError;
 	if (!response.ok) return undefined;
 
 	const length = Number(response.headers.get('content-length'));

@@ -47,6 +47,12 @@ const DOC = {
 	response_types: ['code']
 };
 
+type PinnedInit = RequestInit & {
+	headers: Record<string, string>;
+	tls: { serverName: string };
+	proxy: boolean;
+};
+
 function mockFetch(
 	body: unknown,
 	init: { status?: number; headers?: Record<string, string> } = {}
@@ -195,9 +201,40 @@ describe('resolveClientIdMetadata', () => {
 		expect(first?.clientName).toBe('Claude Code');
 		expect(second).toBe(first);
 		expect(fetch).toHaveBeenCalledTimes(1);
-		const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-		expect(url).toBe(CLIENT_ID);
+		const [url, init] = fetch.mock.calls[0] as unknown as [URL, PinnedInit];
+		expect(url.href).toBe('https://160.79.104.10/oauth/claude-code-client-metadata');
+		expect(init.headers.Host).toBe('claude.ai');
+		expect(init.tls.serverName).toBe('claude.ai');
+		expect(init.proxy).toBe(false);
 		expect(init.redirect).toBe('manual');
+	});
+
+	test('pins an IPv6 address in brackets', async () => {
+		resolvedAddresses = [{ address: '2606:4700::1', family: 6 }];
+		const fetch = mockFetch(DOC);
+		vi.stubGlobal('fetch', fetch);
+
+		await resolveClientIdMetadata(CLIENT_ID);
+
+		const [url] = fetch.mock.calls[0] as unknown as [URL];
+		expect(url.href).toBe('https://[2606:4700::1]/oauth/claude-code-client-metadata');
+	});
+
+	test('falls back to the next vetted address when the first refuses the connection', async () => {
+		resolvedAddresses = [
+			{ address: '160.79.104.10', family: 4 },
+			{ address: '160.79.104.11', family: 4 }
+		];
+		const fetch = vi.fn(async (url: URL) => {
+			if (url.hostname === '160.79.104.10') throw new Error('ECONNREFUSED');
+			return new Response(JSON.stringify(DOC), { status: 200 });
+		});
+		vi.stubGlobal('fetch', fetch);
+
+		const metadata = await resolveClientIdMetadata(CLIENT_ID);
+
+		expect(metadata?.clientName).toBe('Claude Code');
+		expect(fetch).toHaveBeenCalledTimes(2);
 	});
 
 	test('does not fetch non-CIMD client ids', async () => {

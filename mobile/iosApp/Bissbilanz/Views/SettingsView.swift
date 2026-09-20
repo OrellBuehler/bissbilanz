@@ -54,6 +54,7 @@ struct SettingsView: View {
     @State private var hasTargetDate = false
     @State private var editTargetDate = Date()
     @State private var waterGoalDraft = "2000"
+    @FocusState private var waterGoalFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -87,6 +88,7 @@ struct SettingsView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 80)
+                            .focused($waterGoalFocused)
                             .onSubmit { Task { await saveWaterGoal() } }
                         Text(L10n.dayUnitMl)
                             .foregroundStyle(.secondary)
@@ -406,6 +408,12 @@ struct SettingsView: View {
                     .disabled(!ErrorReporter.isEnabled)
                     #endif
                 }
+            }
+            .keyboardDismissable()
+            // The number pad has no return key, so the keyboard toolbar's
+            // Done (which resigns focus) is what commits the water goal.
+            .onChange(of: waterGoalFocused) { _, focused in
+                if !focused { Task { await saveWaterGoal() } }
             }
             .navigationTitle(L10n.settings)
             .sheet(isPresented: $isEditingGoals) {
