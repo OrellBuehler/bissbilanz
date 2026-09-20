@@ -133,7 +133,8 @@ async function resolvePublicAddresses(
  */
 function fetchPinned(
 	target: URL,
-	{ address, family }: { address: string; family: number }
+	{ address, family }: { address: string; family: number },
+	signal: AbortSignal
 ): Promise<Response> {
 	const pinned = new URL(target);
 	pinned.hostname = family === 6 ? `[${address}]` : address;
@@ -144,7 +145,7 @@ function fetchPinned(
 		tls: { serverName: target.hostname },
 		proxy: false,
 		redirect: 'manual',
-		signal: AbortSignal.timeout(CIMD_FETCH_TIMEOUT_MS)
+		signal
 	};
 	return fetch(pinned, init);
 }
@@ -154,11 +155,14 @@ async function fetchClientIdMetadata(clientId: string): Promise<ClientIdMetadata
 	const addresses = await resolvePublicAddresses(target.hostname);
 	if (addresses.length === 0) return undefined;
 
+	// All connection attempts and the response body share one fetch deadline.
+	const signal = AbortSignal.timeout(CIMD_FETCH_TIMEOUT_MS);
 	let response: Response | undefined;
 	let lastError: unknown;
 	for (const candidate of addresses) {
+		signal.throwIfAborted();
 		try {
-			response = await fetchPinned(target, candidate);
+			response = await fetchPinned(target, candidate, signal);
 			break;
 		} catch (err) {
 			lastError = err;

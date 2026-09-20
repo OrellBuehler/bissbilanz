@@ -27,6 +27,7 @@ vi.mock('node:dns/promises', () => ({
 }));
 
 const {
+	CIMD_FETCH_TIMEOUT_MS,
 	isClientIdMetadataUrl,
 	isPublicIp,
 	parseClientIdMetadata,
@@ -235,6 +236,53 @@ describe('resolveClientIdMetadata', () => {
 
 		expect(metadata?.clientName).toBe('Claude Code');
 		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+
+	test.each([
+		{ scenario: 'the first address stalls', failureDelay: 0 },
+		{ scenario: 'a fallback stalls after a slow connection failure', failureDelay: 6_000 }
+	])('stops at the shared fetch deadline when $scenario', async ({ failureDelay }) => {
+		vi.useFakeTimers();
+		// Native AbortSignal.timeout does not use Vitest's fake clock.
+		const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
+			const controller = new AbortController();
+			setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
+			return controller.signal;
+		});
+		try {
+			resolvedAddresses = [
+				{ address: '160.79.104.10', family: 4 },
+				{ address: '160.79.104.11', family: 4 },
+				{ address: '160.79.104.12', family: 4 }
+			];
+			const fetch = vi.fn((url: URL, init: RequestInit) => {
+				const signal = init.signal!;
+				return new Promise<Response>((_, reject) => {
+					signal.throwIfAborted();
+					signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+					if (failureDelay > 0 && url.hostname === '160.79.104.10') {
+						setTimeout(() => reject(new Error('ECONNREFUSED')), failureDelay);
+					}
+				});
+			});
+			vi.stubGlobal('fetch', fetch);
+			let settled = false;
+			const pending = resolveClientIdMetadata(CLIENT_ID).then((metadata) => {
+				settled = true;
+				return metadata;
+			});
+
+			await vi.advanceTimersByTimeAsync(CIMD_FETCH_TIMEOUT_MS - 1);
+			expect(settled).toBe(false);
+			await vi.advanceTimersByTimeAsync(1);
+			expect(settled).toBe(true);
+			expect(await pending).toBeUndefined();
+			expect(fetch).toHaveBeenCalledTimes(failureDelay > 0 ? 2 : 1);
+		} finally {
+			timeout.mockRestore();
+			vi.clearAllTimers();
+			vi.useRealTimers();
+		}
 	});
 
 	test('does not fetch non-CIMD client ids', async () => {
