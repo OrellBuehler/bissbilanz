@@ -105,9 +105,14 @@ final class SleepRepository {
             ((try? context.fetch(rowsDescriptor)) ?? []).map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        // Only the rows the response actually changed reach Spotlight: this
+        // refresh runs on every pull-to-refresh and background pull, and
+        // re-indexing the whole history each time would be pure churn.
+        var changedIds = Set<String>()
         for (id, row) in rowsById where !serverIds.contains(id) && !pendingIds.contains(id) {
             context.delete(row)
             rowsById.removeValue(forKey: id)
+            changedIds.insert(id)
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
             if let row = rowsById[entry.id] {
@@ -117,14 +122,17 @@ final class SleepRepository {
                 // BISSBILANZ-34 was.
                 if row.jsonData != LocalStoreCoding.encode(entry) {
                     row.update(from: entry)
+                    changedIds.insert(entry.id)
                 }
             } else {
                 let row = LocalSleepEntry(entry: entry)
                 context.insert(row)
                 rowsById[entry.id] = row
+                changedIds.insert(entry.id)
             }
         }
         save()
+        IntentDonations.sleepChanged(changedIds)
     }
 
     // MARK: - Writes (local first + queued upload)
@@ -135,6 +143,7 @@ final class SleepRepository {
         upsert(temp)
         save()
         syncManager.enqueue(.createSleep(body: create, localId: temp.id))
+        IntentDonations.sleepChanged([temp.id])
         return temp
     }
 
@@ -154,6 +163,7 @@ final class SleepRepository {
         } else {
             syncManager.enqueue(.updateSleep(id: id, body: update))
         }
+        IntentDonations.sleepChanged([id])
         return updated
     }
 
@@ -165,6 +175,7 @@ final class SleepRepository {
         } else {
             syncManager.enqueue(.deleteSleep(id: id))
         }
+        IntentDonations.sleepChanged([id])
     }
 
     /// Rewrites the still-queued create for a temp-id sleep entry so the

@@ -451,6 +451,281 @@ enum L10n {
         )
     }
 
+    // MARK: - Siri Data Queries
+
+    static func intentDayStatus(
+        day: String, calories: String, protein: String, carbs: String, fat: String
+    ) -> String {
+        localized(
+            "intent_day_status",
+            en: "\(day): \(calories) kcal, \(protein) g protein, \(carbs) g carbs, \(fat) g fat.",
+            de: "\(day): \(calories) kcal, \(protein) g Eiweiß, \(carbs) g Kohlenhydrate, \(fat) g Fett."
+        )
+    }
+
+    static func intentDayStatusWithGoal(
+        day: String, calories: String, goal: String, protein: String, carbs: String, fat: String
+    ) -> String {
+        localized(
+            "intent_day_status_goal",
+            en: "\(day): \(calories) of \(goal) kcal, \(protein) g protein, \(carbs) g carbs, \(fat) g fat.",
+            de: "\(day): \(calories) von \(goal) kcal, \(protein) g Eiweiß, \(carbs) g Kohlenhydrate, \(fat) g Fett."
+        )
+    }
+
+    static func intentCaloriesLeft(_ value: String) -> String {
+        localized("intent_calories_left", en: "\(value) kcal left.", de: "Noch \(value) kcal übrig.")
+    }
+
+    static func intentCaloriesOver(_ value: String) -> String {
+        localized(
+            "intent_calories_over",
+            en: "\(value) kcal over the goal.",
+            de: "\(value) kcal über dem Ziel."
+        )
+    }
+
+    static func intentDayNothingLogged(_ day: String) -> String {
+        localized(
+            "intent_day_nothing_logged",
+            en: "\(day): nothing logged yet.",
+            de: "\(day): noch nichts eingetragen."
+        )
+    }
+
+    static func intentDayFasting(_ day: String) -> String {
+        localized(
+            "intent_day_fasting",
+            en: "\(day) is marked as a fasting day.",
+            de: "\(day) ist als Fastentag markiert."
+        )
+    }
+
+    /// The sentence the Spotlight semantic index matches a spoken question
+    /// against, so every number is named rather than abbreviated.
+    static func intentDayIndexText(
+        day: String,
+        calories: String,
+        protein: String,
+        carbs: String,
+        fat: String,
+        fiber: String,
+        entries: Int
+    ) -> String {
+        localized(
+            "intent_day_index_text",
+            en: "\(day): \(calories) kcal, \(protein) g protein, \(carbs) g carbs, "
+                + "\(fat) g fat, \(fiber) g fiber, \(entries) entries",
+            de: "\(day): \(calories) kcal, \(protein) g Eiweiß, \(carbs) g Kohlenhydrate, "
+                + "\(fat) g Fett, \(fiber) g Ballaststoffe, \(entries) Einträge"
+        )
+    }
+
+    static var intentDayGoalMet: String {
+        localized("intent_day_goal_met", en: "calorie goal met", de: "Kalorienziel erreicht")
+    }
+
+    static var intentDayGoalExceeded: String {
+        localized("intent_day_goal_exceeded", en: "calorie goal exceeded", de: "Kalorienziel überschritten")
+    }
+
+    static func intentWeekSummary(
+        days: Int, calories: String, protein: String, carbs: String, fat: String
+    ) -> String {
+        localized(
+            "intent_week_summary",
+            en: "Over the last 7 days you logged \(days) days, averaging \(calories) kcal, "
+                + "\(protein) g protein, \(carbs) g carbs and \(fat) g fat.",
+            de: "In den letzten 7 Tagen hast du an \(days) Tagen erfasst, im Schnitt \(calories) kcal, "
+                + "\(protein) g Eiweiß, \(carbs) g Kohlenhydrate und \(fat) g Fett."
+        )
+    }
+
+    static func intentWeekGoalsMet(_ met: Int, of days: Int) -> String {
+        localized(
+            "intent_week_goals_met",
+            en: "Calorie goal met on \(met) of \(days).",
+            de: "Kalorienziel an \(met) von \(days) Tagen erreicht."
+        )
+    }
+
+    static var intentWeekNothingLogged: String {
+        localized(
+            "intent_week_nothing_logged",
+            en: "Nothing logged in the last 7 days.",
+            de: "In den letzten 7 Tagen wurde nichts eingetragen."
+        )
+    }
+
+    static var intentWeekAverage: String {
+        localized("intent_week_average", en: "Daily average", de: "Tagesdurchschnitt")
+    }
+
+    static var intentWeekDaysLogged: String {
+        localized("intent_week_days_logged", en: "Days logged", de: "Erfasste Tage")
+    }
+
+    // MARK: - Siri Data Queries (weight)
+
+    /// The sentence the Spotlight semantic index matches a spoken question
+    /// against for a single weight entry.
+    static func intentWeightIndexText(day: String, weight: String) -> String {
+        localized(
+            "intent_weight_index_text",
+            en: "Weight on \(day): \(weight)",
+            de: "Gewicht am \(day): \(weight)"
+        )
+    }
+
+    /// `value` already carries its unit ("0.3 kg").
+    static func intentWeightChangeUp(_ value: String) -> String {
+        localized(
+            "intent_weight_change_up",
+            en: "up \(value) since the previous entry",
+            de: "\(value) mehr als beim vorherigen Eintrag"
+        )
+    }
+
+    static func intentWeightChangeDown(_ value: String) -> String {
+        localized(
+            "intent_weight_change_down",
+            en: "down \(value) since the previous entry",
+            de: "\(value) weniger als beim vorherigen Eintrag"
+        )
+    }
+
+    static func intentWeightLatest(weight: String, day: String) -> String {
+        localized(
+            "intent_weight_latest",
+            en: "Your latest weight is \(weight), logged \(day).",
+            de: "Dein letztes Gewicht ist \(weight), erfasst \(day)."
+        )
+    }
+
+    static func intentWeightOn(weight: String, day: String) -> String {
+        localized(
+            "intent_weight_on",
+            en: "\(day): \(weight).",
+            de: "\(day): \(weight)."
+        )
+    }
+
+    static func intentWeightTrendUp(value: String, days: Int) -> String {
+        localized(
+            "intent_weight_trend_up",
+            en: "Up \(value) over the last \(days) days.",
+            de: "\(value) mehr in den letzten \(days) Tagen."
+        )
+    }
+
+    static func intentWeightTrendDown(value: String, days: Int) -> String {
+        localized(
+            "intent_weight_trend_down",
+            en: "Down \(value) over the last \(days) days.",
+            de: "\(value) weniger in den letzten \(days) Tagen."
+        )
+    }
+
+    static func intentWeightTrendSteady(days: Int) -> String {
+        localized(
+            "intent_weight_trend_steady",
+            en: "Unchanged over the last \(days) days.",
+            de: "Unverändert in den letzten \(days) Tagen."
+        )
+    }
+
+    static var intentWeightNoData: String {
+        localized(
+            "intent_weight_no_data",
+            en: "No weight logged yet.",
+            de: "Noch kein Gewicht erfasst."
+        )
+    }
+
+    /// Snippet caption for a windowed delta ("7d change").
+    static func intentChangeOverDays(_ days: Int) -> String {
+        localized("intent_change_over_days", en: "\(days)d change", de: "\(days)T Differenz")
+    }
+
+    // MARK: - Siri Data Queries (sleep)
+
+    static func intentSleepIndexText(duration: String, day: String) -> String {
+        localized(
+            "intent_sleep_index_text",
+            en: "Slept \(duration) on the night to \(day)",
+            de: "\(duration) geschlafen in der Nacht auf \(day)"
+        )
+    }
+
+    static func intentSleepBedtime(_ time: String) -> String {
+        localized("intent_sleep_bedtime", en: "bedtime \(time)", de: "Schlafenszeit \(time)")
+    }
+
+    static func intentSleepWokeAt(_ time: String) -> String {
+        localized("intent_sleep_woke_at", en: "woke \(time)", de: "aufgewacht \(time)")
+    }
+
+    /// Quality on the app's 1–10 scale, as a spoken phrase.
+    static func intentSleepQualityOf(_ value: String) -> String {
+        localized("intent_sleep_quality_of", en: "quality \(value) of 10", de: "Qualität \(value) von 10")
+    }
+
+    /// Opening clause of the spoken sleep answer — no trailing period, the
+    /// bedtime/wake clauses are appended to the same sentence.
+    static func intentSleepLastNight(duration: String) -> String {
+        localized(
+            "intent_sleep_last_night",
+            en: "Last night you slept \(duration)",
+            de: "Letzte Nacht hast du \(duration) geschlafen"
+        )
+    }
+
+    static func intentSleepOn(duration: String, day: String) -> String {
+        localized(
+            "intent_sleep_on",
+            en: "On the night to \(day) you slept \(duration)",
+            de: "In der Nacht auf \(day) hast du \(duration) geschlafen"
+        )
+    }
+
+    static func intentSleepAverage(duration: String, nights: Int) -> String {
+        localized(
+            "intent_sleep_average",
+            en: "\(nights)-night average \(duration).",
+            de: "Schnitt aus \(nights) Nächten: \(duration)."
+        )
+    }
+
+    static var intentSleepNoData: String {
+        localized(
+            "intent_sleep_no_data",
+            en: "No sleep logged yet.",
+            de: "Noch kein Schlaf erfasst."
+        )
+    }
+
+    /// A sleep length in words, for the spoken answer and the Spotlight text.
+    static func intentSleepDurationSpoken(hours: Int, minutes: Int) -> String {
+        let hourText = hours == 1
+            ? localized("intent_duration_hour_one", en: "1 hour", de: "1 Stunde")
+            : localized("intent_duration_hour_many", en: "\(hours) hours", de: "\(hours) Stunden")
+        guard minutes > 0 else { return hourText }
+        let minuteText = minutes == 1
+            ? localized("intent_duration_minute_one", en: "1 minute", de: "1 Minute")
+            : localized("intent_duration_minute_many", en: "\(minutes) minutes", de: "\(minutes) Minuten")
+        guard hours > 0 else { return minuteText }
+        return "\(hourText) \(minuteText)"
+    }
+
+    /// Compact duration units for titles and cards ("7 h 10 min").
+    static var intentUnitHourShort: String {
+        localized("intent_unit_hour_short", en: "h", de: "Std.")
+    }
+
+    static var intentUnitMinuteShort: String {
+        localized("intent_unit_minute_short", en: "min", de: "Min.")
+    }
+
     // MARK: - Entries
 
     static var logFood: String {

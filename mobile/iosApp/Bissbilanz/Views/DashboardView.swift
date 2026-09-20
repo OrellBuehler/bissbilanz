@@ -137,6 +137,12 @@ struct DashboardView: View {
                     // the push transition instead of stacking vertically.
                     ZStack {
                         dayContent
+                            // Lets Siri resolve "this day" against the day on
+                            // screen (iOS 18.4+; a no-op before). Applied
+                            // innermost so `.id`/`.transition` stay the
+                            // outermost modifiers and the push animation is
+                            // unaffected.
+                            .siriEntity(DaySummaryEntity.self, id: dateString)
                             .id(dateString)
                             .transition(reduceMotion ? .identity : .push(from: slideEdge))
                     }
