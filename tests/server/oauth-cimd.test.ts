@@ -19,8 +19,16 @@ vi.mock('$lib/server/db', () => ({
 
 vi.mock('@sentry/sveltekit', () => ({ captureException: vi.fn() }));
 
+let resolvedAddresses: { address: string; family: number }[] = [
+	{ address: '160.79.104.10', family: 4 }
+];
+vi.mock('node:dns/promises', () => ({
+	lookup: async () => resolvedAddresses
+}));
+
 const {
 	isClientIdMetadataUrl,
+	isPublicIp,
 	parseClientIdMetadata,
 	resolveClientIdMetadata,
 	resolveOAuthClient,
@@ -126,10 +134,55 @@ describe('parseClientIdMetadata', () => {
 	});
 });
 
+describe('isPublicIp', () => {
+	test.each(['160.79.104.10', '8.8.8.8', '2606:4700::1111'])('accepts %s', (ip) => {
+		expect(isPublicIp(ip)).toBe(true);
+	});
+
+	test.each([
+		'127.0.0.1',
+		'10.1.2.3',
+		'172.16.0.1',
+		'172.31.255.255',
+		'192.168.1.1',
+		'169.254.169.254',
+		'100.64.0.1',
+		'0.0.0.0',
+		'224.0.0.1',
+		'::1',
+		'::',
+		'fd00::1',
+		'fe80::1',
+		'::ffff:10.0.0.1'
+	])('rejects %s', (ip) => {
+		expect(isPublicIp(ip)).toBe(false);
+	});
+});
+
 describe('resolveClientIdMetadata', () => {
 	beforeEach(() => {
 		clearClientIdMetadataCache();
 		upserted.length = 0;
+		resolvedAddresses = [{ address: '160.79.104.10', family: 4 }];
+	});
+
+	test('refuses hosts that resolve to a private address', async () => {
+		resolvedAddresses = [
+			{ address: '160.79.104.10', family: 4 },
+			{ address: '10.0.0.5', family: 4 }
+		];
+		const fetch = mockFetch(DOC);
+		vi.stubGlobal('fetch', fetch);
+		expect(await resolveClientIdMetadata(CLIENT_ID)).toBe(undefined);
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	test('refuses hosts that do not resolve', async () => {
+		resolvedAddresses = [];
+		const fetch = mockFetch(DOC);
+		vi.stubGlobal('fetch', fetch);
+		expect(await resolveClientIdMetadata(CLIENT_ID)).toBe(undefined);
+		expect(fetch).not.toHaveBeenCalled();
 	});
 
 	test('fetches, validates and caches the document', async () => {

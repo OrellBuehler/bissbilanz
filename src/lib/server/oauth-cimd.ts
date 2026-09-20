@@ -1,3 +1,5 @@
+import { lookup } from 'node:dns/promises';
+import { isIPv4 } from 'node:net';
 import * as Sentry from '@sentry/sveltekit';
 import { getDB, oauthClients, type OAuthClient } from './db';
 import { getOAuthClient, isValidRedirectUriFormat } from './oauth';
@@ -86,7 +88,38 @@ export function parseClientIdMetadata(
 	};
 }
 
+function isPublicIpv4(ip: string): boolean {
+	const [a, b] = ip.split('.').map(Number);
+	if (a === 0 || a === 10 || a === 127) return false;
+	if (a === 100 && b >= 64 && b <= 127) return false;
+	if (a === 169 && b === 254) return false;
+	if (a === 172 && b >= 16 && b <= 31) return false;
+	if (a === 192 && b === 168) return false;
+	if (a >= 224) return false;
+	return true;
+}
+
+function isPublicIpv6(ip: string): boolean {
+	const lower = ip.toLowerCase();
+	if (lower === '::' || lower === '::1') return false;
+	if (lower.startsWith('::ffff:')) return isPublicIpv4(lower.slice(7));
+	if (/^f[cd]/.test(lower) || /^fe[89ab]/.test(lower)) return false;
+	return true;
+}
+
+export function isPublicIp(ip: string): boolean {
+	return isIPv4(ip) ? isPublicIpv4(ip) : isPublicIpv6(ip);
+}
+
+/** Refuses hosts that resolve into private or loopback space so the metadata fetch cannot probe the server's own network. */
+async function resolvesToPublicAddress(hostname: string): Promise<boolean> {
+	const addresses = await lookup(hostname, { all: true, verbatim: true });
+	return addresses.length > 0 && addresses.every(({ address }) => isPublicIp(address));
+}
+
 async function fetchClientIdMetadata(clientId: string): Promise<ClientIdMetadata | undefined> {
+	if (!(await resolvesToPublicAddress(new URL(clientId).hostname))) return undefined;
+
 	const response = await fetch(clientId, {
 		headers: { Accept: 'application/json' },
 		redirect: 'manual',
