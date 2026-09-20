@@ -2,12 +2,13 @@ import { redirect, fail, isRedirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
-	getOAuthClient,
 	createAuthorization,
 	createAuthorizationCode,
 	validateRedirectUri,
-	isValidCodeChallengeS256
+	isValidCodeChallengeS256,
+	isLoopbackRedirectUri
 } from '$lib/server/oauth';
+import { resolveOAuthClient, isClientIdMetadataUrl } from '$lib/server/oauth-cimd';
 
 export const load: PageServerLoad = async ({ url, request }) => {
 	const clientId = url.searchParams.get('client_id');
@@ -34,7 +35,7 @@ export const load: PageServerLoad = async ({ url, request }) => {
 		throw redirect(302, loginUrl.toString());
 	}
 
-	const client = await getOAuthClient(clientId);
+	const client = await resolveOAuthClient(clientId);
 	if (!client) {
 		throw redirect(302, `/oauth/error?code=invalid_client&detail=${encodeURIComponent(clientId)}`);
 	}
@@ -60,6 +61,9 @@ export const load: PageServerLoad = async ({ url, request }) => {
 	return {
 		clientId,
 		clientName: client.clientName,
+		clientHost: isClientIdMetadataUrl(clientId) ? new URL(clientId).hostname : null,
+		redirectHost: new URL(redirectUri).host,
+		loopbackRedirect: isLoopbackRedirectUri(redirectUri),
 		redirectUri,
 		state,
 		codeChallenge,
@@ -100,7 +104,7 @@ export const actions = {
 
 		const userId = sessionData.user.id;
 
-		const client = await getOAuthClient(clientId);
+		const client = await resolveOAuthClient(clientId);
 		if (!client) {
 			return fail(400, { error: 'Invalid client' });
 		}
@@ -133,7 +137,7 @@ export const actions = {
 		const state = formData.get('state')?.toString();
 
 		if (clientId && redirectUri && state) {
-			const client = await getOAuthClient(clientId);
+			const client = await resolveOAuthClient(clientId);
 			if (client && validateRedirectUri(client, redirectUri)) {
 				const callbackUrl = new URL(redirectUri);
 				callbackUrl.searchParams.set('error', 'access_denied');

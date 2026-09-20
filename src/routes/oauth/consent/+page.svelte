@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import Check from '@lucide/svelte/icons/check';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -34,6 +35,24 @@
 							<strong>{data.clientName ?? m.oauth_consent_default_app()}</strong>
 							{m.oauth_consent_requesting_access()}
 						</p>
+						<dl class="mb-3 space-y-1 text-xs text-slate-500">
+							{#if data.clientHost}
+								<div class="flex gap-2">
+									<dt class="shrink-0">{m.oauth_consent_client_host()}</dt>
+									<dd class="font-mono break-all">{data.clientHost}</dd>
+								</div>
+							{/if}
+							<div class="flex gap-2">
+								<dt class="shrink-0">{m.oauth_consent_redirect_host()}</dt>
+								<dd class="font-mono break-all">{data.redirectHost}</dd>
+							</div>
+						</dl>
+						{#if data.loopbackRedirect}
+							<p class="mb-3 flex items-start gap-2 text-xs text-amber-700">
+								<TriangleAlert class="size-4 shrink-0 mt-0.5" />
+								<span>{m.oauth_consent_loopback_warning()}</span>
+							</p>
+						{/if}
 						<ul class="space-y-2">
 							{#each permissions as permission}
 								<li class="flex items-start gap-2 text-sm">

@@ -2,13 +2,13 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
-	getOAuthClient,
 	hasAuthorization,
 	createAuthorizationCode,
 	validateRedirectUri,
 	isValidCodeChallengeS256,
 	isValidRedirectUriFormat
 } from '$lib/server/oauth';
+import { resolveOAuthClient } from '$lib/server/oauth-cimd';
 
 function oauthError(code: string, detail?: string): never {
 	const errorUrl = new URL('/oauth/error', 'http://localhost');
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
 		oauthError('invalid_redirect_uri_format', redirectUri);
 	}
 
-	const client = await getOAuthClient(clientId);
+	const client = await resolveOAuthClient(clientId);
 	if (!client) {
 		oauthError('invalid_client', clientId);
 	}
