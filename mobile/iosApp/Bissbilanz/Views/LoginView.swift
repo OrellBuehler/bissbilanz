@@ -150,11 +150,20 @@ struct LoginView: View {
     }
 
     private func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) {
+        if case let .failure(error) = result {
+            appleRawNonce = ""
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                ErrorReporter.captureWarning("Sign in with Apple failed", context: ["reason": ErrorReporter.reason(for: error)])
+            }
+            return
+        }
         guard case let .success(authorization) = result,
               let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = credential.identityToken,
               let identityToken = String(data: tokenData, encoding: .utf8)
         else {
+            appleRawNonce = ""
+            ErrorReporter.captureWarning("Sign in with Apple returned no identity token")
             return
         }
 
