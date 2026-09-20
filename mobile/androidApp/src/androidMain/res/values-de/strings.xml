@@ -213,6 +213,24 @@
     <string name="ai_tasks_upload_failed_body">Prüfe deine Verbindung und sende sie erneut.</string>
     <string name="ai_task_upload_sending">Wird an deinen Assistenten gesendet…</string>
 
+    <!-- Connect Claude -->
+    <string name="connect_claude_title">Claude verbinden</string>
+    <string name="connect_claude_intro">Verbinde Bissbilanz mit Claude, um Mahlzeiten per Chat zu erfassen, dir tägliche oder wöchentliche Auswertungen erstellen zu lassen und Essenspläne zu bekommen, die zu deinen Zielen passen.</string>
+    <string name="connect_claude_server_url_title">Server-URL</string>
+    <string name="connect_claude_copy">Kopieren</string>
+    <string name="connect_claude_copy_url">URL kopieren</string>
+    <string name="connect_claude_copied">In die Zwischenablage kopiert</string>
+    <string name="connect_claude_claude_app_title">Claude-App / claude.ai</string>
+    <string name="connect_claude_step_1">Öffne Claude, gehe zu Einstellungen → Connectors (im Web: Anpassen → Connectors).</string>
+    <string name="connect_claude_step_2">Tippe auf \"Benutzerdefinierten Connector hinzufügen\".</string>
+    <string name="connect_claude_step_3">Füge die Server-URL ein, lasse \"Claudes veröffentlichte Identität verwenden\" ausgewählt (Standard) und tippe auf Hinzufügen.</string>
+    <string name="connect_claude_step_4">Tippe auf Verbinden und bestätige den Zugriff auf der sich öffnenden Bissbilanz-Seite.</string>
+    <string name="connect_claude_open_claude">Claude öffnen</string>
+    <string name="connect_claude_claude_code_title">Claude Code</string>
+    <string name="connect_claude_claude_code_hint">Führe danach /mcp aus, um dich anzumelden.</string>
+    <string name="connect_claude_other_clients_title">Andere MCP-Clients</string>
+    <string name="connect_claude_other_clients_body">Jeder Client, der Remote-MCP über Streamable HTTP mit OAuth unterstützt, funktioniert. Erweiterte Optionen wie ein eigener OAuth-Client findest du auf der Website unter Einstellungen → MCP.</string>
+
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connected">Verbunden</string>

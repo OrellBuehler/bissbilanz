@@ -153,6 +153,10 @@ struct SettingsView: View {
                         NavigationLink { AiTasksView() } label: {
                             Label(L10n.aiTasks, systemImage: "sparkles")
                         }
+                        // MCP is a server-only feature — hidden in Local mode.
+                        NavigationLink { ConnectClaudeView() } label: {
+                            Label(L10n.connectClaudeTitle, systemImage: "link")
+                        }
                     }
                 }
 

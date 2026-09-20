@@ -106,6 +106,7 @@ fun AppNavigation() {
                         "fasting",
                         "health",
                         "ai-tasks",
+                        "connect-claude",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -265,5 +266,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("ai-tasks") {
         com.bissbilanz.android.ui.screens
             .AiTasksScreen(navController)
+    }
+    composable("connect-claude") {
+        com.bissbilanz.android.ui.screens
+            .ConnectClaudeScreen(navController)
     }
 }

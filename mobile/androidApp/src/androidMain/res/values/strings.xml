@@ -215,6 +215,24 @@
     <string name="ai_tasks_upload_failed_body">Check your connection and send it again.</string>
     <string name="ai_task_upload_sending">Sending to your assistant…</string>
 
+    <!-- Connect Claude -->
+    <string name="connect_claude_title">Connect Claude</string>
+    <string name="connect_claude_intro">Connect Bissbilanz to Claude to log meals by chatting, ask for daily or weekly reviews, and get meal plans that fit your goals.</string>
+    <string name="connect_claude_server_url_title">Server URL</string>
+    <string name="connect_claude_copy">Copy</string>
+    <string name="connect_claude_copy_url">Copy URL</string>
+    <string name="connect_claude_copied">Copied to clipboard</string>
+    <string name="connect_claude_claude_app_title">Claude app / claude.ai</string>
+    <string name="connect_claude_step_1">Open Claude, go to Settings → Connectors (Customize → Connectors on the web).</string>
+    <string name="connect_claude_step_2">Tap \"Add custom connector\".</string>
+    <string name="connect_claude_step_3">Paste the server URL, keep \"Use Claude\'s published identity\" selected (the default), tap Add.</string>
+    <string name="connect_claude_step_4">Tap Connect and approve access on the Bissbilanz page that opens.</string>
+    <string name="connect_claude_open_claude">Open Claude</string>
+    <string name="connect_claude_claude_code_title">Claude Code</string>
+    <string name="connect_claude_claude_code_hint">Then run /mcp to sign in.</string>
+    <string name="connect_claude_other_clients_title">Other MCP clients</string>
+    <string name="connect_claude_other_clients_body">Any client that supports remote MCP over Streamable HTTP with OAuth works. Advanced options, like using your own OAuth client, are on the website under Settings → MCP.</string>
+
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>
     <string name="health_connected">Connected</string>

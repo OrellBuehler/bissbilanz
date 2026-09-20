@@ -18,10 +18,6 @@ export const rateLimitUpload = (userId: string, max = 30, windowMs = 60_000) => 
 	rateLimit(`upload:${userId}`, max, windowMs);
 };
 
-export const rateLimitRegistration = (ip: string, max = 5, windowMs = 3_600_000) => {
-	rateLimit(`register:${ip}`, max, windowMs);
-};
-
 export const rateLimitMcp = (userId: string, max = 300, windowMs = 60_000) => {
 	rateLimit(`mcp:${userId}`, max, windowMs);
 };
