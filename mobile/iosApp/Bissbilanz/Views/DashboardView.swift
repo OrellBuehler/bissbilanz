@@ -263,17 +263,54 @@ struct DashboardView: View {
     }
 
     /// Weight and sleep share one row at half width each when they land next
-    /// to each other in `renderedSections`; otherwise each renders full width
-    /// on its own.
-    private func isPaired(_ section: DashboardSection) -> Bool {
-        guard let index = renderedSections.firstIndex(of: section) else { return false }
+    /// to each other in `renderedSections`, in either order; otherwise each
+    /// renders full width on its own. Returns the partner that follows
+    /// `section` when `section` leads the pair, so the leading section draws
+    /// the row and the trailing one draws nothing.
+    private func pairedPartner(after section: DashboardSection) -> DashboardSection? {
+        guard section == .weight || section == .sleep,
+              let index = renderedSections.firstIndex(of: section),
+              index + 1 < renderedSections.count
+        else { return nil }
+        let next = renderedSections[index + 1]
+        return (next == .weight || next == .sleep) && next != section ? next : nil
+    }
+
+    private func isTrailingInPair(_ section: DashboardSection) -> Bool {
+        guard let index = renderedSections.firstIndex(of: section), index > 0 else { return false }
+        return pairedPartner(after: renderedSections[index - 1]) == section
+    }
+
+    @ViewBuilder
+    private func pairedRow(_ first: DashboardSection, _ second: DashboardSection) -> some View {
+        // `fixedSize` + `maxHeight` keeps the two cards equal-height when
+        // their content differs.
+        HStack(spacing: 16) {
+            pairedCard(first)
+            pairedCard(second)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private func pairedCard(_ section: DashboardSection) -> some View {
         switch section {
         case .weight:
-            return index + 1 < renderedSections.count && renderedSections[index + 1] == .sleep
-        case .sleep:
-            return index > 0 && renderedSections[index - 1] == .weight
+            if let weight = closestWeight {
+                NavigationLink {
+                    WeightView()
+                } label: {
+                    weightWidget(weight, fillHeight: true)
+                }
+                .buttonStyle(.plain)
+            }
         default:
-            return false
+            NavigationLink {
+                SleepView()
+            } label: {
+                sleepWidget(fillHeight: true)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -367,30 +404,13 @@ struct DashboardView: View {
     @ViewBuilder
     private var weightSection: some View {
         if let weight = closestWeight {
-            if isPaired(.weight) {
-                // Weight and sleep share one row at half width each; a lone
-                // card stretches to the full width. `fixedSize` + `maxHeight`
-                // keeps the two cards equal-height when their content differs.
-                HStack(spacing: 16) {
-                    NavigationLink {
-                        WeightView()
-                    } label: {
-                        weightWidget(weight)
-                    }
-                    .buttonStyle(.plain)
-                    NavigationLink {
-                        SleepView()
-                    } label: {
-                        sleepWidget
-                    }
-                    .buttonStyle(.plain)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            } else {
+            if let partner = pairedPartner(after: .weight) {
+                pairedRow(.weight, partner)
+            } else if !isTrailingInPair(.weight) {
                 NavigationLink {
                     WeightView()
                 } label: {
-                    weightWidget(weight)
+                    weightWidget(weight, fillHeight: false)
                 }
                 .buttonStyle(.plain)
             }
@@ -399,11 +419,13 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var sleepSection: some View {
-        if !isPaired(.sleep) {
+        if let partner = pairedPartner(after: .sleep) {
+            pairedRow(.sleep, partner)
+        } else if !isTrailingInPair(.sleep) {
             NavigationLink {
                 SleepView()
             } label: {
-                sleepWidget
+                sleepWidget(fillHeight: false)
             }
             .buttonStyle(.plain)
         }
@@ -578,7 +600,9 @@ struct DashboardView: View {
 
     // MARK: - Weight Widget
 
-    private func weightWidget(_ entry: WeightEntry) -> some View {
+    /// `fillHeight` stretches the card to its row partner's height when the
+    /// weight and sleep cards share a row; a lone card hugs its content.
+    private func weightWidget(_ entry: WeightEntry, fillHeight: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "scalemass")
@@ -595,7 +619,7 @@ struct DashboardView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -605,7 +629,7 @@ struct DashboardView: View {
     /// Sleep for the night nearest the selected day (a night is keyed by its
     /// wake day), captioned with the entry's own date. On today the card keeps
     /// the log prompt until last night is actually logged.
-    private var sleepWidget: some View {
+    private func sleepWidget(fillHeight: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "bed.double")
@@ -628,7 +652,7 @@ struct DashboardView: View {
             }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
