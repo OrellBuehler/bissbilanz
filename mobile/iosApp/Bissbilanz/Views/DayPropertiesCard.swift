@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Compact day-properties card: a water tracker with quick-add buttons, an
-/// informational activity-calories input with a short note, and an
-/// autosaving notes field. Mirrors the web `DayPropertiesCard.svelte`.
+/// Three stacked day-properties cards: a water tracker with quick-add buttons,
+/// an informational activity-calories input with a short note, and an
+/// autosaving notes field. They share one dashboard slot and visibility
+/// toggle. Mirrors the web `DayPropertiesCard.svelte`.
 /// Offline-first through `EntryRepository.setDayProperties`, which merges
 /// each partial write onto the day's stored row rather than replacing it.
 struct DayPropertiesCard: View {
@@ -40,26 +41,11 @@ struct DayPropertiesCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar")
-                    .foregroundStyle(.secondary)
-                Text(L10n.dayCardTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Spacer()
-            }
-
-            waterSection
-            Divider()
-            activitySection
-            Divider()
-            notesSection
+        VStack(spacing: 16) {
+            waterSection.dayPropertiesCard()
+            activitySection.dayPropertiesCard()
+            notesSection.dayPropertiesCard()
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
         .task(id: date) { load() }
         .onChange(of: focusedField) { previous, _ in
             switch previous {
@@ -283,5 +269,14 @@ struct DayPropertiesCard: View {
 
     private func clamp(_ value: Int, max upper: Int) -> Int {
         Swift.max(0, Swift.min(value, upper))
+    }
+}
+
+private extension View {
+    func dayPropertiesCard() -> some View {
+        padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

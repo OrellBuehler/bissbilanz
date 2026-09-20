@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.WaterDrop
@@ -22,8 +23,9 @@ import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlinx.coroutines.delay
 
 /**
- * Water tracking, an informational activity-calorie entry, and an autosaving notes
- * field for the day — the mobile counterpart of the web `DayPropertiesCard`. Always
+ * Three stacked cards — water tracking, an informational activity-calorie entry, and an
+ * autosaving notes field for the day — the mobile counterpart of the web
+ * `DayPropertiesCard`. They share one dashboard slot and visibility toggle. Always
  * visible on the day log, independent of the fasting-day toggle card.
  *
  * Activity calories are informational only: they are never subtracted from the
@@ -45,21 +47,21 @@ fun DayPropertiesCard(
     onNotesChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            WaterSection(waterMl, waterGoalMl, onAddWater, onSetWater, onClearWater)
-
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ActivitySection(activityCalories, activityNote, onSetActivity, onClearActivity)
-
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
-
-            NotesSection(notes, onNotesChanged)
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                WaterSection(waterMl, waterGoalMl, onAddWater, onSetWater, onClearWater)
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                ActivitySection(activityCalories, activityNote, onSetActivity, onClearActivity)
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                NotesSection(notes, onNotesChanged)
+            }
         }
     }
 }
@@ -189,11 +191,19 @@ private fun NotesSection(
         onNotesChanged(draft)
     }
 
-    Text(
-        stringResource(R.string.day_notes_title),
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.AutoMirrored.Filled.Notes,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            stringResource(R.string.day_notes_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
     Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
         value = draft,
