@@ -933,7 +933,7 @@ final class SyncManager {
             if let ingredients = body.ingredients {
                 ids["sync.ingredient_food_ids"] = ingredients.map(\.foodId)
             }
-        case let .deleteRecipe(id):
+        case let .setRecipeImage(id, _), let .deleteRecipe(id):
             ids["sync.recipe_id"] = id
 
         case .setGoals:
