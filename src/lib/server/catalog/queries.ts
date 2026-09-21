@@ -4,6 +4,7 @@ import { catalogFoods, catalogDatasets, catalogAccess } from '$lib/server/schema
 import { createFood, type FoodWithLabels } from '$lib/server/foods';
 import { pickNutrients } from '$lib/nutrients';
 import type { Result } from '$lib/server/types';
+import { allowedImageUrl } from './image-hosts';
 
 type DB = ReturnType<typeof getDB>;
 
@@ -40,7 +41,12 @@ export async function catalogSearch(
 		.where(ilike(catalogFoods.name, `%${q}%`))
 		.orderBy(asc(catalogDatasets.priority), asc(catalogFoods.name))
 		.limit(limit);
-	return rows.map((r) => ({ ...r.cf, datasetKey: r.datasetKey, source: r.source }));
+	return rows.map((r) => ({
+		...r.cf,
+		imageUrl: allowedImageUrl(r.cf.imageUrl),
+		datasetKey: r.datasetKey,
+		source: r.source
+	}));
 }
 
 export async function catalogByBarcode(
@@ -64,7 +70,14 @@ export async function catalogByBarcode(
 		.orderBy(asc(catalogDatasets.priority))
 		.limit(1);
 	const r = rows[0];
-	return r ? { ...r.cf, datasetKey: r.datasetKey, source: r.source } : null;
+	return r
+		? {
+				...r.cf,
+				imageUrl: allowedImageUrl(r.cf.imageUrl),
+				datasetKey: r.datasetKey,
+				source: r.source
+			}
+		: null;
 }
 
 export async function instantiateCatalogFood(
@@ -100,7 +113,9 @@ export async function instantiateCatalogFood(
 		novaGroup: cf.novaGroup,
 		additives: cf.additives,
 		ingredientsText: cf.ingredientsText,
-		imageUrl: cf.imageUrl,
+		// Saving a catalog food copies the URL onto a user row, so it has to pass
+		// the same host check the search results do.
+		imageUrl: allowedImageUrl(cf.imageUrl),
 		...pickNutrients(cf as Record<string, unknown>)
 	};
 	return await createFood(userId, payload, db);
