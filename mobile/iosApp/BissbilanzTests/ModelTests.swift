@@ -354,6 +354,29 @@ struct FoodNutrientGroupsTests {
 
 @Suite("Recipe Model Tests")
 struct RecipeModelTests {
+    /// The list endpoint omits keys it has no value for, so every optional on
+    /// `Recipe` has to survive being absent — a throw here fails the whole
+    /// list decode and recipes stop pulling entirely.
+    @Test("Decodes a recipe envelope without an imageUrl key")
+    func decodesRecipeWithoutImageUrl() throws {
+        let json = """
+        {"recipes":[{"id":"r1","name":"Bowl","totalServings":2,"isFavorite":false,
+        "calories":500,"protein":30,"carbs":60,"fat":15,"fiber":8}]}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(RecipesResponse.self, from: json)
+        let recipe = try #require(response.recipes.first)
+        #expect(recipe.imageUrl == nil)
+        #expect(recipe.userId == nil)
+
+        let pictured = """
+        {"recipe":{"id":"r1","userId":"u1","name":"Bowl","totalServings":2,
+        "isFavorite":false,"imageUrl":"/uploads/a1b2.webp"}}
+        """.data(using: .utf8)!
+        let single = try JSONDecoder().decode(RecipeResponse.self, from: pictured)
+        #expect(single.recipe.imageUrl == "/uploads/a1b2.webp")
+    }
+
     @Test("Recipe equality based on id")
     func recipeEquality() {
         let r1 = Recipe(

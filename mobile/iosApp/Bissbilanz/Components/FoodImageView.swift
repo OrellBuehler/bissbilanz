@@ -78,6 +78,9 @@ final class FoodImageLoader {
     func warmCache(for imageUrls: [String]) async -> Bool {
         var warmed = false
         for imageUrl in imageUrls {
+            // The caller may be a background-refresh task the system is about
+            // to expire, or a debounced publish a newer save superseded.
+            guard !Task.isCancelled else { break }
             guard let key = LocalImageStore.cacheKey(for: imageUrl),
                   LocalImageStore.cachedFile(for: imageUrl) == nil,
                   let data = try? await api.downloadImage(path: imageUrl),
