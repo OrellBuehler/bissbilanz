@@ -4,17 +4,19 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import Check from '@lucide/svelte/icons/check';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		open: boolean;
 		itemName: string;
+		imageUrl?: string | null;
 		mealOptions: string[];
 		onConfirm: (mealType: string) => void;
 		onClose: () => void;
 	};
 
-	let { open = $bindable(), itemName, mealOptions, onConfirm, onClose }: Props = $props();
+	let { open = $bindable(), itemName, imageUrl, mealOptions, onConfirm, onClose }: Props = $props();
 
 	let selectedMeal = $state('');
 
@@ -41,6 +43,9 @@
 
 <ResponsiveModal bind:open title={itemName}>
 	<div class="grid gap-4">
+		<div class="flex justify-center">
+			<FoodThumbnail name={itemName} {imageUrl} size="lg" />
+		</div>
 		<div class="grid gap-2">
 			<Label>{m.edit_entry_meal()}</Label>
 			<Select.Root type="single" bind:value={selectedMeal}>

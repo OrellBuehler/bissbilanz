@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 	import { dev } from '$app/environment';
@@ -22,7 +23,12 @@
 		servingUnit?: string | null;
 	};
 
-	export type PickerRecipeItem = { id: string; name: string; isFavorite?: boolean };
+	export type PickerRecipeItem = {
+		id: string;
+		name: string;
+		isFavorite?: boolean;
+		imageUrl?: string | null;
+	};
 
 	export type PickerSelection =
 		| { type: 'food'; food: PickerFoodItem; lastServings?: number }
@@ -63,11 +69,13 @@
 		brand: string | null;
 		source: string;
 		datasetKey: string;
+		imageUrl?: string | null;
 	};
 	type OffHit = {
 		barcode: string;
 		name: string;
 		brand: string | null;
+		imageUrl?: string | null;
 	};
 	let catalogResults: CatalogHit[] = $state([]);
 	let catalogLoading = $state(false);
@@ -127,6 +135,7 @@
 	};
 
 	let recentFoods: Array<{ id: string; name: string; lastServings?: number }> = $state([]);
+	const foodImage = (id: string) => foods.find((f) => f.id === id)?.imageUrl ?? null;
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
@@ -206,7 +215,8 @@
 	<Input placeholder={m.add_food_search_placeholder()} bind:value={query} />
 	<ul class="max-h-60 space-y-2 overflow-auto">
 		{#each filtered() as food}
-			<li class="flex min-w-0 items-start justify-between gap-2">
+			<li class="flex min-w-0 items-center justify-between gap-2">
+				<FoodThumbnail name={food.name} imageUrl={food.imageUrl} size="sm" />
 				<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
 				<Button
 					variant="outline"
@@ -227,7 +237,8 @@
 		<p class="text-muted-foreground mt-2 text-xs font-medium">{m.add_food_catalog_section()}</p>
 		<ul class="max-h-60 space-y-2 overflow-auto">
 			{#each catalogResults as hit (hit.id)}
-				<li class="flex min-w-0 items-start justify-between gap-2">
+				<li class="flex min-w-0 items-center justify-between gap-2">
+					<FoodThumbnail name={hit.name} imageUrl={hit.imageUrl} size="sm" />
 					<span class="min-w-0 flex-1 truncate text-sm">
 						{hit.name}
 						<span
@@ -259,7 +270,8 @@
 		<p class="text-muted-foreground mt-2 text-xs font-medium">{m.add_food_off_section()}</p>
 		<ul class="max-h-60 space-y-2 overflow-auto">
 			{#each offResults as hit (hit.barcode)}
-				<li class="flex min-w-0 items-start justify-between gap-2">
+				<li class="flex min-w-0 items-center justify-between gap-2">
+					<FoodThumbnail name={hit.name} imageUrl={hit.imageUrl} size="sm" />
 					<span class="min-w-0 flex-1 truncate text-sm">
 						{hit.name}
 						{#if hit.brand}<span class="text-muted-foreground"> · {hit.brand}</span>{/if}
@@ -294,7 +306,8 @@
 	{:else}
 		<ul class="max-h-60 space-y-2 overflow-auto">
 			{#each allFavorites as item (item.id)}
-				<li class="flex min-w-0 items-start justify-between gap-2">
+				<li class="flex min-w-0 items-center justify-between gap-2">
+					<FoodThumbnail name={item.name} imageUrl={item.imageUrl} size="sm" />
 					<span class="min-w-0 flex-1 truncate text-sm">{item.name}</span>
 					<Button
 						variant="outline"
@@ -320,7 +333,8 @@
 	{:else}
 		<ul class="max-h-60 space-y-2 overflow-auto">
 			{#each recentFoods as food}
-				<li class="flex min-w-0 items-start justify-between gap-2">
+				<li class="flex min-w-0 items-center justify-between gap-2">
+					<FoodThumbnail name={food.name} imageUrl={foodImage(food.id)} size="sm" />
 					<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
 					<Button
 						variant="outline"
@@ -351,7 +365,8 @@
 	<Input placeholder={m.add_food_search_recipes_placeholder()} bind:value={query} />
 	<ul class="max-h-60 space-y-2 overflow-auto">
 		{#each filteredRecipes() as recipe}
-			<li class="flex min-w-0 items-start justify-between gap-2">
+			<li class="flex min-w-0 items-center justify-between gap-2">
+				<FoodThumbnail name={recipe.name} imageUrl={recipe.imageUrl} size="sm" />
 				<span class="min-w-0 flex-1 truncate text-sm">{recipe.name}</span>
 				<Button
 					variant="outline"

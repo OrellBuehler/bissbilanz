@@ -255,6 +255,7 @@
 <FavoriteMealPicker
 	bind:open={mealPickerOpen}
 	itemName={pendingLog?.item.name ?? ''}
+	imageUrl={pendingLog?.item.imageUrl}
 	{mealOptions}
 	onConfirm={handleMealConfirm}
 	onClose={() => {

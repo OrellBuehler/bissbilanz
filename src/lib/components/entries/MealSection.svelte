@@ -9,6 +9,7 @@
 	import Sunset from '@lucide/svelte/icons/sunset';
 	import UtensilsCrossed from '@lucide/svelte/icons/utensils-crossed';
 	import SwipeableEntry from '$lib/components/entries/SwipeableEntry.svelte';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import { formatTime } from '$lib/utils/dates';
 	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
@@ -31,6 +32,7 @@
 			quickFat?: number | null;
 			quickFiber?: number | null;
 			quickName?: string | null;
+			imageUrl?: string | null;
 		}>;
 		readonly?: boolean;
 		dashboardStyle?: boolean;
@@ -111,6 +113,11 @@
 						}}
 					>
 						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<FoodThumbnail
+								name={entry.foodName ?? 'Unknown'}
+								imageUrl={entry.imageUrl}
+								size="xs"
+							/>
 							<span class="min-w-0 truncate font-medium">
 								{formatEntryLabel(
 									entry.foodName ?? 'Unknown',
@@ -137,6 +144,7 @@
 						: 'flex min-w-0 items-center justify-between overflow-hidden text-sm'}
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-2">
+						<FoodThumbnail name={entry.foodName ?? 'Unknown'} imageUrl={entry.imageUrl} size="xs" />
 						<span class="truncate"
 							>{formatEntryLabel(
 								entry.foodName ?? 'Unknown',

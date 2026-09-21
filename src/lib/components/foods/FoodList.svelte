@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import NutriScoreBadge from '$lib/components/quality/NutriScoreBadge.svelte';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -25,6 +26,7 @@
 		servingUnit: string;
 		nutriScore?: string | null;
 		isFavorite?: boolean;
+		imageUrl?: string | null;
 	};
 
 	type Props = {
@@ -95,6 +97,7 @@
 						onCheckedChange={() => onToggleSelect?.(food.id)}
 					/>
 				{/if}
+				<FoodThumbnail name={food.name} imageUrl={food.imageUrl} size="sm" />
 				<!-- Calorie badge -->
 				<div
 					class="flex min-w-14 flex-col items-center rounded-lg bg-blue-50 px-2 py-1.5 dark:bg-blue-950"
