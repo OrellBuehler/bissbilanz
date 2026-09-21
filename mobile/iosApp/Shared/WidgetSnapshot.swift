@@ -20,6 +20,16 @@ struct WidgetSnapshot: Codable, Sendable {
         let id: String
         let name: String
         let calories: Double
+        /// The food's image, in the same three shapes the app stores: our own
+        /// `/uploads/<uuid>.webp`, a `file://` photo attached in Local mode, or
+        /// a public Open Food Facts URL. The widget extension never fetches —
+        /// it renders only what `LocalImageStore` already holds on disk.
+        ///
+        /// A `var` optional on purpose: snapshots written by earlier builds
+        /// carry no `imageUrl` key, and `WidgetSnapshotStore.load` decodes with
+        /// `try?` — a required field would blank every widget until the app
+        /// next ran.
+        var imageUrl: String?
     }
 
     /// ISO day ("yyyy-MM-dd") the consumed values refer to.

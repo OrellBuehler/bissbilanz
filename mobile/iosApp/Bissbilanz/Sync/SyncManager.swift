@@ -584,6 +584,14 @@ final class SyncManager {
         case let .updateRecipe(id, body):
             _ = try await api.updateRecipe(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
+        case let .setRecipeImage(id, imageUrl):
+            _ = try await api.setRecipeImage(
+                id: id,
+                imageUrl: imageUrl,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
         case let .deleteRecipe(id):
             try await api.deleteRecipe(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
@@ -925,7 +933,7 @@ final class SyncManager {
             if let ingredients = body.ingredients {
                 ids["sync.ingredient_food_ids"] = ingredients.map(\.foodId)
             }
-        case let .deleteRecipe(id):
+        case let .setRecipeImage(id, _), let .deleteRecipe(id):
             ids["sync.recipe_id"] = id
 
         case .setGoals:

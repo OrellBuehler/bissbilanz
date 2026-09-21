@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(SyncManager.self) private var syncManager
     @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
+    @Environment(FoodImageLoader.self) private var foodImageLoader
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -346,6 +347,10 @@ struct SettingsView: View {
                                 // into the next session (Local mode or another
                                 // account).
                                 migrator.wipeLocalData()
+                                // wipeLocalData clears the files; this also
+                                // drops the decoded images the loader still
+                                // holds in memory, which outlive them.
+                                foodImageLoader.clear()
                                 authManager.logout()
                                 // Reset the mode so the next start shows the login
                                 // screen with the mode choice again.
@@ -649,6 +654,7 @@ struct SettingsView: View {
                 // Same teardown as sign-out: wipe local data before flipping auth
                 // state so nothing leaks into the next session.
                 migrator.wipeLocalData()
+                foodImageLoader.clear()
                 authManager.logout()
                 appModeManager.clear()
             } catch {

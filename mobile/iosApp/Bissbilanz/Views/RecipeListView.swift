@@ -97,6 +97,19 @@ struct RecipeListView: View {
     }
 
     private func recipeRow(_ recipe: Recipe) -> some View {
+        HStack(spacing: 12) {
+            // Same 40 pt leading thumbnail as the food search rows, and the
+            // same rule: no image means no reserved space.
+            if recipe.imageUrl != nil {
+                FoodImageView(imageUrl: recipe.imageUrl)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            recipeRowText(recipe)
+        }
+    }
+
+    private func recipeRowText(_ recipe: Recipe) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(recipe.name)

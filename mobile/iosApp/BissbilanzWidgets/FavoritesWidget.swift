@@ -92,11 +92,18 @@ struct FavoritesWidgetView: View {
 
     private func tileContent(for food: WidgetSnapshot.FavoriteFood) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(food.name)
-                .font(.caption)
-                .fontWeight(.medium)
-                .lineLimit(1)
-                .foregroundStyle(.primary)
+            // Sized to the caption line it sits on: a taller tile would push
+            // the second grid row past the medium widget's canvas.
+            HStack(spacing: 6) {
+                if let thumbnail = WidgetFoodThumbnail(imageUrl: food.imageUrl, size: 18) {
+                    thumbnail
+                }
+                Text(food.name)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+            }
             Text("\(strings.integer(food.calories)) kcal")
                 .font(.caption2)
                 .monospacedDigit()
