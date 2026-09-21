@@ -9,18 +9,14 @@ import SwiftUI
 //
 // The gating follows the pattern already used for Liquid Glass
 // (Views/LiquidGlass.swift): `#if compiler(>=N)` keeps the project building
-// against older SDKs — the repo compiles on Xcode 16.2 (Swift 6.0) in the
-// CodeQL job and on latest-stable everywhere else — and `#available` keeps
-// older systems on the pre-existing path at runtime. The deployment target
-// stays iOS 18.
-//
-// Two different gates are needed, because the two features landed in two
-// different releases:
+// against older SDKs (every job uses latest-stable Xcode, 26+) and
+// `#available` keeps older systems on the pre-existing path at runtime. The
+// deployment target stays iOS 18, i.e. the three most recent iOS releases.
 //
 //   * `OwnershipProvidingEntity` and `IndexedEntityQuery` are iOS 27, first
 //     declared by the Xcode 27 SDK, which ships Swift 6.4 → `compiler(>=6.4)`.
-//   * `appEntityIdentifier(_:)` is iOS 18.4, first declared by the Xcode 16.3
-//     SDK, which ships Swift 6.1 → `compiler(>=6.1)`.
+//   * `appEntityIdentifier(_:)` is iOS 18.4 and is declared by every SDK the
+//     project builds against, so it only needs the `#available` check.
 
 #if compiler(>=6.4)
 
@@ -142,20 +138,27 @@ extension View {
     /// can resolve "this day" or "that entry" against what the user is looking
     /// at instead of asking which one they mean.
     ///
-    /// Calls `appEntityIdentifier(_:)`, which is iOS 18.4 and first declared by
-    /// the Xcode 16.3 SDK (Swift 6.1) — hence the compiler gate as well as the
-    /// availability check. On anything older this returns the view unchanged,
-    /// so the call sites stay a single unconditional modifier.
+    /// `appEntityIdentifier(_:)` is iOS 18.4; on iOS 18.0–18.3 this returns
+    /// the view unchanged, so the call sites stay a single unconditional
+    /// modifier.
+    ///
+    /// The modifier lives in the AppIntents/SwiftUI cross-import overlay. The
+    /// untraced build resolves it, but CodeQL's Swift extractor re-typechecks
+    /// this file and cannot see the overlay — not even when it is imported by
+    /// name — so it fails with "cannot find 'appEntityIdentifier' in scope"
+    /// and takes the job down. The CodeQL workflow defines `CODEQL`
+    /// (codeql-swift.yml) and this one call is left out of the analyzed
+    /// build; nothing shipped is affected.
     @ViewBuilder
     func siriEntity<E: AppEntity>(_ type: E.Type, id: E.ID) -> some View {
-        #if compiler(>=6.1)
+        #if CODEQL
+        self
+        #else
         if #available(iOS 18.4, *) {
             appEntityIdentifier(EntityIdentifier(for: type, identifier: id))
         } else {
             self
         }
-        #else
-        self
         #endif
     }
 }

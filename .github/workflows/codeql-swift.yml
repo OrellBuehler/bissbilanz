@@ -180,6 +180,12 @@ jobs:
           # ("lost communication") on most runs; ram: 4096 vs 3072 made no
           # difference, so the concurrency is the lever. One build operation
           # at a time trades wall-clock (150-min timeout) for a bounded peak.
+          #
+          # CODEQL: the extractor's re-typecheck cannot resolve declarations
+          # from the AppIntents/SwiftUI cross-import overlay (it fails on
+          # `appEntityIdentifier` in SiriIOS27.swift even with the overlay
+          # imported by name), so that one call is `#if !CODEQL`-gated. Only
+          # this traced build defines the condition.
           xcodebuild build \
             -project Bissbilanz.xcodeproj \
             -scheme Bissbilanz \
@@ -189,7 +195,8 @@ jobs:
             -disableAutomaticPackageResolution \
             -jobs 1 \
             CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64
+            ARCHS=arm64 \
+            'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) CODEQL'
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
