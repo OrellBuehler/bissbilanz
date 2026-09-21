@@ -122,6 +122,7 @@ class DashboardViewModel(
 
     fun nextDay() {
         val next = LocalDate.parse(selectedDateString.value).plus(1, DateTimeUnit.DAY)
+        if (next > Clock.System.todayIn(TimeZone.currentSystemDefault())) return
         setSelectedDate(next)
         loadData()
     }
