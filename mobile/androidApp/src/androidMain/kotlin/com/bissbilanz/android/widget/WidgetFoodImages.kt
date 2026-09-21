@@ -33,8 +33,8 @@ internal object WidgetFoodImages {
     private const val DIR_NAME = "widget_food_images"
     private const val MAX_AGE_MS = 24 * 60 * 60 * 1000L
 
-    /** Tile side in dp — the favorites grid's size; the quick-add rows scale it down. */
-    private const val TILE_DP = 48
+    /** A little over the favorites grid's 52dp tile; the quick-add rows scale it down. */
+    private const val TILE_DP = 56
 
     fun directory(context: Context): File = File(context.cacheDir, DIR_NAME).apply { mkdirs() }
 
