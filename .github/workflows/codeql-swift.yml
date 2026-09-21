@@ -28,16 +28,16 @@ permissions:
 jobs:
   swift:
     name: Analyze (swift)
-    # Stays on macos-14 even though every other iOS job is on macos-15, and
-    # macos-14 queues far worse (95 min before this job even started on
-    # 2026-08-30). macos-15 was tried and reverted: Xcode 16.2 is on that image
-    # at the same build (16C5032a), but its iOS 18.2 simulator runtime is not —
-    # macos-15 ships 18.5, 18.6 and 26.0-26.2 — so the generic iOS Simulator
-    # destination resolves to nothing and xcodebuild exits 70 with "iOS 18.2 is
-    # not installed". Moving here means also moving off the 16.2 pin (16.4 is
-    # the image default and matches iOS 18.5), which is a toolchain change, not
-    # a runner change. Both images are 3-core/7 GB, so this is not about memory.
-    runs-on: macos-14
+    # macos-15, like every other iOS job. This job used to sit on macos-14 with
+    # an Xcode 16.2 pin (the only image that had 16.2 *and* its iOS 18.2
+    # simulator runtime), but the app is written against Swift 6.2 — the PR
+    # build and release archive both use latest-stable Xcode 26 — so the 16.2
+    # compiler started rejecting main on 2026-09-17 (DashboardLayoutView:
+    # "call can throw, but it is not marked with 'try'"). Xcode 26 only exists
+    # on macos-15+, and that image ships matching iOS 26 simulator runtimes,
+    # so the runner and toolchain move together. Both images are 3-core/7 GB,
+    # so this is not about memory.
+    runs-on: macos-15
     # CodeQL traces the Swift compiler, and the extractor re-does a full
     # type-check inside every swift-frontend invocation it wraps. That, not the
     # code, is the cost: the untraced job in mobile-ios.yml builds the same
@@ -66,10 +66,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Select Xcode 16.2
+      # Same selection as mobile-ios.yml / mobile-release.yml: the
+      # compiler(>=6.2)-gated code needs Xcode 26+, and CodeQL's Swift
+      # extractor supports Swift 5.4-6.3.
+      - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: '16.2'
+          xcode-version: latest-stable
 
       - name: Set up JDK 17
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -94,7 +97,7 @@ jobs:
         with:
           path: |
             ~/Library/Caches/Homebrew
-            /usr/local/Cellar/xcodegen
+            /opt/homebrew/Cellar/xcodegen
           key: brew-xcodegen-${{ runner.os }}
 
       - name: Install XcodeGen
@@ -106,6 +109,9 @@ jobs:
             brew untap "$tap" 2>/dev/null || true
           done
           brew install --formula xcodegen
+          # A cache-restored Cellar makes `brew install` skip linking, leaving
+          # xcodegen off PATH (see mobile-ios.yml).
+          brew link --overwrite xcodegen
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
