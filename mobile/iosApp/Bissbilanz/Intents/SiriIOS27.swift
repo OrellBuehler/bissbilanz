@@ -3,16 +3,6 @@ import CoreSpotlight
 import Foundation
 import SwiftUI
 
-// `appEntityIdentifier(_:)` lives in the AppIntents/SwiftUI cross-import
-// overlay, which the compiler loads implicitly when both frameworks are
-// imported. CodeQL's Swift extractor does not do that implicit lookup, so its
-// re-typecheck of this file failed with "cannot find 'appEntityIdentifier' in
-// scope" while the untraced build with the same Xcode passed. Naming the
-// overlay makes it an ordinary import the extractor follows.
-#if canImport(_AppIntents_SwiftUI)
-import _AppIntents_SwiftUI
-#endif
-
 // Everything the newer App Intents SDKs add on top of the iOS 18 baseline
 // lives in this one file, so the version fences sit in a single place instead
 // of being sprinkled through the entities, the queries and the views.
@@ -151,12 +141,24 @@ extension View {
     /// `appEntityIdentifier(_:)` is iOS 18.4; on iOS 18.0–18.3 this returns
     /// the view unchanged, so the call sites stay a single unconditional
     /// modifier.
+    ///
+    /// The modifier lives in the AppIntents/SwiftUI cross-import overlay. The
+    /// untraced build resolves it, but CodeQL's Swift extractor re-typechecks
+    /// this file and cannot see the overlay — not even when it is imported by
+    /// name — so it fails with "cannot find 'appEntityIdentifier' in scope"
+    /// and takes the job down. The CodeQL workflow defines `CODEQL`
+    /// (codeql-swift.yml) and this one call is left out of the analyzed
+    /// build; nothing shipped is affected.
     @ViewBuilder
     func siriEntity<E: AppEntity>(_ type: E.Type, id: E.ID) -> some View {
+        #if CODEQL
+        self
+        #else
         if #available(iOS 18.4, *) {
             appEntityIdentifier(EntityIdentifier(for: type, identifier: id))
         } else {
             self
         }
+        #endif
     }
 }
