@@ -590,6 +590,7 @@
     <string name="food_search_off_searching">Open Food Facts wird durchsucht…</string>
     <string name="food_search_tab_recent">Zuletzt</string>
     <string name="food_search_tab_all">Alle</string>
+    <string name="food_search_tab_favorites">Favoriten</string>
     <string name="food_search_no_recent">Keine kürzlichen Lebensmittel</string>
     <string name="food_search_no_foods">Noch keine Lebensmittel</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>

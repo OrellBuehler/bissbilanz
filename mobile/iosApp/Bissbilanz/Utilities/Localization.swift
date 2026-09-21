@@ -292,6 +292,14 @@ enum L10n {
         localized("recent", en: "Recent", de: "Kürzlich")
     }
 
+    static var all: String {
+        localized("all", en: "All", de: "Alle")
+    }
+
+    static var noFoodsYet: String {
+        localized("no_foods_yet", en: "No foods yet", de: "Noch keine Lebensmittel")
+    }
+
     static var noResults: String {
         localized("no_results", en: "No results", de: "Keine Ergebnisse")
     }
