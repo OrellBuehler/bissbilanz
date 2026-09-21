@@ -95,8 +95,8 @@ class DashboardScreenTest {
                     single<EntryRepository> { entryRepo }
                     // The meal card resolves each row's thumbnail from the cached
                     // food/recipe; nothing in these tests carries an image.
-                    single<FoodRepository> { mockk(relaxed = true) }
-                    single<RecipeRepository> { mockk(relaxed = true) }
+                    single<FoodRepository> { mockk(relaxed = true) { every { getFoodCached(any()) } returns null } }
+                    single<RecipeRepository> { mockk(relaxed = true) { every { getRecipeCached(any()) } returns null } }
                     single<GoalsRepository> { goalsRepo }
                     single<PreferencesRepository> { prefsRepo }
                     single<RefreshManager> { refreshManager }
