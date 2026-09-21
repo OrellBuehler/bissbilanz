@@ -31,6 +31,15 @@ updates:
     directory: '/mobile'
     schedule:
       interval: 'weekly'
+    ignore:
+      # SKIE ships a fixed list of supported Kotlin versions per release and
+      # fails the build for anything newer (0.10.14 tops out at 2.4.10). Bump
+      # Kotlin by hand together with a SKIE release that supports it, then
+      # raise this bound.
+      - dependency-name: 'org.jetbrains.kotlin:*'
+        versions: ['> 2.4.10']
+      - dependency-name: 'org.jetbrains.kotlin.*'
+        versions: ['> 2.4.10']
     groups:
       gradle-minor-patch:
         patterns:

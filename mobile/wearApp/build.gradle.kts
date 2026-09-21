@@ -92,6 +92,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.kotlin.test)
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.20")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
     testImplementation(libs.kotlinx.coroutines.test)
 }

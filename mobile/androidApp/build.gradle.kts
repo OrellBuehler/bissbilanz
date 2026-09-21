@@ -154,7 +154,7 @@ android {
         implementation("com.google.guava:guava:33.7.1-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)
-        testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.20")
+        testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
         testImplementation(libs.mockk)
         testImplementation(libs.kotlinx.coroutines.test)
         testImplementation(libs.turbine)

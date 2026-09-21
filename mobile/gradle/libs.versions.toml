@@ -1,6 +1,9 @@
 [versions]
 agp = "9.4.0"
-kotlin = "2.4.20"
+# Bounded by SKIE: each SKIE release supports a fixed Kotlin list (0.10.14 tops out
+# at 2.4.10). Bump Kotlin only together with a SKIE release that lists it, and
+# lift the matching ignore in .github/dependabot.yml.
+kotlin = "2.4.10"
 compose-bom = "2026.09.00"
 compose-navigation = "2.10.1"
 ktor = "3.5.2"
