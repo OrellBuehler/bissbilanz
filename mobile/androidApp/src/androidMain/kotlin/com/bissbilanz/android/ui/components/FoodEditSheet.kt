@@ -54,6 +54,9 @@ fun FoodEditSheet(
     var isLoading by remember { mutableStateOf(foodId != null) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // The food itself saved but its image didn't: the sheet stays open with the photo
+    // error, so leaving it still has to report the save the caller's list must reflect.
+    var bodySaved by remember { mutableStateOf(false) }
     val isEditing = foodId != null
 
     // Form state
@@ -102,6 +105,11 @@ fun FoodEditSheet(
     val nameRequiredMessage = stringResource(R.string.food_form_name_required_error)
     val requiredFieldsMessage = stringResource(R.string.food_form_required_fields_error)
     val saveFailedMessage = stringResource(R.string.food_form_save_failed)
+    val imageSaveFailedMessage = stringResource(R.string.food_image_save_failed)
+
+    fun close() {
+        if (bodySaved) onSaved() else onDismiss()
+    }
 
     LaunchedEffect(foodId) {
         if (foodId != null) {
@@ -199,10 +207,24 @@ fun FoodEditSheet(
                 if (isEditing) {
                     val id = foodId ?: return@launch
                     foodRepo.updateFood(id, withExtras)
+                    bodySaved = true
                     // Separate from the body: `imageUrl` defaults to null on
                     // FoodCreate and the client omits defaults, so a removal sent
                     // that way would be dropped and the old image would stay.
-                    if (imageUrl != originalImageUrl) foodRepo.setImage(id, imageUrl)
+                    if (imageUrl != originalImageUrl) {
+                        try {
+                            foodRepo.setImage(id, imageUrl)
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            // The food is already saved, so this is the photo's failure
+                            // alone; saying "couldn't save the food" would be a lie.
+                            Log.e("FoodEditSheet", "Failed to save food image", e)
+                            errorReporter.captureException(e)
+                            errorMessage = imageSaveFailedMessage
+                            isSaving = false
+                            return@launch
+                        }
+                    }
                     // Labels live in their own table; only an actual edit is sent,
                     // because a user write replaces whatever a labeller seeded.
                     if (labels != originalLabels) foodRepo.setLabels(id, labels)
@@ -256,7 +278,7 @@ fun FoodEditSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { close() },
         sheetState = sheetState,
     ) {
         if (isLoading) {
@@ -573,7 +595,7 @@ fun FoodEditSheet(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
                         modifier = Modifier.weight(1f),
                     ) {
