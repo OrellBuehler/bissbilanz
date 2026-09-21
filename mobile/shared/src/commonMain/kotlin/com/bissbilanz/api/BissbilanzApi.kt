@@ -536,6 +536,7 @@ class BissbilanzApi(
                 carbs = item.carbs,
                 fat = item.fat,
                 fiber = item.fiber,
+                imageUrl = item.imageUrl,
                 servingSize = item.servingSize,
                 servingUnit = item.servingUnit,
             )
