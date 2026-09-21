@@ -5,13 +5,14 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/generated/schema';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
-	import { uploadImage } from '$lib/utils/image-upload';
+	import { uploadImage, uploadImageFile } from '$lib/utils/image-upload';
 	import type { buildRecipePayload } from '$lib/utils/recipe-builder';
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -22,7 +23,8 @@
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
 	let editingRecipe = $state<components['schemas']['RecipeDetail'] | null>(null);
-	let editImageUrl: string | null = $state(null);
+	let formImageUrl: string | null = $state(null);
+	let uploading = $state(false);
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
 
@@ -40,7 +42,7 @@
 	$effect(() => {
 		if (!consumeQuickAction(['new-recipe'])) return;
 		editingRecipe = null;
-		editImageUrl = null;
+		formImageUrl = null;
 		showForm = true;
 	});
 
@@ -50,7 +52,9 @@
 	};
 
 	const createRecipe = async (payload: ReturnType<typeof buildRecipePayload>) => {
-		await api.POST('/api/recipes', { body: payload });
+		await api.POST('/api/recipes', {
+			body: formImageUrl ? { ...payload, imageUrl: formImageUrl } : payload
+		});
 		closeForm();
 		recipeService.refresh();
 	};
@@ -102,20 +106,29 @@
 		});
 		if (error || !data) return;
 		editingRecipe = data.recipe;
-		editImageUrl = data.recipe.imageUrl;
+		formImageUrl = data.recipe.imageUrl;
 		showForm = true;
 	};
 
 	const handleImageUpload = async (file: File) => {
-		if (!editingRecipe) return;
-		const newUrl = await uploadImage(file, { type: 'recipe', id: editingRecipe.id });
-		if (newUrl) editImageUrl = newUrl;
+		if (uploading) return;
+		uploading = true;
+		try {
+			// Creating: there is no row to attach to yet, so the URL rides along in
+			// the create body instead of a PATCH.
+			const newUrl = editingRecipe
+				? await uploadImage(file, { type: 'recipe', id: editingRecipe.id })
+				: await uploadImageFile(file, 'recipe-create');
+			if (newUrl) formImageUrl = newUrl;
+		} finally {
+			uploading = false;
+		}
 	};
 
 	const closeForm = () => {
 		showForm = false;
 		editingRecipe = null;
-		editImageUrl = null;
+		formImageUrl = null;
 	};
 
 	const fmt = (n: number) => Math.round(n);
@@ -131,7 +144,8 @@
 					class="cursor-pointer transition-colors hover:bg-accent/50"
 					onclick={() => openEdit(recipe.id)}
 				>
-					<Card.Content class="flex items-start justify-between gap-2 p-4">
+					<Card.Content class="flex items-center justify-between gap-3 p-4">
+						<FoodThumbnail name={recipe.name} imageUrl={recipe.imageUrl} size="md" />
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
 								<span class="truncate font-medium">{recipe.name}</span>
@@ -146,11 +160,7 @@
 								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
 						</div>
-						<DeleteButton
-							onDelete={() => deleteRecipe(recipe.id)}
-							title={m.recipes_delete()}
-							class="mt-0.5"
-						/>
+						<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
 					</Card.Content>
 				</Card.Root>
 			{/each}
@@ -164,7 +174,7 @@
 	aria-label={m.recipes_new()}
 	onclick={() => {
 		editingRecipe = null;
-		editImageUrl = null;
+		formImageUrl = null;
 		showForm = true;
 	}}
 >
@@ -180,13 +190,20 @@
 		{#key editingRecipe.id}
 			<RecipeEditForm
 				recipe={editingRecipe}
-				imageUrl={editImageUrl}
+				imageUrl={formImageUrl}
+				{uploading}
 				onSave={updateRecipe}
 				onImageUpload={handleImageUpload}
 			/>
 		{/key}
 	{:else}
-		<RecipeForm {foods} onSave={createRecipe} />
+		<RecipeForm
+			{foods}
+			imageUrl={formImageUrl}
+			{uploading}
+			onSave={createRecipe}
+			onImageUpload={handleImageUpload}
+		/>
 	{/if}
 </ResponsiveModal>
 

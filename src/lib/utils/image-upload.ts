@@ -6,7 +6,12 @@ import * as m from '$lib/paraglide/messages';
 
 type UploadTarget = { type: 'food'; id: string } | { type: 'recipe'; id: string };
 
-export async function uploadImage(file: File, target: UploadTarget): Promise<string | null> {
+/**
+ * Store the bytes and return the `/uploads/...` URL without attaching it to
+ * anything. A create flow has no row to PATCH yet, so it carries the URL in the
+ * create body instead; an abandoned upload is collected by the orphan sweep.
+ */
+export async function uploadImageFile(file: File, context = 'create'): Promise<string | null> {
 	const formData = new FormData();
 	formData.append('image', file);
 
@@ -22,13 +27,25 @@ export async function uploadImage(file: File, target: UploadTarget): Promise<str
 				body: body.slice(0, 500),
 				fileSize: file.size,
 				fileType: file.type,
-				context: `${target.type}-edit`
+				context
 			});
 			toast.error(m.image_upload_failed());
 			return null;
 		}
 		const { imageUrl } = await uploadRes.json();
+		return imageUrl as string;
+	} catch (err) {
+		Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
+		toast.error(m.image_upload_failed());
+		return null;
+	}
+}
 
+export async function uploadImage(file: File, target: UploadTarget): Promise<string | null> {
+	const imageUrl = await uploadImageFile(file, `${target.type}-edit`);
+	if (!imageUrl) return null;
+
+	try {
 		const { error } =
 			target.type === 'food'
 				? await api.PATCH('/api/foods/{id}', {
@@ -53,7 +70,7 @@ export async function uploadImage(file: File, target: UploadTarget): Promise<str
 		toast.success(m.image_uploaded());
 		return imageUrl;
 	} catch (err) {
-		Sentry.captureException(err, { extra: { fileSize: file.size, fileType: file.type } });
+		Sentry.captureException(err, { extra: { targetType: target.type, targetId: target.id } });
 		toast.error(m.image_upload_failed());
 		return null;
 	}

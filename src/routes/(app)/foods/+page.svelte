@@ -4,6 +4,7 @@
 	import { untrack } from 'svelte';
 	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
 	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
 	import DuplicatesBanner from '$lib/components/foods/DuplicatesBanner.svelte';
@@ -30,7 +31,7 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
-	import { uploadImage } from '$lib/utils/image-upload';
+	import { uploadImage, uploadImageFile } from '$lib/utils/image-upload';
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -42,7 +43,7 @@
 	let query = $state('');
 	let showForm = $state(false);
 	let editingFood = $state<components['schemas']['Food'] | null>(null);
-	let editImageUrl: string | null = $state(null);
+	let formImageUrl: string | null = $state(null);
 	let uploading = $state(false);
 
 	let offData = $state<components['schemas']['OpenFoodFactsProduct'] | null>(null);
@@ -168,7 +169,9 @@
 				}
 			: payload;
 		try {
-			const { error } = await api.POST('/api/foods', { body });
+			const { error } = await api.POST('/api/foods', {
+				body: formImageUrl ? { ...body, imageUrl: formImageUrl } : body
+			});
 			if (error) {
 				if (error.error === 'duplicate_barcode') {
 					toast.error(m.detail_duplicate_barcode());
@@ -192,7 +195,7 @@
 		const { labels, ...fields } = payload as { labels?: string[] };
 		const { error } = await api.PATCH('/api/foods/{id}', {
 			params: { path: { id: editingFood.id } },
-			body: { ...fields, imageUrl: editImageUrl }
+			body: { ...fields, imageUrl: formImageUrl }
 		});
 		if (error) {
 			if (error.error === 'duplicate_barcode') {
@@ -361,7 +364,7 @@
 	const resetFormState = () => {
 		showForm = false;
 		editingFood = null;
-		editImageUrl = null;
+		formImageUrl = null;
 		offData = null;
 		offNotFound = false;
 		activeBarcode = '';
@@ -378,16 +381,20 @@
 		if (error || !data) return;
 		resetFormState();
 		editingFood = data.food;
-		editImageUrl = data.food.imageUrl;
+		formImageUrl = data.food.imageUrl;
 		showForm = true;
 	};
 
 	const handleImageUpload = async (file: File) => {
-		if (!editingFood || uploading) return;
+		if (uploading) return;
 		uploading = true;
 		try {
-			const newUrl = await uploadImage(file, { type: 'food', id: editingFood.id });
-			if (newUrl) editImageUrl = newUrl;
+			// Creating: there is no row to attach to yet, so the URL rides along in
+			// the create body instead of a PATCH.
+			const newUrl = editingFood
+				? await uploadImage(file, { type: 'food', id: editingFood.id })
+				: await uploadImageFile(file, 'food-create');
+			if (newUrl) formImageUrl = newUrl;
 		} finally {
 			uploading = false;
 		}
@@ -561,6 +568,7 @@
 				<ul class="space-y-2">
 					{#each offResults as product (product.barcode)}
 						<li class="flex min-w-0 items-center justify-between gap-2 rounded-md border p-2">
+							<FoodThumbnail name={product.name} imageUrl={product.imageUrl} size="sm" />
 							<span class="min-w-0 flex-1 truncate text-sm">
 								{product.name}
 								{#if product.brand}<span class="text-muted-foreground">
@@ -697,8 +705,8 @@
 				initial={formInitial}
 				onSave={editingFood ? updateFood : createFood}
 				onBarcodeScan={!editingFood ? handleBarcodeScan : undefined}
-				imageUrl={editingFood ? editImageUrl : undefined}
-				onImageUpload={editingFood ? handleImageUpload : undefined}
+				imageUrl={formImageUrl ?? offData?.imageUrl ?? null}
+				onImageUpload={handleImageUpload}
 				{uploading}
 				{visibleNutrients}
 			/>

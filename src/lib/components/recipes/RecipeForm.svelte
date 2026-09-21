@@ -7,14 +7,18 @@
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
+	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		foods?: Array<{ id: string; name: string; servingUnit?: string }>;
 		onSave: (payload: ReturnType<typeof buildRecipePayload>) => Promise<void>;
+		imageUrl?: string | null;
+		onImageUpload?: (file: File) => Promise<void>;
+		uploading?: boolean;
 	};
 
-	let { foods = [], onSave }: Props = $props();
+	let { foods = [], onSave, imageUrl, onImageUpload, uploading = false }: Props = $props();
 
 	let state: RecipeFormState = $state({
 		name: '',
@@ -45,6 +49,9 @@
 </script>
 
 <form class="space-y-4" onsubmit={handleSubmit}>
+	{#if onImageUpload}
+		<ImageUploadField name={state.name} {imageUrl} {uploading} onUpload={onImageUpload} />
+	{/if}
 	<div>
 		<Label class="text-sm">{m.recipe_form_name()}</Label>
 		<Input placeholder={m.recipe_form_name()} bind:value={state.name} />
