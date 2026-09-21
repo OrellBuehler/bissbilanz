@@ -594,6 +594,7 @@
     <string name="food_search_off_searching">Searching Open Food Facts…</string>
     <string name="food_search_tab_recent">Recent</string>
     <string name="food_search_tab_all">All</string>
+    <string name="food_search_tab_favorites">Favorites</string>
     <string name="food_search_no_recent">No recent foods</string>
     <string name="food_search_no_foods">No foods yet</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>

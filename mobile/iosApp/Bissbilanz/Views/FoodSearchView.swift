@@ -13,6 +13,11 @@ struct FoodSearchView: View {
     @State private var offResults: [BissbilanzAPI.OpenFoodFactsSearchHit] = []
     @State private var isSearchingOff = false
     @State private var isResolvingOff = false
+    @State private var allFoods: [Food] = []
+    @State private var allFoodsOffset = 0
+    @State private var canLoadMoreAll = true
+    @State private var isLoadingMoreAll = false
+    @State private var allFoodsTask: Task<Void, Never>?
     @State private var recentFoods: [Food] = []
     @State private var favoriteFoods: [Food] = []
     @State private var selectedTab = 0
@@ -31,7 +36,7 @@ struct FoodSearchView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab.animation(reduceMotion ? nil : .default)) {
-                Text(L10n.search).tag(0)
+                Text(L10n.all).tag(0)
                 Text(L10n.recent).tag(1)
                 Text(L10n.favorites).tag(2)
             }
@@ -40,7 +45,7 @@ struct FoodSearchView: View {
             .padding(.top, 8)
 
             TabView(selection: $selectedTab) {
-                searchTab
+                allTab
                     .tag(0)
                 recentTab
                     .tag(1)
@@ -113,7 +118,10 @@ struct FoodSearchView: View {
         }
         .sheet(isPresented: $showCreateFood) {
             FoodEditSheet { _ in
-                Task { await loadRecent() }
+                Task {
+                    await loadAll()
+                    await loadRecent()
+                }
             }
         }
         .sheet(isPresented: $showCreateRecipe) {
@@ -122,13 +130,49 @@ struct FoodSearchView: View {
         .task {
             await loadRecent()
             await loadFavorites()
+            await loadAll()
         }
     }
 
-    private var searchTab: some View {
+    /// The catalog, alphabetical and paged in as the user scrolls, until two
+    /// characters are typed — then the server search (with its Open Food
+    /// Facts fallback) takes over, so this one tab covers both browsing and
+    /// searching. `List` only materialises visible rows, and pages keep the
+    /// backing array bounded for users with thousands of foods.
+    private var allTab: some View {
         Group {
             if query.count < 2 {
-                ContentUnavailableView(L10n.search, systemImage: "magnifyingglass", description: Text(L10n.searchFoods))
+                let items = allFoods.filter { matches($0) }
+                if items.isEmpty {
+                    if isLoadingMoreAll {
+                        LoadingView(message: L10n.loading)
+                    } else if query.isEmpty {
+                        ContentUnavailableView(L10n.all, systemImage: "fork.knife", description: Text(L10n.noFoodsYet))
+                    } else {
+                        ContentUnavailableView(
+                            L10n.noResults,
+                            systemImage: "magnifyingglass",
+                            description: Text("\(L10n.noResults): \"\(query)\"")
+                        )
+                    }
+                } else {
+                    List {
+                        ForEach(items) { food in
+                            foodRow(food)
+                                .onAppear {
+                                    if food.id == allFoods.last?.id { loadMoreAll() }
+                                }
+                        }
+                        if isLoadingMoreAll {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                }
             } else if isSearching {
                 LoadingView(message: L10n.loading)
             } else if searchResults.isEmpty, offResults.isEmpty, !isSearchingOff {
@@ -367,6 +411,9 @@ struct FoodSearchView: View {
         for index in searchResults.indices where searchResults[index].id == updated.id {
             searchResults[index] = updated
         }
+        for index in allFoods.indices where allFoods[index].id == updated.id {
+            allFoods[index] = updated
+        }
         for index in recentFoods.indices where recentFoods[index].id == updated.id {
             recentFoods[index] = updated
         }
@@ -413,6 +460,32 @@ struct FoodSearchView: View {
     }
 
     private static let offFallbackThreshold = 5
+
+    private static let allPageSize = 50
+
+    private func loadAll() async {
+        allFoodsTask?.cancel()
+        allFoodsOffset = 0
+        canLoadMoreAll = true
+        allFoods = []
+        await fetchNextAllPage()
+    }
+
+    private func loadMoreAll() {
+        guard !isLoadingMoreAll, canLoadMoreAll else { return }
+        allFoodsTask = Task { await fetchNextAllPage() }
+    }
+
+    private func fetchNextAllPage() async {
+        isLoadingMoreAll = true
+        defer { isLoadingMoreAll = false }
+        let page = await foodRepository.foodsPage(limit: Self.allPageSize, offset: allFoodsOffset)
+        guard !Task.isCancelled else { return }
+        let known = Set(allFoods.map(\.id))
+        allFoods += page.filter { !known.contains($0.id) }
+        allFoodsOffset += page.count
+        canLoadMoreAll = page.count == Self.allPageSize
+    }
 
     private func loadRecent() async {
         recentFoods = foodRepository.localRecentFoods()
