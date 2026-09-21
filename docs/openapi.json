@@ -2445,12 +2445,12 @@
 							"schema": {
 								"type": "object",
 								"properties": {
-									"file": {
+									"image": {
 										"type": "string",
 										"format": "binary"
 									}
 								},
-								"required": ["file"]
+								"required": ["image"]
 							}
 						}
 					}
@@ -7645,6 +7645,9 @@
 					"fiber": {
 						"type": "number"
 					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					},
 					"eatenAt": {
 						"type": "string"
 					},
@@ -7678,6 +7681,7 @@
 					"carbs",
 					"fat",
 					"fiber",
+					"imageUrl",
 					"eatenAt",
 					"servingSize",
 					"servingUnit"

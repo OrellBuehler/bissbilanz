@@ -1856,6 +1856,7 @@ export interface components {
 			carbs: number;
 			fat: number;
 			fiber: number;
+			imageUrl: string | null;
 			eatenAt: string;
 			createdAt?: string;
 			servingSize: number | null;
@@ -4329,7 +4330,7 @@ export interface operations {
 			content: {
 				'multipart/form-data': {
 					/** Format: binary */
-					file: string;
+					image: string;
 				};
 			};
 		};
