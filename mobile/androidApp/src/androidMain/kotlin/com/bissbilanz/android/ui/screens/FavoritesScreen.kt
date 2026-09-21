@@ -36,14 +36,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import org.koin.core.qualifier.named
 import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(navController: NavController) {
     val viewModel: FavoritesViewModel = koinViewModel()
-    val baseUrl: String = koinInject(named("baseUrl"))
     val refreshManager: RefreshManager = koinInject()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
@@ -76,6 +74,7 @@ fun FavoritesScreen(navController: NavController) {
                 foodToLog = null
             },
             macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
+            imageUrl = food.imageUrl,
         )
     }
 
@@ -87,6 +86,7 @@ fun FavoritesScreen(navController: NavController) {
                 recipeToLog = null
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
+            imageUrl = recipe.imageUrl,
         )
     }
 
@@ -107,6 +107,7 @@ fun FavoritesScreen(navController: NavController) {
             showMealPicker = false,
             showDateTimeNotes = false,
             macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
+            imageUrl = food.imageUrl,
         )
     }
 
@@ -127,6 +128,7 @@ fun FavoritesScreen(navController: NavController) {
             showMealPicker = false,
             showDateTimeNotes = false,
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
+            imageUrl = recipe.imageUrl,
         )
     }
 
@@ -177,7 +179,7 @@ fun FavoritesScreen(navController: NavController) {
                                 items(favorites, key = { it.id }) { food ->
                                     FavoriteCard(
                                         name = food.name,
-                                        imageUrl = food.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                        imageUrl = food.imageUrl,
                                         onQuickLog = {
                                             haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(
@@ -214,7 +216,7 @@ fun FavoritesScreen(navController: NavController) {
                                 items(favoriteRecipes, key = { it.id }) { recipe ->
                                     FavoriteCard(
                                         name = recipe.name,
-                                        imageUrl = recipe.imageUrl?.let { if (it.startsWith("/")) "$baseUrl$it" else it },
+                                        imageUrl = recipe.imageUrl,
                                         onQuickLog = {
                                             haptic(HapticFeedbackType.LongPress)
                                             handleQuickLog(

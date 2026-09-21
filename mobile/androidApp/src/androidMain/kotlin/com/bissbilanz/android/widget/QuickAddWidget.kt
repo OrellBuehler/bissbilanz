@@ -2,6 +2,7 @@ package com.bissbilanz.android.widget
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -52,9 +53,11 @@ private data class QuickAddRow(
     val id: String,
     val name: String,
     val calories: Double,
+    val imageProvider: ImageProvider?,
 )
 
-private const val MAX_ROWS = 5
+/** Also the number of foods the image worker pre-scales thumbnails for. */
+internal const val QUICK_ADD_MAX_ROWS = 5
 
 /**
  * Rows, not tiles: every row *is* the log button, which is what separates this from
@@ -86,8 +89,17 @@ class QuickAddWidget : GlanceAppWidget() {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val rows =
             RecentFoods
-                .load(db, json, today, MAX_ROWS)
-                .map { QuickAddRow(it.id, it.name, it.calories) }
+                .load(db, json, today, QUICK_ADD_MAX_ROWS)
+                .map { food ->
+                    // Decoded here rather than in the composable: a widget renders with
+                    // no chance to load anything, so the bitmap has to be in hand.
+                    val thumbnail =
+                        WidgetFoodImages
+                            .cached(context, food.id)
+                            ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                            ?.let { ImageProvider(it) }
+                    QuickAddRow(food.id, food.name, food.calories, thumbnail)
+                }
 
         val density = context.resources.displayMetrics.density
         val iconPx = (24 * density).toInt()
@@ -124,7 +136,7 @@ private fun QuickAddContent(
     val height = LocalSize.current.height
     val visible =
         when {
-            height >= 240.dp -> MAX_ROWS
+            height >= 240.dp -> QUICK_ADD_MAX_ROWS
             height >= 170.dp -> 3
             else -> 2
         }
@@ -193,14 +205,18 @@ private fun QuickAddRowItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
-            provider = if (logged) checkProvider else plusProvider,
+            provider =
+                when {
+                    logged -> checkProvider
+                    else -> row.imageProvider ?: plusProvider
+                },
             contentDescription =
                 if (logged) {
                     context.getString(R.string.quick_add_widget_logged)
                 } else {
                     context.getString(R.string.quick_add_widget_log, row.name)
                 },
-            contentScale = ContentScale.Fit,
+            contentScale = if (logged || row.imageProvider == null) ContentScale.Fit else ContentScale.Crop,
             modifier =
                 GlanceModifier
                     .size(24.dp)

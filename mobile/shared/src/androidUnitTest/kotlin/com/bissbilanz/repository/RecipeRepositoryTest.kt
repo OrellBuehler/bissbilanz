@@ -9,6 +9,7 @@ import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
+import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.appModeManager
@@ -23,6 +24,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -182,6 +184,128 @@ class RecipeRepositoryTest {
 
             assertEquals(listOf("temp_f1"), updated.ingredients.map { it.foodId })
             assertEquals(130.0, updated.calories)
+        }
+
+    // -------------------------------------------------------------------------------
+    // setImage()
+    // -------------------------------------------------------------------------------
+
+    /** Same databases, Synced mode — the only mode in which uploads are queued. */
+    private fun syncedRepository(): Pair<RecipeRepository, SyncQueue> {
+        val appMode = appModeManager(AppMode.SYNCED)
+        val queue = SyncQueue(cacheDb, json, appMode)
+        return RecipeRepository(api, db, cacheDb, queue, json, NoopErrorReporter(), appMode) to queue
+    }
+
+    @Test
+    fun setImageOnAServerRecipeQueuesAPartialPatchAndUpdatesTheCache() =
+        runTest {
+            insertLocalFood("srv_f1")
+            val (synced, queue) = syncedRepository()
+            val created =
+                synced.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("srv_f1", 100.0, ServingUnit.g)),
+                    ),
+                )
+            // Stand in for the create having drained: the row now carries a server id.
+            val server = created.copy(id = "srv_r1")
+            db.userDataDatabaseQueries.insertRecipe(
+                id = server.id,
+                name = server.name,
+                totalServings = server.totalServings,
+                isFavorite = 0L,
+                calories = server.calories,
+                protein = server.protein,
+                carbs = server.carbs,
+                fat = server.fat,
+                fiber = server.fiber,
+                jsonData = json.encodeToString(server),
+            )
+
+            val updated = synced.setImage("srv_r1", "/uploads/a.webp")
+
+            assertEquals("/uploads/a.webp", updated?.imageUrl)
+            val cached =
+                json.decodeFromString<RecipeDetail>(
+                    db.userDataDatabaseQueries
+                        .selectRecipeById("srv_r1")
+                        .executeAsOneOrNull()!!
+                        .jsonData,
+                )
+            assertEquals("/uploads/a.webp", cached.imageUrl)
+            // The ingredients are untouched: a full RecipeUpdate body would rewrite them.
+            assertEquals(listOf("srv_f1"), cached.ingredients.map { it.foodId })
+            val queued = queue.all().map { it.operation }
+            assertEquals(
+                listOf(SyncOperation.SetRecipeImage("srv_r1", "/uploads/a.webp")),
+                queued.filterIsInstance<SyncOperation.SetRecipeImage>(),
+            )
+        }
+
+    @Test
+    fun setImageOnATempRecipeRewritesTheQueuedCreateInsteadOfQueueingAPatch() =
+        runTest {
+            insertLocalFood("srv_f1")
+            val (synced, queue) = syncedRepository()
+            val created =
+                synced.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("srv_f1", 100.0, ServingUnit.g)),
+                    ),
+                )
+
+            synced.setImage(created.id, "/uploads/a.webp")
+
+            val queued = queue.all().map { it.operation }
+            assertTrue(queued.none { it is SyncOperation.SetRecipeImage })
+            val create = queued.filterIsInstance<SyncOperation.CreateRecipe>().single()
+            assertEquals("/uploads/a.webp", json.decodeFromString<RecipeCreate>(create.body).imageUrl)
+        }
+
+    @Test
+    fun setImageEvictsTheReplacedImageFromTheDevice() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val orphaned = mutableListOf<String>()
+            repository.onImageOrphaned = { orphaned += it }
+            val created =
+                repository.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+                        imageUrl = "file:///photos/old.jpg",
+                    ),
+                )
+
+            repository.setImage(created.id, null)
+
+            assertEquals(listOf("file:///photos/old.jpg"), orphaned)
+            assertNull(repository.getRecipe(created.id).imageUrl)
+        }
+
+    @Test
+    fun updateRecipeKeepsTheCachedImageItDoesNotCarry() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created =
+                repository.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+                        imageUrl = "/uploads/a.webp",
+                    ),
+                )
+
+            val updated = repository.updateRecipe(created.id, RecipeUpdate(name = "Renamed"))
+
+            assertEquals("/uploads/a.webp", updated.imageUrl)
         }
 
     @Test

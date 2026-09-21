@@ -253,6 +253,7 @@ fun FavoritesQuickLogWidget(
             },
             date = date,
             macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
+            imageUrl = food.imageUrl,
         )
     }
 

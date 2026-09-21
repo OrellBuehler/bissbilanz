@@ -404,9 +404,10 @@ class BissbilanzApi(
 
     /**
      * The image URL alone. `imageUrl` carries a `= null` default on [FoodCreate]
-     * and `encodeDefaults = false`, so a removal sent through that body is simply
-     * dropped and the old image stays. This property has no default, so its null
-     * is always written — which is what makes removal reach the server.
+     * (and on [RecipeCreate]/[RecipeUpdate]) and `encodeDefaults = false`, so a
+     * removal sent through those bodies is simply dropped and the old image stays.
+     * This property has no default, so its null is always written — which is what
+     * makes removal reach the server.
      */
     @kotlinx.serialization.Serializable
     private data class ImagePatch(
@@ -673,6 +674,20 @@ class BissbilanzApi(
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         val response: RecipeResponse = patch("/api/recipes/$id", recipe, key, editedAt)
+        return response.recipe
+    }
+
+    /** Attaches or (with a null [imageUrl]) removes a recipe's image. */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun setRecipeImage(
+        id: String,
+        imageUrl: String?,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): RecipeDetail {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: RecipeResponse = patch("/api/recipes/$id", ImagePatch(imageUrl), key, editedAt)
         return response.recipe
     }
 

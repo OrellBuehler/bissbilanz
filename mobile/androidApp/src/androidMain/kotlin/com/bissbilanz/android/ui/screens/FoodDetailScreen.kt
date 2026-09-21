@@ -130,6 +130,7 @@ fun FoodDetailScreen(
                 showLogDialog = false
             },
             macros = food?.let { MealPickerMacros(it.calories, it.protein, it.carbs, it.fat, it.fiber) },
+            imageUrl = food?.imageUrl,
         )
     }
 

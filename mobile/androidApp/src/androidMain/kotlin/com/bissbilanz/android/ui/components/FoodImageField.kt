@@ -47,7 +47,7 @@ import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 /**
- * The server thumbnails to 400×400, so 800 px leaves headroom for a future
+ * The server thumbnails to 512×512, so 800 px leaves headroom for a future
  * retina bump while roughly quartering the upload against the AI-task path
  * (which needs 1600 px only because a model has to read a label).
  */
@@ -55,16 +55,17 @@ private const val MAX_UPLOAD_DIMENSION = 800
 private const val UPLOAD_QUALITY = 85
 
 /**
- * The image row of the food form: shows the current photo, and offers camera,
- * library and removal. Everything from capture through square crop, downscale
- * and upload happens here; [onImageUrlChange] receives the URL to store on the
- * food (null when the user removes the image).
+ * The image row of a food or recipe form: shows the current photo, and offers
+ * camera, library and removal. Everything from capture through square crop,
+ * downscale and upload happens here; [onImageUrlChange] receives the URL to store
+ * on the row (null when the user removes the image).
  */
 @Composable
 fun FoodImageField(
     imageUrl: String?,
     onImageUrlChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.food_image_label),
 ) {
     val context = LocalContext.current
     val uploader: FoodImageUploader = koinInject()
@@ -130,7 +131,7 @@ fun FoodImageField(
                 } else {
                     FoodImage(
                         imageUrl = imageUrl,
-                        contentDescription = stringResource(R.string.food_image_label),
+                        contentDescription = label,
                         modifier =
                             Modifier
                                 .size(72.dp)

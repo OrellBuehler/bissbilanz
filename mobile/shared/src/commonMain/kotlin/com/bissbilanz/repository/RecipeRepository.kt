@@ -116,6 +116,12 @@ class RecipeRepository(
             .mapNotNull { it.operation.affectedId }
             .toSet()
 
+    fun getRecipeCached(id: String): RecipeDetail? =
+        db.userDataDatabaseQueries
+            .selectRecipeById(id)
+            .executeAsOneOrNull()
+            ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+
     suspend fun getRecipe(id: String): RecipeDetail {
         if (appModeManager.isLocal) {
             val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
@@ -145,8 +151,7 @@ class RecipeRepository(
         id: String,
         recipe: RecipeUpdate,
     ): RecipeDetail {
-        val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
-        val existing = cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+        val existing = getRecipeCached(id)
         val result =
             if (existing != null) {
                 val updated =
@@ -155,7 +160,10 @@ class RecipeRepository(
                             name = recipe.name ?: existing.name,
                             totalServings = recipe.totalServings ?: existing.totalServings,
                             isFavorite = recipe.isFavorite ?: existing.isFavorite,
-                            imageUrl = recipe.imageUrl ?: existing.imageUrl,
+                            // Images never ride on a recipe body: `imageUrl` has a null
+                            // default and the client omits defaults, so a removal sent
+                            // this way would be dropped. [setImage] owns the field.
+                            imageUrl = existing.imageUrl,
                             ingredients = recipe.ingredients?.toRecipeIngredients() ?: existing.ingredients,
                         ).withRecomputedMacros()
                 withContext(Dispatchers.IO) { cacheRecipe(updated) }
@@ -184,13 +192,33 @@ class RecipeRepository(
         return result
     }
 
+    /**
+     * Attaches or removes a recipe's image, as a partial PATCH — a full
+     * [RecipeUpdate] body would rewrite the ingredients from whatever the cache
+     * happens to hold, and its `imageUrl` default would swallow a removal. The
+     * previous image is evicted from the device once it can no longer be referenced.
+     */
+    suspend fun setImage(
+        id: String,
+        imageUrl: String?,
+    ): RecipeDetail? {
+        val previous = getRecipeCached(id)
+        val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(Dispatchers.IO) { cacheRecipe(it) } }
+        if (id.isTempId()) {
+            syncQueue.rewriteQueuedCreate("recipes", id) { op ->
+                val create = op as? SyncOperation.CreateRecipe ?: return@rewriteQueuedCreate null
+                val body = json.decodeOrNull<RecipeCreate>(create.body) ?: return@rewriteQueuedCreate null
+                create.copy(body = json.encodeToString(body.copy(imageUrl = imageUrl)))
+            }
+        } else {
+            syncQueue.enqueue(SyncOperation.SetRecipeImage(id, imageUrl))
+        }
+        previous?.imageUrl?.takeIf { it != imageUrl }?.let { onImageOrphaned?.invoke(it) }
+        return updated
+    }
+
     suspend fun deleteRecipe(id: String) {
-        val imageUrl =
-            db.userDataDatabaseQueries
-                .selectRecipeById(id)
-                .executeAsOneOrNull()
-                ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
-                ?.imageUrl
+        val imageUrl = getRecipeCached(id)?.imageUrl
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
@@ -218,7 +246,6 @@ class RecipeRepository(
                     totalServings = update.totalServings ?: body.totalServings,
                     ingredients = update.ingredients ?: body.ingredients,
                     isFavorite = update.isFavorite ?: body.isFavorite,
-                    imageUrl = update.imageUrl ?: body.imageUrl,
                 )
             create.copy(body = json.encodeToString(merged))
         }

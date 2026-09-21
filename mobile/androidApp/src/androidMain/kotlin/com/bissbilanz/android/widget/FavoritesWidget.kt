@@ -43,7 +43,6 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
-import java.io.File
 
 private data class FavoriteTile(
     val id: String,
@@ -77,7 +76,6 @@ class FavoritesWidget : GlanceAppWidget() {
         val rows = db.userDataDatabaseQueries.selectFavorites().executeAsList()
         val favorites = rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
 
-        val imageDir = File(context.cacheDir, "widget_food_images")
         val density = context.resources.displayMetrics.density
         val tilePx = (48 * density).toInt()
         val isDark =
@@ -86,14 +84,11 @@ class FavoritesWidget : GlanceAppWidget() {
 
         val tiles =
             favorites.map { food ->
-                val cachedFile = File(imageDir, "${food.id}.png")
                 val bitmap =
-                    if (cachedFile.exists()) {
-                        BitmapFactory.decodeFile(cachedFile.absolutePath)
-                            ?: FavoritePlaceholderRenderer.render(food.name, tilePx, isDark)
-                    } else {
-                        FavoritePlaceholderRenderer.render(food.name, tilePx, isDark)
-                    }
+                    WidgetFoodImages
+                        .cached(context, food.id)
+                        ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                        ?: FavoritePlaceholderRenderer.render(food.name, tilePx, isDark)
                 FavoriteTile(food.id, food.name, ImageProvider(bitmap))
             }
 
