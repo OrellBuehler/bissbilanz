@@ -10,7 +10,7 @@
         "@hono/node-server": "^2.1.1",
         "@inlang/paraglide-js": "^2.25.0",
         "@modelcontextprotocol/sdk": "^1.30.0",
-        "@rodrigodagostino/svelte-sortable-list": "^2.2.5",
+        "@rodrigodagostino/svelte-sortable-list": "^2.2.6",
         "@sentry/sveltekit": "^10.73.0",
         "@zxing/browser": "^0.2.1",
         "@zxing/library": "^0.23.0",
@@ -554,7 +554,7 @@
 
     "@redocly/openapi-core": ["@redocly/openapi-core@1.34.19", "", { "dependencies": { "@redocly/ajv": "8.11.2", "@redocly/config": "0.22.0", "colorette": "1.4.0", "https-proxy-agent": "7.0.6", "js-levenshtein": "1.1.6", "js-yaml": "4.3.1", "minimatch": "5.1.9", "pluralize": "8.0.0", "yaml-ast-parser": "0.0.43" } }, "sha512-o/0VgsBXgwcY1lyeqcVtSGdTQAPnVggo0fbFVPlxl5XVDKUcVH0OLRqt3CbkwByT5FU305E0iE0O7MzThjDblw=="],
 
-    "@rodrigodagostino/svelte-sortable-list": ["@rodrigodagostino/svelte-sortable-list@2.2.5", "", { "peerDependencies": { "svelte": "^5.29.0" } }, "sha512-Vzv2yCrVHS04HRGfg27MoLEAHqcssTwrJPRpEAsWkoUN3KcoMPDcyCtDZF62iXx/n9yXG+KiECHmrtYF8oqpfw=="],
+    "@rodrigodagostino/svelte-sortable-list": ["@rodrigodagostino/svelte-sortable-list@2.2.6", "", { "peerDependencies": { "svelte": "^5.29.0" } }, "sha512-gKPKHTaP4VViIXuS46OVk5WXYEmzQp9kyOcVESaymI63gui7YnDBjEXkWUm5cmOrk1Ad5PhjE1yqKqd0UAsA5A=="],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.2.4", "", { "os": "android", "cpu": "arm64" }, "sha512-jHC2cnyKz5xU2fhECtFl8OZ83cYNt13GZQD+0uMJ/X3o+ijmd56okHhTUwxVSHPx1IRVIJEZ1/1pPzeLCU6XKA=="],
 

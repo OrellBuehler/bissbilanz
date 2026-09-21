@@ -90,7 +90,7 @@
 		"@hono/node-server": "^2.1.1",
 		"@inlang/paraglide-js": "^2.25.0",
 		"@modelcontextprotocol/sdk": "^1.30.0",
-		"@rodrigodagostino/svelte-sortable-list": "^2.2.5",
+		"@rodrigodagostino/svelte-sortable-list": "^2.2.6",
 		"@sentry/sveltekit": "^10.73.0",
 		"@zxing/browser": "^0.2.1",
 		"@zxing/library": "^0.23.0",
