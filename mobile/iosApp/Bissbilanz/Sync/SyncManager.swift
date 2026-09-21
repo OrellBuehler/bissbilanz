@@ -584,6 +584,14 @@ final class SyncManager {
         case let .updateRecipe(id, body):
             _ = try await api.updateRecipe(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
+        case let .setRecipeImage(id, imageUrl):
+            _ = try await api.setRecipeImage(
+                id: id,
+                imageUrl: imageUrl,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
         case let .deleteRecipe(id):
             try await api.deleteRecipe(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 

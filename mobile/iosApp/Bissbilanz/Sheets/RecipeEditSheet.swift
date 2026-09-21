@@ -11,6 +11,8 @@ struct RecipeEditSheet: View {
     @State private var totalServings = "1"
     @State private var isFavorite = false
     @State private var ingredients: [IngredientRow] = []
+    @State private var imageUrl: String?
+    @State private var originalImageUrl: String?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -29,6 +31,10 @@ struct RecipeEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section(L10n.recipePhoto) {
+                    FoodImageField(imageUrl: $imageUrl)
+                }
+
                 Section {
                     TextField(L10n.recipeName, text: $name)
                     HStack {
@@ -112,6 +118,8 @@ struct RecipeEditSheet: View {
         name = recipe.name
         totalServings = "\(recipe.totalServings)"
         isFavorite = recipe.isFavorite
+        imageUrl = recipe.imageUrl
+        originalImageUrl = recipe.imageUrl
         if let recipeIngredients = recipe.ingredients {
             ingredients = recipeIngredients.compactMap { ing in
                 guard let food = ing.food else { return nil }
@@ -133,7 +141,7 @@ struct RecipeEditSheet: View {
         }
 
         do {
-            let saved: Recipe
+            var saved: Recipe
             if let existing = existingRecipe {
                 let update = RecipeUpdate(
                     name: name,
@@ -142,12 +150,21 @@ struct RecipeEditSheet: View {
                     isFavorite: isFavorite
                 )
                 saved = try await recipeRepository.updateRecipe(id: existing.id, update)
+                // Separate from the body when editing: `RecipeUpdate` omits nil
+                // optionals, so a removal sent that way would be dropped and
+                // the old image would stay.
+                if imageUrl != originalImageUrl {
+                    saved = try await recipeRepository.setImage(id: existing.id, imageUrl: imageUrl)
+                }
             } else {
+                // No id yet on a create, so the already-uploaded URL rides
+                // along on the create body — `recipeCreateSchema` accepts it.
                 let create = RecipeCreate(
                     name: name,
                     totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
-                    isFavorite: isFavorite
+                    isFavorite: isFavorite,
+                    imageUrl: imageUrl
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }
