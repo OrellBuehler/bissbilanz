@@ -6,14 +6,7 @@ import { tmpdir } from 'node:os';
 const UPLOAD_DIR = await mkdtemp(join(tmpdir(), 'bissbilanz-account-'));
 process.env.UPLOAD_DIR = UPLOAD_DIR;
 
-type Rows = {
-	foods: string[];
-	recipes: string[];
-	aiTasks: string[][];
-	uploads: string[];
-};
-
-let rows: Rows = { foods: [], recipes: [], aiTasks: [], uploads: [] };
+let uploadRows: string[] = [];
 const deleted: string[] = [];
 
 const schema = await import('$lib/server/schema');
@@ -21,19 +14,15 @@ const schema = await import('$lib/server/schema');
 const tableKey = (table: unknown): string =>
 	Object.entries(schema).find(([, value]) => value === table)?.[0] ?? 'unknown';
 
-const selectKey = (table: unknown): keyof Rows => tableKey(table) as keyof Rows;
+const selected: string[] = [];
 
 const tx = {
 	select(columns: Record<string, unknown>) {
 		return {
 			from(table: unknown) {
-				const key = selectKey(table);
+				selected.push(tableKey(table));
 				return {
-					where: async () => {
-						if (key === 'aiTasks') return rows.aiTasks.map((photoUrls) => ({ photoUrls }));
-						if (key === 'uploads') return rows.uploads.map((filename) => ({ filename }));
-						return rows[key].map((imageUrl) => ({ imageUrl }));
-					}
+					where: async () => uploadRows.map((filename) => ({ filename }))
 				};
 			},
 			columns
@@ -68,8 +57,9 @@ const write = (name: string) => writeFile(join(UPLOAD_DIR, name), 'x');
 beforeEach(async () => {
 	await rm(UPLOAD_DIR, { recursive: true, force: true });
 	await mkdir(UPLOAD_DIR, { recursive: true });
-	rows = { foods: [], recipes: [], aiTasks: [], uploads: [] };
+	uploadRows = [];
 	deleted.length = 0;
+	selected.length = 0;
 });
 
 afterAll(async () => {
@@ -77,41 +67,34 @@ afterAll(async () => {
 });
 
 describe('deleteAccount', () => {
-	test('unlinks food, recipe and AI task images', async () => {
+	test('unlinks every upload the user owns', async () => {
 		for (const name of NAMES) await write(name);
-		rows.foods = [`/uploads/${NAMES[0]}`];
-		rows.recipes = [`/uploads/${NAMES[1]}`];
-		rows.aiTasks = [[`/uploads/${NAMES[2]}`, `/uploads/${NAMES[3]}`]];
+		uploadRows = [...NAMES];
 
 		await deleteAccount('user-1');
 
 		expect(await readdir(UPLOAD_DIR)).toEqual([]);
 	});
 
-	test('unlinks uploads the user owns but no longer references', async () => {
-		await write(NAMES[0]);
-		rows.uploads = [NAMES[0]];
-
+	test('only reads the uploads table, never foods/recipes/aiTasks image URLs', async () => {
+		// A food or recipe row may carry a `/uploads/` URL pointing at another
+		// user's file, so ownership has to come from the uploads table alone.
 		await deleteAccount('user-1');
 
-		expect(await readdir(UPLOAD_DIR)).toEqual([]);
+		expect(selected).toEqual(['uploads']);
 	});
 
-	test('leaves files alone for image URLs that are not our uploads', async () => {
+	test('leaves files alone for upload rows that are not our filenames', async () => {
 		await write(NAMES[0]);
-		rows.foods = [
-			'https://images.openfoodfacts.org/images/products/1/front.jpg',
-			'/uploads/../../etc/passwd',
-			`/uploads/${NAMES[0].replace('.webp', '.txt')}`
-		];
+		uploadRows = ['../../etc/passwd', NAMES[0].replace('.webp', '.txt'), 'not a uuid.webp'];
 
 		await deleteAccount('user-1');
 
 		expect(await readdir(UPLOAD_DIR)).toEqual([NAMES[0]]);
 	});
 
-	test('tolerates an image row whose file is already gone', async () => {
-		rows.foods = [`/uploads/${NAMES[0]}`];
+	test('tolerates an upload row whose file is already gone', async () => {
+		uploadRows = [NAMES[0]];
 
 		await expect(deleteAccount('user-1')).resolves.toBeUndefined();
 	});

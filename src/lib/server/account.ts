@@ -1,10 +1,9 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, eq, isNotNull, max, min } from 'drizzle-orm';
+import { eq, max, min } from 'drizzle-orm';
 import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getDB } from './db';
 import {
-	aiTasks,
 	dayProperties,
 	foodEntries,
 	foods,
@@ -22,23 +21,15 @@ export async function deleteAccount(userId: string): Promise<void> {
 
 	const filenames = await db.transaction(async (tx) => {
 		// `uploads` rows cascade with the user, so the filenames have to be
-		// collected before the delete — including the AI meal photos, which are
-		// uploads too and used to be left behind on disk.
-		const [foodImages, recipeImages, taskPhotos, ownedUploads] = await Promise.all([
-			tx
-				.select({ imageUrl: foods.imageUrl })
-				.from(foods)
-				.where(and(eq(foods.userId, userId), isNotNull(foods.imageUrl))),
-			tx
-				.select({ imageUrl: recipes.imageUrl })
-				.from(recipes)
-				.where(and(eq(recipes.userId, userId), isNotNull(recipes.imageUrl))),
-			tx
-				.select({ photoUrls: aiTasks.photoUrls })
-				.from(aiTasks)
-				.where(and(eq(aiTasks.userId, userId), isNotNull(aiTasks.photoUrls))),
-			tx.select({ filename: uploads.filename }).from(uploads).where(eq(uploads.userId, userId))
-		]);
+		// collected before the delete. `processImage` writes one row per stored
+		// file, so this is a complete superset of what the user owns — AI meal
+		// photos included. Going by `foods.imageUrl`/`recipes.imageUrl` instead
+		// would be unsafe: a row can carry a `/uploads/` URL copied from another
+		// user's image, and unlinking that would delete their file.
+		const ownedUploads = await tx
+			.select({ filename: uploads.filename })
+			.from(uploads)
+			.where(eq(uploads.userId, userId));
 
 		// food_entries and supplement_ingredients reference foods/recipes with
 		// ON DELETE RESTRICT, so relying on the users cascade alone can fail
@@ -50,12 +41,7 @@ export async function deleteAccount(userId: string): Promise<void> {
 		await tx.delete(foods).where(eq(foods.userId, userId));
 		await tx.delete(users).where(eq(users.id, userId));
 
-		const urls = [
-			...foodImages.map((row) => row.imageUrl),
-			...recipeImages.map((row) => row.imageUrl),
-			...taskPhotos.flatMap((row) => row.photoUrls ?? []),
-			...ownedUploads.map((row) => `/uploads/${row.filename}`)
-		];
+		const urls = ownedUploads.map((row) => `/uploads/${row.filename}`);
 		return new Set(urls.map(uploadFilename).filter((name): name is string => name !== null));
 	});
 
