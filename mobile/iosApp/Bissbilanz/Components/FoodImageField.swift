@@ -1,9 +1,11 @@
 import PhotosUI
 import SwiftUI
 
-/// The server thumbnails to 400×400, so 800 px leaves headroom for a future
-/// retina bump while roughly quartering the upload against the AI-task path
-/// (which needs 1600 px only because a model has to read a label).
+/// The server thumbnails to 512×512 (`THUMBNAIL_MAX_DIM`), so 800 px leaves
+/// headroom for a future retina bump while staying below the 1024 px the
+/// AI-task path uploads (`AiTaskStore.uploadMaxDimension`, matching the
+/// server's `AI_PHOTO_MAX_DIM`) — that one has to stay legible enough for a
+/// model to read a label, this one only has to fill a thumbnail.
 private let maxUploadDimension: CGFloat = 800
 private let uploadQuality: CGFloat = 0.85
 

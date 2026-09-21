@@ -9,12 +9,14 @@ struct RecipeEntity: AppEntity, IndexedEntity {
     let id: String
     let name: String
     let caloriesPerServing: Double?
+    let imageUrl: String?
 
     init(recipe: Recipe) {
         id = recipe.id
         name = recipe.name
         let servings = max(recipe.totalServings, 1)
         caloriesPerServing = recipe.calories.map { $0 / servings }
+        imageUrl = recipe.imageUrl
     }
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
@@ -24,10 +26,21 @@ struct RecipeEntity: AppEntity, IndexedEntity {
     static let defaultQuery = RecipeEntityQuery()
 
     var displayRepresentation: DisplayRepresentation {
-        guard let caloriesPerServing else {
-            return DisplayRepresentation(title: "\(name)")
+        // Same confined disk cache as FoodEntity, and the same rule: never
+        // download while the system is waiting for results.
+        let image: DisplayRepresentation.Image = if let file = LocalImageStore.cachedFile(for: imageUrl) {
+            .init(url: file)
+        } else {
+            .init(systemName: "book.closed")
         }
-        return DisplayRepresentation(title: "\(name)", subtitle: "\(Int(caloriesPerServing.rounded())) kcal / serving")
+        guard let caloriesPerServing else {
+            return DisplayRepresentation(title: "\(name)", image: image)
+        }
+        return DisplayRepresentation(
+            title: "\(name)",
+            subtitle: "\(Int(caloriesPerServing.rounded())) kcal / serving",
+            image: image
+        )
     }
 
     var attributeSet: CSSearchableItemAttributeSet {

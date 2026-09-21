@@ -843,6 +843,23 @@ final class BissbilanzAPI {
         return response.food
     }
 
+    /// Attaches or, with a nil `imageUrl`, removes a recipe's image. Same
+    /// partial-PATCH reasoning as `setFoodImage`, and the same body shape —
+    /// the route reads `imageUrl` off the recipe patch and treats an explicit
+    /// null as a removal.
+    func setRecipeImage(
+        id: String,
+        imageUrl: String?,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> Recipe {
+        let response: RecipeResponse = try await patch(
+            "/api/recipes/\(id)", body: ImagePatch(imageUrl: imageUrl),
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+        return response.recipe
+    }
+
     /// Whether a URL points at our own API. Used to keep the account's bearer
     /// token off every other host — scheme, host and port must all match, since
     /// a plaintext or different-port variant of the same name is a different

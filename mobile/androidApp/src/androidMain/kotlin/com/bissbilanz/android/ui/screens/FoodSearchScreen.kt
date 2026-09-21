@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +57,7 @@ fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
+    val favoriteFoods by viewModel.favoriteFoods.collectAsStateWithLifecycle()
     val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -93,6 +95,7 @@ fun FoodSearchScreen(navController: NavController) {
                 foodToLog = null
             },
             macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
+            imageUrl = food.imageUrl,
         )
     }
 
@@ -232,7 +235,12 @@ fun FoodSearchScreen(navController: NavController) {
                     }
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
-                    val tabLabels = listOf(stringResource(R.string.food_search_tab_recent), stringResource(R.string.food_search_tab_all))
+                    val tabLabels =
+                        listOf(
+                            stringResource(R.string.food_search_tab_all),
+                            stringResource(R.string.food_search_tab_recent),
+                            stringResource(R.string.food_search_tab_favorites),
+                        )
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         tabLabels.forEachIndexed { index, label ->
                             SegmentedButton(
@@ -260,51 +268,55 @@ fun FoodSearchScreen(navController: NavController) {
                             }
                     }
 
-                    if (selectedTab == 0) {
-                        if (recentFoods.isEmpty()) {
-                            EmptyState(stringResource(R.string.food_search_no_recent))
-                        } else {
-                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
-                                items(recentFoods, key = { it.id }) { food ->
-                                    FoodListItem(
-                                        food = food,
-                                        onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = {
-                                            haptic(HapticFeedbackType.LongPress)
-                                            foodToLog = food
-                                        },
-                                        onEdit = { foodToEdit = food },
-                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
-                                        modifier = Modifier.animateItem(),
-                                    )
+                    val foodItems: LazyListScope.(List<Food>) -> Unit = { foods ->
+                        items(foods, key = { it.id }) { food ->
+                            FoodListItem(
+                                food = food,
+                                onClick = { navController.navigate("food/${food.id}") },
+                                onQuickLog = {
+                                    haptic(HapticFeedbackType.LongPress)
+                                    foodToLog = food
+                                },
+                                onEdit = { foodToEdit = food },
+                                onToggleFavorite = { viewModel.toggleFavorite(food) },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+
+                    when (selectedTab) {
+                        FoodSearchViewModel.TAB_RECENT -> {
+                            if (recentFoods.isEmpty()) {
+                                EmptyState(stringResource(R.string.food_search_no_recent))
+                            } else {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                    foodItems(recentFoods)
                                 }
                             }
                         }
-                    } else {
-                        if (allFoods.isEmpty() && !isLoadingMore) {
-                            EmptyState(stringResource(R.string.food_search_no_foods))
-                        } else {
-                            LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
-                                items(allFoods, key = { it.id }) { food ->
-                                    FoodListItem(
-                                        food = food,
-                                        onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = {
-                                            haptic(HapticFeedbackType.LongPress)
-                                            foodToLog = food
-                                        },
-                                        onEdit = { foodToEdit = food },
-                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
-                                        modifier = Modifier.animateItem(),
-                                    )
+                        FoodSearchViewModel.TAB_FAVORITES -> {
+                            if (favoriteFoods.isEmpty()) {
+                                EmptyState(stringResource(R.string.favorites_no_foods))
+                            } else {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                    foodItems(favoriteFoods)
                                 }
-                                if (isLoadingMore) {
-                                    item {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        }
+                        else -> {
+                            if (allFoods.isEmpty() && !isLoadingMore) {
+                                EmptyState(stringResource(R.string.food_search_no_foods))
+                            } else {
+                                LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                    foodItems(allFoods)
+                                    if (isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                            }
                                         }
                                     }
                                 }

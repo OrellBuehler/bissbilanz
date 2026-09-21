@@ -160,6 +160,7 @@ fun DashboardScreen(navController: NavController) {
                         }
                     }
                     IconButton(
+                        enabled = selectedDate < today,
                         onClick = {
                             haptic(HapticFeedbackType.LongPress)
                             viewModel.nextDay()

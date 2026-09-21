@@ -2,21 +2,27 @@
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let copiedField: 'clientId' | 'clientSecret' | 'serverUrl' | null = $state(null);
+	type CopyField = 'clientId' | 'clientSecret' | 'serverUrl' | 'codeCommand';
+	let copiedField: CopyField | null = $state(null);
 	let newRedirectUri = $state('');
+	let advancedOpen = $state(false);
 
 	let activeClientSecret = $derived(form?.clientSecret || data.clientSecret);
+	let codeCommand = $derived(`claude mcp add --transport http bissbilanz ${data.serverUrl}`);
 
-	async function copyToClipboard(text: string, field: 'clientId' | 'clientSecret' | 'serverUrl') {
+	async function copyToClipboard(text: string, field: CopyField) {
 		try {
 			await navigator.clipboard.writeText(text);
 			copiedField = field;
@@ -28,11 +34,11 @@
 		}
 	}
 
-	const setupInstructions = [
-		m.mcp_setup_instruction_1,
-		m.mcp_setup_instruction_2,
-		m.mcp_setup_instruction_3,
-		m.mcp_setup_instruction_4
+	const claudeSteps = [
+		m.mcp_connect_claude_step_1,
+		m.mcp_connect_claude_step_2,
+		m.mcp_connect_claude_step_3,
+		m.mcp_connect_claude_step_4
 	];
 
 	const capabilities = [
@@ -58,17 +64,14 @@
 		</p>
 	</div>
 
-	<!-- OAuth Credentials Card -->
+	<!-- Connect Claude -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>{m.mcp_credentials_title()}</Card.Title>
-			<Card.Description>
-				{m.mcp_credentials_desc()}
-			</Card.Description>
+			<Card.Title>{m.mcp_connect_title()}</Card.Title>
+			<Card.Description>{m.mcp_connect_desc()}</Card.Description>
 		</Card.Header>
 
-		<Card.Content class="space-y-4">
-			<!-- Server URL -->
+		<Card.Content class="space-y-6">
 			<div class="space-y-2">
 				<Label for="serverUrl">{m.mcp_server_url_label()}</Label>
 				<div class="flex gap-2">
@@ -89,129 +92,50 @@
 				</div>
 			</div>
 
-			<!-- Client ID -->
-			<div class="space-y-2">
-				<Label for="clientId">{m.mcp_client_id_label()}</Label>
+			<div class="space-y-3">
+				<h4 class="font-medium">{m.mcp_connect_claude_heading()}</h4>
+				<ol class="space-y-2 list-decimal list-inside">
+					{#each claudeSteps as step}
+						<li class="text-sm text-muted-foreground">{step()}</li>
+					{/each}
+				</ol>
+				<Button
+					href="https://claude.ai/settings/connectors"
+					target="_blank"
+					rel="noopener"
+					variant="outline"
+					class="w-full md:w-auto"
+				>
+					<ExternalLink class="size-4" />
+					{m.mcp_connect_open_claude()}
+				</Button>
+			</div>
+
+			<div class="space-y-2 pt-4 border-t">
+				<h4 class="font-medium">{m.mcp_connect_code_heading()}</h4>
 				<div class="flex gap-2">
 					<Input
-						id="clientId"
+						id="codeCommand"
 						type="text"
 						readonly
-						value={data.clientId}
+						value={codeCommand}
 						class="font-mono text-sm flex-1"
 					/>
 					<Button
 						variant="outline"
 						size="sm"
-						onclick={() => data.clientId && copyToClipboard(data.clientId, 'clientId')}
+						onclick={() => copyToClipboard(codeCommand, 'codeCommand')}
 					>
-						{copiedField === 'clientId' ? m.mcp_copied() : m.mcp_copy()}
+						{copiedField === 'codeCommand' ? m.mcp_copied() : m.mcp_copy()}
 					</Button>
 				</div>
+				<p class="text-sm text-muted-foreground">{m.mcp_connect_code_desc()}</p>
 			</div>
 
-			<!-- Client Secret -->
-			<div class="space-y-2">
-				<Label for="clientSecret">{m.mcp_client_secret_label()}</Label>
-				{#if activeClientSecret}
-					<div class="flex gap-2">
-						<Input
-							id="clientSecret"
-							type="text"
-							readonly
-							value={activeClientSecret}
-							class="font-mono text-sm flex-1"
-						/>
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={() => copyToClipboard(activeClientSecret, 'clientSecret')}
-						>
-							{copiedField === 'clientSecret' ? m.mcp_copied() : m.mcp_copy()}
-						</Button>
-					</div>
-					<p class="text-sm text-amber-600 flex items-start gap-2">
-						<TriangleAlert class="size-5 flex-shrink-0 mt-0.5" />
-						<span>{m.mcp_client_secret_warning()}</span>
-					</p>
-				{:else}
-					<div class="rounded-md bg-muted border p-4">
-						<p class="text-sm text-muted-foreground">
-							{m.mcp_client_secret_hidden()}
-						</p>
-					</div>
-				{/if}
+			<div class="space-y-2 pt-4 border-t">
+				<h4 class="font-medium">{m.mcp_connect_other_heading()}</h4>
+				<p class="text-sm text-muted-foreground">{m.mcp_connect_other_desc()}</p>
 			</div>
-
-			<!-- Regenerate Secret -->
-			<div class="pt-4 border-t">
-				<div class="space-y-3">
-					<div>
-						<h4 class="font-medium">{m.mcp_regenerate_title()}</h4>
-						<p class="text-sm text-muted-foreground mt-1">
-							{m.mcp_regenerate_desc()}
-						</p>
-					</div>
-					<form method="POST" action="?/regenerate" use:enhance>
-						<Button type="submit" variant="outline" class="w-full md:w-auto">
-							{m.mcp_regenerate_button()}
-						</Button>
-					</form>
-				</div>
-			</div>
-		</Card.Content>
-	</Card.Root>
-
-	<!-- Allowed Redirect URIs Card -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.mcp_redirect_uris_title()}</Card.Title>
-			<Card.Description>
-				{m.mcp_redirect_uris_desc()}
-			</Card.Description>
-		</Card.Header>
-
-		<Card.Content class="space-y-4">
-			<form method="POST" action="?/addRedirectUri" use:enhance class="flex gap-2">
-				<Input
-					type="url"
-					name="redirectUri"
-					placeholder={m.mcp_redirect_uri_placeholder()}
-					bind:value={newRedirectUri}
-					class="flex-1"
-				/>
-				<Button type="submit" variant="outline" disabled={!newRedirectUri}>{m.mcp_add()}</Button>
-			</form>
-
-			{#if data.allowedRedirectUris && data.allowedRedirectUris.length > 0}
-				<div class="space-y-2">
-					<Label>{m.mcp_redirect_uris_registered_label()}</Label>
-					<ul class="space-y-2">
-						{#each data.allowedRedirectUris as uri}
-							<li class="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2">
-								<code class="text-sm font-mono truncate flex-1">{uri}</code>
-								<form method="POST" action="?/removeRedirectUri" use:enhance class="ml-2">
-									<input type="hidden" name="redirectUri" value={uri} />
-									<Button
-										type="submit"
-										variant="ghost"
-										size="sm"
-										class="text-red-600 hover:text-red-700 hover:bg-red-50"
-									>
-										{m.mcp_remove()}
-									</Button>
-								</form>
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{:else}
-				<div class="rounded-md bg-amber-50 border border-amber-200 p-4">
-					<p class="text-sm text-amber-700">
-						{m.mcp_redirect_uris_empty()}
-					</p>
-				</div>
-			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -267,43 +191,168 @@
 		</Card.Content>
 	</Card.Root>
 
-	<!-- Setup Instructions Card -->
+	<!-- Capabilities -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>{m.mcp_setup_title()}</Card.Title>
-			<Card.Description>{m.mcp_setup_desc()}</Card.Description>
+			<Card.Title>{m.mcp_setup_capabilities_title()}</Card.Title>
 		</Card.Header>
-
 		<Card.Content>
-			<div class="space-y-4">
-				<div>
-					<h4 class="font-medium mb-3">{m.mcp_setup_step1_title()}</h4>
-					<ol class="space-y-2 list-decimal list-inside">
-						{#each setupInstructions as instruction}
-							<li class="text-sm text-muted-foreground">{instruction()}</li>
-						{/each}
-					</ol>
-				</div>
-
-				<div class="pt-4 border-t">
-					<h4 class="font-medium mb-3">{m.mcp_setup_step2_title()}</h4>
-					<p class="text-sm text-muted-foreground">
-						{m.mcp_setup_step2_desc()}
-					</p>
-				</div>
-
-				<div class="pt-4 border-t">
-					<h4 class="font-medium mb-3">{m.mcp_setup_capabilities_title()}</h4>
-					<ul class="space-y-2">
-						{#each capabilities as capability}
-							<li class="flex items-start gap-2 text-sm">
-								<Check class="size-5 text-green-600 flex-shrink-0 mt-0.5" />
-								<span class="text-muted-foreground">{capability()}</span>
-							</li>
-						{/each}
-					</ul>
-				</div>
-			</div>
+			<ul class="space-y-2">
+				{#each capabilities as capability}
+					<li class="flex items-start gap-2 text-sm">
+						<Check class="size-5 text-green-600 flex-shrink-0 mt-0.5" />
+						<span class="text-muted-foreground">{capability()}</span>
+					</li>
+				{/each}
+			</ul>
 		</Card.Content>
 	</Card.Root>
+
+	<!-- Advanced: own OAuth client -->
+	<Collapsible.Root bind:open={advancedOpen}>
+		<Card.Root>
+			<Collapsible.Trigger class="w-full text-left">
+				<Card.Header>
+					<div class="flex items-center gap-2">
+						<ChevronDown
+							class="size-4 shrink-0 transition-transform [[data-state=closed]_&]:-rotate-90"
+						/>
+						<div>
+							<Card.Title>{m.mcp_advanced_title()}</Card.Title>
+							<Card.Description>{m.mcp_advanced_desc()}</Card.Description>
+						</div>
+					</div>
+				</Card.Header>
+			</Collapsible.Trigger>
+
+			<Collapsible.Content>
+				<Card.Content class="space-y-6">
+					<div class="space-y-4">
+						<div>
+							<h4 class="font-medium">{m.mcp_credentials_title()}</h4>
+							<p class="text-sm text-muted-foreground mt-1">{m.mcp_credentials_desc()}</p>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="clientId">{m.mcp_client_id_label()}</Label>
+							<div class="flex gap-2">
+								<Input
+									id="clientId"
+									type="text"
+									readonly
+									value={data.clientId}
+									class="font-mono text-sm flex-1"
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => data.clientId && copyToClipboard(data.clientId, 'clientId')}
+								>
+									{copiedField === 'clientId' ? m.mcp_copied() : m.mcp_copy()}
+								</Button>
+							</div>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="clientSecret">{m.mcp_client_secret_label()}</Label>
+							{#if activeClientSecret}
+								<div class="flex gap-2">
+									<Input
+										id="clientSecret"
+										type="text"
+										readonly
+										value={activeClientSecret}
+										class="font-mono text-sm flex-1"
+									/>
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => copyToClipboard(activeClientSecret, 'clientSecret')}
+									>
+										{copiedField === 'clientSecret' ? m.mcp_copied() : m.mcp_copy()}
+									</Button>
+								</div>
+								<p class="text-sm text-amber-600 flex items-start gap-2">
+									<TriangleAlert class="size-5 flex-shrink-0 mt-0.5" />
+									<span>{m.mcp_client_secret_warning()}</span>
+								</p>
+							{:else}
+								<div class="rounded-md bg-muted border p-4">
+									<p class="text-sm text-muted-foreground">
+										{m.mcp_client_secret_hidden()}
+									</p>
+								</div>
+							{/if}
+						</div>
+
+						<div class="space-y-3">
+							<div>
+								<h4 class="font-medium">{m.mcp_regenerate_title()}</h4>
+								<p class="text-sm text-muted-foreground mt-1">
+									{m.mcp_regenerate_desc()}
+								</p>
+							</div>
+							<form method="POST" action="?/regenerate" use:enhance>
+								<Button type="submit" variant="outline" class="w-full md:w-auto">
+									{m.mcp_regenerate_button()}
+								</Button>
+							</form>
+						</div>
+					</div>
+
+					<div class="space-y-4 pt-4 border-t">
+						<div>
+							<h4 class="font-medium">{m.mcp_redirect_uris_title()}</h4>
+							<p class="text-sm text-muted-foreground mt-1">{m.mcp_redirect_uris_desc()}</p>
+						</div>
+
+						<form method="POST" action="?/addRedirectUri" use:enhance class="flex gap-2">
+							<Input
+								type="url"
+								name="redirectUri"
+								placeholder={m.mcp_redirect_uri_placeholder()}
+								bind:value={newRedirectUri}
+								class="flex-1"
+							/>
+							<Button type="submit" variant="outline" disabled={!newRedirectUri}>
+								{m.mcp_add()}
+							</Button>
+						</form>
+
+						{#if data.allowedRedirectUris && data.allowedRedirectUris.length > 0}
+							<div class="space-y-2">
+								<Label>{m.mcp_redirect_uris_registered_label()}</Label>
+								<ul class="space-y-2">
+									{#each data.allowedRedirectUris as uri}
+										<li
+											class="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2"
+										>
+											<code class="text-sm font-mono truncate flex-1">{uri}</code>
+											<form method="POST" action="?/removeRedirectUri" use:enhance class="ml-2">
+												<input type="hidden" name="redirectUri" value={uri} />
+												<Button
+													type="submit"
+													variant="ghost"
+													size="sm"
+													class="text-red-600 hover:text-red-700 hover:bg-red-50"
+												>
+													{m.mcp_remove()}
+												</Button>
+											</form>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{:else}
+							<div class="rounded-md bg-amber-50 border border-amber-200 p-4">
+								<p class="text-sm text-amber-700">
+									{m.mcp_redirect_uris_empty()}
+								</p>
+							</div>
+						{/if}
+					</div>
+				</Card.Content>
+			</Collapsible.Content>
+		</Card.Root>
+	</Collapsible.Root>
 </div>

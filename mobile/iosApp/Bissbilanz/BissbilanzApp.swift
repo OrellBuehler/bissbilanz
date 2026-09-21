@@ -54,6 +54,13 @@ struct BissbilanzApp: App {
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
     private let modelContainer: ModelContainer
+    /// Read-only day/week totals for the Siri data-query intents and the
+    /// Spotlight day index. Not part of the SwiftUI environment — the views
+    /// read the repositories directly.
+    private let nutritionReader: NutritionReader
+    /// The same for weight and sleep — the body-metrics half of the Siri data
+    /// queries and their Spotlight index.
+    private let bodyReader: BodyReader
 
     init() {
         // Start crash reporting before anything else can fail.
@@ -108,7 +115,14 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
-        _foodImageLoader = State(wrappedValue: FoodImageLoader(api: api))
+        let imageLoader = FoodImageLoader(api: api)
+        _foodImageLoader = State(wrappedValue: imageLoader)
+        // The widget extension renders favorites off `LocalImageStore` and
+        // never fetches, so the app puts the bytes there for it after every
+        // snapshot publish (see WidgetSnapshotWriter+App).
+        WidgetSnapshotWriter.warmFavoriteImages = { urls in
+            await imageLoader.warmCache(for: urls)
+        }
         let aiTasks = AiTaskStore(api: api, appMode: appMode)
         _aiTaskStore = State(wrappedValue: aiTasks)
 
@@ -132,6 +146,28 @@ struct BissbilanzApp: App {
         )
         AppDependencyManager.shared.add(dependency: entryWriter)
         AppDependencyManager.shared.add(dependency: router)
+        // The read half: day/week totals for the data-query intents
+        // (GetDailyStatusIntent, GetWeeklyStatsIntent) and for rebuilding a
+        // day's Spotlight entry after a write.
+        let reader = NutritionReader(entryRepository: entryRepo, goalsRepository: goalsRepo)
+        nutritionReader = reader
+        AppDependencyManager.shared.add(dependency: reader)
+        IntentDonations.onDayChanged = { dates in
+            reader.reindexDays(dates)
+        }
+        // The body-metrics half: weight/sleep entries for GetWeightIntent and
+        // GetSleepIntent, and for rebuilding an entry's Spotlight record after
+        // a write. Keyed by entry id rather than by day, because that is what
+        // the weight/sleep repositories know about their own writes.
+        let body = BodyReader(weightRepository: weightRepo, sleepRepository: sleepRepo)
+        bodyReader = body
+        AppDependencyManager.shared.add(dependency: body)
+        IntentDonations.onWeightChanged = { ids in
+            body.reindexWeights(ids)
+        }
+        IntentDonations.onSleepChanged = { ids in
+            body.reindexSleeps(ids)
+        }
         IntentDonations.isEnabled = true
 
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
@@ -342,6 +378,16 @@ struct BissbilanzApp: App {
             foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
             recipes: recipeRepository.favoriteRecipes()
         )
+        // The same for the day summaries Siri answers questions from: the last
+        // 90 days that have anything on them, in two fetches. Days written on
+        // this device are indexed as they change (IntentDonations.dayChanged);
+        // this covers the ones that arrived from the server or another device.
+        IntentDonations.indexDays(nutritionReader.recentDays(limit: 90))
+        // …and the same window of weight entries and logged nights, so "what's
+        // my weight" can be answered from Spotlight after a fresh install that
+        // pulled its history from the server.
+        IntentDonations.indexWeights(bodyReader.weights(lastDays: 90))
+        IntentDonations.indexSleeps(bodyReader.sleeps(lastDays: 90))
         // Publish current Food/Recipe values for the App Shortcut phrases
         // ("Log \(food) with Bissbilanz"). Without this the system's shortcut
         // registry has no parameter values, and tapping Log Food / Log Recipe

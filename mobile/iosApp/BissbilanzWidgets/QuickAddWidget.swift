@@ -71,6 +71,9 @@ struct QuickAddWidgetView: View {
                 Image(systemName: "plus.circle.fill")
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, MacroColors.calories)
+                if let thumbnail = WidgetFoodThumbnail(imageUrl: food.imageUrl, size: 24) {
+                    thumbnail
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(food.name)
                         .font(.caption)

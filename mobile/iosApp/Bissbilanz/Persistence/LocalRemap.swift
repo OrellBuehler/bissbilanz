@@ -42,6 +42,7 @@ enum LocalRemap {
         }
         upsertWeight(entry, in: context)
         try? context.save()
+        reindexSpotlight(oldId: oldId, weight: entry)
     }
 
     static func replaceSleep(id oldId: String, with entry: SleepEntry, in context: ModelContext) {
@@ -50,6 +51,28 @@ enum LocalRemap {
         }
         upsertSleep(entry, in: context)
         try? context.save()
+        reindexSpotlight(oldId: oldId, sleep: entry)
+    }
+
+    /// Re-keys the Spotlight record along with the row: a `temp_` id that
+    /// stayed in the index would resolve to nothing once the queued create
+    /// drained. Built straight from the record rather than through
+    /// `BodyReader`, because this also runs once per row during the login
+    /// migration and a store read per row would make that pass quadratic. The
+    /// entry is indexed without its predecessor's delta; the launch-time
+    /// backfill fills that back in.
+    private static func reindexSpotlight(oldId: String, weight entry: WeightEntry) {
+        IntentDonations.indexWeights([WeightEntity(entry: entry)])
+        if entry.id != oldId {
+            IntentDonations.removeWeights([oldId])
+        }
+    }
+
+    private static func reindexSpotlight(oldId: String, sleep entry: SleepEntry) {
+        IntentDonations.indexSleeps([SleepEntity(entry: entry)])
+        if entry.id != oldId {
+            IntentDonations.removeSleeps([oldId])
+        }
     }
 
     static func replaceSupplement(

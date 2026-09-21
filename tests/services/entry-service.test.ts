@@ -13,7 +13,10 @@ vi.mock('$lib/api/client', () => ({
 		PATCH: async (path: string, opts: { params: { path: { id: string } }; body: unknown }) => {
 			patchCalls.push({ id: opts.params.path.id, body: opts.body });
 			return patchResponse();
-		}
+		},
+		// 503: the optimistic Dexie row is what these tests look at, and a failed
+		// upload keeps the background refresh from racing it away.
+		POST: async () => ({ data: undefined, response: new Response(null, { status: 503 }) })
 	}
 }));
 
@@ -129,5 +132,69 @@ describe('entryService.update — moving an entry to a different date', () => {
 			},
 			{ affectedTable: 'foodEntries', affectedId: 'e1' }
 		);
+	});
+});
+
+describe('entryService.create — denormalized thumbnail', () => {
+	test('copies the cached food image onto the entry row', async () => {
+		await db.foods.put({
+			id: 'f1',
+			name: 'Banana',
+			imageUrl: '/uploads/aaaaaaaa-0000-4000-8000-000000000001.webp',
+			calories: 89,
+			protein: 1,
+			carbs: 23,
+			fat: 0,
+			fiber: 3,
+			servingSize: 100,
+			servingUnit: 'g'
+		} as never);
+
+		await entryService.create({
+			foodId: 'f1',
+			mealType: 'Breakfast',
+			servings: 1,
+			date: '2026-01-02'
+		});
+
+		const [created] = await db.foodEntries.where('date').equals('2026-01-02').toArray();
+		expect(created.imageUrl).toBe('/uploads/aaaaaaaa-0000-4000-8000-000000000001.webp');
+	});
+
+	test('copies the cached recipe image onto the entry row', async () => {
+		await db.recipes.put({
+			id: 'r1',
+			name: 'Porridge',
+			imageUrl: '/uploads/bbbbbbbb-0000-4000-8000-000000000002.webp',
+			totalServings: 2,
+			calories: 400,
+			protein: 20,
+			carbs: 50,
+			fat: 10,
+			fiber: 6
+		} as never);
+
+		await entryService.create({
+			recipeId: 'r1',
+			mealType: 'Lunch',
+			servings: 1,
+			date: '2026-01-03'
+		});
+
+		const [created] = await db.foodEntries.where('date').equals('2026-01-03').toArray();
+		expect(created.imageUrl).toBe('/uploads/bbbbbbbb-0000-4000-8000-000000000002.webp');
+	});
+
+	test('leaves a quick entry without a thumbnail', async () => {
+		await entryService.create({
+			mealType: 'Snacks',
+			servings: 1,
+			date: '2026-01-04',
+			quickName: 'Restaurant meal',
+			quickCalories: 600
+		});
+
+		const [created] = await db.foodEntries.where('date').equals('2026-01-04').toArray();
+		expect(created.imageUrl).toBeNull();
 	});
 });

@@ -31,6 +31,33 @@ struct AppHangFilteringTests {
         #expect(!ErrorReporter.isSuspensionArtifactHang(hangDescription: hang(19.0)))
     }
 
+    @Test("Fatal hang whose main thread idles in the run loop is a suspension kill")
+    func dropsIdleRunLoopFatalHang() {
+        let idle = [
+            "start", "main", "BissbilanzApp.$main", "UIApplicationMain",
+            "-[UIApplication _run]", "GSEventRunModal", "_CFRunLoopRunSpecificWithOptions",
+            "__CFRunLoopRun", "__CFRunLoopServiceMachPort", "mach_msg", "mach_msg_overwrite",
+            "mach_msg2_internal", "mach_msg2_trap",
+        ]
+        #expect(ErrorReporter.isIdleRunLoopStack(idle))
+    }
+
+    @Test("Fatal hang blocked in real work is kept")
+    func keepsBlockedFatalHang() {
+        let keychain = [
+            "swift::runJobInEstablishedExecutorContext", "SecItemUpdate",
+            "xpc_connection_send_message_with_reply_sync", "mach_msg", "mach_msg2_trap",
+        ]
+        #expect(!ErrorReporter.isIdleRunLoopStack(keychain))
+        let coreData = [
+            "BissbilanzApp.$main", "__CFRunLoopRun", "__CFRunLoopServiceMachPort",
+            "SleepRepository.save", "-[NSManagedObjectContext performBlockAndWait:]",
+        ]
+        #expect(!ErrorReporter.isIdleRunLoopStack(coreData))
+        #expect(!ErrorReporter.isIdleRunLoopStack([]))
+        #expect(!ErrorReporter.isIdleRunLoopStack(["mach_msg2_trap"]))
+    }
+
     private func hang(_ seconds: Double) -> String {
         "App hanging between \(seconds) and \(seconds + 0.8) seconds."
     }

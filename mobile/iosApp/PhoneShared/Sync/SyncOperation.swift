@@ -19,6 +19,11 @@ enum SyncOperation: Codable {
     case deleteEntry(id: String)
     case createRecipe(body: RecipeCreate, localId: String)
     case updateRecipe(id: String, body: RecipeUpdate)
+    /// Attaches or, with a nil `imageUrl`, removes a recipe's image. Its own
+    /// operation for the same reason `setFoodImage` is: `RecipeUpdate` omits
+    /// nil optionals, so a removal sent on a normal update body would be
+    /// dropped and the old image would stay.
+    case setRecipeImage(id: String, imageUrl: String?)
     case deleteRecipe(id: String)
     case setGoals(body: Goals)
     case createWeight(body: WeightCreate, localId: String)
@@ -54,6 +59,7 @@ enum SyncOperation: Codable {
         case .deleteEntry: "delete_entry"
         case .createRecipe: "create_recipe"
         case .updateRecipe: "update_recipe"
+        case .setRecipeImage: "set_recipe_image"
         case .deleteRecipe: "delete_recipe"
         case .setGoals: "set_goals"
         case .createWeight: "create_weight"
@@ -79,7 +85,7 @@ enum SyncOperation: Codable {
         switch self {
         case .createFood, .updateFood, .deleteFood, .toggleFavorite, .setFoodImage, .setFoodLabels: "foods"
         case .createEntry, .updateEntry, .deleteEntry: "entries"
-        case .createRecipe, .updateRecipe, .deleteRecipe: "recipes"
+        case .createRecipe, .updateRecipe, .setRecipeImage, .deleteRecipe: "recipes"
         case .setGoals: "goals"
         case .createWeight, .updateWeight, .deleteWeight: "weight"
         case .createSleep, .updateSleep, .deleteSleep: "sleep"
@@ -100,7 +106,7 @@ enum SyncOperation: Codable {
         case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
              let .setFoodImage(id, _), let .setFoodLabels(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
-             let .updateRecipe(id, _), let .deleteRecipe(id),
+             let .updateRecipe(id, _), let .setRecipeImage(id, _), let .deleteRecipe(id),
              let .updateWeight(id, _), let .deleteWeight(id),
              let .updateSleep(id, _), let .deleteSleep(id),
              let .updateSupplement(id, _), let .deleteSupplement(id),
@@ -172,6 +178,9 @@ enum SyncOperation: Codable {
             var patched = body
             if let ingredients { patched.ingredients = ingredients }
             return .updateRecipe(id: id == oldId ? newId : id, body: patched)
+
+        case let .setRecipeImage(id, imageUrl) where id == oldId:
+            return .setRecipeImage(id: newId, imageUrl: imageUrl)
 
         case let .deleteRecipe(id) where id == oldId:
             return .deleteRecipe(id: newId)
@@ -267,6 +276,7 @@ enum SyncOperation: Codable {
         case let .deleteEntry(id): "delete entry \(id)"
         case .createRecipe: "create recipe"
         case let .updateRecipe(id, _): "update recipe \(id)"
+        case let .setRecipeImage(id, _): "set recipe image \(id)"
         case let .deleteRecipe(id): "delete recipe \(id)"
         case .setGoals: "set goals"
         case .createWeight: "create weight entry"

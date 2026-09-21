@@ -12,8 +12,10 @@ import com.bissbilanz.repository.FoodRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class FoodSearchViewModel(
@@ -22,6 +24,11 @@ class FoodSearchViewModel(
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
     val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
+
+    val favoriteFoods: StateFlow<List<Food>> =
+        foodRepo
+            .favorites()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _allFoods = MutableStateFlow<List<Food>>(emptyList())
     val allFoods: StateFlow<List<Food>> = _allFoods.asStateFlow()
@@ -62,9 +69,11 @@ class FoodSearchViewModel(
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
     init {
+        loadAllFoods()
         viewModelScope.launch {
             try {
                 foodRepo.refreshRecentFoods()
+                foodRepo.refreshFavorites()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -141,7 +150,7 @@ class FoodSearchViewModel(
 
     fun selectTab(index: Int) {
         _selectedTab.value = index
-        if (index == 1) loadAllFoods()
+        if (index == TAB_ALL) loadAllFoods()
     }
 
     fun logFood(
@@ -219,16 +228,20 @@ class FoodSearchViewModel(
         viewModelScope.launch {
             try {
                 foodRepo.refreshRecentFoods()
+                foodRepo.refreshFavorites()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = "Failed to refresh"
             }
         }
-        if (_selectedTab.value == 1) loadAllFoods()
+        if (_selectedTab.value == TAB_ALL) loadAllFoods()
     }
 
-    private companion object {
-        const val OFF_FALLBACK_THRESHOLD = 5
+    companion object {
+        const val TAB_ALL = 0
+        const val TAB_RECENT = 1
+        const val TAB_FAVORITES = 2
+        private const val OFF_FALLBACK_THRESHOLD = 5
     }
 }

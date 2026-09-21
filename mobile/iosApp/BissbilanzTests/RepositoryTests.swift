@@ -759,6 +759,79 @@ struct RepositoryTests {
         #expect(updated.protein == 30)
     }
 
+    @Test("Setting a recipe image updates the row and queues an explicit PATCH")
+    func recipeSetImageQueuesPatch() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+        harness.stub("PATCH", "/api/recipes/r1", json: """
+        {"recipe": {
+            "id": "r1", "userId": "u1", "name": "Bowl", "totalServings": 2,
+            "isFavorite": false, "imageUrl": null
+        }}
+        """)
+        try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: "r1", name: "Bowl")))
+        try harness.context.save()
+
+        let attached = try await repo.setImage(id: "r1", imageUrl: "/uploads/a1b2.webp")
+        #expect(attached.imageUrl == "/uploads/a1b2.webp")
+        #expect(repo.recipe(id: "r1")?.imageUrl == "/uploads/a1b2.webp")
+
+        let removed = try await repo.setImage(id: "r1", imageUrl: nil)
+        #expect(removed.imageUrl == nil)
+        #expect(repo.recipe(id: "r1")?.imageUrl == nil)
+
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["set_recipe_image", "set_recipe_image"])
+        let drained = await harness.syncManager.drainPendingQueue()
+        #expect(drained == 2)
+        #expect(harness.syncManager.errors.isEmpty)
+
+        // The removal must travel as an explicit null — an omitted key reads
+        // as "leave the image alone" on the server.
+        let bodies = harness.recordedBodies("PATCH", "/api/recipes/r1")
+        #expect(bodies.count == 2)
+        let lastBody = try #require(bodies.last)
+        let last = try JSONSerialization.jsonObject(with: lastBody) as? [String: Any]
+        #expect(last?["imageUrl"] is NSNull)
+    }
+
+    @Test("A recipe image attached before the create uploads rides on the create body")
+    func recipeSetImageCoalescesIntoQueuedCreate() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+        let temp = try await repo.createRecipe(RecipeCreate(
+            name: "Bowl",
+            totalServings: 2,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 80, servingUnit: .g)]
+        ))
+
+        _ = try await repo.setImage(id: temp.id, imageUrl: "/uploads/a1b2.webp")
+
+        let queued = harness.syncManager.queuedRows()
+        #expect(queued.count == 1)
+        guard case let .createRecipe(body, localId)? = queued.first?.operation() else {
+            Issue.record("expected a coalesced createRecipe operation")
+            return
+        }
+        #expect(localId == temp.id)
+        #expect(body.imageUrl == "/uploads/a1b2.webp")
+        #expect(repo.recipe(id: temp.id)?.imageUrl == "/uploads/a1b2.webp")
+    }
+
+    @Test("A queued recipe image write follows its recipe to the server id")
+    func recipeSetImageRemapsTempId() {
+        let op = SyncOperation.setRecipeImage(id: "temp-1", imageUrl: "/uploads/a1b2.webp")
+        guard case let .setRecipeImage(id, imageUrl)? = op.remappingReferences(from: "temp-1", to: "r-1") else {
+            Issue.record("expected a remapped setRecipeImage")
+            return
+        }
+        #expect(id == "r-1")
+        #expect(imageUrl == "/uploads/a1b2.webp")
+        #expect(op.remappingReferences(from: "other", to: "x") == nil)
+        #expect(op.affectedTable == "recipes")
+        #expect(op.affectedId == "temp-1")
+        #expect(op.typeName == "set_recipe_image")
+    }
+
     // MARK: Weight
 
     @Test("Weight refresh upserts by id and updates changed rows")

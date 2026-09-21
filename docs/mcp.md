@@ -8,28 +8,27 @@ client) can log and review your data in natural language.
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | Transport        | Streamable HTTP (POST/GET/DELETE, `Mcp-Session-Id` sessions)                               |
 | Protocol version | Negotiated by the SDK; supports `2025-11-25` down to `2024-11-05`                          |
-| Auth             | OAuth 2.1 authorization code + PKCE (S256), refresh tokens                                 |
+| Auth             | OAuth 2.1 authorization code + PKCE (S256), refresh tokens; Client ID Metadata Documents   |
 | Scope            | `mcp:access`                                                                               |
 | Discovery        | `/.well-known/oauth-protected-resource/api/mcp`, `/.well-known/oauth-authorization-server` |
 | Sessions         | 1 h idle TTL, max 5 concurrent per user (least recently used is evicted)                   |
 
 ## Connecting
 
-Every user provisions their own OAuth client under **Settings → MCP** in the web app.
-Dynamic client registration is intentionally not offered: the server is single-tenant per
-user, and manual provisioning keeps unknown clients out.
-
-1. Open **Settings → MCP**, copy the **Client ID** and **Client Secret** (the secret is
-   shown once; regenerate it if lost).
-2. Add the callback URL of the client you are connecting to **Allowed Redirect URIs**
-   (for claude.ai that is `https://claude.ai/api/mcp/auth_callback`; your client shows its
-   own URL when it fails the first time).
-3. Add the server in the client and complete the browser authorisation prompt.
+The authorization server accepts [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#client-id-metadata-documents)
+(CIMD): a client identifies itself with an HTTPS URL it controls, the server fetches that
+document, takes the client name and redirect URIs from it and treats the client as a
+public PKCE client. Nothing is registered ahead of time and there is no secret, so
+connecting from Claude is: paste the URL, approve once in the browser. Dynamic client
+registration (RFC 7591) is intentionally not offered.
 
 ### claude.ai (web / desktop / mobile)
 
-Settings → Connectors → Add custom connector → URL `https://bissbilanz.orellbuehler.ch/api/mcp`,
-then expand _Advanced settings_ and paste the client ID and secret.
+Settings → Connectors (Customize → Connectors on the web) → **Add custom connector** →
+URL `https://bissbilanz.orellbuehler.ch/api/mcp`. Leave the OAuth client on _Use
+Claude's published identity_ (the default), add the connector, click **Connect** and
+approve on the Bissbilanz consent page. The same page is shown in the apps under
+Settings → Connect Claude.
 
 ### Claude Code
 
@@ -37,13 +36,23 @@ then expand _Advanced settings_ and paste the client ID and secret.
 claude mcp add --transport http bissbilanz https://bissbilanz.orellbuehler.ch/api/mcp
 ```
 
-Then run `/mcp` inside Claude Code to authenticate. If the client asks for credentials,
-use the ID/secret from Settings → MCP.
+Then run `/mcp` inside Claude Code to sign in. Claude Code redirects to a loopback
+address on an ephemeral port; the server matches loopback redirect URIs with the port
+ignored, as RFC 8252 requires.
 
 ### Other clients
 
-Any client that supports remote Streamable HTTP servers with OAuth works the same way:
-point it at the endpoint, register its redirect URI, supply the client credentials.
+Any client that supports remote Streamable HTTP servers with OAuth and CIMD works the
+same way. Clients that cannot present a metadata document can still use a pre-registered
+client: **Settings → MCP → Advanced** in the web app shows a per-user client ID and a
+one-time secret, and takes the client's callback URL under **Allowed Redirect URIs**.
+
+### Consent
+
+The consent page names the client, the host that served its metadata document and the
+redirect target, and warns when the redirect goes to a loopback address. Approvals are
+remembered per client and can be revoked under **Settings → MCP → Connected
+Applications**, which also drops every token that client holds.
 
 ## What the server offers
 
@@ -155,6 +164,7 @@ All resources are `application/json`.
 - Sessions live in server memory. After a deploy, the client receives `404 Session not
 found` and must re-initialise (all mainstream clients do this automatically).
 - Tokens can be revoked per connected application under **Settings → MCP → Connected
-  Applications**; regenerating the client secret revokes every token at once.
+  Applications**; regenerating the pre-registered client's secret revokes every token
+  that client holds.
 - The server is not multi-tenant across users: a session ID is bound to the user who
   created it and rejected for anyone else.

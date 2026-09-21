@@ -3,7 +3,6 @@ import {
 	rateLimit,
 	rateLimitApi,
 	rateLimitMcp,
-	rateLimitRegistration,
 	rateLimitUpload
 } from '../../src/lib/server/rate-limit';
 
@@ -88,51 +87,6 @@ describe('rateLimitUpload', () => {
 		expect(() => rateLimitUpload(userId)).toThrow();
 		vi.advanceTimersByTime(60_001);
 		expect(() => rateLimitUpload(userId)).not.toThrow();
-	});
-});
-
-describe('rateLimitRegistration', () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
-	test('allows calls under the limit', () => {
-		const ip = `reg-ip-under-${Date.now()}`;
-		expect(() => {
-			for (let i = 0; i < 4; i++) rateLimitRegistration(ip);
-		}).not.toThrow();
-	});
-
-	test('allows call at the limit', () => {
-		const ip = `reg-ip-at-${Date.now()}`;
-		expect(() => {
-			for (let i = 0; i < 5; i++) rateLimitRegistration(ip);
-		}).not.toThrow();
-	});
-
-	test('throws on call over the limit', () => {
-		const ip = `reg-ip-over-${Date.now()}`;
-		for (let i = 0; i < 5; i++) rateLimitRegistration(ip);
-		expect(() => rateLimitRegistration(ip)).toThrow('Rate limit exceeded');
-	});
-
-	test('resets after 1 hour window expires', () => {
-		const ip = `reg-ip-reset-${Date.now()}`;
-		for (let i = 0; i < 5; i++) rateLimitRegistration(ip);
-		expect(() => rateLimitRegistration(ip)).toThrow();
-		vi.advanceTimersByTime(3_600_001);
-		expect(() => rateLimitRegistration(ip)).not.toThrow();
-	});
-
-	test('does not reset before window expires', () => {
-		const ip = `reg-ip-no-reset-${Date.now()}`;
-		for (let i = 0; i < 5; i++) rateLimitRegistration(ip);
-		vi.advanceTimersByTime(3_599_999);
-		expect(() => rateLimitRegistration(ip)).toThrow('Rate limit exceeded');
 	});
 });
 

@@ -11,6 +11,8 @@ struct RecipeEditSheet: View {
     @State private var totalServings = "1"
     @State private var isFavorite = false
     @State private var ingredients: [IngredientRow] = []
+    @State private var imageUrl: String?
+    @State private var originalImageUrl: String?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -29,6 +31,10 @@ struct RecipeEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section(L10n.recipePhoto) {
+                    FoodImageField(imageUrl: $imageUrl)
+                }
+
                 Section {
                     TextField(L10n.recipeName, text: $name)
                     HStack {
@@ -112,6 +118,8 @@ struct RecipeEditSheet: View {
         name = recipe.name
         totalServings = "\(recipe.totalServings)"
         isFavorite = recipe.isFavorite
+        imageUrl = recipe.imageUrl
+        originalImageUrl = recipe.imageUrl
         if let recipeIngredients = recipe.ingredients {
             ingredients = recipeIngredients.compactMap { ing in
                 guard let food = ing.food else { return nil }
@@ -133,7 +141,8 @@ struct RecipeEditSheet: View {
         }
 
         do {
-            let saved: Recipe
+            var saved: Recipe
+            var photoFailed = false
             if let existing = existingRecipe {
                 let update = RecipeUpdate(
                     name: name,
@@ -142,17 +151,45 @@ struct RecipeEditSheet: View {
                     isFavorite: isFavorite
                 )
                 saved = try await recipeRepository.updateRecipe(id: existing.id, update)
+                // Separate from the body when editing: `RecipeUpdate` omits nil
+                // optionals, so a removal sent that way would be dropped and
+                // the old image would stay.
+                //
+                // Caught separately because the recipe itself is saved by now:
+                // letting this throw out would report a generic save failure
+                // for a change that actually landed. The sheet stays open on
+                // the photo error so Save can retry just the image.
+                if imageUrl != originalImageUrl {
+                    do {
+                        saved = try await recipeRepository.setImage(id: existing.id, imageUrl: imageUrl)
+                    } catch {
+                        ErrorReporter.captureWarning(
+                            "Recipe image save failed",
+                            context: ["reason": ErrorReporter.reason(for: error)]
+                        )
+                        photoFailed = true
+                    }
+                }
             } else {
+                // No id yet on a create, so the already-uploaded URL rides
+                // along on the create body — `recipeCreateSchema` accepts it.
                 let create = RecipeCreate(
                     name: name,
                     totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
-                    isFavorite: isFavorite
+                    isFavorite: isFavorite,
+                    imageUrl: imageUrl
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }
+            // The parent gets the saved recipe either way; only a clean save
+            // closes the sheet.
             onSaved(saved)
-            dismiss()
+            if photoFailed {
+                errorMessage = L10n.photoSaveFailed
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -201,7 +238,7 @@ struct FoodPicker: View {
                             onPicked(food)
                             dismiss()
                         } label: {
-                            foodRow(name: food.name, detail: detailText(
+                            foodRow(name: food.name, imageUrl: food.imageUrl, detail: detailText(
                                 calories: food.calories,
                                 servingSize: food.servingSize,
                                 unit: food.servingUnit.displayName
@@ -221,7 +258,7 @@ struct FoodPicker: View {
                                     Button {
                                         Task { await pickFromOpenFoodFacts(hit) }
                                     } label: {
-                                        foodRow(name: hit.name, detail: hit.brand ?? "")
+                                        foodRow(name: hit.name, imageUrl: hit.imageUrl, detail: hit.brand ?? "")
                                     }
                                     .disabled(isResolvingOff)
                                 }
@@ -250,14 +287,23 @@ struct FoodPicker: View {
         }
     }
 
-    private func foodRow(name: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(name)
-                .foregroundStyle(.primary)
-            if !detail.isEmpty {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private func foodRow(name: String, imageUrl: String?, detail: String) -> some View {
+        HStack(spacing: 12) {
+            // Matches the main food search rows; nothing is reserved when the
+            // food has no picture.
+            if imageUrl != nil {
+                FoodImageView(imageUrl: imageUrl)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .foregroundStyle(.primary)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

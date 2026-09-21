@@ -10,7 +10,7 @@ import {
 } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, reset, getCalls } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -79,6 +79,34 @@ describe('entries-db', () => {
 
 			const result = await listEntriesByDate(TEST_USER.id, '2026-02-10');
 			expect(result.items).toEqual([]);
+		});
+
+		test('selects a thumbnail column so the day log can render one', async () => {
+			setResult([]);
+
+			await listEntriesByDate(TEST_USER.id, '2026-02-10');
+
+			const select = getCalls().find(
+				(call) => call.method === 'select' && call.args[0] && 'imageUrl' in call.args[0]
+			);
+			expect(select).toBeDefined();
+		});
+
+		test('carries the joined image URL through rounding', async () => {
+			const withImage = [
+				{
+					id: TEST_ENTRY.id,
+					mealType: TEST_ENTRY.mealType,
+					servings: TEST_ENTRY.servings,
+					foodName: TEST_FOOD.name,
+					calories: 123.456,
+					imageUrl: '/uploads/aaaaaaaa-0000-4000-8000-000000000001.webp'
+				}
+			];
+			setResult(withImage);
+
+			const result = await listEntriesByDate(TEST_USER.id, '2026-02-10');
+			expect(result.items[0].imageUrl).toBe('/uploads/aaaaaaaa-0000-4000-8000-000000000001.webp');
 		});
 	});
 

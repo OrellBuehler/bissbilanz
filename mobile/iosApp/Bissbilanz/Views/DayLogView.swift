@@ -2,10 +2,17 @@ import SwiftUI
 
 struct DayLogView: View {
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(\.scenePhase) private var scenePhase
     let date: String
 
     @State private var entries: [Entry] = []
+    /// Image URL per logged food/recipe id, resolved from the local store
+    /// whenever the entry list changes. An entry row carries no image of its
+    /// own, and looking one up per row per render would be a SwiftData fetch
+    /// inside `body`.
+    @State private var entryImageUrls: [String: String] = [:]
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showFoodSearch = false
@@ -44,6 +51,9 @@ struct DayLogView: View {
                 entryList
             }
         }
+        // Lets Siri resolve "this day" against the day on screen (iOS 18.4+;
+        // a no-op before).
+        .siriEntity(DaySummaryEntity.self, id: date)
         .navigationTitle(displayDate)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -228,6 +238,11 @@ struct DayLogView: View {
             editingEntry = entry
         } label: {
             HStack {
+                if let imageUrl = imageUrl(for: entry) {
+                    FoodImageView(imageUrl: imageUrl)
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.displayName)
                         .font(.body)
@@ -257,13 +272,43 @@ struct DayLogView: View {
         .buttonStyle(.plain)
     }
 
+    private func imageUrl(for entry: Entry) -> String? {
+        // The list response resolves the food's or recipe's image server-side;
+        // the local map is the fallback for rows that carry none — optimistic
+        // entries, blobs cached before the field existed, and Local mode.
+        if let url = entry.imageUrl, !url.isEmpty { return url }
+        if let foodId = entry.foodId, let url = entryImageUrls[foodId] { return url }
+        if let recipeId = entry.recipeId { return entryImageUrls[recipeId] }
+        return nil
+    }
+
+    /// Rebuilds `entryImageUrls` for the current entries. One store read per
+    /// distinct food/recipe, so a day of the same food costs one lookup.
+    private func resolveEntryImages() {
+        var urls: [String: String] = [:]
+        var seen: Set<String> = []
+        for entry in entries {
+            if let foodId = entry.foodId, seen.insert(foodId).inserted {
+                urls[foodId] = foodRepository.food(id: foodId)?.imageUrl
+            }
+            if let recipeId = entry.recipeId, seen.insert(recipeId).inserted {
+                urls[recipeId] = recipeRepository.recipe(id: recipeId)?.imageUrl
+            }
+        }
+        // Assigning a nil to a dictionary subscript removes the key, so foods
+        // without an image simply never land in the map.
+        entryImageUrls = urls
+    }
+
     private func loadEntries(showSpinner: Bool = false) async {
         entries = entryRepository.entries(date: date)
+        resolveEntryImages()
         if showSpinner { isLoading = entries.isEmpty }
         error = nil
         do {
             try await entryRepository.refresh(date: date)
             entries = entryRepository.entries(date: date)
+            resolveEntryImages()
         } catch {
             // Local data still renders — only block the screen when there is none.
             if entries.isEmpty { self.error = error }
@@ -278,6 +323,7 @@ struct DayLogView: View {
             errorMessage = error.localizedDescription
         }
         withAnimation { entries = entryRepository.entries(date: date) }
+        resolveEntryImages()
     }
 
     private func copyYesterday() async {
@@ -287,6 +333,7 @@ struct DayLogView: View {
         do {
             try await entryRepository.copyEntries(fromDate: yesterday, toDate: date)
             withAnimation { entries = entryRepository.entries(date: date) }
+            resolveEntryImages()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {
             errorMessage = error.localizedDescription

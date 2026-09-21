@@ -10,13 +10,22 @@ import { ApiError } from './errors';
 
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 
+/**
+ * Food and recipe thumbnails. Clients upload at 800px, so 512 leaves headroom
+ * for a retina-sized tile without storing the full camera capture.
+ */
+export const THUMBNAIL_MAX_DIM = 512;
+
+/** AI meal photos: kept larger so the model can still read a nutrition label. */
+export const AI_PHOTO_MAX_DIM = 1024;
+
 export const processImage = async (
 	file: File,
 	userId: string,
 	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
 ): Promise<string> => {
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const maxDim = opts?.maxDim ?? 400;
+	const maxDim = opts?.maxDim ?? THUMBNAIL_MAX_DIM;
 	const fit = opts?.fit ?? 'cover';
 
 	let processed: Buffer;

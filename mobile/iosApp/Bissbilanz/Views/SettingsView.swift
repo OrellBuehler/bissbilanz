@@ -12,6 +12,7 @@ struct SettingsView: View {
     @Environment(SyncManager.self) private var syncManager
     @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
+    @Environment(FoodImageLoader.self) private var foodImageLoader
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -54,6 +55,7 @@ struct SettingsView: View {
     @State private var hasTargetDate = false
     @State private var editTargetDate = Date()
     @State private var waterGoalDraft = "2000"
+    @FocusState private var waterGoalFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -87,6 +89,7 @@ struct SettingsView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 80)
+                            .focused($waterGoalFocused)
                             .onSubmit { Task { await saveWaterGoal() } }
                         Text(L10n.dayUnitMl)
                             .foregroundStyle(.secondary)
@@ -152,6 +155,10 @@ struct SettingsView: View {
                         // over MCP — so it has no meaning in Local mode.
                         NavigationLink { AiTasksView() } label: {
                             Label(L10n.aiTasks, systemImage: "sparkles")
+                        }
+                        // MCP is a server-only feature — hidden in Local mode.
+                        NavigationLink { ConnectClaudeView() } label: {
+                            Label(L10n.connectClaudeTitle, systemImage: "link")
                         }
                     }
                 }
@@ -340,6 +347,10 @@ struct SettingsView: View {
                                 // into the next session (Local mode or another
                                 // account).
                                 migrator.wipeLocalData()
+                                // wipeLocalData clears the files; this also
+                                // drops the decoded images the loader still
+                                // holds in memory, which outlive them.
+                                foodImageLoader.clear()
                                 authManager.logout()
                                 // Reset the mode so the next start shows the login
                                 // screen with the mode choice again.
@@ -402,6 +413,12 @@ struct SettingsView: View {
                     .disabled(!ErrorReporter.isEnabled)
                     #endif
                 }
+            }
+            .keyboardDismissable()
+            // The number pad has no return key, so the keyboard toolbar's
+            // Done (which resigns focus) is what commits the water goal.
+            .onChange(of: waterGoalFocused) { _, focused in
+                if !focused { Task { await saveWaterGoal() } }
             }
             .navigationTitle(L10n.settings)
             .sheet(isPresented: $isEditingGoals) {
@@ -637,6 +654,7 @@ struct SettingsView: View {
                 // Same teardown as sign-out: wipe local data before flipping auth
                 // state so nothing leaks into the next session.
                 migrator.wipeLocalData()
+                foodImageLoader.clear()
                 authManager.logout()
                 appModeManager.clear()
             } catch {

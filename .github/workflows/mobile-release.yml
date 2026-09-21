@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: 17
@@ -141,7 +141,10 @@ jobs:
 
   ios-release:
     if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'android'
-    runs-on: macos-15
+    # GitHub's arm64 Xcode 27 image, matching the iOS PR build
+    # (mobile-ios.yml): its SDK is the first that declares the iOS 27 App
+    # Intents types the Siri data queries adopt.
+    runs-on: xcode-27
     timeout-minutes: 45
     permissions:
       contents: read
@@ -223,7 +226,9 @@ jobs:
             exit 1
           fi
 
-      # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml).
+      # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml), pinned
+      # explicitly so a version-gated feature can never silently drop out of the
+      # archive.
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
@@ -236,7 +241,10 @@ jobs:
             ~/Library/Caches/Homebrew
             /opt/homebrew/Cellar/xcodegen
             /opt/homebrew/Cellar/sentry-cli
-          key: brew-xcodegen-sentry-cli-${{ runner.os }}
+          # Keyed on the image as well: Homebrew bottles are built per macOS
+          # release, so a Cellar restored from the macOS 15 image would be the
+          # wrong bottle on macOS 27 (see mobile-ios.yml).
+          key: brew-xcodegen-sentry-cli-xcode27-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install XcodeGen
         # Link explicitly: a cache-restored Cellar makes `brew install` skip
@@ -250,7 +258,7 @@ jobs:
       # The app links the KMP shared framework, so build and stage it for the
       # Release/device archive (mirrors mobile-ios.yml's debug/simulator steps).
       - name: Set up JDK 17
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: 17
@@ -346,6 +354,23 @@ jobs:
             MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             SENTRY_DSN="$SENTRY_DSN"
+
+      - name: Revoke the cloud-signing development certificates
+        # Cloud signing mints a fresh "Apple Development: Created via API" cert
+        # on every run (the ephemeral runner never holds a previous cert's
+        # private key). Apple caps development certs per team, so after ~10
+        # releases Archive fails with "Your account has reached the maximum
+        # number of certificates". Export re-signs with the distribution cert
+        # from secrets, so the cert is dead weight once Archive is done —
+        # revoke them all, including this run's, even when Archive failed.
+        if: always()
+        working-directory: ${{ github.workspace }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          ASC_PRIVATE_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_"$ASC_KEY_ID".p8 \
+            node scripts/ios/revoke-ci-certs.mjs --apply
 
       - name: Upload dSYMs to Sentry
         # Missing symbols must never block a build that already archived.

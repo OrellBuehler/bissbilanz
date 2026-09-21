@@ -94,7 +94,12 @@ final class RecipeRepository {
         guard let row = fetchRow(id: id), let existing = row.toRecipe() else {
             throw APIError.notFound
         }
-        var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        // Patch semantics throughout: `RecipeUpdate` omits its nil optionals,
+        // so an absent key means "leave this alone", never "clear it". That is
+        // why removing an image is `setImage`'s job and not something an
+        // update body could ever express.
+        let fullPatch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        var patch = fullPatch
         patch.removeValue(forKey: "ingredients")
         var updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
         // Ingredient edits apply to the local row in BOTH modes (in Local
@@ -108,11 +113,47 @@ final class RecipeRepository {
         row.update(from: updated)
         save()
         if LocalStore.isTempId(id) {
-            coalesceQueuedCreate(tempId: id, update: update)
+            // The queued create carries raw ingredient inputs, so it takes the
+            // unfiltered patch.
+            coalesceQueuedCreate(tempId: id) { body in
+                (try? JSONPatch.merged(RecipeCreate.self, base: body, patch: fullPatch)) ?? body
+            }
         } else {
             syncManager.enqueue(.updateRecipe(id: id, body: update))
         }
         return updated
+    }
+
+    /// Attaches or removes a recipe's image, as a partial PATCH — the food
+    /// counterpart is `FoodRepository.setImage`, and the reasoning is the same:
+    /// `RecipeUpdate` omits nil optionals, so a removal sent on a normal update
+    /// body would never reach the server. The superseded image is dropped from
+    /// the device, which for a Local-mode `file://` photo is the only copy
+    /// there is.
+    @discardableResult
+    func setImage(id: String, imageUrl: String?) async throws -> Recipe {
+        // NSNull, not a nil Optional: JSONSerialization rejects the latter, and
+        // an omitted key would read as "leave the image alone" rather than
+        // "remove it".
+        let patch: [String: Any] = ["imageUrl": imageUrl.map { $0 as Any } ?? NSNull()]
+        guard let row = fetchRow(id: id), let current = row.toRecipe(),
+              let patched = try? JSONPatch.merged(Recipe.self, base: current, patch: patch)
+        else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        if LocalStore.isTempId(id) {
+            coalesceQueuedCreate(tempId: id) { body in
+                (try? JSONPatch.merged(RecipeCreate.self, base: body, patch: patch)) ?? body
+            }
+        } else {
+            syncManager.enqueue(.setRecipeImage(id: id, imageUrl: imageUrl))
+        }
+        if let previous = current.imageUrl, previous != imageUrl {
+            LocalImageStore.evict(previous)
+        }
+        return patched
     }
 
     func deleteRecipe(id: String) async throws {
@@ -127,15 +168,14 @@ final class RecipeRepository {
     }
 
     /// Rewrites the still-queued create for a temp-id recipe so the eventual
-    /// upload carries the edited values.
-    private func coalesceQueuedCreate(tempId: String, update: RecipeUpdate) {
+    /// upload carries the edited values. If the create has already drained (no
+    /// queued op found), the edit stays local-only.
+    private func coalesceQueuedCreate(tempId: String, rewrite: (RecipeCreate) -> RecipeCreate) {
         for row in syncManager.queuedOperations(table: "recipes", affectedId: tempId) {
             guard let operation = row.operation(),
                   case let .createRecipe(body, localId) = operation
             else { continue }
-            let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-            let merged = (try? JSONPatch.merged(RecipeCreate.self, base: body, patch: patch)) ?? body
-            syncManager.replace(row, with: .createRecipe(body: merged, localId: localId))
+            syncManager.replace(row, with: .createRecipe(body: rewrite(body), localId: localId))
         }
     }
 

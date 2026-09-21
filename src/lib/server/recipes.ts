@@ -145,7 +145,14 @@ export const updateRecipe = (
 		const db = getDB();
 		const { ingredients, ...recipeData } = data;
 
-		return db.transaction(async (tx) => {
+		const result = await db.transaction(async (tx) => {
+			const [previous] =
+				recipeData.imageUrl !== undefined
+					? await tx
+							.select({ imageUrl: recipes.imageUrl })
+							.from(recipes)
+							.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
+					: [];
 			const [updated] = await tx
 				.update(recipes)
 				.set({ ...recipeData, updatedAt: lwwStamp(clientEditedAt) })
@@ -158,7 +165,7 @@ export const updateRecipe = (
 				)
 				.returning();
 
-			if (!updated) return null;
+			if (!updated) return { updated: null, superseded: null };
 
 			if (ingredients) {
 				// Reject ingredients referencing foods the caller doesn't own (IDOR).
@@ -176,8 +183,16 @@ export const updateRecipe = (
 				await tx.insert(recipeIngredients).values(rows);
 			}
 
-			return updated;
+			// Only when the write actually landed and the image really changed — an
+			// LWW-rejected update leaves the old URL in place.
+			const superseded =
+				previous?.imageUrl && previous.imageUrl !== updated.imageUrl ? previous.imageUrl : null;
+			return { updated, superseded };
 		});
+
+		// After commit, so a rolled-back update never destroys the file.
+		if (result.superseded) await unlinkUpload(result.superseded, userId);
+		return result.updated;
 	});
 
 export const deleteRecipe = async (

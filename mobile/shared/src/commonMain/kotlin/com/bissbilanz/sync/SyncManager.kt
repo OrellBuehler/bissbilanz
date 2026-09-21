@@ -469,6 +469,10 @@ class SyncManager(
                 api.updateRecipe(op.id, json.decodeFromString<RecipeUpdate>(op.body), idempotencyKey, clientEditedAt)
             }
 
+            is SyncOperation.SetRecipeImage -> {
+                api.setRecipeImage(op.id, op.imageUrl, idempotencyKey, clientEditedAt)
+            }
+
             is SyncOperation.DeleteRecipe -> {
                 api.deleteRecipe(op.id, idempotencyKey, clientEditedAt)
             }

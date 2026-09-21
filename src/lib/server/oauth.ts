@@ -210,9 +210,28 @@ export async function addAllowedRedirectUri(
 	return updated;
 }
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function loopbackKey(uri: string): string | undefined {
+	if (!URL.canParse(uri)) return undefined;
+	const url = new URL(uri);
+	if (url.protocol !== 'http:' || !LOOPBACK_HOSTS.has(url.hostname)) return undefined;
+	return `${url.hostname}${url.pathname}${url.search}`;
+}
+
+// RFC 8252 §7.3: native clients bind an ephemeral port, so a registered
+// loopback redirect matches any port as long as host and path agree.
 export function validateRedirectUri(client: OAuthClient, redirectUri: string): boolean {
 	const normalizedUri = redirectUri.replace(/\/$/, '');
-	return client.allowedRedirectUris.includes(normalizedUri);
+	if (client.allowedRedirectUris.includes(normalizedUri)) return true;
+
+	const requested = loopbackKey(normalizedUri);
+	if (!requested) return false;
+	return client.allowedRedirectUris.some((allowed) => loopbackKey(allowed) === requested);
+}
+
+export function isLoopbackRedirectUri(redirectUri: string): boolean {
+	return loopbackKey(redirectUri) !== undefined;
 }
 
 export async function hasAuthorization(userId: string, clientId: string): Promise<boolean> {

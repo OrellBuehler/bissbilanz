@@ -141,6 +141,18 @@ sealed class SyncOperation {
         override val description get() = "update recipe $id"
     }
 
+    /** Attaches or removes a recipe's image; a null [imageUrl] is a removal. */
+    @Serializable
+    @SerialName("set_recipe_image")
+    data class SetRecipeImage(
+        val id: String,
+        val imageUrl: String? = null,
+    ) : SyncOperation() {
+        override val affectedTable = "recipes"
+        override val affectedId get() = id
+        override val description get() = "set recipe image $id"
+    }
+
     @Serializable
     @SerialName("delete_recipe")
     data class DeleteRecipe(

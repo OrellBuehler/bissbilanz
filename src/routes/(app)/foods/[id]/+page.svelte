@@ -14,8 +14,8 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
-	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
-	import { uploadImage } from '$lib/utils/image-upload';
+	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
+	import { removeImage, uploadImage } from '$lib/utils/image-upload';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import { browser } from '$app/environment';
@@ -80,32 +80,24 @@
 		}
 	});
 
-	const PALETTE = [
-		{ bg: 'bg-rose-200', text: 'text-rose-700' },
-		{ bg: 'bg-sky-200', text: 'text-sky-700' },
-		{ bg: 'bg-amber-200', text: 'text-amber-700' },
-		{ bg: 'bg-emerald-200', text: 'text-emerald-700' },
-		{ bg: 'bg-violet-200', text: 'text-violet-700' },
-		{ bg: 'bg-orange-200', text: 'text-orange-700' },
-		{ bg: 'bg-teal-200', text: 'text-teal-700' },
-		{ bg: 'bg-pink-200', text: 'text-pink-700' }
-	];
-
-	const colorIndex = $derived(
-		name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % PALETTE.length
-	);
-	const placeholderColor = $derived(PALETTE[colorIndex]);
-	const initial = $derived(name.charAt(0).toUpperCase());
-
-	const handleImageUpload = async (e: Event) => {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file || !food || uploading) return;
+	const handleImageUpload = async (file: File) => {
+		if (!food || uploading) return;
 
 		uploading = true;
 		try {
 			const newUrl = await uploadImage(file, { type: 'food', id: food.id });
 			if (newUrl) imageUrl = newUrl;
+		} finally {
+			uploading = false;
+		}
+	};
+
+	const handleImageRemove = async () => {
+		if (!food || uploading) return;
+
+		uploading = true;
+		try {
+			if (await removeImage({ type: 'food', id: food.id })) imageUrl = null;
 		} finally {
 			uploading = false;
 		}
@@ -218,32 +210,13 @@
 	{#if !food && !initialized}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if food}
-		<!-- Image section -->
-		<div class="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
-			{#if imageUrl}
-				<img src={imageUrl} alt={name} class="h-full w-full object-cover" />
-			{:else}
-				<div class="flex h-full w-full items-center justify-center {placeholderColor.bg}">
-					<span class="text-6xl font-bold {placeholderColor.text}">{initial}</span>
-				</div>
-			{/if}
-			{#if uploading}
-				<div class="absolute inset-0 flex items-center justify-center bg-background/60">
-					<Spinner class="size-8" />
-				</div>
-			{/if}
-		</div>
-		<div>
-			<Label for="image-upload">{m.image_upload_label()}</Label>
-			<input
-				id="image-upload"
-				type="file"
-				accept="image/*"
-				disabled={uploading}
-				onchange={handleImageUpload}
-				class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
-			/>
-		</div>
+		<ImageUploadField
+			{name}
+			{imageUrl}
+			{uploading}
+			onUpload={handleImageUpload}
+			onRemove={handleImageRemove}
+		/>
 
 		<!-- Favorite toggle -->
 		<div class="flex items-center gap-3">

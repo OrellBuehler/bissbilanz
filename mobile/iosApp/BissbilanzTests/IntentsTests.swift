@@ -172,6 +172,36 @@ struct IntentsTests {
         }
     }
 
+    @Test("Recipe entities provide a placeholder for missing or remote images")
+    func recipeEntityImageFallback() throws {
+        let recipe = try JSONPatch.decode(Recipe.self, from: [
+            "id": "r1", "userId": "u1", "name": "Bowl",
+            "totalServings": 2, "isFavorite": false, "calories": 500,
+        ])
+        let placeholder = DisplayRepresentation.Image(systemName: "book.closed")
+        #expect(RecipeEntity(recipe: recipe).imageUrl == nil)
+        #expect(RecipeEntity(recipe: recipe).displayRepresentation.image == placeholder)
+        // Nothing is cached in a test host (no App Group container), so an
+        // attached image still falls back rather than crashing.
+        let pictured = try JSONPatch.merged(
+            Recipe.self, base: recipe, patch: ["imageUrl": "/uploads/a1b2.webp"]
+        )
+        #expect(RecipeEntity(recipe: pictured).imageUrl == "/uploads/a1b2.webp")
+        #expect(RecipeEntity(recipe: pictured).displayRepresentation.image == placeholder)
+    }
+
+    @Test("RecipeEntity carries a per-serving calorie subtitle")
+    func recipeEntityMapping() throws {
+        let recipe = try JSONPatch.decode(Recipe.self, from: [
+            "id": "r1", "userId": "u1", "name": "Bowl",
+            "totalServings": 2, "isFavorite": false, "calories": 500,
+        ])
+        let entity = RecipeEntity(recipe: recipe)
+        #expect(entity.id == "r1")
+        #expect(entity.caloriesPerServing == 250)
+        #expect(entity.attributeSet.title == "Bowl")
+    }
+
     @Test("FoodEntity carries the fields the system displays and indexes")
     func foodEntityMapping() {
         let food = harness_food(id: "f1", name: "Banana", calories: 105, brand: "Dole")

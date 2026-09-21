@@ -108,7 +108,8 @@ Barcode scanning requires a network connection to query Open Food Facts. There i
 
 Individual food entries in `foodEntries` do not support:
 
-- Text notes (e.g., "felt bloated after this meal")
+- Text notes (e.g., "felt bloated after this meal") — the column, API field and MCP
+  argument exist, but no client surfaces them
 - Photo attachments per entry (foods/recipes have images, but diary entries do not)
 
 ### 9. UI Component Test Coverage

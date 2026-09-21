@@ -77,8 +77,16 @@ enum WidgetSnapshotWriter {
             meals: mealTotals,
             latestWeightKg: latestWeight?.weightKg,
             latestWeightDate: latestWeight?.entryDate,
+            // `imageUrl` lives only inside the encoded blob (there is no
+            // column for it), so the capped slice is decoded — at most
+            // `favoritesLimit` rows, not the whole favorites table.
             favorites: favorites.prefix(favoritesLimit).map {
-                WidgetSnapshot.FavoriteFood(id: $0.id, name: $0.name, calories: $0.calories)
+                WidgetSnapshot.FavoriteFood(
+                    id: $0.id,
+                    name: $0.name,
+                    calories: $0.calories,
+                    imageUrl: $0.toFood()?.imageUrl
+                )
             },
             generatedAt: Date()
         )

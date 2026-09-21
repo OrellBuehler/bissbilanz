@@ -100,14 +100,14 @@ class DashboardViewModelTest {
         }
 
     @Test
-    fun nextDayAllowsFutureDates() =
+    fun nextDayDoesNotGoPastToday() =
         runTest {
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             val today = viewModel.selectedDate.value
 
             viewModel.nextDay()
 
-            assertEquals(today.toEpochDays() + 1, viewModel.selectedDate.value.toEpochDays())
+            assertEquals(today, viewModel.selectedDate.value)
         }
 
     @Test

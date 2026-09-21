@@ -29,6 +29,13 @@ struct Entry: Codable, Identifiable {
     let carbs: Double?
     let fat: Double?
     let fiber: Double?
+    /// The logged food's (or recipe's) image, resolved server-side on the
+    /// `/api/entries` list items. Absent from POST/PATCH rows and from blobs
+    /// cached before this field existed, so it is a defaulted `var`: the
+    /// memberwise init stays source-compatible and an older `jsonData` still
+    /// decodes (`LocalStoreCoding.decode` is `try?` — a decode failure would
+    /// silently drop the row).
+    var imageUrl: String? = nil
     let servingSize: Double?
     let servingUnit: ServingUnit?
     let date: String?

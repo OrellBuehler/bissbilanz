@@ -186,6 +186,8 @@ final class AuthManager {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                ErrorReporter.captureWarning("Sign in with Apple rejected by server", context: ["status": String(status)])
                 return false
             }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)

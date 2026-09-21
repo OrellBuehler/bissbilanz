@@ -240,6 +240,26 @@ final class FoodRepository {
         save()
     }
 
+    /// One alphabetical page of the catalog for the Foods tab's "All" list, so
+    /// a database of thousands of foods is never held in memory at once.
+    /// Server pages are cached like a search; Local mode and offline page
+    /// through the local store instead.
+    func foodsPage(limit: Int, offset: Int) async -> [Food] {
+        if !appMode.isLocal, let page = try? await api.getFoods(limit: limit, offset: offset) {
+            let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+            for food in page where !pendingIds.contains(food.id) {
+                upsert(food)
+            }
+            save()
+            return page
+        }
+        var descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        descriptor.fetchLimit = limit
+        descriptor.fetchOffset = offset
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.compactMap { $0.toFood() }
+    }
+
     /// Server-ordered recents (trimmed foods, not cached — mirrors Android);
     /// falls back to the locally derived list offline and in Local mode.
     func refreshRecentFoods(limit: Int = 20) async -> [Food] {
