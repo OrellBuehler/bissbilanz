@@ -1,25 +1,30 @@
 import * as Sentry from '@sentry/sveltekit';
 import { and, eq, isNotNull, max, min } from 'drizzle-orm';
 import { unlink } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { getDB } from './db';
 import {
+	aiTasks,
 	dayProperties,
 	foodEntries,
 	foods,
 	recipes,
 	sleepEntries,
 	supplements,
+	uploads,
 	users,
 	weightEntries
 } from './schema';
-import { UPLOAD_DIR } from './images';
+import { UPLOAD_DIR, uploadFilename } from './images';
 
 export async function deleteAccount(userId: string): Promise<void> {
 	const db = getDB();
 
-	const imageUrls = await db.transaction(async (tx) => {
-		const [foodImages, recipeImages] = await Promise.all([
+	const filenames = await db.transaction(async (tx) => {
+		// `uploads` rows cascade with the user, so the filenames have to be
+		// collected before the delete — including the AI meal photos, which are
+		// uploads too and used to be left behind on disk.
+		const [foodImages, recipeImages, taskPhotos, ownedUploads] = await Promise.all([
 			tx
 				.select({ imageUrl: foods.imageUrl })
 				.from(foods)
@@ -27,7 +32,12 @@ export async function deleteAccount(userId: string): Promise<void> {
 			tx
 				.select({ imageUrl: recipes.imageUrl })
 				.from(recipes)
-				.where(and(eq(recipes.userId, userId), isNotNull(recipes.imageUrl)))
+				.where(and(eq(recipes.userId, userId), isNotNull(recipes.imageUrl))),
+			tx
+				.select({ photoUrls: aiTasks.photoUrls })
+				.from(aiTasks)
+				.where(and(eq(aiTasks.userId, userId), isNotNull(aiTasks.photoUrls))),
+			tx.select({ filename: uploads.filename }).from(uploads).where(eq(uploads.userId, userId))
 		]);
 
 		// food_entries and supplement_ingredients reference foods/recipes with
@@ -40,14 +50,18 @@ export async function deleteAccount(userId: string): Promise<void> {
 		await tx.delete(foods).where(eq(foods.userId, userId));
 		await tx.delete(users).where(eq(users.id, userId));
 
-		return [...foodImages, ...recipeImages]
-			.map((row) => row.imageUrl)
-			.filter((url): url is string => url !== null && url.startsWith('/uploads/'));
+		const urls = [
+			...foodImages.map((row) => row.imageUrl),
+			...recipeImages.map((row) => row.imageUrl),
+			...taskPhotos.flatMap((row) => row.photoUrls ?? []),
+			...ownedUploads.map((row) => `/uploads/${row.filename}`)
+		];
+		return new Set(urls.map(uploadFilename).filter((name): name is string => name !== null));
 	});
 
 	await Promise.all(
-		imageUrls.map((url) =>
-			unlink(join(UPLOAD_DIR, basename(url))).catch((err) => {
+		[...filenames].map((filename) =>
+			unlink(join(UPLOAD_DIR, filename)).catch((err) => {
 				if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
 			})
 		)
