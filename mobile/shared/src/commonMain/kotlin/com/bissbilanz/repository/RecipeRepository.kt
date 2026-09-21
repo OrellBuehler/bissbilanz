@@ -116,6 +116,12 @@ class RecipeRepository(
             .mapNotNull { it.operation.affectedId }
             .toSet()
 
+    fun getRecipeCached(id: String): RecipeDetail? =
+        db.userDataDatabaseQueries
+            .selectRecipeById(id)
+            .executeAsOneOrNull()
+            ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+
     suspend fun getRecipe(id: String): RecipeDetail {
         if (appModeManager.isLocal) {
             val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
@@ -145,7 +151,7 @@ class RecipeRepository(
         id: String,
         recipe: RecipeUpdate,
     ): RecipeDetail {
-        val existing = cachedRecipe(id)
+        val existing = getRecipeCached(id)
         val result =
             if (existing != null) {
                 val updated =
@@ -196,7 +202,7 @@ class RecipeRepository(
         id: String,
         imageUrl: String?,
     ): RecipeDetail? {
-        val previous = cachedRecipe(id)
+        val previous = getRecipeCached(id)
         val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(Dispatchers.IO) { cacheRecipe(it) } }
         if (id.isTempId()) {
             syncQueue.rewriteQueuedCreate("recipes", id) { op ->
@@ -212,7 +218,7 @@ class RecipeRepository(
     }
 
     suspend fun deleteRecipe(id: String) {
-        val imageUrl = cachedRecipe(id)?.imageUrl
+        val imageUrl = getRecipeCached(id)?.imageUrl
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
@@ -244,12 +250,6 @@ class RecipeRepository(
             create.copy(body = json.encodeToString(merged))
         }
     }
-
-    private fun cachedRecipe(id: String): RecipeDetail? =
-        db.userDataDatabaseQueries
-            .selectRecipeById(id)
-            .executeAsOneOrNull()
-            ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
 
     private fun cacheRecipe(recipe: RecipeDetail) {
         db.userDataDatabaseQueries.insertRecipe(

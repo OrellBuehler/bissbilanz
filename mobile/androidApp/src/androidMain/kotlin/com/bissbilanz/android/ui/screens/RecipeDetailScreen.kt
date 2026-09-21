@@ -116,6 +116,7 @@ fun RecipeDetailScreen(
                 showLogDialog = false
             },
             macros = recipe?.let { MealPickerMacros(it.calories, it.protein, it.carbs, it.fat, it.fiber) },
+            imageUrl = recipe?.imageUrl,
         )
     }
 

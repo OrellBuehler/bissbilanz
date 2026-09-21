@@ -1,12 +1,14 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,10 +94,23 @@ fun MealCard(
                     } else {
                         ""
                     }
+                val imageUrl = rememberEntryImageUrl(entry)
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    imageUrl?.let { url ->
+                        FoodImage(
+                            imageUrl = url,
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Text(
                         "$servingsText$name",
                         style = MaterialTheme.typography.bodyMedium,

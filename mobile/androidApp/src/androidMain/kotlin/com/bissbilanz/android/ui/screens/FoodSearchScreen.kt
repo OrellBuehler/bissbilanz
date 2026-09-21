@@ -93,6 +93,7 @@ fun FoodSearchScreen(navController: NavController) {
                 foodToLog = null
             },
             macros = MealPickerMacros(food.calories, food.protein, food.carbs, food.fat, food.fiber),
+            imageUrl = food.imageUrl,
         )
     }
 

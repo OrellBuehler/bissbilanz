@@ -90,6 +90,7 @@ fun RecipeListScreen(navController: NavController) {
                 recipeToLog = null
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
+            imageUrl = recipe.imageUrl,
         )
     }
 
