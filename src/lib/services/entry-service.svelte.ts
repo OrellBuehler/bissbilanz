@@ -75,6 +75,7 @@ async function create(entry: {
 	let fiber: number | null = null;
 	let servingSize: number | null = null;
 	let servingUnit: string | null = null;
+	let imageUrl: string | null = null;
 
 	// Macros are stored PER-SERVING to match the server (`/api/entries` returns
 	// per-serving values and `calculateEntryMacros` multiplies by `servings`).
@@ -90,6 +91,7 @@ async function create(entry: {
 			fiber = food.fiber;
 			servingSize = food.servingSize;
 			servingUnit = food.servingUnit;
+			imageUrl = food.imageUrl;
 		}
 	} else if (recipeId) {
 		const recipe = await db.recipes.get(recipeId);
@@ -103,6 +105,7 @@ async function create(entry: {
 			carbs = (recipe.carbs ?? 0) * perServing;
 			fat = (recipe.fat ?? 0) * perServing;
 			fiber = (recipe.fiber ?? 0) * perServing;
+			imageUrl = recipe.imageUrl;
 		}
 	} else if (entry.quickName) {
 		foodName = entry.quickName;
@@ -129,6 +132,7 @@ async function create(entry: {
 		fiber,
 		servingSize,
 		servingUnit,
+		imageUrl,
 		quickNutrients: entry.quickNutrients ?? null,
 		createdAt: now
 	});
