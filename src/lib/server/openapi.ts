@@ -1387,9 +1387,9 @@ export function generateSpec() {
 								schema: {
 									type: 'object' as const,
 									properties: {
-										file: { type: 'string' as const, format: 'binary' }
+										image: { type: 'string' as const, format: 'binary' }
 									},
-									required: ['file']
+									required: ['image']
 								}
 							}
 						}

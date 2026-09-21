@@ -20,6 +20,7 @@ import com.bissbilanz.android.images.ApiHostAuthInterceptor
 import com.bissbilanz.android.images.FoodImageResolver
 import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.images.LocalImageStore
+import com.bissbilanz.android.images.LocalImageSweeper
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.AccountDowngradeController
@@ -114,6 +115,7 @@ class BissbilanzApplication :
                 single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
                 single<LocalDataMigrator.LocalPhotoReader> { AndroidLocalPhotoReader(androidContext()) }
                 single { FoodImageResolver(androidContext(), get(), get(named("baseUrl"))) }
+                single { LocalImageSweeper(androidContext(), get(), get(), get()) }
                 single { FoodImageUploader(androidContext(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
@@ -311,6 +313,12 @@ class BissbilanzApplication :
         // per launch from whatever the cache already holds.
         koin.get<CoroutineScope>().launch {
             FoodShortcutPublisher.publish(this@BissbilanzApplication)
+        }
+
+        // Local mode has no server-side orphan cleanup; start-up is the one moment
+        // no form is open, so an abandoned photo can be dropped safely.
+        koin.get<CoroutineScope>().launch {
+            koin.get<LocalImageSweeper>().sweep()
         }
     }
 

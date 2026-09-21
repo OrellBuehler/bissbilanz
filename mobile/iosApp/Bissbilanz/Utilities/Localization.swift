@@ -1842,6 +1842,10 @@ enum L10n {
         localized("food_photo", en: "Food photo", de: "Lebensmittelfoto")
     }
 
+    static var recipePhoto: String {
+        localized("recipe_photo", en: "Recipe photo", de: "Rezeptfoto")
+    }
+
     static var removePhoto: String {
         localized("remove_photo", en: "Remove photo", de: "Foto entfernen")
     }

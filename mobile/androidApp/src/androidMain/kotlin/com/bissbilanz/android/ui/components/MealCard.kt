@@ -1,12 +1,15 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,33 +84,50 @@ fun MealCard(
             }
 
             entries.forEachIndexed { index, entry ->
-                if (index > 0) {
-                    HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.5f))
-                }
-                val name = entry.resolvedName()
-                val cal = entry.resolvedCalories()
-                val servingsText =
-                    if (entry.servings != 1.0) {
-                        "${entry.servings.toDisplayString()}x "
-                    } else {
-                        ""
+                // Keyed so a delete or an insert moves each row's remembered state with
+                // it instead of leaving it behind in a slot the next entry now occupies.
+                key(entry.id) {
+                    if (index > 0) {
+                        HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.5f))
                     }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        "$servingsText$name",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        cal.formatAsInt(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    val name = entry.resolvedName()
+                    val cal = entry.resolvedCalories()
+                    val servingsText =
+                        if (entry.servings != 1.0) {
+                            "${entry.servings.toDisplayString()}x "
+                        } else {
+                            ""
+                        }
+                    val imageUrl = rememberEntryImageUrl(entry)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        imageUrl?.let { url ->
+                            FoodImage(
+                                imageUrl = url,
+                                contentDescription = null,
+                                modifier =
+                                    Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            "$servingsText$name",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            cal.formatAsInt(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

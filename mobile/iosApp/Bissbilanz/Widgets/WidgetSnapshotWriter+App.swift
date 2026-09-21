@@ -45,6 +45,14 @@ extension WidgetSnapshotWriter {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
 
+    /// Downloads the images the snapshot's favorites reference into
+    /// `LocalImageStore`, answering whether anything new landed there. Set once
+    /// at launch (`BissbilanzApp.init`) because the widget extension compiles
+    /// the portable half of this type but has neither `BissbilanzAPI` nor any
+    /// business fetching — it renders favorites off whatever is already on
+    /// disk, which is exactly what this puts there.
+    static var warmFavoriteImages: (@MainActor ([String]) async -> Bool)?
+
     static func scheduleUpdate(context: ModelContext) {
         guard !isRunningTests else { return }
         pendingTask?.cancel()
@@ -75,6 +83,19 @@ extension WidgetSnapshotWriter {
         }.value
         saveAndReload(built.snapshot)
         PhoneWatchConnectivity.shared.sendState(built.watchState)
+        // After the snapshot, not before: the widgets should show the new
+        // totals immediately rather than wait on a download, and a favorite
+        // whose picture arrives a moment later gets a second reload.
+        await warmImages(of: built.snapshot)
+    }
+
+    /// Fetches any of the snapshot favorites' images the device does not hold
+    /// yet, and reloads the widgets when that changed what they can render.
+    private static func warmImages(of snapshot: WidgetSnapshot) async {
+        guard !isRunningTests, let warm = warmFavoriteImages else { return }
+        let urls = snapshot.favorites.compactMap(\.imageUrl)
+        guard !urls.isEmpty, await warm(urls) else { return }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Synchronous, main-context variant of `publish` for callers that already

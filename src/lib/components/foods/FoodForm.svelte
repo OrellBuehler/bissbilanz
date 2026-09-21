@@ -13,7 +13,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Check from '@lucide/svelte/icons/check';
-	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { servingUnitValues, type ServingUnit } from '$lib/units';
@@ -73,6 +73,7 @@
 		onBarcodeScan?: (barcode: string) => void;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
+		onImageRemove?: () => Promise<void>;
 		uploading?: boolean;
 		visibleNutrients?: string[];
 	};
@@ -83,6 +84,7 @@
 		onBarcodeScan,
 		imageUrl,
 		onImageUpload,
+		onImageRemove,
 		uploading = false,
 		visibleNutrients = DEFAULT_VISIBLE_NUTRIENTS
 	}: Props = $props();
@@ -159,30 +161,13 @@
 </script>
 
 {#if onImageUpload}
-	{#if imageUrl}
-		<div class="mb-4">
-			<div class="relative aspect-video w-full overflow-hidden rounded-xl border">
-				<img src={imageUrl} alt={form.name} class="h-full w-full object-cover" />
-				{#if uploading}
-					<div class="absolute inset-0 flex items-center justify-center bg-background/60">
-						<Spinner class="size-8" />
-					</div>
-				{/if}
-			</div>
-		</div>
-	{/if}
 	<div class="mb-4">
-		<Label for="food-image-upload">{m.image_upload_label()}</Label>
-		<input
-			id="food-image-upload"
-			type="file"
-			accept="image/*"
-			disabled={uploading}
-			onchange={async (e) => {
-				const file = (e.target as HTMLInputElement).files?.[0];
-				if (file) await onImageUpload(file);
-			}}
-			class="mt-1 block w-full text-sm file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
+		<ImageUploadField
+			name={form.name}
+			{imageUrl}
+			{uploading}
+			onUpload={onImageUpload}
+			onRemove={onImageRemove}
 		/>
 	</div>
 {/if}

@@ -66,20 +66,25 @@ class LocalDataMigratorTest {
         cacheDb = inMemoryCacheDatabase()
         appMode = appModeManager(AppMode.LOCAL)
         syncQueue = SyncQueue(cacheDb, json, appMode)
-        migrator = migratorFor(db)
+        // The default reader stands in for a downgrade-localized photo on disk; the
+        // tests that care about a missing file install their own.
+        migrator = migratorFor(db, localPhotoReader = { url -> url.substringAfterLast('/') to byteArrayOf(1, 2, 3) })
     }
 
-    private fun migratorFor(userDb: UserDataDatabase) =
-        LocalDataMigrator(
-            userDb,
-            cacheDb,
-            api,
-            json,
-            appMode,
-            syncQueue,
-            NoopErrorReporter(),
-            LocalDataWiper(userDb, cacheDb, syncQueue),
-        )
+    private fun migratorFor(
+        userDb: UserDataDatabase,
+        localPhotoReader: LocalDataMigrator.LocalPhotoReader? = null,
+    ) = LocalDataMigrator(
+        userDb,
+        cacheDb,
+        api,
+        json,
+        appMode,
+        syncQueue,
+        NoopErrorReporter(),
+        LocalDataWiper(userDb, cacheDb, syncQueue),
+        localPhotoReader,
+    )
 
     // -------------------------------------------------------------------------------
     // plan()
@@ -601,6 +606,50 @@ class LocalDataMigratorTest {
             coVerify(exactly = 0) { api.createSupplement(any()) }
             assertTrue(queries.selectAllRecipes().executeAsList().isEmpty())
             assertTrue(queries.selectAllSupplements().executeAsList().isEmpty())
+        }
+
+    // -------------------------------------------------------------------------------
+    // Images
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun migrateReuploadsALocalPhotoAndSendsTheServerUrl() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple").copy(imageUrl = "file:///photos/local-a.jpg"))
+            val captures = stubHappyApi()
+            coEvery { api.uploadImage(any(), any(), any()) } returns "/uploads/srv-a.webp"
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            assertEquals("/uploads/srv-a.webp", captures.foodCreates.single().imageUrl)
+            coVerify { api.uploadImage("local-a.jpg", byteArrayOf(1, 2, 3), any()) }
+        }
+
+    @Test
+    fun migrateDropsAnUnreadableLocalPhotoInsteadOfStrandingTheFood() =
+        runTest {
+            migrator = migratorFor(db, localPhotoReader = { null })
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple").copy(imageUrl = "file:///photos/gone.jpg"))
+            val captures = stubHappyApi()
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            assertNull(captures.foodCreates.single().imageUrl)
+            coVerify(exactly = 0) { api.uploadImage(any(), any(), any()) }
+        }
+
+    @Test
+    fun migrateSendsAnAlreadyServerHostedImageUrlUnchanged() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple").copy(imageUrl = "/uploads/kept.webp"))
+            val captures = stubHappyApi()
+
+            migrator.migrate()
+
+            assertEquals("/uploads/kept.webp", captures.foodCreates.single().imageUrl)
+            coVerify(exactly = 0) { api.uploadImage(any(), any(), any()) }
         }
 
     // -------------------------------------------------------------------------------

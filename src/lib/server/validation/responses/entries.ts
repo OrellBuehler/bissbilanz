@@ -22,6 +22,7 @@ const entryListItemSchema = z
 		carbs: z.number(),
 		fat: z.number(),
 		fiber: z.number(),
+		imageUrl: z.string().nullable(),
 		eatenAt: z.string(),
 		createdAt: z.string().optional(),
 		servingSize: z.number().nullable(),

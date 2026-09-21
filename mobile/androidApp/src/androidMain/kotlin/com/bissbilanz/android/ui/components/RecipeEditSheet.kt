@@ -52,11 +52,16 @@ fun RecipeEditSheet(
     var isLoading by remember { mutableStateOf(recipeId != null) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // The recipe itself saved but its image didn't: the sheet stays open with the photo
+    // error, so leaving it still has to report the save the caller's list must reflect.
+    var bodySaved by remember { mutableStateOf(false) }
     val isEditing = recipeId != null
 
     var name by remember { mutableStateOf("") }
     var totalServings by remember { mutableStateOf("1") }
     var isFavorite by remember { mutableStateOf(false) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+    var originalImageUrl by remember { mutableStateOf<String?>(null) }
 
     var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
     var showFoodPicker by remember { mutableStateOf(false) }
@@ -71,6 +76,11 @@ fun RecipeEditSheet(
     val loadFailedMessage = stringResource(R.string.recipe_edit_load_failed)
     val saveFailedMessage = stringResource(R.string.recipe_edit_save_failed)
     val offFailedMessage = stringResource(R.string.food_search_off_add_failed)
+    val imageSaveFailedMessage = stringResource(R.string.food_image_save_failed)
+
+    fun close() {
+        if (bodySaved) onSaved() else onDismiss()
+    }
 
     LaunchedEffect(recipeId) {
         if (recipeId != null) {
@@ -79,6 +89,8 @@ fun RecipeEditSheet(
                 name = recipe.name
                 totalServings = recipe.totalServings.toDisplayString()
                 isFavorite = recipe.isFavorite
+                imageUrl = recipe.imageUrl
+                originalImageUrl = recipe.imageUrl
                 ingredients =
                     recipe.ingredients.map { ing ->
                         RecipeIngredientRow(
@@ -244,7 +256,7 @@ fun RecipeEditSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { close() },
         sheetState = sheetState,
     ) {
         if (isLoading) {
@@ -268,6 +280,13 @@ fun RecipeEditSheet(
                     if (isEditing) stringResource(R.string.recipe_edit_edit_title) else stringResource(R.string.recipe_edit_create_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                )
+
+                FoodImageField(
+                    imageUrl = imageUrl,
+                    onImageUrlChange = { imageUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.recipe_image_label),
                 )
 
                 OutlinedTextField(
@@ -391,7 +410,7 @@ fun RecipeEditSheet(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
                         modifier = Modifier.weight(1f),
                     ) {
@@ -425,7 +444,29 @@ fun RecipeEditSheet(
                                                 isFavorite = isFavorite,
                                             ),
                                         )
+                                        bodySaved = true
+                                        // Separate from the body: `imageUrl` defaults to
+                                        // null on RecipeUpdate and the client omits
+                                        // defaults, so a removal sent that way would be
+                                        // dropped and the old image would stay.
+                                        if (imageUrl != originalImageUrl) {
+                                            try {
+                                                recipeRepo.setImage(id, imageUrl)
+                                            } catch (e: Exception) {
+                                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                                // The recipe is already saved, so this is
+                                                // the photo's failure alone; the generic
+                                                // save error would be a lie.
+                                                Log.e("RecipeEditSheet", "Failed to save recipe image", e)
+                                                errorReporter.captureException(e)
+                                                errorMessage = imageSaveFailedMessage
+                                                isSaving = false
+                                                return@launch
+                                            }
+                                        }
                                     } else {
+                                        // No id yet, so the already-uploaded URL rides
+                                        // along on the create body.
                                         recipeRepo.createRecipe(
                                             RecipeCreate(
                                                 name = nameVal,
@@ -434,6 +475,7 @@ fun RecipeEditSheet(
                                                         ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
+                                                imageUrl = imageUrl,
                                             ),
                                         )
                                     }

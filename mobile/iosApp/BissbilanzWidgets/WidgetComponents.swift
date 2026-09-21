@@ -151,6 +151,43 @@ struct WidgetMacroValue: View {
     }
 }
 
+/// Square food thumbnail for the favorites and quick-add widgets.
+///
+/// Renders only what `LocalImageStore` already holds on disk — the app warms
+/// the favorites' images into it on every snapshot publish. Deliberately no
+/// `AsyncImage` and no download: a widget extension has no business doing
+/// network I/O, and the ~30 MB address-space budget rules out full-size
+/// decodes, so the bytes go through `CGImageSourceCreateThumbnailAtIndex`.
+///
+/// Renders nothing at all when there is no cached image, so a row with no
+/// picture keeps its plain text layout instead of reserving an empty box.
+struct WidgetFoodThumbnail: View {
+    private let image: UIImage
+    private let size: CGFloat
+
+    /// Fails when nothing is cached for `imageUrl`, so callers write
+    /// `if let thumbnail = WidgetFoodThumbnail(...)` and a row without a
+    /// picture keeps its plain layout — an always-present view would still
+    /// cost its stack's spacing while drawing nothing.
+    init?(imageUrl: String?, size: CGFloat) {
+        // Scale for the densest screen a widget of ours can land on.
+        guard let image = LocalImageStore.thumbnail(for: imageUrl, maxPixel: Int(size * 3)) else {
+            return nil
+        }
+        self.image = image
+        self.size = size
+    }
+
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .interpolation(.medium)
+            .aspectRatio(contentMode: .fill)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
 extension View {
     /// Standard widget background matching the app's surfaces in both
     /// appearances.

@@ -182,6 +182,12 @@ bun run security           # Semgrep + bun audit + Trivy
 bun run push:vapid         # print a fresh VAPID key pair for Web Push
 ```
 
+Uploaded food and recipe images (and AI meal photos) are written to `UPLOAD_DIR`
+— `./uploads` locally, `/app/uploads` in the Docker image — and only their URLs are
+stored in the database. The image declares no volume for it, so a deployment has to
+mount that path on persistent storage; otherwise every image 404s after the next
+container replacement.
+
 Web Push (supplement reminders in the PWA) is optional: set `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` (a `mailto:` or `https://` contact URL) and the
 Notifications section appears in Settings. Leave them unset and the feature stays hidden.

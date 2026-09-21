@@ -231,9 +231,11 @@ struct ImageUploadResponse: Codable {
     let imageUrl: String
 }
 
-/// Partial food PATCH carrying only the image. Distinct from `FoodCreate`
-/// because that struct omits nil optionals, which would silently swallow a
-/// removal; here `imageUrl` is encoded even when nil.
+/// Partial PATCH carrying only the image — the body of both
+/// `setFoodImage` and `setRecipeImage`, since `/api/foods/{id}` and
+/// `/api/recipes/{id}` read the same field. Distinct from `FoodCreate` /
+/// `RecipeUpdate` because those omit nil optionals, which would silently
+/// swallow a removal; here `imageUrl` is encoded even when nil.
 struct ImagePatch: Codable {
     let imageUrl: String?
 

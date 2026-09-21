@@ -71,6 +71,9 @@ export const listEntriesByDate = async (
 				quickFiber: foodEntries.quickFiber,
 				quickNutrients: foodEntries.quickNutrients,
 				...entryMacroColumns(recipeMacrosCte),
+				imageUrl: sql<string | null>`COALESCE(${foods.imageUrl}, ${recipes.imageUrl})`.as(
+					'image_url'
+				),
 				eatenAt: foodEntries.eatenAt,
 				createdAt: foodEntries.createdAt,
 				servingSize: foods.servingSize,

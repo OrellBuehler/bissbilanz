@@ -277,8 +277,10 @@
 
     <!-- Food image -->
     <string name="food_image_label">Food photo</string>
+    <string name="recipe_image_label">Recipe photo</string>
     <string name="food_image_remove">Remove photo</string>
     <string name="food_image_upload_failed">Couldn\'t save the photo.</string>
+    <string name="food_image_save_failed">Saved, but the photo couldn\'t be updated.</string>
     <string name="food_image_crop_cancel">Cancel</string>
     <string name="food_image_crop_confirm">Use photo</string>
     <string name="food_image_crop_hint">Pinch to zoom, drag to reposition. The square area is what gets saved.</string>

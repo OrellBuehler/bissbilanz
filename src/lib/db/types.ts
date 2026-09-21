@@ -99,6 +99,9 @@ export type DexieFoodEntry = {
 	servingSize: number | null;
 	servingUnit: string | null;
 	quickNutrients?: Record<string, number> | null;
+	// Thumbnail of the referenced food or recipe; not indexed, so no Dexie
+	// version bump.
+	imageUrl?: string | null;
 	createdAt: string | null;
 };
 

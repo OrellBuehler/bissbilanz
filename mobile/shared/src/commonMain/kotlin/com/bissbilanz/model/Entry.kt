@@ -36,6 +36,9 @@ data class Entry(
     val carbs: Double? = null,
     val fat: Double? = null,
     val fiber: Double? = null,
+    // Flat image of the food or recipe behind the entry, as `/api/entries` returns it.
+    // Null on locally created rows, where [food]/[recipe] carry the image instead.
+    val imageUrl: String? = null,
     val servingSize: Double? = null,
     val servingUnit: String? = null,
 )
