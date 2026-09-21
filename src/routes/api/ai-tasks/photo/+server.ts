@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
-import { processImage } from '$lib/server/images';
+import { AI_PHOTO_MAX_DIM, processImage } from '$lib/server/images';
 import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
 import { MAX_AI_TASK_PHOTOS } from '$lib/server/validation';
 
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// parallel only trades throughput for peak memory.
 		const photoUrls: string[] = [];
 		for (const file of files) {
-			photoUrls.push(await processImage(file, userId, { maxDim: 1024, fit: 'inside' }));
+			photoUrls.push(await processImage(file, userId, { maxDim: AI_PHOTO_MAX_DIM, fit: 'inside' }));
 		}
 
 		Sentry.logger.info('AI task photos uploaded', {
