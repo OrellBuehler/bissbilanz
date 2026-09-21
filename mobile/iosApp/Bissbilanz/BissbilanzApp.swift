@@ -115,7 +115,14 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
-        _foodImageLoader = State(wrappedValue: FoodImageLoader(api: api))
+        let imageLoader = FoodImageLoader(api: api)
+        _foodImageLoader = State(wrappedValue: imageLoader)
+        // The widget extension renders favorites off `LocalImageStore` and
+        // never fetches, so the app puts the bytes there for it after every
+        // snapshot publish (see WidgetSnapshotWriter+App).
+        WidgetSnapshotWriter.warmFavoriteImages = { urls in
+            await imageLoader.warmCache(for: urls)
+        }
         let aiTasks = AiTaskStore(api: api, appMode: appMode)
         _aiTaskStore = State(wrappedValue: aiTasks)
 

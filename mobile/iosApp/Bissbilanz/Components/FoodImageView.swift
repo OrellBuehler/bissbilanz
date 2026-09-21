@@ -62,6 +62,32 @@ final class FoodImageLoader {
         LocalImageStore.clear()
     }
 
+    /// Makes sure the given images exist as files in `LocalImageStore`, and
+    /// reports whether anything new landed there.
+    ///
+    /// For the widget extension, which never touches the network: it renders
+    /// favorites straight off disk, so an image nobody has opened in the app
+    /// yet would otherwise never appear on the home screen. Only our own
+    /// `/uploads/` images are fetched — an Open Food Facts URL has no confined
+    /// cache file (and must never carry the account's token), and a `file://`
+    /// photo is already on disk.
+    ///
+    /// Deliberately not routed through `image(for:)`: these bytes are for
+    /// another process, and decoding twenty favorites into `memory` would cost
+    /// the app tens of megabytes for pictures it is not showing.
+    func warmCache(for imageUrls: [String]) async -> Bool {
+        var warmed = false
+        for imageUrl in imageUrls {
+            guard let key = LocalImageStore.cacheKey(for: imageUrl),
+                  LocalImageStore.cachedFile(for: imageUrl) == nil,
+                  let data = try? await api.downloadImage(path: imageUrl),
+                  LocalImageStore.write(data, named: key) != nil
+            else { continue }
+            warmed = true
+        }
+        return warmed
+    }
+
     private func load(_ imageUrl: String) async -> UIImage? {
         // Locally-attached (Local mode) or localized (downgrade) photos, and
         // anything already downloaded.
