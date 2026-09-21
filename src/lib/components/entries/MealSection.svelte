@@ -78,7 +78,7 @@
 
 {#snippet mealList()}
 	<ul class={dashboardStyle ? 'space-y-2' : 'space-y-2'}>
-		{#each entries as entry}
+		{#each entries as entry (entry.id)}
 			{#if !readonly}
 				{@const handleEdit = () =>
 					onEdit?.({

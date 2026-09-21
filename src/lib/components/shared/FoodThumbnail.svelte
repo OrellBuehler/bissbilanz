@@ -30,8 +30,14 @@
 
 	// Catalog and Open Food Facts URLs point at third-party hosts that can 404 or
 	// be blocked by the CSP; fall back to the placeholder instead of a broken tile.
-	let failedUrl = $state<string | null>(null);
-	const src = $derived(imageUrl && imageUrl !== failedUrl ? imageUrl : null);
+	// Reset on every `imageUrl` change, so a transient failure — an image that
+	// could not load while offline — does not stick for the rest of the session.
+	let failed = $state(false);
+	$effect(() => {
+		imageUrl;
+		failed = false;
+	});
+	const src = $derived(imageUrl && !failed ? imageUrl : null);
 </script>
 
 {#if src}
@@ -39,7 +45,7 @@
 		{src}
 		alt=""
 		loading="lazy"
-		onerror={() => (failedUrl = src)}
+		onerror={() => (failed = true)}
 		class={cn('shrink-0 overflow-hidden object-cover', variant.box, className)}
 	/>
 {:else}

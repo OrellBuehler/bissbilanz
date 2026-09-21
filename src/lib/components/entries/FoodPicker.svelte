@@ -134,7 +134,14 @@
 		}, 300);
 	};
 
-	let recentFoods: Array<{ id: string; name: string; lastServings?: number }> = $state([]);
+	let recentFoods: Array<{
+		id: string;
+		name: string;
+		lastServings?: number;
+		imageUrl?: string | null;
+	}> = $state([]);
+	// `/api/foods/recent` carries the image itself; the map only covers a recent
+	// food that the `foods` prop has but the response shape does not.
 	const foodImages = $derived(new Map(foods.map((f) => [f.id, f.imageUrl ?? null])));
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
@@ -214,7 +221,7 @@
 <Tabs.Content value="search" class="space-y-4">
 	<Input placeholder={m.add_food_search_placeholder()} bind:value={query} />
 	<ul class="max-h-60 space-y-2 overflow-auto">
-		{#each filtered() as food}
+		{#each filtered() as food (food.id)}
 			<li class="flex min-w-0 items-center justify-between gap-2">
 				<FoodThumbnail name={food.name} imageUrl={food.imageUrl} size="sm" />
 				<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
@@ -332,9 +339,13 @@
 		<p class="text-muted-foreground">{m.add_food_loading()}</p>
 	{:else}
 		<ul class="max-h-60 space-y-2 overflow-auto">
-			{#each recentFoods as food}
+			{#each recentFoods as food (food.id)}
 				<li class="flex min-w-0 items-center justify-between gap-2">
-					<FoodThumbnail name={food.name} imageUrl={foodImages.get(food.id)} size="sm" />
+					<FoodThumbnail
+						name={food.name}
+						imageUrl={food.imageUrl ?? foodImages.get(food.id)}
+						size="sm"
+					/>
 					<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
 					<Button
 						variant="outline"
@@ -364,7 +375,7 @@
 <Tabs.Content value="recipes" class="space-y-4">
 	<Input placeholder={m.add_food_search_recipes_placeholder()} bind:value={query} />
 	<ul class="max-h-60 space-y-2 overflow-auto">
-		{#each filteredRecipes() as recipe}
+		{#each filteredRecipes() as recipe (recipe.id)}
 			<li class="flex min-w-0 items-center justify-between gap-2">
 				<FoodThumbnail name={recipe.name} imageUrl={recipe.imageUrl} size="sm" />
 				<span class="min-w-0 flex-1 truncate text-sm">{recipe.name}</span>
