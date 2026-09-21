@@ -3,24 +3,30 @@ import CoreSpotlight
 import Foundation
 import SwiftUI
 
+// `appEntityIdentifier(_:)` lives in the AppIntents/SwiftUI cross-import
+// overlay, which the compiler loads implicitly when both frameworks are
+// imported. CodeQL's Swift extractor does not do that implicit lookup, so its
+// re-typecheck of this file failed with "cannot find 'appEntityIdentifier' in
+// scope" while the untraced build with the same Xcode passed. Naming the
+// overlay makes it an ordinary import the extractor follows.
+#if canImport(_AppIntents_SwiftUI)
+import _AppIntents_SwiftUI
+#endif
+
 // Everything the newer App Intents SDKs add on top of the iOS 18 baseline
 // lives in this one file, so the version fences sit in a single place instead
 // of being sprinkled through the entities, the queries and the views.
 //
 // The gating follows the pattern already used for Liquid Glass
 // (Views/LiquidGlass.swift): `#if compiler(>=N)` keeps the project building
-// against older SDKs — the repo compiles on Xcode 16.2 (Swift 6.0) in the
-// CodeQL job and on latest-stable everywhere else — and `#available` keeps
-// older systems on the pre-existing path at runtime. The deployment target
-// stays iOS 18.
-//
-// Two different gates are needed, because the two features landed in two
-// different releases:
+// against older SDKs (every job uses latest-stable Xcode, 26+) and
+// `#available` keeps older systems on the pre-existing path at runtime. The
+// deployment target stays iOS 18, i.e. the three most recent iOS releases.
 //
 //   * `OwnershipProvidingEntity` and `IndexedEntityQuery` are iOS 27, first
 //     declared by the Xcode 27 SDK, which ships Swift 6.4 → `compiler(>=6.4)`.
-//   * `appEntityIdentifier(_:)` is iOS 18.4, first declared by the Xcode 16.3
-//     SDK, which ships Swift 6.1 → `compiler(>=6.1)`.
+//   * `appEntityIdentifier(_:)` is iOS 18.4 and is declared by every SDK the
+//     project builds against, so it only needs the `#available` check.
 
 #if compiler(>=6.4)
 
@@ -142,20 +148,15 @@ extension View {
     /// can resolve "this day" or "that entry" against what the user is looking
     /// at instead of asking which one they mean.
     ///
-    /// Calls `appEntityIdentifier(_:)`, which is iOS 18.4 and first declared by
-    /// the Xcode 16.3 SDK (Swift 6.1) — hence the compiler gate as well as the
-    /// availability check. On anything older this returns the view unchanged,
-    /// so the call sites stay a single unconditional modifier.
+    /// `appEntityIdentifier(_:)` is iOS 18.4; on iOS 18.0–18.3 this returns
+    /// the view unchanged, so the call sites stay a single unconditional
+    /// modifier.
     @ViewBuilder
     func siriEntity<E: AppEntity>(_ type: E.Type, id: E.ID) -> some View {
-        #if compiler(>=6.1)
         if #available(iOS 18.4, *) {
             appEntityIdentifier(EntityIdentifier(for: type, identifier: id))
         } else {
             self
         }
-        #else
-        self
-        #endif
     }
 }
