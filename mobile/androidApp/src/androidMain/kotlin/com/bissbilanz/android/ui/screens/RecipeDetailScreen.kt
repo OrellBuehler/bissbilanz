@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -18,6 +20,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -201,6 +204,19 @@ fun RecipeDetailScreen(
                                 .verticalScroll(rememberScrollState())
                                 .padding(16.dp),
                     ) {
+                        r.imageUrl?.let { url ->
+                            FoodImage(
+                                imageUrl = url,
+                                contentDescription = r.name,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
                         Text(
                             stringResource(R.string.recipe_detail_servings, r.totalServings.toInt()),
                             style = MaterialTheme.typography.labelLarge,

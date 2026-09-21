@@ -275,6 +275,7 @@
 
     <!-- Food image -->
     <string name="food_image_label">Lebensmittelfoto</string>
+    <string name="recipe_image_label">Rezeptfoto</string>
     <string name="food_image_remove">Foto entfernen</string>
     <string name="food_image_upload_failed">Foto konnte nicht gespeichert werden.</string>
     <string name="food_image_crop_cancel">Abbrechen</string>

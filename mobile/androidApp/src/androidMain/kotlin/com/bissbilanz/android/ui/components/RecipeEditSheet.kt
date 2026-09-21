@@ -57,6 +57,8 @@ fun RecipeEditSheet(
     var name by remember { mutableStateOf("") }
     var totalServings by remember { mutableStateOf("1") }
     var isFavorite by remember { mutableStateOf(false) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+    var originalImageUrl by remember { mutableStateOf<String?>(null) }
 
     var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
     var showFoodPicker by remember { mutableStateOf(false) }
@@ -79,6 +81,8 @@ fun RecipeEditSheet(
                 name = recipe.name
                 totalServings = recipe.totalServings.toDisplayString()
                 isFavorite = recipe.isFavorite
+                imageUrl = recipe.imageUrl
+                originalImageUrl = recipe.imageUrl
                 ingredients =
                     recipe.ingredients.map { ing ->
                         RecipeIngredientRow(
@@ -270,6 +274,13 @@ fun RecipeEditSheet(
                     fontWeight = FontWeight.Bold,
                 )
 
+                FoodImageField(
+                    imageUrl = imageUrl,
+                    onImageUrlChange = { imageUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.recipe_image_label),
+                )
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -425,7 +436,14 @@ fun RecipeEditSheet(
                                                 isFavorite = isFavorite,
                                             ),
                                         )
+                                        // Separate from the body: `imageUrl` defaults to
+                                        // null on RecipeUpdate and the client omits
+                                        // defaults, so a removal sent that way would be
+                                        // dropped and the old image would stay.
+                                        if (imageUrl != originalImageUrl) recipeRepo.setImage(id, imageUrl)
                                     } else {
+                                        // No id yet, so the already-uploaded URL rides
+                                        // along on the create body.
                                         recipeRepo.createRecipe(
                                             RecipeCreate(
                                                 name = nameVal,
@@ -434,6 +452,7 @@ fun RecipeEditSheet(
                                                         ?: 1.0,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
+                                                imageUrl = imageUrl,
                                             ),
                                         )
                                     }
