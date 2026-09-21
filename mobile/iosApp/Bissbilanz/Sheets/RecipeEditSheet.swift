@@ -142,6 +142,7 @@ struct RecipeEditSheet: View {
 
         do {
             var saved: Recipe
+            var photoFailed = false
             if let existing = existingRecipe {
                 let update = RecipeUpdate(
                     name: name,
@@ -153,8 +154,21 @@ struct RecipeEditSheet: View {
                 // Separate from the body when editing: `RecipeUpdate` omits nil
                 // optionals, so a removal sent that way would be dropped and
                 // the old image would stay.
+                //
+                // Caught separately because the recipe itself is saved by now:
+                // letting this throw out would report a generic save failure
+                // for a change that actually landed. The sheet stays open on
+                // the photo error so Save can retry just the image.
                 if imageUrl != originalImageUrl {
-                    saved = try await recipeRepository.setImage(id: existing.id, imageUrl: imageUrl)
+                    do {
+                        saved = try await recipeRepository.setImage(id: existing.id, imageUrl: imageUrl)
+                    } catch {
+                        ErrorReporter.captureWarning(
+                            "Recipe image save failed",
+                            context: ["reason": ErrorReporter.reason(for: error)]
+                        )
+                        photoFailed = true
+                    }
                 }
             } else {
                 // No id yet on a create, so the already-uploaded URL rides
@@ -168,8 +182,14 @@ struct RecipeEditSheet: View {
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }
+            // The parent gets the saved recipe either way; only a clean save
+            // closes the sheet.
             onSaved(saved)
-            dismiss()
+            if photoFailed {
+                errorMessage = L10n.photoSaveFailed
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

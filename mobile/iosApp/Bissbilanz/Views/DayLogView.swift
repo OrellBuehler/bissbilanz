@@ -273,6 +273,10 @@ struct DayLogView: View {
     }
 
     private func imageUrl(for entry: Entry) -> String? {
+        // The list response resolves the food's or recipe's image server-side;
+        // the local map is the fallback for rows that carry none — optimistic
+        // entries, blobs cached before the field existed, and Local mode.
+        if let url = entry.imageUrl, !url.isEmpty { return url }
         if let foodId = entry.foodId, let url = entryImageUrls[foodId] { return url }
         if let recipeId = entry.recipeId { return entryImageUrls[recipeId] }
         return nil
