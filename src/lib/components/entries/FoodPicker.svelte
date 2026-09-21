@@ -135,7 +135,7 @@
 	};
 
 	let recentFoods: Array<{ id: string; name: string; lastServings?: number }> = $state([]);
-	const foodImage = (id: string) => foods.find((f) => f.id === id)?.imageUrl ?? null;
+	const foodImages = $derived(new Map(foods.map((f) => [f.id, f.imageUrl ?? null])));
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
@@ -334,7 +334,7 @@
 		<ul class="max-h-60 space-y-2 overflow-auto">
 			{#each recentFoods as food}
 				<li class="flex min-w-0 items-center justify-between gap-2">
-					<FoodThumbnail name={food.name} imageUrl={foodImage(food.id)} size="sm" />
+					<FoodThumbnail name={food.name} imageUrl={foodImages.get(food.id)} size="sm" />
 					<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
 					<Button
 						variant="outline"

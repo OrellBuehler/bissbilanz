@@ -37,7 +37,7 @@
 {#if src}
 	<img
 		{src}
-		alt={name}
+		alt=""
 		loading="lazy"
 		onerror={() => (failedUrl = src)}
 		class={cn('shrink-0 overflow-hidden object-cover', variant.box, className)}
