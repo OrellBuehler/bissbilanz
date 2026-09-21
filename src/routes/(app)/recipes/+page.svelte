@@ -12,7 +12,7 @@
 	import type { components } from '$lib/api/generated/schema';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
-	import { uploadImage, uploadImageFile } from '$lib/utils/image-upload';
+	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
 	import type { buildRecipePayload } from '$lib/utils/recipe-builder';
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -125,6 +125,21 @@
 		}
 	};
 
+	const handleImageRemove = async () => {
+		if (uploading) return;
+		// Creating: nothing is attached yet, so dropping the pending URL is enough.
+		if (!editingRecipe) {
+			formImageUrl = null;
+			return;
+		}
+		uploading = true;
+		try {
+			if (await removeImage({ type: 'recipe', id: editingRecipe.id })) formImageUrl = null;
+		} finally {
+			uploading = false;
+		}
+	};
+
 	const closeForm = () => {
 		showForm = false;
 		editingRecipe = null;
@@ -194,6 +209,7 @@
 				{uploading}
 				onSave={updateRecipe}
 				onImageUpload={handleImageUpload}
+				onImageRemove={handleImageRemove}
 			/>
 		{/key}
 	{:else}
@@ -203,6 +219,7 @@
 			{uploading}
 			onSave={createRecipe}
 			onImageUpload={handleImageUpload}
+			onImageRemove={handleImageRemove}
 		/>
 	{/if}
 </ResponsiveModal>

@@ -31,7 +31,7 @@
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
-	import { uploadImage, uploadImageFile } from '$lib/utils/image-upload';
+	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
 	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -44,6 +44,10 @@
 	let showForm = $state(false);
 	let editingFood = $state<components['schemas']['Food'] | null>(null);
 	let formImageUrl: string | null = $state(null);
+	// The create form's image can come from a scanned OFF product rather than an
+	// upload, so "removed" needs its own flag: clearing `formImageUrl` alone
+	// would just fall back to `offData.imageUrl`.
+	let formImageCleared = $state(false);
 	let uploading = $state(false);
 
 	let offData = $state<components['schemas']['OpenFoodFactsProduct'] | null>(null);
@@ -170,7 +174,11 @@
 			: payload;
 		try {
 			const { error } = await api.POST('/api/foods', {
-				body: formImageUrl ? { ...body, imageUrl: formImageUrl } : body
+				body: formImageCleared
+					? { ...body, imageUrl: null }
+					: formImageUrl
+						? { ...body, imageUrl: formImageUrl }
+						: body
 			});
 			if (error) {
 				if (error.error === 'duplicate_barcode') {
@@ -365,6 +373,7 @@
 		showForm = false;
 		editingFood = null;
 		formImageUrl = null;
+		formImageCleared = false;
 		offData = null;
 		offNotFound = false;
 		activeBarcode = '';
@@ -382,6 +391,7 @@
 		resetFormState();
 		editingFood = data.food;
 		formImageUrl = data.food.imageUrl;
+		formImageCleared = false;
 		showForm = true;
 	};
 
@@ -394,7 +404,31 @@
 			const newUrl = editingFood
 				? await uploadImage(file, { type: 'food', id: editingFood.id })
 				: await uploadImageFile(file, 'food-create');
-			if (newUrl) formImageUrl = newUrl;
+			if (newUrl) {
+				formImageUrl = newUrl;
+				formImageCleared = false;
+			}
+		} finally {
+			uploading = false;
+		}
+	};
+
+	const handleImageRemove = async () => {
+		if (uploading) return;
+		// Creating: nothing is attached yet, so dropping the pending URL is the
+		// whole removal. The flag also suppresses the scanned OFF image, which
+		// would otherwise fill straight back in.
+		if (!editingFood) {
+			formImageUrl = null;
+			formImageCleared = true;
+			return;
+		}
+		uploading = true;
+		try {
+			if (await removeImage({ type: 'food', id: editingFood.id })) {
+				formImageUrl = null;
+				formImageCleared = true;
+			}
 		} finally {
 			uploading = false;
 		}
@@ -460,6 +494,9 @@
 		if (browser) {
 			const urlBarcode = $page.url.searchParams.get('barcode');
 			if (urlBarcode && !untrack(() => showForm)) {
+				// A dismissed edit form leaves `editingFood`/`formImageUrl` behind,
+				// which would turn the scanner's create into an edit of that food.
+				resetFormState();
 				activeBarcode = urlBarcode;
 				fetchFromOFF(urlBarcode);
 				showForm = true;
@@ -705,8 +742,9 @@
 				initial={formInitial}
 				onSave={editingFood ? updateFood : createFood}
 				onBarcodeScan={!editingFood ? handleBarcodeScan : undefined}
-				imageUrl={formImageUrl ?? offData?.imageUrl ?? null}
+				imageUrl={formImageCleared ? null : (formImageUrl ?? offData?.imageUrl ?? null)}
 				onImageUpload={handleImageUpload}
+				onImageRemove={handleImageRemove}
 				{uploading}
 				{visibleNutrients}
 			/>

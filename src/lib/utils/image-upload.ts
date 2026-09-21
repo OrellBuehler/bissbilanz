@@ -75,3 +75,40 @@ export async function uploadImage(file: File, target: UploadTarget): Promise<str
 		return null;
 	}
 }
+
+/**
+ * Detach the image from an existing food or recipe. The bytes stay on disk
+ * until the orphan sweep collects them, so this is a plain `imageUrl: null`
+ * PATCH — the same shape `uploadImage` uses to attach one.
+ */
+export async function removeImage(target: UploadTarget): Promise<boolean> {
+	try {
+		const { error } =
+			target.type === 'food'
+				? await api.PATCH('/api/foods/{id}', {
+						params: { path: { id: target.id } },
+						body: { imageUrl: null }
+					})
+				: await api.PATCH('/api/recipes/{id}', {
+						params: { path: { id: target.id } },
+						body: { imageUrl: null }
+					});
+
+		if (error) {
+			Sentry.logger.error('Image removal failed', {
+				targetType: target.type,
+				targetId: target.id,
+				error: JSON.stringify(error)
+			});
+			toast.error(m.image_remove_failed());
+			return false;
+		}
+
+		toast.success(m.image_removed());
+		return true;
+	} catch (err) {
+		Sentry.captureException(err, { extra: { targetType: target.type, targetId: target.id } });
+		toast.error(m.image_remove_failed());
+		return false;
+	}
+}

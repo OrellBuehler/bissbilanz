@@ -73,6 +73,7 @@
 		onBarcodeScan?: (barcode: string) => void;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
+		onImageRemove?: () => Promise<void>;
 		uploading?: boolean;
 		visibleNutrients?: string[];
 	};
@@ -83,6 +84,7 @@
 		onBarcodeScan,
 		imageUrl,
 		onImageUpload,
+		onImageRemove,
 		uploading = false,
 		visibleNutrients = DEFAULT_VISIBLE_NUTRIENTS
 	}: Props = $props();
@@ -160,7 +162,13 @@
 
 {#if onImageUpload}
 	<div class="mb-4">
-		<ImageUploadField name={form.name} {imageUrl} {uploading} onUpload={onImageUpload} />
+		<ImageUploadField
+			name={form.name}
+			{imageUrl}
+			{uploading}
+			onUpload={onImageUpload}
+			onRemove={onImageRemove}
+		/>
 	</div>
 {/if}
 

@@ -37,10 +37,18 @@
 		}) => Promise<void>;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
+		onImageRemove?: () => Promise<void>;
 		uploading?: boolean;
 	};
 
-	let { recipe, onSave, imageUrl, onImageUpload, uploading = false }: Props = $props();
+	let {
+		recipe,
+		onSave,
+		imageUrl,
+		onImageUpload,
+		onImageRemove,
+		uploading = false
+	}: Props = $props();
 
 	// svelte-ignore state_referenced_locally
 	let name = $state(recipe.name);
@@ -62,7 +70,13 @@
 
 <div class="space-y-4">
 	{#if onImageUpload}
-		<ImageUploadField {name} {imageUrl} {uploading} onUpload={onImageUpload} />
+		<ImageUploadField
+			{name}
+			{imageUrl}
+			{uploading}
+			onUpload={onImageUpload}
+			onRemove={onImageRemove}
+		/>
 	{/if}
 
 	<div class="flex items-center gap-3">

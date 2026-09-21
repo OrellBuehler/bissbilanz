@@ -15,10 +15,18 @@
 		onSave: (payload: ReturnType<typeof buildRecipePayload>) => Promise<void>;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
+		onImageRemove?: () => Promise<void>;
 		uploading?: boolean;
 	};
 
-	let { foods = [], onSave, imageUrl, onImageUpload, uploading = false }: Props = $props();
+	let {
+		foods = [],
+		onSave,
+		imageUrl,
+		onImageUpload,
+		onImageRemove,
+		uploading = false
+	}: Props = $props();
 
 	let state: RecipeFormState = $state({
 		name: '',
@@ -50,7 +58,13 @@
 
 <form class="space-y-4" onsubmit={handleSubmit}>
 	{#if onImageUpload}
-		<ImageUploadField name={state.name} {imageUrl} {uploading} onUpload={onImageUpload} />
+		<ImageUploadField
+			name={state.name}
+			{imageUrl}
+			{uploading}
+			onUpload={onImageUpload}
+			onRemove={onImageRemove}
+		/>
 	{/if}
 	<div>
 		<Label class="text-sm">{m.recipe_form_name()}</Label>

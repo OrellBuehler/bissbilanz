@@ -15,7 +15,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
-	import { uploadImage } from '$lib/utils/image-upload';
+	import { removeImage, uploadImage } from '$lib/utils/image-upload';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import { browser } from '$app/environment';
@@ -87,6 +87,17 @@
 		try {
 			const newUrl = await uploadImage(file, { type: 'food', id: food.id });
 			if (newUrl) imageUrl = newUrl;
+		} finally {
+			uploading = false;
+		}
+	};
+
+	const handleImageRemove = async () => {
+		if (!food || uploading) return;
+
+		uploading = true;
+		try {
+			if (await removeImage({ type: 'food', id: food.id })) imageUrl = null;
 		} finally {
 			uploading = false;
 		}
@@ -199,7 +210,13 @@
 	{#if !food && !initialized}
 		<p class="text-muted-foreground">{m.favorites_loading()}</p>
 	{:else if food}
-		<ImageUploadField {name} {imageUrl} {uploading} onUpload={handleImageUpload} />
+		<ImageUploadField
+			{name}
+			{imageUrl}
+			{uploading}
+			onUpload={handleImageUpload}
+			onRemove={handleImageRemove}
+		/>
 
 		<!-- Favorite toggle -->
 		<div class="flex items-center gap-3">
