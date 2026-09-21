@@ -85,14 +85,11 @@ struct AIMealSheet: View {
                     }
                 }
 
-                // Both actions live in one row so they sit a single small gap
-                // apart instead of in two grouped sections with the list's
-                // section spacing between them.
+                // Both actions share one row, side by side, so they read as
+                // a single control group instead of two stacked bars.
                 Section {
                     VStack(spacing: 8) {
-                        if mealEstimator.availability == .available {
-                            estimateButton
-                        } else {
+                        if mealEstimator.availability != .available {
                             Label {
                                 Text(availabilityMessage)
                             } icon: {
@@ -103,9 +100,15 @@ struct AIMealSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        if !appMode.isLocal {
-                            sendToAssistantButton
+                        HStack(spacing: 8) {
+                            if mealEstimator.availability == .available {
+                                estimateButton
+                            }
+                            if !appMode.isLocal {
+                                sendToAssistantButton
+                            }
                         }
+                        .controlSize(.large)
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
@@ -182,6 +185,7 @@ struct AIMealSheet: View {
                 Spacer()
             }
         }
+        .multilineTextAlignment(.center)
         .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
         .buttonStyle(.borderedProminent)
     }
@@ -206,6 +210,7 @@ struct AIMealSheet: View {
                 Spacer()
             }
         }
+        .multilineTextAlignment(.center)
         .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating)
 
         if mealEstimator.availability == .available {
