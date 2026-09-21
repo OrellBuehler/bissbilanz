@@ -54,6 +54,10 @@ internal fun remapTempIds(
             op.copy(id = remap(op.id), body = remapRecipeUpdateBody(op.body, remaps, json))
         }
 
+        is SyncOperation.SetRecipeImage -> {
+            op.copy(id = remap(op.id))
+        }
+
         is SyncOperation.DeleteRecipe -> {
             op.copy(id = remap(op.id))
         }

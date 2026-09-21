@@ -553,6 +553,33 @@ class SyncManagerTest {
         }
 
     @Test
+    fun createRecipeDrainRemapsAQueuedImagePatch() =
+        runTest {
+            enqueueAt(
+                SyncOperation.CreateRecipe(
+                    json.encodeToString(
+                        RecipeCreate(
+                            name = "Bowl",
+                            totalServings = 2.0,
+                            ingredients = listOf(RecipeIngredientInput("srv-food-1", 100.0, ServingUnit.g)),
+                        ),
+                    ),
+                    localId = "temp_r1",
+                ),
+                createdAt = 1,
+            )
+            enqueueAt(SyncOperation.SetRecipeImage("temp_r1", "/uploads/a.webp"), createdAt = 2)
+            coEvery { api.createRecipe(any(), any(), any()) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
+            coEvery { api.setRecipeImage(any(), any(), any(), any()) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(2, synced)
+            assertEquals(0, syncQueue.pendingCount())
+            coVerify { api.setRecipeImage("srv-recipe-1", "/uploads/a.webp", any(), any()) }
+        }
+
+    @Test
     fun createSupplementDrainRemapsQueuedLogAndLocalLogRows() =
         runTest {
             userDb.userDataDatabaseQueries.insertSupplementLog(
