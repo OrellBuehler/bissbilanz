@@ -436,6 +436,7 @@ final class EntryRepository {
             carbs: server.carbs ?? local.carbs,
             fat: server.fat ?? local.fat,
             fiber: server.fiber ?? local.fiber,
+            imageUrl: server.imageUrl ?? local.imageUrl,
             servingSize: server.servingSize ?? local.servingSize,
             servingUnit: server.servingUnit ?? local.servingUnit,
             date: server.date ?? local.date,

@@ -120,6 +120,63 @@ struct EntryDecodingTests {
         #expect(response.entry.calories == nil)
         #expect(response.entry.quickNutrients == nil)
     }
+
+    /// `imageUrl` must stay optional: rows cached before the server sent it
+    /// decode through `LocalStoreCoding.decode`, which is `try?` — a required
+    /// key would drop every one of them from the day log without a trace.
+    @Test("Decodes an entry envelope without imageUrl")
+    func decodesWithoutImageUrl() throws {
+        let json = """
+        {"entries":[{"id":"e1","mealType":"lunch","servings":1,"notes":null,
+        "foodId":"f1","recipeId":null,"quickName":null,"quickCalories":null,
+        "quickProtein":null,"quickCarbs":null,"quickFat":null,"quickFiber":null,
+        "foodName":"Rice","calories":130,"protein":2.7,"carbs":28,
+        "fat":0.3,"fiber":0.4,"eatenAt":"2026-06-09T12:00:00.000Z",
+        "createdAt":"2026-06-09T12:00:00.000Z","servingSize":100,"servingUnit":"g"}],
+        "total":1}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.imageUrl == nil)
+    }
+
+    @Test("Decodes the imageUrl the entries list resolves server-side")
+    func decodesImageUrl() throws {
+        let json = """
+        {"entries":[{"id":"e1","mealType":"lunch","servings":1,"notes":null,
+        "foodId":"f1","recipeId":null,"quickName":null,"quickCalories":null,
+        "quickProtein":null,"quickCarbs":null,"quickFat":null,"quickFiber":null,
+        "foodName":"Rice","calories":130,"protein":2.7,"carbs":28,
+        "fat":0.3,"fiber":0.4,"imageUrl":"/uploads/a1b2.webp",
+        "eatenAt":"2026-06-09T12:00:00.000Z",
+        "createdAt":"2026-06-09T12:00:00.000Z","servingSize":100,"servingUnit":"g"}],
+        "total":1}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.imageUrl == "/uploads/a1b2.webp")
+    }
+
+    @Test("A null imageUrl reads as no image rather than failing the row")
+    func decodesNullImageUrl() throws {
+        let json = """
+        {"entries":[{"id":"e1","mealType":"lunch","servings":1,"notes":null,
+        "foodId":"f1","recipeId":null,"quickName":null,"quickCalories":null,
+        "quickProtein":null,"quickCarbs":null,"quickFat":null,"quickFiber":null,
+        "foodName":"Rice","calories":130,"protein":2.7,"carbs":28,
+        "fat":0.3,"fiber":0.4,"imageUrl":null,
+        "eatenAt":"2026-06-09T12:00:00.000Z",
+        "createdAt":"2026-06-09T12:00:00.000Z","servingSize":100,"servingUnit":"g"}],
+        "total":1}
+        """.data(using: .utf8)!
+
+        let response = try JSONDecoder().decode(EntriesResponse.self, from: json)
+        let entry = try #require(response.entries.first)
+        #expect(entry.imageUrl == nil)
+        #expect(entry.displayName == "Rice")
+    }
 }
 
 @Suite("MacroTotals Tests")
