@@ -17,8 +17,10 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.repository.RecipeRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +93,10 @@ class DashboardScreenTest {
             modules(
                 module {
                     single<EntryRepository> { entryRepo }
+                    // The meal card resolves each row's thumbnail from the cached
+                    // food/recipe; nothing in these tests carries an image.
+                    single<FoodRepository> { mockk(relaxed = true) }
+                    single<RecipeRepository> { mockk(relaxed = true) }
                     single<GoalsRepository> { goalsRepo }
                     single<PreferencesRepository> { prefsRepo }
                     single<RefreshManager> { refreshManager }

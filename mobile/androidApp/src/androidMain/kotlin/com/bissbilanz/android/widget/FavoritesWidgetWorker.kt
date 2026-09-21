@@ -1,20 +1,14 @@
 package com.bissbilanz.android.widget
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.userdata.UserDataDatabase
-import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
-import java.io.File
-import java.io.FileOutputStream
 
 class FavoritesWidgetWorker(
     context: Context,
@@ -27,49 +21,11 @@ class FavoritesWidgetWorker(
         val errorReporter = koin.get<ErrorReporter>()
         val foodRepo = koin.get<FoodRepository>()
         val prefsRepo = koin.get<PreferencesRepository>()
-        val db = koin.get<UserDataDatabase>()
-        val json = koin.get<Json>()
-        val api = koin.get<BissbilanzApi>()
 
         try {
             foodRepo.refreshFavorites()
             prefsRepo.refresh()
-
-            val favorites =
-                db.userDataDatabaseQueries
-                    .selectFavorites()
-                    .executeAsList()
-                    .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
-
-            val density = applicationContext.resources.displayMetrics.density
-            val tilePx = (56 * density).toInt()
-            val imageDir = File(applicationContext.cacheDir, "widget_food_images").also { it.mkdirs() }
-            val favoriteIds = favorites.map { it.id }.toSet()
-
-            imageDir.listFiles()?.forEach { file ->
-                val id = file.nameWithoutExtension
-                if (id !in favoriteIds) file.delete()
-            }
-
-            favorites.forEach { food ->
-                val imageUrl = food.imageUrl ?: return@forEach
-                val file = File(imageDir, "${food.id}.png")
-                val ageMs = System.currentTimeMillis() - file.lastModified()
-                if (file.exists() && ageMs < 24 * 60 * 60 * 1000L) return@forEach
-
-                val bytes =
-                    try {
-                        api.downloadBytes(imageUrl)
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        return@forEach
-                    }
-                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@forEach
-                val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
-                FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
-                if (scaled !== bitmap) bitmap.recycle()
-                scaled.recycle()
-            }
+            WidgetFoodImages.sync(applicationContext, koin.get<BissbilanzApi>(), koin.get<UserDataDatabase>(), koin.get<Json>())
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
