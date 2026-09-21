@@ -218,7 +218,7 @@ struct FoodPicker: View {
                             onPicked(food)
                             dismiss()
                         } label: {
-                            foodRow(name: food.name, detail: detailText(
+                            foodRow(name: food.name, imageUrl: food.imageUrl, detail: detailText(
                                 calories: food.calories,
                                 servingSize: food.servingSize,
                                 unit: food.servingUnit.displayName
@@ -238,7 +238,7 @@ struct FoodPicker: View {
                                     Button {
                                         Task { await pickFromOpenFoodFacts(hit) }
                                     } label: {
-                                        foodRow(name: hit.name, detail: hit.brand ?? "")
+                                        foodRow(name: hit.name, imageUrl: hit.imageUrl, detail: hit.brand ?? "")
                                     }
                                     .disabled(isResolvingOff)
                                 }
@@ -267,14 +267,23 @@ struct FoodPicker: View {
         }
     }
 
-    private func foodRow(name: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(name)
-                .foregroundStyle(.primary)
-            if !detail.isEmpty {
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private func foodRow(name: String, imageUrl: String?, detail: String) -> some View {
+        HStack(spacing: 12) {
+            // Matches the main food search rows; nothing is reserved when the
+            // food has no picture.
+            if imageUrl != nil {
+                FoodImageView(imageUrl: imageUrl)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .foregroundStyle(.primary)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
