@@ -60,6 +60,14 @@ class EntryRepository(
             .executeAsList()
             .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
 
+    /** Every meal type used on or after [date], as stored — custom types included. */
+    suspend fun mealTypesSince(date: String): List<String> =
+        withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries
+                .selectMealTypesSince(date)
+                .executeAsList()
+        }
+
     suspend fun refresh(date: String) {
         currentDate = date
         // In Local mode the cache is the primary store; there is nothing to refresh.

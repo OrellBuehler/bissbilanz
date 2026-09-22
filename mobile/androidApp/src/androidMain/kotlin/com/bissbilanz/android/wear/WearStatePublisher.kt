@@ -30,8 +30,10 @@ import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import java.util.Locale
@@ -55,6 +57,21 @@ internal fun Throwable.isWearableApiUnavailable(): Boolean {
     }
     return false
 }
+
+/**
+ * The watch's meal picker: the standard meals in their canonical order, then
+ * every custom type the user has logged recently, alphabetically — the list the
+ * Apple Watch offers. Learned from the log rather than hardcoded, so custom
+ * server meal types reach the watch too; normalized so an old lowercase "snack"
+ * doesn't reappear as a custom duplicate of "Snacks".
+ */
+internal fun watchMealTypes(logged: List<String>): List<String> =
+    mealTypes +
+        logged
+            .map(::normalizeMealType)
+            .filter { it !in mealTypes }
+            .distinct()
+            .sorted()
 
 /**
  * Builds the watch's view of today and pushes it over the Data Layer.
@@ -141,6 +158,8 @@ class WearStatePublisher(
         val recents = foodRepository.localRecentFoods(RECENTS_LIMIT)
         val weights = weightRepository.entries().first()
         val sleep = sleepRepository.entries().first().maxByOrNull { it.entryDate }
+        val loggedMealTypes =
+            entryRepository.mealTypesSince(today.minus(MEAL_TYPE_WINDOW_DAYS, DateTimeUnit.DAY).toString())
 
         return WearState(
             date = todayString,
@@ -165,9 +184,7 @@ class WearStatePublisher(
                     .groupBy { normalizeMealType(it.mealType) }
                     .map { (meal, rows) -> WearMealTotal(mealType = meal, calories = rows.sumOf { it.resolvedCalories() }) }
                     .sortedWith(compareBy({ mealOrder(it.mealType) }, { it.mealType })),
-            // Learned from the synced log rather than hardcoded, so custom meal
-            // types reach the watch too.
-            mealTypes = (mealTypes + entries.map { normalizeMealType(it.mealType) }).distinct(),
+            mealTypes = watchMealTypes(loggedMealTypes),
             favorites = favorites.take(FAVORITES_LIMIT).map { it.toRef() },
             recents = recents.map { it.toRef() },
             weight = weights.toWeightInfo(today),
@@ -190,6 +207,23 @@ class WearStatePublisher(
      */
     private fun mealOrder(mealType: String): Int = mealTypes.indexOf(mealType).takeIf { it >= 0 } ?: mealTypes.size
 
+    private companion object {
+        const val FAVORITES_LIMIT = 20
+        const val RECENTS_LIMIT = 10
+
+        /**
+         * How far back the watch's meal picker looks for custom meal types — the
+         * same window as the Apple Watch. A custom type unused for three months
+         * drops off until it is logged again: the picker is what the user
+         * actually logs, not everything they ever did.
+         */
+        const val MEAL_TYPE_WINDOW_DAYS = 90
+
+        /** How far back the 7-day delta looks for a comparison weight. */
+        const val DELTA_WINDOW_DAYS = 7
+        const val DELTA_TOLERANCE_DAYS = 3
+    }
+
     /**
      * The language the phone app itself is rendering in, so the watch follows it
      * rather than its own system locale. Reading the app context's configuration
@@ -206,15 +240,6 @@ class WearStatePublisher(
                 if (locales.isEmpty()) Locale.getDefault().language else locales.get(0).language
             }
         return if (language.equals("de", ignoreCase = true)) "de" else "en"
-    }
-
-    private companion object {
-        const val FAVORITES_LIMIT = 20
-        const val RECENTS_LIMIT = 10
-
-        /** How far back the 7-day delta looks for a comparison weight. */
-        const val DELTA_WINDOW_DAYS = 7
-        const val DELTA_TOLERANCE_DAYS = 3
     }
 
     private fun com.bissbilanz.model.Food.toRef() = WearFoodRef(id = id, name = name, calories = calories, isRecipe = false)
