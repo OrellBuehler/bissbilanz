@@ -183,6 +183,7 @@ struct LogRecipeSheet: View {
         NavigationStack {
             Form {
                 Section {
+                    FoodHeaderImage(imageUrl: recipe.imageUrl)
                     HStack {
                         Text(recipe.name)
                             .font(.headline)
