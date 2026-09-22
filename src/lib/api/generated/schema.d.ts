@@ -863,6 +863,23 @@ export interface paths {
 		patch: operations['updateAiTask'];
 		trace?: never;
 	};
+	'/api/mcp/status': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Whether the user has at least one MCP client (e.g. Claude.ai, Claude Code) authorized against their account. */
+		get: operations['getMcpStatus'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/sleep': {
 		parameters: {
 			query?: never;
@@ -2435,6 +2452,9 @@ export interface components {
 		AiTaskPhotoResponse: {
 			photoUrl: string;
 			photoUrls: string[];
+		};
+		McpStatusResponse: {
+			connected: boolean;
 		};
 		SleepEntriesResponse: {
 			entries: components['schemas']['SleepEntry'][];
@@ -4497,6 +4517,27 @@ export interface operations {
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			409: components['responses']['ConflictResponse'];
+		};
+	};
+	getMcpStatus: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['McpStatusResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
 	listSleepEntries: {
