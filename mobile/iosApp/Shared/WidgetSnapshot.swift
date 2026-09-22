@@ -196,4 +196,13 @@ enum WidgetSnapshotStore {
         else { return }
         defaults.set(data, forKey: snapshotKey)
     }
+
+    /// Live timeline data only — `.placeholder` is sample data and belongs in
+    /// a provider's `placeholder(in:)`, never here. Shared by every widget's
+    /// timeline provider so "no snapshot yet" / "stale after midnight"
+    /// handling lives in exactly one place.
+    static func currentSnapshot(at date: Date) -> WidgetSnapshot {
+        guard let stored = load() else { return .empty(on: date) }
+        return stored.resetIfStale(on: date)
+    }
 }
