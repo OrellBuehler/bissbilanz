@@ -110,7 +110,15 @@ struct CalendarView: View {
                     case .spacer:
                         Color.clear.frame(height: 52)
                     case let .day(dayNum, dateStr):
-                        NavigationLink(value: dateStr) {
+                        // Label-based link, like the dashboard's meal cards:
+                        // a value-based link resolved through a
+                        // `navigationDestination(for: String.self)` registration
+                        // intermittently stops resolving on recent iOS releases and
+                        // pushes the empty placeholder page — a black screen with a
+                        // warning triangle — instead of the day log.
+                        NavigationLink {
+                            DayLogView(date: dateStr)
+                        } label: {
                             dayCell(
                                 dayNum: dayNum,
                                 calendarDay: dayMap[dateStr],
@@ -121,9 +129,6 @@ struct CalendarView: View {
                     }
                 }
             }
-        }
-        .navigationDestination(for: String.self) { date in
-            DayLogView(date: date)
         }
     }
 
