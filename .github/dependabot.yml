@@ -38,6 +38,11 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+    # SKIE hard-fails the build on any Kotlin version it hasn't whitelisted
+    # (0.10.14 stops at 2.4.10). Bump Kotlin by hand together with SKIE.
+    ignore:
+      - dependency-name: 'org.jetbrains.kotlin:*'
+      - dependency-name: 'org.jetbrains.kotlin.*'
 
   # GitHub Actions
   # One PR for all action bumps. codeql-action/init and /analyze must move
