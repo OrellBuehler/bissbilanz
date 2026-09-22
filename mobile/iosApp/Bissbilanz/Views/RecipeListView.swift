@@ -37,7 +37,16 @@ struct RecipeListView: View {
                     )
                 } else {
                     List(filteredRecipes) { recipe in
-                        NavigationLink(value: recipe) {
+                        // Destination on the link, not a
+                        // `navigationDestination(for: Recipe.self)`: that
+                        // registration only existed on this branch of the
+                        // conditional, so an empty search result or a load
+                        // error while a recipe was pushed left the stack unable
+                        // to resolve it — the black unresolved-destination
+                        // placeholder.
+                        NavigationLink {
+                            RecipeDetailView(recipeId: recipe.id)
+                        } label: {
                             recipeRow(recipe)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -57,9 +66,6 @@ struct RecipeListView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .navigationDestination(for: Recipe.self) { recipe in
-                        RecipeDetailView(recipeId: recipe.id)
-                    }
                 }
             }
             .navigationTitle(L10n.recipes)

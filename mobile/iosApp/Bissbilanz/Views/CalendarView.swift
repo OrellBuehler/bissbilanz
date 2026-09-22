@@ -110,7 +110,17 @@ struct CalendarView: View {
                     case .spacer:
                         Color.clear.frame(height: 52)
                     case let .day(dayNum, dateStr):
-                        NavigationLink(value: dateStr) {
+                        // The destination travels with the link instead of a
+                        // `navigationDestination(for: String.self)` registration:
+                        // that registration lived inside this scrolling, monthly
+                        // rebuilt subtree, and while it was momentarily out of the
+                        // hierarchy — a month change, a pop transition, the stats
+                        // section appearing — the stack could no longer resolve an
+                        // already-pushed date and rendered its unresolved-destination
+                        // placeholder (a black screen with a warning triangle).
+                        NavigationLink {
+                            DayLogView(date: dateStr)
+                        } label: {
                             dayCell(
                                 dayNum: dayNum,
                                 calendarDay: dayMap[dateStr],
@@ -121,9 +131,6 @@ struct CalendarView: View {
                     }
                 }
             }
-        }
-        .navigationDestination(for: String.self) { date in
-            DayLogView(date: date)
         }
     }
 
