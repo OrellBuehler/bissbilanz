@@ -73,6 +73,15 @@ struct WatchState: Codable, Sendable {
     var weight: WatchWeightInfo?
     /// Last night's sleep for the Sleep tab, when one has been logged.
     var sleep: WatchSleepInfo?
+    /// Mirrors `SettingsView`'s "AI Estimation" toggle (device-local on the
+    /// phone, not synced to the account): whether the watch's voice-logging
+    /// entry point (`WatchMealEstimator`) may use Apple's Private Cloud
+    /// Compute — its only option, since watchOS never runs the on-device
+    /// model. Optional and defaulted like `weight`/`sleep`, so a payload from
+    /// an older phone build still decodes; callers read
+    /// `privateCloudComputeEnabled ?? true` to keep today's default (on)
+    /// rather than hiding the feature on stale/missing data.
+    var privateCloudComputeEnabled: Bool?
 
     static var placeholder: WatchState {
         WatchState(
@@ -80,7 +89,8 @@ struct WatchState: Codable, Sendable {
             mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
             recents: [],
             weight: WatchWeightInfo(latestKg: 78.4, latestDate: nil, delta7dKg: -0.3),
-            sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 8)
+            sleep: WatchSleepInfo(date: "", durationMinutes: 452, quality: 8),
+            privateCloudComputeEnabled: true
         )
     }
 
@@ -93,7 +103,8 @@ struct WatchState: Codable, Sendable {
             mealTypes: ["Breakfast", "Lunch", "Dinner", "Snacks"],
             recents: [],
             weight: nil,
-            sleep: nil
+            sleep: nil,
+            privateCloudComputeEnabled: nil
         )
     }
 
@@ -118,7 +129,8 @@ struct WatchState: Codable, Sendable {
             mealTypes: mealTypes,
             recents: recents,
             weight: weight,
-            sleep: sleep
+            sleep: sleep,
+            privateCloudComputeEnabled: privateCloudComputeEnabled
         )
     }
 }
