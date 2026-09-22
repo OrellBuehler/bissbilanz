@@ -9,14 +9,14 @@
 A calorie and macro tracker for **web, Android and iPhone** — barcode scanning, on-device
 nutrition-label OCR, offline-first sync, and a food log you can hand to an AI agent.
 
-**[Open the web app](https://bissbilanz.orellbuehler.ch/) · [Join the iOS beta](https://testflight.apple.com/join/e5Y3scbW) · [Join the Android beta](https://play.google.com/apps/testing/com.bissbilanz.android)**
+**[Open the web app](https://bissbilanz.orellbuehler.ch/) · [Get it on the App Store](https://apps.apple.com/app/id6780591258) · [Get it on Google Play](https://play.google.com/store/apps/details?id=com.bissbilanz.android)**
 
 [![Release](https://img.shields.io/github/v/release/OrellBuehler/bissbilanz?style=flat-square&color=3b82f6)](https://github.com/OrellBuehler/bissbilanz/releases)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/OrellBuehler/bissbilanz/codeql.yml?branch=main&style=flat-square&label=codeql)](https://github.com/OrellBuehler/bissbilanz/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey?style=flat-square)](LICENSE)
 [![Web](https://img.shields.io/badge/web-PWA-4b32c3?style=flat-square)](https://bissbilanz.orellbuehler.ch/)
-[![iOS](https://img.shields.io/badge/iOS-TestFlight-000000?style=flat-square&logo=apple&logoColor=white)](https://testflight.apple.com/join/e5Y3scbW)
-[![Android](https://img.shields.io/badge/Android-Play%20beta-3ddc84?style=flat-square&logo=android&logoColor=white)](https://play.google.com/apps/testing/com.bissbilanz.android)
+[![iOS](https://img.shields.io/badge/iOS-App%20Store-000000?style=flat-square&logo=apple&logoColor=white)](https://apps.apple.com/app/id6780591258)
+[![Android](https://img.shields.io/badge/Android-Google%20Play-3ddc84?style=flat-square&logo=android&logoColor=white)](https://play.google.com/store/apps/details?id=com.bissbilanz.android)
 
 </div>
 
@@ -24,11 +24,11 @@ nutrition-label OCR, offline-first sync, and a food log you can hand to an AI ag
 
 ## Try it
 
-|                             |                                                                                                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🌐 **Web**                  | **[bissbilanz.orellbuehler.ch](https://bissbilanz.orellbuehler.ch/)** — installable PWA, works offline                                                                                                                             |
-| 🍎 **iPhone / Apple Watch** | **[TestFlight beta](https://testflight.apple.com/join/e5Y3scbW)** — widgets, watch app, Apple Health, fasting Live Activity                                                                                                        |
-| 🤖 **Android / Wear OS**    | **[Google Play beta](https://play.google.com/apps/testing/com.bissbilanz.android)** — opt in, then [install from Play](https://play.google.com/store/apps/details?id=com.bissbilanz.android); Wear OS app, Health Connect, widgets |
+|                             |                                                                                                                                                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🌐 **Web**                  | **[bissbilanz.orellbuehler.ch](https://bissbilanz.orellbuehler.ch/)** — installable PWA, works offline                                                                                                                      |
+| 🍎 **iPhone / Apple Watch** | **[App Store](https://apps.apple.com/app/id6780591258)** — widgets, watch app, Apple Health, fasting Live Activity ([TestFlight beta](https://testflight.apple.com/join/e5Y3scbW) for pre-release builds)                   |
+| 🤖 **Android / Wear OS**    | **[Google Play](https://play.google.com/store/apps/details?id=com.bissbilanz.android)** — Wear OS app, Health Connect, widgets ([beta](https://play.google.com/apps/testing/com.bissbilanz.android) for pre-release builds) |
 
 Free, no ads, no tracking SDKs, no data selling. Try the mobile apps without an account at
 all — local-only mode keeps everything on device and migrates into your account if you
