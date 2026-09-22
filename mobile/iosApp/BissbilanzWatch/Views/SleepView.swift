@@ -17,23 +17,26 @@ struct SleepView: View {
     }
 
     var body: some View {
-        glance
-            .navigationTitle(strings.sleep)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isLogging = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(strings.log)
+        VStack(spacing: 4) {
+            glance
+            PendingLogsLabel()
+        }
+        .navigationTitle(strings.sleep)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isLogging = true
+                } label: {
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel(strings.log)
             }
-            .sheet(isPresented: $isLogging) {
-                NavigationStack {
-                    SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
-                }
+        }
+        .sheet(isPresented: $isLogging) {
+            NavigationStack {
+                SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
             }
+        }
     }
 
     @ViewBuilder
@@ -109,6 +112,7 @@ private struct SleepLoggerView: View {
     @State private var minutes: Double
     @State private var quality: Double
     @State private var isLogging = false
+    @State private var didFail = false
     @FocusState private var focusedField: CrownField?
 
     init(startMinutes: Int?, startQuality: Double?) {
@@ -163,6 +167,10 @@ private struct SleepLoggerView: View {
                 isContinuous: false,
                 isHapticFeedbackEnabled: true
             )
+
+            if didFail {
+                LogFailedText(strings: strings)
+            }
         }
         .frame(maxHeight: .infinity)
         .navigationTitle(strings.sleep)
@@ -178,6 +186,7 @@ private struct SleepLoggerView: View {
 
     private func log() {
         isLogging = true
+        didFail = false
         let request = WatchSleepLogRequest(
             durationMinutes: Int(minutes),
             quality: quality.rounded(),
@@ -187,12 +196,11 @@ private struct SleepLoggerView: View {
         Task {
             let outcome = await connectivity.logSleep(request)
             isLogging = false
-            switch outcome {
-            case .confirmed, .queued:
-                WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(outcome.haptic)
+            if outcome == .failed {
+                didFail = true
+            } else {
                 dismiss()
-            case .failed:
-                WKInterfaceDevice.current().play(.failure)
             }
         }
     }

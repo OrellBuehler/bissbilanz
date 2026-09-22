@@ -104,6 +104,26 @@ struct WatchStrings {
         isGerman ? "Eingetragen" : "Logged"
     }
 
+    var logFailed: String {
+        isGerman ? "Konnte nicht gespeichert werden" : "Could not save your log"
+    }
+
+    /// Logs queued on the watch that the iPhone doesn't have yet.
+    func pendingLogs(_ count: Int) -> String {
+        if isGerman {
+            return count == 1 ? "1 Eintrag wartet auf das iPhone" : "\(count) Einträge warten auf das iPhone"
+        }
+        return count == 1 ? "1 log waiting to send" : "\(count) logs waiting to send"
+    }
+
+    /// Queued logs the system gave up delivering.
+    func failedLogs(_ count: Int) -> String {
+        if isGerman {
+            return count == 1 ? "1 Eintrag nicht gesendet" : "\(count) Einträge nicht gesendet"
+        }
+        return count == 1 ? "1 log couldn't be sent" : "\(count) logs couldn't be sent"
+    }
+
     /// Compact "7h 32m" style duration for the sleep glance and logger.
     func sleepDuration(_ minutes: Int) -> String {
         let hours = minutes / 60

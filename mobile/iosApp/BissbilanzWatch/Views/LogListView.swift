@@ -23,6 +23,11 @@ struct LogListView: View {
                 ContentUnavailableView(strings.noData, systemImage: "fork.knife")
             } else {
                 List {
+                    if connectivity.pendingLogs > 0 || connectivity.failedLogs > 0 {
+                        PendingLogsLabel()
+                            .listRowBackground(Color.clear)
+                    }
+
                     if !favorites.isEmpty {
                         Section(strings.favorites) {
                             ForEach(favorites) { row($0) }

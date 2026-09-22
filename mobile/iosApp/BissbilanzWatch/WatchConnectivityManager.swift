@@ -2,6 +2,16 @@ import Foundation
 import WatchConnectivity
 import WidgetKit
 
+/// Extra `transferUserInfo` key counting how often a queued log was re-sent
+/// after the system reported the transfer failed. The phone decodes by its own
+/// keys and ignores this one.
+private let transferAttemptKey = "transferAttempt"
+
+/// How many times a failed queued log is re-sent before it counts as lost.
+/// Bounded because some failures are permanent (the iPhone app removed), and
+/// re-sending those forever would only spin.
+private let maxTransferAttempts = 3
+
 /// Watch side of the iPhone ↔ Apple Watch link (Phase 1, dependent companion).
 ///
 /// - **State (phone → watch):** received via `didReceiveApplicationContext`,
@@ -12,7 +22,7 @@ import WidgetKit
 /// - **Log (watch → phone):** `sendMessage` when the phone is reachable (the
 ///   reply carries refreshed totals for instant ring updates); otherwise the
 ///   request is queued with `transferUserInfo` (guaranteed FIFO) and the UI
-///   updates optimistically.
+///   shows it as waiting until the transfer finishes.
 ///
 /// Delegate callbacks arrive off the main thread, so they are `nonisolated` and
 /// hop to the main actor before touching published state.
@@ -45,6 +55,14 @@ final class WatchConnectivityManager: NSObject {
     /// two requests landing in the same window.
     private var isRequestingState = false
 
+    /// Logs queued for the iPhone and not delivered yet. A queued log is not a
+    /// logged one: the glance won't move until it lands, so the UI says so.
+    private(set) var pendingLogs = 0
+
+    /// Queued logs the system gave up delivering after every retry. Shown
+    /// until the user dismisses it, so a lost log is never silent.
+    private(set) var failedLogs = 0
+
     private var session: WCSession? {
         WCSession.isSupported() ? .default : nil
     }
@@ -58,6 +76,19 @@ final class WatchConnectivityManager: NSObject {
         guard let session else { return }
         session.delegate = self
         session.activate()
+    }
+
+    /// Recounts the logs still waiting in the system's transfer queue. State
+    /// requests ride the same queue but are not the user's writes.
+    func refreshPendingLogs() {
+        guard let session, session.activationState == .activated else { return }
+        pendingLogs = session.outstandingUserInfoTransfers.filter {
+            $0.userInfo[WatchPayloadKey.stateRequest] == nil
+        }.count
+    }
+
+    func dismissFailedLogs() {
+        failedLogs = 0
     }
 
     /// Asks the phone for fresh state (mirrors Wear's `/bissbilanz/request-state`).
@@ -129,6 +160,7 @@ final class WatchConnectivityManager: NSObject {
 
         guard session.isReachable else {
             session.transferUserInfo(payload)
+            refreshPendingLogs()
             return .queued
         }
 
@@ -157,6 +189,7 @@ final class WatchConnectivityManager: NSObject {
                     // The reachability check raced with the phone backgrounding —
                     // fall back to the guaranteed queue so the log isn't lost.
                     session.transferUserInfo(payload)
+                    Task { @MainActor in self.refreshPendingLogs() }
                     continuation.resume(returning: .queued)
                 }
             )
@@ -184,6 +217,7 @@ final class WatchConnectivityManager: NSObject {
 
         guard session.isReachable else {
             session.transferUserInfo(payload)
+            refreshPendingLogs()
             return .queued
         }
 
@@ -203,6 +237,7 @@ final class WatchConnectivityManager: NSObject {
                 },
                 errorHandler: { _ in
                     session.transferUserInfo(payload)
+                    Task { @MainActor in self.refreshPendingLogs() }
                     continuation.resume(returning: .queued)
                 }
             )
@@ -241,7 +276,32 @@ extension WatchConnectivityManager: WCSessionDelegate {
             // That retained context is only as fresh as the phone's last write,
             // so ask for the current one now the session can carry the answer.
             guard didActivate else { return }
+            self.refreshPendingLogs()
             self.requestState()
+        }
+    }
+
+    /// A queued transfer finished. On success the log has reached the phone;
+    /// on failure it is re-sent with the same request id (the phone drops a
+    /// repeat), and after `maxTransferAttempts` it is counted as failed so the
+    /// user learns the log never arrived.
+    nonisolated func session(
+        _ session: WCSession,
+        didFinish userInfoTransfer: WCSessionUserInfoTransfer,
+        error: Error?
+    ) {
+        let userInfo = userInfoTransfer.userInfo
+        let failedLog = error != nil && userInfo[WatchPayloadKey.stateRequest] == nil
+        let attempt = userInfo[transferAttemptKey] as? Int ?? 0
+        let gaveUp = failedLog && attempt >= maxTransferAttempts
+        if failedLog, !gaveUp {
+            var retry = userInfo
+            retry[transferAttemptKey] = attempt + 1
+            session.transferUserInfo(retry)
+        }
+        Task { @MainActor in
+            if gaveUp { self.failedLogs += 1 }
+            self.refreshPendingLogs()
         }
     }
 
