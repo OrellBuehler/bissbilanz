@@ -14,9 +14,10 @@ SIGN-IN: The app offers two modes on first launch:
    Google and Sign in with Apple are offered; on iOS, Sign in with Apple
    runs natively. Demo account credentials are provided below.
 
-CAMERA: used only for barcode scanning and on-device nutrition-label OCR
-(Settings → add food → scan). Frames are processed on device; only the
-barcode number is sent to the Open Food Facts API.
+CAMERA: used only for barcode scanning and on-device nutrition-label OCR,
+reached from the dashboard's "+" button → Scan. Frames are processed on
+device; only the barcode number is sent to the server (and on to Open Food
+Facts) to look up the product.
 
 ACCOUNT DELETION: Settings → Delete account (also documented at
 https://bissbilanz.orellbuehler.ch/account-deletion).
