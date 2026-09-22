@@ -5578,7 +5578,7 @@ SOFTWARE.
 
 </details>
 
-### hono@4.13.7
+### hono@4.13.8
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
