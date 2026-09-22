@@ -17,7 +17,7 @@ Bissbilanz is a food tracking application that allows users to:
 - Use AI agents via MCP to assist with logging
 - Access the app offline via PWA
 
-**Authentication:** Infomaniak OIDC required on web (no guest access). The mobile apps additionally support an anonymous local-only mode; its data is migrated to the account on first sign-in.
+**Authentication:** OIDC sign-in required on web (no guest access) — Infomaniak, Google, or Apple, whichever providers have credentials configured. The mobile apps additionally support an anonymous local-only mode; its data is migrated to the account on first sign-in.
 
 ## Tech Stack
 
@@ -27,7 +27,7 @@ Bissbilanz is a food tracking application that allows users to:
 - **Runtime:** Bun (development and production)
 - **Database:** PostgreSQL
 - **ORM:** Drizzle ORM with drizzle-kit
-- **Authentication:** Infomaniak OIDC
+- **Authentication:** OIDC (Infomaniak, Google, Apple)
 - **Deployment:** svelte-adapter-bun
 
 ### UI & Styling
@@ -156,7 +156,7 @@ To also scan the Docker image:
 
 ## Mobile Development
 
-The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose) and an iOS app (SwiftUI).
+The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose), a Wear OS app, and an iOS app (SwiftUI) with a companion Apple Watch app.
 
 ### Build Commands
 
@@ -172,11 +172,12 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 
 - **Shared module** (`mobile/shared/`): KMP code shared between Android and iOS — models, API client, repositories, auth, DI
 - **Android app** (`mobile/androidApp/`): Jetpack Compose UI with Material 3
-- **iOS app** (`mobile/iosApp/`): SwiftUI, project generated with XcodeGen (`project.yml`)
+- **Wear OS app** (`mobile/wearApp/`): Compose for Wear OS, talks to `mobile/wearProtocol` for phone communication
+- **iOS app** (`mobile/iosApp/`): SwiftUI, project generated with XcodeGen (`project.yml`); includes widgets and an Apple Watch app target
 - Use `expect`/`actual` for platform-specific implementations (HTTP engine, secure storage, SHA-256)
 - Use Koin for dependency injection
 - Use Ktor for HTTP client, kotlinx.serialization for JSON
-- Use SQLDelight for local database
+- Use SQLDelight for local database on Android/shared; the iOS app uses SwiftData for its local store instead (with CloudKit mirroring in anonymous/local mode)
 - Kotlin formatting enforced by ktlint via pre-commit hook
 - Swift formatting enforced by swiftformat (macOS only)
 

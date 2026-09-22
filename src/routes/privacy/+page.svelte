@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'August 30, 2026' })}
+		{m.privacy_effective_date({ date: 'September 22, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -50,7 +50,8 @@
 		</li>
 		<li>
 			<strong>Meal photos for AI estimation:</strong> If you use the AI meal estimation feature, the photo
-			you submit is stored with the pending task until the estimate is logged or dismissed.
+			you submit is stored with the task while it is pending, and for up to 30 days after you log or dismiss
+			it, before it is automatically deleted.
 		</li>
 	</ul>
 	<p class="mb-6">
@@ -67,9 +68,12 @@
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Local-only mode on mobile</h2>
 	<p class="mb-6">
-		The Android and iOS apps can be used without an account. In that mode all data stays in the
-		app's local database on your device and nothing is sent to the server. If you later sign in,
-		your local data is migrated to your account once.
+		The Android and iOS apps can be used without an account. In that mode your data stays in the
+		app's local database on your device and nothing is sent to the Bissbilanz server. On iOS, the
+		local database is mirrored to your private iCloud database so it is available on your other
+		Apple devices; Bissbilanz cannot access it. Barcode and food searches are sent directly to Open
+		Food Facts, and crash reports are still sent to Sentry (see below). If you later sign in, your
+		local data is migrated to your account once.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Apple Health (iOS)</h2>
@@ -131,8 +135,14 @@
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Notifications</h2>
 	<p class="mb-6">
 		The mobile apps can show local notifications — for example an ongoing notification or Live
-		Activity while a fast is running. These are generated on your device; no push service is used
-		and no notification content leaves your phone.
+		Activity while a fast is running, or a reminder to take a supplement. These are generated on
+		your device; no push service is used and no notification content leaves your phone.
+	</p>
+	<p class="mb-6">
+		If you enable supplement reminders in the web app (including when it's installed to your home
+		screen), it uses your browser's Web Push service to deliver them, which requires storing a
+		delivery endpoint and keys for your browser install. The reminder text is encrypted before it is
+		sent, so the push service that relays it cannot read it.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">How your data is stored</h2>
@@ -182,10 +192,16 @@
 			>.
 		</li>
 		<li>
-			<strong>Sentry (crash reporting):</strong> The apps use Sentry to collect crash reports and
-			error diagnostics. This may include device type, operating system version, and stack traces.
-			No personal data such as food entries or account details is sent to Sentry. Their privacy
-			policy is available at
+			<strong>Sentry (crash reporting):</strong> The web, Android and iOS apps use Sentry to collect
+			crash reports and error diagnostics, including device type, operating system version, and
+			stack traces. On the Android and iOS apps, crash reports are linked to a persistent internal
+			account identifier (not your name or email) so related reports can be grouped, and also
+			include an on-device screenshot and view hierarchy of the screen you were using, which may
+			show data such as your food log or weight. On the web app, crash reports are not linked to
+			your account, and a screen recording is only captured when an error actually occurs, with all
+			text, form inputs and images masked or blocked before it ever leaves your device. Sentry never
+			receives your food entries, recipes or account credentials directly, and this data is never
+			used for advertising. Their privacy policy is available at
 			<a href="https://sentry.io/privacy/" class="underline">sentry.io</a>.
 		</li>
 	</ul>

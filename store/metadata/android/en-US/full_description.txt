@@ -1,24 +1,42 @@
-Bissbilanz is a fast, no-nonsense calorie and macro tracker. Log what you eat in seconds, see your day at a glance, and keep your data in your hands.
+Bissbilanz is a calorie and macro tracker that feels like a carefully built personal tool: fast to log, honest about your data, and fully usable without a connection.
 
-TRACK WHAT MATTERS
-• Calories, protein, carbs, fat and fiber for every meal
-• 43 extended nutrients, from vitamins to minerals
-• Daily goals with clear progress at a glance
+Log a meal in seconds, see exactly where your day stands, and keep your whole history in your own hands.
+
+WHAT YOU CAN TRACK
+• Calories, protein, carbs, fat and fiber — against daily goals you set yourself
+• 43 extended nutrients, from vitamins and minerals to sugar, sodium and omega-3
+• Body weight, with a smoothed trend instead of daily noise
+• Sleep duration and sleep quality
+• Daily supplements
+• Fasting days
 
 LOG FAST
-• Scan any barcode — nutrition data comes straight from Open Food Facts
-• Point the camera at a nutrition label and let on-device OCR fill in the values
-• Favorites, recent foods and home-screen widgets for one-tap logging
+• Barcode scanner — point the camera at a product and load nutrition values from Open Food Facts
+• Nutrition label scan — no barcode? Point the camera at the label and the values are read right on your device
+• Your own food database, favorites and recently used entries — repeat meals with one tap
+• Recipe builder — combine ingredients once, then log a serving with automatically calculated nutrition
+• Home-screen widgets and a Wear OS app for logging with one tap
+• AI-assisted logging — connect Claude or another MCP client to your diary and just say what you ate: foods are found, portions estimated and logged for you
 
-MORE THAN FOOD
-• Build recipes with automatic per-serving nutrition
-• Track weight, sleep and supplements alongside your food log
-• Maintenance-calorie estimate from your weight trend and food log
+INSIGHTS THAT ACTUALLY HELP
+• Weekly and monthly statistics
+• An estimate of your maintenance calories from your weight trend and what you actually ate
+• Streaks, meal timing and food diversity
+• A breakdown of every nutrient per meal and per day
 
-YOUR DATA, YOUR PACE
-• Use it without an account — everything stays on your device in local-only mode
-• Or sign in to sync across the web app, Android and iPhone
-• Works offline; changes sync when you're back online
-• No ads, no tracking SDKs, no selling data — see the privacy policy
+WORKS OFFLINE
+Every device stores your diary locally and syncs conflict-free once you're back online. Log on a plane, in a basement gym, or anywhere without reception.
 
-Bissbilanz is a personal project, built for people who already know why they track and just want a tool that gets out of the way.
+HEALTH CONNECT
+Share nutrition, weight and sleep with Health Connect — permission by permission, only if you want to. Weight and sleep can also be read in, so your scale or sleep tracker keeps your diary current.
+
+USABLE WITHOUT AN ACCOUNT
+Want to keep everything on the device? Start in local mode: no account, and your diary never touches our server. If you sign in later, your local data moves into your account.
+
+ONLY FOR YOU
+• Free, no ads and no purchases
+• No tracking SDKs, no data selling
+• Delete your account and all your data anytime, right in the app
+• The full source code is public
+
+There's also a web app, so the same diary is available in any browser.

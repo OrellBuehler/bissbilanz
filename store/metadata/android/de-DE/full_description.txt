@@ -1,24 +1,42 @@
-Bissbilanz ist ein schneller, unkomplizierter Kalorien- und Makro-Tracker. Logge dein Essen in Sekunden, behalte deinen Tag im Blick und deine Daten in deiner Hand.
+Bissbilanz ist ein Kalorien- und Makro-Tracker, der sich wie ein sorgfältig gebautes persönliches Werkzeug anfühlt: schnell im Eintragen, ehrlich mit deinen Daten und auch ohne Empfang vollständig nutzbar.
 
-TRACKE, WAS ZÄHLT
-• Kalorien, Protein, Kohlenhydrate, Fett und Ballaststoffe für jede Mahlzeit
-• 43 erweiterte Nährstoffe, von Vitaminen bis Mineralstoffen
-• Tagesziele mit klarem Fortschritt auf einen Blick
+Trage eine Mahlzeit in Sekunden ein, sieh sofort, wo dein Tag steht, und behalte deine gesamte Historie in der eigenen Hand.
 
-SCHNELL LOGGEN
-• Barcode scannen — Nährwerte kommen direkt von Open Food Facts
-• Kamera auf die Nährwerttabelle richten, die On-Device-Texterkennung füllt die Werte aus
-• Favoriten, letzte Lebensmittel und Homescreen-Widgets für Ein-Tipp-Logging
+WAS DU ERFASSEN KANNST
+• Kalorien, Protein, Kohlenhydrate, Fett und Ballaststoffe – gegen Tagesziele, die du selbst setzt
+• 43 erweiterte Nährstoffe, von Vitaminen und Mineralien bis Zucker, Natrium und Omega-3
+• Körpergewicht, mit geglättetem Trend statt täglichem Rauschen
+• Schlafdauer und Schlafqualität
+• Tägliche Supplements
+• Fastentage
 
-MEHR ALS ESSEN
-• Rezepte mit automatischer Nährwertberechnung pro Portion
-• Gewicht, Schlaf und Supplemente direkt neben dem Ernährungstagebuch
-• Erhaltungskalorien-Schätzung aus Gewichtstrend und Ernährungstagebuch
+SCHNELL EINTRAGEN
+• Barcode-Scanner – Kamera auf ein Produkt richten und die Nährwerte von Open Food Facts laden
+• Nährwerttabelle scannen – kein Barcode? Kamera auf die Tabelle richten, die Werte werden direkt auf deinem Gerät ausgelesen
+• Eigene Lebensmitteldatenbank, Favoriten und zuletzt genutzte Einträge – wiederkehrende Mahlzeiten mit einem Tipp
+• Rezept-Baukasten – Zutaten einmal kombinieren, danach eine Portion mit automatisch berechneten Nährwerten eintragen
+• Homescreen-Widgets und eine Wear OS App zum Eintragen mit einem Tipp
+• KI-gestütztes Eintragen – verbinde Claude oder einen anderen MCP-Client mit deinem Tagebuch und sag einfach, was du gegessen hast: Lebensmittel werden gefunden, Portionen geschätzt und eingetragen
 
-DEINE DATEN, DEIN TEMPO
-• Nutzung ohne Konto — im lokalen Modus bleibt alles auf deinem Gerät
-• Oder anmelden und zwischen Web-App, Android und iPhone synchronisieren
-• Funktioniert offline; Änderungen synchronisieren sich später automatisch
-• Keine Werbung, keine Tracking-SDKs, kein Datenverkauf — siehe Datenschutzerklärung
+AUSWERTUNGEN, DIE WIRKLICH HELFEN
+• Wochen- und Monatsstatistiken
+• Eine Schätzung deines Erhaltungsbedarfs aus deinem Gewichtstrend und dem, was du tatsächlich gegessen hast
+• Tracking-Serien, Mahlzeiten-Timing und Lebensmittelvielfalt
+• Aufschlüsselung jedes Nährstoffs pro Mahlzeit und pro Tag
 
-Bissbilanz ist ein persönliches Projekt — für Leute, die wissen, warum sie tracken, und einfach ein Tool wollen, das nicht im Weg steht.
+FUNKTIONIERT OFFLINE
+Jedes Gerät speichert dein Tagebuch lokal und gleicht konfliktfrei ab, sobald du wieder online bist. Logge im Flugzeug, im Kellerstudio oder überall ohne Empfang.
+
+HEALTH CONNECT
+Teile Nährwerte, Gewicht und Schlaf mit Health Connect – Berechtigung für Berechtigung und nur, wenn du möchtest. Gewicht und Schlaf lassen sich auch einlesen, damit Waage oder Schlaftracker dein Tagebuch aktuell halten.
+
+OHNE KONTO NUTZBAR
+Du möchtest alles auf dem Gerät behalten? Starte im lokalen Modus: kein Konto, und dein Tagebuch landet nie auf unserem Server. Meldest du dich später an, wandern deine lokalen Daten in dein Konto.
+
+NUR FÜR DICH
+• Kostenlos, ohne Werbung und ohne Käufe
+• Keine Tracking-SDKs, kein Datenverkauf
+• Lösche dein Konto und sämtliche Daten jederzeit direkt in der App
+• Der vollständige Quellcode ist öffentlich
+
+Es gibt zusätzlich eine Web-App, damit dasselbe Tagebuch in jedem Browser verfügbar ist.

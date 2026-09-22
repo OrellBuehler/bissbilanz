@@ -13,14 +13,19 @@ gh run list --branch main --limit 10
 ```
 
 Look for: Quality, Security Scans, CodeQL, CodeQL (Mobile), CodeQL (Swift). CodeQL (Swift)
-is flaky infra (see the project notes) — a red run there is not a release blocker by
-itself, but check it isn't hiding a real Swift compile failure.
+is slow (a traced run takes 1-2.5h vs. ~2 min untraced) but is no longer flaky infra as of
+PR #668 — it moved off the macos-14/Xcode-16.2 pin that started rejecting Swift 6.2 code
+onto macos-15 + latest-stable Xcode, with the CodeQL bundle pinned to 2.26.3 to dodge a
+Swift-extractor regression in newer bundles. A red run there is a real signal now, not a
+release-blocker exception.
 
 Then locally, from a clean `main`:
 
 ```bash
 bun install --frozen-lockfile
 bun run check                 # svelte-check + prettier, must end "0 ERRORS"
+bun run constants:check       # shared analytics constants up to date (also gated in CI)
+bun run analytics:check       # analytics golden vectors up to date (also gated in CI)
 bun run test                  # unit tests
 bun run test:integration-db   # Testcontainers, needs Docker
 bun run security              # Semgrep + bun audit + Trivy — fix CRITICAL/HIGH
@@ -104,6 +109,25 @@ short hash. Publishing the release is what fires both `docker.yml` and
 - Even without any of this, `docker-server`'s `reconcile.sh` timer polls GHCR for a new
   `:latest` every two minutes and would converge on its own — the SSH deploy step just
   makes it immediate.
+
+## First production launch (and every release after it)
+
+`mobile-release.yml` only ever reaches internal/TestFlight — its `workflow_dispatch` inputs
+are `version` and `platforms` (`both`/`android`/`ios`); there is no `track` input, and the
+Android job's `track: internal` is hardcoded. Reaching real users always needs a manual
+promotion step in each console, for the first release and for every one after it.
+
+- **Android**: the workflow uploads to Play's **internal** track. Testers currently live on
+  a custom **closed track** ("beta-track"), not Play's built-in open-testing track — Play
+  Console shows internal, beta-track and production as separate tracks with their own
+  release history. For the first production release, promote a build to Production from
+  Play Console (internal → beta-track → Production, or directly from internal — Play lets
+  you promote from any track). See `store/RELEASE.md` for the console click-path and the
+  store-listing/Data Safety checklist.
+- **iOS**: the workflow uploads a build to TestFlight only. For the first release, create
+  the app's version in App Store Connect, attach the TestFlight build, fill in the
+  required metadata/screenshots, choose manual or automatic release, and submit for
+  review. See `store/RELEASE.md` for the detailed steps and outstanding asset checklist.
 
 ## Reading a failed mobile-release run
 
