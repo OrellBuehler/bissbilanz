@@ -391,3 +391,21 @@ struct WeightTrendTests {
         #expect(WeightTrend.localDelta7d(entries: [makeWeight(date: "garbage", kg: 100)]) == nil)
     }
 }
+
+// MARK: - Snapshot Meal Order
+
+@Suite("Snapshot Meal Order Tests")
+struct SnapshotMealOrderTests {
+    @Test("Standard meals come first in canonical order, custom meals after alphabetically")
+    func canonicalOrder() {
+        let sorted = ["Snacks", "Post-workout", "Dinner", "Breakfast", "Lunch", "Brunch"]
+            .sorted(by: WidgetSnapshotWriter.mealPrecedes)
+        #expect(sorted == ["Breakfast", "Lunch", "Dinner", "Snacks", "Brunch", "Post-workout"])
+    }
+
+    @Test("Standard meals are matched case-insensitively")
+    func caseInsensitiveStandardMeals() {
+        let sorted = ["snacks", "dinner", "lunch", "breakfast"].sorted(by: WidgetSnapshotWriter.mealPrecedes)
+        #expect(sorted == ["breakfast", "lunch", "dinner", "snacks"])
+    }
+}

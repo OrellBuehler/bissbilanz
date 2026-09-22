@@ -137,13 +137,6 @@ extension WidgetSnapshotWriter {
         )
     }
 
-    /// Standard meal types the app always offers, in display order. These match
-    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
-    /// entries carry locally, so `mealTypes` recognizes them rather than
-    /// re-appending them as "custom". The watch list starts from these and
-    /// appends any custom meal types found in the log (see `mealTypes`).
-    nonisolated static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
-
     /// Latest weight plus the change versus ~7 days ago, computed from the local
     /// weight history so it works offline and in Local mode. `entryDate` strings
     /// ("yyyy-MM-dd") sort chronologically, so the newest row at or before the
