@@ -4,22 +4,23 @@ This file lists all third-party dependencies used in production and their licens
 
 ## Summary
 
-| License                   | Count |
-| ------------------------- | ----- |
-| MIT                       | 251   |
-| Apache-2.0                | 25    |
-| ISC                       | 15    |
-| BSD-3-Clause              | 5     |
-| BSD-2-Clause              | 5     |
-| BlueOak-1.0.0             | 5     |
-| MPL-2.0                   | 4     |
-| OFL-1.1                   | 2     |
-| LGPL-3.0-or-later         | 2     |
-| FSL-1.1-MIT               | 2     |
-| UNKNOWN                   | 1     |
-| (Unlicense OR Apache-2.0) | 1     |
-| CC-BY-4.0                 | 1     |
-| Unlicense                 | 1     |
+| License                          | Count |
+| -------------------------------- | ----- |
+| MIT                              | 256   |
+| Apache-2.0                       | 26    |
+| ISC                              | 15    |
+| (Apache-2.0 WITH LLVM-exception) | 7     |
+| BSD-3-Clause                     | 5     |
+| BSD-2-Clause                     | 5     |
+| BlueOak-1.0.0                    | 5     |
+| MPL-2.0                          | 4     |
+| OFL-1.1                          | 2     |
+| LGPL-3.0-or-later                | 2     |
+| FSL-1.1-MIT                      | 2     |
+| UNKNOWN                          | 1     |
+| (Unlicense OR Apache-2.0)        | 1     |
+| CC-BY-4.0                        | 1     |
+| Unlicense                        | 1     |
 
 ## Packages
 
@@ -565,6 +566,61 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
+### @bytecodealliance/jco-node-fs-linux-x64-gnu@0.3.2
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+<details><summary>License Text</summary>
+
+```
+# `@bytecodealliance/jco-node-fs-linux-x64-gnu`
+
+This is the **x86_64-unknown-linux-gnu** binary for `@bytecodealliance/jco-node-fs`
+```
+
+</details>
+
+### @bytecodealliance/jco-node-fs-linux-x64-musl@0.3.2
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+<details><summary>License Text</summary>
+
+```
+# `@bytecodealliance/jco-node-fs-linux-x64-musl`
+
+This is the **x86_64-unknown-linux-musl** binary for `@bytecodealliance/jco-node-fs`
+```
+
+</details>
+
+### @bytecodealliance/jco-node-fs@0.3.2
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+### @bytecodealliance/jco-transpile@0.13.0
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+### @bytecodealliance/preview2-shim@0.24.1
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+### @bytecodealliance/preview2-shim@0.25.0
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
+### @bytecodealliance/preview3-shim@0.6.1
+
+- **License:** (Apache-2.0 WITH LLVM-exception)
+- **Repository:** https://github.com/bytecodealliance/jco
+
 ### @esbuild/linux-x64@0.28.2
 
 - **License:** MIT
@@ -1076,7 +1132,7 @@ https://github.com/lovell/sharp-libvips/issues/new
 - **License:** Apache-2.0
 - **Repository:** https://github.com/lovell/sharp
 
-### @inlang/paraglide-js@2.25.0
+### @inlang/paraglide-js@2.25.4
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/paraglide-js
@@ -1141,7 +1197,7 @@ SOFTWARE.
 
 </details>
 
-### @inlang/sdk@3.0.3
+### @inlang/sdk@3.0.6
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/inlang
@@ -1329,6 +1385,37 @@ SOFTWARE.
 
 </details>
 
+### @jridgewell/sourcemap-codec@1.6.0
+
+- **License:** MIT
+- **Repository:** https://github.com/jridgewell/sourcemaps
+
+<details><summary>License Text</summary>
+
+```
+Copyright 2024 Justin Ridgewell <justin@ridgewell.name>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+</details>
+
 ### @jridgewell/trace-mapping@0.3.31
 
 - **License:** MIT
@@ -1360,12 +1447,12 @@ SOFTWARE.
 
 </details>
 
-### @lix-js/sdk-linux-x64@0.12.3
+### @lix-js/sdk-linux-x64@0.17.0
 
 - **License:** UNKNOWN
 - **Repository:** https://github.com/opral/lix
 
-### @lix-js/sdk@0.12.3
+### @lix-js/sdk@0.17.0
 
 - **License:** MIT
 - **Repository:** https://github.com/opral/lix
@@ -1457,6 +1544,36 @@ This is the **x86_64-unknown-linux-gnu** binary for `@napi-rs/lzma`
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/open-telemetry/opentelemetry-js
+
+### @oxc-minify/binding-linux-x64-gnu@0.136.0
+
+- **License:** MIT
+- **Repository:** https://github.com/oxc-project/oxc
+
+<details><summary>License Text</summary>
+
+```
+# `@oxc-minify/binding-linux-x64-gnu`
+
+This is the **x86_64-unknown-linux-gnu** binary for `@oxc-minify/binding`
+```
+
+</details>
+
+### @oxc-minify/binding-linux-x64-musl@0.136.0
+
+- **License:** MIT
+- **Repository:** https://github.com/oxc-project/oxc
+
+<details><summary>License Text</summary>
+
+```
+# `@oxc-minify/binding-linux-x64-musl`
+
+This is the **x86_64-unknown-linux-musl** binary for `@oxc-minify/binding`
+```
+
+</details>
 
 ### @oxc-project/types@0.144.0
 
@@ -3162,6 +3279,11 @@ THE SOFTWARE.
 
 </details>
 
+### binaryen@130.0.0
+
+- **License:** Apache-2.0
+- **Repository:** https://github.com/AssemblyScript/binaryen.js
+
 ### bmp-js@0.1.0
 
 - **License:** MIT
@@ -4229,6 +4351,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </details>
 
+### devalue@5.9.4
+
+- **License:** MIT
+- **Repository:** https://github.com/sveltejs/devalue
+
+<details><summary>License Text</summary>
+
+```
+
+Copyright (c) 2018-19 [these people](https://github.com/rich-harris/devalue/graphs/contributors)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
 ### dexie@4.4.6
 
 - **License:** Apache-2.0
@@ -4717,7 +4860,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### esrap@2.3.3
+### esrap@2.3.8
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/esrap
@@ -7858,6 +8001,42 @@ SOFTWARE.
 
 </details>
 
+### oxc-minify@0.136.0
+
+- **License:** MIT
+- **Repository:** https://github.com/oxc-project/oxc
+
+<details><summary>License Text</summary>
+
+```
+
+MIT License
+
+Copyright (c) 2024-present VoidZero Inc. & Contributors
+Copyright (c) 2023 Boshen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+</details>
+
 ### p-limit@3.1.0
 
 - **License:** MIT
@@ -9436,7 +9615,7 @@ THE SOFTWARE.
 
 </details>
 
-### svelte@5.57.0
+### svelte@5.57.1
 
 - **License:** MIT
 - **Repository:** https://github.com/sveltejs/svelte
