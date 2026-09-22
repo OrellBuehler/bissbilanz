@@ -131,8 +131,11 @@ final class MealEstimator {
         return LanguageModelSession(tools: [tool], instructions: Self.instructions)
     }
 
+    /// Not private: `MealEstimator+Photo.swift` builds its own tool from this
+    /// closure to add multimodal (photo) support without duplicating the food
+    /// search logic or its hallucination guard.
     @available(iOS 26.0, *)
-    private func makeSearchClosure() -> @Sendable (String) async -> [FoodMatchDTO] {
+    func makeSearchClosure() -> @Sendable (String) async -> [FoodMatchDTO] {
         let foodRepository = foodRepository
         return { query in
             // Hops back to the main actor to read SwiftData, then converts to a
@@ -175,8 +178,9 @@ final class MealEstimator {
         }
     }
 
+    /// Not private: reused by `MealEstimator+Photo.swift` for the photo path's errors.
     @available(iOS 26.0, *)
-    private static func mapGenerationError(_ error: LanguageModelSession.GenerationError) -> MealEstimatorError {
+    static func mapGenerationError(_ error: LanguageModelSession.GenerationError) -> MealEstimatorError {
         switch error {
         case .guardrailViolation:
             .guardrailViolation
@@ -197,8 +201,11 @@ final class MealEstimator {
 /// Sendable snapshot of a `Food` handed to the model through the search tool —
 /// crossing the tool-call boundary needs a plain value type, not the
 /// `@MainActor`-bound `FoodRepository`/SwiftData row.
+///
+/// Not private: `MealEstimator+Photo.swift` shares this DTO (and the tool,
+/// actor and error mapper below) rather than duplicating them for the photo path.
 @available(iOS 26.0, *)
-private struct FoodMatchDTO {
+struct FoodMatchDTO {
     let id: String
     let name: String
     let brand: String?
@@ -228,7 +235,7 @@ private struct FoodMatchDTO {
 /// session, so a matchedFoodId the model invents (rather than copies from a
 /// tool result) can be detected and discarded after generation.
 @available(iOS 26.0, *)
-private actor MatchedFoodIds {
+actor MatchedFoodIds {
     private(set) var ids: Set<String> = []
 
     func record(_ newIds: [String]) {
@@ -237,7 +244,7 @@ private actor MatchedFoodIds {
 }
 
 @available(iOS 26.0, *)
-private struct FoodSearchTool: Tool {
+struct FoodSearchTool: Tool {
     let name = "searchLocalFoods"
     let description = """
     Searches the user's personal food database by name and returns up to 5 candidate \
@@ -276,14 +283,14 @@ private struct FoodSearchTool: Tool {
 
 @available(iOS 26.0, *)
 @Generable
-private struct EstimatedMeal {
+struct EstimatedMeal {
     @Guide(description: "One entry per distinct food or drink item mentioned in the user's description")
     let items: [EstimatedItem]
 }
 
 @available(iOS 26.0, *)
 @Generable
-private struct EstimatedItem {
+struct EstimatedItem {
     @Guide(description: "The food or drink item's name, written in the same language the user described it in")
     let name: String
 

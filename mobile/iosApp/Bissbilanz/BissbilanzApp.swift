@@ -53,6 +53,7 @@ struct BissbilanzApp: App {
     @State private var fastingManager: FastingTimerManager
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
+    @State private var mcpConnectionStatus: McpConnectionStatus
     private let modelContainer: ModelContainer
     /// Read-only day/week totals for the Siri data-query intents and the
     /// Spotlight day index. Not part of the SwiftUI environment — the views
@@ -125,6 +126,7 @@ struct BissbilanzApp: App {
         }
         let aiTasks = AiTaskStore(api: api, appMode: appMode)
         _aiTaskStore = State(wrappedValue: aiTasks)
+        _mcpConnectionStatus = State(wrappedValue: McpConnectionStatus(api: api, appMode: appMode))
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -309,6 +311,7 @@ struct BissbilanzApp: App {
             .environment(fastingManager)
             .environment(foodImageLoader)
             .environment(aiTaskStore)
+            .environment(mcpConnectionStatus)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {
@@ -410,6 +413,9 @@ struct BissbilanzApp: App {
         // First, re-send any meal a previous launch was killed while uploading.
         try? await aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
+        // Keeps the "send to assistant" gate in AIMealSheet current without
+        // ever blocking it on a network call — see McpConnectionStatus.
+        await mcpConnectionStatus.refresh()
         // Surface any widget-extension quick-add failures (the extension has no
         // Sentry of its own — see QuickAddDiagnostics).
         for entry in QuickAddDiagnostics.drain() {
