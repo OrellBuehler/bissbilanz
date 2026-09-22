@@ -630,6 +630,7 @@ struct LogFoodForm: View {
     var body: some View {
         Form {
             Section {
+                FoodHeaderImage(imageUrl: food.imageUrl)
                 HStack {
                     Text(food.name)
                         .font(.headline)

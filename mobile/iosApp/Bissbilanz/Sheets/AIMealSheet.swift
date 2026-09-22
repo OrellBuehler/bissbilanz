@@ -39,6 +39,10 @@ struct AIMealSheet: View {
     @State private var isSendingToAssistant = false
     @State private var pendingTaskCount: Int?
     @State private var detent: PresentationDetent = .medium
+    /// Floor for both action labels, so a one-line title still fills the same
+    /// box as a title that wraps. Scales with Dynamic Type because the wrapped
+    /// title does too. Only applied when the row actually holds both buttons.
+    @ScaledMetric(relativeTo: .body) private var actionLabelMinHeight: CGFloat = 44
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
@@ -108,6 +112,9 @@ struct AIMealSheet: View {
                                 sendToAssistantButton
                             }
                         }
+                        // Both buttons fill the row's height, so the taller
+                        // (wrapped) title sets it and the other grows to match.
+                        .fixedSize(horizontal: false, vertical: true)
                         .controlSize(.large)
                     }
                     .listRowBackground(Color.clear)
@@ -174,20 +181,40 @@ struct AIMealSheet: View {
         Button {
             Task { await runEstimate() }
         } label: {
-            HStack {
-                Spacer()
-                if isEstimating {
-                    ProgressView()
-                    Text(L10n.aiMealEstimating)
-                } else {
-                    Text(L10n.aiMealEstimateButton)
-                }
-                Spacer()
-            }
+            actionLabel(
+                title: isEstimating ? L10n.aiMealEstimating : L10n.aiMealEstimateButton,
+                showsProgress: isEstimating
+            )
         }
-        .multilineTextAlignment(.center)
         .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
         .buttonStyle(.borderedProminent)
+    }
+
+    /// True only when the estimate and queue actions share the row. Alone, a
+    /// button spans the full width and its title fits on one line, so it keeps
+    /// the standard control height instead of the two-line floor.
+    private var showsBothActions: Bool {
+        mealEstimator.availability == .available && !appMode.isLocal
+    }
+
+    /// The shared shape of both action labels: half the row each and the full
+    /// row height, so the pair always reads as one control group even when the
+    /// longer title ("Send to My Assistant", longer still in German) wraps.
+    private func actionLabel(title: String, showsProgress: Bool) -> some View {
+        HStack(spacing: 6) {
+            if showsProgress {
+                ProgressView()
+            }
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+        }
+        .frame(
+            maxWidth: .infinity,
+            minHeight: showsBothActions ? actionLabelMinHeight : nil,
+            maxHeight: .infinity
+        )
     }
 
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
@@ -199,18 +226,11 @@ struct AIMealSheet: View {
         let button = Button {
             sendToAssistant()
         } label: {
-            HStack {
-                Spacer()
-                if isSendingToAssistant {
-                    ProgressView()
-                    Text(L10n.aiTaskSending)
-                } else {
-                    Text(L10n.aiTaskSendButton)
-                }
-                Spacer()
-            }
+            actionLabel(
+                title: isSendingToAssistant ? L10n.aiTaskSending : L10n.aiTaskSendButton,
+                showsProgress: isSendingToAssistant
+            )
         }
-        .multilineTextAlignment(.center)
         .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating)
 
         if mealEstimator.availability == .available {

@@ -29,6 +29,13 @@ export const MACRO_GOAL_MAPPINGS: MacroGoalMapping[] = [
 	{ key: 'fiber', goalKey: 'fiberGoal' }
 ];
 
+export const RADAR_MACRO_MAPPINGS: MacroGoalMapping[] = [
+	{ key: 'protein', goalKey: 'proteinGoal' },
+	{ key: 'carbs', goalKey: 'carbGoal' },
+	{ key: 'fat', goalKey: 'fatGoal' },
+	{ key: 'fiber', goalKey: 'fiberGoal' }
+];
+
 export function filterDaysWithEntries(data: DayRow[]): DayRow[] {
 	return data.filter((d) => d.calories > 0);
 }
@@ -99,8 +106,8 @@ export function radarPercentages(
 	goals: Goals | null,
 	cap = 150
 ): number[] {
-	if (!goals) return MACRO_GOAL_MAPPINGS.map(() => 0);
-	return MACRO_GOAL_MAPPINGS.map((m) => {
+	if (!goals) return RADAR_MACRO_MAPPINGS.map(() => 0);
+	return RADAR_MACRO_MAPPINGS.map((m) => {
 		const goalVal = goals[m.goalKey];
 		if (!goalVal) return 0;
 		return Math.min((averages[m.key] / goalVal) * 100, cap);

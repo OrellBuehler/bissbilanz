@@ -6,11 +6,11 @@ struct MacroRadarView: View {
     var body: some View {
         GeometryReader { geo in
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
-            let radius = min(geo.size.width, geo.size.height) / 2 - 24
+            let radius = min(geo.size.width, geo.size.height) / 2 - 30
             let count = axes.count
 
             Canvas { context, _ in
-                // Draw concentric pentagons (25%, 50%, 75%, 100%)
+                // Draw concentric rings (25%, 50%, 75%, 100%)
                 for level in [0.25, 0.5, 0.75, 1.0] {
                     let path = polygonPath(center: center, radius: radius * level, sides: count)
                     context.stroke(path, with: .color(.gray.opacity(0.2)), lineWidth: 1)
@@ -47,7 +47,7 @@ struct MacroRadarView: View {
             // Draw labels
             ForEach(0 ..< count, id: \.self) { i in
                 let angle = angleFor(index: i, total: count)
-                let labelRadius = radius + 16
+                let labelRadius = radius + 14
                 let point = pointAt(center: center, radius: labelRadius, angle: angle)
                 let pct = Int(min(axes[i].1, 2.0) * 100)
 

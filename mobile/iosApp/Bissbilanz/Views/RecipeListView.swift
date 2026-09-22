@@ -37,7 +37,14 @@ struct RecipeListView: View {
                     )
                 } else {
                     List(filteredRecipes) { recipe in
-                        NavigationLink(value: recipe) {
+                        // Label-based link: the
+                        // `navigationDestination(for: Recipe.self)` it replaces sat
+                        // on this branch of the conditional only, so an empty search
+                        // result or a reload error while a recipe was pushed left the
+                        // stack with nothing to resolve — the empty placeholder page.
+                        NavigationLink {
+                            RecipeDetailView(recipeId: recipe.id)
+                        } label: {
                             recipeRow(recipe)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -57,9 +64,6 @@ struct RecipeListView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .navigationDestination(for: Recipe.self) { recipe in
-                        RecipeDetailView(recipeId: recipe.id)
-                    }
                 }
             }
             .navigationTitle(L10n.recipes)
@@ -183,6 +187,7 @@ struct LogRecipeSheet: View {
         NavigationStack {
             Form {
                 Section {
+                    FoodHeaderImage(imageUrl: recipe.imageUrl)
                     HStack {
                         Text(recipe.name)
                             .font(.headline)

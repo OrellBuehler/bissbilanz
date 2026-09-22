@@ -155,6 +155,11 @@ struct DashboardView: View {
             }
             .keyboardDismissable()
             .navigationTitle(L10n.appName)
+            // Inline so the title and the layout-editor button share one row
+            // instead of the large title pushing them onto two (TestFlight
+            // feedback, 1.46.0) — the dashboard's own date navigator already
+            // sits directly below, so a large title only cost vertical room.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {

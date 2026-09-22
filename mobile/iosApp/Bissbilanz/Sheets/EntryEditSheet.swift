@@ -6,6 +6,11 @@ struct EntryEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let entry: Entry
+    /// The logged food's or recipe's photo. Passed in rather than read off the
+    /// entry: `entry.imageUrl` is only resolved on list responses, and the
+    /// presenting day log already falls back to the local food/recipe row for
+    /// optimistic entries and Local mode.
+    var imageUrl: String?
     let onSaved: (Entry) -> Void
 
     @State private var servings: Double
@@ -30,8 +35,9 @@ struct EntryEditSheet: View {
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
-    init(entry: Entry, onSaved: @escaping (Entry) -> Void) {
+    init(entry: Entry, imageUrl: String? = nil, onSaved: @escaping (Entry) -> Void) {
         self.entry = entry
+        self.imageUrl = imageUrl
         self.onSaved = onSaved
         _servings = State(initialValue: entry.servings)
         _mealType = State(initialValue: entry.mealType)
@@ -106,6 +112,10 @@ struct EntryEditSheet: View {
         NavigationStack {
             Form {
                 Section {
+                    // Shorter than on the log sheet: this one opens on the
+                    // medium detent, where a full-height banner would push the
+                    // servings field off screen.
+                    FoodHeaderImage(imageUrl: imageUrl, height: 120)
                     Text(entry.displayName)
                         .font(.headline)
                 }
