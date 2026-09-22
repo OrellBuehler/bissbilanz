@@ -1,10 +1,12 @@
 import SwiftUI
 import WatchKit
 
-/// Weight tab: a glance (latest weight + 7-day trend) and a vertical slide for
-/// logging today's weight with the Digital Crown.
+/// Weight tab: a single glance (latest weight + 7-day trend). Logging opens
+/// as a sheet from the toolbar, seeded from the latest weight.
 struct WeightView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
+
+    @State private var isLogging = false
 
     private var strings: WatchStrings {
         connectivity.state.strings
@@ -15,50 +17,65 @@ struct WeightView: View {
     }
 
     var body: some View {
-        TabView {
-            glance
-            WeightLoggerView(startKg: weight.latestKg)
-        }
-        .tabViewStyle(.verticalPage)
+        glance
+            .navigationTitle(strings.weight)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isLogging = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel(strings.log)
+                }
+            }
+            .sheet(isPresented: $isLogging) {
+                NavigationStack {
+                    WeightLoggerView(startKg: weight.latestKg)
+                }
+            }
     }
 
+    @ViewBuilder
     private var glance: some View {
-        VStack(spacing: 6) {
-            Text(strings.weight)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let latest = weight.latestKg {
-                Text(String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), latest))
-                    .font(.system(size: 46, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                Text("kg")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                if let delta = weight.delta7dKg {
-                    HStack(spacing: 4) {
-                        Image(systemName: delta < 0 ? "arrow.down" : (delta > 0 ? "arrow.up" : "minus"))
-                        Text(strings.signedKg(delta))
-                            .monospacedDigit()
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(delta < 0 ? MacroColors.fiber : .secondary)
-                    .padding(.top, 2)
-                    Text(strings.sevenDayTrend)
-                        .font(.caption2)
+        if let latest = weight.latestKg {
+            VStack(spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(Self.format(latest))
+                        .font(.system(size: 48, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    Text("kg")
+                        .font(.system(.title3, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
-            } else {
-                Text(strings.noWeight)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
+
+                if let delta = weight.delta7dKg {
+                    VStack(spacing: 1) {
+                        Label(strings.signedKg(delta), systemImage: Self.trendIcon(delta))
+                            .font(.system(.body, design: .rounded))
+                            .fontWeight(.medium)
+                            .monospacedDigit()
+                            .foregroundStyle(delta < 0 ? MacroColors.fiber : .secondary)
+                        Text(strings.sevenDayTrend)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView(strings.noWeight, systemImage: "scalemass")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    fileprivate static func format(_ kg: Double) -> String {
+        String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), kg)
+    }
+
+    private static func trendIcon(_ delta: Double) -> String {
+        delta < 0 ? "arrow.down.right" : (delta > 0 ? "arrow.up.right" : "arrow.right")
     }
 }
 
@@ -66,10 +83,10 @@ struct WeightView: View {
 /// adjustment is all most weigh-ins need.
 private struct WeightLoggerView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
+    @Environment(\.dismiss) private var dismiss
 
     @State private var kg: Double
     @State private var isLogging = false
-    @State private var didFinish = false
     @FocusState private var crownFocused: Bool
 
     init(startKg: Double?) {
@@ -82,51 +99,27 @@ private struct WeightLoggerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(strings.weight)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-            Text(String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), kg))
-                .font(.system(size: 48, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .minimumScaleFactor(0.6)
-                .focusable()
-                .focused($crownFocused)
-                .digitalCrownRotation(
-                    $kg,
-                    from: 30,
-                    through: 250,
-                    by: 0.1,
-                    sensitivity: .low,
-                    isContinuous: false,
-                    isHapticFeedbackEnabled: true
-                )
-                .overlay(alignment: .bottom) {
-                    Text("kg")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .offset(y: 14)
-                }
-                .padding(.bottom, 14)
-
-            Button(action: log) {
-                if isLogging {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text(strings.log)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
+        CrownValue(value: WeightView.format(kg), caption: "kg", size: 52)
+            .focusable()
+            .focused($crownFocused)
+            .digitalCrownRotation(
+                $kg,
+                from: 30,
+                through: 250,
+                by: 0.1,
+                sensitivity: .low,
+                isContinuous: false,
+                isHapticFeedbackEnabled: true
+            )
+            .frame(maxHeight: .infinity)
+            .navigationTitle(strings.weight)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ConfirmButton(isLogging: isLogging, label: strings.log, action: log)
                 }
             }
-            .tint(MacroColors.calories)
-            .disabled(isLogging)
-        }
-        .padding(.vertical, 4)
-        .sensoryFeedback(.increase, trigger: kg)
-        .sensoryFeedback(.success, trigger: didFinish)
-        .onAppear { crownFocused = true }
+            .sensoryFeedback(.increase, trigger: kg)
+            .onAppear { crownFocused = true }
     }
 
     private func log() {
@@ -141,7 +134,8 @@ private struct WeightLoggerView: View {
             isLogging = false
             switch outcome {
             case .confirmed, .queued:
-                didFinish = true
+                WKInterfaceDevice.current().play(.success)
+                dismiss()
             case .failed:
                 WKInterfaceDevice.current().play(.failure)
             }

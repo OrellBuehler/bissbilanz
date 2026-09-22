@@ -18,25 +18,22 @@ struct LogListView: View {
     }
 
     var body: some View {
-        List {
+        Group {
             if favorites.isEmpty, state.recents.isEmpty {
-                Text(strings.noData)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-            }
+                ContentUnavailableView(strings.noData, systemImage: "fork.knife")
+            } else {
+                List {
+                    if !favorites.isEmpty {
+                        Section(strings.favorites) {
+                            ForEach(favorites) { row($0) }
+                        }
+                    }
 
-            if !favorites.isEmpty {
-                Section(strings.favorites) {
-                    ForEach(favorites) { row($0) }
-                }
-            }
-
-            if !state.recents.isEmpty {
-                Section(strings.recents) {
-                    ForEach(state.recents) { row($0) }
+                    if !state.recents.isEmpty {
+                        Section(strings.recents) {
+                            ForEach(state.recents) { row($0) }
+                        }
+                    }
                 }
             }
         }
@@ -49,11 +46,11 @@ struct LogListView: View {
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(food.name)
-                    .font(.body)
                     .lineLimit(2)
                 Text("\(strings.integer(food.calories)) \(strings.kcal)")
-                    .font(.caption2)
-                    .foregroundStyle(MacroColors.calories)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
         }
     }
