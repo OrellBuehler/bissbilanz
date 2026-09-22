@@ -54,7 +54,7 @@ struct InsightsView: View {
                     .foregroundStyle(.secondary)
 
                 if snapshot.meals.isEmpty {
-                    Text(strings.noData)
+                    Text(connectivity.hasReceivedState ? strings.nothingLogged : strings.noData)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {

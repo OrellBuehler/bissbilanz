@@ -64,8 +64,17 @@ struct WatchStrings {
         isGerman ? "Portionen" : "Servings"
     }
 
+    /// Nothing has ever arrived from the iPhone.
     var noData: String {
         isGerman ? "Keine Daten — App auf dem iPhone öffnen" : "No data — open the app on your iPhone"
+    }
+
+    var noFavorites: String {
+        isGerman ? "Noch keine Favoriten" : "No favorites yet"
+    }
+
+    var nothingLogged: String {
+        isGerman ? "Noch nichts eingetragen" : "Nothing logged yet"
     }
 
     var weight: String {

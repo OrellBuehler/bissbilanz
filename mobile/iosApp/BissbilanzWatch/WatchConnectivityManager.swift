@@ -43,6 +43,10 @@ final class WatchConnectivityManager: NSObject {
     /// something to show before the first sync of the session arrives.
     private(set) var state: WatchState
 
+    /// False until a state has ever arrived from the phone. Before that the
+    /// empty screens mean "open the iPhone app", not "nothing logged".
+    private(set) var hasReceivedState: Bool
+
     /// Shortest gap between two state requests. Foregrounding is user-driven
     /// and the reply is a full store read on the phone, so a burst of quick
     /// wrist raises must not turn into a burst of phone work.
@@ -68,7 +72,9 @@ final class WatchConnectivityManager: NSObject {
     }
 
     override init() {
-        state = WatchStore.load() ?? .empty(on: Date())
+        let stored = WatchStore.load()
+        state = stored ?? .empty(on: Date())
+        hasReceivedState = stored != nil
         super.init()
     }
 
@@ -248,6 +254,7 @@ final class WatchConnectivityManager: NSObject {
 
     private func apply(_ state: WatchState) {
         self.state = state
+        hasReceivedState = true
         WatchStore.save(state)
         WidgetCenter.shared.reloadAllTimelines()
     }
