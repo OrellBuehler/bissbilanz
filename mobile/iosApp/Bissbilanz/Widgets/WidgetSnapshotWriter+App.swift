@@ -69,24 +69,34 @@ extension WidgetSnapshotWriter {
     /// background context over the same store, so callers must have saved
     /// first — every repository does before scheduling.
     static func publish(container: ModelContainer) async {
-        let localeCode = L10n.currentLocale.rawValue
-        // Detached on purpose: a `@ModelActor` runs its work on whichever
-        // executor it was *created* on, and both callers of `publish` (the
-        // debounced `scheduleUpdate` task and `BackgroundRefresher`) run on
-        // the main actor. Created inline, the "background" builder did all
-        // its fetches on the main thread after all — the same watchdog hang
-        // (Sentry BISSBILANZ-3H, `watchRecents`, on a build that already
-        // shipped the builder). A detached task creates the actor off main,
-        // so its executor is off main too.
-        let built = await Task.detached(priority: .utility) {
-            await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
-        }.value
+        let built = await build(container: container, priority: .utility)
         saveAndReload(built.snapshot)
         PhoneWatchConnectivity.shared.sendState(built.watchState)
         // After the snapshot, not before: the widgets should show the new
         // totals immediately rather than wait on a download, and a favorite
         // whose picture arrives a moment later gets a second reload.
         await warmImages(of: built.snapshot)
+    }
+
+    /// Builds the snapshot and the watch state on a background context,
+    /// without persisting or pushing either — `publish` does that, and the
+    /// watch handlers use it to answer a request with fresh state.
+    ///
+    /// Detached on purpose: a `@ModelActor` runs its work on whichever
+    /// executor it was *created* on, and every caller here runs on the main
+    /// actor. Created inline, the "background" builder did all its fetches on
+    /// the main thread after all — the same watchdog hang (Sentry
+    /// BISSBILANZ-3H, `watchRecents`, on a build that already shipped the
+    /// builder). A detached task creates the actor off main, so its executor
+    /// is off main too.
+    static func build(
+        container: ModelContainer,
+        priority: TaskPriority = .userInitiated
+    ) async -> (snapshot: WidgetSnapshot, watchState: WatchState) {
+        let localeCode = L10n.currentLocale.rawValue
+        return await Task.detached(priority: priority) {
+            await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
+        }.value
     }
 
     /// Fetches any of the snapshot favorites' images the device does not hold

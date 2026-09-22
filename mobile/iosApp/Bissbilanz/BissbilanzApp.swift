@@ -172,7 +172,9 @@ struct BissbilanzApp: App {
 
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
         // the phone performs the real write through the same repository the UI
-        // uses, then replies with the refreshed snapshot.
+        // uses, then replies with the refreshed snapshot. Replies are built on a
+        // background context: the watch asks on every foreground, and the
+        // watch-state scans on the main context are the hang BISSBILANZ-39.
         PhoneWatchConnectivity.shared.onLogRequest = { request in
             let food = request.foodId.flatMap { foodRepo.food(id: $0) }
             let create = EntryCreate(
@@ -189,7 +191,7 @@ struct BissbilanzApp: App {
                 quickFiber: request.quickFiber
             )
             _ = try await entryRepo.createEntry(create, food: food)
-            return WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+            return await WidgetSnapshotWriter.build(container: container).snapshot
         }
         // Weight/sleep logs from the watch run through the same offline-first
         // repositories the UI uses; the reply carries the refreshed WatchState
@@ -198,7 +200,7 @@ struct BissbilanzApp: App {
             _ = try await weightRepo.createEntry(
                 WeightCreate(weightKg: request.weightKg, entryDate: request.date)
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         PhoneWatchConnectivity.shared.onSleepLog = { request in
             // Quality is the app's 1–10 scale on both ends; clamped so a value
@@ -211,13 +213,13 @@ struct BissbilanzApp: App {
                     entryDate: request.date
                 )
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         // The watch asks for state on launch and on every foreground: nothing
         // else prompts a push, so a watch that was out of range for the last
         // one would otherwise show stale data until the phone next wrote.
         PhoneWatchConnectivity.shared.onStateRequest = {
-            WidgetSnapshotWriter.buildWatchState(context: context)
+            await WidgetSnapshotWriter.build(container: container).watchState
         }
         // `activate()` is deliberately NOT called here: WCSession activation is
         // not needed before the first frame, and everything in this init runs
