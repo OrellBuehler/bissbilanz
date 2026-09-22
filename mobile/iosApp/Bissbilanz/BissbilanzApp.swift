@@ -62,6 +62,18 @@ struct BissbilanzApp: App {
     /// queries and their Spotlight index.
     private let bodyReader: BodyReader
 
+    /// True when this process is being driven by any test host:
+    /// `BissbilanzTests` (unit tests, hosted in this same app process) or
+    /// `BissbilanzIntentsUITests` (AppIntentsTesting, which launches this app
+    /// out-of-process and drives its registered intents through the real App
+    /// Intents infrastructure). Mirrors the two-signal check in
+    /// WidgetSnapshotWriter+App.swift; only the environment variable actually
+    /// fires for the out-of-process case, since the XCTest bundle is never
+    /// injected into the launched app there.
+    private static let isRunningTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+
     init() {
         // Start crash reporting before anything else can fail.
         ErrorReporter.start()
@@ -75,10 +87,30 @@ struct BissbilanzApp: App {
         // CloudKit mirroring runs only in Local (anonymous) mode — Synced mode
         // already syncs through the backend (see LocalStore). The mode is read
         // once at launch, so toggling it takes effect on the next launch.
-        let container = LocalStore.makeContainerWithFallback(
-            cloudKitEnabled: appMode.isLocal,
-            onError: { error, context in ErrorReporter.capture(error, context: context) }
-        )
+        //
+        // Under any test host (unit tests, or AppIntentsTesting's UI-testing
+        // bundle launching this app out-of-process — see
+        // BissbilanzIntentsUITests) this app process still runs its normal
+        // `init`, since intents resolve their dependencies from
+        // AppDependencyManager, populated here. An in-memory, un-mirrored
+        // store keeps those runs hermetic instead of reading/writing the
+        // simulator's real on-disk App Group store.
+        let container: ModelContainer
+        if Self.isRunningTests {
+            do {
+                container = try LocalStore.makeContainer(inMemory: true)
+            } catch {
+                // Matches LocalStore.makeContainerWithFallback's own last-resort
+                // behaviour: an in-memory SwiftData container failing to build
+                // is not a recoverable state.
+                fatalError("Failed to create in-memory test container: \(error)")
+            }
+        } else {
+            container = LocalStore.makeContainerWithFallback(
+                cloudKitEnabled: appMode.isLocal,
+                onError: { error, context in ErrorReporter.capture(error, context: context) }
+            )
+        }
         modelContainer = container
         let context = container.mainContext
 
@@ -276,6 +308,19 @@ struct BissbilanzApp: App {
         SupplementReminderScheduler.registerCategory()
         SupplementNotificationDelegate.shared.configure(repository: supplementRepo, router: router)
         UNUserNotificationCenter.current().delegate = SupplementNotificationDelegate.shared
+
+        #if DEBUG
+        // Test-only surface for BissbilanzIntentsUITests (AppIntentsTesting):
+        // resets/reseeds the in-memory store above and reads back the sync
+        // queue, so an out-of-process intent test can verify a write without
+        // any app code to import. See IntentTestFixtures/TestOnlyIntents.
+        AppDependencyManager.shared.add(dependency: IntentTestFixtures(
+            context: context,
+            appMode: appMode,
+            connectivity: connectivity,
+            syncManager: sync
+        ))
+        #endif
     }
 
     var body: some Scene {

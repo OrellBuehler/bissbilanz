@@ -268,3 +268,27 @@ targets:
         # first time surfaced "unable to resolve module dependency: 'shared'".
         FRAMEWORK_SEARCH_PATHS:
           - '$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)'
+
+  # AppIntentsTesting (WWDC26) exercises the app's registered intents
+  # out-of-process through the real App Intents infrastructure, referencing
+  # them by name via `IntentDefinitions(bundleIdentifier:)` rather than
+  # `@testable import` — so, unlike BissbilanzTests, this has to be a UI
+  # Testing bundle, not a unit-test one (see Apple's
+  # "Testing your App Intents code"). The framework is iOS 27.0+, first
+  # declared by the Xcode 27 SDK — same reasoning as BissbilanzWatch's
+  # `deploymentTarget` override, but here the whole target only exists on 27
+  # because `import AppIntentsTesting` itself doesn't exist on an older SDK.
+  # CI always resolves the newest available simulator (mobile-ios.yml), which
+  # on the xcode-27 runner is already iOS 27, so no separate device selection
+  # is needed to satisfy this.
+  BissbilanzIntentsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: '27.0'
+    sources:
+      - path: BissbilanzIntentsUITests
+    dependencies:
+      - target: Bissbilanz
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.intentsuitests
