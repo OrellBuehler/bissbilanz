@@ -135,7 +135,10 @@ class WearStatePublisher(
         val entries = entryRepository.entriesByDate(todayString).first()
         val goals = goalsRepository.goals().first()
         val favorites = foodRepository.favorites().first()
-        val recents = foodRepository.recentFoods.value
+        // From the local entry log, not the in-memory recents list: that is only
+        // filled once the app has loaded it, and a watch log starts this process
+        // in the background, where it would push an empty Recents section.
+        val recents = foodRepository.localRecentFoods(RECENTS_LIMIT)
         val weights = weightRepository.entries().first()
         val sleep = sleepRepository.entries().first().maxByOrNull { it.entryDate }
 
@@ -166,7 +169,7 @@ class WearStatePublisher(
             // types reach the watch too.
             mealTypes = (mealTypes + entries.map { normalizeMealType(it.mealType) }).distinct(),
             favorites = favorites.take(FAVORITES_LIMIT).map { it.toRef() },
-            recents = recents.take(RECENTS_LIMIT).map { it.toRef() },
+            recents = recents.map { it.toRef() },
             weight = weights.toWeightInfo(today),
             sleep =
                 sleep?.let {
