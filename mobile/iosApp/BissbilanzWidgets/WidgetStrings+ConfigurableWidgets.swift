@@ -22,6 +22,8 @@ extension WidgetStrings {
     }
 
     var gFiberToday: String {
-        isGermanLocale ? "g Ballaststoffe heute" : "g fiber today"
+        // Abbreviated like `WidgetStrings.fiber` ("Ballastst.") — the full
+        // word plus "heute" wraps in the small ring's caption.
+        isGermanLocale ? "g Ballastst. heute" : "g fiber today"
     }
 }
