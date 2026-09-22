@@ -1,12 +1,14 @@
 package com.bissbilanz.wear.screens
 
 import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.hierarchicalFocusGroup
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Chip
@@ -37,9 +39,13 @@ fun SleepScreen(
     var sending by remember { mutableStateOf(false) }
     var hours by remember { mutableDoubleStateOf(8.0) }
     var quality by remember { mutableIntStateOf(7) }
+    // Which value the crown steps; tapping the other one moves it there, the
+    // way the Apple Watch's sleep logger moves Digital Crown focus.
+    var crownField by remember { mutableStateOf(SleepField.HOURS) }
 
     val listState = rememberScalingLazyListState()
-    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+    // The crown steps a value, as on the Apple Watch, so the list leaves it alone.
+    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize(), rotaryScrollableBehavior = null) {
         item { ListHeader { Text(wearString(R.string.tab_sleep)) } }
 
         item {
@@ -63,29 +69,23 @@ fun SleepScreen(
         item { StepperLabel(wearString(R.string.hours)) }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CompactChip(onClick = { hours = (hours - 0.5).coerceAtLeast(0.5) }, label = { Text("−") })
-                Text("${formatHours(hours)}h", style = MaterialTheme.typography.title3)
-                CompactChip(onClick = { hours = (hours + 0.5).coerceAtMost(24.0) }, label = { Text("+") })
-            }
+            SleepStepperRow(
+                value = "${formatHours(hours)}h",
+                crownActive = crownField == SleepField.HOURS,
+                onSelect = { crownField = SleepField.HOURS },
+                onStep = { steps -> hours = stepHours(hours, steps) },
+            )
         }
 
         item { StepperLabel(wearString(R.string.quality)) }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CompactChip(onClick = { quality = (quality - 1).coerceAtLeast(1) }, label = { Text("−") })
-                Text("$quality/10", style = MaterialTheme.typography.title3)
-                CompactChip(onClick = { quality = (quality + 1).coerceAtMost(10) }, label = { Text("+") })
-            }
+            SleepStepperRow(
+                value = "$quality/10",
+                crownActive = crownField == SleepField.QUALITY,
+                onSelect = { crownField = SleepField.QUALITY },
+                onStep = { steps -> quality = (quality + steps).coerceIn(1, 10) },
+            )
         }
 
         item {
@@ -125,6 +125,57 @@ fun SleepScreen(
         }
     }
 }
+
+private enum class SleepField { HOURS, QUALITY }
+
+/**
+ * A −/+ stepper whose value the crown also steps while [crownActive]. Only the
+ * active row's focus group is live, so the crown drives exactly one value.
+ */
+@Composable
+private fun SleepStepperRow(
+    value: String,
+    crownActive: Boolean,
+    onSelect: () -> Unit,
+    onStep: (Int) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .hierarchicalFocusGroup(active = crownActive)
+                .rotaryStepper(onStep),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompactChip(
+            onClick = {
+                onSelect()
+                onStep(-1)
+            },
+            label = { Text("−") },
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.title3,
+            color = if (crownActive) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface,
+            modifier = Modifier.clickable(onClick = onSelect),
+        )
+        CompactChip(
+            onClick = {
+                onSelect()
+                onStep(1)
+            },
+            label = { Text("+") },
+        )
+    }
+}
+
+/** [value] moved by [steps] half hours, kept within 0.5–24 h (the server caps a night at 1440 minutes). */
+internal fun stepHours(
+    value: Double,
+    steps: Int,
+): Double = (value + steps * 0.5).coerceIn(0.5, 24.0)
 
 @Composable
 private fun StepperLabel(text: String) {

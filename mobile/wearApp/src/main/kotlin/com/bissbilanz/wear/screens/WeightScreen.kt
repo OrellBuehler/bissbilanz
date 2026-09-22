@@ -39,7 +39,8 @@ fun WeightScreen(
     var draft by remember(state.weight?.latestKg) { mutableDoubleStateOf(state.weight?.latestKg ?: 70.0) }
 
     val listState = rememberScalingLazyListState()
-    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+    // The crown steps the weight, as on the Apple Watch, so the list leaves it alone.
+    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize(), rotaryScrollableBehavior = null) {
         item { ListHeader { Text(wearString(R.string.tab_weight)) } }
 
         item {
@@ -62,13 +63,16 @@ fun WeightScreen(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .rotaryStepper { steps -> draft = stepWeight(draft, steps) },
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CompactChip(onClick = { draft = (draft - 0.1).coerceAtLeast(20.0) }, label = { Text("−") })
+                CompactChip(onClick = { draft = stepWeight(draft, -1) }, label = { Text("−") })
                 Text(formatKg(draft), style = MaterialTheme.typography.title3)
-                CompactChip(onClick = { draft = (draft + 0.1).coerceAtMost(400.0) }, label = { Text("+") })
+                CompactChip(onClick = { draft = stepWeight(draft, 1) }, label = { Text("+") })
             }
         }
 
@@ -108,6 +112,12 @@ fun WeightScreen(
         }
     }
 }
+
+/** [value] moved by [steps] tenths of a kilo, snapped to a tenth so repeated steps don't drift. */
+internal fun stepWeight(
+    value: Double,
+    steps: Int,
+): Double = ((value * 10).roundToInt() + steps).coerceIn(200, 4000) / 10.0
 
 internal fun formatKg(value: Double): String {
     val rounded = (value * 10).roundToInt() / 10.0
