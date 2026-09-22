@@ -58,6 +58,34 @@ internal fun Throwable.isWearableApiUnavailable(): Boolean {
     return false
 }
 
+/** How far back the 7-day change looks for a comparison weight, and how far off that day it may be. */
+private const val DELTA_WINDOW_DAYS = 7
+private const val DELTA_TOLERANCE_DAYS = 3
+
+/**
+ * The latest weight minus the one about a week before it — the same definition
+ * the Apple Watch uses, so both watches show the same number for the same log.
+ *
+ * Anchored on the latest entry, not on today: a weigh-in from last week compared
+ * with one from two weeks ago is still a 7-day change. The comparison entry is
+ * the one closest to seven days before it, within three days either way, because
+ * daily weigh-ins are not guaranteed; a tie goes to the older one, so the span is
+ * never short of a week. Null when nothing falls in that window.
+ */
+internal fun sevenDayWeightDelta(
+    latestDate: LocalDate,
+    latestKg: Double,
+    history: List<Pair<LocalDate, Double>>,
+): Double? {
+    val target = latestDate.toEpochDays() - DELTA_WINDOW_DAYS
+    val reference =
+        history
+            .filter { (date, _) -> abs(date.toEpochDays() - target) <= DELTA_TOLERANCE_DAYS }
+            .minWithOrNull(compareBy({ (date, _) -> abs(date.toEpochDays() - target) }, { (date, _) -> date }))
+            ?: return null
+    return latestKg - reference.second
+}
+
 /**
  * The watch's meal picker: the standard meals in their canonical order, then
  * every custom type the user has logged recently, alphabetically — the list the
@@ -187,7 +215,7 @@ class WearStatePublisher(
             mealTypes = watchMealTypes(loggedMealTypes),
             favorites = favorites.take(FAVORITES_LIMIT).map { it.toRef() },
             recents = recents.map { it.toRef() },
-            weight = weights.toWeightInfo(today),
+            weight = weights.toWeightInfo(),
             sleep =
                 sleep?.let {
                     WearSleepInfo(
@@ -218,10 +246,6 @@ class WearStatePublisher(
          * actually logs, not everything they ever did.
          */
         const val MEAL_TYPE_WINDOW_DAYS = 90
-
-        /** How far back the 7-day delta looks for a comparison weight. */
-        const val DELTA_WINDOW_DAYS = 7
-        const val DELTA_TOLERANCE_DAYS = 3
     }
 
     /**
@@ -244,25 +268,18 @@ class WearStatePublisher(
 
     private fun com.bissbilanz.model.Food.toRef() = WearFoodRef(id = id, name = name, calories = calories, isRecipe = false)
 
-    /**
-     * Latest weight plus a 7-day delta. The comparison entry is the one closest to
-     * seven days back within a few days' tolerance — daily weigh-ins are not
-     * guaranteed, and an exact-date lookup would usually find nothing.
-     */
-    private fun List<com.bissbilanz.model.WeightEntry>.toWeightInfo(today: LocalDate): WearWeightInfo? {
+    /** Latest weight plus the 7-day change, see [sevenDayWeightDelta]. */
+    private fun List<com.bissbilanz.model.WeightEntry>.toWeightInfo(): WearWeightInfo? {
         val latest = maxByOrNull { it.entryDate } ?: return null
-        val targetEpoch = today.toEpochDays() - DELTA_WINDOW_DAYS
-        val comparison =
+        val latestDate = runCatching { LocalDate.parse(latest.entryDate) }.getOrNull()
+        val history =
             mapNotNull { entry ->
-                runCatching { LocalDate.parse(entry.entryDate) }.getOrNull()?.let { entry to it }
-            }.filter { (_, date) -> abs(date.toEpochDays() - targetEpoch) <= DELTA_TOLERANCE_DAYS }
-                .minByOrNull { (_, date) -> abs(date.toEpochDays() - targetEpoch) }
-                ?.first
-
+                runCatching { LocalDate.parse(entry.entryDate) }.getOrNull()?.let { it to entry.weightKg }
+            }
         return WearWeightInfo(
             latestKg = latest.weightKg,
             latestDate = latest.entryDate,
-            delta7dKg = comparison?.let { latest.weightKg - it.weightKg },
+            delta7dKg = latestDate?.let { sevenDayWeightDelta(it, latest.weightKg, history) },
         )
     }
 }

@@ -409,3 +409,41 @@ struct SnapshotMealOrderTests {
         #expect(sorted == ["breakfast", "lunch", "dinner", "snacks"])
     }
 }
+
+// MARK: - Watch Weight Trend
+
+@Suite("Watch Seven-Day Weight Delta Tests")
+struct WatchWeightDeltaTests {
+    private func delta(_ latest: (String, Double), _ history: [(String, Double)]) -> Double? {
+        WidgetSnapshotWriter.sevenDayWeightDelta(
+            latestDate: latest.0,
+            latestKg: latest.1,
+            history: history.map { (date: $0.0, kg: $0.1) }
+        )
+    }
+
+    @Test("Compares against the weigh-in a week before the latest one")
+    func weekBeforeLatest() {
+        let history = [("2026-09-01", 80.0), ("2026-09-08", 79.0), ("2026-09-15", 78.5)]
+        #expect(delta(("2026-09-15", 78.5), history) == -0.5)
+    }
+
+    @Test("Accepts a comparison up to three days off and prefers the closest")
+    func closestWithinTolerance() throws {
+        let history = [("2026-09-05", 80.0), ("2026-09-09", 79.6), ("2026-09-15", 79.0)]
+        let value = try #require(delta(("2026-09-15", 79.0), history))
+        #expect(abs(value - -0.6) < 1e-9)
+    }
+
+    @Test("A tie goes to the older weigh-in")
+    func tiePrefersOlder() {
+        let history = [("2026-09-05", 80.0), ("2026-09-11", 79.5), ("2026-09-15", 79.0)]
+        #expect(delta(("2026-09-15", 79.0), history) == -1.0)
+    }
+
+    @Test("No delta without a weigh-in near a week back")
+    func noReference() {
+        let history = [("2026-08-20", 80.0), ("2026-09-13", 79.5), ("2026-09-15", 79.0)]
+        #expect(delta(("2026-09-15", 79.0), history) == nil)
+    }
+}
