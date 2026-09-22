@@ -115,8 +115,13 @@ private struct SleepLoggerView: View {
     @State private var didFail = false
     @FocusState private var focusedField: CrownField?
 
+    /// The server rejects a sleep entry without a positive duration, so the
+    /// crown stops at one step rather than at zero.
+    private static let minMinutes: Double = 15
+    private static let maxMinutes: Double = 720
+
     init(startMinutes: Int?, startQuality: Double?) {
-        _minutes = State(initialValue: Double(startMinutes ?? 450))
+        _minutes = State(initialValue: min(max(Double(startMinutes ?? 450), Self.minMinutes), Self.maxMinutes))
         _quality = State(initialValue: min(max((startQuality ?? 7).rounded(), 1), 10))
     }
 
@@ -136,8 +141,8 @@ private struct SleepLoggerView: View {
                 .focused($focusedField, equals: .duration)
                 .digitalCrownRotation(
                     $minutes,
-                    from: 0,
-                    through: 720,
+                    from: Self.minMinutes,
+                    through: Self.maxMinutes,
                     by: 15,
                     sensitivity: .medium,
                     isContinuous: false,

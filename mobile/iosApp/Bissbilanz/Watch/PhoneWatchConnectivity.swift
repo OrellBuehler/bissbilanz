@@ -246,6 +246,12 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
     }
 }
 
+/// A watch request the phone refuses to write because the server would reject
+/// the entry on upload.
+enum WatchRequestError: Error {
+    case invalidSleepDuration(Int)
+}
+
 /// Wraps a value the compiler can't prove `Sendable` (here, WatchConnectivity's
 /// non-`Sendable` reply closure) so it can cross into a `@Sendable` task. Safe
 /// because the wrapped closure is only ever invoked on the main actor.

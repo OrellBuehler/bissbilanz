@@ -203,6 +203,12 @@ struct BissbilanzApp: App {
             return await WidgetSnapshotWriter.build(container: container).watchState
         }
         PhoneWatchConnectivity.shared.onSleepLog = { request in
+            // An older watch build let the crown reach zero minutes, which the
+            // server rejects on upload. Refused here so the watch says the log
+            // failed, instead of a local entry that can never sync.
+            guard (1 ... 1440).contains(request.durationMinutes) else {
+                throw WatchRequestError.invalidSleepDuration(request.durationMinutes)
+            }
             // Quality is the app's 1–10 scale on both ends; clamped so a value
             // from an older watch build (or a corrupted payload) can't become a
             // local entry the server will reject on upload.
