@@ -6236,7 +6236,7 @@ SOFTWARE.
 
 </details>
 
-### jose@6.2.8
+### jose@6.2.12
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
@@ -6271,7 +6271,7 @@ SOFTWARE.
 
 </details>
 
-### jose@6.2.9
+### jose@6.2.8
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
