@@ -202,6 +202,27 @@ struct BissbilanzApp: App {
         }
         IntentDonations.isEnabled = true
 
+        #if DEBUG
+        // Test-only surface for BissbilanzIntentsUITests (AppIntentsTesting):
+        // resets/reseeds the in-memory store above and reads back the sync
+        // queue, so an out-of-process intent test can verify a write without
+        // any app code to import. See IntentTestFixtures/TestOnlyIntents.
+        //
+        // Registered here, right after the other AppDependencyManager
+        // registrations and before anything below captures `context` in an
+        // escaping closure (PhoneWatchConnectivity's handlers do) — passing
+        // `context` to another main-actor-isolated initializer after that
+        // point trips Swift 6's region isolation checker ("sending 'context'
+        // risks causing data races"), since it can no longer prove this is
+        // the only live reference.
+        AppDependencyManager.shared.add(dependency: IntentTestFixtures(
+            context: context,
+            appMode: appMode,
+            connectivity: connectivity,
+            syncManager: sync
+        ))
+        #endif
+
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
         // the phone performs the real write through the same repository the UI
         // uses, then replies with the refreshed snapshot.
@@ -308,19 +329,6 @@ struct BissbilanzApp: App {
         SupplementReminderScheduler.registerCategory()
         SupplementNotificationDelegate.shared.configure(repository: supplementRepo, router: router)
         UNUserNotificationCenter.current().delegate = SupplementNotificationDelegate.shared
-
-        #if DEBUG
-        // Test-only surface for BissbilanzIntentsUITests (AppIntentsTesting):
-        // resets/reseeds the in-memory store above and reads back the sync
-        // queue, so an out-of-process intent test can verify a write without
-        // any app code to import. See IntentTestFixtures/TestOnlyIntents.
-        AppDependencyManager.shared.add(dependency: IntentTestFixtures(
-            context: context,
-            appMode: appMode,
-            connectivity: connectivity,
-            syncManager: sync
-        ))
-        #endif
     }
 
     var body: some Scene {
