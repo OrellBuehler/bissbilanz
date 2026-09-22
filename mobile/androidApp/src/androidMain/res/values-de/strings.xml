@@ -854,7 +854,6 @@
     <string name="insights_macro_trends">Makroverlauf</string>
     <string name="insights_calendar_heatmap">Kalender-Heatmap</string>
     <string name="insights_macro_balance">Makro-Balance</string>
-    <string name="insights_radar_cal">Kal</string>
     <string name="insights_meal_distribution">Mahlzeitenverteilung</string>
     <string name="insights_top_foods">Top-Lebensmittel</string>
     <string name="insights_count_x">%1$dx</string>

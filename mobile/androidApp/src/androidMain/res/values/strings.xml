@@ -856,7 +856,6 @@
     <string name="insights_macro_trends">Macro Trends</string>
     <string name="insights_calendar_heatmap">Calendar Heatmap</string>
     <string name="insights_macro_balance">Macro Balance</string>
-    <string name="insights_radar_cal">Cal</string>
     <string name="insights_meal_distribution">Meal Distribution</string>
     <string name="insights_top_foods">Top Foods</string>
     <string name="insights_count_x">%1$dx</string>

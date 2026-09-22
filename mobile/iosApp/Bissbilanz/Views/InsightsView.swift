@@ -309,14 +309,12 @@ struct InsightsView: View {
     @ViewBuilder
     private var macroRadarCard: some View {
         if let goals, !dailyStats.isEmpty {
-            let avgCal = dailyStats.map(\.calories).reduce(0, +) / Double(dailyStats.count)
             let avgP = dailyStats.map(\.protein).reduce(0, +) / Double(dailyStats.count)
             let avgC = dailyStats.map(\.carbs).reduce(0, +) / Double(dailyStats.count)
             let avgF = dailyStats.map(\.fat).reduce(0, +) / Double(dailyStats.count)
             let avgFb = dailyStats.map(\.fiber).reduce(0, +) / Double(dailyStats.count)
 
             let axes: [(String, Double, Color)] = [
-                (L10n.calories, goals.calorieGoal > 0 ? avgCal / goals.calorieGoal : 0, MacroColors.calories),
                 (L10n.protein, goals.proteinGoal > 0 ? avgP / goals.proteinGoal : 0, MacroColors.protein),
                 (L10n.carbs, goals.carbGoal > 0 ? avgC / goals.carbGoal : 0, MacroColors.carbs),
                 (L10n.fat, goals.fatGoal > 0 ? avgF / goals.fatGoal : 0, MacroColors.fat),
@@ -325,7 +323,7 @@ struct InsightsView: View {
 
             CardView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Label(L10n.macroBalance, systemImage: "pentagon")
+                    Label(L10n.macroBalance, systemImage: "diamond")
                         .font(.headline)
 
                     MacroRadarView(axes: axes)

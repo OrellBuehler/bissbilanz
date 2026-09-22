@@ -297,7 +297,6 @@ fun InsightsScreen(navController: NavController) {
                         if (goals != null && dailyStats.isNotEmpty()) {
                             CollapsibleCard(title = stringResource(R.string.insights_macro_balance), sectionId = "radar") {
                                 val g = goals!!
-                                val avgCal = dailyStats.map { it.calories }.average()
                                 val avgPro = dailyStats.map { it.protein }.average()
                                 val avgCarb = dailyStats.map { it.carbs }.average()
                                 val avgFat = dailyStats.map { it.fat }.average()
@@ -305,11 +304,6 @@ fun InsightsScreen(navController: NavController) {
 
                                 val radarAxes =
                                     listOf(
-                                        RadarAxis(
-                                            stringResource(R.string.insights_radar_cal),
-                                            (avgCal / g.calorieGoal.coerceAtLeast(1.0)).toFloat(),
-                                            CaloriesBlue,
-                                        ),
                                         RadarAxis(
                                             stringResource(R.string.macro_protein),
                                             (avgPro / g.proteinGoal.coerceAtLeast(1.0)).toFloat(),
