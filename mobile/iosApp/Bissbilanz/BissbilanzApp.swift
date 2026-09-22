@@ -208,15 +208,11 @@ struct BissbilanzApp: App {
         // queue, so an out-of-process intent test can verify a write without
         // any app code to import. See IntentTestFixtures/TestOnlyIntents.
         //
-        // Registered here, right after the other AppDependencyManager
-        // registrations and before anything below captures `context` in an
-        // escaping closure (PhoneWatchConnectivity's handlers do) — passing
-        // `context` to another main-actor-isolated initializer after that
-        // point trips Swift 6's region isolation checker ("sending 'context'
-        // risks causing data races"), since it can no longer prove this is
-        // the only live reference.
+        // Passes `container` (Sendable), not `context` (not Sendable, and
+        // also captured by escaping closures further down this
+        // initializer) — see the comment on IntentTestFixtures.init.
         AppDependencyManager.shared.add(dependency: IntentTestFixtures(
-            context: context,
+            container: container,
             appMode: appMode,
             connectivity: connectivity,
             syncManager: sync

@@ -33,8 +33,17 @@ final class IntentTestFixtures {
     private let connectivity: ConnectivityMonitor
     private let syncManager: SyncManager
 
-    init(context: ModelContext, appMode: AppModeManager, connectivity: ConnectivityMonitor, syncManager: SyncManager) {
-        self.context = context
+    /// Takes the `ModelContainer` rather than its `mainContext` directly:
+    /// `ModelContainer` is `Sendable`, but `ModelContext` is not, and
+    /// `BissbilanzApp.init` (nonisolated) calling this main-actor-isolated
+    /// initializer has to *send* whatever it hands over across that boundary.
+    /// `context` is also captured by several escaping closures elsewhere in
+    /// `init`, so by the time it would reach this call the compiler can no
+    /// longer prove it's exclusively owned ("sending 'context' risks causing
+    /// data races") — deriving `mainContext` in here instead, on the actor
+    /// this type already runs on, never crosses that boundary at all.
+    init(container: ModelContainer, appMode: AppModeManager, connectivity: ConnectivityMonitor, syncManager: SyncManager) {
+        context = container.mainContext
         self.appMode = appMode
         self.connectivity = connectivity
         self.syncManager = syncManager
