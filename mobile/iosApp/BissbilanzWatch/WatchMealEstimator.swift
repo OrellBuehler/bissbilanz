@@ -49,16 +49,14 @@ struct WatchMealEstimate {
 }
 
 enum WatchMealEstimatorError: Error {
-    case guardrailViolation
-    case contextWindowExceeded
+    // `LanguageModelSession.GenerationError` — which the phone's on-device path
+    // pattern-matches for a guardrail/context-overflow-specific message — is
+    // unavailable on watchOS, so there's nothing to distinguish a refusal from
+    // any other failure beyond the underlying error's own description.
     case generationFailed(String)
 
     func localizedMessage(_ strings: WatchStrings) -> String {
         switch self {
-        case .guardrailViolation:
-            strings.voiceLogGuardrail
-        case .contextWindowExceeded:
-            strings.voiceLogTooLong
         case let .generationFailed(message):
             message.isEmpty ? strings.voiceLogFailed : message
         }
@@ -115,22 +113,13 @@ final class WatchMealEstimator {
                 fat: item.fat,
                 fiber: item.fiber
             )
-        } catch let error as LanguageModelSession.GenerationError {
-            throw Self.mapGenerationError(error)
         } catch {
+            // `LanguageModelSession.GenerationError` (which the phone's on-device
+            // path pattern-matches for a guardrail/context-overflow-specific
+            // message) is unavailable on watchOS — it doesn't exist in the
+            // watchOS FoundationModels module at all, so there's nothing to
+            // switch on here beyond the error's own description.
             throw WatchMealEstimatorError.generationFailed(error.localizedDescription)
-        }
-    }
-
-    @available(watchOS 27, *)
-    private static func mapGenerationError(_ error: LanguageModelSession.GenerationError) -> WatchMealEstimatorError {
-        switch error {
-        case .guardrailViolation:
-            .guardrailViolation
-        case .exceededContextWindowSize:
-            .contextWindowExceeded
-        default:
-            .generationFailed(error.localizedDescription)
         }
     }
 

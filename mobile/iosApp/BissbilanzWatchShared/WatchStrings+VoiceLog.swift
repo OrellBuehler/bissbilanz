@@ -28,14 +28,6 @@ extension WatchStrings {
         isGermanLocale ? "Wird geschätzt…" : "Estimating…"
     }
 
-    var voiceLogGuardrail: String {
-        isGermanLocale ? "Konnte nicht verarbeitet werden. Anders formulieren." : "Couldn't process that. Try rephrasing."
-    }
-
-    var voiceLogTooLong: String {
-        isGermanLocale ? "Zu lang. Kürzer versuchen." : "Too long. Try something shorter."
-    }
-
     var voiceLogFailed: String {
         isGermanLocale ? "Schätzung fehlgeschlagen" : "Couldn't estimate that"
     }
