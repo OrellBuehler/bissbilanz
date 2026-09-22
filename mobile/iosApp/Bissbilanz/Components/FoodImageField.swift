@@ -84,6 +84,7 @@ struct FoodImageField: View {
                     Image(systemName: "photo")
                         .font(.system(size: 30))
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 } else {
                     FoodImageView(imageUrl: imageUrl)
                 }
@@ -96,8 +97,14 @@ struct FoodImageField: View {
                     imageUrl = nil
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundStyle(.white, .black.opacity(0.5))
+                        // The glyph on its own is a ~22pt target, half of what
+                        // a finger needs. The box behind it grows inwards from
+                        // the corner, so the icon stays where it is drawn and
+                        // the corner still takes a thumb.
+                        .frame(width: 44, height: 44, alignment: .topTrailing)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(L10n.removePhoto)
