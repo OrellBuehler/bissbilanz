@@ -1574,7 +1574,7 @@ MIT © [Luke Edwards](https://lukeed.com)
 
 </details>
 
-### @rodrigodagostino/svelte-sortable-list@2.2.5
+### @rodrigodagostino/svelte-sortable-list@2.2.6
 
 - **License:** MIT
 - **Repository:** https://github.com/rodrigodagostino/svelte-sortable-list
