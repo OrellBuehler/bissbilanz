@@ -41,8 +41,8 @@ struct AIMealSheet: View {
     @State private var detent: PresentationDetent = .medium
     /// Floor for both action labels, so a one-line title still fills the same
     /// box as a title that wraps. Scales with Dynamic Type because the wrapped
-    /// title does too.
-    @ScaledMetric(relativeTo: .body) private var actionLabelMinHeight = 44.0
+    /// title does too. Only applied when the row actually holds both buttons.
+    @ScaledMetric(relativeTo: .body) private var actionLabelMinHeight: CGFloat = 44
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
@@ -190,6 +190,13 @@ struct AIMealSheet: View {
         .buttonStyle(.borderedProminent)
     }
 
+    /// True only when the estimate and queue actions share the row. Alone, a
+    /// button spans the full width and its title fits on one line, so it keeps
+    /// the standard control height instead of the two-line floor.
+    private var showsBothActions: Bool {
+        mealEstimator.availability == .available && !appMode.isLocal
+    }
+
     /// The shared shape of both action labels: half the row each and the full
     /// row height, so the pair always reads as one control group even when the
     /// longer title ("Send to My Assistant", longer still in German) wraps.
@@ -203,7 +210,11 @@ struct AIMealSheet: View {
                 .minimumScaleFactor(0.8)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, minHeight: actionLabelMinHeight, maxHeight: .infinity)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: showsBothActions ? actionLabelMinHeight : nil,
+            maxHeight: .infinity
+        )
     }
 
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
