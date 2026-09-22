@@ -277,8 +277,11 @@ private struct NutritionLabelExtraction {
 
 /// Kept as a plain extension, outside the `@Generable` struct's own member
 /// list, so the macro only ever sees the stored `@Guide` properties above.
+/// `NutritionLabelExtraction` is already `private` (file-scoped), so the
+/// extension can't be marked `fileprivate` itself — it inherits the same
+/// file-scoped visibility from the type it extends.
 @available(iOS 27, *)
-fileprivate extension NutritionLabelExtraction {
+extension NutritionLabelExtraction {
     var parsedNutrition: ParsedNutrition {
         var result = ParsedNutrition()
         result.calories = calories

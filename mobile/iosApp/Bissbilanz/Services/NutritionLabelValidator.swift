@@ -20,12 +20,15 @@ enum NutritionLabelValidator {
     /// Pure fat is ~900 kcal per 100 g; nothing on a food label goes higher.
     private static let maxCalories = 900.0
 
-    private static let gramKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
+    /// `nonisolated(unsafe)` because these are immutable tables of key paths
+    /// (which are not formally Sendable) accessed read-only — same rationale
+    /// as `NutritionLabelParser.matchers`.
+    private nonisolated(unsafe) static let gramKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
         \.protein, \.carbs, \.sugar, \.fat, \.saturatedFat, \.fiber, \.salt,
         \.monounsaturatedFat, \.polyunsaturatedFat, \.transFat, \.addedSugars,
     ]
 
-    private static let traceKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
+    private nonisolated(unsafe) static let traceKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
         \.sodium, \.cholesterol, \.potassium, \.calcium, \.iron, \.vitaminD,
     ]
 
@@ -33,7 +36,7 @@ enum NutritionLabelValidator {
     /// wiped together when that check fails, since a bad energy figure
     /// usually means the wrong row or column was read, not that one macro in
     /// isolation is wrong.
-    private static let coreMacroKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
+    private nonisolated(unsafe) static let coreMacroKeyPaths: [WritableKeyPath<ParsedNutrition, Double?>] = [
         \.protein, \.carbs, \.sugar, \.fat, \.saturatedFat, \.fiber,
     ]
 
