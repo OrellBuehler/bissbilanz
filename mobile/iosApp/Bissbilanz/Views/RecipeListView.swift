@@ -37,13 +37,11 @@ struct RecipeListView: View {
                     )
                 } else {
                     List(filteredRecipes) { recipe in
-                        // Destination on the link, not a
-                        // `navigationDestination(for: Recipe.self)`: that
-                        // registration only existed on this branch of the
-                        // conditional, so an empty search result or a load
-                        // error while a recipe was pushed left the stack unable
-                        // to resolve it — the black unresolved-destination
-                        // placeholder.
+                        // Label-based link: the
+                        // `navigationDestination(for: Recipe.self)` it replaces sat
+                        // on this branch of the conditional only, so an empty search
+                        // result or a reload error while a recipe was pushed left the
+                        // stack with nothing to resolve — the empty placeholder page.
                         NavigationLink {
                             RecipeDetailView(recipeId: recipe.id)
                         } label: {

@@ -110,14 +110,12 @@ struct CalendarView: View {
                     case .spacer:
                         Color.clear.frame(height: 52)
                     case let .day(dayNum, dateStr):
-                        // The destination travels with the link instead of a
-                        // `navigationDestination(for: String.self)` registration:
-                        // that registration lived inside this scrolling, monthly
-                        // rebuilt subtree, and while it was momentarily out of the
-                        // hierarchy — a month change, a pop transition, the stats
-                        // section appearing — the stack could no longer resolve an
-                        // already-pushed date and rendered its unresolved-destination
-                        // placeholder (a black screen with a warning triangle).
+                        // Label-based link, like the dashboard's meal cards:
+                        // a value-based link resolved through a
+                        // `navigationDestination(for: String.self)` registration
+                        // intermittently stops resolving on recent iOS releases and
+                        // pushes the empty placeholder page — a black screen with a
+                        // warning triangle — instead of the day log.
                         NavigationLink {
                             DayLogView(date: dateStr)
                         } label: {
