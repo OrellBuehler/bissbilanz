@@ -218,6 +218,12 @@ enum WatchPayloadKey {
     static let stateRequest = "stateRequest"
     /// Phone → watch reply: the refreshed `WidgetSnapshot` after a food log.
     static let snapshot = "snapshot"
+    /// Phone → watch reply: present when the phone did not perform the write
+    /// (mirrors Wear's `RESPONSE_ERROR`). Without it an empty reply reads as
+    /// success, and the watch tells the user a log landed that doesn't exist.
+    /// A reply from an older phone build never carries it and still reads as
+    /// confirmed.
+    static let error = "error"
 }
 
 /// JSON encode/decode helpers. WCSession dictionaries must be plist-safe;

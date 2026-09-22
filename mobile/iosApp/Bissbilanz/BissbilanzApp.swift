@@ -188,14 +188,14 @@ struct BissbilanzApp: App {
                 quickFat: request.quickFat,
                 quickFiber: request.quickFiber
             )
-            _ = try? await entryRepo.createEntry(create, food: food)
+            _ = try await entryRepo.createEntry(create, food: food)
             return WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
         }
         // Weight/sleep logs from the watch run through the same offline-first
         // repositories the UI uses; the reply carries the refreshed WatchState
         // so the watch's glance updates immediately.
         PhoneWatchConnectivity.shared.onWeightLog = { request in
-            _ = try? await weightRepo.createEntry(
+            _ = try await weightRepo.createEntry(
                 WeightCreate(weightKg: request.weightKg, entryDate: request.date)
             )
             return WidgetSnapshotWriter.buildWatchState(context: context)
@@ -204,7 +204,7 @@ struct BissbilanzApp: App {
             // Quality is the app's 1–10 scale on both ends; clamped so a value
             // from an older watch build (or a corrupted payload) can't become a
             // local entry the server will reject on upload.
-            _ = try? await sleepRepo.createEntry(
+            _ = try await sleepRepo.createEntry(
                 SleepCreate(
                     durationMinutes: request.durationMinutes,
                     quality: min(max(request.quality, 1), 10),

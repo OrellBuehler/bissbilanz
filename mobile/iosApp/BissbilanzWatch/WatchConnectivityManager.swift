@@ -24,7 +24,8 @@ final class WatchConnectivityManager: NSObject {
         case confirmed
         /// The phone was unreachable; the request was queued for delivery.
         case queued
-        /// WatchConnectivity is unavailable — nothing was sent.
+        /// Nothing was written: WatchConnectivity is unavailable, or the phone
+        /// answered that its write failed.
         case failed
     }
 
@@ -135,6 +136,13 @@ final class WatchConnectivityManager: NSObject {
             session.sendMessage(
                 payload,
                 replyHandler: { reply in
+                    // The phone answered but says the write did not happen.
+                    // Re-queuing would only run the same failing write again
+                    // with no one to tell, so the user is told instead.
+                    guard reply[WatchPayloadKey.error] == nil else {
+                        continuation.resume(returning: .failed)
+                        return
+                    }
                     // Decode off the Task so only the Sendable result crosses
                     // into the main actor (the reply dict isn't Sendable).
                     let snapshot = WatchPayloadCodec.decode(
@@ -183,6 +191,10 @@ final class WatchConnectivityManager: NSObject {
             session.sendMessage(
                 payload,
                 replyHandler: { reply in
+                    guard reply[WatchPayloadKey.error] == nil else {
+                        continuation.resume(returning: .failed)
+                        return
+                    }
                     let state = WatchPayloadCodec.decode(WatchState.self, from: reply, key: WatchPayloadKey.state)
                     Task { @MainActor in
                         if let state { self.apply(state) }

@@ -24,16 +24,17 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
 
     /// Performs the real write for an incoming food log request and returns the
     /// refreshed snapshot to send back. Set by the app once its repositories
-    /// exist. Runs on the main actor.
-    @MainActor var onLogRequest: ((WatchLogRequest) async -> WidgetSnapshot?)?
+    /// exist. Runs on the main actor. Throws when the write did not happen, so
+    /// the watch is told instead of reporting a log that doesn't exist.
+    @MainActor var onLogRequest: ((WatchLogRequest) async throws -> WidgetSnapshot?)?
 
     /// Performs the real write for an incoming weight log and returns the
     /// refreshed `WatchState` (so the watch's Weight glance updates at once).
-    @MainActor var onWeightLog: ((WatchWeightLogRequest) async -> WatchState?)?
+    @MainActor var onWeightLog: ((WatchWeightLogRequest) async throws -> WatchState?)?
 
     /// Performs the real write for an incoming sleep log and returns the
     /// refreshed `WatchState` (so the watch's Sleep glance updates at once).
-    @MainActor var onSleepLog: ((WatchSleepLogRequest) async -> WatchState?)?
+    @MainActor var onSleepLog: ((WatchSleepLogRequest) async throws -> WatchState?)?
 
     /// Builds the current `WatchState` for a watch that asked for one. No
     /// write involved — the watch launched or came to the foreground and wants
@@ -69,6 +70,42 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
         }
         UserDefaults.standard.set(applied, forKey: Self.appliedRequestIdsKey)
         return true
+    }
+
+    /// Gives a claimed id back after its write failed. The claim is taken
+    /// before the write so two deliveries can't both write; left in place, it
+    /// would make any later retry of a log that never happened look like a
+    /// duplicate.
+    @MainActor
+    private func releaseApplied(_ requestId: String?) {
+        guard let requestId else { return }
+        var applied = UserDefaults.standard.stringArray(forKey: Self.appliedRequestIdsKey) ?? []
+        guard let index = applied.lastIndex(of: requestId) else { return }
+        applied.remove(at: index)
+        UserDefaults.standard.set(applied, forKey: Self.appliedRequestIdsKey)
+    }
+
+    /// Claims `requestId`, runs `write` and answers with its reply payload.
+    ///
+    /// A repeat is acknowledged but not written again; the reply is empty
+    /// rather than fresh state because the first delivery already ran the
+    /// write, which pushed an application context. A write that throws hands
+    /// the id back, is reported, and answers with `WatchPayloadKey.error` so
+    /// the watch says the log failed rather than that it landed.
+    @MainActor
+    private func applyWrite(
+        requestId: String?,
+        kind: String,
+        _ write: () async throws -> [String: Any]
+    ) async -> [String: Any] {
+        guard markApplied(requestId) else { return [:] }
+        do {
+            return try await write()
+        } catch {
+            releaseApplied(requestId)
+            ErrorReporter.capture(error, context: ["watchRequest": kind])
+            return [WatchPayloadKey.error: true]
+        }
     }
 
     override private init() {
@@ -123,39 +160,31 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
             WatchLogRequest.self, from: message, key: WatchPayloadKey.logRequest
         ) {
             Task { @MainActor in
-                // A repeat is acknowledged but not written again. The reply is
-                // empty rather than a fresh snapshot: the first delivery
-                // already ran the write, which pushed an application context,
-                // so the watch is up to date either way.
-                guard markApplied(request.requestId) else {
-                    reply.value([:])
-                    return
+                let payload = await applyWrite(requestId: request.requestId, kind: "food") {
+                    let snapshot = try await onLogRequest?(request)
+                    return snapshot.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.snapshot) } ?? [:]
                 }
-                let snapshot = await onLogRequest?(request)
-                let payload = snapshot.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.snapshot) } ?? [:]
                 reply.value(payload)
             }
         } else if let request = WatchPayloadCodec.decode(
             WatchWeightLogRequest.self, from: message, key: WatchPayloadKey.weightLogRequest
         ) {
             Task { @MainActor in
-                guard markApplied(request.requestId) else {
-                    reply.value([:])
-                    return
+                let payload = await applyWrite(requestId: request.requestId, kind: "weight") {
+                    let state = try await onWeightLog?(request)
+                    return state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:]
                 }
-                let state = await onWeightLog?(request)
-                reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
+                reply.value(payload)
             }
         } else if let request = WatchPayloadCodec.decode(
             WatchSleepLogRequest.self, from: message, key: WatchPayloadKey.sleepLogRequest
         ) {
             Task { @MainActor in
-                guard markApplied(request.requestId) else {
-                    reply.value([:])
-                    return
+                let payload = await applyWrite(requestId: request.requestId, kind: "sleep") {
+                    let state = try await onSleepLog?(request)
+                    return state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:]
                 }
-                let state = await onSleepLog?(request)
-                reply.value(state.flatMap { WatchPayloadCodec.encode($0, key: WatchPayloadKey.state) } ?? [:])
+                reply.value(payload)
             }
         } else if WatchPayloadCodec.decode(
             WatchStateRequest.self, from: message, key: WatchPayloadKey.stateRequest
@@ -171,30 +200,37 @@ extension PhoneWatchConnectivity: WCSessionDelegate {
         }
     }
 
-    /// Fallback path when the phone was unreachable: the watch logged
-    /// optimistically and queued the request, which arrives here (FIFO) once the
-    /// session reconnects. No reply channel — the next state push reconciles.
+    /// Fallback path when the phone was unreachable: the watch queued the
+    /// request, which arrives here (FIFO) once the session reconnects. No
+    /// reply channel — the next state push reconciles, and a failed write is
+    /// reported and its id handed back so a later re-send can still apply.
     func session(_: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         if let request = WatchPayloadCodec.decode(
             WatchLogRequest.self, from: userInfo, key: WatchPayloadKey.logRequest
         ) {
             Task { @MainActor in
-                guard markApplied(request.requestId) else { return }
-                _ = await onLogRequest?(request)
+                _ = await applyWrite(requestId: request.requestId, kind: "food") {
+                    _ = try await onLogRequest?(request)
+                    return [:]
+                }
             }
         } else if let request = WatchPayloadCodec.decode(
             WatchWeightLogRequest.self, from: userInfo, key: WatchPayloadKey.weightLogRequest
         ) {
             Task { @MainActor in
-                guard markApplied(request.requestId) else { return }
-                _ = await onWeightLog?(request)
+                _ = await applyWrite(requestId: request.requestId, kind: "weight") {
+                    _ = try await onWeightLog?(request)
+                    return [:]
+                }
             }
         } else if let request = WatchPayloadCodec.decode(
             WatchSleepLogRequest.self, from: userInfo, key: WatchPayloadKey.sleepLogRequest
         ) {
             Task { @MainActor in
-                guard markApplied(request.requestId) else { return }
-                _ = await onSleepLog?(request)
+                _ = await applyWrite(requestId: request.requestId, kind: "sleep") {
+                    _ = try await onSleepLog?(request)
+                    return [:]
+                }
             }
         } else if WatchPayloadCodec.decode(
             WatchStateRequest.self, from: userInfo, key: WatchPayloadKey.stateRequest
