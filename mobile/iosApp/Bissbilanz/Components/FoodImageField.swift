@@ -9,6 +9,10 @@ import SwiftUI
 private let maxUploadDimension: CGFloat = 800
 private let uploadQuality: CGFloat = 0.85
 
+/// Side of the preview square: large enough to judge the photo at a glance,
+/// and it gives the section something to sit against while it is still empty.
+private let previewSize: CGFloat = 96
+
 /// The image row of the food form: shows the current photo, and offers camera,
 /// library and removal. Everything from capture through square crop, downscale
 /// and upload happens here; `imageUrl` receives the URL to store on the food
@@ -27,53 +31,9 @@ struct FoodImageField: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                ZStack {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        FoodImageView(imageUrl: imageUrl)
-                    }
-                }
-                .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                            Button {
-                                showCamera = true
-                            } label: {
-                                Image(systemName: "camera")
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityLabel(L10n.takePhoto)
-                            .disabled(isSaving)
-                        }
-
-                        // A bare Image rather than an icon-only Label: the
-                        // PhotosPicker label closure is @Sendable, and
-                        // `LabelStyle.iconOnly` is main-actor isolated in the
-                        // iOS 18 SDK, so referencing it there fails to compile
-                        // (the CodeQL job builds against that SDK even though
-                        // the newer one the build job uses accepts it).
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            Image(systemName: "photo.on.rectangle")
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityLabel(L10n.choosePhoto)
-                        .disabled(isSaving)
-                    }
-
-                    if imageUrl != nil, !isSaving {
-                        Button(L10n.removePhoto, role: .destructive) {
-                            imageUrl = nil
-                        }
-                        .font(.caption)
-                    }
-                }
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            preview
+            actionRow
 
             if let errorMessage {
                 Text(errorMessage)
@@ -81,6 +41,7 @@ struct FoodImageField: View {
                     .foregroundStyle(.red)
             }
         }
+        .padding(.vertical, 4)
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { await loadFromLibrary(item) }
@@ -104,6 +65,81 @@ struct FoodImageField: View {
                     Task { await store(cropped) }
                 }
             )
+        }
+    }
+
+    /// The photo, or — while there is none — a placeholder square, so the row
+    /// reads as a photo slot rather than as empty space with two controls
+    /// adrift in it. Removal sits on the corner of the picture it removes:
+    /// as a text link below it was read as a caption, not as an action.
+    private var preview: some View {
+        ZStack(alignment: .topTrailing) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.tertiarySystemFill))
+
+                if isSaving {
+                    ProgressView()
+                } else if imageUrl == nil {
+                    Image(systemName: "photo")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                } else {
+                    FoodImageView(imageUrl: imageUrl)
+                }
+            }
+            .frame(width: previewSize, height: previewSize)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            if imageUrl != nil, !isSaving {
+                Button(role: .destructive) {
+                    imageUrl = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white, .black.opacity(0.5))
+                        // The glyph on its own is a ~22pt target, half of what
+                        // a finger needs. The box behind it grows inwards from
+                        // the corner, so the icon stays where it is drawn and
+                        // the corner still takes a thumb.
+                        .frame(width: 44, height: 44, alignment: .topTrailing)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.removePhoto)
+                .padding(4)
+            }
+        }
+    }
+
+    /// Two equal, titled buttons filling the width — the same pair the AI meal
+    /// sheet offers. Once a photo is attached they replace it.
+    private var actionRow: some View {
+        HStack(spacing: 12) {
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    showCamera = true
+                } label: {
+                    Label(L10n.takePhoto, systemImage: "camera")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSaving)
+            }
+
+            // Titled rather than icon-only: `LabelStyle.iconOnly` is not an
+            // option here anyway, because the PhotosPicker label closure is
+            // @Sendable and that style is main-actor isolated in the iOS 18
+            // SDK, so referencing it fails to compile (the CodeQL job builds
+            // against that SDK even though the newer one the build job uses
+            // accepts it).
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isSaving)
         }
     }
 
