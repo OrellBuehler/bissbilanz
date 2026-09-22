@@ -30,6 +30,7 @@ struct QuickAddFoodEntity: AppEntity {
 /// `FoodRepository.localRecentFoods` uses, reimplemented here rather than
 /// shared so this type stays free of that app-only class's dependencies).
 struct QuickAddFoodEntityQuery: EntityQuery {
+    @MainActor
     func entities(for identifiers: [String]) async throws -> [QuickAddFoodEntity] {
         let context = ModelContext(Self.extensionContainer())
         var results: [QuickAddFoodEntity] = []
@@ -42,6 +43,7 @@ struct QuickAddFoodEntityQuery: EntityQuery {
         return results
     }
 
+    @MainActor
     func suggestedEntities() async throws -> [QuickAddFoodEntity] {
         let context = ModelContext(Self.extensionContainer())
 
@@ -70,6 +72,7 @@ struct QuickAddFoodEntityQuery: EntityQuery {
         return merged.prefix(20).map { QuickAddFoodEntity(id: $0.id, name: $0.name, calories: $0.calories) }
     }
 
+    @MainActor
     private static func extensionContainer() -> ModelContainer {
         LocalStore.extensionContainer(
             cloudKitEnabled: AppModeSnapshot.isLocal,
