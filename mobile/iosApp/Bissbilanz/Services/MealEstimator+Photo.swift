@@ -78,9 +78,14 @@ extension MealEstimator {
     private static let photoMaxDimension: CGFloat = 1024
 
     private func estimateWithPhotos(description: String, images: [UIImage]) async throws -> MealEstimate {
-        let attachments: [Attachment<ImageAttachmentContent>] = images.compactMap { image in
-            image.downscaledForModelInput(maxDimension: Self.photoMaxDimension).cgImage.map { Attachment($0) }
-        }
+        // Downscaling (and the orientation-correcting redraw it does) is a
+        // visible main-thread hang for a few full-resolution captures — see
+        // `AiTaskStore`'s identical reasoning for its own JPEG re-encode.
+        let maxDimension = Self.photoMaxDimension
+        let cgImages: [CGImage] = await Task.detached(priority: .userInitiated) {
+            images.compactMap { $0.downscaledForModelInput(maxDimension: maxDimension).cgImage }
+        }.value
+        let attachments = cgImages.map { Attachment($0) }
         guard !attachments.isEmpty else {
             throw MealEstimatorError.generationFailed(L10n.aiMealGenerationError)
         }
