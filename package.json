@@ -99,7 +99,7 @@
 		"drizzle-orm": "^0.45.2",
 		"express-rate-limit": "^8.7.0",
 		"fflate": "^0.8.3",
-		"hono": "^4.13.7",
+		"hono": "^4.13.8",
 		"jose": "^6.2.12",
 		"openapi-fetch": "^0.17.0",
 		"path-to-regexp": "^8.4.2",
