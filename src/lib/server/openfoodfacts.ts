@@ -2,9 +2,11 @@ import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { extractAllNutrients } from '$lib/server/nutrient-extract';
 
-const OFF_API_BASE = 'https://world.openfoodfacts.net/api/v2/product';
-const OFF_SEARCH_BASE = 'https://world.openfoodfacts.net/cgi/search.pl';
+const OFF_API_BASE = 'https://world.openfoodfacts.org/api/v2/product';
+const OFF_SEARCH_BASE = 'https://world.openfoodfacts.org/cgi/search.pl';
 const USER_AGENT = 'Bissbilanz/1.0 (https://github.com/bissbilanz)';
+// Below the Bun adapter's 10s idle timeout, which otherwise cuts the client off.
+const OFF_TIMEOUT_MS = 8000;
 
 const OFF_FIELDS = [
 	'product_name',
@@ -105,7 +107,8 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 	const url = `${OFF_API_BASE}/${barcode}?fields=${OFF_FIELDS}`;
 
 	const response = await fetch(url, {
-		headers: { 'User-Agent': USER_AGENT }
+		headers: { 'User-Agent': USER_AGENT },
+		signal: AbortSignal.timeout(OFF_TIMEOUT_MS)
 	});
 
 	if (!response.ok) {
@@ -135,7 +138,8 @@ export async function searchProducts(query: string, limit?: number): Promise<OFF
 
 	try {
 		const response = await fetch(`${OFF_SEARCH_BASE}?${params}`, {
-			headers: { 'User-Agent': USER_AGENT }
+			headers: { 'User-Agent': USER_AGENT },
+			signal: AbortSignal.timeout(OFF_TIMEOUT_MS)
 		});
 
 		if (!response.ok) return [];
