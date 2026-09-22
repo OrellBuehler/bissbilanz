@@ -1,6 +1,16 @@
 import CoreGraphics
 import Foundation
-#if canImport(FoundationModels)
+
+// Unconditional (rather than `#if canImport(FoundationModels)`, as in
+// `MealEstimator.swift`) because `OCRTool`/`BarcodeReaderTool` — declared in
+// `Vision`, adopting `FoundationModels.Tool` — only resolve when both modules
+// are imported unconditionally in the same file; wrapping this import in a
+// condition silently breaks that cross-module linkage even though the
+// condition itself evaluates true. Gated on `compiler(>=6.4)` instead, the
+// same condition that already gates every use of FoundationModels in this
+// file, so nothing changes for the older-Xcode CodeQL job (FoundationModels
+// exists there too, but is simply never referenced outside that gate).
+#if compiler(>=6.4)
 import FoundationModels
 #endif
 import ImageIO
