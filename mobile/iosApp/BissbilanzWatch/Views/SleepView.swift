@@ -1,10 +1,12 @@
 import SwiftUI
 import WatchKit
 
-/// Sleep tab: a glance (last night's duration + quality) and a vertical slide
-/// for logging sleep — duration and quality each on the Digital Crown.
+/// Sleep tab: a single glance (last night's duration + quality). Logging opens
+/// as a sheet from the toolbar — duration and quality each on the Digital Crown.
 struct SleepView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
+
+    @State private var isLogging = false
 
     private var strings: WatchStrings {
         connectivity.state.strings
@@ -15,44 +17,57 @@ struct SleepView: View {
     }
 
     var body: some View {
-        TabView {
-            glance
-            SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
-        }
-        .tabViewStyle(.verticalPage)
+        glance
+            .navigationTitle(strings.sleep)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isLogging = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel(strings.log)
+                }
+            }
+            .sheet(isPresented: $isLogging) {
+                NavigationStack {
+                    SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
+                }
+            }
     }
 
+    @ViewBuilder
     private var glance: some View {
-        VStack(spacing: 6) {
-            Text(strings.sleep)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let sleep {
-                Text(strings.lastNight)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(strings.sleepDuration(sleep.durationMinutes))
-                    .font(.system(size: 40, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                VStack(spacing: 3) {
-                    Text(strings.qualityScore(sleep.quality))
-                        .font(.footnote)
+        if let sleep {
+            VStack(spacing: 8) {
+                VStack(spacing: 0) {
+                    Text(strings.sleepDuration(sleep.durationMinutes))
+                        .font(.system(size: 44, weight: .semibold, design: .rounded))
                         .monospacedDigit()
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    Text(strings.lastNight)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 4) {
+                    HStack {
+                        Text(strings.quality)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(strings.qualityScore(sleep.quality))
+                            .monospacedDigit()
+                    }
+                    .font(.footnote)
                     QualityBar(quality: sleep.quality)
                 }
-                .padding(.top, 2)
-                .padding(.horizontal, 6)
-            } else {
-                Text(strings.noSleep)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
+                .padding(.horizontal, 8)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView(strings.noSleep, systemImage: "moon.zzz")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -71,7 +86,7 @@ private struct QualityBar: View {
         HStack(spacing: 2) {
             ForEach(1 ... 10, id: \.self) { index in
                 Capsule()
-                    .fill(index <= filled ? MacroColors.fiber : Color.secondary.opacity(0.3))
+                    .fill(index <= filled ? Color.indigo : Color.secondary.opacity(0.3))
                     .frame(height: height)
             }
         }
@@ -89,11 +104,11 @@ private struct SleepLoggerView: View {
     }
 
     @Environment(WatchConnectivityManager.self) private var connectivity
+    @Environment(\.dismiss) private var dismiss
 
     @State private var minutes: Double
     @State private var quality: Double
     @State private var isLogging = false
-    @State private var didFinish = false
     @FocusState private var focusedField: CrownField?
 
     init(startMinutes: Int?, startQuality: Double?) {
@@ -106,67 +121,58 @@ private struct SleepLoggerView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                Text(strings.sleep)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 8) {
+            Text(strings.sleepDuration(Int(minutes)))
+                .font(.system(size: 40, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .focusable()
+                .focused($focusedField, equals: .duration)
+                .digitalCrownRotation(
+                    $minutes,
+                    from: 0,
+                    through: 720,
+                    by: 15,
+                    sensitivity: .medium,
+                    isContinuous: false,
+                    isHapticFeedbackEnabled: true
+                )
 
-                Text(strings.sleepDuration(Int(minutes)))
-                    .font(.system(size: 40, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                    .focusable()
-                    .focused($focusedField, equals: .duration)
-                    .digitalCrownRotation(
-                        $minutes,
-                        from: 0,
-                        through: 720,
-                        by: 15,
-                        sensitivity: .medium,
-                        isContinuous: false,
-                        isHapticFeedbackEnabled: true
-                    )
-
-                VStack(spacing: 4) {
+            VStack(spacing: 4) {
+                HStack {
                     Text(strings.quality)
-                        .font(.caption2)
                         .foregroundStyle(.secondary)
+                    Spacer()
                     Text(strings.qualityScore(quality))
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .focusable()
-                        .focused($focusedField, equals: .quality)
-                        .digitalCrownRotation(
-                            $quality,
-                            from: 1,
-                            through: 10,
-                            by: 1,
-                            sensitivity: .low,
-                            isContinuous: false,
-                            isHapticFeedbackEnabled: true
-                        )
-                    QualityBar(quality: quality, height: 5)
                 }
-
-                Button(action: log) {
-                    if isLogging {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text(strings.log)
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .tint(MacroColors.calories)
-                .disabled(isLogging)
+                .font(.footnote)
+                QualityBar(quality: quality, height: 5)
             }
-            .padding(.vertical, 4)
+            .padding(8)
+            .focusable()
+            .focused($focusedField, equals: .quality)
+            .digitalCrownRotation(
+                $quality,
+                from: 1,
+                through: 10,
+                by: 1,
+                sensitivity: .low,
+                isContinuous: false,
+                isHapticFeedbackEnabled: true
+            )
+        }
+        .frame(maxHeight: .infinity)
+        .navigationTitle(strings.sleep)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ConfirmButton(isLogging: isLogging, label: strings.log, action: log)
+            }
         }
         .sensoryFeedback(.increase, trigger: minutes)
         .sensoryFeedback(.selection, trigger: quality)
-        .sensoryFeedback(.success, trigger: didFinish)
         .onAppear { focusedField = .duration }
     }
 
@@ -183,7 +189,8 @@ private struct SleepLoggerView: View {
             isLogging = false
             switch outcome {
             case .confirmed, .queued:
-                didFinish = true
+                WKInterfaceDevice.current().play(.success)
+                dismiss()
             case .failed:
                 WKInterfaceDevice.current().play(.failure)
             }

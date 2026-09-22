@@ -3,7 +3,7 @@ import WatchKit
 
 /// Serving adjuster for a selected food: a Digital Crown stepper with haptic
 /// detents, a meal picker driven by the synced (server-driven) meal types, and
-/// a Log button that relays the entry to the phone.
+/// a toolbar checkmark that relays the entry to the phone.
 struct LogDetailView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
     @Environment(\.dismiss) private var dismiss
@@ -13,7 +13,6 @@ struct LogDetailView: View {
     @State private var servings: Double = 1.0
     @State private var mealType: String
     @State private var isLogging = false
-    @State private var didFinish = false
     @FocusState private var crownFocused: Bool
 
     init(food: WatchFoodRef) {
@@ -35,17 +34,28 @@ struct LogDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Text(food.name)
-                    .font(.headline)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
-                servingStepper
-
-                Text("\(strings.integer(totalCalories)) \(strings.kcal)")
-                    .font(.caption)
-                    .foregroundStyle(MacroColors.calories)
+                CrownValue(
+                    value: strings.servingsValue(servings),
+                    caption: "\(strings.servings) · \(strings.integer(totalCalories)) \(strings.kcal)"
+                )
+                .focusable()
+                .focused($crownFocused)
+                .digitalCrownRotation(
+                    $servings,
+                    from: 0.25,
+                    through: 20,
+                    by: 0.25,
+                    sensitivity: .medium,
+                    isContinuous: false,
+                    isHapticFeedbackEnabled: true
+                )
 
                 Picker(strings.meal, selection: $mealType) {
                     ForEach(mealTypes, id: \.self) { meal in
@@ -53,26 +63,16 @@ struct LogDetailView: View {
                     }
                 }
                 .pickerStyle(.navigationLink)
-
-                Button(action: log) {
-                    if isLogging {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text(strings.log)
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .tint(MacroColors.calories)
-                .disabled(isLogging)
             }
-            .padding(.vertical, 4)
         }
         .navigationTitle(strings.log)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ConfirmButton(isLogging: isLogging, label: strings.log, action: log)
+            }
+        }
         .sensoryFeedback(.increase, trigger: servings)
-        .sensoryFeedback(.success, trigger: didFinish)
         .onAppear {
             crownFocused = true
             // Fall back to a valid meal if the time-of-day default isn't offered.
@@ -80,32 +80,6 @@ struct LogDetailView: View {
                 mealType = first
             }
         }
-    }
-
-    /// Big serving value driven by the Digital Crown, with haptic detents.
-    private var servingStepper: some View {
-        Text(strings.servingsValue(servings))
-            .font(.system(size: 44, weight: .semibold, design: .rounded))
-            .monospacedDigit()
-            .focusable()
-            .focused($crownFocused)
-            .digitalCrownRotation(
-                $servings,
-                from: 0.25,
-                through: 20,
-                by: 0.25,
-                sensitivity: .medium,
-                isContinuous: false,
-                isHapticFeedbackEnabled: true
-            )
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .bottom) {
-                Text(strings.servings)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .offset(y: 14)
-            }
-            .padding(.bottom, 14)
     }
 
     private func log() {
@@ -123,7 +97,7 @@ struct LogDetailView: View {
             isLogging = false
             switch outcome {
             case .confirmed, .queued:
-                didFinish = true
+                WKInterfaceDevice.current().play(.success)
                 dismiss()
             case .failed:
                 WKInterfaceDevice.current().play(.failure)
@@ -140,5 +114,50 @@ struct LogDetailView: View {
         case 14 ..< 17: "Snacks"
         default: "Dinner"
         }
+    }
+}
+
+/// Large rounded value the Digital Crown drives, with a small caption under it.
+struct CrownValue: View {
+    let value: String
+    let caption: String
+    var size: CGFloat = 44
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(value)
+                .font(.system(size: size, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+            Text(caption)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+}
+
+/// Toolbar checkmark that commits a log, swapping to a spinner while the
+/// phone round-trip is in flight.
+struct ConfirmButton: View {
+    let isLogging: Bool
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            if isLogging {
+                ProgressView()
+            } else {
+                Image(systemName: "checkmark")
+            }
+        }
+        .tint(.green)
+        .disabled(isLogging)
+        .accessibilityLabel(label)
     }
 }

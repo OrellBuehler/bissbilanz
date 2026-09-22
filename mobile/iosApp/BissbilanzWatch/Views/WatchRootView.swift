@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Four horizontally-paged tabs — Insights, Log, Weight, Sleep. Each tab that
-/// needs more than one screen of content nests a vertically-paged `TabView`
-/// (the at-a-glance view first, detail/logging below). Complication deep links
-/// (`bissbilanz://log`, `…://weight`, `…://sleep`) jump straight to a tab.
+/// Four horizontally-paged tabs — Insights, Log, Weight, Sleep. Each tab is a
+/// single glance in its own `NavigationStack`; logging opens from the toolbar
+/// (a sheet for weight and sleep, a pushed detail for food). Complication deep
+/// links (`bissbilanz://log`, `…://weight`, `…://sleep`) jump straight to a tab.
 struct WatchRootView: View {
     private enum Tab: Hashable {
         case insights
@@ -16,19 +16,29 @@ struct WatchRootView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            InsightsView()
-                .tag(Tab.insights)
+            NavigationStack {
+                InsightsView()
+            }
+            .watchTabBackground(MacroColors.calories)
+            .tag(Tab.insights)
 
             NavigationStack {
                 LogListView()
             }
+            .watchTabBackground(MacroColors.carbs)
             .tag(Tab.log)
 
-            WeightView()
-                .tag(Tab.weight)
+            NavigationStack {
+                WeightView()
+            }
+            .watchTabBackground(.teal)
+            .tag(Tab.weight)
 
-            SleepView()
-                .tag(Tab.sleep)
+            NavigationStack {
+                SleepView()
+            }
+            .watchTabBackground(.indigo)
+            .tag(Tab.sleep)
         }
         .tabViewStyle(.page)
         .onOpenURL { url in
@@ -39,5 +49,13 @@ struct WatchRootView: View {
             default: selection = .insights
             }
         }
+    }
+}
+
+extension View {
+    /// Subtle tinted gradient behind a tab, the way Apple's own watch apps
+    /// identify each page — kept faint so the data stays the loudest thing.
+    func watchTabBackground(_ color: Color) -> some View {
+        containerBackground(color.opacity(0.35).gradient, for: .tabView)
     }
 }
