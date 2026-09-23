@@ -179,6 +179,12 @@ jobs:
       #
       # Serial: every test is @MainActor and StubURLProtocol keys its stubs
       # and recorded requests in process-wide statics.
+      #
+      # -only-testing:BissbilanzTests excludes BissbilanzIntentsUITests (run
+      # separately below): "Build iOS tests" above already built both via the
+      # scheme's Test action, but a UI test relaunches the whole app per test
+      # method, and this step's 3x retry-on-failure would triple that cost for
+      # a much newer, less-proven test surface.
       - name: Run iOS unit tests
         working-directory: mobile/iosApp
         run: |
@@ -190,6 +196,7 @@ jobs:
             -parallel-testing-enabled NO \
             -retry-tests-on-failure \
             -test-iterations 3 \
+            -only-testing:BissbilanzTests \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             ARCHS=arm64
@@ -203,5 +210,38 @@ jobs:
         with:
           name: ios-test-results
           path: mobile/iosApp/TestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # AppIntentsTesting (WWDC26): drives LogFoodIntent/LogRecipeIntent/
+      # GetDailyStatusIntent/GetWeeklyStatsIntent/GetWeightIntent/
+      # GetSleepIntent and their entity queries out-of-process, through the
+      # real App Intents infrastructure, against the in-memory store
+      # BissbilanzApp.init swaps in under any test host. Separate step (not
+      # folded into "Run iOS unit tests" above): a UI test relaunches the app
+      # per test method rather than running in-process, so it's kept off that
+      # step's 3x retry-on-failure and given its own result bundle instead of
+      # muddying that one. $DEVICE_ID already resolved to an iOS 27+ simulator
+      # above — this target's deploymentTarget (project.yml) requires it.
+      - name: Run iOS App Intents tests
+        working-directory: mobile/iosApp
+        run: |
+          xcodebuild test-without-building \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
+            -destination "id=$DEVICE_ID" \
+            -configuration Debug \
+            -parallel-testing-enabled NO \
+            -only-testing:BissbilanzIntentsUITests \
+            -resultBundlePath AppIntentsTestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
+
+      - name: Upload iOS App Intents test results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ios-app-intents-test-results
+          path: mobile/iosApp/AppIntentsTestResults.xcresult
           retention-days: 7
           if-no-files-found: ignore

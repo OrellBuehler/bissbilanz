@@ -58,6 +58,43 @@ struct MealEstimateItem: Identifiable {
     var fat: Double?
     var fiber: Double?
     var confidence: Double
+
+    /// Builds an item from the model's raw generated fields, applying the
+    /// hallucination guard: drops any `matchedFoodId` the search tool never
+    /// actually returned, so a fabricated id can't slip through. Takes plain
+    /// values rather than the `@Generable` `EstimatedItem` (which only exists
+    /// behind `#if canImport(FoundationModels)`) so this mapping is testable
+    /// on every platform/compiler, with or without Apple Intelligence — see
+    /// `MealEstimatorEvaluationTests`.
+    static func fromGenerated(
+        name: String,
+        matchedFoodId: String?,
+        quantityDescription: String,
+        grams: Double?,
+        servings: Double?,
+        calories: Double,
+        protein: Double,
+        carbs: Double,
+        fat: Double,
+        fiber: Double,
+        confidence: Double,
+        validMatchedFoodIds: Set<String>
+    ) -> MealEstimateItem {
+        let matchedFoodId = matchedFoodId.flatMap { validMatchedFoodIds.contains($0) ? $0 : nil }
+        return MealEstimateItem(
+            name: name,
+            matchedFoodId: matchedFoodId,
+            quantityDescription: quantityDescription,
+            grams: grams,
+            servings: matchedFoodId != nil ? servings : nil,
+            calories: calories,
+            protein: protein,
+            carbs: carbs,
+            fat: fat,
+            fiber: fiber,
+            confidence: confidence
+        )
+    }
 }
 
 @MainActor
@@ -152,22 +189,20 @@ final class MealEstimator {
         do {
             let response = try await session.respond(to: description, generating: EstimatedMeal.self)
             let validIds = await matchedIds.ids
-            let items = response.content.items.map { item -> MealEstimateItem in
-                // Hallucination guard: drop any matchedFoodId the tool never
-                // actually returned, so a fabricated id can't slip through.
-                let matchedFoodId = item.matchedFoodId.flatMap { validIds.contains($0) ? $0 : nil }
-                return MealEstimateItem(
+            let items = response.content.items.map { item in
+                MealEstimateItem.fromGenerated(
                     name: item.name,
-                    matchedFoodId: matchedFoodId,
+                    matchedFoodId: item.matchedFoodId,
                     quantityDescription: item.quantityDescription,
                     grams: item.grams,
-                    servings: matchedFoodId != nil ? item.servings : nil,
+                    servings: item.servings,
                     calories: item.calories,
                     protein: item.protein,
                     carbs: item.carbs,
                     fat: item.fat,
                     fiber: item.fiber,
-                    confidence: item.confidence
+                    confidence: item.confidence,
+                    validMatchedFoodIds: validIds
                 )
             }
             return MealEstimate(items: items)
