@@ -26,6 +26,7 @@ import { computeCaffeineSleepCutoff } from '../../src/lib/analytics/caffeine-sle
 import { computeMealRegularity } from '../../src/lib/analytics/meal-regularity';
 import { computeNOVAScore, computeOmegaRatio } from '../../src/lib/analytics/food-quality';
 import { computeFoodDiversity } from '../../src/lib/analytics/food-diversity';
+import { suggestRecipes } from '../../src/lib/analytics/recipe-suggestions';
 import { computeCalorieCycling } from '../../src/lib/analytics/calorie-patterns';
 import { computeCaloricLag } from '../../src/lib/analytics/caloric-lag';
 import { computeProteinDistribution } from '../../src/lib/analytics/protein-distribution';
@@ -103,6 +104,8 @@ function runFn(fn: string, input: any): unknown {
 			return computeNOVAScore(input.entries);
 		case 'computeOmegaRatio':
 			return computeOmegaRatio(input.dailyNutrients);
+		case 'suggestRecipes':
+			return suggestRecipes(input.remaining, input.candidates, input.limit);
 		case 'computeFoodDiversity':
 			return computeFoodDiversity(input.entries);
 		case 'computeCalorieCycling':

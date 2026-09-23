@@ -2,6 +2,7 @@ package com.bissbilanz.util
 
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.MacroSummary
+import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
 
 /**
@@ -45,5 +46,23 @@ fun computeRecipePerServingMacros(
         carbs = carbs / totalServings,
         fat = fat / totalServings,
         fiber = fiber / totalServings,
+    )
+}
+
+/**
+ * The recipe list/detail/create/update endpoints report whole-recipe totals, while
+ * the local cache (and everything reading it, e.g. `Entry.resolvedCalories()`) holds
+ * per-serving values — the same shape [computeRecipePerServingMacros] and the
+ * entry-embedded recipe from `buildRecipeMacrosCte` produce. Apply this to every
+ * server recipe before it is cached.
+ */
+fun RecipeDetail.serverTotalsToPerServing(): RecipeDetail {
+    val divisor = if (totalServings > 0.0) totalServings else 1.0
+    return copy(
+        calories = calories / divisor,
+        protein = protein / divisor,
+        carbs = carbs / divisor,
+        fat = fat / divisor,
+        fiber = fiber / divisor,
     )
 }

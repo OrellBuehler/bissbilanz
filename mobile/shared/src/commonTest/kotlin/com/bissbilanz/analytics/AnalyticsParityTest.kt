@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.double
@@ -233,6 +234,30 @@ class AnalyticsParityTest {
                         OmegaDay(o.str("date"), o.dbl("omega3"), o.dbl("omega6"), o.optDouble("coverage") ?: 1.0)
                     },
                 ).toJson()
+            }
+
+            "suggestRecipes" -> {
+                val remaining = input.getValue("remaining").jsonObject
+                suggestRecipes(
+                    MacroBudget(remaining.dbl("calories"), remaining.dbl("protein"), remaining.dbl("carbs"), remaining.dbl("fat")),
+                    input.getValue("candidates").jsonArray.map { it.jsonObject }.map { o ->
+                        val m = o.getValue("perServing").jsonObject
+                        SuggestionCandidate(
+                            id = o.str("id"),
+                            name = o.str("name"),
+                            perServing =
+                                SuggestionMacros(
+                                    m.dbl("calories"),
+                                    m.dbl("protein"),
+                                    m.dbl("carbs"),
+                                    m.dbl("fat"),
+                                    m.dbl("fiber"),
+                                ),
+                            isFavorite = o.getValue("isFavorite").jsonPrimitive.boolean,
+                        )
+                    },
+                    input.getValue("limit").jsonPrimitive.int,
+                ).let { result -> JsonArray(result.map { it.toJson() }) }
             }
 
             "computeFoodDiversity" -> {
@@ -591,6 +616,24 @@ class AnalyticsParityTest {
             )
             put("confidence", confidence.wire())
             put("sampleSize", sampleSize)
+        }
+
+    private fun RecipeSuggestion.toJson() =
+        buildJsonObject {
+            put("id", id)
+            put("servings", servings)
+            put(
+                "macros",
+                buildJsonObject {
+                    put("calories", macros.calories)
+                    put("protein", macros.protein)
+                    put("carbs", macros.carbs)
+                    put("fat", macros.fat)
+                    put("fiber", macros.fiber)
+                },
+            )
+            put("score", score)
+            put("fit", fit)
         }
 
     private fun CalorieCyclingResult.toJson() =

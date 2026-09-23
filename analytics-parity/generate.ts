@@ -6,7 +6,7 @@
  * analytics-parity/README.md. Keep this file dependency-free (pure imports of
  * the analytics modules) so it runs without the SvelteKit runtime.
  */
-import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,6 +53,7 @@ import { detectFoodSleepPatterns } from '../src/lib/analytics/food-sleep';
 import { getConfidenceLevel } from '../src/lib/analytics/correlation';
 import { localMinutesOfDay } from '../src/lib/analytics/local-time';
 import { nullDiv, nullSum } from '../src/lib/analytics/aggregation';
+import { suggestRecipes, type SuggestionCandidate } from '../src/lib/analytics/recipe-suggestions';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -1138,6 +1139,69 @@ function round(v: number, dp: number): number {
 	);
 }
 
+// --- recipe suggestions -----------------------------------------------------------
+{
+	const r = (
+		id: string,
+		calories: number,
+		protein: number,
+		carbs: number,
+		fat: number,
+		fiber = 4,
+		isFavorite = false
+	): SuggestionCandidate => ({
+		id,
+		name: id,
+		perServing: { calories, protein, carbs, fat, fiber },
+		isFavorite
+	});
+	const dinner = { calories: 700, protein: 45, carbs: 70, fat: 25 };
+	const suggestionCases: [string, typeof dinner, SuggestionCandidate[], number?][] = [
+		[
+			'scales_portions',
+			dinner,
+			[r('small', 560, 36, 56, 20), r('large', 930, 60, 93, 33), r('exact', 700, 45, 70, 25)]
+		],
+		['protein_vs_carbs', dinner, [r('pasta', 700, 15, 130, 15), r('chicken', 700, 50, 60, 25)]],
+		[
+			'fat_budget_spent',
+			{ calories: 600, protein: 40, carbs: 80, fat: -5 },
+			[r('fatty', 600, 20, 30, 40), r('lean', 600, 40, 90, 5)]
+		],
+		[
+			'favorite_tiebreak',
+			dinner,
+			[r('a-plain', 700, 45, 70, 25), r('b-favorite', 700, 45, 70, 25, 4, true)]
+		],
+		['goal_reached', { calories: 99, protein: 10, carbs: 10, fat: 5 }, [r('x', 400, 20, 40, 10)]],
+		[
+			'skips_zero_and_oversized',
+			{ calories: 300, protein: 20, carbs: 30, fat: 10 },
+			[r('empty', 0, 0, 0, 0), r('huge', 1200, 60, 120, 50), r('ok', 400, 25, 40, 12)]
+		],
+		[
+			'irregular_values_and_limit',
+			{ calories: 812.4, protein: 51.3, carbs: 64.9, fat: 31.7 },
+			[
+				r('b', 333.3, 12.1, 44.4, 9.9, 3.3),
+				r('a', 612.8, 48.2, 55.1, 22.6, 7.1, true),
+				r('c', 455.5, 30.3, 20.2, 28.8, 1.2),
+				r('d', 1020.7, 70.4, 99.9, 41.1, 9.9),
+				r('e', 250, 5, 50, 2, 0.5)
+			],
+			3
+		]
+	];
+	for (const [name, remaining, candidates, limit] of suggestionCases) {
+		add(
+			'suggestRecipes',
+			name,
+			{ remaining, candidates, limit: limit ?? 10 },
+			suggestRecipes(remaining, candidates, limit ?? 10)
+		);
+	}
+}
+
 // --- nullDiv / nullSum ----------------------------------------------------------
 {
 	// The SQL NULL semantics the whole aggregation layer is built on.
@@ -1205,12 +1269,8 @@ const targets = [
 let drift = false;
 for (const { path, content } of targets) {
 	if (checkMode) {
-		let current = '';
-		try {
-			current = readFileSync(path, 'utf-8');
-		} catch {
-			// missing file counts as drift
-		}
+		// A missing file counts as drift.
+		const current = existsSync(path) ? readFileSync(path, 'utf-8') : '';
 		if (current !== content) {
 			console.error(`DRIFT: ${path} is stale — run \`bun run analytics:generate\``);
 			drift = true;

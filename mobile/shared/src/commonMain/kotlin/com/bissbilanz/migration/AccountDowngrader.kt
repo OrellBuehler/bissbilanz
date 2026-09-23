@@ -8,6 +8,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -154,7 +155,7 @@ class AccountDowngrader(
                     batch
                         .map { summary -> async { api.getRecipe(summary.id) } }
                         .awaitAll()
-                        .map { it.copy(imageUrl = localizedImageUrl(it.imageUrl)) }
+                        .map { it.copy(imageUrl = localizedImageUrl(it.imageUrl)).serverTotalsToPerServing() }
                 }
             queries.transaction {
                 for (recipe in details) {
