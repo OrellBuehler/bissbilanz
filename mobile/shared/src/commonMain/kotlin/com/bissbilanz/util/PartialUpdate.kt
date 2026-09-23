@@ -62,6 +62,7 @@ enum class DayPropertiesField(
     NOTES("notes"),
     WATER_ML("waterMl"),
     ACTIVITY_CALORIES("activityCalories"),
+    ACTIVITY_CALORIES_SOURCE("activityCaloriesSource"),
     ACTIVITY_NOTE("activityNote"),
 }
 

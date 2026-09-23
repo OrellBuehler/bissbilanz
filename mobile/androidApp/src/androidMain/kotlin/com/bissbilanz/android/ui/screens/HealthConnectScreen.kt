@@ -48,6 +48,7 @@ fun HealthConnectScreen(navController: NavController) {
     var writeWeight by remember { mutableStateOf(prefs.writeWeight) }
     var readSleep by remember { mutableStateOf(prefs.readSleep) }
     var writeSleep by remember { mutableStateOf(prefs.writeSleep) }
+    var readActivity by remember { mutableStateOf(prefs.readActivity) }
     var writeNutrition by remember { mutableStateOf(prefs.writeNutrition) }
     var isImporting by remember { mutableStateOf(false) }
     var isReimporting by remember { mutableStateOf(false) }
@@ -99,6 +100,7 @@ fun HealthConnectScreen(navController: NavController) {
                             writeWeight = false
                             readSleep = false
                             writeSleep = false
+                            readActivity = false
                             writeNutrition = false
                             EXTENDED_HEALTH_NUTRIENTS.forEach { nutrientsEnabled[it.key] = false }
                             granted = health.grantedPermissions()
@@ -266,6 +268,10 @@ fun HealthConnectScreen(navController: NavController) {
                             readSleep = it
                             prefs.readSleep = it
                         }
+                        HealthToggle(stringResource(R.string.settings_activity_goal_adjustment_title), readActivity) {
+                            readActivity = it
+                            prefs.readActivity = it
+                        }
                         if (readSleep) {
                             OutlinedButton(
                                 onClick = { showReimportConfirm = true },
@@ -292,7 +298,7 @@ fun HealthConnectScreen(navController: NavController) {
                                     )
                                 }
                             },
-                            enabled = !isImporting && (readWeight || readSleep),
+                            enabled = !isImporting && (readWeight || readSleep || readActivity),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (isImporting) {

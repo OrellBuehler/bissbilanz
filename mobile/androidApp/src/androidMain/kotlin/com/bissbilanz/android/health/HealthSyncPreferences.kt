@@ -29,6 +29,11 @@ class HealthSyncPreferences(
         get() = prefs.getBoolean(KEY_WRITE_SLEEP, false)
         set(value) = prefs.edit().putBoolean(KEY_WRITE_SLEEP, value).apply()
 
+    /** Reads workout active calories into the day's `activityCalories` day property. */
+    var readActivity: Boolean
+        get() = prefs.getBoolean(KEY_READ_ACTIVITY, false)
+        set(value) = prefs.edit().putBoolean(KEY_READ_ACTIVITY, value).apply()
+
     var writeNutrition: Boolean
         get() = prefs.getBoolean(KEY_WRITE_NUTRITION, false)
         set(value) = prefs.edit().putBoolean(KEY_WRITE_NUTRITION, value).apply()
@@ -46,8 +51,25 @@ class HealthSyncPreferences(
             editor.apply()
         }
 
+    /**
+     * Timestamp of the last successful activity-calories import. Unset means the next
+     * import scans the full look-back window; otherwise it only scans the short recent
+     * window, since workouts are entered close to when they happened.
+     */
+    var lastActivityImportAt: Instant?
+        get() = prefs.getLong(KEY_LAST_ACTIVITY_IMPORT_AT, -1L).takeIf { it >= 0 }?.let(Instant::ofEpochMilli)
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) {
+                editor.remove(KEY_LAST_ACTIVITY_IMPORT_AT)
+            } else {
+                editor.putLong(KEY_LAST_ACTIVITY_IMPORT_AT, value.toEpochMilli())
+            }
+            editor.apply()
+        }
+
     val anyEnabled: Boolean
-        get() = readWeight || writeWeight || readSleep || writeSleep || writeNutrition
+        get() = readWeight || writeWeight || readSleep || writeSleep || writeNutrition || readActivity
 
     /** Per-nutrient opt-in for [EXTENDED_HEALTH_NUTRIENTS], off by default like iOS. */
     fun nutrientEnabled(key: String): Boolean = prefs.getBoolean(nutrientPrefKey(key), false)
@@ -79,8 +101,10 @@ class HealthSyncPreferences(
         const val KEY_WRITE_WEIGHT = "write_weight"
         const val KEY_READ_SLEEP = "read_sleep"
         const val KEY_WRITE_SLEEP = "write_sleep"
+        const val KEY_READ_ACTIVITY = "read_activity"
         const val KEY_WRITE_NUTRITION = "write_nutrition"
         const val KEY_LAST_SYNCED_AT = "last_synced_at"
+        const val KEY_LAST_ACTIVITY_IMPORT_AT = "last_activity_import_at"
         const val KEY_NUTRIENT_PREFIX = "nutrient_"
     }
 }

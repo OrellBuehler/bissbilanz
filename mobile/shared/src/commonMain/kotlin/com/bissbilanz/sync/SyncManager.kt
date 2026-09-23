@@ -562,6 +562,7 @@ class SyncManager(
                     notes = set.notes,
                     waterMl = set.waterMl,
                     activityCalories = set.activityCalories,
+                    activityCaloriesSource = set.activityCaloriesSource,
                     activityNote = set.activityNote,
                     idempotencyKey = idempotencyKey,
                     clientEditedAt = clientEditedAt,

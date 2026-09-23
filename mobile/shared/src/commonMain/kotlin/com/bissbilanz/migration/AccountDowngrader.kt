@@ -254,6 +254,7 @@ class AccountDowngrader(
                         waterMl = day.waterMl?.toLong(),
                         activityCalories = day.activityCalories?.toLong(),
                         activityNote = day.activityNote,
+                        activityCaloriesSource = day.activityCaloriesSource?.value,
                     )
                 }
             }

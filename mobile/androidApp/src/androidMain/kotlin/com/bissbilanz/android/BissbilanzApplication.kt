@@ -144,7 +144,7 @@ class BissbilanzApplication :
                 single { SupplementReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
                 single { AiTaskUploadQueue(androidContext()) }
-                single { HealthImporter(get(), get(), get(), get(), get()) }
+                single { HealthImporter(get(), get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { AssistantFoodLogger(get(), get(), get()) }

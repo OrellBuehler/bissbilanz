@@ -1,9 +1,11 @@
 package com.bissbilanz.android.health
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.model.WeightCreate
+import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.CancellationException
@@ -12,22 +14,24 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 /**
- * Pulls weight and sleep out of Health Connect into the app's own store, matching
- * the iOS HealthKitImporter: a fixed look-back window, one entry per day, and days
- * that already have an entry are left alone so a manual log always wins.
+ * Pulls weight, sleep and workout calories out of Health Connect into the app's own
+ * store, matching the iOS HealthKitImporter: a fixed look-back window, one entry per
+ * day, and days that already have an entry are left alone so a manual log always wins.
  */
 class HealthImporter(
     private val health: HealthConnectService,
     private val prefs: HealthSyncPreferences,
     private val weightRepository: WeightRepository,
     private val sleepRepository: SleepRepository,
+    private val entryRepository: EntryRepository,
     private val errorReporter: ErrorReporter,
 ) {
     suspend fun importAllIfEnabled(): Boolean {
         if (!health.isAvailable()) return false
         val weights = importWeightsIfEnabled()
         val sleep = importSleepIfEnabled()
-        return weights || sleep
+        val activity = importActivityIfEnabled()
+        return weights || sleep || activity
     }
 
     suspend fun importWeightsIfEnabled(): Boolean {
@@ -96,6 +100,57 @@ class HealthImporter(
                     imported = true
                 }
             if (imported) prefs.lastSyncedAt = Instant.now()
+            imported
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            errorReporter.captureException(e)
+            false
+        }
+    }
+
+    /**
+     * Pulls workout active calories into each day's `activityCalories` day property.
+     * The first run scans the full [IMPORT_WINDOW_DAYS] look-back (matching the weight
+     * and sleep importers); every run after that only rescans the last
+     * [ACTIVITY_RESCAN_WINDOW_DAYS] days, since a workout is normally logged close to
+     * when it happened and a 90-day rescan on every launch would be wasted work.
+     *
+     * A day is only written when it has no `activityCalories` yet, or its existing
+     * value already came from Health Connect and differs from the freshly read total —
+     * a manual entry, or a day with no recorded source, always wins over an import.
+     */
+    suspend fun importActivityIfEnabled(): Boolean {
+        if (!prefs.readActivity) return false
+        val now = Instant.now()
+        return try {
+            val start =
+                if (prefs.lastActivityImportAt == null) {
+                    now.minus(IMPORT_WINDOW_DAYS, ChronoUnit.DAYS)
+                } else {
+                    now.minus(ACTIVITY_RESCAN_WINDOW_DAYS, ChronoUnit.DAYS)
+                }
+            val dailyCalories = health.readWorkoutActiveCalories(start, now)
+            var imported = false
+            for ((localDate, kcal) in dailyCalories) {
+                if (kcal <= 0) continue
+                val date = localDate.toString()
+                val current = entryRepository.getDayProperties(date)
+                val shouldWrite =
+                    current?.activityCalories == null ||
+                        (
+                            current.activityCaloriesSource == DayProperties.ActivityCaloriesSource.health_connect &&
+                                current.activityCalories != kcal
+                        )
+                if (!shouldWrite) continue
+                entryRepository.setDayProperties(
+                    date = date,
+                    activityCalories = kcal,
+                    activityCaloriesSource = DayProperties.ActivityCaloriesSource.health_connect,
+                )
+                imported = true
+            }
+            prefs.lastActivityImportAt = now
+            if (imported) prefs.lastSyncedAt = now
             imported
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -176,5 +231,8 @@ class HealthImporter(
     private companion object {
         /** How far back imports look, matching the iOS window. */
         const val IMPORT_WINDOW_DAYS = 90L
+
+        /** How far back a non-first-run activity import rescans. */
+        const val ACTIVITY_RESCAN_WINDOW_DAYS = 3L
     }
 }

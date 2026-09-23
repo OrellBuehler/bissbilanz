@@ -1009,6 +1009,7 @@ class BissbilanzApi(
         notes: String? = null,
         waterMl: Int? = null,
         activityCalories: Int? = null,
+        activityCaloriesSource: DayPropertiesSet.ActivityCaloriesSource? = null,
         activityNote: String? = null,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
@@ -1023,6 +1024,7 @@ class BissbilanzApi(
                 notes = notes,
                 waterMl = waterMl,
                 activityCalories = activityCalories,
+                activityCaloriesSource = activityCaloriesSource,
                 activityNote = activityNote,
             )
         val response: DayPropertiesResponse =

@@ -3,10 +3,13 @@ package com.bissbilanz.android.health
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
@@ -48,6 +51,8 @@ class HealthConnectService(
         setOf(
             HealthPermission.getReadPermission(WeightRecord::class),
             HealthPermission.getReadPermission(SleepSessionRecord::class),
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         )
 
     val writePermissions =
@@ -162,6 +167,59 @@ class HealthConnectService(
                 ),
             )
         }.isSuccess
+    }
+
+    // MARK: - Workout calories
+
+    /**
+     * Active calories burned by workouts in `[start, end)`, summed per local day the
+     * workout started on. One aggregate query per exercise session — Health Connect
+     * has no per-session energy field on [ExerciseSessionRecord] itself, so the total
+     * has to be pulled back out of [ActiveCaloriesBurnedRecord] for that session's
+     * exact time window.
+     */
+    suspend fun readWorkoutActiveCalories(
+        start: Instant,
+        end: Instant,
+    ): Map<LocalDate, Int> {
+        val client = client() ?: return emptyMap()
+        if (!has(HealthPermission.getReadPermission(ExerciseSessionRecord::class)) ||
+            !has(HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class))
+        ) {
+            return emptyMap()
+        }
+        val zone = ZoneId.systemDefault()
+        return runCatching {
+            val sessions = mutableListOf<ExerciseSessionRecord>()
+            var pageToken: String? = null
+            do {
+                val response =
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = ExerciseSessionRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                            pageToken = pageToken,
+                        ),
+                    )
+                sessions += response.records
+                pageToken = response.pageToken.takeUnless { it.isNullOrEmpty() }
+            } while (pageToken != null)
+
+            val totals = mutableMapOf<LocalDate, Int>()
+            for (session in sessions) {
+                val aggregate =
+                    client.aggregate(
+                        AggregateRequest(
+                            metrics = setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL),
+                            timeRangeFilter = TimeRangeFilter.between(session.startTime, session.endTime),
+                        ),
+                    )
+                val kcal = aggregate[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: continue
+                val date = session.startTime.atZone(zone).toLocalDate()
+                totals[date] = (totals[date] ?: 0) + kcal.roundToInt()
+            }
+            totals
+        }.getOrDefault(emptyMap())
     }
 
     // MARK: - Nutrition
