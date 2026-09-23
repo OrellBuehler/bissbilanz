@@ -860,6 +860,38 @@ enum L10n {
         localized("daily_goals", en: "Daily Goals", de: "Tagesziele")
     }
 
+    static func goalsMacroSum(_ kcal: Int) -> String {
+        localized(
+            "goals_macro_sum",
+            en: "Protein, carbs and fat add up to \(kcal) kcal.",
+            de: "Protein, Kohlenhydrate und Fett ergeben \(kcal) kcal."
+        )
+    }
+
+    static func goalsMacroShort(_ kcal: Int, goal: Int) -> String {
+        localized(
+            "goals_macro_short",
+            en: "That is \(kcal) kcal short of your \(goal) kcal goal.",
+            de: "Das sind \(kcal) kcal weniger als dein Ziel von \(goal) kcal."
+        )
+    }
+
+    static func goalsMacroOver(_ kcal: Int, goal: Int) -> String {
+        localized(
+            "goals_macro_over",
+            en: "That is \(kcal) kcal over your \(goal) kcal goal.",
+            de: "Das sind \(kcal) kcal mehr als dein Ziel von \(goal) kcal."
+        )
+    }
+
+    static var goalsMacroFactors: String {
+        localized(
+            "goals_macro_factors",
+            en: "Protein and carbs count 4 kcal per gram, fat 9 kcal.",
+            de: "Protein und Kohlenhydrate zählen 4 kcal pro Gramm, Fett 9 kcal."
+        )
+    }
+
     static var biologicalSex: String {
         localized("biological_sex", en: "Biological Sex", de: "Biologisches Geschlecht")
     }
@@ -1938,6 +1970,14 @@ enum L10n {
 
     static var useThisPhoto: String {
         localized("use_this_photo", en: "Use photo", de: "Foto verwenden")
+    }
+
+    static var cropPhotoHint: String {
+        localized(
+            "crop_photo_hint",
+            en: "Drag and pinch to frame the square",
+            de: "Ziehen und zoomen, um den Ausschnitt zu wählen"
+        )
     }
 
     static var photoSaveFailed: String {

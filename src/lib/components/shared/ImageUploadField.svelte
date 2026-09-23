@@ -21,7 +21,7 @@
 </script>
 
 <div class="space-y-2">
-	<div class="relative aspect-video w-full max-w-sm overflow-hidden rounded-xl border">
+	<div class="relative aspect-square w-full max-w-48 overflow-hidden rounded-xl border">
 		<FoodThumbnail {name} {imageUrl} size="fill" />
 		{#if uploading}
 			<div class="absolute inset-0 flex items-center justify-center bg-background/60">

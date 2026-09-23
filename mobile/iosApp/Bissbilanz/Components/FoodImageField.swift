@@ -115,6 +115,10 @@ struct FoodImageField: View {
 
     /// Two equal, titled buttons filling the width — the same pair the AI meal
     /// sheet offers. Once a photo is attached they replace it.
+    ///
+    /// Both labels fill the row's height, so when the longer title ("Choose
+    /// Photo" at larger text sizes, longer still in German) wraps, the other
+    /// button grows with it instead of sitting a line shorter beside it.
     private var actionRow: some View {
         HStack(spacing: 12) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -122,7 +126,7 @@ struct FoodImageField: View {
                     showCamera = true
                 } label: {
                     Label(L10n.takePhoto, systemImage: "camera")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isSaving)
@@ -136,11 +140,12 @@ struct FoodImageField: View {
             // accepts it).
             PhotosPicker(selection: $photoItem, matching: .images) {
                 Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .buttonStyle(.bordered)
             .disabled(isSaving)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func loadFromLibrary(_ item: PhotosPickerItem) async {
