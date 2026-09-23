@@ -290,8 +290,9 @@ struct FoodEditForm: View {
         }
     }
 
-    /// Prefills the editable fields from an OCR'd nutrition label. Values are
-    /// per 100 g (the parser's canonical basis); the user adjusts the serving
+    /// Prefills the editable fields from a scanned nutrition label. Values are
+    /// per 100 g (`NutritionLabelScanner`'s canonical basis regardless of
+    /// which recognition path produced them); the user adjusts the serving
     /// and confirms before saving.
     private func apply(_ parsed: ParsedNutrition) {
         servingSize = "100"
@@ -308,6 +309,20 @@ struct FoodEditForm: View {
         if let value = parsed.saturatedFat { additionalValues["saturatedFat"] = Self.numberString(value) }
         if let value = parsed.salt { additionalValues["salt"] = Self.numberString(value) }
         if let value = parsed.sodium { additionalValues["sodium"] = Self.numberString(value) }
+        // Extended fields only the Foundation Models path fills in (see
+        // `ParsedNutrition`) — nil for anything scanned via Vision+parser.
+        if let value = parsed.monounsaturatedFat { additionalValues["monounsaturatedFat"] = Self.numberString(value) }
+        if let value = parsed.polyunsaturatedFat { additionalValues["polyunsaturatedFat"] = Self.numberString(value) }
+        if let value = parsed.transFat { additionalValues["transFat"] = Self.numberString(value) }
+        if let value = parsed.cholesterol { additionalValues["cholesterol"] = Self.numberString(value) }
+        if let value = parsed.potassium { additionalValues["potassium"] = Self.numberString(value) }
+        if let value = parsed.calcium { additionalValues["calcium"] = Self.numberString(value) }
+        if let value = parsed.iron { additionalValues["iron"] = Self.numberString(value) }
+        if let value = parsed.vitaminD { additionalValues["vitaminD"] = Self.numberString(value) }
+        if let value = parsed.addedSugars { additionalValues["addedSugars"] = Self.numberString(value) }
+        // Never overwrite a barcode the user already typed or the form was
+        // opened with.
+        if let value = parsed.barcode, barcode.isEmpty { barcode = value }
     }
 
     /// Renders a parsed value without a trailing ".0".
