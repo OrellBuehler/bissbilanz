@@ -142,6 +142,7 @@ private fun DashboardSection.title(): String =
             DashboardSection.DAY_PROPERTIES -> R.string.settings_widget_day_properties
             DashboardSection.CHART -> R.string.dashboard_calorie_trend_title
             DashboardSection.FAVORITES -> R.string.favorites_title
+            DashboardSection.RECIPE_SUGGESTIONS -> R.string.recipe_suggestions_title
             DashboardSection.SUPPLEMENTS -> R.string.chart_supplements
             DashboardSection.WEIGHT -> R.string.weight_widget_title
             DashboardSection.MEAL_BREAKDOWN -> R.string.settings_widget_meal_breakdown
@@ -159,6 +160,7 @@ private fun DashboardSection.description(): String =
             DashboardSection.DAY_PROPERTIES -> R.string.settings_widget_day_properties_desc
             DashboardSection.CHART -> R.string.dashboard_calorie_trend_desc
             DashboardSection.FAVORITES -> R.string.settings_widget_favorites_desc
+            DashboardSection.RECIPE_SUGGESTIONS -> R.string.settings_widget_recipe_suggestions_desc
             DashboardSection.SUPPLEMENTS -> R.string.settings_widget_supplements_desc
             DashboardSection.WEIGHT -> R.string.settings_widget_weight_desc
             DashboardSection.MEAL_BREAKDOWN -> R.string.settings_widget_meal_breakdown_desc
