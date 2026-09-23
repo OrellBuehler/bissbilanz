@@ -1,4 +1,5 @@
 import AppIntentsTesting
+import Foundation
 import XCTest
 
 /// End-to-end coverage of the app's Siri/Shortcuts/Spotlight intents through
@@ -43,7 +44,33 @@ final class AppIntentsE2ETests: XCTestCase {
         continueAfterFailure = false
         app.launch()
         definitions = IntentDefinitions(bundleIdentifier: "com.bissbilanz.ios")
-        try await definitions.intents["ResetIntentTestFixturesIntent"].makeIntent().run()
+        do {
+            try await definitions.intents["ResetIntentTestFixturesIntent"].makeIntent().run()
+        } catch {
+            throw Self.skipIfInternalTestingUnavailable(error)
+        }
+    }
+
+    /// As of the Xcode 27 GM, running an intent through AppIntentsTesting
+    /// fails on every publicly released simulator/OS build — including
+    /// GitHub's macOS runners — with `AppIntentsServicesSecurityErrorDomain`
+    /// code 803, "Unable to run internal tests on a Customer build". That
+    /// wording says this needs an Apple-internal ("non-Customer") OS build,
+    /// which no public Xcode install (CI or a developer's own Mac) has; no
+    /// documented workaround (Developer Mode toggle, `defaults write`, launch
+    /// argument) was found in Apple's docs, the WWDC26 session, or public
+    /// forums as of this writing. Every test shares `setUp`'s call to the
+    /// reset intent, so catching it there is the single choke point — skip
+    /// cleanly (`XCTSkip`, reported as skipped, not failed) rather than
+    /// disable the suite outright, so it starts passing for free the moment
+    /// Apple lifts the restriction on a future release. See the PR
+    /// description for the full explanation and current status.
+    private static func skipIfInternalTestingUnavailable(_ error: Error) -> Error {
+        let nsError = error as NSError
+        guard nsError.domain == "AppIntentsServicesSecurityErrorDomain", nsError.code == 803 else {
+            return error
+        }
+        return XCTSkip("AppIntentsTesting needs an Apple-internal OS build; unavailable here: \(nsError.localizedDescription)")
     }
 
     // MARK: - Logging
