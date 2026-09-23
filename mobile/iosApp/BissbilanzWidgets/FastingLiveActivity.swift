@@ -17,6 +17,17 @@ import WidgetKit
 /// ring and an empty middle, with no way to tell what is running or for how
 /// long. With it, `FastingLockScreenView` renders a wrist-sized layout for
 /// `ActivityFamily.small` instead.
+///
+/// iOS 27 (WWDC26 "Live Activities essentials", session 223) shows the
+/// `compactLeading`/`compactTrailing`/`minimal` views in the landscape
+/// Dynamic Island too — previously portrait-only — and adds
+/// `isDynamicIslandLimitedInWidth` so a view can fall back to an icon-only
+/// design there. Verified against the environment value's own reference page
+/// (iOS 27 only): it only ever affects those three views, and ours already
+/// render an icon (`compactLeading`) or a bare, label-less progress ring
+/// (`compactTrailing`/`minimal`) with no text that could overflow, so no
+/// layout branch is needed here — they already satisfy the width-limited
+/// requirement.
 struct FastingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FastingActivityAttributes.self) { context in
@@ -72,6 +83,7 @@ struct FastingLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "timer")
                     .foregroundStyle(MacroColors.fasting)
+                    .accessibilityLabel(strings.fasting)
             } compactTrailing: {
                 ProgressView(timerInterval: context.state.progressRange, countsDown: false) {
                     EmptyView()
@@ -97,6 +109,13 @@ struct FastingLiveActivity: Widget {
 
 struct FastingLockScreenView: View {
     @Environment(\.activityFamily) private var activityFamily
+    /// Already `iOS 15`/`watchOS 8`+, not iOS 27-specific — WWDC26 session 223
+    /// just newly recommends it for Live Activities: `true` on the regular
+    /// Lock Screen, where the system draws its own card behind our content;
+    /// `false` in StandBy, where the system instead extends
+    /// `activityBackgroundTint` edge-to-edge and expects the view not to draw
+    /// a second, non-edge-to-edge background on top of it.
+    @Environment(\.showsWidgetContainerBackground) private var showsWidgetContainerBackground
 
     let state: FastingActivityAttributes.ContentState
 
@@ -172,6 +191,8 @@ struct FastingLockScreenView: View {
                     .font(.system(.title, design: .rounded))
                     .fontWeight(.semibold)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Spacer()
                 Button(intent: EndFastIntent()) {
                     Text(strings.endFast)
@@ -188,6 +209,7 @@ struct FastingLockScreenView: View {
                     Text(strings.fastingEndsAt(state.targetEndDate))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     Spacer()
                     Text(timerInterval: state.progressRange, countsDown: true)
                         .font(.caption2)
@@ -200,5 +222,18 @@ struct FastingLockScreenView: View {
             .tint(MacroColors.fasting)
         }
         .padding()
+        // StandBy scales this same lock-screen presentation up (iOS 27 renders
+        // it at 200%); without a background of our own it stays the plain
+        // system material card floating in the middle of the much larger
+        // StandBy frame instead of reading as edge-to-edge. `.opacity(0.08)`
+        // stays subtle enough not to fight the actual lock-screen card, and is
+        // skipped entirely in StandBy since `activityBackgroundTint` below
+        // already fills that edge-to-edge on its own.
+        .background {
+            if showsWidgetContainerBackground {
+                MacroColors.fasting.opacity(0.08)
+            }
+        }
+        .activityBackgroundTint(MacroColors.fasting.opacity(0.22))
     }
 }
