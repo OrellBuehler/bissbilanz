@@ -126,9 +126,9 @@ struct FoodDetailView: View {
             if food.imageUrl != nil {
                 Section {
                     FoodImageView(imageUrl: food.imageUrl)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 200)
+                        .frame(width: 200, height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .frame(maxWidth: .infinity)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }

@@ -113,9 +113,9 @@ struct EntryEditSheet: View {
             Form {
                 Section {
                     // Shorter than on the log sheet: this one opens on the
-                    // medium detent, where a full-height banner would push the
+                    // medium detent, where the full-size square would push the
                     // servings field off screen.
-                    FoodHeaderImage(imageUrl: imageUrl, height: 120)
+                    FoodHeaderImage(imageUrl: imageUrl, size: 120)
                     Text(entry.displayName)
                         .font(.headline)
                 }

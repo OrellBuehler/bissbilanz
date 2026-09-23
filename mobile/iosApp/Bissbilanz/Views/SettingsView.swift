@@ -475,12 +475,16 @@ struct SettingsView: View {
     private var goalsEditor: some View {
         NavigationStack {
             Form {
-                Section(L10n.dailyGoals) {
+                Section {
                     goalField(L10n.calories + " (kcal)", text: $editCalories)
-                    goalField(L10n.protein + " (g)", text: $editProtein)
-                    goalField(L10n.carbs + " (g)", text: $editCarbs)
-                    goalField(L10n.fat + " (g)", text: $editFat)
+                    goalField(L10n.protein + " (g)", text: $editProtein, share: macroShare(editProtein, kcalPerGram: 4))
+                    goalField(L10n.carbs + " (g)", text: $editCarbs, share: macroShare(editCarbs, kcalPerGram: 4))
+                    goalField(L10n.fat + " (g)", text: $editFat, share: macroShare(editFat, kcalPerGram: 9))
                     goalField(L10n.fiber + " (g)", text: $editFiber)
+                } header: {
+                    Text(L10n.dailyGoals)
+                } footer: {
+                    macroBalanceFooter
                 }
 
                 Section(L10n.weightTarget) {
@@ -515,14 +519,67 @@ struct SettingsView: View {
         }
     }
 
-    private func goalField(_ label: String, text: Binding<String>) -> some View {
+    private func goalField(_ label: String, text: Binding<String>, share: Int? = nil) -> some View {
         HStack {
             Text(label)
             Spacer()
+            if let share {
+                Text("\(share)%")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
             TextField("", text: text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+        }
+    }
+
+    /// Calories a macro's grams contribute, as a share of the calorie goal.
+    private func macroShare(_ grams: String, kcalPerGram: Double) -> Int? {
+        guard let grams = Double.parseUserInput(grams),
+              let calories = Double.parseUserInput(editCalories), calories > 0
+        else { return nil }
+        return Int((grams * kcalPerGram / calories * 100).rounded())
+    }
+
+    /// Calories implied by the protein, carb and fat goals. Fiber is left out:
+    /// it is counted within carbs, and its own energy value depends on how
+    /// much of it is soluble.
+    private var macroCalories: Double? {
+        guard let protein = Double.parseUserInput(editProtein),
+              let carbs = Double.parseUserInput(editCarbs),
+              let fat = Double.parseUserInput(editFat)
+        else { return nil }
+        return protein * 4 + carbs * 4 + fat * 9
+    }
+
+    /// A hint, never a gate: goals that don't add up still save, the user
+    /// just gets to see by how much they are off.
+    @ViewBuilder
+    private var macroBalanceFooter: some View {
+        if let macroCalories, let calories = Double.parseUserInput(editCalories), calories > 0 {
+            let sum = Int(macroCalories.rounded())
+            let goal = Int(calories.rounded())
+            let diff = sum - goal
+            VStack(alignment: .leading, spacing: 4) {
+                // Whole grams move the sum in steps of 4 and 9 kcal, so a few
+                // kcal either way is as close as the fields allow.
+                if abs(diff) < 10 {
+                    Text(L10n.goalsMacroSum(sum))
+                } else {
+                    let detail = diff < 0
+                        ? L10n.goalsMacroShort(-diff, goal: goal)
+                        : L10n.goalsMacroOver(diff, goal: goal)
+                    Label {
+                        Text(L10n.goalsMacroSum(sum) + " " + detail)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(.orange)
+                }
+                Text(L10n.goalsMacroFactors)
+            }
         }
     }
 

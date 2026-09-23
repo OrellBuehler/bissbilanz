@@ -169,23 +169,25 @@ struct FoodImageView: View {
 }
 
 /// The photo a food or recipe gets above its name on a form header, in the
-/// same full-width rounded shape `FoodDetailView` opens with so the picture
+/// same centred rounded square `FoodDetailView` opens with so the picture
 /// reads the same wherever it appears.
 ///
 /// Renders nothing — not even an empty row — when there is no image, which is
 /// what keeps an image-less header identical to what it was before.
 struct FoodHeaderImage: View {
     let imageUrl: String?
-    /// Shorter where the form opens on a medium detent and the fields below
-    /// have to stay reachable without a scroll.
-    var height: CGFloat = 160
+    /// Side of the square. Smaller where the form opens on a medium detent and
+    /// the fields below have to stay reachable without a scroll.
+    var size: CGFloat = 160
 
+    /// Square because that is the shape the photo was cropped to when it was
+    /// attached — a wide banner would crop the user's framing a second time.
     var body: some View {
         if let imageUrl, !imageUrl.isEmpty {
             FoodImageView(imageUrl: imageUrl)
-                .frame(maxWidth: .infinity)
-                .frame(height: height)
+                .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(maxWidth: .infinity)
                 .listRowSeparator(.hidden)
         }
     }
