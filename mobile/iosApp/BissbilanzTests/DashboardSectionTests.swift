@@ -7,6 +7,7 @@ struct DashboardSectionTests {
     private func makePreferences(
         showFastingWidget: Bool = true,
         showDayPropertiesWidget: Bool = true,
+        showRecipeSuggestionsWidget: Bool = true,
         showChartWidget: Bool = true,
         showFavoritesWidget: Bool = true,
         showSupplementsWidget: Bool = true,
@@ -26,6 +27,7 @@ struct DashboardSectionTests {
             showSleepWidget: showSleepWidget,
             showFastingWidget: showFastingWidget,
             showDayPropertiesWidget: showDayPropertiesWidget,
+            showRecipeSuggestionsWidget: showRecipeSuggestionsWidget,
             widgetOrder: widgetOrder,
             startPage: "dashboard",
             favoriteTapAction: "instant",
@@ -40,7 +42,7 @@ struct DashboardSectionTests {
     func emptyOrderUsesDefault() {
         let sections = DashboardSection.resolve(order: [], preferences: makePreferences())
         #expect(sections == [
-            .fasting, .dayProperties, .chart, .favorites, .supplements,
+            .fasting, .dayProperties, .chart, .favorites, .recipeSuggestions, .supplements,
             .weight, .mealBreakdown, .topFoods, .sleep, .daylog,
         ])
     }
@@ -79,6 +81,7 @@ struct DashboardSectionTests {
         let preferences = makePreferences(
             showFastingWidget: false,
             showDayPropertiesWidget: false,
+            showRecipeSuggestionsWidget: false,
             showChartWidget: false,
             showFavoritesWidget: false,
             showSupplementsWidget: false,
@@ -101,6 +104,16 @@ struct DashboardSectionTests {
         #expect(DashboardSection.resolve(order: order, preferences: shown) == [.fasting, .dayProperties, .daylog])
     }
 
+    @Test("recipeSuggestions toggle gates its section")
+    func recipeSuggestionsToggleGatesItsSection() {
+        let hidden = makePreferences(showRecipeSuggestionsWidget: false)
+        let order = ["recipe-suggestions", "daylog"]
+        #expect(DashboardSection.resolve(order: order, preferences: hidden) == [.daylog])
+
+        let shown = makePreferences()
+        #expect(DashboardSection.resolve(order: order, preferences: shown) == [.recipeSuggestions, .daylog])
+    }
+
     @Test("isDashboardCard and hasVisibilityToggle are correct per case")
     func layoutRowFlags() {
         #expect(DashboardSection.summary.isDashboardCard == false)
@@ -110,6 +123,7 @@ struct DashboardSectionTests {
         #expect(DashboardSection.chart.hasVisibilityToggle == true)
         #expect(DashboardSection.fasting.hasVisibilityToggle == true)
         #expect(DashboardSection.dayProperties.hasVisibilityToggle == true)
+        #expect(DashboardSection.recipeSuggestions.hasVisibilityToggle == true)
     }
 
     @Test("applyVisibility writes the matching PreferencesUpdate field")
@@ -121,6 +135,10 @@ struct DashboardSectionTests {
         var dayPropertiesUpdate = PreferencesUpdate()
         DashboardSection.dayProperties.applyVisibility(true, to: &dayPropertiesUpdate)
         #expect(dayPropertiesUpdate.showDayPropertiesWidget == true)
+
+        var recipeSuggestionsUpdate = PreferencesUpdate()
+        DashboardSection.recipeSuggestions.applyVisibility(false, to: &recipeSuggestionsUpdate)
+        #expect(recipeSuggestionsUpdate.showRecipeSuggestionsWidget == false)
 
         var noopUpdate = PreferencesUpdate()
         DashboardSection.daylog.applyVisibility(false, to: &noopUpdate)

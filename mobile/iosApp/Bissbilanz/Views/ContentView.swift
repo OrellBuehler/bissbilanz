@@ -7,6 +7,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     case insights
     case weight
     case supplements
+    case recipeSuggestions = "recipe-suggestions"
 
     var id: String {
         rawValue
@@ -19,6 +20,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .insights: L10n.insights
         case .weight: L10n.weight
         case .supplements: L10n.supplements
+        case .recipeSuggestions: L10n.recipeSuggestions
         }
     }
 
@@ -29,6 +31,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .insights: "chart.bar"
         case .weight: "scalemass"
         case .supplements: "pills"
+        case .recipeSuggestions: "fork.knife.circle"
         }
     }
 
@@ -46,6 +49,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .insights: InsightsView()
         case .weight: WeightView()
         case .supplements: SupplementsView()
+        case .recipeSuggestions: RecipeSuggestionsView()
         }
     }
 }

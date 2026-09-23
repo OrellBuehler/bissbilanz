@@ -143,6 +143,9 @@ struct SettingsView: View {
                     NavigationLink { RecipeListView() } label: {
                         Label(L10n.recipes, systemImage: "book")
                     }
+                    NavigationLink { RecipeSuggestionsView() } label: {
+                        Label(L10n.recipeSuggestions, systemImage: "fork.knife.circle")
+                    }
                     NavigationLink { CalendarView() } label: {
                         Label(L10n.calendar, systemImage: "calendar")
                     }
