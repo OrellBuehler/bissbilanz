@@ -23,6 +23,7 @@ import XCTest
 /// (`.value`), not its spoken dialog or snippet view — there is no API surface
 /// for that yet, so dialog wording stays covered separately by direct
 /// `DaySummaryDialog`/`BodyDialog` unit tests in `BissbilanzTests`.
+@MainActor
 final class AppIntentsE2ETests: XCTestCase {
     /// Mirrors `IntentTestFixtures`'s ids/date — this target has no
     /// `@testable import` of the app to read them from directly (see the
