@@ -1,13 +1,66 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// Medium widget with the user's favorite foods — each tile deep-links to the
-/// food in the app for one-tap logging (iOS counterpart of the Android
-/// favorites widget).
+/// Defaults to no picks (`nil`), which `WidgetFoodSelection` falls back to
+/// today's favorites — the widget's existing behavior — for both freshly
+/// added widgets and every widget already placed under the "FavoritesWidget"
+/// kind before this parameter existed.
+struct FavoritesWidgetConfigurationIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource { "Favorites Widget" }
+
+    static var description: IntentDescription {
+        IntentDescription("Choose which foods appear, or leave empty to show your favorites.")
+    }
+
+    @Parameter(title: "Foods")
+    var foods: [WidgetFoodEntity]?
+
+    init() {
+        foods = nil
+    }
+
+    init(foods: [WidgetFoodEntity]?) {
+        self.foods = foods
+    }
+}
+
+struct FavoritesSnapshotProvider: AppIntentTimelineProvider {
+    func placeholder(in _: Context) -> FoodListSnapshotEntry {
+        FoodListSnapshotEntry(date: Date(), snapshot: .placeholder, foods: WidgetSnapshot.placeholder.favorites, mealType: nil)
+    }
+
+    func snapshot(for configuration: FavoritesWidgetConfigurationIntent, in _: Context) async -> FoodListSnapshotEntry {
+        await FoodListWidgetSupport.makeEntry(at: Date(), configuredFoods: configuration.foods, mealType: nil)
+    }
+
+    func timeline(for configuration: FavoritesWidgetConfigurationIntent, in _: Context) async -> Timeline<FoodListSnapshotEntry> {
+        let now = Date()
+        var entries = [await FoodListWidgetSupport.makeEntry(at: now, configuredFoods: configuration.foods, mealType: nil)]
+        // Roll the displayed day over at midnight even if no refresh runs.
+        if let midnight = Calendar.current.nextDate(
+            after: now,
+            matching: DateComponents(hour: 0, minute: 0, second: 5),
+            matchingPolicy: .nextTime
+        ) {
+            entries.append(await FoodListWidgetSupport.makeEntry(at: midnight, configuredFoods: configuration.foods, mealType: nil))
+        }
+        return Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60)))
+    }
+}
+
+/// Medium widget with the user's chosen (or, by default, favorite) foods —
+/// each tile deep-links to the food in the app for one-tap logging (iOS
+/// counterpart of the Android favorites widget). Configurable since iOS 17 —
+/// "Edit Widget" lets the user pick specific foods instead of favorites.
 struct FavoritesWidget: Widget {
     var body: some WidgetConfiguration {
         let strings = WidgetStrings(localeCode: WidgetSnapshotStore.currentLocaleCode())
-        return StaticConfiguration(kind: "FavoritesWidget", provider: SnapshotProvider()) { entry in
+        return AppIntentConfiguration(
+            kind: "FavoritesWidget",
+            intent: FavoritesWidgetConfigurationIntent.self,
+            provider: FavoritesSnapshotProvider()
+        ) { entry in
             FavoritesWidgetView(entry: entry)
         }
         .configurationDisplayName(strings.favoritesWidgetDisplayName)
@@ -17,18 +70,14 @@ struct FavoritesWidget: Widget {
 }
 
 struct FavoritesWidgetView: View {
-    let entry: SnapshotTimelineEntry
-
-    private var snapshot: WidgetSnapshot {
-        entry.snapshot
-    }
+    let entry: FoodListSnapshotEntry
 
     private var strings: WidgetStrings {
-        snapshot.strings
+        entry.snapshot.strings
     }
 
     private var tiles: [WidgetSnapshot.FavoriteFood] {
-        Array(snapshot.favorites.prefix(6))
+        Array(entry.foods.prefix(6))
     }
 
     private let columns = [
