@@ -470,7 +470,8 @@ struct BissbilanzApp: App {
         // the queued backend upload immediately.
         await HealthKitImporter.importAllIfEnabled(
             weightRepository: weightRepository,
-            sleepRepository: sleepRepository
+            sleepRepository: sleepRepository,
+            entryRepository: entryRepository
         )
         // Top up the rolling reminder window (iOS caps pending requests at 64)
         // and re-resolve wall-clock times against the current timezone.

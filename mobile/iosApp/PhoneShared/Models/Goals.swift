@@ -90,3 +90,48 @@ extension Goals {
 struct GoalsResponse: Codable {
     let goals: Goals?
 }
+
+/// The result of `adjustGoalsForActivity`: the (possibly unchanged) goals
+/// plus the whole-kcal bonus that was folded into `calorieGoal`.
+struct ActivityAdjustedGoals {
+    let goals: Goals
+    let activityBonus: Int
+}
+
+/// Raises a day's calorie goal by a credited share of its workout activity
+/// calories, and scales protein/carb/fat/fiber goals by the same factor so
+/// macro ratios stay put. `sodiumGoal`/`sugarGoal`/`targetWeightKg`/
+/// `targetDate` are untouched — they aren't calorie-proportional.
+///
+/// Returns `goals` unchanged with a zero bonus when the feature is off, there
+/// are no (or non-positive) activity calories, or the day has no positive
+/// calorie goal to scale from — mirrors the server's own adjustment (see the
+/// activity-goal-adjustment server PR).
+func adjustGoalsForActivity(
+    goals: Goals,
+    activityCalories: Int?,
+    enabled: Bool,
+    creditPercent: Int
+) -> ActivityAdjustedGoals {
+    guard enabled, let activityCalories, activityCalories > 0, goals.calorieGoal > 0 else {
+        return ActivityAdjustedGoals(goals: goals, activityBonus: 0)
+    }
+    let bonus = Int((Double(activityCalories) * Double(creditPercent) / 100).rounded())
+    guard bonus > 0 else {
+        return ActivityAdjustedGoals(goals: goals, activityBonus: 0)
+    }
+    let adjustedCalorieGoal = goals.calorieGoal + Double(bonus)
+    let factor = adjustedCalorieGoal / goals.calorieGoal
+    let adjusted = Goals(
+        calorieGoal: adjustedCalorieGoal,
+        proteinGoal: (goals.proteinGoal * factor).rounded(),
+        carbGoal: (goals.carbGoal * factor).rounded(),
+        fatGoal: (goals.fatGoal * factor).rounded(),
+        fiberGoal: (goals.fiberGoal * factor).rounded(),
+        sodiumGoal: goals.sodiumGoal,
+        sugarGoal: goals.sugarGoal,
+        targetWeightKg: goals.targetWeightKg,
+        targetDate: goals.targetDate
+    )
+    return ActivityAdjustedGoals(goals: adjusted, activityBonus: bonus)
+}

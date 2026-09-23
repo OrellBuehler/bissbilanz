@@ -38,11 +38,13 @@ enum HealthKitImporter {
 
     static func importAllIfEnabled(
         weightRepository: WeightRepository,
-        sleepRepository: SleepRepository
+        sleepRepository: SleepRepository,
+        entryRepository: EntryRepository
     ) async {
         let importedWeights = await importWeightsIfEnabled(into: weightRepository)
         let importedSleep = await importSleepIfEnabled(into: sleepRepository)
-        if importedWeights || importedSleep {
+        let importedActivity = await importActivityIfEnabled(into: entryRepository)
+        if importedWeights || importedSleep || importedActivity {
             NotificationCenter.default.post(name: didImportNotification, object: nil)
         }
     }
@@ -116,6 +118,48 @@ enum HealthKitImporter {
                 if await (try? repository.createEntry(create)) != nil {
                     imported = true
                 }
+            }
+        }
+        return imported
+    }
+
+    /// Imports workout active-energy from Apple Health into each day's
+    /// activity calories. First run pulls the full 90-day window; a
+    /// steady-state run only looks at today and the last 3 days, since
+    /// workouts are logged close to when they happen (unlike sleep, which can
+    /// finalize retroactively).
+    ///
+    /// Writes only when the day has no `activityCalories` yet, or its source
+    /// is already `"apple_health"` and the fetched total differs — a day
+    /// with a `"manual"` source, or a value with no source at all (legacy
+    /// manual entry), is never overwritten. Returns whether anything changed.
+    @discardableResult
+    static func importActivityIfEnabled(into repository: EntryRepository) async -> Bool {
+        guard UserDefaults.standard.bool(forKey: HealthKitService.readActivityEnabledKey) else { return false }
+        let healthKit = HealthKitService.shared
+        guard healthKit.isAvailable else { return false }
+        let isFirstRun = HealthKitService.lastSync(HealthKitService.activityReadSyncKind) == nil
+        let start = isFirstRun ? Date().adding(days: importWindowDays) : Date().adding(days: -3)
+        guard let dailyKcal = try? await healthKit.fetchWorkoutActiveCalories(from: start, to: Date()),
+              !dailyKcal.isEmpty
+        else { return false }
+
+        var imported = false
+        for (day, kcal) in dailyKcal where kcal > 0 {
+            let current = repository.dayProperties(date: day)
+            let canWrite: Bool
+            if let current, current.activityCalories != nil {
+                canWrite = current.activityCaloriesSource == "apple_health" && current.activityCalories != kcal
+            } else {
+                canWrite = true
+            }
+            guard canWrite else { continue }
+            let patch = DayPropertiesPatch(
+                activityCalories: .some(kcal),
+                activityCaloriesSource: .some("apple_health")
+            )
+            if (try? await repository.setDayProperties(date: day, patch: patch)) != nil {
+                imported = true
             }
         }
         return imported

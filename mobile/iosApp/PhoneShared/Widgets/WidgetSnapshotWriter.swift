@@ -66,6 +66,24 @@ enum WidgetSnapshotWriter {
         let goals = ((try? context.fetch(FetchDescriptor<LocalGoals>())) ?? [])
             .first?.toGoals() ?? .defaults
 
+        // Goals shown on the widgets/watch mirror the dashboard's own
+        // activity-adjustment (see `adjustGoalsForActivity`) so a ring drawn
+        // here never disagrees with the one in the app.
+        let preferences = ((try? context.fetch(FetchDescriptor<LocalPreferences>())) ?? [])
+            .first?.toPreferences() ?? .defaults
+        var dayPropertiesDescriptor = FetchDescriptor<LocalDayProperties>(
+            predicate: #Predicate { $0.date == today }
+        )
+        dayPropertiesDescriptor.fetchLimit = 1
+        let todaysActivityCalories = (try? context.fetch(dayPropertiesDescriptor))?
+            .first?.toDayProperties()?.activityCalories
+        let adjustedGoals = adjustGoalsForActivity(
+            goals: goals,
+            activityCalories: todaysActivityCalories,
+            enabled: preferences.activityGoalAdjustment,
+            creditPercent: preferences.activityCreditPercent
+        ).goals
+
         var weightDescriptor = FetchDescriptor<LocalWeightEntry>(
             sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
         )
@@ -90,11 +108,11 @@ enum WidgetSnapshotWriter {
             carbs: entries.reduce(0) { $0 + $1.totalCarbs },
             fat: entries.reduce(0) { $0 + $1.totalFat },
             fiber: entries.reduce(0) { $0 + $1.totalFiber },
-            calorieGoal: goals.calorieGoal,
-            proteinGoal: goals.proteinGoal,
-            carbGoal: goals.carbGoal,
-            fatGoal: goals.fatGoal,
-            fiberGoal: goals.fiberGoal,
+            calorieGoal: adjustedGoals.calorieGoal,
+            proteinGoal: adjustedGoals.proteinGoal,
+            carbGoal: adjustedGoals.carbGoal,
+            fatGoal: adjustedGoals.fatGoal,
+            fiberGoal: adjustedGoals.fiberGoal,
             meals: mealTotals,
             latestWeightKg: latestWeight?.weightKg,
             latestWeightDate: latestWeight?.entryDate,

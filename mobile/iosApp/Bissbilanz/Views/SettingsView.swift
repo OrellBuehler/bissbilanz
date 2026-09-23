@@ -54,6 +54,8 @@ struct SettingsView: View {
     @State private var editTargetWeight = ""
     @State private var hasTargetDate = false
     @State private var editTargetDate = Date()
+    @State private var editActivityGoalAdjustment = false
+    @State private var editActivityCreditPercent = 100
     @State private var waterGoalDraft = "2000"
     @FocusState private var waterGoalFocused: Bool
 
@@ -76,6 +78,8 @@ struct SettingsView: View {
                         editTargetWeight = goals.targetWeightKg.map { String(format: "%.1f", $0) } ?? ""
                         hasTargetDate = goals.targetDate != nil
                         editTargetDate = goals.targetDate.flatMap(DateFormatting.date(from:)) ?? Date()
+                        editActivityGoalAdjustment = preferences.activityGoalAdjustment
+                        editActivityCreditPercent = preferences.activityCreditPercent
                         isEditingGoals = true
                     }
                 }
@@ -521,6 +525,20 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Section {
+                    Toggle(L10n.goalsActivityAdjustmentToggle, isOn: $editActivityGoalAdjustment)
+                    if editActivityGoalAdjustment {
+                        Stepper(
+                            L10n.goalsActivityCreditPercent(editActivityCreditPercent),
+                            value: $editActivityCreditPercent,
+                            in: 0 ... 100,
+                            step: 5
+                        )
+                    }
+                } footer: {
+                    Text(L10n.goalsActivityAdjustmentFooter)
+                }
             }
             .keyboardDismissable()
             .navigationTitle(L10n.editGoals)
@@ -624,6 +642,13 @@ struct SettingsView: View {
             // The optimistic local write persisted — keep the view in sync with it.
             goals = goalsRepository.goals() ?? .defaults
         }
+
+        var prefsUpdate = PreferencesUpdate()
+        prefsUpdate.activityGoalAdjustment = editActivityGoalAdjustment
+        prefsUpdate.activityCreditPercent = editActivityCreditPercent
+        preferences = await (try? preferencesRepository.update(prefsUpdate))
+            ?? (preferencesRepository.preferences() ?? .defaults)
+
         isEditingGoals = false
     }
 

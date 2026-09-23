@@ -1770,6 +1770,10 @@ enum L10n {
         localized("health_disconnect", en: "Disconnect", de: "Trennen")
     }
 
+    static var healthWorkoutCalories: String {
+        localized("health_workout_calories", en: "Workout Calories", de: "Trainingskalorien")
+    }
+
     static var healthReadingSection: String {
         localized("health_reading_section", en: "Reading from Health", de: "Aus Health lesen")
     }
@@ -4068,6 +4072,36 @@ enum L10n {
             )
         }
         return localized("weight_target_value", en: "Target \(kg) kg", de: "Ziel \(kg) kg")
+    }
+
+    // MARK: - Activity Goal Adjustment
+
+    static var goalsActivityAdjustmentToggle: String {
+        localized(
+            "goals_activity_adjustment_toggle",
+            en: "Increase Goals by Workout Calories",
+            de: "Ziele um Trainingskalorien erhöhen"
+        )
+    }
+
+    static var goalsActivityAdjustmentFooter: String {
+        localized(
+            "goals_activity_adjustment_footer",
+            en: "When on, a day's calorie and macro goals rise by a share of that day's workout calories from Apple Health.",
+            de: "Wenn aktiviert, werden die Kalorien- und Makroziele eines Tages um einen Anteil der an diesem Tag verbrannten Trainingskalorien aus Apple Health erhöht."
+        )
+    }
+
+    static func goalsActivityCreditPercent(_ percent: Int) -> String {
+        localized("goals_activity_credit_percent", en: "Credit: \(percent)%", de: "Anrechnung: \(percent)%")
+    }
+
+    static func daySummaryActivityBonus(_ calories: Int) -> String {
+        localized(
+            "day_summary_activity_bonus",
+            en: "+\(calories) kcal from workouts",
+            de: "+\(calories) kcal aus Training"
+        )
     }
 
     private static func localized(_ key: String, en: String, de: String) -> String {
