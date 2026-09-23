@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
@@ -42,22 +44,31 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.MacroBudget
+import com.bissbilanz.analytics.SuggestionCandidate
+import com.bissbilanz.analytics.SuggestionMacros
+import com.bissbilanz.analytics.suggestRecipes
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
 import com.bissbilanz.api.generated.model.TopFoodItem
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.repository.StatsRepository
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolveDefaultMeal
 import com.bissbilanz.util.resolvedCalories
+import com.bissbilanz.util.toDisplayString
+import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -442,6 +453,176 @@ fun TopFoodsWidget(
                                 stringResource(R.string.dashboard_top_foods_count, item.count),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+        }
+    }
+}
+
+/**
+ * The top 3 recipes that best fill what's left of today's goal, computed locally from
+ * the day's own entries, goals and recipe cache — the same [suggestRecipes] ranking
+ * [com.bissbilanz.android.ui.screens.RecipeSuggestionsScreen] shows in full.
+ */
+@Composable
+fun RecipeSuggestionsWidget(
+    date: String,
+    onViewAll: () -> Unit,
+    onLogged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recipeRepo: RecipeRepository = koinInject()
+    val entryRepo: EntryRepository = koinInject()
+    val goalsRepo: GoalsRepository = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
+    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
+    val entries by entryRepo.entriesByDate(date).collectAsStateWithLifecycle(emptyList())
+    val goals by goalsRepo.goals().collectAsStateWithLifecycle(null)
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val scope = rememberCoroutineScope()
+    var pendingSuggestion by remember { mutableStateOf<SuggestedRecipe?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            recipeRepo.refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+
+    val suggestions =
+        remember(entries, recipes, goals) {
+            val g = goals
+            if (g == null || recipes.isEmpty()) {
+                emptyList()
+            } else {
+                val consumed = entries.totalMacros()
+                val budget =
+                    MacroBudget(
+                        calories = g.calorieGoal - consumed.calories,
+                        protein = g.proteinGoal - consumed.protein,
+                        carbs = g.carbGoal - consumed.carbs,
+                        fat = g.fatGoal - consumed.fat,
+                    )
+                val candidates =
+                    recipes.map { recipe ->
+                        SuggestionCandidate(
+                            id = recipe.id,
+                            name = recipe.name,
+                            perServing = SuggestionMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
+                            isFavorite = recipe.isFavorite,
+                        )
+                    }
+                val byId = recipes.associateBy { it.id }
+                suggestRecipes(budget, candidates, limit = 3).mapNotNull { s -> byId[s.id]?.let { SuggestedRecipe(it, s) } }
+            }
+        }
+
+    fun log(
+        suggested: SuggestedRecipe,
+        details: MealLogDetails,
+    ) {
+        scope.launch {
+            try {
+                entryRepo.createEntry(
+                    EntryCreate(
+                        recipeId = suggested.recipe.id,
+                        mealType = details.mealType,
+                        servings = details.servings,
+                        date = details.date,
+                        eatenAt = details.eatenAt,
+                        notes = details.notes,
+                    ),
+                    recipe = suggested.recipe,
+                )
+                onLogged(suggested.recipe.name)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+        }
+    }
+
+    pendingSuggestion?.let { suggested ->
+        val recipe = suggested.recipe
+        MealPickerSheet(
+            onDismiss = { pendingSuggestion = null },
+            onConfirm = { details ->
+                pendingSuggestion = null
+                log(suggested, details)
+            },
+            date = date,
+            macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
+            imageUrl = recipe.imageUrl,
+            initialServings = suggested.suggestion.servings,
+            initialMeal = resolveDefaultMeal(prefs),
+        )
+    }
+
+    WidgetCard(
+        title = stringResource(R.string.recipe_suggestions_title),
+        icon = Icons.Default.Lightbulb,
+        modifier = modifier,
+        action = {
+            TextButton(onClick = onViewAll) { Text(stringResource(R.string.chart_view_all)) }
+        },
+    ) {
+        when {
+            goals == null || recipes.isEmpty() ->
+                Text(
+                    stringResource(R.string.dashboard_recipe_suggestions_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+            suggestions.isEmpty() ->
+                Text(
+                    stringResource(R.string.dashboard_recipe_suggestions_goal_reached),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+            else ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    suggestions.forEach { suggested ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { pendingSuggestion = suggested },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                suggested.recipe.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                stringResource(
+                                    R.string.recipe_suggestions_servings_chip,
+                                    suggested.suggestion.servings.toDisplayString(),
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                stringResource(
+                                    R.string.format_kcal,
+                                    suggested.suggestion.macros.calories
+                                        .formatAsInt(),
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CaloriesBlue.macroTextTone(),
+                                fontWeight = FontWeight.Medium,
                             )
                         }
                     }

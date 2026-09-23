@@ -10,6 +10,7 @@ import com.bissbilanz.repository.cacheEntryRow
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.serverTotalsToPerServing
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -460,7 +461,7 @@ class SyncManager(
                 val server =
                     api.createRecipe(json.decodeFromString<RecipeCreate>(op.body), idempotencyKey, clientEditedAt)
                 return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
-                    replaceLocalRecipe(tempId, server)
+                    replaceLocalRecipe(tempId, server.serverTotalsToPerServing())
                     TempIdRemap(tempId, server.id)
                 }
             }

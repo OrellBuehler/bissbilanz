@@ -94,9 +94,9 @@ struct RecipeDetailView: View {
             if recipe.imageUrl != nil {
                 Section {
                     FoodImageView(imageUrl: recipe.imageUrl)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 200)
+                        .frame(width: 200, height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .frame(maxWidth: .infinity)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }

@@ -337,6 +337,18 @@ fun SettingsScreen(navController: NavController) {
                             navController.navigate("recipes")
                         }
                         HorizontalDivider()
+                        SettingsNavItem(stringResource(R.string.recipe_suggestions_title), Icons.Default.Lightbulb) {
+                            if ("recipe-suggestions" in selectedTabs) {
+                                navController.navigate("recipe-suggestions") {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                navController.navigate("recipe-suggestions")
+                            }
+                        }
+                        HorizontalDivider()
                         SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) {
                             navController.navigate("calendar")
                         }
@@ -396,6 +408,7 @@ fun SettingsScreen(navController: NavController) {
                                 "insights" to stringResource(R.string.settings_nav_insights),
                                 "weight" to stringResource(R.string.weight_widget_title),
                                 "supplements" to stringResource(R.string.chart_supplements),
+                                "recipe-suggestions" to stringResource(R.string.recipe_suggestions_title),
                             )
 
                         tabOptions.forEach { (route, label) ->

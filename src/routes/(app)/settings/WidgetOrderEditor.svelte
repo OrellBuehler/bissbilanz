@@ -30,6 +30,10 @@
 			name: () => m.settings_widget_favorites(),
 			desc: () => m.settings_widget_favorites_desc()
 		},
+		'recipe-suggestions': {
+			name: () => m.settings_widget_recipe_suggestions(),
+			desc: () => m.settings_widget_recipe_suggestions_desc()
+		},
 		supplements: {
 			name: () => m.settings_widget_supplements(),
 			desc: () => m.settings_widget_supplements_desc()
@@ -63,6 +67,7 @@
 	export type WidgetVisibility = {
 		chart: boolean;
 		favorites: boolean;
+		recipeSuggestions: boolean;
 		supplements: boolean;
 		weight: boolean;
 		mealBreakdown: boolean;
@@ -127,6 +132,11 @@
 							<Switch
 								checked={visibility.favorites}
 								onCheckedChange={(v) => onSavePreference('showFavoritesWidget', v)}
+							/>
+						{:else if widget.key === 'recipe-suggestions'}
+							<Switch
+								checked={visibility.recipeSuggestions}
+								onCheckedChange={(v) => onSavePreference('showRecipeSuggestionsWidget', v)}
 							/>
 						{:else if widget.key === 'supplements'}
 							<Switch

@@ -33,6 +33,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -550,7 +551,7 @@ class LocalDataMigrator(
                     isFavorite = cached.isFavorite,
                     imageUrl = uploadableImageUrl(cached.imageUrl),
                 )
-            val server = api.createRecipe(create)
+            val server = api.createRecipe(create).serverTotalsToPerServing()
             queries.transaction {
                 queries.deleteRecipe(row.id)
                 queries.insertRecipe(
@@ -967,6 +968,7 @@ class LocalDataMigrator(
             showSleepWidget = showSleepWidget,
             showFastingWidget = showFastingWidget,
             showDayPropertiesWidget = showDayPropertiesWidget,
+            showRecipeSuggestionsWidget = showRecipeSuggestionsWidget,
             widgetOrder =
                 widgetOrder
                     .mapNotNull { value -> PreferencesUpdate.WidgetOrder.entries.firstOrNull { it.value == value } }

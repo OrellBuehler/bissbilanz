@@ -283,10 +283,11 @@ fun FoodDetailScreen(
                             FoodImage(
                                 imageUrl = url,
                                 contentDescription = f.name,
+                                // Square, the shape the photo was cropped to.
                                 modifier =
                                     Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 200.dp)
+                                        .align(Alignment.CenterHorizontally)
+                                        .size(200.dp)
                                         .clip(RoundedCornerShape(12.dp)),
                             )
                             Spacer(modifier = Modifier.height(12.dp))

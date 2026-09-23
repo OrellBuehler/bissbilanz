@@ -1,5 +1,5 @@
 {
-  "id": "e1655038-328c-49c4-8894-b8c8ef6a88e1",
+  "id": "27192d20-1ab5-484a-8e11-44aaa9d05367",
   "prevId": "d39f2593-40ab-46b0-ab28-8f431377c356",
   "version": "7",
   "dialect": "postgresql",
@@ -932,12 +932,6 @@
         "activity_calories": {
           "name": "activity_calories",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activity_calories_source": {
-          "name": "activity_calories_source",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -4098,6 +4092,13 @@
           "notNull": true,
           "default": true
         },
+        "show_recipe_suggestions_widget": {
+          "name": "show_recipe_suggestions_widget",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "widget_order": {
           "name": "widget_order",
           "type": "text[]",
@@ -4180,20 +4181,6 @@
           "notNull": true,
           "default": "'UTC'"
         },
-        "activity_goal_adjustment": {
-          "name": "activity_goal_adjustment",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "activity_credit_percent": {
-          "name": "activity_credit_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 100
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -4221,12 +4208,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "user_preferences_activity_credit_percent_range": {
-          "name": "user_preferences_activity_credit_percent_range",
-          "value": "\"user_preferences\".\"activity_credit_percent\" >= 0 AND \"user_preferences\".\"activity_credit_percent\" <= 100"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.users": {

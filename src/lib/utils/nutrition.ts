@@ -59,3 +59,21 @@ export const calculateEntryMacros = (entry: NutritionEntry): MacroTotals => ({
 
 export const sumEntries = (entries: NutritionEntry[]): MacroTotals =>
 	entries.reduce((acc, entry) => addTotals(acc, calculateEntryMacros(entry)), emptyTotals());
+
+export type UserMacroGoals = {
+	calorieGoal: number;
+	proteinGoal: number;
+	carbGoal: number;
+	fatGoal: number;
+};
+
+/** Goals minus what's already logged today. Can go negative once over budget. */
+export const remainingBudget = (
+	goals: UserMacroGoals,
+	totals: MacroTotals
+): { calories: number; protein: number; carbs: number; fat: number } => ({
+	calories: goals.calorieGoal - totals.calories,
+	protein: goals.proteinGoal - totals.protein,
+	carbs: goals.carbGoal - totals.carbs,
+	fat: goals.fatGoal - totals.fat
+});

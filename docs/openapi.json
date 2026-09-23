@@ -6314,6 +6314,9 @@
 					"showDayPropertiesWidget": {
 						"type": "boolean"
 					},
+					"showRecipeSuggestionsWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
@@ -6324,6 +6327,7 @@
 								"chart",
 								"streaks",
 								"favorites",
+								"recipe-suggestions",
 								"supplements",
 								"weight",
 								"meal-breakdown",
@@ -9119,6 +9123,9 @@
 					"showDayPropertiesWidget": {
 						"type": "boolean"
 					},
+					"showRecipeSuggestionsWidget": {
+						"type": "boolean"
+					},
 					"widgetOrder": {
 						"type": "array",
 						"items": {
@@ -9214,6 +9221,7 @@
 					"showSleepWidget",
 					"showFastingWidget",
 					"showDayPropertiesWidget",
+					"showRecipeSuggestionsWidget",
 					"widgetOrder",
 					"mealOrder",
 					"startPage",

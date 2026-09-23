@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -209,10 +210,11 @@ fun RecipeDetailScreen(
                             FoodImage(
                                 imageUrl = url,
                                 contentDescription = r.name,
+                                // Square, the shape the photo was cropped to.
                                 modifier =
                                     Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 200.dp)
+                                        .align(Alignment.CenterHorizontally)
+                                        .size(200.dp)
                                         .clip(RoundedCornerShape(12.dp)),
                             )
                             Spacer(modifier = Modifier.height(12.dp))

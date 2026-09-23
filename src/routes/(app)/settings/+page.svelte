@@ -55,6 +55,7 @@
 			'day-properties',
 			'chart',
 			'favorites',
+			'recipe-suggestions',
 			'supplements',
 			'weight',
 			'summary',
@@ -67,6 +68,7 @@
 		return {
 			chart: p?.showChartWidget ?? true,
 			favorites: p?.showFavoritesWidget ?? true,
+			recipeSuggestions: p?.showRecipeSuggestionsWidget ?? true,
 			supplements: p?.showSupplementsWidget ?? true,
 			weight: p?.showWeightWidget ?? true,
 			mealBreakdown: p?.showMealBreakdownWidget ?? true,

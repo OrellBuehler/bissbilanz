@@ -13,6 +13,7 @@ enum DashboardSection: String, CaseIterable {
     case chart
     case streaks
     case favorites
+    case recipeSuggestions = "recipe-suggestions"
     case supplements
     case weight
     case mealBreakdown = "meal-breakdown"
@@ -26,8 +27,8 @@ enum DashboardSection: String, CaseIterable {
     /// predates `widgetOrder` entirely.
     static let defaultOrder: [String] = [
         fasting.rawValue, dayProperties.rawValue, chart.rawValue, favorites.rawValue,
-        supplements.rawValue, weight.rawValue, mealBreakdown.rawValue, topFoods.rawValue,
-        sleep.rawValue, summary.rawValue, daylog.rawValue,
+        recipeSuggestions.rawValue, supplements.rawValue, weight.rawValue, mealBreakdown.rawValue,
+        topFoods.rawValue, sleep.rawValue, summary.rawValue, daylog.rawValue,
     ]
 
     /// Whether this key has a dashboard card / layout-editor row at all.
@@ -50,6 +51,7 @@ enum DashboardSection: String, CaseIterable {
         case .dayProperties: preferences.showDayPropertiesWidget
         case .chart: preferences.showChartWidget
         case .favorites: preferences.showFavoritesWidget
+        case .recipeSuggestions: preferences.showRecipeSuggestionsWidget
         case .supplements: preferences.showSupplementsWidget
         case .weight: preferences.showWeightWidget
         case .mealBreakdown: preferences.showMealBreakdownWidget
@@ -67,6 +69,7 @@ enum DashboardSection: String, CaseIterable {
         case .dayProperties: update.showDayPropertiesWidget = value
         case .chart: update.showChartWidget = value
         case .favorites: update.showFavoritesWidget = value
+        case .recipeSuggestions: update.showRecipeSuggestionsWidget = value
         case .supplements: update.showSupplementsWidget = value
         case .weight: update.showWeightWidget = value
         case .mealBreakdown: update.showMealBreakdownWidget = value
