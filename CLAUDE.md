@@ -185,6 +185,8 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 
 iOS builds require macOS with Xcode installed. The shared KMP framework is compiled to a static framework for iOS targets (x64, arm64, simulator arm64).
 
+On Linux/WSL, don't try to compile Swift locally. The iOS build and iOS unit tests run in the CI/CD pipeline on every PR, and that run is the compile gate: push, then watch the iOS checks. Don't run swiftformat locally either.
+
 If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 
 #### Release Signing
