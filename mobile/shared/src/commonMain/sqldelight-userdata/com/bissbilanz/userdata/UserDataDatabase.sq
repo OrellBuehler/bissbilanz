@@ -115,7 +115,8 @@ CREATE TABLE IF NOT EXISTS CachedDayProperties (
     notes TEXT,
     waterMl INTEGER,
     activityCalories INTEGER,
-    activityNote TEXT
+    activityNote TEXT,
+    activityCaloriesSource TEXT
 );
 
 -- Tiny key/value store local to this database file. Currently only holds the
@@ -350,7 +351,7 @@ selectDayProperties:
 SELECT * FROM CachedDayProperties WHERE date = ?;
 
 upsertDayProperties:
-INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay, notes, waterMl, activityCalories, activityNote) VALUES (?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO CachedDayProperties(date, isFastingDay, notes, waterMl, activityCalories, activityNote, activityCaloriesSource) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 deleteDayProperties:
 DELETE FROM CachedDayProperties WHERE date = ?;

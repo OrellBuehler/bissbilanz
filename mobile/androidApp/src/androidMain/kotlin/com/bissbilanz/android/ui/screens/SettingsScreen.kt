@@ -38,6 +38,7 @@ import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
@@ -630,6 +631,47 @@ fun SettingsScreen(navController: NavController) {
                                     Text(label)
                                 }
                             }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Workout goal adjustment — raises the day's calorie/macro goals by a
+                // share of activityCalories, whether logged manually or imported from
+                // Health Connect.
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.settings_activity_goal_adjustment_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ToggleRow(
+                            label = stringResource(R.string.settings_activity_goal_adjustment),
+                            supportingText = stringResource(R.string.settings_activity_goal_adjustment_desc),
+                            checked = prefs?.activityGoalAdjustment ?: false,
+                            onCheckedChange = { viewModel.updateActivityGoalAdjustment(it) },
+                        )
+                        if (prefs?.activityGoalAdjustment == true) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            var creditDraft by
+                                remember(prefs?.activityCreditPercent) {
+                                    mutableIntStateOf(prefs?.activityCreditPercent ?: 100)
+                                }
+                            Text(
+                                stringResource(R.string.settings_activity_credit_percent, creditDraft),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Slider(
+                                value = creditDraft.toFloat(),
+                                onValueChange = { creditDraft = it.roundToInt() },
+                                onValueChangeFinished = { viewModel.updateActivityCreditPercent(creditDraft) },
+                                valueRange = 0f..100f,
+                                steps = 19,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
                 }

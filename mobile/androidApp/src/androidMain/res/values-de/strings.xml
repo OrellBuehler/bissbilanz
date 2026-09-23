@@ -30,6 +30,9 @@
     <string name="day_activity_note_label">Aktivitätsnotiz (optional)</string>
     <string name="day_activity_clear">Aktivität löschen</string>
     <string name="day_activity_summary">Aktivität: +%1$d kcal</string>
+    <string name="day_activity_goal_bonus">+%1$d kcal durch Workouts</string>
+    <string name="day_activity_source_health_connect">Von Health Connect</string>
+    <string name="day_activity_source_apple_health">Von Apple Health</string>
     <string name="day_notes_title">Notizen</string>
     <string name="day_notes_placeholder">Notiz zum heutigen Tag hinzufügen…</string>
     <string name="favorites_widget_description">Lieblingsgerichte mit einem Tippen erfassen</string>
@@ -1102,6 +1105,11 @@
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
     <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+    <!-- Settings: workout goal adjustment -->
+    <string name="settings_activity_goal_adjustment_title">Workout-Kalorien</string>
+    <string name="settings_activity_goal_adjustment">Ziele durch Workout-Kalorien erhöhen</string>
+    <string name="settings_activity_goal_adjustment_desc">Erhöht das heutige Kalorien- und Makroziel um einen Anteil der für den Tag erfassten Aktivitätskalorien.</string>
+    <string name="settings_activity_credit_percent">Anrechnung: %1$d%%</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Tägliches Wasserziel</string>
     <string name="settings_water_goal_desc">Wird als Fortschrittsbalken im Tagesprotokoll angezeigt</string>

@@ -27,6 +27,7 @@ import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
@@ -37,7 +38,9 @@ import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MacroTotals
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.totalMacros
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
@@ -54,10 +57,20 @@ class MacroWidget : GlanceAppWidget() {
                 .getKoin()
         val entryRepo = koin.get<EntryRepository>()
         val goalsRepo = koin.get<GoalsRepository>()
+        val prefsRepo = koin.get<PreferencesRepository>()
 
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
         val entries = entryRepo.entriesByDateOnce(today)
-        val goals = goalsRepo.goalsOnce()
+        val rawGoals = goalsRepo.goalsOnce()
+        val dayProperties = entryRepo.getDayProperties(today)
+        val prefs = prefsRepo.preferences().first()
+        val goals =
+            adjustGoalsForActivity(
+                rawGoals,
+                dayProperties?.activityCalories,
+                enabled = prefs?.activityGoalAdjustment ?: false,
+                creditPercent = prefs?.activityCreditPercent ?: 100,
+            )?.goals ?: rawGoals
         val totals = entries.totalMacros()
 
         provideContent {

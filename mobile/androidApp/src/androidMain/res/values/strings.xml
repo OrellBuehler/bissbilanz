@@ -32,6 +32,9 @@
     <string name="day_activity_note_label">Activity note (optional)</string>
     <string name="day_activity_clear">Clear activity</string>
     <string name="day_activity_summary">Activity: +%1$d kcal</string>
+    <string name="day_activity_goal_bonus">+%1$d kcal from workouts</string>
+    <string name="day_activity_source_health_connect">From Health Connect</string>
+    <string name="day_activity_source_apple_health">From Apple Health</string>
     <string name="day_notes_title">Notes</string>
     <string name="day_notes_placeholder">Add a note about today…</string>
     <string name="favorites_widget_description">Quick-log favorite foods with one tap</string>
@@ -1104,6 +1107,11 @@
     <string name="settings_biological_sex_male">Male</string>
     <string name="settings_biological_sex_female">Female</string>
     <string name="settings_preference_update_failed">Failed to update preference</string>
+    <!-- Settings: workout goal adjustment -->
+    <string name="settings_activity_goal_adjustment_title">Workout calories</string>
+    <string name="settings_activity_goal_adjustment">Increase goals by workout calories</string>
+    <string name="settings_activity_goal_adjustment_desc">Raises today\'s calorie and macro goals by a share of the activity calories logged for the day.</string>
+    <string name="settings_activity_credit_percent">Credit: %1$d%%</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Daily water goal</string>
     <string name="settings_water_goal_desc">Shown as a progress bar on the day log</string>

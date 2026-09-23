@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.ActivityViolet
 import com.bissbilanz.android.ui.theme.WaterCyan
 import com.bissbilanz.android.ui.theme.macroTextTone
+import com.bissbilanz.api.generated.model.DayProperties
 import kotlinx.coroutines.delay
 
 /**
@@ -38,6 +40,7 @@ fun DayPropertiesCard(
     waterMl: Int?,
     waterGoalMl: Int,
     activityCalories: Int?,
+    activityCaloriesSource: DayProperties.ActivityCaloriesSource?,
     activityNote: String?,
     onAddWater: (Int) -> Unit,
     onSetWater: (Int?) -> Unit,
@@ -55,7 +58,7 @@ fun DayPropertiesCard(
         }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                ActivitySection(activityCalories, activityNote, onSetActivity, onClearActivity)
+                ActivitySection(activityCalories, activityCaloriesSource, activityNote, onSetActivity, onClearActivity)
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -126,6 +129,7 @@ private fun WaterSection(
 @Composable
 private fun ActivitySection(
     activityCalories: Int?,
+    activityCaloriesSource: DayProperties.ActivityCaloriesSource?,
     activityNote: String?,
     onSetActivity: (Int?, String?) -> Unit,
     onClearActivity: () -> Unit,
@@ -152,6 +156,19 @@ private fun ActivitySection(
             }
         }
     }
+    activitySourceLabel(activityCaloriesSource)?.let { label ->
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Sync,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
     Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
         value = caloriesDraft,
@@ -176,6 +193,15 @@ private fun ActivitySection(
             },
     )
 }
+
+/** Caption shown under an auto-imported activity value; `null` for a manual (or unset) entry. */
+@Composable
+private fun activitySourceLabel(source: DayProperties.ActivityCaloriesSource?): String? =
+    when (source) {
+        DayProperties.ActivityCaloriesSource.health_connect -> stringResource(R.string.day_activity_source_health_connect)
+        DayProperties.ActivityCaloriesSource.apple_health -> stringResource(R.string.day_activity_source_apple_health)
+        DayProperties.ActivityCaloriesSource.manual, null -> null
+    }
 
 /** Debounces edits 1200ms and always saves on blur, matching the web notes field. */
 @Composable

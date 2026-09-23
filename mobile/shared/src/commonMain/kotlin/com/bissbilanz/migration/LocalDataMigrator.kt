@@ -2,6 +2,7 @@ package com.bissbilanz.migration
 
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.FavoriteMealTimeframeInput
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
@@ -791,12 +792,22 @@ class LocalDataMigrator(
         var done = startDone
         progress(done, total, STEP_DAY_PROPERTIES)
         for (row in queries.selectAllDayProperties().executeAsList()) {
+            val source = row.activityCaloriesSource
+            val wireSource =
+                if (source !=
+                    null
+                ) {
+                    DayPropertiesSet.ActivityCaloriesSource.entries.firstOrNull { it.value == source }
+                } else {
+                    null
+                }
             api.setDayProperties(
                 date = row.date,
                 isFastingDay = row.isFastingDay != 0L,
                 notes = row.notes,
                 waterMl = row.waterMl?.toInt(),
                 activityCalories = row.activityCalories?.toInt(),
+                activityCaloriesSource = wireSource,
                 activityNote = row.activityNote,
             )
             progress(++done, total, STEP_DAY_PROPERTIES)

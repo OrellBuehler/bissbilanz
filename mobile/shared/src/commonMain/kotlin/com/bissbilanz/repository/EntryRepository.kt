@@ -4,6 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
@@ -196,20 +197,35 @@ class EntryRepository(
         notes: String? = null,
         waterMl: Int? = null,
         activityCalories: Int? = null,
+        activityCaloriesSource: DayProperties.ActivityCaloriesSource? = null,
         activityNote: String? = null,
         cleared: Set<DayPropertiesField> = emptySet(),
     ): DayProperties {
         val current = cachedDayProperties(date)
+        // Mirrors the server default in setDayProperties (day-properties.ts) and the
+        // web's applyDayPropertiesPatch: an explicit source wins, otherwise clearing
+        // activityCalories clears its source too, and setting a value without an
+        // explicit source means this was a manual edit.
+        val resolvedSource =
+            when {
+                DayPropertiesField.ACTIVITY_CALORIES_SOURCE in cleared -> null
+                activityCaloriesSource != null -> activityCaloriesSource
+                DayPropertiesField.ACTIVITY_CALORIES in cleared -> null
+                activityCalories != null -> DayProperties.ActivityCaloriesSource.manual
+                else -> current?.activityCaloriesSource
+            }
         val updated =
             (current ?: emptyDayProperties(date)).copy(
                 isFastingDay = isFastingDay ?: current?.isFastingDay ?: false,
                 notes = cleared.pick(DayPropertiesField.NOTES, notes, current?.notes),
                 waterMl = cleared.pick(DayPropertiesField.WATER_ML, waterMl, current?.waterMl),
                 activityCalories = cleared.pick(DayPropertiesField.ACTIVITY_CALORIES, activityCalories, current?.activityCalories),
+                activityCaloriesSource = resolvedSource,
                 activityNote = cleared.pick(DayPropertiesField.ACTIVITY_NOTE, activityNote, current?.activityNote),
             )
         withContext(Dispatchers.IO) { cacheDayProperties(updated) }
         if (!appModeManager.isLocal) {
+            val wireSource = activityCaloriesSource?.let { toDayPropertiesSetSource(it) }
             val body =
                 DayPropertiesSet(
                     date = date,
@@ -217,6 +233,7 @@ class EntryRepository(
                     notes = notes,
                     waterMl = waterMl,
                     activityCalories = activityCalories,
+                    activityCaloriesSource = wireSource,
                     activityNote = activityNote,
                 )
             syncQueue.enqueue(SyncOperation.SetDayProperties(date, json.encodeToString(body), cleared.jsonKeys()))
@@ -253,8 +270,8 @@ class EntryRepository(
                     notes = it.notes,
                     waterMl = it.waterMl?.toInt(),
                     activityCalories = it.activityCalories?.toInt(),
+                    activityCaloriesSource = parseActivityCaloriesSource(it.activityCaloriesSource),
                     activityNote = it.activityNote,
-                    activityCaloriesSource = null,
                 )
             }
 
@@ -265,8 +282,19 @@ class EntryRepository(
             notes = props.notes,
             waterMl = props.waterMl?.toLong(),
             activityCalories = props.activityCalories?.toLong(),
+            activityCaloriesSource = props.activityCaloriesSource?.value,
             activityNote = props.activityNote,
         )
+    }
+
+    private fun parseActivityCaloriesSource(value: String?): DayProperties.ActivityCaloriesSource? =
+        value?.let { stored -> DayProperties.ActivityCaloriesSource.entries.firstOrNull { it.value == stored } }
+
+    /** [DayProperties.ActivityCaloriesSource] and [DayPropertiesSet.ActivityCaloriesSource] are
+     * separately generated enums with identical entry names — this just carries the value across. */
+    private fun toDayPropertiesSetSource(source: DayProperties.ActivityCaloriesSource): DayPropertiesSet.ActivityCaloriesSource {
+        val target = DayPropertiesSet.ActivityCaloriesSource.entries.firstOrNull { it.value == source.value }
+        return target ?: DayPropertiesSet.ActivityCaloriesSource.manual
     }
 
     /** The cache-side counterpart of the explicit null the request carries. */
