@@ -172,7 +172,9 @@ struct BissbilanzApp: App {
 
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
         // the phone performs the real write through the same repository the UI
-        // uses, then replies with the refreshed snapshot.
+        // uses, then replies with the refreshed snapshot. Replies are built on a
+        // background context: the watch asks on every foreground, and the
+        // watch-state scans on the main context are the hang BISSBILANZ-39.
         PhoneWatchConnectivity.shared.onLogRequest = { request in
             let food = request.foodId.flatMap { foodRepo.food(id: $0) }
             let create = EntryCreate(
@@ -188,36 +190,42 @@ struct BissbilanzApp: App {
                 quickFat: request.quickFat,
                 quickFiber: request.quickFiber
             )
-            _ = try? await entryRepo.createEntry(create, food: food)
-            return WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+            _ = try await entryRepo.createEntry(create, food: food)
+            return await WidgetSnapshotWriter.build(container: container).snapshot
         }
         // Weight/sleep logs from the watch run through the same offline-first
         // repositories the UI uses; the reply carries the refreshed WatchState
         // so the watch's glance updates immediately.
         PhoneWatchConnectivity.shared.onWeightLog = { request in
-            _ = try? await weightRepo.createEntry(
+            _ = try await weightRepo.createEntry(
                 WeightCreate(weightKg: request.weightKg, entryDate: request.date)
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         PhoneWatchConnectivity.shared.onSleepLog = { request in
+            // An older watch build let the crown reach zero minutes, which the
+            // server rejects on upload. Refused here so the watch says the log
+            // failed, instead of a local entry that can never sync.
+            guard (1 ... 1440).contains(request.durationMinutes) else {
+                throw WatchRequestError.invalidSleepDuration(request.durationMinutes)
+            }
             // Quality is the app's 1–10 scale on both ends; clamped so a value
             // from an older watch build (or a corrupted payload) can't become a
             // local entry the server will reject on upload.
-            _ = try? await sleepRepo.createEntry(
+            _ = try await sleepRepo.createEntry(
                 SleepCreate(
                     durationMinutes: request.durationMinutes,
                     quality: min(max(request.quality, 1), 10),
                     entryDate: request.date
                 )
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         // The watch asks for state on launch and on every foreground: nothing
         // else prompts a push, so a watch that was out of range for the last
         // one would otherwise show stale data until the phone next wrote.
         PhoneWatchConnectivity.shared.onStateRequest = {
-            WidgetSnapshotWriter.buildWatchState(context: context)
+            await WidgetSnapshotWriter.build(container: container).watchState
         }
         // `activate()` is deliberately NOT called here: WCSession activation is
         // not needed before the first frame, and everything in this init runs

@@ -20,9 +20,17 @@ struct LogListView: View {
     var body: some View {
         Group {
             if favorites.isEmpty, state.recents.isEmpty {
-                ContentUnavailableView(strings.noData, systemImage: "fork.knife")
+                ContentUnavailableView(
+                    connectivity.hasReceivedState ? strings.noFavorites : strings.noData,
+                    systemImage: "fork.knife"
+                )
             } else {
                 List {
+                    if connectivity.pendingLogs > 0 || connectivity.failedLogs > 0 {
+                        PendingLogsLabel()
+                            .listRowBackground(Color.clear)
+                    }
+
                     if !favorites.isEmpty {
                         Section(strings.favorites) {
                             ForEach(favorites) { row($0) }

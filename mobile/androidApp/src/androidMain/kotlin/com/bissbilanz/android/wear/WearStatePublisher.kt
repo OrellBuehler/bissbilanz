@@ -30,8 +30,10 @@ import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import java.util.Locale
@@ -55,6 +57,49 @@ internal fun Throwable.isWearableApiUnavailable(): Boolean {
     }
     return false
 }
+
+/** How far back the 7-day change looks for a comparison weight, and how far off that day it may be. */
+private const val DELTA_WINDOW_DAYS = 7
+private const val DELTA_TOLERANCE_DAYS = 3
+
+/**
+ * The latest weight minus the one about a week before it — the same definition
+ * the Apple Watch uses, so both watches show the same number for the same log.
+ *
+ * Anchored on the latest entry, not on today: a weigh-in from last week compared
+ * with one from two weeks ago is still a 7-day change. The comparison entry is
+ * the one closest to seven days before it, within three days either way, because
+ * daily weigh-ins are not guaranteed; a tie goes to the older one, so the span is
+ * never short of a week. Null when nothing falls in that window.
+ */
+internal fun sevenDayWeightDelta(
+    latestDate: LocalDate,
+    latestKg: Double,
+    history: List<Pair<LocalDate, Double>>,
+): Double? {
+    val target = latestDate.toEpochDays() - DELTA_WINDOW_DAYS
+    val reference =
+        history
+            .filter { (date, _) -> abs(date.toEpochDays() - target) <= DELTA_TOLERANCE_DAYS }
+            .minWithOrNull(compareBy({ (date, _) -> abs(date.toEpochDays() - target) }, { (date, _) -> date }))
+            ?: return null
+    return latestKg - reference.second
+}
+
+/**
+ * The watch's meal picker: the standard meals in their canonical order, then
+ * every custom type the user has logged recently, alphabetically — the list the
+ * Apple Watch offers. Learned from the log rather than hardcoded, so custom
+ * server meal types reach the watch too; normalized so an old lowercase "snack"
+ * doesn't reappear as a custom duplicate of "Snacks".
+ */
+internal fun watchMealTypes(logged: List<String>): List<String> =
+    mealTypes +
+        logged
+            .map(::normalizeMealType)
+            .filter { it !in mealTypes }
+            .distinct()
+            .sorted()
 
 /**
  * Builds the watch's view of today and pushes it over the Data Layer.
@@ -135,9 +180,14 @@ class WearStatePublisher(
         val entries = entryRepository.entriesByDate(todayString).first()
         val goals = goalsRepository.goals().first()
         val favorites = foodRepository.favorites().first()
-        val recents = foodRepository.recentFoods.value
+        // From the local entry log, not the in-memory recents list: that is only
+        // filled once the app has loaded it, and a watch log starts this process
+        // in the background, where it would push an empty Recents section.
+        val recents = foodRepository.localRecentFoods(RECENTS_LIMIT)
         val weights = weightRepository.entries().first()
         val sleep = sleepRepository.entries().first().maxByOrNull { it.entryDate }
+        val loggedMealTypes =
+            entryRepository.mealTypesSince(today.minus(MEAL_TYPE_WINDOW_DAYS, DateTimeUnit.DAY).toString())
 
         return WearState(
             date = todayString,
@@ -162,12 +212,10 @@ class WearStatePublisher(
                     .groupBy { normalizeMealType(it.mealType) }
                     .map { (meal, rows) -> WearMealTotal(mealType = meal, calories = rows.sumOf { it.resolvedCalories() }) }
                     .sortedWith(compareBy({ mealOrder(it.mealType) }, { it.mealType })),
-            // Learned from the synced log rather than hardcoded, so custom meal
-            // types reach the watch too.
-            mealTypes = (mealTypes + entries.map { normalizeMealType(it.mealType) }).distinct(),
+            mealTypes = watchMealTypes(loggedMealTypes),
             favorites = favorites.take(FAVORITES_LIMIT).map { it.toRef() },
-            recents = recents.take(RECENTS_LIMIT).map { it.toRef() },
-            weight = weights.toWeightInfo(today),
+            recents = recents.map { it.toRef() },
+            weight = weights.toWeightInfo(),
             sleep =
                 sleep?.let {
                     WearSleepInfo(
@@ -187,6 +235,19 @@ class WearStatePublisher(
      */
     private fun mealOrder(mealType: String): Int = mealTypes.indexOf(mealType).takeIf { it >= 0 } ?: mealTypes.size
 
+    private companion object {
+        const val FAVORITES_LIMIT = 20
+        const val RECENTS_LIMIT = 10
+
+        /**
+         * How far back the watch's meal picker looks for custom meal types — the
+         * same window as the Apple Watch. A custom type unused for three months
+         * drops off until it is logged again: the picker is what the user
+         * actually logs, not everything they ever did.
+         */
+        const val MEAL_TYPE_WINDOW_DAYS = 90
+    }
+
     /**
      * The language the phone app itself is rendering in, so the watch follows it
      * rather than its own system locale. Reading the app context's configuration
@@ -205,36 +266,20 @@ class WearStatePublisher(
         return if (language.equals("de", ignoreCase = true)) "de" else "en"
     }
 
-    private companion object {
-        const val FAVORITES_LIMIT = 20
-        const val RECENTS_LIMIT = 10
-
-        /** How far back the 7-day delta looks for a comparison weight. */
-        const val DELTA_WINDOW_DAYS = 7
-        const val DELTA_TOLERANCE_DAYS = 3
-    }
-
     private fun com.bissbilanz.model.Food.toRef() = WearFoodRef(id = id, name = name, calories = calories, isRecipe = false)
 
-    /**
-     * Latest weight plus a 7-day delta. The comparison entry is the one closest to
-     * seven days back within a few days' tolerance — daily weigh-ins are not
-     * guaranteed, and an exact-date lookup would usually find nothing.
-     */
-    private fun List<com.bissbilanz.model.WeightEntry>.toWeightInfo(today: LocalDate): WearWeightInfo? {
+    /** Latest weight plus the 7-day change, see [sevenDayWeightDelta]. */
+    private fun List<com.bissbilanz.model.WeightEntry>.toWeightInfo(): WearWeightInfo? {
         val latest = maxByOrNull { it.entryDate } ?: return null
-        val targetEpoch = today.toEpochDays() - DELTA_WINDOW_DAYS
-        val comparison =
+        val latestDate = runCatching { LocalDate.parse(latest.entryDate) }.getOrNull()
+        val history =
             mapNotNull { entry ->
-                runCatching { LocalDate.parse(entry.entryDate) }.getOrNull()?.let { entry to it }
-            }.filter { (_, date) -> abs(date.toEpochDays() - targetEpoch) <= DELTA_TOLERANCE_DAYS }
-                .minByOrNull { (_, date) -> abs(date.toEpochDays() - targetEpoch) }
-                ?.first
-
+                runCatching { LocalDate.parse(entry.entryDate) }.getOrNull()?.let { it to entry.weightKg }
+            }
         return WearWeightInfo(
             latestKg = latest.weightKg,
             latestDate = latest.entryDate,
-            delta7dKg = comparison?.let { latest.weightKg - it.weightKg },
+            delta7dKg = latestDate?.let { sevenDayWeightDelta(it, latest.weightKg, history) },
         )
     }
 }

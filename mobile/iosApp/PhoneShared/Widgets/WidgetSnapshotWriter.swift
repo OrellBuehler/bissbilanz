@@ -22,6 +22,27 @@ enum WidgetSnapshotWriter {
     /// application-context limit.
     nonisolated static let favoritesLimit = 20
 
+    /// Standard meal types the app always offers, in display order. These match
+    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
+    /// entries carry locally, so `mealTypes` recognizes them rather than
+    /// re-appending them as "custom". The watch list starts from these and
+    /// appends any custom meal types found in the log (see `mealTypes`).
+    nonisolated static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+
+    /// Display order for per-meal totals: the standard meals in their canonical
+    /// order, custom types after them alphabetically — the order the day log
+    /// and the Wear OS watch use. A plain string sort put Dinner before Lunch.
+    nonisolated static func mealPrecedes(_ lhs: String, _ rhs: String) -> Bool {
+        let lhsIndex = standardMealIndex(lhs)
+        let rhsIndex = standardMealIndex(rhs)
+        if lhsIndex != rhsIndex { return lhsIndex < rhsIndex }
+        return lhs < rhs
+    }
+
+    private nonisolated static func standardMealIndex(_ mealType: String) -> Int {
+        standardMealTypes.firstIndex { $0.caseInsensitiveCompare(mealType) == .orderedSame } ?? standardMealTypes.count
+    }
+
     /// Saves the snapshot to the App Group store and asks WidgetKit to reload
     /// every widget's timeline. Portable — safe to call from the widget
     /// extension process after a quick-add write.
@@ -59,7 +80,7 @@ enum WidgetSnapshotWriter {
 
         let mealTotals = Dictionary(grouping: entries, by: \.mealType)
             .map { WidgetSnapshot.Meal(mealType: $0.key, calories: $0.value.reduce(0) { $0 + $1.totalCalories }) }
-            .sorted { $0.mealType < $1.mealType }
+            .sorted { mealPrecedes($0.mealType, $1.mealType) }
 
         return WidgetSnapshot(
             date: today,

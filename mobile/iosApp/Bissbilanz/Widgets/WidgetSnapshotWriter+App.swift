@@ -69,24 +69,34 @@ extension WidgetSnapshotWriter {
     /// background context over the same store, so callers must have saved
     /// first — every repository does before scheduling.
     static func publish(container: ModelContainer) async {
-        let localeCode = L10n.currentLocale.rawValue
-        // Detached on purpose: a `@ModelActor` runs its work on whichever
-        // executor it was *created* on, and both callers of `publish` (the
-        // debounced `scheduleUpdate` task and `BackgroundRefresher`) run on
-        // the main actor. Created inline, the "background" builder did all
-        // its fetches on the main thread after all — the same watchdog hang
-        // (Sentry BISSBILANZ-3H, `watchRecents`, on a build that already
-        // shipped the builder). A detached task creates the actor off main,
-        // so its executor is off main too.
-        let built = await Task.detached(priority: .utility) {
-            await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
-        }.value
+        let built = await build(container: container, priority: .utility)
         saveAndReload(built.snapshot)
         PhoneWatchConnectivity.shared.sendState(built.watchState)
         // After the snapshot, not before: the widgets should show the new
         // totals immediately rather than wait on a download, and a favorite
         // whose picture arrives a moment later gets a second reload.
         await warmImages(of: built.snapshot)
+    }
+
+    /// Builds the snapshot and the watch state on a background context,
+    /// without persisting or pushing either — `publish` does that, and the
+    /// watch handlers use it to answer a request with fresh state.
+    ///
+    /// Detached on purpose: a `@ModelActor` runs its work on whichever
+    /// executor it was *created* on, and every caller here runs on the main
+    /// actor. Created inline, the "background" builder did all its fetches on
+    /// the main thread after all — the same watchdog hang (Sentry
+    /// BISSBILANZ-3H, `watchRecents`, on a build that already shipped the
+    /// builder). A detached task creates the actor off main, so its executor
+    /// is off main too.
+    static func build(
+        container: ModelContainer,
+        priority: TaskPriority = .userInitiated
+    ) async -> (snapshot: WidgetSnapshot, watchState: WatchState) {
+        let localeCode = L10n.currentLocale.rawValue
+        return await Task.detached(priority: priority) {
+            await WidgetSnapshotBuilder(modelContainer: container).build(localeCode: localeCode)
+        }.value
     }
 
     /// Fetches any of the snapshot favorites' images the device does not hold
@@ -127,17 +137,8 @@ extension WidgetSnapshotWriter {
         )
     }
 
-    /// Standard meal types the app always offers, in display order. These match
-    /// the server's canonical casing (`DEFAULT_MEAL_TYPES`), which is what synced
-    /// entries carry locally, so `mealTypes` recognizes them rather than
-    /// re-appending them as "custom". The watch list starts from these and
-    /// appends any custom meal types found in the log (see `mealTypes`).
-    nonisolated static let standardMealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
-
-    /// Latest weight plus the change versus ~7 days ago, computed from the local
-    /// weight history so it works offline and in Local mode. `entryDate` strings
-    /// ("yyyy-MM-dd") sort chronologically, so the newest row at or before the
-    /// cutoff is the reference point.
+    /// Latest weight plus the 7-day change (see `sevenDayWeightDelta`), computed
+    /// from the local weight history so it works offline and in Local mode.
     private nonisolated static func watchWeight(context: ModelContext) -> WatchWeightInfo {
         var descriptor = FetchDescriptor<LocalWeightEntry>(
             sortBy: [SortDescriptor(\.entryDate, order: .reverse)]
@@ -145,17 +146,46 @@ extension WidgetSnapshotWriter {
         descriptor.fetchLimit = 60
         let rows = (try? context.fetch(descriptor)) ?? []
         guard let latest = rows.first else { return .empty }
+        return WatchWeightInfo(
+            latestKg: latest.weightKg,
+            latestDate: latest.entryDate,
+            delta7dKg: sevenDayWeightDelta(
+                latestDate: latest.entryDate,
+                latestKg: latest.weightKg,
+                history: rows.map { (date: $0.entryDate, kg: $0.weightKg) }
+            )
+        )
+    }
 
-        var delta7d: Double?
-        if let latestDay = DateFormatting.date(from: latest.entryDate),
-           let cutoffDay = Calendar.current.date(byAdding: .day, value: -7, to: latestDay)
-        {
-            let cutoff = DateFormatting.isoString(from: cutoffDay)
-            if let reference = rows.first(where: { $0.entryDate <= cutoff }) {
-                delta7d = latest.weightKg - reference.weightKg
-            }
+    /// The latest weight minus the one about a week before it — the same
+    /// definition Wear OS uses, so both watches show the same number for the
+    /// same log.
+    ///
+    /// The comparison entry is the one closest to seven days before the latest
+    /// entry, within three days either way, because daily weigh-ins are not
+    /// guaranteed; a tie goes to the older one, so the span is never short of
+    /// a week. `nil` when nothing falls in that window — an entry from months
+    /// back is not a 7-day trend.
+    nonisolated static func sevenDayWeightDelta(
+        latestDate: String,
+        latestKg: Double,
+        history: [(date: String, kg: Double)]
+    ) -> Double? {
+        let calendar = Calendar.current
+        guard let latestDay = DateFormatting.date(from: latestDate),
+              let target = calendar.date(byAdding: .day, value: -7, to: latestDay)
+        else { return nil }
+        let candidates = history.compactMap { row -> (day: Date, distance: Int, kg: Double)? in
+            guard let day = DateFormatting.date(from: row.date),
+                  let offset = calendar.dateComponents([.day], from: target, to: day).day,
+                  abs(offset) <= 3
+            else { return nil }
+            return (day, abs(offset), row.kg)
         }
-        return WatchWeightInfo(latestKg: latest.weightKg, latestDate: latest.entryDate, delta7dKg: delta7d)
+        let reference = candidates.min { lhs, rhs in
+            lhs.distance != rhs.distance ? lhs.distance < rhs.distance : lhs.day < rhs.day
+        }
+        return reference.map { latestKg - $0.kg }
     }
 
     /// Last night's sleep (the most recent entry), or `nil` when none is logged.

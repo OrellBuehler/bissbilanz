@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.foundation.hierarchicalFocusGroup
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.bissbilanz.wear.screens.LogScreen
@@ -73,11 +74,16 @@ fun WearApp(pageRequest: WearPageRequest? = null) {
                 pageRequest?.let { pagerState.scrollToPage(it.page) }
             }
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                when (page) {
-                    WearPages.TODAY -> TodayScreen(fresh)
-                    WearPages.LOG -> LogScreen(fresh, context)
-                    WearPages.WEIGHT -> WeightScreen(fresh, context)
-                    else -> SleepScreen(fresh, context)
+                // The pager keeps neighbouring pages composed; only the one on
+                // screen may take the crown, or it scrolls or steps a page the
+                // user can't see.
+                Box(Modifier.fillMaxSize().hierarchicalFocusGroup(active = page == pagerState.currentPage)) {
+                    when (page) {
+                        WearPages.TODAY -> TodayScreen(fresh)
+                        WearPages.LOG -> LogScreen(fresh, context)
+                        WearPages.WEIGHT -> WeightScreen(fresh, context)
+                        else -> SleepScreen(fresh, context)
+                    }
                 }
             }
         }

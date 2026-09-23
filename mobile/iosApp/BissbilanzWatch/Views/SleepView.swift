@@ -17,23 +17,26 @@ struct SleepView: View {
     }
 
     var body: some View {
-        glance
-            .navigationTitle(strings.sleep)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isLogging = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(strings.log)
+        VStack(spacing: 4) {
+            glance
+            PendingLogsLabel()
+        }
+        .navigationTitle(strings.sleep)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isLogging = true
+                } label: {
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel(strings.log)
             }
-            .sheet(isPresented: $isLogging) {
-                NavigationStack {
-                    SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
-                }
+        }
+        .sheet(isPresented: $isLogging) {
+            NavigationStack {
+                SleepLoggerView(startMinutes: sleep?.durationMinutes, startQuality: sleep?.quality)
             }
+        }
     }
 
     @ViewBuilder
@@ -109,10 +112,16 @@ private struct SleepLoggerView: View {
     @State private var minutes: Double
     @State private var quality: Double
     @State private var isLogging = false
+    @State private var didFail = false
     @FocusState private var focusedField: CrownField?
 
+    /// The server rejects a sleep entry without a positive duration, so the
+    /// crown stops at one step rather than at zero.
+    private static let minMinutes: Double = 15
+    private static let maxMinutes: Double = 720
+
     init(startMinutes: Int?, startQuality: Double?) {
-        _minutes = State(initialValue: Double(startMinutes ?? 450))
+        _minutes = State(initialValue: min(max(Double(startMinutes ?? 450), Self.minMinutes), Self.maxMinutes))
         _quality = State(initialValue: min(max((startQuality ?? 7).rounded(), 1), 10))
     }
 
@@ -132,8 +141,8 @@ private struct SleepLoggerView: View {
                 .focused($focusedField, equals: .duration)
                 .digitalCrownRotation(
                     $minutes,
-                    from: 0,
-                    through: 720,
+                    from: Self.minMinutes,
+                    through: Self.maxMinutes,
                     by: 15,
                     sensitivity: .medium,
                     isContinuous: false,
@@ -163,6 +172,10 @@ private struct SleepLoggerView: View {
                 isContinuous: false,
                 isHapticFeedbackEnabled: true
             )
+
+            if didFail {
+                LogFailedText(strings: strings)
+            }
         }
         .frame(maxHeight: .infinity)
         .navigationTitle(strings.sleep)
@@ -178,6 +191,7 @@ private struct SleepLoggerView: View {
 
     private func log() {
         isLogging = true
+        didFail = false
         let request = WatchSleepLogRequest(
             durationMinutes: Int(minutes),
             quality: quality.rounded(),
@@ -187,12 +201,11 @@ private struct SleepLoggerView: View {
         Task {
             let outcome = await connectivity.logSleep(request)
             isLogging = false
-            switch outcome {
-            case .confirmed, .queued:
-                WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(outcome.haptic)
+            if outcome == .failed {
+                didFail = true
+            } else {
                 dismiss()
-            case .failed:
-                WKInterfaceDevice.current().play(.failure)
             }
         }
     }

@@ -146,6 +146,9 @@ SELECT * FROM CachedEntry WHERE id = ? LIMIT 1;
 selectEntriesByDateRange:
 SELECT * FROM CachedEntry WHERE date >= ? AND date <= ? ORDER BY date;
 
+selectMealTypesSince:
+SELECT DISTINCT mealType FROM CachedEntry WHERE date >= ?;
+
 insertEntry:
 INSERT OR REPLACE INTO CachedEntry(id, date, mealType, servings, foodId, recipeId, foodName, calories, protein, carbs, fat, fiber, jsonData)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);

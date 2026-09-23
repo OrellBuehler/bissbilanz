@@ -13,6 +13,7 @@ struct LogDetailView: View {
     @State private var servings: Double = 1.0
     @State private var mealType: String
     @State private var isLogging = false
+    @State private var didFail = false
     @FocusState private var crownFocused: Bool
 
     init(food: WatchFoodRef) {
@@ -63,6 +64,10 @@ struct LogDetailView: View {
                     }
                 }
                 .pickerStyle(.navigationLink)
+
+                if didFail {
+                    LogFailedText(strings: strings)
+                }
             }
         }
         .navigationTitle(strings.log)
@@ -84,6 +89,7 @@ struct LogDetailView: View {
 
     private func log() {
         isLogging = true
+        didFail = false
         let request = WatchLogRequest(
             foodId: food.isRecipe ? nil : food.id,
             recipeId: food.isRecipe ? food.id : nil,
@@ -95,12 +101,11 @@ struct LogDetailView: View {
         Task {
             let outcome = await connectivity.log(request)
             isLogging = false
-            switch outcome {
-            case .confirmed, .queued:
-                WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(outcome.haptic)
+            if outcome == .failed {
+                didFail = true
+            } else {
                 dismiss()
-            case .failed:
-                WKInterfaceDevice.current().play(.failure)
             }
         }
     }
@@ -159,5 +164,62 @@ struct ConfirmButton: View {
         .tint(.green)
         .disabled(isLogging)
         .accessibilityLabel(label)
+    }
+}
+
+extension WatchConnectivityManager.LogOutcome {
+    /// Distinct haptics, so a queued log never feels like one that landed.
+    var haptic: WKHapticType {
+        switch self {
+        case .confirmed: .success
+        case .queued: .notification
+        case .failed: .failure
+        }
+    }
+}
+
+/// Shown in a logger that stays open after the write failed, so the user can
+/// try again instead of guessing from a haptic.
+struct LogFailedText: View {
+    let strings: WatchStrings
+
+    var body: some View {
+        Label(strings.logFailed, systemImage: "exclamationmark.triangle")
+            .font(.footnote)
+            .foregroundStyle(.red)
+            .multilineTextAlignment(.center)
+    }
+}
+
+/// Logs still waiting for the iPhone, and any the system gave up delivering —
+/// a queued log isn't on the glance yet, and saying nothing would read as if
+/// it had been lost or had landed. Tapping the failure line dismisses it.
+/// Renders nothing when there are none.
+struct PendingLogsLabel: View {
+    @Environment(WatchConnectivityManager.self) private var connectivity
+
+    private var strings: WatchStrings {
+        connectivity.state.strings
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            if connectivity.pendingLogs > 0 {
+                Label(strings.pendingLogs(connectivity.pendingLogs), systemImage: "clock.arrow.circlepath")
+                    .foregroundStyle(.secondary)
+            }
+            if connectivity.failedLogs > 0 {
+                Button {
+                    connectivity.dismissFailedLogs()
+                } label: {
+                    Label(strings.failedLogs(connectivity.failedLogs), systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .font(.caption2)
+        .lineLimit(2)
+        .minimumScaleFactor(0.7)
     }
 }
