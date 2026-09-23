@@ -181,6 +181,8 @@ export type DexieUserPreferences = {
 	timeZone: string | null;
 	biologicalSex: 'male' | 'female' | null;
 	waterGoalMl?: number | null;
+	activityGoalAdjustment?: boolean;
+	activityCreditPercent?: number;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 
@@ -281,6 +283,7 @@ export type DexieDayProperties = {
 	notes?: string | null;
 	waterMl?: number | null;
 	activityCalories?: number | null;
+	activityCaloriesSource?: 'manual' | 'apple_health' | 'health_connect' | null;
 	activityNote?: string | null;
 };
 

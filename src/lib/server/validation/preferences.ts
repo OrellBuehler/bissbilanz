@@ -58,6 +58,10 @@ export const preferencesUpdateSchema = z
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		waterGoalMl: z.coerce.number().int().min(250).max(10000).nullable().optional(),
 		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
+		// Raises that day's macro goals by the activityCalories logged in
+		// day_properties. See $lib/utils/activity-goals.ts for the formula.
+		activityGoalAdjustment: z.boolean().optional(),
+		activityCreditPercent: z.number().int().min(0).max(100).optional(),
 		// IANA timezone reported by the client (e.g. 'Europe/Zurich'). Validated
 		// against Intl so a bad value can't break server-side AT TIME ZONE queries.
 		timeZone: z

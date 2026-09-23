@@ -148,6 +148,19 @@ describe('validation schemas', () => {
 		expect(result.success).toBe(false);
 	});
 
+	test('preferencesUpdateSchema accepts activityGoalAdjustment and activityCreditPercent', () => {
+		const result = preferencesUpdateSchema.safeParse({
+			activityGoalAdjustment: true,
+			activityCreditPercent: 75
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test('preferencesUpdateSchema rejects an out-of-range activityCreditPercent', () => {
+		expect(preferencesUpdateSchema.safeParse({ activityCreditPercent: -1 }).success).toBe(false);
+		expect(preferencesUpdateSchema.safeParse({ activityCreditPercent: 101 }).success).toBe(false);
+	});
+
 	test('favoriteMealTimeframeInputSchema accepts valid timeframe', () => {
 		const result = favoriteMealTimeframeInputSchema.safeParse({
 			mealType: 'Breakfast',

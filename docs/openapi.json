@@ -6259,6 +6259,17 @@
 							}
 						]
 					},
+					"activityCaloriesSource": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["manual", "apple_health", "health_connect"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"activityNote": {
 						"anyOf": [
 							{
@@ -6429,6 +6440,14 @@
 								"type": "null"
 							}
 						]
+					},
+					"activityGoalAdjustment": {
+						"type": "boolean"
+					},
+					"activityCreditPercent": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 100
 					},
 					"timeZone": {
 						"type": "string",
@@ -8677,9 +8696,17 @@
 					},
 					"goals": {
 						"$ref": "#/components/schemas/GoalsSummary"
+					},
+					"activityGoalAdjustment": {
+						"type": "boolean"
+					},
+					"activityCreditPercent": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
-				"required": ["data", "goals"],
+				"required": ["data", "goals", "activityGoalAdjustment", "activityCreditPercent"],
 				"additionalProperties": false
 			},
 			"DailyStat": {
@@ -8702,6 +8729,18 @@
 					},
 					"fiber": {
 						"type": "number"
+					},
+					"activityCalories": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
 				"required": ["date", "calories", "protein", "carbs", "fat", "fiber"],
@@ -9001,6 +9040,17 @@
 							}
 						]
 					},
+					"activityCaloriesSource": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["manual", "apple_health", "health_connect"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"activityNote": {
 						"type": ["string", "null"]
 					}
@@ -9011,6 +9061,7 @@
 					"notes",
 					"waterMl",
 					"activityCalories",
+					"activityCaloriesSource",
 					"activityNote"
 				],
 				"additionalProperties": false
@@ -9129,6 +9180,14 @@
 							}
 						]
 					},
+					"activityGoalAdjustment": {
+						"type": "boolean"
+					},
+					"activityCreditPercent": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
 					"locale": {
 						"type": ["string", "null"]
 					},
@@ -9162,6 +9221,8 @@
 					"favoriteMealAssignmentMode",
 					"visibleNutrients",
 					"waterGoalMl",
+					"activityGoalAdjustment",
+					"activityCreditPercent",
 					"locale",
 					"timeZone",
 					"favoriteMealTimeframes"

@@ -93,4 +93,28 @@ describe('dayPropertiesSetSchema', () => {
 				.success
 		).toBe(false);
 	});
+
+	test('accepts a valid activityCaloriesSource', () => {
+		for (const source of ['manual', 'apple_health', 'health_connect']) {
+			expect(
+				dayPropertiesSetSchema.safeParse({
+					date: '2026-03-01',
+					activityCaloriesSource: source
+				}).success
+			).toBe(true);
+		}
+	});
+
+	test('accepts a null activityCaloriesSource', () => {
+		expect(
+			dayPropertiesSetSchema.safeParse({ date: '2026-03-01', activityCaloriesSource: null }).success
+		).toBe(true);
+	});
+
+	test('rejects an invalid activityCaloriesSource', () => {
+		expect(
+			dayPropertiesSetSchema.safeParse({ date: '2026-03-01', activityCaloriesSource: 'fitbit' })
+				.success
+		).toBe(false);
+	});
 });

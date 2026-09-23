@@ -34,6 +34,7 @@ async function refresh(date: string): Promise<DexieDayProperties | null> {
 				notes: data.properties.notes ?? null,
 				waterMl: data.properties.waterMl ?? null,
 				activityCalories: data.properties.activityCalories ?? null,
+				activityCaloriesSource: data.properties.activityCaloriesSource ?? null,
 				activityNote: data.properties.activityNote ?? null
 			};
 			await db.dayProperties.put(props);

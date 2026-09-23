@@ -421,6 +421,13 @@
       "when": 1789497182649,
       "tag": "0059_superb_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790187833997,
+      "tag": "0060_greedy_vargas",
+      "breakpoints": true
     }
   ]
 }
