@@ -74,7 +74,13 @@ extension MealEstimator {
     /// found items but wasn't confident about any single one of them — the
     /// same 0.5 cutoff `AIMealReviewView` already flags one row with, applied
     /// here to the whole result.
-    static func isWeakEstimate(_ estimate: MealEstimate) -> Bool {
+    ///
+    /// `nonisolated`: a pure function of its argument with no access to
+    /// `MealEstimator`'s own state — without this it inherits the class's
+    /// `@MainActor` isolation like every other member here, which is correct
+    /// for the instance members but makes this (and the classifier below)
+    /// uncallable from a plain synchronous context, including the unit tests.
+    nonisolated static func isWeakEstimate(_ estimate: MealEstimate) -> Bool {
         guard !estimate.items.isEmpty else { return true }
         return estimate.items.allSatisfy { $0.confidence < 0.5 }
     }
@@ -83,7 +89,9 @@ extension MealEstimator {
     /// guardrail refusal and a context-window overflow. A generic generation
     /// failure or an unsupported language most likely isn't something a
     /// bigger model fixes, so those still surface to the user as before.
-    static func isRetryableOnPrivateCloud(_ error: Error) -> Bool {
+    ///
+    /// `nonisolated`: see `isWeakEstimate` above.
+    nonisolated static func isRetryableOnPrivateCloud(_ error: Error) -> Bool {
         guard let error = error as? MealEstimatorError else { return false }
         switch error {
         case .guardrailViolation, .contextWindowExceeded:
