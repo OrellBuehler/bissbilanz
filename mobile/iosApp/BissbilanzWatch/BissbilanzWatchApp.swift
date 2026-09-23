@@ -18,7 +18,10 @@ struct BissbilanzWatchApp: App {
                     // launch case is handled from the activation callback, where
                     // the session is guaranteed to be up; `requestState()`
                     // throttles the two against each other.
-                    if phase == .active { connectivity.requestState() }
+                    if phase == .active {
+                        connectivity.refreshPendingLogs()
+                        connectivity.requestState()
+                    }
                 }
         }
     }

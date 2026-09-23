@@ -7,19 +7,23 @@ private let maxAiTaskPhotos = 5
 /// Entry point for AI-assisted meal logging: a free-text description (and
 /// optionally up to five photos) can either be estimated via `MealEstimator`
 /// — pushing `AIMealReviewView` within this sheet's stack — or queued as an
-/// `AiTask` for the MCP assistant to pick up later. Estimation runs on-device
+/// `AiTask` for the assistant to pick up later. Text estimation runs on-device
 /// on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`),
 /// falling back to Apple's Private Cloud Compute (iOS 27+, see
 /// `MealEstimator.canEstimate`) when on-device is unavailable, refuses,
-/// overflows, or comes back weak; queueing needs only a server connection, so
-/// it's shown in Synced mode as a secondary action where estimation is
-/// available and as the only action where it isn't. Local (anonymous) mode
-/// has no server, so queueing is hidden there.
+/// overflows, or comes back weak. On-device photo estimation needs iOS 27+
+/// (see `MealEstimator.supportsPhotoInput`) and is what makes the photo picker
+/// useful in Local mode, which has no server to queue a task on. In Synced
+/// mode, queueing is a secondary action where estimation is available and the
+/// only action where it isn't — but only once an assistant is actually
+/// connected (`McpConnectionStatus`), since an `AiTask` otherwise has nothing
+/// to process it.
 struct AIMealSheet: View {
     @Environment(MealEstimator.self) private var mealEstimator
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AiTaskStore.self) private var aiTaskStore
     @Environment(AppModeManager.self) private var appMode
+    @Environment(McpConnectionStatus.self) private var mcpConnectionStatus
     @Environment(\.dismiss) private var dismiss
 
     let date: String
@@ -86,7 +90,10 @@ struct AIMealSheet: View {
                         .lineLimit(4 ... 8)
                 }
 
-                if !appMode.isLocal {
+                // Shown in Synced mode regardless (for "send to assistant"), and in
+                // Local mode only when on-device photo estimation can use them —
+                // Local mode has no server to queue a task on.
+                if !appMode.isLocal || mealEstimator.supportsPhotoInput {
                     Section(L10n.aiTaskPhotoSectionTitle) {
                         photoAttachmentRow
                     }
@@ -101,6 +108,17 @@ struct AIMealSheet: View {
                                 Text(availabilityMessage)
                             } icon: {
                                 Image(systemName: "sparkles")
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        if showsAssistantConnectionHint {
+                            Label {
+                                Text(L10n.aiTaskNoAssistantConnected)
+                            } icon: {
+                                Image(systemName: "person.crop.circle.badge.questionmark")
                             }
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -176,6 +194,10 @@ struct AIMealSheet: View {
             }
             .onAppear { mealEstimator.prewarm() }
             .task { await loadPendingCount() }
+            // Best-effort refresh, never awaited by anything the user is
+            // looking at — the disabled state and hint above already render
+            // from the cached value.
+            .task { await mcpConnectionStatus.refresh() }
         }
         .presentationDetents([.medium, .large], selection: $detent)
     }
@@ -189,7 +211,7 @@ struct AIMealSheet: View {
                 showsProgress: isEstimating
             )
         }
-        .disabled(trimmedDescription.isEmpty || isEstimating || isSendingToAssistant)
+        .disabled(!canEstimate)
         .buttonStyle(.borderedProminent)
     }
 
@@ -234,7 +256,7 @@ struct AIMealSheet: View {
                 showsProgress: isSendingToAssistant
             )
         }
-        .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating)
+        .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating || !mcpConnectionStatus.isConnected)
 
         if mealEstimator.canEstimate {
             button.buttonStyle(.bordered)
@@ -305,6 +327,20 @@ struct AIMealSheet: View {
         !trimmedDescription.isEmpty || !attachedImages.isEmpty
     }
 
+    /// Text is always usable; attached photos only count when this device can
+    /// actually estimate from them on-device (`AIMealReviewView` never sees
+    /// photos otherwise — there is no server-side estimation path).
+    private var canEstimate: Bool {
+        let hasUsablePhotos = mealEstimator.supportsPhotoInput && !attachedImages.isEmpty
+        return (!trimmedDescription.isEmpty || hasUsablePhotos) && !isEstimating && !isSendingToAssistant
+    }
+
+    /// Shown next to a disabled "Send to Assistant": the button exists (the
+    /// user is signed in) but nothing would ever pick the task up.
+    private var showsAssistantConnectionHint: Bool {
+        !appMode.isLocal && !mcpConnectionStatus.isConnected
+    }
+
     /// Empty once an estimate can actually be produced (on-device or, absent
     /// that, Private Cloud Compute) — otherwise the on-device unavailability
     /// reason, or a Private Cloud Compute notice when that's why the estimate
@@ -332,7 +368,7 @@ struct AIMealSheet: View {
         isEstimating = true
         errorMessage = nil
         do {
-            estimate = try await mealEstimator.estimate(description: trimmedDescription)
+            estimate = try await mealEstimator.estimate(description: trimmedDescription, images: attachedImages)
             // The pushed review is cramped at medium height — promote the
             // sheet once there is something to review.
             detent = .large

@@ -1,7 +1,9 @@
 package com.bissbilanz.wear
 
+import android.content.ComponentName
 import android.content.Context
 import android.util.Log
+import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageClient
@@ -99,8 +101,25 @@ object WearStateRepository {
     private val _state = MutableStateFlow<WearState?>(null)
     val state: StateFlow<WearState?> = _state.asStateFlow()
 
-    fun update(state: WearState) {
+    /**
+     * Applies a state from the phone and, when it differs from what the watch
+     * had, tells the watch face. The complication otherwise only refreshes on
+     * its fifteen-minute period, so a log would sit off the face for that long.
+     */
+    fun update(
+        context: Context,
+        state: WearState,
+    ) {
+        val changed = _state.value != state
         _state.value = state
+        if (changed) requestComplicationUpdate(context)
+    }
+
+    private fun requestComplicationUpdate(context: Context) {
+        val app = context.applicationContext
+        ComplicationDataSourceUpdateRequester
+            .create(app, ComponentName(app, CalorieComplicationService::class.java))
+            .requestUpdateAll()
     }
 
     /** Reads whatever DataItem is already on the watch, so a cold start shows data immediately. */
@@ -227,7 +246,7 @@ object WearStateRepository {
                 // message would only run the same failing write again, blind.
                 if (isWearWriteFailure(response)) return@forEach
                 delivered = true
-                applyResponse(response)
+                applyResponse(context, response)
                 return@forEach
             }
             // No RPC service on the other side (an older phone build), or the
@@ -244,9 +263,12 @@ object WearStateRepository {
     }
 
     /** The phone answers a write with the state it just rebuilt; show it at once. */
-    private fun applyResponse(body: ByteArray) {
+    private fun applyResponse(
+        context: Context,
+        body: ByteArray,
+    ) {
         if (body.isEmpty()) return
-        decode(String(body))?.let(::update)
+        decode(String(body))?.let { update(context, it) }
     }
 
     /**

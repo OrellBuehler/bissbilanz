@@ -2719,6 +2719,28 @@
 				}
 			}
 		},
+		"/api/mcp/status": {
+			"get": {
+				"operationId": "getMcpStatus",
+				"tags": ["Mcp"],
+				"description": "Whether the user has at least one MCP client (e.g. Claude.ai, Claude Code) authorized against their account.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/McpStatusResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
 		"/api/sleep": {
 			"get": {
 				"operationId": "listSleepEntries",
@@ -9983,6 +10005,16 @@
 					}
 				},
 				"required": ["photoUrl", "photoUrls"],
+				"additionalProperties": false
+			},
+			"McpStatusResponse": {
+				"type": "object",
+				"properties": {
+					"connected": {
+						"type": "boolean"
+					}
+				},
+				"required": ["connected"],
 				"additionalProperties": false
 			},
 			"SleepEntriesResponse": {

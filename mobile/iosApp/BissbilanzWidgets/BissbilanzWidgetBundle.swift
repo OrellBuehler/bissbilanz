@@ -13,5 +13,8 @@ struct BissbilanzWidgetBundle: WidgetBundle {
         QuickWeightWidget()
         QuickAddWidget()
         FastingLiveActivity()
+        ScanBarcodeControl()
+        QuickAddFoodControl()
+        FastingControl()
     }
 }

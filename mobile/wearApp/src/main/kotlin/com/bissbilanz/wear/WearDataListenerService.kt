@@ -19,7 +19,7 @@ class WearDataListenerService : WearableListenerService() {
                 .dataMap
                 .getString(WearPaths.KEY_PAYLOAD)
                 ?.let { payload ->
-                    WearStateRepository.decode(payload)?.let(WearStateRepository::update)
+                    WearStateRepository.decode(payload)?.let { WearStateRepository.update(this, it) }
                 }
         }
 

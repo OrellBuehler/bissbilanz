@@ -206,7 +206,8 @@ private fun LogDetailScreen(
     }
 
     val listState = rememberScalingLazyListState()
-    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+    // The crown steps the servings, as on the Apple Watch, so the list leaves it alone.
+    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize(), rotaryScrollableBehavior = null) {
         item { ListHeader { Text(food.name, maxLines = 2) } }
 
         item {
@@ -230,12 +231,15 @@ private fun LogDetailScreen(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .rotaryStepper { steps -> servings = stepServings(servings, steps) },
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CompactChip(
-                    onClick = { servings = (servings - 0.5).coerceAtLeast(0.5) },
+                    onClick = { servings = stepServings(servings, -1) },
                     label = { Text("−") },
                 )
                 Text(
@@ -243,7 +247,7 @@ private fun LogDetailScreen(
                     style = MaterialTheme.typography.title3,
                 )
                 CompactChip(
-                    onClick = { servings += 0.5 },
+                    onClick = { servings = stepServings(servings, 1) },
                     label = { Text("+") },
                 )
             }
@@ -294,6 +298,12 @@ private fun MealPicker(
         }
     }
 }
+
+/** [value] moved by [steps] half servings, kept within the 0.5–20 the Apple Watch allows. */
+internal fun stepServings(
+    value: Double,
+    steps: Int,
+): Double = (value + steps * 0.5).coerceIn(0.5, 20.0)
 
 /** Drops the decimal for whole servings so "1" doesn't read as "1.0" on a small screen. */
 internal fun formatServings(value: Double): String =

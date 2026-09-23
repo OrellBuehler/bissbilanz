@@ -130,14 +130,24 @@ class FoodRepository(
         withContext(ioDispatcher) { favs.forEach { cacheFood(it) } }
     }
 
+    /**
+     * Recently logged foods read straight from the local entry log, most recent
+     * first. Unlike [recentFoods] this needs nothing loaded first, so it holds in
+     * a process started in the background — the watch's message service — and
+     * already includes an entry written a moment ago.
+     */
+    suspend fun localRecentFoods(limit: Int): List<Food> =
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries
+                .selectRecentFoods(limit.toLong())
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
+        }
+
     suspend fun refreshRecentFoods(limit: Int = 20) {
         if (appModeManager.isLocal) {
             // Derive recents from the local entry log so the add-food flow still works.
-            _recentFoods.value =
-                db.userDataDatabaseQueries
-                    .selectRecentFoods(limit.toLong())
-                    .executeAsList()
-                    .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
+            _recentFoods.value = localRecentFoods(limit)
             return
         }
         _recentFoods.value =

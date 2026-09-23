@@ -119,6 +119,7 @@ import {
 	aiTaskPhotoResponseSchema,
 	aiTaskAcknowledgeResponseSchema
 } from './validation/responses/ai-tasks';
+import { mcpStatusResponseSchema } from './validation/responses/mcp';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -1518,6 +1519,23 @@ export function generateSpec() {
 					requestParams: { path: uuidPathId },
 					responses: {
 						'204': res204,
+						'401': res401
+					}
+				}
+			},
+
+			// ── MCP ───────────────────────────────────────────────
+			'/api/mcp/status': {
+				get: {
+					operationId: 'getMcpStatus',
+					tags: ['Mcp'],
+					description:
+						'Whether the user has at least one MCP client (e.g. Claude.ai, Claude Code) authorized against their account.',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: mcpStatusResponseSchema } }
+						},
 						'401': res401
 					}
 				}

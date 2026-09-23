@@ -17,23 +17,26 @@ struct WeightView: View {
     }
 
     var body: some View {
-        glance
-            .navigationTitle(strings.weight)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isLogging = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(strings.log)
+        VStack(spacing: 4) {
+            glance
+            PendingLogsLabel()
+        }
+        .navigationTitle(strings.weight)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isLogging = true
+                } label: {
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel(strings.log)
             }
-            .sheet(isPresented: $isLogging) {
-                NavigationStack {
-                    WeightLoggerView(startKg: weight.latestKg)
-                }
+        }
+        .sheet(isPresented: $isLogging) {
+            NavigationStack {
+                WeightLoggerView(startKg: weight.latestKg)
             }
+        }
     }
 
     @ViewBuilder
@@ -87,6 +90,7 @@ private struct WeightLoggerView: View {
 
     @State private var kg: Double
     @State private var isLogging = false
+    @State private var didFail = false
     @FocusState private var crownFocused: Bool
 
     init(startKg: Double?) {
@@ -99,31 +103,38 @@ private struct WeightLoggerView: View {
     }
 
     var body: some View {
-        CrownValue(value: WeightView.format(kg), caption: "kg", size: 52)
-            .focusable()
-            .focused($crownFocused)
-            .digitalCrownRotation(
-                $kg,
-                from: 30,
-                through: 250,
-                by: 0.1,
-                sensitivity: .low,
-                isContinuous: false,
-                isHapticFeedbackEnabled: true
-            )
-            .frame(maxHeight: .infinity)
-            .navigationTitle(strings.weight)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ConfirmButton(isLogging: isLogging, label: strings.log, action: log)
-                }
+        VStack(spacing: 4) {
+            CrownValue(value: WeightView.format(kg), caption: "kg", size: 52)
+                .focusable()
+                .focused($crownFocused)
+                .digitalCrownRotation(
+                    $kg,
+                    from: 30,
+                    through: 250,
+                    by: 0.1,
+                    sensitivity: .low,
+                    isContinuous: false,
+                    isHapticFeedbackEnabled: true
+                )
+
+            if didFail {
+                LogFailedText(strings: strings)
             }
-            .sensoryFeedback(.increase, trigger: kg)
-            .onAppear { crownFocused = true }
+        }
+        .frame(maxHeight: .infinity)
+        .navigationTitle(strings.weight)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ConfirmButton(isLogging: isLogging, label: strings.log, action: log)
+            }
+        }
+        .sensoryFeedback(.increase, trigger: kg)
+        .onAppear { crownFocused = true }
     }
 
     private func log() {
         isLogging = true
+        didFail = false
         let request = WatchWeightLogRequest(
             weightKg: kg,
             date: WidgetSnapshotStore.isoDateString(from: Date()),
@@ -132,12 +143,11 @@ private struct WeightLoggerView: View {
         Task {
             let outcome = await connectivity.logWeight(request)
             isLogging = false
-            switch outcome {
-            case .confirmed, .queued:
-                WKInterfaceDevice.current().play(.success)
+            WKInterfaceDevice.current().play(outcome.haptic)
+            if outcome == .failed {
+                didFail = true
+            } else {
                 dismiss()
-            case .failed:
-                WKInterfaceDevice.current().play(.failure)
             }
         }
     }

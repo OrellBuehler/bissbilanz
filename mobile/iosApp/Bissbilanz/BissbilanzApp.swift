@@ -53,6 +53,7 @@ struct BissbilanzApp: App {
     @State private var fastingManager: FastingTimerManager
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
+    @State private var mcpConnectionStatus: McpConnectionStatus
     private let modelContainer: ModelContainer
     /// Read-only day/week totals for the Siri data-query intents and the
     /// Spotlight day index. Not part of the SwiftUI environment — the views
@@ -61,6 +62,18 @@ struct BissbilanzApp: App {
     /// The same for weight and sleep — the body-metrics half of the Siri data
     /// queries and their Spotlight index.
     private let bodyReader: BodyReader
+
+    /// True when this process is being driven by any test host:
+    /// `BissbilanzTests` (unit tests, hosted in this same app process) or
+    /// `BissbilanzIntentsUITests` (AppIntentsTesting, which launches this app
+    /// out-of-process and drives its registered intents through the real App
+    /// Intents infrastructure). Mirrors the two-signal check in
+    /// WidgetSnapshotWriter+App.swift; only the environment variable actually
+    /// fires for the out-of-process case, since the XCTest bundle is never
+    /// injected into the launched app there.
+    private static let isRunningTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
 
     init() {
         // Start crash reporting before anything else can fail.
@@ -75,10 +88,30 @@ struct BissbilanzApp: App {
         // CloudKit mirroring runs only in Local (anonymous) mode — Synced mode
         // already syncs through the backend (see LocalStore). The mode is read
         // once at launch, so toggling it takes effect on the next launch.
-        let container = LocalStore.makeContainerWithFallback(
-            cloudKitEnabled: appMode.isLocal,
-            onError: { error, context in ErrorReporter.capture(error, context: context) }
-        )
+        //
+        // Under any test host (unit tests, or AppIntentsTesting's UI-testing
+        // bundle launching this app out-of-process — see
+        // BissbilanzIntentsUITests) this app process still runs its normal
+        // `init`, since intents resolve their dependencies from
+        // AppDependencyManager, populated here. An in-memory, un-mirrored
+        // store keeps those runs hermetic instead of reading/writing the
+        // simulator's real on-disk App Group store.
+        let container: ModelContainer
+        if Self.isRunningTests {
+            do {
+                container = try LocalStore.makeContainer(inMemory: true)
+            } catch {
+                // Matches LocalStore.makeContainerWithFallback's own last-resort
+                // behaviour: an in-memory SwiftData container failing to build
+                // is not a recoverable state.
+                fatalError("Failed to create in-memory test container: \(error)")
+            }
+        } else {
+            container = LocalStore.makeContainerWithFallback(
+                cloudKitEnabled: appMode.isLocal,
+                onError: { error, context in ErrorReporter.capture(error, context: context) }
+            )
+        }
         modelContainer = container
         let context = container.mainContext
 
@@ -125,6 +158,7 @@ struct BissbilanzApp: App {
         }
         let aiTasks = AiTaskStore(api: api, appMode: appMode)
         _aiTaskStore = State(wrappedValue: aiTasks)
+        _mcpConnectionStatus = State(wrappedValue: McpConnectionStatus(api: api, appMode: appMode))
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -170,9 +204,28 @@ struct BissbilanzApp: App {
         }
         IntentDonations.isEnabled = true
 
+        #if DEBUG
+        // Test-only surface for BissbilanzIntentsUITests (AppIntentsTesting):
+        // resets/reseeds the in-memory store above and reads back the sync
+        // queue, so an out-of-process intent test can verify a write without
+        // any app code to import. See IntentTestFixtures/TestOnlyIntents.
+        //
+        // Passes `container` (Sendable), not `context` (not Sendable, and
+        // also captured by escaping closures further down this
+        // initializer) — see the comment on IntentTestFixtures.init.
+        AppDependencyManager.shared.add(dependency: IntentTestFixtures(
+            container: container,
+            appMode: appMode,
+            connectivity: connectivity,
+            syncManager: sync
+        ))
+        #endif
+
         // Apple Watch link (Phase 1). The watch relays "log this" commands here;
         // the phone performs the real write through the same repository the UI
-        // uses, then replies with the refreshed snapshot.
+        // uses, then replies with the refreshed snapshot. Replies are built on a
+        // background context: the watch asks on every foreground, and the
+        // watch-state scans on the main context are the hang BISSBILANZ-39.
         PhoneWatchConnectivity.shared.onLogRequest = { request in
             let food = request.foodId.flatMap { foodRepo.food(id: $0) }
             let create = EntryCreate(
@@ -188,36 +241,42 @@ struct BissbilanzApp: App {
                 quickFat: request.quickFat,
                 quickFiber: request.quickFiber
             )
-            _ = try? await entryRepo.createEntry(create, food: food)
-            return WidgetSnapshotWriter.buildSnapshot(context: context, localeCode: L10n.currentLocale.rawValue)
+            _ = try await entryRepo.createEntry(create, food: food)
+            return await WidgetSnapshotWriter.build(container: container).snapshot
         }
         // Weight/sleep logs from the watch run through the same offline-first
         // repositories the UI uses; the reply carries the refreshed WatchState
         // so the watch's glance updates immediately.
         PhoneWatchConnectivity.shared.onWeightLog = { request in
-            _ = try? await weightRepo.createEntry(
+            _ = try await weightRepo.createEntry(
                 WeightCreate(weightKg: request.weightKg, entryDate: request.date)
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         PhoneWatchConnectivity.shared.onSleepLog = { request in
+            // An older watch build let the crown reach zero minutes, which the
+            // server rejects on upload. Refused here so the watch says the log
+            // failed, instead of a local entry that can never sync.
+            guard (1 ... 1440).contains(request.durationMinutes) else {
+                throw WatchRequestError.invalidSleepDuration(request.durationMinutes)
+            }
             // Quality is the app's 1–10 scale on both ends; clamped so a value
             // from an older watch build (or a corrupted payload) can't become a
             // local entry the server will reject on upload.
-            _ = try? await sleepRepo.createEntry(
+            _ = try await sleepRepo.createEntry(
                 SleepCreate(
                     durationMinutes: request.durationMinutes,
                     quality: min(max(request.quality, 1), 10),
                     entryDate: request.date
                 )
             )
-            return WidgetSnapshotWriter.buildWatchState(context: context)
+            return await WidgetSnapshotWriter.build(container: container).watchState
         }
         // The watch asks for state on launch and on every foreground: nothing
         // else prompts a push, so a watch that was out of range for the last
         // one would otherwise show stale data until the phone next wrote.
         PhoneWatchConnectivity.shared.onStateRequest = {
-            WidgetSnapshotWriter.buildWatchState(context: context)
+            await WidgetSnapshotWriter.build(container: container).watchState
         }
         // `activate()` is deliberately NOT called here: WCSession activation is
         // not needed before the first frame, and everything in this init runs
@@ -309,6 +368,7 @@ struct BissbilanzApp: App {
             .environment(fastingManager)
             .environment(foodImageLoader)
             .environment(aiTaskStore)
+            .environment(mcpConnectionStatus)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {
@@ -339,6 +399,17 @@ struct BissbilanzApp: App {
                     // the Live Activity if the system expired it mid-fast
                     // (~8h cap) while the fast is still running.
                     fastingManager.refresh()
+                    // A Control Center tap (e.g. "Scan Barcode") that
+                    // foregrounded the app records its destination here
+                    // rather than through `DeepLinkRouter` directly — that
+                    // intent has to compile into the widget extension too,
+                    // which can't see the app-only router.
+                    if let action = ControlCenterPendingAction.consume() {
+                        switch action {
+                        case .scanner:
+                            deepLinkRouter.pending = .scanner
+                        }
+                    }
                     // Covers launch, day rollover while backgrounded and any
                     // change widgets might have missed. Debounced internally.
                     WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)
@@ -410,6 +481,9 @@ struct BissbilanzApp: App {
         // First, re-send any meal a previous launch was killed while uploading.
         try? await aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
+        // Keeps the "send to assistant" gate in AIMealSheet current without
+        // ever blocking it on a network call — see McpConnectionStatus.
+        await mcpConnectionStatus.refresh()
         // Surface any widget-extension quick-add failures (the extension has no
         // Sentry of its own — see QuickAddDiagnostics).
         for entry in QuickAddDiagnostics.drain() {

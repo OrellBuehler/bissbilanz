@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.hierarchicalFocusGroup
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
@@ -40,7 +41,9 @@ private val FiberGreen = Color(0xFF22C55E)
 fun TodayScreen(state: WearState) {
     val pagerState = rememberPagerState { 2 }
     VerticalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-        if (page == 0) RingsPage(state) else MealBreakdownPage(state)
+        Box(Modifier.fillMaxSize().hierarchicalFocusGroup(active = page == pagerState.currentPage)) {
+            if (page == 0) RingsPage(state) else MealBreakdownPage(state)
+        }
     }
 }
 

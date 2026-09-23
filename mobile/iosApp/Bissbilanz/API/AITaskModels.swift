@@ -77,3 +77,10 @@ struct AiTaskPhotoResponse: Codable {
     let photoUrl: String
     let photoUrls: [String]
 }
+
+/// Matches `mcpStatusResponseSchema`: whether the signed-in user has at least
+/// one MCP client (e.g. Claude.ai, Claude Code) authorized against their
+/// account — see `McpConnectionStatus`.
+struct McpStatusResponse: Codable {
+    let connected: Bool
+}

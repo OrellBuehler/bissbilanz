@@ -1,6 +1,7 @@
 import ActivityKit
 import Foundation
 import Observation
+import WidgetKit
 
 /// Owns the running fast from the app side: session lifecycle in
 /// `FastingSessionStore` (the canonical cross-process copy), the ActivityKit
@@ -47,6 +48,7 @@ final class FastingTimerManager {
         FastingSessionStore.saveCurrent(newSession)
         session = newSession
         startActivity(for: newSession)
+        ControlCenter.shared.reloadControls(ofKind: ControlKind.fasting)
     }
 
     func changeTarget(hours: Int) async {
@@ -86,6 +88,7 @@ final class FastingTimerManager {
             date: DateFormatting.isoString(from: endDate),
             isFastingDay: true
         )
+        ControlCenter.shared.reloadControls(ofKind: ControlKind.fasting)
     }
 
     /// Pulls fasts finished elsewhere (the web app, another device) into the
@@ -141,6 +144,7 @@ final class FastingTimerManager {
         FastingSessionStore.clearCurrent()
         session = nil
         await endAllActivities()
+        ControlCenter.shared.reloadControls(ofKind: ControlKind.fasting)
     }
 
     /// Reconciles app state with the store and the system on foreground: the

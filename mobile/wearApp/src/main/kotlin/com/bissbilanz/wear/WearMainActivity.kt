@@ -60,7 +60,7 @@ class WearMainActivity :
                 .fromDataItem(event.dataItem)
                 .dataMap
                 .getString(WearPaths.KEY_PAYLOAD)
-                ?.let { payload -> WearStateRepository.decode(payload)?.let(WearStateRepository::update) }
+                ?.let { payload -> WearStateRepository.decode(payload)?.let { WearStateRepository.update(this, it) } }
         }
     }
 

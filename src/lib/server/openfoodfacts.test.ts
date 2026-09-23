@@ -84,6 +84,25 @@ describe('searchProducts (Open Food Facts text search)', () => {
 		expect(url).toContain('search_terms=milk');
 		expect(url).toContain('page_size=20');
 	});
+
+	it('queries production OFF with a timeout below the adapter idle timeout', async () => {
+		const fetchMock = vi.fn().mockResolvedValue(okResponse({ products: [] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await searchProducts('milk');
+
+		const [url, init] = fetchMock.mock.calls[0];
+		expect(String(url)).toMatch(/^https:\/\/world\.openfoodfacts\.org\//);
+		expect(init.signal).toBeInstanceOf(AbortSignal);
+	});
+
+	it('returns [] when OFF times out', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'))
+		);
+		expect(await searchProducts('x')).toEqual([]);
+	});
 });
 
 describe('fetchProduct (Open Food Facts barcode lookup)', () => {
