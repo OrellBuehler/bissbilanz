@@ -1,16 +1,6 @@
 import CoreGraphics
 import Foundation
-
-// Unconditional (rather than `#if canImport(FoundationModels)`, as in
-// `MealEstimator.swift`) because `OCRTool`/`BarcodeReaderTool` — declared in
-// `Vision`, adopting `FoundationModels.Tool` — only resolve when both modules
-// are imported unconditionally in the same file; wrapping this import in a
-// condition silently breaks that cross-module linkage even though the
-// condition itself evaluates true. Gated on `compiler(>=6.4)` instead, the
-// same condition that already gates every use of FoundationModels in this
-// file, so nothing changes for the older-Xcode CodeQL job (FoundationModels
-// exists there too, but is simply never referenced outside that gate).
-#if compiler(>=6.4)
+#if canImport(FoundationModels)
 import FoundationModels
 #endif
 import ImageIO
@@ -28,15 +18,18 @@ import Vision
 ///   is `#if compiler(>=6.2)` gated so the project still builds against the
 ///   iOS 18 SDK (Xcode 16), mirroring `LiquidGlass.swift`. When it yields no
 ///   usable table, recognition falls back to the line path.
-/// - **iOS 27+** sends the photo straight to Foundation Models (real language
-///   understanding of the whole panel, not per-line OCR), gated
-///   `#if compiler(>=6.4)` the same way `SiriIOS27.swift` gates new-in-iOS-27
-///   symbols (`Attachment`, `OCRTool`, `BarcodeReaderTool`) that don't exist
-///   in older SDKs at all. When available, its result is validated and
-///   merged with the Vision+parser result (`NutritionLabelValidator`) rather
-///   than trusted outright, and any failure — unavailable model, thrown
-///   error, or an implausible result — falls back to Vision+parser, which
-///   remains the only path on iOS < 27.
+/// - **iOS 27+** sends the photo straight to Foundation Models as an
+///   `Attachment` (real language understanding of the whole panel, not
+///   per-line OCR), gated `#if compiler(>=6.4)` the same way
+///   `SiriIOS27.swift` gates new-in-iOS-27 symbols that don't exist in older
+///   SDKs at all. The recognized text from the iOS 18 line path is included
+///   as extra prompt context (helps with small/dense print), and a barcode
+///   is read separately with Vision's plain `DetectBarcodesRequest` — not a
+///   Foundation Models tool call, so its result never depends on the model.
+///   The model's result is validated and merged with the Vision+parser
+///   result (`NutritionLabelValidator`) rather than trusted outright, and any
+///   failure — unavailable model, thrown error, or an implausible result —
+///   falls back to Vision+parser, which remains the only path on iOS < 27.
 struct NutritionLabelScanner {
     enum ScanError: Error {
         case invalidImage
@@ -63,11 +56,15 @@ struct NutritionLabelScanner {
             do {
                 if let extraction = try await scanWithFoundationModel(imageData) {
                     let fallback = try await scanWithVision(imageData)
-                    return NutritionLabelValidator.merge(
+                    var merged = NutritionLabelValidator.merge(
                         model: extraction.parsedNutrition,
                         fallback: fallback,
                         computedFromServing: !extraction.valuesAreBasisPer100
                     )
+                    // Best-effort — a barcode isn't always in frame, and a
+                    // detection failure here shouldn't fail the whole scan.
+                    merged.barcode = try? await detectBarcode(imageData)
+                    return merged
                 }
             } catch {
                 ErrorReporter.captureWarning(
@@ -113,6 +110,15 @@ struct NutritionLabelScanner {
         }
     }
 
+    /// Plain Vision barcode detection (iOS 18+, unrelated to Foundation
+    /// Models) — used to capture a barcode visible in the same label photo
+    /// without asking a language model to transcribe it.
+    private func detectBarcode(_ imageData: Data) async throws -> String? {
+        let request = DetectBarcodesRequest()
+        let observations = try await request.perform(on: imageData)
+        return observations.first?.payloadString
+    }
+
     // MARK: - iOS 26 document/table recognition
 
     #if compiler(>=6.2)
@@ -148,13 +154,16 @@ struct NutritionLabelScanner {
 
     @available(iOS 27, *)
     private static let foundationModelInstructions = """
-    You are reading a nutrition-facts panel photographed from a food package label. \
-    The label may be printed in German, English, or a mix of both — common German \
-    terms are Energie/Brennwert (energy), Eiweiß (protein), Kohlenhydrate \
-    (carbohydrate), davon Zucker (of which sugars), Fett (fat), davon gesättigte \
-    Fettsäuren (of which saturates), Ballaststoffe (fibre) and Salz (salt). Use the OCR \
-    tool if the print is too small or dense to read confidently yourself, and use the \
-    barcode tool if a barcode is visible anywhere in the photo.
+    You are reading a nutrition-facts panel photographed from a food package label, \
+    given as an image plus (when available) the raw text an on-device OCR pass already \
+    recognized from that same photo. The OCR text can be noisy, out of reading order, or \
+    missing lines the image itself still shows clearly, so read the image directly and \
+    use the OCR text only to help with small or dense print you can't otherwise make out.
+
+    The label may be printed in German, English, or a mix of both — common German terms \
+    are Energie/Brennwert (energy), Eiweiß (protein), Kohlenhydrate (carbohydrate), davon \
+    Zucker (of which sugars), Fett (fat), davon gesättigte Fettsäuren (of which \
+    saturates), Ballaststoffe (fibre) and Salz (salt).
 
     Energy is usually printed as both kJ and kcal (e.g. "1569 kJ / 375 kcal") — always \
     report the kcal figure. If only kJ is printed, convert it to kcal by dividing by \
@@ -181,12 +190,17 @@ struct NutritionLabelScanner {
         guard case .available = SystemLanguageModel.default.availability else { return nil }
         guard let cgImage = Self.decodeCGImage(imageData) else { return nil }
 
-        let session = LanguageModelSession(
-            tools: [OCRTool(), BarcodeReaderTool()],
-            instructions: Self.foundationModelInstructions
-        )
+        // Best-effort OCR text as extra context (see the instructions above)
+        // — a failure here just means the model works from the image alone.
+        let ocrText = await (try? recognizeTextLines(imageData))?.map(\.text).joined(separator: "\n")
+        var prompt = "Extract the nutrition facts from this label photo."
+        if let ocrText, !ocrText.isEmpty {
+            prompt += "\n\nOCR text recognized from the same photo:\n\(ocrText)"
+        }
+
+        let session = LanguageModelSession(instructions: Self.foundationModelInstructions)
         let response = try await session.respond(generating: NutritionLabelExtraction.self) {
-            "Extract the nutrition facts — and the barcode, if one is visible — from this label photo."
+            prompt
             Attachment(cgImage)
         }
         return response.content
@@ -205,8 +219,9 @@ struct NutritionLabelScanner {
 /// Structured nutrition-label extraction produced by Foundation Models.
 /// Mirrors `ParsedNutrition`'s field set (see its doc comment for the split
 /// between core and extended fields) plus the serving/basis metadata the
-/// model needs to normalize a per-serving-only label to a per-100 basis, and
-/// a barcode captured from the same photo via `BarcodeReaderTool`.
+/// model needs to normalize a per-serving-only label to a per-100 basis. The
+/// barcode is captured separately with plain Vision (`detectBarcode`), not by
+/// the model, so it isn't part of this type.
 @available(iOS 27, *)
 @Generable
 private struct NutritionLabelExtraction {
@@ -277,12 +292,6 @@ private struct NutritionLabelExtraction {
 
     @Guide(description: "Added sugars per 100 g/ml in grams, only if broken out separately from total sugars")
     let addedSugars: Double?
-
-    @Guide(
-        description: "The digits of a barcode (EAN-13/UPC-A/etc.) decoded with the barcode tool, if one is " +
-            "visible anywhere in the photo"
-    )
-    let barcodeValue: String?
 }
 
 /// Kept as a plain extension, outside the `@Generable` struct's own member
@@ -312,7 +321,6 @@ extension NutritionLabelExtraction {
         result.iron = iron
         result.vitaminD = vitaminD
         result.addedSugars = addedSugars
-        result.barcode = barcodeValue
         return result
     }
 }
