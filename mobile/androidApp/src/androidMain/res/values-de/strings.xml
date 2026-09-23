@@ -458,6 +458,21 @@
     <string name="favorites_no_foods">Noch keine favorisierten Lebensmittel.\nMarkiere Lebensmittel als Favorit, um sie hier zu sehen.</string>
     <string name="favorites_no_recipes">Noch keine favorisierten Rezepte.\nMarkiere Rezepte als Favorit, um sie hier zu sehen.</string>
 
+    <!-- Recipe suggestions -->
+    <string name="recipe_suggestions_title">Rezeptvorschläge</string>
+    <string name="recipe_suggestions_subtitle">Was heute noch passt</string>
+    <string name="recipe_suggestions_remaining_header">Heute noch übrig</string>
+    <string name="recipe_suggestions_fit">%1$d%% passend</string>
+    <string name="recipe_suggestions_servings_chip">%1$s×</string>
+    <string name="recipe_suggestions_no_recipes">Noch keine Rezepte.\nErstelle ein Rezept, um hier Vorschläge zu sehen.</string>
+    <string name="recipe_suggestions_browse_recipes">Rezepte ansehen</string>
+    <string name="recipe_suggestions_no_goals">Noch keine Ziele festgelegt.\nLege deine Tagesziele fest, um Vorschläge für den Rest des Tages zu erhalten.</string>
+    <string name="recipe_suggestions_set_goals">Ziele festlegen</string>
+    <string name="recipe_suggestions_goal_reached">Ziel erreicht.\nDu hast deine heutigen Ziele erreicht — kein weiterer Vorschlag nötig.</string>
+    <string name="recipe_suggestions_logged">%1$s erfasst</string>
+    <string name="recipe_suggestions_log_failed">Rezept konnte nicht erfasst werden</string>
+    <string name="recipe_suggestions_load_failed">Vorschläge konnten nicht geladen werden</string>
+
     <!-- Meal picker sheet -->
     <string name="meal_picker_log_food">Lebensmittel erfassen</string>
     <string name="meal_picker_meal_label">Mahlzeit</string>
@@ -769,6 +784,7 @@
     <string name="settings_widget_day_properties">Tagesdetails</string>
     <string name="settings_widget_day_properties_desc">Wasser, Aktivität und Notizen zum Tag</string>
     <string name="settings_widget_favorites_desc">Zeigt deine Top 5 Lieblingslebensmittel</string>
+    <string name="settings_widget_recipe_suggestions_desc">Rezepte, die zum restlichen Tagesziel passen</string>
     <string name="settings_widget_supplements_desc">Zeigt die heutige Supplement-Checkliste</string>
     <string name="settings_widget_weight_desc">Zeigt deinen letzten Gewichtseintrag</string>
     <string name="settings_widget_sleep_desc">Schlafdauer und -qualität der letzten Nacht</string>
@@ -1118,6 +1134,8 @@
     <string name="dashboard_favorites_empty">Noch keine Favoriten</string>
     <string name="dashboard_favorite_logged">%1$s erfasst</string>
     <string name="dashboard_top_foods_count">%1$d\u00d7</string>
+    <string name="dashboard_recipe_suggestions_goal_reached">Ziel erreicht \u2014 heute nichts weiter n\u00f6tig</string>
+    <string name="dashboard_recipe_suggestions_empty">F\u00fcge ein Rezept hinzu, um Vorschl\u00e4ge zu erhalten</string>
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Nach %1$s verschoben</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>

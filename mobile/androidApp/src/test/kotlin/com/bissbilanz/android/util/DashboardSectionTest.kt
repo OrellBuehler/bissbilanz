@@ -13,6 +13,7 @@ class DashboardSectionTest {
         showDayPropertiesWidget: Boolean = true,
         showChartWidget: Boolean = true,
         showFavoritesWidget: Boolean = true,
+        showRecipeSuggestionsWidget: Boolean = true,
         showSupplementsWidget: Boolean = true,
         showWeightWidget: Boolean = true,
         showMealBreakdownWidget: Boolean = true,
@@ -21,6 +22,7 @@ class DashboardSectionTest {
     ) = Preferences(
         showChartWidget = showChartWidget,
         showFavoritesWidget = showFavoritesWidget,
+        showRecipeSuggestionsWidget = showRecipeSuggestionsWidget,
         showSupplementsWidget = showSupplementsWidget,
         showWeightWidget = showWeightWidget,
         showMealBreakdownWidget = showMealBreakdownWidget,
@@ -67,6 +69,7 @@ class DashboardSectionTest {
                         "meal-breakdown",
                         "supplements",
                         "favorites",
+                        "recipe-suggestions",
                         "day-properties",
                     ),
                 showFastingWidget = false,
@@ -82,6 +85,7 @@ class DashboardSectionTest {
                 DashboardSection.MEAL_BREAKDOWN,
                 DashboardSection.SUPPLEMENTS,
                 DashboardSection.FAVORITES,
+                DashboardSection.RECIPE_SUGGESTIONS,
                 DashboardSection.DAY_PROPERTIES,
             ),
             resolveDashboardSections(prefs.widgetOrder, prefs),
@@ -110,6 +114,7 @@ class DashboardSectionTest {
                 DashboardSection.DAY_PROPERTIES,
                 DashboardSection.CHART,
                 DashboardSection.FAVORITES,
+                DashboardSection.RECIPE_SUGGESTIONS,
                 DashboardSection.SUPPLEMENTS,
                 DashboardSection.WEIGHT,
                 DashboardSection.MEAL_BREAKDOWN,
@@ -127,6 +132,10 @@ class DashboardSectionTest {
         assertNull(DashboardSection.DAYLOG.visibilityUpdate(true))
         assertEquals(PreferencesUpdate(showSleepWidget = false), DashboardSection.SLEEP.visibilityUpdate(false))
         assertEquals(PreferencesUpdate(showFastingWidget = true), DashboardSection.FASTING.visibilityUpdate(true))
+        assertEquals(
+            PreferencesUpdate(showRecipeSuggestionsWidget = false),
+            DashboardSection.RECIPE_SUGGESTIONS.visibilityUpdate(false),
+        )
     }
 
     @Test

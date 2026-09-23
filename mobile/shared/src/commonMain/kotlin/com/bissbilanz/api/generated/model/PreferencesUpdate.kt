@@ -32,6 +32,7 @@ import kotlinx.serialization.encoding.*
  * @param showSleepWidget
  * @param showFastingWidget
  * @param showDayPropertiesWidget
+ * @param showRecipeSuggestionsWidget
  * @param widgetOrder
  * @param startPage
  * @param favoriteTapAction
@@ -59,6 +60,7 @@ data class PreferencesUpdate(
     @SerialName(value = "showSleepWidget") val showSleepWidget: kotlin.Boolean? = null,
     @SerialName(value = "showFastingWidget") val showFastingWidget: kotlin.Boolean? = null,
     @SerialName(value = "showDayPropertiesWidget") val showDayPropertiesWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showRecipeSuggestionsWidget") val showRecipeSuggestionsWidget: kotlin.Boolean? = null,
     @SerialName(value = "widgetOrder") val widgetOrder: kotlin.collections.List<PreferencesUpdate.WidgetOrder>? = null,
     @SerialName(value = "startPage") val startPage: PreferencesUpdate.StartPage? = null,
     @SerialName(value = "favoriteTapAction") val favoriteTapAction: PreferencesUpdate.FavoriteTapAction? = null,
@@ -78,7 +80,7 @@ data class PreferencesUpdate(
     /**
      *
      *
-     * Values: fasting,dayMinusProperties,chart,streaks,favorites,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
+     * Values: fasting,dayMinusProperties,chart,streaks,favorites,recipeMinusSuggestions,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
      */
     @Serializable
     enum class WidgetOrder(
@@ -98,6 +100,9 @@ data class PreferencesUpdate(
 
         @SerialName(value = "favorites")
         favorites("favorites"),
+
+        @SerialName(value = "recipe-suggestions")
+        recipeMinusSuggestions("recipe-suggestions"),
 
         @SerialName(value = "supplements")
         supplements("supplements"),

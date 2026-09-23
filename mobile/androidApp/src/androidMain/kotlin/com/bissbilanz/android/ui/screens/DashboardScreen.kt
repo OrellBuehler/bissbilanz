@@ -45,6 +45,7 @@ import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealBreakdownWidget
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.RecipeSuggestionsWidget
 import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.TopFoodsWidget
@@ -543,6 +544,24 @@ fun DashboardScreen(navController: NavController) {
                                                 FavoritesQuickLogWidget(
                                                     date = selectedDate.toString(),
                                                     onViewAll = { navController.navigate("favorites") },
+                                                    onLogged = { name ->
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar(loggedFormat.format(name))
+                                                        }
+                                                        viewModel.loadData()
+                                                    },
+                                                )
+                                            }
+                                        }
+
+                                        DashboardSection.RECIPE_SUGGESTIONS -> {
+                                            // Suggestions rank recipes against what's left of *today's*
+                                            // goal, so — same as favourites — they only make sense on today.
+                                            if (selectedDate == today) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                RecipeSuggestionsWidget(
+                                                    date = selectedDate.toString(),
+                                                    onViewAll = { navController.navigate("recipe-suggestions") },
                                                     onLogged = { name ->
                                                         scope.launch {
                                                             snackbarHostState.showSnackbar(loggedFormat.format(name))

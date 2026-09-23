@@ -460,6 +460,21 @@
     <string name="favorites_no_foods">No favorite foods yet.\nMark foods as favorite to see them here.</string>
     <string name="favorites_no_recipes">No favorite recipes yet.\nMark recipes as favorite to see them here.</string>
 
+    <!-- Recipe suggestions -->
+    <string name="recipe_suggestions_title">Recipe suggestions</string>
+    <string name="recipe_suggestions_subtitle">What fits today</string>
+    <string name="recipe_suggestions_remaining_header">Remaining today</string>
+    <string name="recipe_suggestions_fit">%1$d%% fit</string>
+    <string name="recipe_suggestions_servings_chip">%1$s×</string>
+    <string name="recipe_suggestions_no_recipes">No recipes yet.\nCreate a recipe to see suggestions here.</string>
+    <string name="recipe_suggestions_browse_recipes">Browse recipes</string>
+    <string name="recipe_suggestions_no_goals">No goals set yet.\nSet your daily goals to get suggestions for the rest of the day.</string>
+    <string name="recipe_suggestions_set_goals">Set goals</string>
+    <string name="recipe_suggestions_goal_reached">Goal reached.\nYou\'ve hit today\'s targets — nothing more to suggest.</string>
+    <string name="recipe_suggestions_logged">Logged %1$s</string>
+    <string name="recipe_suggestions_log_failed">Failed to log recipe</string>
+    <string name="recipe_suggestions_load_failed">Failed to load suggestions</string>
+
     <!-- Meal picker sheet -->
     <string name="meal_picker_log_food">Log Food</string>
     <string name="meal_picker_meal_label">Meal</string>
@@ -771,6 +786,7 @@
     <string name="settings_widget_day_properties">Day details</string>
     <string name="settings_widget_day_properties_desc">Water, activity and notes for the day</string>
     <string name="settings_widget_favorites_desc">Shows your top 5 favorite foods</string>
+    <string name="settings_widget_recipe_suggestions_desc">Recipes that fit what\'s left of today\'s goal</string>
     <string name="settings_widget_supplements_desc">Shows today\'s supplement checklist</string>
     <string name="settings_widget_weight_desc">Shows your latest weight entry</string>
     <string name="settings_widget_sleep_desc">Last night\'s sleep duration and quality</string>
@@ -1120,6 +1136,8 @@
     <string name="dashboard_favorites_empty">No favorites yet</string>
     <string name="dashboard_favorite_logged">Logged %1$s</string>
     <string name="dashboard_top_foods_count">%1$d\u00d7</string>
+    <string name="dashboard_recipe_suggestions_goal_reached">Goal reached \u2014 nothing more needed today</string>
+    <string name="dashboard_recipe_suggestions_empty">Add a recipe to get suggestions</string>
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Moved to %1$s</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>

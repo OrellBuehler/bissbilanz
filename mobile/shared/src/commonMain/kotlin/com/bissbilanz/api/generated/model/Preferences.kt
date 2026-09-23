@@ -32,6 +32,7 @@ import kotlinx.serialization.encoding.*
  * @param showSleepWidget
  * @param showFastingWidget
  * @param showDayPropertiesWidget
+ * @param showRecipeSuggestionsWidget
  * @param widgetOrder
  * @param mealOrder
  * @param startPage
@@ -60,6 +61,7 @@ data class Preferences(
     @SerialName(value = "showSleepWidget") @Required val showSleepWidget: kotlin.Boolean,
     @SerialName(value = "showFastingWidget") @Required val showFastingWidget: kotlin.Boolean,
     @SerialName(value = "showDayPropertiesWidget") @Required val showDayPropertiesWidget: kotlin.Boolean,
+    @SerialName(value = "showRecipeSuggestionsWidget") @Required val showRecipeSuggestionsWidget: kotlin.Boolean,
     @SerialName(value = "widgetOrder") @Required val widgetOrder: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "mealOrder") @Required val mealOrder: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "startPage") @Required val startPage: kotlin.String,

@@ -1331,5 +1331,18 @@
 	"common_back": "Zurück",
 	"calendar_previous_month": "Vorheriger Monat",
 	"calendar_next_month": "Nächster Monat",
-	"common_actions": "Aktionen"
+	"common_actions": "Aktionen",
+	"nav_recipe_suggestions": "Rezeptvorschläge",
+	"dashboard_recipe_suggestions_title": "Was heute noch passt",
+	"recipe_suggestions_see_all": "Alle anzeigen",
+	"recipe_suggestions_remaining_title": "Heute noch übrig",
+	"recipe_suggestions_no_goals_desc": "Lege deine täglichen Makroziele fest, um Rezeptvorschläge zu erhalten.",
+	"recipe_suggestions_set_goals": "Ziele festlegen",
+	"recipe_suggestions_no_recipes_desc": "Füge ein Rezept hinzu, um Vorschläge für die nächste Mahlzeit zu erhalten.",
+	"recipe_suggestions_goal_reached_title": "Ziel erreicht",
+	"recipe_suggestions_goal_reached_desc": "Du hast dein heutiges Kalorienziel erreicht — gut gemacht.",
+	"recipe_suggestions_no_fit_desc": "Keines deiner Rezepte passt gerade gut genug zum verbleibenden Budget.",
+	"recipe_suggestions_fit": "{percent}% passend",
+	"settings_widget_recipe_suggestions": "Rezeptvorschläge-Widget",
+	"settings_widget_recipe_suggestions_desc": "Zeigt Rezepte, die zu deinen heutigen verbleibenden Makros passen"
 }

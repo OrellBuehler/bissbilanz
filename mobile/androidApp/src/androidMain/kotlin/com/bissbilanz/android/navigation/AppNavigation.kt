@@ -44,10 +44,14 @@ sealed class Screen(
 
     data object Supplements : Screen("supplements", R.string.chart_supplements, Icons.Default.Medication)
 
+    data object RecipeSuggestions :
+        Screen("recipe-suggestions", R.string.recipe_suggestions_title, Icons.Default.Lightbulb)
+
     data object Settings : Screen("settings", R.string.settings_title, Icons.Default.Settings)
 }
 
-val allMiddleTabs = listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements)
+val allMiddleTabs =
+    listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements, Screen.RecipeSuggestions)
 
 const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
@@ -110,6 +114,7 @@ fun AppNavigation() {
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
+                    (currentRoute == "recipe-suggestions" && "recipe-suggestions" !in selectedTabRoutes) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -234,6 +239,10 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("supplements") {
         com.bissbilanz.android.ui.screens
             .SupplementsScreen(navController)
+    }
+    composable("recipe-suggestions") {
+        com.bissbilanz.android.ui.screens
+            .RecipeSuggestionsScreen(navController)
     }
     composable("supplement-history") {
         com.bissbilanz.android.ui.screens
