@@ -29,10 +29,12 @@ struct MealEstimatorPrivateCloudTests {
         #expect(!MealEstimator.isWeakEstimate(estimate))
     }
 
-    @Test("Exactly-threshold confidence is weak, just above is not")
+    @Test("Confidence at the threshold is not weak, just below is")
     func thresholdBoundary() {
-        #expect(MealEstimator.isWeakEstimate(MealEstimate(items: [makeItem(confidence: 0.5)])))
-        #expect(!MealEstimator.isWeakEstimate(MealEstimate(items: [makeItem(confidence: 0.51)])))
+        // isWeakEstimate uses a strict `< 0.5`, matching AIMealReviewView's
+        // existing "low confidence" row badge — exactly 0.5 doesn't count.
+        #expect(!MealEstimator.isWeakEstimate(MealEstimate(items: [makeItem(confidence: 0.5)])))
+        #expect(MealEstimator.isWeakEstimate(MealEstimate(items: [makeItem(confidence: 0.49)])))
     }
 
     // MARK: - isRetryableOnPrivateCloud
