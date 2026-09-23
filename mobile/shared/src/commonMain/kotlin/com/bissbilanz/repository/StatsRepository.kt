@@ -92,6 +92,12 @@ class StatsRepository(
             if (rows.isNotEmpty()) {
                 val entries = rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
                 val totals = entries.totalMacros()
+                val activityCalories =
+                    db.userDataDatabaseQueries
+                        .selectDayProperties(current)
+                        .executeAsOneOrNull()
+                        ?.activityCalories
+                        ?.toInt()
                 data.add(
                     DailyStatsEntry(
                         date = current,
@@ -100,6 +106,7 @@ class StatsRepository(
                         carbs = totals.carbs,
                         fat = totals.fat,
                         fiber = totals.fiber,
+                        activityCalories = activityCalories,
                     ),
                 )
             }
@@ -116,11 +123,16 @@ class StatsRepository(
                     fiberGoal = it.fiberGoal,
                 )
             }
+        val prefs =
+            db.userDataDatabaseQueries
+                .selectPreferences()
+                .executeAsOneOrNull()
+                ?.let { json.decodeOrNull<Preferences>(it.jsonData) }
         return DailyStatsResponse(
             data = data,
             goals = goals,
-            activityGoalAdjustment = false,
-            activityCreditPercent = 100,
+            activityGoalAdjustment = prefs?.activityGoalAdjustment ?: false,
+            activityCreditPercent = prefs?.activityCreditPercent ?: 100,
         )
     }
 }

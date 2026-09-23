@@ -1089,6 +1089,11 @@
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
     <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+    <!-- Settings: workout goal adjustment -->
+    <string name="settings_activity_goal_adjustment_title">Workout-Kalorien</string>
+    <string name="settings_activity_goal_adjustment">Ziele durch Workout-Kalorien erhöhen</string>
+    <string name="settings_activity_goal_adjustment_desc">Erhöht das heutige Kalorien- und Makroziel um einen Anteil der für den Tag erfassten Aktivitätskalorien.</string>
+    <string name="settings_activity_credit_percent">Anrechnung: %1$d%%</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Tägliches Wasserziel</string>
     <string name="settings_water_goal_desc">Wird als Fortschrittsbalken im Tagesprotokoll angezeigt</string>

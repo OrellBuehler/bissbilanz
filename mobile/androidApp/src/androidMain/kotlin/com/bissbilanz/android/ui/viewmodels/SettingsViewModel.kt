@@ -161,6 +161,30 @@ class SettingsViewModel(
         }
     }
 
+    fun updateActivityGoalAdjustment(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(activityGoalAdjustment = enabled))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
+    fun updateActivityCreditPercent(percent: Int) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(activityCreditPercent = percent.coerceIn(0, 100)))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
     fun updateVisibleNutrients(nutrients: List<String>) {
         viewModelScope.launch {
             try {

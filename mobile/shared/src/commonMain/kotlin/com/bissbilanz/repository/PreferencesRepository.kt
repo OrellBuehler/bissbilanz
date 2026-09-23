@@ -144,6 +144,8 @@ class PreferencesRepository(
             locale = update.locale?.value ?: current.locale,
             timeZone = update.timeZone ?: current.timeZone,
             waterGoalMl = update.waterGoalMl ?: current.waterGoalMl,
+            activityGoalAdjustment = update.activityGoalAdjustment ?: current.activityGoalAdjustment,
+            activityCreditPercent = update.activityCreditPercent ?: current.activityCreditPercent,
             biologicalSex =
                 if (PreferencesField.BIOLOGICAL_SEX in cleared) {
                     null

@@ -4,7 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.ActivityAdjustedGoals
+import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -80,6 +84,9 @@ class DashboardViewModel(
     private val _activityCalories = MutableStateFlow<Int?>(null)
     val activityCalories: StateFlow<Int?> = _activityCalories.asStateFlow()
 
+    private val _activityCaloriesSource = MutableStateFlow<DayProperties.ActivityCaloriesSource?>(null)
+    val activityCaloriesSource: StateFlow<DayProperties.ActivityCaloriesSource?> = _activityCaloriesSource.asStateFlow()
+
     private val _activityNote = MutableStateFlow<String?>(null)
     val activityNote: StateFlow<String?> = _activityNote.asStateFlow()
 
@@ -110,6 +117,21 @@ class DashboardViewModel(
         prefsRepo
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /**
+     * Today's goals raised by a share of the day's workout calories, when the user
+     * opted in under Settings. Falls back to the unadjusted goals (zero bonus) while
+     * disabled or before either goals or prefs have loaded.
+     */
+    val adjustedGoals: StateFlow<ActivityAdjustedGoals?> =
+        combine(goals, activityCalories, prefs) { currentGoals, calories, currentPrefs ->
+            adjustGoalsForActivity(
+                currentGoals,
+                calories,
+                enabled = currentPrefs?.activityGoalAdjustment ?: false,
+                creditPercent = currentPrefs?.activityCreditPercent ?: 100,
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
         loadData()
@@ -176,6 +198,7 @@ class DashboardViewModel(
             _notes.value = props?.notes ?: ""
             _waterMl.value = props?.waterMl
             _activityCalories.value = props?.activityCalories
+            _activityCaloriesSource.value = props?.activityCaloriesSource
             _activityNote.value = props?.activityNote
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -184,6 +207,7 @@ class DashboardViewModel(
             _notes.value = ""
             _waterMl.value = null
             _activityCalories.value = null
+            _activityCaloriesSource.value = null
             _activityNote.value = null
         }
     }
@@ -238,6 +262,10 @@ class DashboardViewModel(
         val clampedCalories = calories?.coerceIn(0, MAX_ACTIVITY_CALORIES)
         val trimmedNote = note?.trim()?.takeIf { it.isNotEmpty() }
         _activityCalories.value = clampedCalories
+        // Mirrors EntryRepository's default: a manual edit that sets a value takes
+        // "manual" as its source, and clearing the value clears the source too.
+        _activityCaloriesSource.value =
+            if (clampedCalories != null) DayProperties.ActivityCaloriesSource.manual else null
         _activityNote.value = trimmedNote
         viewModelScope.launch {
             try {

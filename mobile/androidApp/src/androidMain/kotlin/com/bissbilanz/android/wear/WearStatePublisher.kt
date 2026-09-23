@@ -2,10 +2,12 @@ package com.bissbilanz.android.wear
 
 import android.content.Context
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.DefaultGoals
@@ -115,6 +117,7 @@ class WearStatePublisher(
     private val foodRepository: FoodRepository,
     private val weightRepository: WeightRepository,
     private val sleepRepository: SleepRepository,
+    private val preferencesRepository: PreferencesRepository,
     private val errorReporter: ErrorReporter,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -178,7 +181,16 @@ class WearStatePublisher(
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val todayString = today.toString()
         val entries = entryRepository.entriesByDate(todayString).first()
-        val goals = goalsRepository.goals().first()
+        val rawGoals = goalsRepository.goals().first()
+        val dayProperties = entryRepository.getDayProperties(todayString)
+        val prefs = preferencesRepository.preferences().first()
+        val goals =
+            adjustGoalsForActivity(
+                rawGoals,
+                dayProperties?.activityCalories,
+                enabled = prefs?.activityGoalAdjustment ?: false,
+                creditPercent = prefs?.activityCreditPercent ?: 100,
+            )?.goals ?: rawGoals
         val favorites = foodRepository.favorites().first()
         // From the local entry log, not the in-memory recents list: that is only
         // filled once the app has loaded it, and a watch log starts this process

@@ -85,7 +85,9 @@ fun DashboardScreen(navController: NavController) {
     val waterMl by viewModel.waterMl.collectAsStateWithLifecycle()
     val waterGoalMl by viewModel.waterGoalMl.collectAsStateWithLifecycle()
     val activityCalories by viewModel.activityCalories.collectAsStateWithLifecycle()
+    val activityCaloriesSource by viewModel.activityCaloriesSource.collectAsStateWithLifecycle()
     val activityNote by viewModel.activityNote.collectAsStateWithLifecycle()
+    val adjustedGoals by viewModel.adjustedGoals.collectAsStateWithLifecycle()
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
@@ -130,6 +132,11 @@ fun DashboardScreen(navController: NavController) {
     val totalCarbs = remember(entries) { entries.sumOf { it.resolvedCarbs() } }
     val totalFat = remember(entries) { entries.sumOf { it.resolvedFat() } }
     val totalFiber = remember(entries) { entries.sumOf { it.resolvedFiber() } }
+
+    // Rings, remaining calories and macro targets all read the activity-adjusted
+    // goals so a workout-credit day shows the raised targets everywhere at once.
+    val effectiveGoals = adjustedGoals?.goals ?: goals
+    val activityBonus = adjustedGoals?.activityBonus ?: 0
 
     val dateLabel = dayLabel(selectedDate)
 
@@ -326,7 +333,7 @@ fun DashboardScreen(navController: NavController) {
                     MacroRing(
                         stringResource(R.string.macro_calories),
                         totalCalories,
-                        goals?.calorieGoal ?: DefaultGoals.CALORIES,
+                        effectiveGoals?.calorieGoal ?: DefaultGoals.CALORIES,
                         CaloriesBlue,
                         size = 88.dp,
                         strokeWidth = 8.dp,
@@ -343,7 +350,7 @@ fun DashboardScreen(navController: NavController) {
                     MacroRing(
                         stringResource(R.string.macro_protein),
                         totalProtein,
-                        goals?.proteinGoal ?: DefaultGoals.PROTEIN,
+                        effectiveGoals?.proteinGoal ?: DefaultGoals.PROTEIN,
                         ProteinRed,
                         size = 56.dp,
                         strokeWidth = 5.dp,
@@ -352,7 +359,7 @@ fun DashboardScreen(navController: NavController) {
                     MacroRing(
                         stringResource(R.string.macro_carbs),
                         totalCarbs,
-                        goals?.carbGoal ?: DefaultGoals.CARBS,
+                        effectiveGoals?.carbGoal ?: DefaultGoals.CARBS,
                         CarbsOrange,
                         size = 56.dp,
                         strokeWidth = 5.dp,
@@ -361,7 +368,7 @@ fun DashboardScreen(navController: NavController) {
                     MacroRing(
                         stringResource(R.string.macro_fat),
                         totalFat,
-                        goals?.fatGoal ?: DefaultGoals.FAT,
+                        effectiveGoals?.fatGoal ?: DefaultGoals.FAT,
                         FatYellow,
                         size = 56.dp,
                         strokeWidth = 5.dp,
@@ -370,7 +377,7 @@ fun DashboardScreen(navController: NavController) {
                     MacroRing(
                         stringResource(R.string.macro_fiber),
                         totalFiber,
-                        goals?.fiberGoal ?: DefaultGoals.FIBER,
+                        effectiveGoals?.fiberGoal ?: DefaultGoals.FIBER,
                         FiberGreen,
                         size = 56.dp,
                         strokeWidth = 5.dp,
@@ -386,6 +393,13 @@ fun DashboardScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (activityBonus > 0) {
+                        Text(
+                            stringResource(R.string.day_activity_goal_bonus, activityBonus),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CaloriesBlue.macroTextTone(),
+                        )
+                    }
                 }
 
                 // Order and visibility come from prefs.widgetOrder; see DashboardSection
@@ -459,6 +473,7 @@ fun DashboardScreen(navController: NavController) {
                                                 waterMl = waterMl,
                                                 waterGoalMl = waterGoalMl,
                                                 activityCalories = activityCalories,
+                                                activityCaloriesSource = activityCaloriesSource,
                                                 activityNote = activityNote,
                                                 onAddWater = { viewModel.addWater(it) },
                                                 onSetWater = { viewModel.setWater(it) },
