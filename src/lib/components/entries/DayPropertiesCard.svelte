@@ -20,6 +20,7 @@
 	import GlassWater from '@lucide/svelte/icons/glass-water';
 	import Flame from '@lucide/svelte/icons/flame';
 	import NotebookPen from '@lucide/svelte/icons/notebook-pen';
+	import HeartPulse from '@lucide/svelte/icons/heart-pulse';
 	import X from '@lucide/svelte/icons/x';
 	import * as m from '$lib/paraglide/messages';
 
@@ -35,6 +36,14 @@
 
 	const stored = $derived(propsQuery.value ?? null);
 	const waterGoalMl = $derived(prefsQuery.value?.waterGoalMl ?? DEFAULT_WATER_GOAL_ML);
+
+	const activitySourceLabel = $derived.by(() => {
+		if (stored?.activityCaloriesSource === 'apple_health')
+			return m.day_properties_activity_source_apple_health();
+		if (stored?.activityCaloriesSource === 'health_connect')
+			return m.day_properties_activity_source_health_connect();
+		return null;
+	});
 
 	const waterMl = $derived(stored?.waterMl ?? 0);
 	const waterPercent = $derived(waterProgressPercent(waterMl, waterGoalMl));
@@ -240,6 +249,12 @@
 				</Button>
 			{/if}
 		</div>
+		{#if activitySourceLabel}
+			<p class="flex items-center gap-1 text-xs text-muted-foreground">
+				<HeartPulse class="size-3.5" />
+				{activitySourceLabel}
+			</p>
+		{/if}
 		<p class="text-xs text-muted-foreground">{m.day_activity_informational()}</p>
 	</div>
 </DashboardCard>

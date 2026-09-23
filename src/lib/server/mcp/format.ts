@@ -1,5 +1,6 @@
 import { sumEntries } from '$lib/utils/nutrition';
 import { roundNutrition } from '$lib/utils/round-nutrition';
+import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 
 type Entry = {
 	calories: number | null;
@@ -31,24 +32,46 @@ type DayProperties = {
 	activityNote?: string | null;
 } | null;
 
+type Preferences = {
+	activityGoalAdjustment: boolean;
+	activityCreditPercent: number;
+} | null;
+
 export const formatDailyStatus = ({
 	entries,
 	goals,
-	dayProperties
+	dayProperties,
+	preferences
 }: {
 	entries: Entry[];
 	goals: Goals;
 	dayProperties?: DayProperties;
+	preferences?: Preferences;
 }) => {
 	const totals = sumEntries(entries);
+	const day = dayProperties ?? null;
 
-	const progress = goals
+	// When the user has opted in, a day's activityCalories raises that day's
+	// goals (see $lib/utils/activity-goals.ts). Activity calories are never
+	// subtracted from intake — only the goal side moves.
+	const adjustedGoals = adjustGoalsForActivity(goals, day?.activityCalories, {
+		enabled: preferences?.activityGoalAdjustment ?? false,
+		creditPercent: preferences?.activityCreditPercent ?? 100
+	});
+	const activityBonus = adjustedGoals?.activityBonus ?? 0;
+	let effectiveGoals = goals;
+	if (activityBonus > 0 && adjustedGoals) {
+		const { activityBonus: _activityBonus, ...adjustedGoalsOnly } = adjustedGoals;
+		effectiveGoals = adjustedGoalsOnly;
+	}
+
+	const progress = effectiveGoals
 		? {
-				calories: pct(totals.calories, goals.calorieGoal),
-				protein: pct(totals.protein, goals.proteinGoal),
-				carbs: pct(totals.carbs, goals.carbGoal),
-				fat: pct(totals.fat, goals.fatGoal),
-				fiber: pct(totals.fiber, goals.fiberGoal)
+				calories: pct(totals.calories, effectiveGoals.calorieGoal),
+				protein: pct(totals.protein, effectiveGoals.proteinGoal),
+				carbs: pct(totals.carbs, effectiveGoals.carbGoal),
+				fat: pct(totals.fat, effectiveGoals.fatGoal),
+				fiber: pct(totals.fiber, effectiveGoals.fiberGoal)
 			}
 		: null;
 
@@ -66,19 +89,18 @@ export const formatDailyStatus = ({
 		byMeal[meal].fiber += (entry.fiber ?? 0) * entry.servings;
 	}
 
-	// Activity calories are informational only: they are never subtracted from
-	// intake or folded into goals/progress, which stay pure food-log figures.
-	const day = dayProperties ?? null;
-
 	return {
 		totals: roundNutrition(totals),
-		goals,
+		goals: effectiveGoals,
 		progress,
 		entryCount: entries.length,
 		byMeal: roundNutrition(byMeal),
 		...(day?.waterMl != null ? { waterMl: day.waterMl } : {}),
 		...(day?.activityCalories != null ? { activityCalories: day.activityCalories } : {}),
 		...(day?.activityNote ? { activityNote: day.activityNote } : {}),
-		...(day?.isFastingDay ? { isFastingDay: true } : {})
+		...(day?.isFastingDay ? { isFastingDay: true } : {}),
+		// Present only when the activity bonus actually changed the goals, so
+		// callers can tell an adjusted day apart from a plain one.
+		...(activityBonus > 0 ? { baseGoals: goals, activityBonus } : {})
 	};
 };

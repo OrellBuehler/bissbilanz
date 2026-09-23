@@ -81,6 +81,7 @@ let mockBiologicalSex: 'male' | 'female' | null = null;
 let mockMealTypes: any[] = [];
 let mockDayProperties: any = null;
 let mockDayPropertiesRange: any[] = [];
+let mockPreferences: any = null;
 let mockCalendarStats: any = null;
 let mockComputedAverages: any = null;
 let mockDateRangeEntries: any[] = [];
@@ -203,6 +204,7 @@ const mockDeps = {
 		entryCount: entries.length,
 		byMeal: {}
 	}),
+	getPreferences: async () => mockPreferences,
 	todayForUser: async () => '2026-02-10',
 	getSupplementChecklist: async () => {
 		const logMap = new Map(mockSupplementLogs.map((l: any) => [l.supplementId, l]));
@@ -420,6 +422,7 @@ describe('MCP handlers', () => {
 		mockMealTypes = [];
 		mockDayProperties = null;
 		mockDayPropertiesRange = [];
+		mockPreferences = null;
 		mockCalendarStats = null;
 		mockComputedAverages = null;
 		mockDateRangeEntries = [];

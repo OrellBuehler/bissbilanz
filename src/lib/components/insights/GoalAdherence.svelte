@@ -6,22 +6,29 @@
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import {
 		filterDaysWithEntries,
-		strictCount as _strictCount,
-		tolerantCount as _tolerantCount,
-		overallAdherence,
 		type DayRow,
 		type Goals,
 		type MacroKey
 	} from '$lib/utils/insights';
+	import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 
-	let { initialData }: { initialData?: { data: DayRow[]; goals: Goals | null } } = $props();
+	type InitialData = {
+		data: DayRow[];
+		goals: Goals | null;
+		activityGoalAdjustment?: boolean;
+		activityCreditPercent?: number;
+	};
+
+	let { initialData }: { initialData?: InitialData } = $props();
 
 	type RangeKey = '7d' | '30d' | '90d';
 	let range: RangeKey = $state('7d');
 	let data: DayRow[] = $state(initialData?.data ?? []);
 	let goals = $state<Goals | null>(initialData?.goals ?? null);
+	let activityGoalAdjustment = $state(initialData?.activityGoalAdjustment ?? false);
+	let activityCreditPercent = $state(initialData?.activityCreditPercent ?? 100);
 	let loading = $state(!initialData);
 	let refreshing = $state(false);
 
@@ -49,6 +56,8 @@
 			if (result) {
 				data = result.data;
 				goals = result.goals;
+				activityGoalAdjustment = result.activityGoalAdjustment ?? false;
+				activityCreditPercent = result.activityCreditPercent ?? 100;
 			}
 		} catch (err) {
 			Sentry.captureException(err, { extra: { range: r } });
@@ -73,22 +82,65 @@
 	const daysWithEntries = $derived(filterDaysWithEntries(data));
 	const totalDays = $derived(daysWithEntries.length);
 
-	function strictCount(key: MacroKey, goalVal: number): number {
-		return _strictCount(daysWithEntries, key, goalVal);
+	// Each day's goal is raised by its own activityCalories (when the user has
+	// opted in) before it's compared against that day's totals — see
+	// $lib/utils/activity-goals.ts.
+	const adjustedGoalsByDay = $derived(
+		goals
+			? daysWithEntries.map((day) =>
+					adjustGoalsForActivity(goals, day.activityCalories ?? null, {
+						enabled: activityGoalAdjustment,
+						creditPercent: activityCreditPercent
+					})
+				)
+			: []
+	);
+
+	function strictCount(key: MacroKey, goalKey: keyof NonNullable<Goals>): number {
+		let hits = 0;
+		for (let i = 0; i < daysWithEntries.length; i++) {
+			const goalVal = adjustedGoalsByDay[i]?.[goalKey] ?? 0;
+			if (goalVal > 0 && daysWithEntries[i][key] >= goalVal) hits++;
+		}
+		return hits;
 	}
 
-	function tolerantCount(key: MacroKey, goalVal: number): number {
-		return _tolerantCount(daysWithEntries, key, goalVal);
+	function tolerantCount(key: MacroKey, goalKey: keyof NonNullable<Goals>): number {
+		let hits = 0;
+		for (let i = 0; i < daysWithEntries.length; i++) {
+			const goalVal = adjustedGoalsByDay[i]?.[goalKey] ?? 0;
+			if (goalVal <= 0) continue;
+			const value = daysWithEntries[i][key];
+			if (value >= goalVal * 0.9 && value <= goalVal * 1.1) hits++;
+		}
+		return hits;
+	}
+
+	function overallAdherenceAdjusted(mode: 'strict' | 'tolerant'): number {
+		if (!goals) return 0;
+		let total = 0;
+		let hit = 0;
+		for (const macro of macros) {
+			// Skip macros the user never set a goal for, same as before per-day
+			// adjustment — a day's own adjusted value only ever raises this base.
+			if (!goals[macro.goalKey]) continue;
+			total += totalDays;
+			hit +=
+				mode === 'strict'
+					? strictCount(macro.key, macro.goalKey)
+					: tolerantCount(macro.key, macro.goalKey);
+		}
+		return total > 0 ? Math.round((hit / total) * 100) : 0;
 	}
 
 	const overallStrict = $derived.by(() => {
-		if (!goals) return 0;
-		return overallAdherence(data, goals, _strictCount);
+		if (!goals || totalDays === 0) return 0;
+		return overallAdherenceAdjusted('strict');
 	});
 
 	const overallTolerant = $derived.by(() => {
-		if (!goals) return 0;
-		return overallAdherence(data, goals, _tolerantCount);
+		if (!goals || totalDays === 0) return 0;
+		return overallAdherenceAdjusted('tolerant');
 	});
 </script>
 
@@ -130,8 +182,8 @@
 			{#each macros as macro (macro.key)}
 				{@const goalVal = goals[macro.goalKey]}
 				{#if goalVal}
-					{@const strict = strictCount(macro.key, goalVal)}
-					{@const tolerant = tolerantCount(macro.key, goalVal)}
+					{@const strict = strictCount(macro.key, macro.goalKey)}
+					{@const tolerant = tolerantCount(macro.key, macro.goalKey)}
 					<div class="space-y-1.5">
 						<div class="flex items-center justify-between">
 							<span class="text-sm font-medium" style="color: {MACRO_COLORS[macro.key]}"

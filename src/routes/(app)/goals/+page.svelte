@@ -3,15 +3,18 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Slider } from '$lib/components/ui/slider/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import MacroSliders from '$lib/components/MacroSliders.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { round2, parseDecimalInput, inputText } from '$lib/utils/number';
 	import { MACRO_TEXT_CLASS } from '$lib/utils/colors';
 	import Target from '@lucide/svelte/icons/target';
+	import Flame from '@lucide/svelte/icons/flame';
 	import * as m from '$lib/paraglide/messages';
 
 	let form = $state({
@@ -25,6 +28,8 @@
 	let targetDate = $state('');
 	let saving = $state(false);
 	let macroValid = $state(true);
+	let activityGoalAdjustment = $state(false);
+	let activityCreditPercent = $state(100);
 
 	// `targetWeight` is a raw text field (comma or dot decimals, parsed with
 	// `parseDecimalInput` on save), so never call string methods on the state
@@ -32,9 +37,11 @@
 	const targetWeightText = $derived(inputText(targetWeight));
 
 	const cachedGoals = useLiveQuery(() => goalsService.goals(), undefined);
+	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
 
 	$effect(() => {
 		goalsService.refresh();
+		preferencesService.refresh();
 	});
 
 	$effect(() => {
@@ -56,9 +63,29 @@
 		}
 	});
 
+	$effect(() => {
+		const p = cachedPrefs.value;
+		if (p) {
+			activityGoalAdjustment = p.activityGoalAdjustment ?? false;
+			activityCreditPercent = p.activityCreditPercent ?? 100;
+		}
+	});
+
 	const clearTarget = () => {
 		targetWeight = '';
 		targetDate = '';
+	};
+
+	const toggleActivityAdjustment = async (checked: boolean) => {
+		activityGoalAdjustment = checked;
+		const ok = await preferencesService.update({ activityGoalAdjustment: checked });
+		if (!ok) toast.error(m.goals_save_failed());
+	};
+
+	const commitActivityCreditPercent = async (value: number) => {
+		activityCreditPercent = value;
+		const ok = await preferencesService.update({ activityCreditPercent: value });
+		if (!ok) toast.error(m.goals_save_failed());
 	};
 
 	const saveGoals = async () => {
@@ -160,6 +187,38 @@
 						<Button variant="ghost" size="sm" onclick={clearTarget}>
 							{m.goals_target_clear()}
 						</Button>
+					</div>
+				{/if}
+			</div>
+
+			<div class="grid gap-3 border-t pt-6">
+				<div class="flex items-center gap-3">
+					<div
+						class="flex size-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400"
+					>
+						<Flame class="size-4" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium">{m.goals_activity_adjust()}</p>
+						<p class="text-xs text-muted-foreground">{m.goals_activity_adjust_desc()}</p>
+					</div>
+					<Switch checked={activityGoalAdjustment} onCheckedChange={toggleActivityAdjustment} />
+				</div>
+
+				{#if activityGoalAdjustment}
+					<div class="space-y-2 pl-11">
+						<div class="flex items-center justify-between text-sm">
+							<span class="text-muted-foreground">{m.goals_activity_credit_percent()}</span>
+							<span class="text-muted-foreground">{activityCreditPercent}%</span>
+						</div>
+						<Slider
+							type="single"
+							value={activityCreditPercent}
+							min={0}
+							max={100}
+							step={5}
+							onValueChange={commitActivityCreditPercent}
+						/>
 					</div>
 				{/if}
 			</div>
