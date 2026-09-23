@@ -68,6 +68,8 @@ export const DEFAULT_PREFERENCES = {
 	visibleNutrients: [...DEFAULT_VISIBLE_NUTRIENTS] as string[],
 	biologicalSex: null as 'male' | 'female' | null,
 	waterGoalMl: 2000,
+	activityGoalAdjustment: false,
+	activityCreditPercent: 100,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

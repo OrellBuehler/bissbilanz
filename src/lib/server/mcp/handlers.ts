@@ -43,7 +43,7 @@ import {
 } from '$lib/server/stats';
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { todayInTimeZone } from '$lib/utils/dates';
-import { getUserTimeZone } from '$lib/server/preferences';
+import { getUserTimeZone, getPreferences } from '$lib/server/preferences';
 import {
 	createSupplement,
 	listSupplements,
@@ -230,6 +230,7 @@ export const {
 	getNutrientCandidates,
 	getBiologicalSex,
 	getUserTimeZone,
+	getPreferences,
 	listMealTypes,
 	getDayProperties,
 	getDayPropertiesRange,

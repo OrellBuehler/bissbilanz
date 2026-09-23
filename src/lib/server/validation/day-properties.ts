@@ -4,6 +4,9 @@ import { z } from 'zod';
 export const MAX_WATER_ML = 20000;
 export const MAX_ACTIVITY_CALORIES = 20000;
 
+export const activityCaloriesSourceValues = ['manual', 'apple_health', 'health_connect'] as const;
+export type ActivityCaloriesSource = (typeof activityCaloriesSourceValues)[number];
+
 // PATCH-style: an omitted field is left unchanged, an explicit null clears it.
 export const dayPropertiesSetSchema = z
 	.object({
@@ -18,6 +21,10 @@ export const dayPropertiesSetSchema = z
 			.max(MAX_ACTIVITY_CALORIES)
 			.optional()
 			.nullable(),
+		// Where activityCalories came from. Omitted keeps the stored value (or
+		// defaults to 'manual' when activityCalories is set in the same patch);
+		// explicit null clears it back to unset/manual.
+		activityCaloriesSource: z.enum(activityCaloriesSourceValues).optional().nullable(),
 		activityNote: z.string().max(200).optional().nullable()
 	})
 	.meta({ id: 'DayPropertiesSet' });

@@ -1510,6 +1510,7 @@ export interface components {
 			notes?: string | null;
 			waterMl?: number | null;
 			activityCalories?: number | null;
+			activityCaloriesSource?: ('manual' | 'apple_health' | 'health_connect') | null;
 			activityNote?: string | null;
 		};
 		PreferencesUpdate: {
@@ -1579,6 +1580,8 @@ export interface components {
 			caloricLagDaysOverride?: number | null;
 			waterGoalMl?: number | null;
 			biologicalSex?: ('male' | 'female') | null;
+			activityGoalAdjustment?: boolean;
+			activityCreditPercent?: number;
 			timeZone?: string;
 		};
 		FavoriteMealTimeframeInput: {
@@ -2126,6 +2129,8 @@ export interface components {
 		DailyStatsResponse: {
 			data: components['schemas']['DailyStat'][];
 			goals: components['schemas']['GoalsSummary'];
+			activityGoalAdjustment: boolean;
+			activityCreditPercent: number;
 		};
 		DailyStat: {
 			date: string;
@@ -2134,6 +2139,7 @@ export interface components {
 			carbs: number;
 			fat: number;
 			fiber: number;
+			activityCalories?: number | null;
 		};
 		GoalsSummary: {
 			calorieGoal: number;
@@ -2204,6 +2210,7 @@ export interface components {
 			notes: string | null;
 			waterMl: number | null;
 			activityCalories: number | null;
+			activityCaloriesSource: ('manual' | 'apple_health' | 'health_connect') | null;
 			activityNote: string | null;
 		};
 		DayPropertiesRangeResponse: {
@@ -2233,6 +2240,8 @@ export interface components {
 			caloricLagDaysOverride?: number | null;
 			waterGoalMl: number;
 			biologicalSex?: ('male' | 'female') | null;
+			activityGoalAdjustment: boolean;
+			activityCreditPercent: number;
 			locale: string | null;
 			timeZone: string;
 			updatedAt?: string;

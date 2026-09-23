@@ -93,6 +93,7 @@ import type {
 	getDailyNutrientTotals
 } from '$lib/server/analytics';
 import type { listMealTypes } from '$lib/server/meal-types';
+import type { getPreferences } from '$lib/server/preferences';
 import type {
 	getDayProperties,
 	getDayPropertiesRange,
@@ -197,6 +198,8 @@ export type HandlerDeps = {
 	getUserTimeZone: (userId: string) => Promise<string>;
 	// Meal types
 	listMealTypes: typeof listMealTypes;
+	// Preferences (activity goal adjustment)
+	getPreferences: typeof getPreferences;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
 	getDayPropertiesRange: typeof getDayPropertiesRange;
@@ -247,23 +250,25 @@ export function createHandlers(d: HandlerDeps) {
 	}
 
 	const getDailyStatusForDate = async (userId: string, date: string) => {
-		const [{ items: entries }, goals, dayProperties] = await Promise.all([
+		const [{ items: entries }, goals, dayProperties, preferences] = await Promise.all([
 			d.listEntriesByDate(userId, date),
 			d.getGoals(userId),
-			d.getDayProperties(userId, date)
+			d.getDayProperties(userId, date),
+			d.getPreferences(userId)
 		]);
-		return d.formatDailyStatus({ entries, goals, dayProperties });
+		return d.formatDailyStatus({ entries, goals, dayProperties, preferences });
 	};
 
 	const handleGetDailyStatus = async (userId: string, date?: string, includeEntries?: boolean) => {
 		try {
 			const targetDate = date ?? (await d.todayForUser(userId));
-			const [{ items: entries }, goals, dayProperties] = await Promise.all([
+			const [{ items: entries }, goals, dayProperties, preferences] = await Promise.all([
 				d.listEntriesByDate(userId, targetDate),
 				d.getGoals(userId),
-				d.getDayProperties(userId, targetDate)
+				d.getDayProperties(userId, targetDate),
+				d.getPreferences(userId)
 			]);
-			const status = d.formatDailyStatus({ entries, goals, dayProperties });
+			const status = d.formatDailyStatus({ entries, goals, dayProperties, preferences });
 			if (includeEntries) {
 				return { ...status, date: targetDate, entries };
 			}

@@ -753,6 +753,7 @@ class LocalDataMigratorTest {
                 waterMl = null,
                 activityCalories = null,
                 activityNote = null,
+                activityCaloriesSource = null,
             )
         }
         return ApiCaptures(foodCreates, recipeCreates, entryCreates, supplementCreates)
@@ -1008,6 +1009,8 @@ class LocalDataMigratorTest {
             locale = "en",
             timeZone = "UTC",
             favoriteMealTimeframes = emptyList(),
+            activityGoalAdjustment = false,
+            activityCreditPercent = 100,
         )
 
     private fun insertPreferences() {

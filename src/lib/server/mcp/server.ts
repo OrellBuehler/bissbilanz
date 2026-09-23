@@ -136,7 +136,7 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'Get Daily Status',
 			outputSchema: TOOL_OUTPUT.get_daily_status,
 			description:
-				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown. Also reports the day's water intake, activity calories and activity note when recorded; activity calories are informational and are not netted off the intake totals.",
+				"Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown. Also reports the day's water intake, activity calories and activity note when recorded. Activity calories are never subtracted from intake — but if the user has enabled goal adjustment in their preferences, they raise that day's goals; `goals`/`progress` then reflect the raised goals, and `baseGoals`/`activityBonus` are included to show the unadjusted goal and how much was added.",
 			inputSchema: {
 				date: z.string().optional().describe('Date in YYYY-MM-DD format. Defaults to today.'),
 				includeEntries: z
@@ -1330,13 +1330,19 @@ export function createMcpServer(userId: string): McpServer {
 		safe((args) => handleGetDayProperties(userId, args))
 	);
 
+	// activityCaloriesSource is intentionally not exposed on set_day_properties:
+	// MCP writes always land through the generic day-properties patch, which
+	// defaults the source to 'manual' whenever activityCalories is set without one.
+	const { activityCaloriesSource: _activityCaloriesSource, ...dayPropertiesSetShapeForMcp } =
+		dayPropertiesSetSchema.shape;
+
 	server.registerTool(
 		'set_day_properties',
 		{
 			title: 'Set Day Properties',
 			description:
-				'Set properties for a specific day. Omitted fields keep their stored value; pass null to clear one. Activity calories are recorded for reference only and are never subtracted from logged intake.',
-			inputSchema: describeShape(dayPropertiesSetSchema.shape, {
+				"Set properties for a specific day. Omitted fields keep their stored value; pass null to clear one. Activity calories are never subtracted from logged intake, but raise that day's goals in get_daily_status/get_daily_breakdown when the user has enabled activity goal adjustment in their preferences. Setting activityCalories through this tool always records it as a manual entry.",
+			inputSchema: describeShape(dayPropertiesSetShapeForMcp, {
 				date: 'Date in YYYY-MM-DD format',
 				isFastingDay: 'Whether the day is a fasting day',
 				notes: 'Free-text note for the day',

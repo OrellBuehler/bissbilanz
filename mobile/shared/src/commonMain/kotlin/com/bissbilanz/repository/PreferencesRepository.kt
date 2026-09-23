@@ -100,6 +100,8 @@ class PreferencesRepository(
                 waterGoalMl = 2000,
                 locale = null,
                 timeZone = "UTC",
+                activityGoalAdjustment = false,
+                activityCreditPercent = 100,
             )
         val updated = applyUpdate(current, update, cleared)
         withContext(Dispatchers.IO) { cachePreferences(updated) }

@@ -22,16 +22,22 @@ const goalsSchema = z.looseObject({
 
 const dailyStatusCore = {
 	totals: macroTotalsSchema,
+	// When activity goal adjustment is enabled and the day has activityCalories,
+	// this is the *adjusted* goal — see baseGoals/activityBonus below.
 	goals: goalsSchema.nullable(),
 	progress: macroTotalsSchema.nullable(),
 	entryCount: z.number().int(),
 	byMeal: z.record(z.string(), macroTotalsSchema),
 	// Present only when the day carries the matching day-property. Activity
-	// calories are informational and never folded into totals or progress.
+	// calories are never subtracted from totals or progress — they only raise
+	// goals, and only when the user has opted in.
 	waterMl: z.number().int().optional(),
 	activityCalories: z.number().int().optional(),
 	activityNote: z.string().optional(),
-	isFastingDay: z.boolean().optional()
+	isFastingDay: z.boolean().optional(),
+	// Present only when activity goal adjustment actually raised the goals.
+	baseGoals: goalsSchema.nullable().optional(),
+	activityBonus: z.number().int().optional()
 };
 const dailyStatusSchema = z.object(dailyStatusCore);
 

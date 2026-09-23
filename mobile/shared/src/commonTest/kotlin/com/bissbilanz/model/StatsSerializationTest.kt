@@ -22,7 +22,9 @@ class StatsSerializationTest {
                     "carbGoal": 250,
                     "fatGoal": 65,
                     "fiberGoal": 30
-                }
+                },
+                "activityGoalAdjustment": false,
+                "activityCreditPercent": 100
             }
             """.trimIndent()
         val stats = json.decodeFromString<DailyStatsResponse>(jsonStr)

@@ -36,6 +36,8 @@ const preferencesSchema = z
 		caloricLagDaysOverride: z.number().int().min(1).max(7).nullable().optional(),
 		waterGoalMl: z.number().int(),
 		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
+		activityGoalAdjustment: z.boolean(),
+		activityCreditPercent: z.number().int(),
 		locale: z.string().nullable(),
 		timeZone: z.string(),
 		updatedAt: z.string().optional(),

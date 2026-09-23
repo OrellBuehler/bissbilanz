@@ -28,6 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param carbs
  * @param fat
  * @param fiber
+ * @param activityCalories
  */
 @Serializable
 data class DailyStat(
@@ -37,4 +38,5 @@ data class DailyStat(
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
+    @SerialName(value = "activityCalories") val activityCalories: kotlin.Int? = null,
 )

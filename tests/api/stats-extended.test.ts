@@ -8,6 +8,8 @@ let mockMealBreakdownResult: any = null;
 let mockTopFoodsResult: any = null;
 let mockStreaksResult: any = null;
 let mockGoalsResult: any = null;
+let mockDayPropertiesRangeResult: any[] = [];
+let mockPreferencesResult: any = null;
 
 vi.mock('$lib/server/stats', () => ({
 	getCalendarStats: async () => mockCalendarResult,
@@ -25,6 +27,15 @@ vi.mock('$lib/server/goals', () => ({
 	toGoalsUpsert: () => ({})
 }));
 
+vi.mock('$lib/server/day-properties', () => ({
+	getDayPropertiesRange: async () => mockDayPropertiesRangeResult
+}));
+
+vi.mock('$lib/server/preferences', () => ({
+	getPreferences: async () => mockPreferencesResult,
+	DEFAULT_PREFERENCES: { activityGoalAdjustment: false, activityCreditPercent: 100 }
+}));
+
 const calendarModule = await import('../../src/routes/api/stats/calendar/+server');
 const dailyModule = await import('../../src/routes/api/stats/daily/+server');
 const mealBreakdownModule = await import('../../src/routes/api/stats/meal-breakdown/+server');
@@ -39,6 +50,8 @@ describe('api/stats - extended endpoints', () => {
 		mockTopFoodsResult = null;
 		mockStreaksResult = null;
 		mockGoalsResult = null;
+		mockDayPropertiesRangeResult = [];
+		mockPreferencesResult = null;
 	});
 
 	describe('GET /api/stats/calendar', () => {
@@ -172,6 +185,41 @@ describe('api/stats - extended endpoints', () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await dailyModule.GET(event);
 			expect(response.status).toBe(400);
+		});
+
+		test('merges per-day activityCalories and reports adjustment preferences', async () => {
+			mockDailyBreakdownResult = [
+				{ date: '2026-02-01', calories: 2000 },
+				{ date: '2026-02-02', calories: 1800 }
+			];
+			mockGoalsResult = TEST_GOALS;
+			mockDayPropertiesRangeResult = [{ date: '2026-02-01', activityCalories: 400 }];
+			mockPreferencesResult = { activityGoalAdjustment: true, activityCreditPercent: 75 };
+			const event = createMockEvent({
+				user: TEST_USER,
+				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
+			});
+			const response = await dailyModule.GET(event);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.data[0].activityCalories).toBe(400);
+			expect(data.data[1].activityCalories).toBeNull();
+			expect(data.activityGoalAdjustment).toBe(true);
+			expect(data.activityCreditPercent).toBe(75);
+		});
+
+		test('defaults adjustment preferences when the user has none saved', async () => {
+			mockDailyBreakdownResult = [];
+			mockGoalsResult = null;
+			mockPreferencesResult = null;
+			const event = createMockEvent({
+				user: TEST_USER,
+				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
+			});
+			const response = await dailyModule.GET(event);
+			const data = await response.json();
+			expect(data.activityGoalAdjustment).toBe(false);
+			expect(data.activityCreditPercent).toBe(100);
 		});
 	});
 

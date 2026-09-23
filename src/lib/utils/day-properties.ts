@@ -1,8 +1,11 @@
+export type ActivityCaloriesSource = 'manual' | 'apple_health' | 'health_connect';
+
 export type DayPropertiesPatch = {
 	isFastingDay?: boolean;
 	notes?: string | null;
 	waterMl?: number | null;
 	activityCalories?: number | null;
+	activityCaloriesSource?: ActivityCaloriesSource | null;
 	activityNote?: string | null;
 };
 
@@ -12,6 +15,7 @@ export type DayPropertiesValues = {
 	notes?: string | null;
 	waterMl?: number | null;
 	activityCalories?: number | null;
+	activityCaloriesSource?: ActivityCaloriesSource | null;
 	activityNote?: string | null;
 };
 
@@ -41,6 +45,17 @@ export function applyDayPropertiesPatch(
 	patch: DayPropertiesPatch
 ): DayPropertiesValues {
 	const base = current ?? { date, isFastingDay: false };
+	// Mirrors the server default in setDayProperties: clearing activityCalories
+	// clears its source too, and setting a value without an explicit source
+	// means this was a manual edit.
+	const activityCaloriesSource =
+		patch.activityCaloriesSource !== undefined
+			? patch.activityCaloriesSource
+			: patch.activityCalories !== undefined
+				? patch.activityCalories === null
+					? null
+					: 'manual'
+				: (base.activityCaloriesSource ?? null);
 	return {
 		date,
 		isFastingDay: patch.isFastingDay ?? base.isFastingDay ?? false,
@@ -50,6 +65,7 @@ export function applyDayPropertiesPatch(
 			patch.activityCalories !== undefined
 				? patch.activityCalories
 				: (base.activityCalories ?? null),
+		activityCaloriesSource,
 		activityNote:
 			patch.activityNote !== undefined ? patch.activityNote : (base.activityNote ?? null)
 	};

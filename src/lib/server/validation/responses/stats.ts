@@ -8,7 +8,8 @@ const dailyStatSchema = z
 		protein: z.number(),
 		carbs: z.number(),
 		fat: z.number(),
-		fiber: z.number()
+		fiber: z.number(),
+		activityCalories: z.number().int().nullable().optional()
 	})
 	.meta({ id: 'DailyStat' });
 
@@ -69,7 +70,11 @@ const calendarDaySchema = z
 export const dailyStatsResponseSchema = z
 	.object({
 		data: z.array(dailyStatSchema),
-		goals: goalsShape
+		goals: goalsShape,
+		// Needed by clients to reproduce the goal adjustment per day (see
+		// $lib/utils/activity-goals.ts) — the response itself stays unadjusted.
+		activityGoalAdjustment: z.boolean(),
+		activityCreditPercent: z.number().int()
 	})
 	.meta({ id: 'DailyStatsResponse' });
 

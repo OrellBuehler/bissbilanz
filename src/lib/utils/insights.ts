@@ -9,6 +9,7 @@ export type DayRow = {
 	carbs: number;
 	fat: number;
 	fiber: number;
+	activityCalories?: number | null;
 };
 
 export type Goals = {

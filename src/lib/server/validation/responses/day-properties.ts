@@ -8,6 +8,7 @@ const dayPropertiesSchema = z
 		notes: z.string().nullable(),
 		waterMl: z.number().int().nullable(),
 		activityCalories: z.number().int().nullable(),
+		activityCaloriesSource: z.enum(['manual', 'apple_health', 'health_connect']).nullable(),
 		activityNote: z.string().nullable()
 	})
 	.meta({ id: 'DayProperties' });

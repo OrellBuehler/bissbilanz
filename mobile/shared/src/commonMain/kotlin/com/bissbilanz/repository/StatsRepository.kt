@@ -116,6 +116,11 @@ class StatsRepository(
                     fiberGoal = it.fiberGoal,
                 )
             }
-        return DailyStatsResponse(data = data, goals = goals)
+        return DailyStatsResponse(
+            data = data,
+            goals = goals,
+            activityGoalAdjustment = false,
+            activityCreditPercent = 100,
+        )
     }
 }

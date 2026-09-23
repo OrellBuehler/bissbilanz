@@ -11,9 +11,12 @@ const columns = () => ({
 	notes: dayProperties.notes,
 	waterMl: dayProperties.waterMl,
 	activityCalories: dayProperties.activityCalories,
+	activityCaloriesSource: dayProperties.activityCaloriesSource,
 	activityNote: dayProperties.activityNote
 });
 
+// activityCaloriesSource alone never counts as data — it's metadata that only
+// matters alongside a real activityCalories value.
 export const isDayPropertiesRowEmpty = (row: DayPropertiesRow) =>
 	!row.isFastingDay &&
 	row.notes == null &&
@@ -27,6 +30,7 @@ export type DayPropertiesRow = {
 	notes: string | null;
 	waterMl: number | null;
 	activityCalories: number | null;
+	activityCaloriesSource: string | null;
 	activityNote: string | null;
 };
 
@@ -70,7 +74,17 @@ export const setDayProperties = async (
 	if (patch.isFastingDay !== undefined) changes.isFastingDay = patch.isFastingDay;
 	if (patch.notes !== undefined) changes.notes = patch.notes;
 	if (patch.waterMl !== undefined) changes.waterMl = patch.waterMl;
-	if (patch.activityCalories !== undefined) changes.activityCalories = patch.activityCalories;
+	if (patch.activityCalories !== undefined) {
+		changes.activityCalories = patch.activityCalories;
+		// Clearing activityCalories clears its source too. Setting a value
+		// without an explicit source means this was a manual edit.
+		if (patch.activityCaloriesSource === undefined) {
+			changes.activityCaloriesSource = patch.activityCalories === null ? null : 'manual';
+		}
+	}
+	if (patch.activityCaloriesSource !== undefined) {
+		changes.activityCaloriesSource = patch.activityCaloriesSource;
+	}
 	if (patch.activityNote !== undefined) changes.activityNote = patch.activityNote;
 
 	const [row] = await db

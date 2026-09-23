@@ -12,7 +12,8 @@ import { listEntriesByDateRange } from '$lib/server/entries';
 import { getGoals } from '$lib/server/goals';
 import { getWeightWithTrend } from '$lib/server/weight';
 import { todayInTimeZone, shiftDate } from '$lib/utils/dates';
-import { getUserTimeZone } from '$lib/server/preferences';
+import { getUserTimeZone, getPreferences, DEFAULT_PREFERENCES } from '$lib/server/preferences';
+import { getDayPropertiesRange } from '$lib/server/day-properties';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
@@ -37,7 +38,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		streaks,
 		calendarRangeEntries,
 		calendarRangeFasts,
-		timeZone
+		timeZone,
+		dayProps,
+		preferences
 	] = await Promise.all([
 		getDailyBreakdown(userId, start7, endDate),
 		getGoals(userId),
@@ -47,7 +50,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		getStreaks(userId),
 		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd),
 		listFastsTouchingRange(userId, calendarRangeStart, calendarRangeEnd),
-		getUserTimeZone(userId)
+		getUserTimeZone(userId),
+		getDayPropertiesRange(userId, start7, endDate),
+		getPreferences(userId)
 	]);
 
 	const allCalendarDays = markFastDays(
@@ -72,8 +77,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 			}
 		: null;
 
+	const activityByDate = new Map(dayProps.map((p) => [p.date, p.activityCalories]));
+	const dailyDataWithActivity = dailyData.map((day) => ({
+		...day,
+		activityCalories: activityByDate.get(day.date) ?? null
+	}));
+
 	return {
-		dailyStatus: { data: dailyData, goals: goalsData },
+		dailyStatus: {
+			data: dailyDataWithActivity,
+			goals: goalsData,
+			activityGoalAdjustment:
+				preferences?.activityGoalAdjustment ?? DEFAULT_PREFERENCES.activityGoalAdjustment,
+			activityCreditPercent:
+				preferences?.activityCreditPercent ?? DEFAULT_PREFERENCES.activityCreditPercent
+		},
 		calendarDays,
 		streakDays,
 		mealBreakdown,

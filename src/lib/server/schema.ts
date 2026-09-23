@@ -352,48 +352,64 @@ export const userGoals = pgTable(
 );
 
 // User Preferences
-export const userPreferences = pgTable('user_preferences', {
-	userId: uuid('user_id')
-		.primaryKey()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	showChartWidget: boolean('show_chart_widget').notNull().default(true),
-	showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
-	showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
-	showWeightWidget: boolean('show_weight_widget').notNull().default(true),
-	showMealBreakdownWidget: boolean('show_meal_breakdown_widget').notNull().default(true),
-	showTopFoodsWidget: boolean('show_top_foods_widget').notNull().default(true),
-	showSleepWidget: boolean('show_sleep_widget').notNull().default(true),
-	showFastingWidget: boolean('show_fasting_widget').notNull().default(true),
-	showDayPropertiesWidget: boolean('show_day_properties_widget').notNull().default(true),
-	showRecipeSuggestionsWidget: boolean('show_recipe_suggestions_widget').notNull().default(true),
-	widgetOrder: text('widget_order')
-		.array()
-		.notNull()
-		.default(sql`ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[]`),
-	startPage: text('start_page').notNull().default('dashboard'),
-	favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
-	favoriteMealAssignmentMode: text('favorite_meal_assignment_mode').notNull().default('time_based'),
-	visibleNutrients: text('visible_nutrients')
-		.array()
-		.notNull()
-		.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
-	pinnedInsights: text('pinned_insights')
-		.array()
-		.notNull()
-		.default(sql`ARRAY[]::text[]`),
-	mealOrder: text('meal_order')
-		.array()
-		.notNull()
-		.default(sql`ARRAY['Breakfast', 'Lunch', 'Dinner', 'Snacks']::text[]`),
-	caloricLagDaysOverride: integer('caloric_lag_days_override'),
-	// 'male' | 'female' | null. Drives sex-specific dietary reference intakes
-	// (EAR/RDA/AI) in the nutrient-adequacy insights; unset shows both.
-	biologicalSex: text('biological_sex'),
-	correlationWindowDays: integer('correlation_window_days').notNull().default(30),
-	waterGoalMl: integer('water_goal_ml').notNull().default(2000),
-	timeZone: text('time_zone').notNull().default('UTC'),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
-});
+export const userPreferences = pgTable(
+	'user_preferences',
+	{
+		userId: uuid('user_id')
+			.primaryKey()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		showChartWidget: boolean('show_chart_widget').notNull().default(true),
+		showFavoritesWidget: boolean('show_favorites_widget').notNull().default(true),
+		showSupplementsWidget: boolean('show_supplements_widget').notNull().default(true),
+		showWeightWidget: boolean('show_weight_widget').notNull().default(true),
+		showMealBreakdownWidget: boolean('show_meal_breakdown_widget').notNull().default(true),
+		showTopFoodsWidget: boolean('show_top_foods_widget').notNull().default(true),
+		showSleepWidget: boolean('show_sleep_widget').notNull().default(true),
+		showFastingWidget: boolean('show_fasting_widget').notNull().default(true),
+		showDayPropertiesWidget: boolean('show_day_properties_widget').notNull().default(true),
+		showRecipeSuggestionsWidget: boolean('show_recipe_suggestions_widget').notNull().default(true),
+		widgetOrder: text('widget_order')
+			.array()
+			.notNull()
+			.default(sql`ARRAY['chart', 'favorites', 'supplements', 'weight', 'daylog']::text[]`),
+		startPage: text('start_page').notNull().default('dashboard'),
+		favoriteTapAction: text('favorite_tap_action').notNull().default('instant'),
+		favoriteMealAssignmentMode: text('favorite_meal_assignment_mode')
+			.notNull()
+			.default('time_based'),
+		visibleNutrients: text('visible_nutrients')
+			.array()
+			.notNull()
+			.default(sql`ARRAY['sodium', 'sugar', 'saturatedFat', 'cholesterol']::text[]`),
+		pinnedInsights: text('pinned_insights')
+			.array()
+			.notNull()
+			.default(sql`ARRAY[]::text[]`),
+		mealOrder: text('meal_order')
+			.array()
+			.notNull()
+			.default(sql`ARRAY['Breakfast', 'Lunch', 'Dinner', 'Snacks']::text[]`),
+		caloricLagDaysOverride: integer('caloric_lag_days_override'),
+		// 'male' | 'female' | null. Drives sex-specific dietary reference intakes
+		// (EAR/RDA/AI) in the nutrient-adequacy insights; unset shows both.
+		biologicalSex: text('biological_sex'),
+		correlationWindowDays: integer('correlation_window_days').notNull().default(30),
+		waterGoalMl: integer('water_goal_ml').notNull().default(2000),
+		timeZone: text('time_zone').notNull().default('UTC'),
+		// When enabled, the day's activityCalories (day_properties) raises that
+		// day's macro goals — see $lib/utils/activity-goals.ts for the formula.
+		activityGoalAdjustment: boolean('activity_goal_adjustment').notNull().default(false),
+		// Percentage of activityCalories credited back to the goal (0-100).
+		activityCreditPercent: integer('activity_credit_percent').notNull().default(100),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		check(
+			'user_preferences_activity_credit_percent_range',
+			sql`${table.activityCreditPercent} >= 0 AND ${table.activityCreditPercent} <= 100`
+		)
+	]
+);
 
 // Recipes
 export const recipes = pgTable(
@@ -559,6 +575,9 @@ export const dayProperties = pgTable(
 		notes: text('notes'),
 		waterMl: integer('water_ml'),
 		activityCalories: integer('activity_calories'),
+		// Where activityCalories came from: 'manual' | 'apple_health' | 'health_connect'.
+		// Null means manual/legacy (rows written before this column existed).
+		activityCaloriesSource: text('activity_calories_source'),
 		activityNote: text('activity_note'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()

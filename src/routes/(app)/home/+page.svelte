@@ -24,6 +24,7 @@
 	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
 	import { statsService } from '$lib/services/stats-service.svelte';
@@ -54,6 +55,12 @@
 	let mqlCleanup: (() => void) | undefined;
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 	let daylogActivityCalories: number | null = $state(null);
+	const effectiveGoals = $derived(
+		adjustGoalsForActivity(userGoals, daylogActivityCalories, {
+			enabled: userPrefs?.activityGoalAdjustment ?? false,
+			creditPercent: userPrefs?.activityCreditPercent ?? 100
+		})
+	);
 	let scanModalOpen = $state(false);
 	let addModalOpen = $state(false);
 	let addFoodId: string | null = $state(null);
@@ -162,7 +169,7 @@
 	{#if sectionKey === 'chart' && (userPrefs?.showChartWidget ?? true)}
 		{#if userGoals}
 			<DashboardCard title={m.dashboard_goal_progress()} Icon={Target} tone="primary">
-				<GoalProgressRings totals={daylogTotals} goals={userGoals} />
+				<GoalProgressRings totals={daylogTotals} goals={effectiveGoals} />
 			</DashboardCard>
 		{:else}
 			<DashboardCard title={m.dashboard_summary()} Icon={ChartPie} tone="tertiary">
@@ -204,7 +211,11 @@
 	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
 		<SleepWidget date={activeDate} />
 	{:else if sectionKey === 'summary'}
-		<MacroSummaryCard totals={daylogTotals} activityCalories={daylogActivityCalories} />
+		<MacroSummaryCard
+			totals={daylogTotals}
+			activityCalories={daylogActivityCalories}
+			activityBonus={effectiveGoals?.activityBonus ?? 0}
+		/>
 	{:else if sectionKey === 'daylog'}
 		<DayLog
 			date={activeDate}

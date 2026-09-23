@@ -113,6 +113,52 @@ describe('day-properties-db', () => {
 		});
 	});
 
+	describe('setDayProperties (activityCaloriesSource defaulting)', () => {
+		test('defaults the source to manual when activityCalories is set without one', async () => {
+			setResult([{ date: '2026-03-01', isFastingDay: false }]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', { activityCalories: 420 });
+			const valuesCall = getCalls().find((call) => call.method === 'values');
+			expect(valuesCall?.args[0]).toMatchObject({
+				activityCalories: 420,
+				activityCaloriesSource: 'manual'
+			});
+		});
+
+		test('clears the source when activityCalories is cleared', async () => {
+			setResult([{ date: '2026-03-01', isFastingDay: false }]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', { activityCalories: null });
+			const valuesCall = getCalls().find((call) => call.method === 'values');
+			expect(valuesCall?.args[0]).toMatchObject({
+				activityCalories: null,
+				activityCaloriesSource: null
+			});
+		});
+
+		test('keeps an explicit source instead of defaulting to manual', async () => {
+			setResult([{ date: '2026-03-01', isFastingDay: false }]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', {
+				activityCalories: 500,
+				activityCaloriesSource: 'apple_health'
+			});
+			const valuesCall = getCalls().find((call) => call.method === 'values');
+			expect(valuesCall?.args[0]).toMatchObject({
+				activityCalories: 500,
+				activityCaloriesSource: 'apple_health'
+			});
+		});
+
+		test('leaves the source untouched when activityCalories is omitted', async () => {
+			setResult([{ date: '2026-03-01', isFastingDay: false }]);
+
+			await setDayProperties(TEST_USER.id, '2026-03-01', { notes: 'rest day' });
+			const valuesCall = getCalls().find((call) => call.method === 'values');
+			expect(valuesCall?.args[0]).not.toHaveProperty('activityCaloriesSource');
+		});
+	});
+
 	describe('setDayProperties (empty row cleanup)', () => {
 		test('drops the row when the merged result carries no data', async () => {
 			setResult([

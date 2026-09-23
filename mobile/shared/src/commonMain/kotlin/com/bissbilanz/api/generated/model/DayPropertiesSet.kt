@@ -27,6 +27,7 @@ import kotlinx.serialization.encoding.*
  * @param notes
  * @param waterMl
  * @param activityCalories
+ * @param activityCaloriesSource
  * @param activityNote
  */
 @Serializable
@@ -36,5 +37,25 @@ data class DayPropertiesSet(
     @SerialName(value = "notes") val notes: kotlin.String? = null,
     @SerialName(value = "waterMl") val waterMl: kotlin.Int? = null,
     @SerialName(value = "activityCalories") val activityCalories: kotlin.Int? = null,
+    @SerialName(value = "activityCaloriesSource") val activityCaloriesSource: DayPropertiesSet.ActivityCaloriesSource? = null,
     @SerialName(value = "activityNote") val activityNote: kotlin.String? = null,
-)
+) {
+    /**
+     *
+     *
+     * Values: manual,apple_health,health_connect
+     */
+    @Serializable
+    enum class ActivityCaloriesSource(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "manual")
+        manual("manual"),
+
+        @SerialName(value = "apple_health")
+        apple_health("apple_health"),
+
+        @SerialName(value = "health_connect")
+        health_connect("health_connect"),
+    }
+}

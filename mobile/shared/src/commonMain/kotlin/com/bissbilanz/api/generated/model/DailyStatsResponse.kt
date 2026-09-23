@@ -26,9 +26,13 @@ import kotlinx.serialization.encoding.*
  *
  * @param `data`
  * @param goals
+ * @param activityGoalAdjustment
+ * @param activityCreditPercent
  */
 @Serializable
 data class DailyStatsResponse(
     @SerialName(value = "data") @Required val `data`: kotlin.collections.List<DailyStat>,
     @SerialName(value = "goals") @Required val goals: GoalsSummary?,
+    @SerialName(value = "activityGoalAdjustment") @Required val activityGoalAdjustment: kotlin.Boolean,
+    @SerialName(value = "activityCreditPercent") @Required val activityCreditPercent: kotlin.Int,
 )

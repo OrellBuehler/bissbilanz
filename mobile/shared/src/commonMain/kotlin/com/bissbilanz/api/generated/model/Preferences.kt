@@ -40,6 +40,8 @@ import kotlinx.serialization.encoding.*
  * @param favoriteMealAssignmentMode
  * @param visibleNutrients
  * @param waterGoalMl
+ * @param activityGoalAdjustment
+ * @param activityCreditPercent
  * @param locale
  * @param timeZone
  * @param favoriteMealTimeframes
@@ -67,6 +69,8 @@ data class Preferences(
     @SerialName(value = "favoriteMealAssignmentMode") @Required val favoriteMealAssignmentMode: kotlin.String,
     @SerialName(value = "visibleNutrients") @Required val visibleNutrients: kotlin.collections.List<kotlin.String>,
     @SerialName(value = "waterGoalMl") @Required val waterGoalMl: kotlin.Int,
+    @SerialName(value = "activityGoalAdjustment") @Required val activityGoalAdjustment: kotlin.Boolean,
+    @SerialName(value = "activityCreditPercent") @Required val activityCreditPercent: kotlin.Int,
     @SerialName(value = "locale") @Required val locale: kotlin.String?,
     @SerialName(value = "timeZone") @Required val timeZone: kotlin.String,
     @SerialName(value = "favoriteMealTimeframes") @Required val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframe>,

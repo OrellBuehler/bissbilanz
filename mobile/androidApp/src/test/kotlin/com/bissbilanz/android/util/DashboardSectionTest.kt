@@ -40,6 +40,8 @@ class DashboardSectionTest {
         locale = null,
         timeZone = "UTC",
         favoriteMealTimeframes = emptyList(),
+        activityGoalAdjustment = false,
+        activityCreditPercent = 100,
     )
 
     @Test

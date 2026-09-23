@@ -45,6 +45,8 @@ import kotlinx.serialization.encoding.*
  * @param caloricLagDaysOverride
  * @param waterGoalMl
  * @param biologicalSex
+ * @param activityGoalAdjustment
+ * @param activityCreditPercent
  * @param timeZone
  */
 @Serializable
@@ -71,6 +73,8 @@ data class PreferencesUpdate(
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
     @SerialName(value = "waterGoalMl") val waterGoalMl: kotlin.Int? = null,
     @SerialName(value = "biologicalSex") val biologicalSex: PreferencesUpdate.BiologicalSex? = null,
+    @SerialName(value = "activityGoalAdjustment") val activityGoalAdjustment: kotlin.Boolean? = null,
+    @SerialName(value = "activityCreditPercent") val activityCreditPercent: kotlin.Int? = null,
     @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
 ) {
     /**

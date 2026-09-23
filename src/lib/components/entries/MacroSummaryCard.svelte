@@ -15,9 +15,10 @@
 	type Props = {
 		totals: MacroTotals;
 		activityCalories?: number | null;
+		activityBonus?: number;
 	};
 
-	let { totals, activityCalories = null }: Props = $props();
+	let { totals, activityCalories = null, activityBonus = 0 }: Props = $props();
 
 	const rows: { key: MacroKey; label: string; value: string; size: string }[] = $derived([
 		{
@@ -67,7 +68,13 @@
 			<span class="font-medium tabular-nums text-foreground"
 				>{m.day_summary_activity({ calories: activityCalories })}</span
 			>
-			<span>({m.day_summary_activity_hint()})</span>
+			{#if activityBonus > 0}
+				<span class="font-medium tabular-nums text-blue-600 dark:text-blue-400"
+					>{m.dashboard_activity_bonus({ calories: activityBonus })}</span
+				>
+			{:else}
+				<span>({m.day_summary_activity_hint()})</span>
+			{/if}
 		</div>
 	{/if}
 </DashboardCard>

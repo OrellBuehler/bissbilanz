@@ -39,6 +39,19 @@ describe('isDayPropertiesEmpty', () => {
 		expect(isDayPropertiesEmpty({ activityCalories: 300 })).toBe(false);
 		expect(isDayPropertiesEmpty({ activityNote: 'run' })).toBe(false);
 	});
+
+	test('activityCaloriesSource alone never counts as data', () => {
+		expect(
+			isDayPropertiesEmpty({
+				isFastingDay: false,
+				notes: null,
+				waterMl: null,
+				activityCalories: null,
+				activityCaloriesSource: 'manual',
+				activityNote: null
+			})
+		).toBe(true);
+	});
 });
 
 describe('applyDayPropertiesPatch', () => {
@@ -48,6 +61,7 @@ describe('applyDayPropertiesPatch', () => {
 		notes: 'before',
 		waterMl: 1000,
 		activityCalories: 200,
+		activityCaloriesSource: 'manual' as const,
 		activityNote: 'walk'
 	};
 
@@ -75,6 +89,7 @@ describe('applyDayPropertiesPatch', () => {
 			notes: 'new',
 			waterMl: null,
 			activityCalories: null,
+			activityCaloriesSource: null,
 			activityNote: null
 		});
 	});
@@ -88,6 +103,29 @@ describe('applyDayPropertiesPatch', () => {
 			activityNote: null
 		});
 		expect(isDayPropertiesEmpty(cleared)).toBe(true);
+	});
+
+	test('defaults activityCaloriesSource to manual when setting activityCalories without a source', () => {
+		const result = applyDayPropertiesPatch(null, '2026-03-01', { activityCalories: 300 });
+		expect(result.activityCaloriesSource).toBe('manual');
+	});
+
+	test('clears activityCaloriesSource when activityCalories is cleared', () => {
+		const result = applyDayPropertiesPatch(current, '2026-03-01', { activityCalories: null });
+		expect(result.activityCaloriesSource).toBeNull();
+	});
+
+	test('respects an explicit activityCaloriesSource', () => {
+		const result = applyDayPropertiesPatch(null, '2026-03-01', {
+			activityCalories: 400,
+			activityCaloriesSource: 'apple_health'
+		});
+		expect(result.activityCaloriesSource).toBe('apple_health');
+	});
+
+	test('leaves activityCaloriesSource unchanged when activityCalories is omitted', () => {
+		const result = applyDayPropertiesPatch(current, '2026-03-01', { notes: 'updated' });
+		expect(result.activityCaloriesSource).toBe('manual');
 	});
 });
 
