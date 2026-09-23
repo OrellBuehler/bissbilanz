@@ -347,6 +347,17 @@ struct BissbilanzApp: App {
                     // the Live Activity if the system expired it mid-fast
                     // (~8h cap) while the fast is still running.
                     fastingManager.refresh()
+                    // A Control Center tap (e.g. "Scan Barcode") that
+                    // foregrounded the app records its destination here
+                    // rather than through `DeepLinkRouter` directly — that
+                    // intent has to compile into the widget extension too,
+                    // which can't see the app-only router.
+                    if let action = ControlCenterPendingAction.consume() {
+                        switch action {
+                        case .scanner:
+                            deepLinkRouter.pending = .scanner
+                        }
+                    }
                     // Covers launch, day rollover while backgrounded and any
                     // change widgets might have missed. Debounced internally.
                     WidgetSnapshotWriter.scheduleUpdate(context: modelContainer.mainContext)

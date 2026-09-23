@@ -172,6 +172,46 @@ struct WidgetStrings {
         isGerman ? "Endet um \(time(from: date))" : "Ends \(time(from: date))"
     }
 
+    var startFast: String {
+        isGerman ? "Fasten starten" : "Start Fast"
+    }
+
+    // MARK: - Controls (Control Center / Lock Screen / Action Button)
+
+    var scanControlDisplayName: String {
+        isGerman ? "Barcode scannen" : "Scan Barcode"
+    }
+
+    var scanControlDescription: String {
+        isGerman
+            ? "Öffnet Bissbilanz direkt im Barcode-Scanner."
+            : "Opens Bissbilanz straight into the barcode scanner."
+    }
+
+    var quickAddControlDisplayName: String {
+        isGerman ? "Schnell eintragen" : "Quick Add"
+    }
+
+    var quickAddControlDescription: String {
+        isGerman
+            ? "Wähle beim Hinzufügen ein Lieblingsgericht — ein Tipp trägt es lautlos ein."
+            : "Choose a favorite when you add the control — one tap logs it silently."
+    }
+
+    var quickAddControlPlaceholder: String {
+        isGerman ? "Essen wählen" : "Choose a food"
+    }
+
+    var fastingControlDisplayName: String {
+        isGerman ? "Fasten" : "Fasting"
+    }
+
+    var fastingControlDescription: String {
+        isGerman
+            ? "Startet oder beendet dein Fasten — im Einklang mit der Live-Aktivität."
+            : "Starts or ends your fast, in step with the Live Activity."
+    }
+
     // MARK: - Formatting
 
     func integer(_ value: Double) -> String {
