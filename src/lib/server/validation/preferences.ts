@@ -27,6 +27,7 @@ export const preferencesUpdateSchema = z
 		showSleepWidget: z.boolean().optional(),
 		showFastingWidget: z.boolean().optional(),
 		showDayPropertiesWidget: z.boolean().optional(),
+		showRecipeSuggestionsWidget: z.boolean().optional(),
 		widgetOrder: z
 			.array(
 				z.enum([
@@ -35,6 +36,7 @@ export const preferencesUpdateSchema = z
 					'chart',
 					'streaks',
 					'favorites',
+					'recipe-suggestions',
 					'supplements',
 					'weight',
 					'meal-breakdown',

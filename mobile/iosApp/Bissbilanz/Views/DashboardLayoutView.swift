@@ -129,6 +129,7 @@ struct DashboardLayoutView: View {
         case .dayProperties: L10n.dashboardSectionDayDetailsTitle
         case .chart: L10n.caloriesTrend
         case .favorites: L10n.favorites
+        case .recipeSuggestions: L10n.recipeSuggestions
         case .supplements: L10n.supplements
         case .weight: L10n.weight
         case .mealBreakdown: L10n.mealBreakdown
@@ -145,6 +146,7 @@ struct DashboardLayoutView: View {
         case .dayProperties: L10n.dashboardSectionDayDetailsDescription
         case .chart: L10n.dashboardSectionChartDescription
         case .favorites: L10n.dashboardSectionFavoritesDescription
+        case .recipeSuggestions: L10n.dashboardSectionRecipeSuggestionsDescription
         case .supplements: L10n.dashboardSectionSupplementsDescription
         case .weight: L10n.dashboardSectionWeightDescription
         case .mealBreakdown: L10n.dashboardSectionMealBreakdownDescription

@@ -860,6 +860,38 @@ enum L10n {
         localized("daily_goals", en: "Daily Goals", de: "Tagesziele")
     }
 
+    static func goalsMacroSum(_ kcal: Int) -> String {
+        localized(
+            "goals_macro_sum",
+            en: "Protein, carbs and fat add up to \(kcal) kcal.",
+            de: "Protein, Kohlenhydrate und Fett ergeben \(kcal) kcal."
+        )
+    }
+
+    static func goalsMacroShort(_ kcal: Int, goal: Int) -> String {
+        localized(
+            "goals_macro_short",
+            en: "That is \(kcal) kcal short of your \(goal) kcal goal.",
+            de: "Das sind \(kcal) kcal weniger als dein Ziel von \(goal) kcal."
+        )
+    }
+
+    static func goalsMacroOver(_ kcal: Int, goal: Int) -> String {
+        localized(
+            "goals_macro_over",
+            en: "That is \(kcal) kcal over your \(goal) kcal goal.",
+            de: "Das sind \(kcal) kcal mehr als dein Ziel von \(goal) kcal."
+        )
+    }
+
+    static var goalsMacroFactors: String {
+        localized(
+            "goals_macro_factors",
+            en: "Protein and carbs count 4 kcal per gram, fat 9 kcal.",
+            de: "Protein und Kohlenhydrate zählen 4 kcal pro Gramm, Fett 9 kcal."
+        )
+    }
+
     static var biologicalSex: String {
         localized("biological_sex", en: "Biological Sex", de: "Biologisches Geschlecht")
     }
@@ -1636,6 +1668,80 @@ enum L10n {
         )
     }
 
+    static var dashboardSectionRecipeSuggestionsDescription: String {
+        localized(
+            "dashboard_section_recipe_suggestions_description",
+            en: "Recipes that fit your remaining macros",
+            de: "Rezepte, die in dein verbleibendes Budget passen"
+        )
+    }
+
+    // MARK: - Recipe Suggestions
+
+    static var recipeSuggestions: String {
+        localized("recipe_suggestions", en: "Recipe suggestions", de: "Rezeptvorschläge")
+    }
+
+    static var recipeSuggestionsCardTitle: String {
+        localized("recipe_suggestions_card_title", en: "What fits today", de: "Was heute noch passt")
+    }
+
+    static var recipeSuggestionsRemainingLabel: String {
+        localized("recipe_suggestions_remaining_label", en: "Remaining today", de: "Heute noch übrig")
+    }
+
+    static var recipeSuggestionsGoalReachedTitle: String {
+        localized("recipe_suggestions_goal_reached_title", en: "Goal reached", de: "Ziel erreicht")
+    }
+
+    static var recipeSuggestionsGoalReachedDescription: String {
+        localized(
+            "recipe_suggestions_goal_reached_description",
+            en: "You've hit today's goal — nothing left to fit in.",
+            de: "Du hast dein heutiges Ziel erreicht — nichts bleibt mehr übrig."
+        )
+    }
+
+    static var recipeSuggestionsNoRecipesTitle: String {
+        localized("recipe_suggestions_no_recipes_title", en: "No recipes yet", de: "Noch keine Rezepte")
+    }
+
+    static var recipeSuggestionsNoRecipesDescription: String {
+        localized(
+            "recipe_suggestions_no_recipes_description",
+            en: "Create a recipe to get suggestions.",
+            de: "Erstelle ein Rezept, um Vorschläge zu erhalten."
+        )
+    }
+
+    static var recipeSuggestionsNoGoalsTitle: String {
+        localized("recipe_suggestions_no_goals_title", en: "No goals set", de: "Keine Ziele festgelegt")
+    }
+
+    static var recipeSuggestionsNoGoalsDescription: String {
+        localized(
+            "recipe_suggestions_no_goals_description",
+            en: "Set your daily goals in Settings to see suggestions.",
+            de: "Lege deine Tagesziele in den Einstellungen fest, um Vorschläge zu sehen."
+        )
+    }
+
+    static var recipeSuggestionsNoMatchesTitle: String {
+        localized("recipe_suggestions_no_matches_title", en: "Nothing fits right now", de: "Gerade passt nichts")
+    }
+
+    static var recipeSuggestionsNoMatchesDescription: String {
+        localized(
+            "recipe_suggestions_no_matches_description",
+            en: "None of your recipes fit your remaining budget.",
+            de: "Keines deiner Rezepte passt in dein verbleibendes Budget."
+        )
+    }
+
+    static func recipeSuggestionsFitPercent(_ percent: Int) -> String {
+        localized("recipe_suggestions_fit_percent", en: "\(percent)% fit", de: "\(percent)% passend")
+    }
+
     static var favoriteBehavior: String {
         localized(
             "favorite_behavior",
@@ -1868,6 +1974,14 @@ enum L10n {
 
     static var useThisPhoto: String {
         localized("use_this_photo", en: "Use photo", de: "Foto verwenden")
+    }
+
+    static var cropPhotoHint: String {
+        localized(
+            "crop_photo_hint",
+            en: "Drag and pinch to frame the square",
+            de: "Ziehen und zoomen, um den Ausschnitt zu wählen"
+        )
     }
 
     static var photoSaveFailed: String {

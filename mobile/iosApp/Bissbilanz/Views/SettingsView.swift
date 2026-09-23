@@ -147,6 +147,9 @@ struct SettingsView: View {
                     NavigationLink { RecipeListView() } label: {
                         Label(L10n.recipes, systemImage: "book")
                     }
+                    NavigationLink { RecipeSuggestionsView() } label: {
+                        Label(L10n.recipeSuggestions, systemImage: "fork.knife.circle")
+                    }
                     NavigationLink { CalendarView() } label: {
                         Label(L10n.calendar, systemImage: "calendar")
                     }
@@ -165,6 +168,23 @@ struct SettingsView: View {
                             Label(L10n.connectClaudeTitle, systemImage: "link")
                         }
                     }
+                }
+
+                // AI estimation: whether a text meal estimate may fall back to
+                // Apple's Private Cloud Compute when on-device estimation isn't
+                // available or good enough (MealEstimatorPrivateCloud.swift).
+                // Device-local like the tab selection/snooze duration above, and
+                // shown regardless of AppMode — the fallback is a device/account
+                // capability, not a server feature.
+                Section {
+                    Toggle(L10n.aiPrivateCloudToggleLabel, isOn: Binding(
+                        get: { PrivateCloudComputeSettings.isEnabled },
+                        set: { PrivateCloudComputeSettings.isEnabled = $0 }
+                    ))
+                } header: {
+                    Text(L10n.aiPrivateCloudSectionTitle)
+                } footer: {
+                    Text(L10n.aiPrivateCloudToggleFooter)
                 }
 
                 // Apple Health — all sync controls live on the subpage.
@@ -479,12 +499,16 @@ struct SettingsView: View {
     private var goalsEditor: some View {
         NavigationStack {
             Form {
-                Section(L10n.dailyGoals) {
+                Section {
                     goalField(L10n.calories + " (kcal)", text: $editCalories)
-                    goalField(L10n.protein + " (g)", text: $editProtein)
-                    goalField(L10n.carbs + " (g)", text: $editCarbs)
-                    goalField(L10n.fat + " (g)", text: $editFat)
+                    goalField(L10n.protein + " (g)", text: $editProtein, share: macroShare(editProtein, kcalPerGram: 4))
+                    goalField(L10n.carbs + " (g)", text: $editCarbs, share: macroShare(editCarbs, kcalPerGram: 4))
+                    goalField(L10n.fat + " (g)", text: $editFat, share: macroShare(editFat, kcalPerGram: 9))
                     goalField(L10n.fiber + " (g)", text: $editFiber)
+                } header: {
+                    Text(L10n.dailyGoals)
+                } footer: {
+                    macroBalanceFooter
                 }
 
                 Section(L10n.weightTarget) {
@@ -533,14 +557,67 @@ struct SettingsView: View {
         }
     }
 
-    private func goalField(_ label: String, text: Binding<String>) -> some View {
+    private func goalField(_ label: String, text: Binding<String>, share: Int? = nil) -> some View {
         HStack {
             Text(label)
             Spacer()
+            if let share {
+                Text("\(share)%")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
             TextField("", text: text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+        }
+    }
+
+    /// Calories a macro's grams contribute, as a share of the calorie goal.
+    private func macroShare(_ grams: String, kcalPerGram: Double) -> Int? {
+        guard let grams = Double.parseUserInput(grams),
+              let calories = Double.parseUserInput(editCalories), calories > 0
+        else { return nil }
+        return Int((grams * kcalPerGram / calories * 100).rounded())
+    }
+
+    /// Calories implied by the protein, carb and fat goals. Fiber is left out:
+    /// it is counted within carbs, and its own energy value depends on how
+    /// much of it is soluble.
+    private var macroCalories: Double? {
+        guard let protein = Double.parseUserInput(editProtein),
+              let carbs = Double.parseUserInput(editCarbs),
+              let fat = Double.parseUserInput(editFat)
+        else { return nil }
+        return protein * 4 + carbs * 4 + fat * 9
+    }
+
+    /// A hint, never a gate: goals that don't add up still save, the user
+    /// just gets to see by how much they are off.
+    @ViewBuilder
+    private var macroBalanceFooter: some View {
+        if let macroCalories, let calories = Double.parseUserInput(editCalories), calories > 0 {
+            let sum = Int(macroCalories.rounded())
+            let goal = Int(calories.rounded())
+            let diff = sum - goal
+            VStack(alignment: .leading, spacing: 4) {
+                // Whole grams move the sum in steps of 4 and 9 kcal, so a few
+                // kcal either way is as close as the fields allow.
+                if abs(diff) < 10 {
+                    Text(L10n.goalsMacroSum(sum))
+                } else {
+                    let detail = diff < 0
+                        ? L10n.goalsMacroShort(-diff, goal: goal)
+                        : L10n.goalsMacroOver(diff, goal: goal)
+                    Label {
+                        Text(L10n.goalsMacroSum(sum) + " " + detail)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(.orange)
+                }
+                Text(L10n.goalsMacroFactors)
+            }
         }
     }
 

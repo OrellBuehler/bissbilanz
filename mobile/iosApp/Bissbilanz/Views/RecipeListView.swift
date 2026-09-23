@@ -175,13 +175,28 @@ struct LogRecipeSheet: View {
     let recipe: Recipe
     let onLogged: () -> Void
 
-    @State private var servings = "1"
-    @State private var mealType = "Lunch"
+    @State private var servings: String
+    @State private var mealType: String
     @State private var date = Date()
     @State private var isSaving = false
     @State private var errorMessage: String?
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+
+    /// `initialServings`/`initialMealType` let a suggestion (recipe suggestions
+    /// screen/card) prefill the form with its scaled portion and time-of-day
+    /// meal instead of the plain "1 serving, Lunch" default.
+    init(
+        recipe: Recipe,
+        initialServings: Double? = nil,
+        initialMealType: String? = nil,
+        onLogged: @escaping () -> Void
+    ) {
+        self.recipe = recipe
+        self.onLogged = onLogged
+        _servings = State(initialValue: initialServings.map(MacroFormat.servings) ?? "1")
+        _mealType = State(initialValue: initialMealType ?? "Lunch")
+    }
 
     var body: some View {
         NavigationStack {

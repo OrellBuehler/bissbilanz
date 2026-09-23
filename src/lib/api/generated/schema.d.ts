@@ -1522,12 +1522,14 @@ export interface components {
 			showSleepWidget?: boolean;
 			showFastingWidget?: boolean;
 			showDayPropertiesWidget?: boolean;
+			showRecipeSuggestionsWidget?: boolean;
 			widgetOrder?: (
 				| 'fasting'
 				| 'day-properties'
 				| 'chart'
 				| 'streaks'
 				| 'favorites'
+				| 'recipe-suggestions'
 				| 'supplements'
 				| 'weight'
 				| 'meal-breakdown'
@@ -2220,6 +2222,7 @@ export interface components {
 			showSleepWidget: boolean;
 			showFastingWidget: boolean;
 			showDayPropertiesWidget: boolean;
+			showRecipeSuggestionsWidget: boolean;
 			widgetOrder: string[];
 			mealOrder: string[];
 			startPage: string;

@@ -30,9 +30,20 @@ private struct DashboardMealSlice: Identifiable {
     }
 }
 
+/// A ranked recipe suggestion paired with the recipe it ranks, for the
+/// dashboard's compact card.
+private struct DashboardRecipeSuggestion: Identifiable {
+    let recipe: Recipe
+    let suggestion: LocalRecipeSuggestions.Suggestion
+    var id: String {
+        recipe.id
+    }
+}
+
 struct DashboardView: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(GoalsRepository.self) private var goalsRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
     @Environment(SupplementRepository.self) private var supplementRepository
@@ -85,6 +96,9 @@ struct DashboardView: View {
     @State private var topFoods: [DashboardTopFood] = []
     @State private var favoriteFoods: [Food] = []
     @State private var selectedFavorite: Food?
+    /// Every recipe, used to compute the recipe-suggestions card. Loaded (and
+    /// refreshed) only while the widget is on, like `favoriteFoods` above.
+    @State private var allRecipes: [Recipe] = []
 
     /// Days the trend chart and the top-foods card look back over, ending on
     /// the selected day.
@@ -130,6 +144,29 @@ struct DashboardView: View {
 
     private var mealGroups: [(String, [Entry])] {
         MealGrouping.group(entries)
+    }
+
+    /// Today's goal minus what's already logged — the budget the recipe
+    /// suggestions card scales recipes against.
+    private var remainingBudget: (calories: Double, protein: Double, carbs: Double, fat: Double) {
+        (
+            calories: goals.calorieGoal - totalCalories,
+            protein: goals.proteinGoal - totalProtein,
+            carbs: goals.carbGoal - totalCarbs,
+            fat: goals.fatGoal - totalFat
+        )
+    }
+
+    /// Top 3 for the compact card; the full ranking lives on
+    /// `RecipeSuggestionsView`. Empty once the goal is reached or no recipe's
+    /// scaled portion fits the remaining budget — the card's own copy explains
+    /// which.
+    private var recipeSuggestionsPreview: [DashboardRecipeSuggestion] {
+        let byId = Dictionary(uniqueKeysWithValues: allRecipes.map { ($0.id, $0) })
+        let suggestions = LocalRecipeSuggestions.suggest(remaining: remainingBudget, recipes: allRecipes, limit: 3)
+        return suggestions.compactMap { suggestion in
+            byId[suggestion.id].map { DashboardRecipeSuggestion(recipe: $0, suggestion: suggestion) }
+        }
     }
 
     /// Calories per meal for the selected day, largest first. Derived from the
@@ -359,6 +396,8 @@ struct DashboardView: View {
             calorieTrendWidget
         case .favorites:
             favoritesWidget
+        case .recipeSuggestions:
+            recipeSuggestionsWidget
         case .supplements:
             if !supplementChecklist.isEmpty {
                 supplementsWidget
@@ -834,6 +873,70 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Recipe Suggestions Widget
+
+    /// Top 3 recipes that fit the day's remaining budget, with a link to the
+    /// full ranking. Shown whenever the section is on (see `DashboardSection`),
+    /// even with no recipes yet — the empty states explain what's missing.
+    private var recipeSuggestionsWidget: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "fork.knife.circle")
+                    .foregroundStyle(MacroColors.protein)
+                Text(L10n.recipeSuggestionsCardTitle)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                NavigationLink {
+                    RecipeSuggestionsView()
+                } label: {
+                    Text(L10n.showAll)
+                        .font(.caption)
+                }
+            }
+
+            if allRecipes.isEmpty {
+                Text(L10n.recipeSuggestionsNoRecipesDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if remainingBudget.calories < LocalRecipeSuggestions.minRemainingCalories {
+                Text(L10n.recipeSuggestionsGoalReachedDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if recipeSuggestionsPreview.isEmpty {
+                Text(L10n.recipeSuggestionsNoMatchesDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(recipeSuggestionsPreview) { item in
+                        recipeSuggestionRow(item)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func recipeSuggestionRow(_ item: DashboardRecipeSuggestion) -> some View {
+        HStack(spacing: 8) {
+            Text(item.recipe.name)
+                .font(.subheadline)
+                .lineLimit(1)
+            Spacer()
+            Text("\(MacroFormat.servings(item.suggestion.servings))\u{00D7}")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("\(MacroFormat.kcal(item.suggestion.calories)) kcal")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(MacroColors.calories)
+        }
+    }
+
     // MARK: - Meal Breakdown Widget
 
     /// Where the day's calories went, meal by meal. Bars are proportional to
@@ -1025,6 +1128,7 @@ struct DashboardView: View {
         closestWeight = weightRepository.closest(to: dateString)
         closestSleep = sleepRepository.closest(to: dateString)
         favoriteFoods = preferences.showFavoritesWidget ? foodRepository.favorites() : []
+        allRecipes = preferences.showRecipeSuggestionsWidget ? recipeRepository.recipes() : []
         loadEntriesFromStore()
     }
 
@@ -1129,12 +1233,14 @@ struct DashboardView: View {
         // read as zero calories. The favorites card needs the same for its list.
         async let trendTask: Void = refreshTrendWindow()
         async let favoritesTask: Void = refreshFavoritesWidget()
+        async let recipeSuggestionsTask: Void = refreshRecipeSuggestionsWidget()
 
         let (entriesFailReason, _, _, _, _, _, _, _) = await (
             entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, sleepTask, tzTask
         )
         await trendTask
         await favoritesTask
+        await recipeSuggestionsTask
         let checklist = await supplementsTask
 
         guard generation == loadGeneration, dateString == loadDate else { return }
@@ -1201,6 +1307,11 @@ struct DashboardView: View {
     private func refreshFavoritesWidget() async {
         guard preferences.showFavoritesWidget else { return }
         try? await foodRepository.refreshFavorites()
+    }
+
+    private func refreshRecipeSuggestionsWidget() async {
+        guard preferences.showRecipeSuggestionsWidget else { return }
+        try? await recipeRepository.refresh()
     }
 
     private func quickLogFavorite(_ food: Food) async {

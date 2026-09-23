@@ -2,6 +2,7 @@ import Home from '@lucide/svelte/icons/home';
 import Heart from '@lucide/svelte/icons/heart';
 import Utensils from '@lucide/svelte/icons/utensils';
 import CookingPot from '@lucide/svelte/icons/cooking-pot';
+import ChefHat from '@lucide/svelte/icons/chef-hat';
 import Pill from '@lucide/svelte/icons/pill';
 import Timer from '@lucide/svelte/icons/timer';
 import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -45,7 +46,8 @@ export const breadcrumbLabelKeys = [
 	'new',
 	'maintenance',
 	'mcp',
-	'ai-tasks'
+	'ai-tasks',
+	'recipe-suggestions'
 ] as const;
 
 export function getNavGroups(): NavGroup[] {
@@ -91,6 +93,13 @@ export function getNavGroups(): NavGroup[] {
 					icon: CookingPot,
 					badgeColor: 'bg-green-100 text-green-600',
 					activeRing: 'ring-2 ring-inset ring-green-300/80 dark:ring-green-700/80'
+				},
+				{
+					title: () => m.nav_recipe_suggestions(),
+					href: '/recipe-suggestions',
+					icon: ChefHat,
+					badgeColor: 'bg-lime-100 text-lime-600',
+					activeRing: 'ring-2 ring-inset ring-lime-300/80 dark:ring-lime-700/80'
 				},
 				{
 					title: () => m.nav_supplements(),
@@ -187,7 +196,13 @@ export const ALL_CONFIGURABLE_TABS: BottomNavTab[] = [
 	{ id: 'insights', title: () => m.nav_insights(), href: '/insights', icon: ChartBar },
 	{ id: 'weight', title: () => m.nav_weight(), href: '/weight', icon: Weight },
 	{ id: 'supplements', title: () => m.nav_supplements(), href: '/supplements', icon: Pill },
-	{ id: 'ai-tasks', title: () => m.nav_ai_tasks(), href: '/ai-tasks', icon: Sparkles }
+	{ id: 'ai-tasks', title: () => m.nav_ai_tasks(), href: '/ai-tasks', icon: Sparkles },
+	{
+		id: 'recipe-suggestions',
+		title: () => m.nav_recipe_suggestions(),
+		href: '/recipe-suggestions',
+		icon: ChefHat
+	}
 ];
 
 export const DEFAULT_NAV_TABS = ['favorites', 'foods', 'insights'];

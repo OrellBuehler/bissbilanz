@@ -9,26 +9,29 @@
 	type Props = {
 		open: boolean;
 		itemName: string;
+		initialServings?: number;
 		onConfirm: (servings: number) => void;
 		onClose: () => void;
 	};
 
-	let { open = $bindable(), itemName, onConfirm, onClose }: Props = $props();
+	let { open = $bindable(), itemName, initialServings = 1, onConfirm, onClose }: Props = $props();
 
-	let servings = $state(1);
+	let servings = $state(initialServings);
+
+	$effect(() => {
+		if (open) servings = initialServings;
+	});
 
 	let wasOpen = $state(false);
 	$effect(() => {
 		if (wasOpen && !open) {
 			onClose();
-			servings = 1;
 		}
 		wasOpen = open;
 	});
 
 	const handleConfirm = () => {
 		onConfirm(servings);
-		servings = 1;
 	};
 </script>
 

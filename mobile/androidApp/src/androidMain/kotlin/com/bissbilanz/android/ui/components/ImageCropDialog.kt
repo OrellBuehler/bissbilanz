@@ -1,18 +1,20 @@
 package com.bissbilanz.android.ui.components
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,11 +27,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -45,6 +56,9 @@ import kotlin.math.roundToInt
  * `fit: 'cover'` — a free-form crop would be silently re-cropped there and the
  * user's framing would not survive. Locking the ratio makes what they see what
  * they get.
+ *
+ * The part of the photo outside the square stays visible under a dimming, so
+ * the user sees what they are cutting away, not just what remains.
  */
 @Composable
 fun ImageCropDialog(
@@ -56,85 +70,116 @@ fun ImageCropDialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
+        var scale by remember { mutableFloatStateOf(1f) }
+        var offsetX by remember { mutableFloatStateOf(0f) }
+        var offsetY by remember { mutableFloatStateOf(0f) }
+
+        BoxWithConstraints(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            var scale by remember { mutableFloatStateOf(1f) }
-            var offsetX by remember { mutableFloatStateOf(0f) }
-            var offsetY by remember { mutableFloatStateOf(0f) }
+            val density = LocalDensity.current
+            // Inset from the edges so the frame and the dimmed photo beside it
+            // stay visible, not only above and below.
+            val windowDp = minOf(maxWidth, maxHeight) - 32.dp
+            val window = with(density) { windowDp.toPx() }
+            // Scale that makes the photo cover the square window, so there is
+            // never a gap inside the crop area at rest.
+            val baseScale = max(window / bitmap.width, window / bitmap.height)
+            val displayed = { s: Float -> Pair(bitmap.width * baseScale * s, bitmap.height * baseScale * s) }
 
-            BoxWithConstraints(
+            fun clamp() {
+                val (w, h) = displayed(scale)
+                val maxX = max(0f, (w - window) / 2f)
+                val maxY = max(0f, (h - window) / 2f)
+                offsetX = offsetX.coerceIn(-maxX, maxX)
+                offsetY = offsetY.coerceIn(-maxY, maxY)
+            }
+
+            // The whole screen takes the gesture, dimmed area included, so a
+            // pan that starts outside the square still moves the photo.
+            Box(
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                        .fillMaxSize()
+                        .clipToBounds()
+                        .pointerInput(bitmap) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                scale = (scale * zoom).coerceIn(1f, 6f)
+                                offsetX += pan.x
+                                offsetY += pan.y
+                                clamp()
+                            }
+                        },
+                contentAlignment = Alignment.Center,
             ) {
-                val window = with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.toPx() }
-                // Scale that makes the photo cover the square window, so there is
-                // never a gap inside the crop area at rest.
-                val baseScale = max(window / bitmap.width, window / bitmap.height)
-                val displayed = { s: Float -> Pair(bitmap.width * baseScale * s, bitmap.height * baseScale * s) }
-
-                fun clamp() {
-                    val (w, h) = displayed(scale)
-                    val maxX = max(0f, (w - window) / 2f)
-                    val maxY = max(0f, (h - window) / 2f)
-                    offsetX = offsetX.coerceIn(-maxX, maxX)
-                    offsetY = offsetY.coerceIn(-maxY, maxY)
-                }
-
-                Box(
+                val (w, h) = displayed(1f)
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    // `requiredSize`, not `size`: the photo is larger than the
+                    // square on one axis, and `size` would let the parent's
+                    // constraints shrink it back to fit — the crop math assumes
+                    // it is drawn at exactly this size.
                     modifier =
                         Modifier
-                            .size(maxWidth)
-                            .clipToBounds()
-                            .pointerInput(bitmap) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(1f, 6f)
-                                    offsetX += pan.x
-                                    offsetY += pan.y
-                                    clamp()
-                                }
-                            },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val (w, h) = displayed(1f)
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .size(
-                                    with(androidx.compose.ui.platform.LocalDensity.current) { w.toDp() },
-                                    with(androidx.compose.ui.platform.LocalDensity.current) { h.toDp() },
-                                ).graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offsetX,
-                                    translationY = offsetY,
-                                ),
+                            .requiredSize(
+                                with(density) { w.toDp() },
+                                with(density) { h.toDp() },
+                            ).graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY,
+                            ),
+                )
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val crop =
+                        Rect(
+                            offset = Offset((size.width - window) / 2f, (size.height - window) / 2f),
+                            size = Size(window, window),
+                        )
+                    val dimming =
+                        Path().apply {
+                            fillType = PathFillType.EvenOdd
+                            addRect(Rect(Offset.Zero, size))
+                            addRect(crop)
+                        }
+                    drawPath(dimming, Color.Black.copy(alpha = 0.6f))
+                    // Rule-of-thirds guides.
+                    val guide = Color.White.copy(alpha = 0.35f)
+                    for (i in 1..2) {
+                        val x = crop.left + crop.width * i / 3f
+                        val y = crop.top + crop.height * i / 3f
+                        drawLine(guide, Offset(x, crop.top), Offset(x, crop.bottom), strokeWidth = 1f)
+                        drawLine(guide, Offset(crop.left, y), Offset(crop.right, y), strokeWidth = 1f)
+                    }
+                    drawRect(
+                        Color.White,
+                        topLeft = crop.topLeft,
+                        size = crop.size,
+                        style = Stroke(width = 1.5.dp.toPx()),
                     )
                 }
+            }
 
-                Row(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    TextButton(onClick = onCancel) {
-                        Text(stringResource(R.string.food_image_crop_cancel), color = Color.White)
-                    }
-                    Button(onClick = { onCropped(cropSquare(bitmap, window, baseScale, scale, offsetX, offsetY)) }) {
-                        Text(stringResource(R.string.food_image_crop_confirm))
-                    }
+            Row(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .safeDrawingPadding()
+                        .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = onCancel) {
+                    Text(stringResource(R.string.food_image_crop_cancel), color = Color.White)
+                }
+                Button(onClick = { onCropped(cropSquare(bitmap, window, baseScale, scale, offsetX, offsetY)) }) {
+                    Text(stringResource(R.string.food_image_crop_confirm))
                 }
             }
 
@@ -142,7 +187,14 @@ fun ImageCropDialog(
                 stringResource(R.string.food_image_crop_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White,
-                modifier = Modifier.padding(24.dp),
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .safeDrawingPadding()
+                        .padding(24.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

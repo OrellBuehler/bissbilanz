@@ -9,8 +9,14 @@ import FoundationModels
 /// `LiquidGlass.swift` / `NutritionLabelScanner.swift`: the FoundationModels
 /// types only exist behind `#if canImport(FoundationModels)`, so everything
 /// public stays visible on older SDKs/OS versions and simply reports
-/// `.osUnsupported`. A queue-based fallback for non-eligible devices is a
-/// later PR — this type is the seam for it.
+/// `.osUnsupported`.
+///
+/// The queue-based fallback mentioned above shipped as "send to my assistant"
+/// (`AIMealSheet`). `MealEstimatorPrivateCloud.swift` adds a second one,
+/// in-line rather than queued: when the on-device attempt is unavailable,
+/// refuses, overflows its context window, or comes back obviously weak,
+/// `estimate(description:)` retries on Apple's Private Cloud Compute server
+/// model (iOS 27+) before giving up.
 enum MealEstimatorAvailability: Equatable {
     case available
     case deviceNotEligible
@@ -43,6 +49,16 @@ enum MealEstimatorError: Error {
 /// builds with — only the code that produces them is gated.
 struct MealEstimate {
     var items: [MealEstimateItem]
+    /// Which model actually produced this estimate — `.onDevice` unless the
+    /// Private Cloud Compute fallback (`MealEstimatorPrivateCloud.swift`) ran
+    /// instead. Defaulted so existing call sites (and any on-device variant
+    /// added later, e.g. for photos) don't need to know this case exists.
+    var source: MealEstimateSource = .onDevice
+}
+
+enum MealEstimateSource: Equatable {
+    case onDevice
+    case privateCloudCompute
 }
 
 struct MealEstimateItem: Identifiable {
@@ -140,16 +156,68 @@ final class MealEstimator {
     func estimate(description: String) async throws -> MealEstimate {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            return try await estimateWithFoundationModels(description: description)
+            if availability == .available {
+                do {
+                    let result = try await estimateWithFoundationModels(description: description)
+                    guard Self.isWeakEstimate(result) else { return result }
+                    // A weak result still beats nothing — only replace it if the
+                    // fallback actually produced something.
+                    return await privateCloudFallback(description: description) ?? result
+                } catch {
+                    if let fallback = await privateCloudFallback(description: description, retryableAfter: error) {
+                        return fallback
+                    }
+                    throw error
+                }
+            }
+            // On-device unavailable (ineligible device, Apple Intelligence off,
+            // model still downloading) — go straight to the cloud fallback
+            // instead of attempting a call `availability` already says will fail.
+            if let fallback = await privateCloudFallback(description: description) {
+                return fallback
+            }
         }
         #endif
         throw MealEstimatorError.generationFailed(L10n.aiMealOsUnsupported)
     }
 
+    /// Attempts the Private Cloud Compute fallback (`MealEstimatorPrivateCloud.swift`).
+    /// `retryableAfter`, when given, only proceeds for the specific on-device
+    /// failures that fallback is meant to catch (guardrail refusal, context
+    /// overflow) — omitting it (the "on-device unavailable" and "weak result"
+    /// call sites above) always proceeds. Returns `nil` whenever the fallback
+    /// isn't available or itself fails, so callers fall through to whatever
+    /// result or error they already have.
+    private func privateCloudFallback(
+        description: String,
+        retryableAfter error: Error? = nil
+    ) async -> MealEstimate? {
+        guard isPrivateCloudComputeAvailable else { return nil }
+        if let error, !Self.isRetryableOnPrivateCloud(error) { return nil }
+        do {
+            return try await estimateWithPrivateCloudCompute(description: description)
+        } catch {
+            // Reported rather than swallowed — the caller still degrades
+            // gracefully to its own result/error, but a silent PCC failure
+            // would otherwise be invisible in production.
+            ErrorReporter.captureWarning(
+                "Private Cloud Compute meal estimate failed",
+                context: ["reason": ErrorReporter.reason(for: error)]
+            )
+            return nil
+        }
+    }
+
     #if canImport(FoundationModels)
 
+    // Not `private`: `MealEstimatorPrivateCloud.swift` reuses `instructions`,
+    // `makeSearchClosure()` and `mapGenerationError` for the Private Cloud
+    // Compute fallback, and `FoodSearchTool`/`EstimatedMeal`/`MatchedFoodIds`/
+    // `FoodMatchDTO` below for the same reason — same tool, same guard, same
+    // guided-generation shape, just a different model backing the session.
+
     @available(iOS 26.0, *)
-    private static let instructions = """
+    static let instructions = """
     You are a nutrition assistant helping a user log a meal they just described. \
     For each distinct food or drink item mentioned, call the searchLocalFoods tool \
     once to look for a matching food in the user's personal food database. Prefer a \

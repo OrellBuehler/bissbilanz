@@ -1,9 +1,14 @@
 import SwiftUI
 
 /// Quick-log list: favorites and recents synced from the phone. Tapping a row
-/// opens the serving adjuster.
+/// opens the serving adjuster. A toolbar mic offers voice logging when it's
+/// actually usable — watchOS 27+, Private Cloud Compute available, and the
+/// phone's "AI Estimation" setting left on (see `WatchMealEstimator`).
 struct LogListView: View {
     @Environment(WatchConnectivityManager.self) private var connectivity
+    @Environment(WatchMealEstimator.self) private var mealEstimator
+
+    @State private var isVoiceLogging = false
 
     private var state: WatchState {
         connectivity.state
@@ -15,6 +20,10 @@ struct LogListView: View {
 
     private var favorites: [WatchFoodRef] {
         state.snapshot.favorites.map { WatchFoodRef(id: $0.id, name: $0.name, calories: $0.calories) }
+    }
+
+    private var voiceLogAvailable: Bool {
+        mealEstimator.availability == .available && (state.privateCloudComputeEnabled ?? true)
     }
 
     var body: some View {
@@ -46,6 +55,23 @@ struct LogListView: View {
             }
         }
         .navigationTitle(strings.log)
+        .toolbar {
+            if voiceLogAvailable {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isVoiceLogging = true
+                    } label: {
+                        Image(systemName: "mic")
+                    }
+                    .accessibilityLabel(strings.voiceLog)
+                }
+            }
+        }
+        .sheet(isPresented: $isVoiceLogging) {
+            NavigationStack {
+                VoiceMealLogView()
+            }
+        }
     }
 
     private func row(_ food: WatchFoodRef) -> some View {

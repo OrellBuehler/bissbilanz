@@ -12,6 +12,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import SupplementChecklist from '$lib/components/supplements/SupplementChecklist.svelte';
 	import FavoritesWidget from '$lib/components/favorites/FavoritesWidget.svelte';
+	import RecipeSuggestionsWidget from '$lib/components/dashboard/RecipeSuggestionsWidget.svelte';
 	import WeightWidget from '$lib/components/weight/WeightWidget.svelte';
 	import StreakWidget from '$lib/components/dashboard/StreakWidget.svelte';
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
@@ -67,6 +68,7 @@
 			'chart',
 			'streaks',
 			'favorites',
+			'recipe-suggestions',
 			'supplements',
 			'weight',
 			'daylog'
@@ -182,6 +184,15 @@
 		<FavoritesWidget
 			onEntryLogged={() => entryService.refresh(activeDate)}
 			favoriteTapAction={(userPrefs?.favoriteTapAction ?? 'instant') as 'instant' | 'picker'}
+			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
+				'time_based' | 'ask_meal'}
+			favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
+		/>
+	{:else if sectionKey === 'recipe-suggestions' && isToday && (userPrefs?.showRecipeSuggestionsWidget ?? true)}
+		<RecipeSuggestionsWidget
+			totals={daylogTotals}
+			goals={userGoals}
+			onEntryLogged={() => entryService.refresh(activeDate)}
 			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
 				'time_based' | 'ask_meal'}
 			favoriteMealTimeframes={userPrefs?.favoriteMealTimeframes ?? []}
