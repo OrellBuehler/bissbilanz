@@ -813,6 +813,16 @@ final class BissbilanzAPI {
         return response.photoUrls
     }
 
+    // MARK: - MCP
+
+    /// Whether the signed-in user has at least one MCP client (e.g. Claude.ai,
+    /// Claude Code) authorized against their account — see Settings → MCP on
+    /// the web app. Local (anonymous) mode has no server and never calls this.
+    func getMcpStatus() async throws -> Bool {
+        let response: McpStatusResponse = try await get("/api/mcp/status")
+        return response.connected
+    }
+
     // MARK: - Images
 
     /// Uploads a food or recipe image and returns its `/uploads/<uuid>.webp` URL.
