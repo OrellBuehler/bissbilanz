@@ -17,6 +17,7 @@
 		home: () => m.nav_dashboard(),
 		foods: () => m.nav_foods(),
 		recipes: () => m.nav_recipes(),
+		'recipe-suggestions': () => m.nav_recipe_suggestions(),
 		goals: () => m.nav_goals(),
 		history: () => m.nav_history(),
 		settings: () => m.nav_settings(),

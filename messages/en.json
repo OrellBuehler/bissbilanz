@@ -1325,5 +1325,18 @@
 	"common_back": "Back",
 	"calendar_previous_month": "Previous month",
 	"calendar_next_month": "Next month",
-	"common_actions": "Actions"
+	"common_actions": "Actions",
+	"nav_recipe_suggestions": "Recipe suggestions",
+	"dashboard_recipe_suggestions_title": "What fits today",
+	"recipe_suggestions_see_all": "See all",
+	"recipe_suggestions_remaining_title": "Remaining today",
+	"recipe_suggestions_no_goals_desc": "Set your daily macro goals to get recipe suggestions.",
+	"recipe_suggestions_set_goals": "Set goals",
+	"recipe_suggestions_no_recipes_desc": "Add a recipe to get suggestions for what to eat next.",
+	"recipe_suggestions_goal_reached_title": "Goal reached",
+	"recipe_suggestions_goal_reached_desc": "You've hit today's calorie goal — nice work.",
+	"recipe_suggestions_no_fit_desc": "None of your recipes fit the remaining budget well enough right now.",
+	"recipe_suggestions_fit": "{percent}% fit",
+	"settings_widget_recipe_suggestions": "Recipe Suggestions Widget",
+	"settings_widget_recipe_suggestions_desc": "Shows recipes that fit your remaining macros today"
 }
