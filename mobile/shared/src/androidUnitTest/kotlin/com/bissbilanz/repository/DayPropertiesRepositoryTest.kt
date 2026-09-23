@@ -69,6 +69,7 @@ class DayPropertiesRepositoryTest {
                     waterMl = null,
                     activityCalories = null,
                     activityNote = null,
+                    activityCaloriesSource = null,
                 ),
                 set,
             )
@@ -158,6 +159,7 @@ class DayPropertiesRepositoryTest {
                     waterMl = null,
                     activityCalories = null,
                     activityNote = null,
+                    activityCaloriesSource = null,
                 )
 
             val fromApi = repo.getDayProperties("2024-01-15")

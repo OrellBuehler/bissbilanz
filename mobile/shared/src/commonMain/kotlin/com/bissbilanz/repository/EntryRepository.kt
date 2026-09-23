@@ -239,6 +239,7 @@ class EntryRepository(
             waterMl = null,
             activityCalories = null,
             activityNote = null,
+            activityCaloriesSource = null,
         )
 
     private fun cachedDayProperties(date: String): DayProperties? =
@@ -253,6 +254,7 @@ class EntryRepository(
                     waterMl = it.waterMl?.toInt(),
                     activityCalories = it.activityCalories?.toInt(),
                     activityNote = it.activityNote,
+                    activityCaloriesSource = null,
                 )
             }
 

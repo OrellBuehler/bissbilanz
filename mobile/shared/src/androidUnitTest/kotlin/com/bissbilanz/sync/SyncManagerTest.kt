@@ -347,6 +347,7 @@ class SyncManagerTest {
                     waterMl = null,
                     activityCalories = null,
                     activityNote = null,
+                    activityCaloriesSource = null,
                 )
 
             val synced = manager.syncPendingQueue()
