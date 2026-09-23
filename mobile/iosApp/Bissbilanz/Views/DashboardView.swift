@@ -60,7 +60,8 @@ struct DashboardView: View {
     @State private var toastMessage: String?
     @State private var isFastingDay = false
     /// Reported by `DayPropertiesCard`; drives the "Activity: +N kcal" summary
-    /// line. Purely informational — never subtracted from the calorie goal.
+    /// line and, when `preferences.activityGoalAdjustment` is on, the goal
+    /// ring adjustment below (see `activityAdjustment`).
     @State private var dayActivityCalories: Int?
     /// Edge the incoming day content is pushed in from when the date changes.
     @State private var slideEdge: Edge = .trailing
@@ -112,6 +113,19 @@ struct DashboardView: View {
 
     private var totalFiber: Double {
         entries.reduce(0) { $0 + $1.totalFiber }
+    }
+
+    /// The selected day's goals, raised by a credited share of its workout
+    /// calories when `preferences.activityGoalAdjustment` is on — unchanged
+    /// with a zero bonus otherwise. Drives both the macro rings below and the
+    /// "+N kcal from workouts" caption.
+    private var activityAdjustment: ActivityAdjustedGoals {
+        adjustGoalsForActivity(
+            goals: goals,
+            activityCalories: dayActivityCalories,
+            enabled: preferences.activityGoalAdjustment,
+            creditPercent: preferences.activityCreditPercent
+        )
     }
 
     private var mealGroups: [(String, [Entry])] {
@@ -517,51 +531,60 @@ struct DashboardView: View {
     // MARK: - Macro Rings
 
     private var macroRings: some View {
-        HStack(spacing: 16) {
-            MacroRingView(
-                label: "Cal",
-                current: totalCalories,
-                goal: goals.calorieGoal,
-                color: MacroColors.calories,
-                showGoal: true
-            )
-            MacroRingView(
-                label: "P",
-                current: totalProtein,
-                goal: goals.proteinGoal,
-                color: MacroColors.protein,
-                showGoal: true,
-                animationDelay: 0.05
-            )
-            MacroRingView(
-                label: "C",
-                current: totalCarbs,
-                goal: goals.carbGoal,
-                color: MacroColors.carbs,
-                showGoal: true,
-                animationDelay: 0.1
-            )
-            MacroRingView(
-                label: "F",
-                current: totalFat,
-                goal: goals.fatGoal,
-                color: MacroColors.fat,
-                showGoal: true,
-                animationDelay: 0.15
-            )
-            MacroRingView(
-                label: "Fb",
-                current: totalFiber,
-                goal: goals.fiberGoal,
-                color: MacroColors.fiber,
-                showGoal: true,
-                animationDelay: 0.2
-            )
+        let adjustedGoals = activityAdjustment.goals
+        return VStack(spacing: 4) {
+            HStack(spacing: 16) {
+                MacroRingView(
+                    label: "Cal",
+                    current: totalCalories,
+                    goal: adjustedGoals.calorieGoal,
+                    color: MacroColors.calories,
+                    showGoal: true
+                )
+                MacroRingView(
+                    label: "P",
+                    current: totalProtein,
+                    goal: adjustedGoals.proteinGoal,
+                    color: MacroColors.protein,
+                    showGoal: true,
+                    animationDelay: 0.05
+                )
+                MacroRingView(
+                    label: "C",
+                    current: totalCarbs,
+                    goal: adjustedGoals.carbGoal,
+                    color: MacroColors.carbs,
+                    showGoal: true,
+                    animationDelay: 0.1
+                )
+                MacroRingView(
+                    label: "F",
+                    current: totalFat,
+                    goal: adjustedGoals.fatGoal,
+                    color: MacroColors.fat,
+                    showGoal: true,
+                    animationDelay: 0.15
+                )
+                MacroRingView(
+                    label: "Fb",
+                    current: totalFiber,
+                    goal: adjustedGoals.fiberGoal,
+                    color: MacroColors.fiber,
+                    showGoal: true,
+                    animationDelay: 0.2
+                )
+            }
+            if activityAdjustment.activityBonus > 0 {
+                Text(L10n.daySummaryActivityBonus(activityAdjustment.activityBonus))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
-    /// Informational only — activity calories are tracked for reference and
-    /// never subtracted from the calorie ring/goal above.
+    /// Informational — activity calories are tracked for reference, and only
+    /// raise the calorie ring/goal above when `preferences.activityGoalAdjustment`
+    /// is on (see `activityAdjustment` and the caption under the rings).
     private func activitySummaryLine(_ calories: Int) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "flame.fill")

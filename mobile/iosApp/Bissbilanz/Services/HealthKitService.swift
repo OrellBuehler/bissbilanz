@@ -18,6 +18,9 @@ final class HealthKitService {
     /// Off by default — users whose Watch already records sleep would get
     /// duplicates.
     static let writeSleepEnabledKey = "healthkit_write_sleep_enabled"
+    /// Opt-in import of Apple Health workout active-energy into a day's
+    /// activity calories. Off by default and independent of the other toggles.
+    static let readActivityEnabledKey = "healthkit_read_activity_enabled"
 
     private let healthStore = HKHealthStore()
     var isAvailable: Bool {
@@ -98,6 +101,22 @@ final class HealthKitService {
             return true
         } catch {
             ErrorReporter.captureWarning("HealthKit sleep write authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
+            return false
+        }
+    }
+
+    // MARK: - Activity (workouts) authorization
+
+    /// Read-only, requested lazily like sleep: workouts plus active-energy so
+    /// `fetchWorkoutActiveCalories` can read each workout's own statistics.
+    func requestActivityReadAuthorization() async -> Bool {
+        guard isAvailable else { return false }
+        let types: Set<HKObjectType> = [HKObjectType.workoutType(), HKQuantityType(.activeEnergyBurned)]
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: types)
+            return true
+        } catch {
+            ErrorReporter.captureWarning("HealthKit activity read authorization request failed", context: ["reason": ErrorReporter.reason(for: error)])
             return false
         }
     }
@@ -469,6 +488,46 @@ final class HealthKitService {
         return sleepSamples
     }
 
+    // MARK: - Activity (workouts)
+
+    /// Sums each workout's active-energy-burned (kilocalories) by the local
+    /// calendar day it started on, for workouts starting in `[from, to]`.
+    /// `statistics(for:)` (the modern HKWorkoutBuilder-recorded aggregate) is
+    /// tried first; `totalEnergyBurned` is a fallback for workouts that only
+    /// carry the older single total. Days with no positive energy are omitted.
+    func fetchWorkoutActiveCalories(from startDate: Date, to endDate: Date) async throws -> [String: Int] {
+        let activeEnergyType = HKQuantityType(.activeEnergyBurned)
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+        let workouts: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: HKObjectType.workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: (samples ?? []).compactMap { $0 as? HKWorkout })
+            }
+            self.healthStore.execute(query)
+        }
+
+        var dailyKcal: [String: Int] = [:]
+        for workout in workouts {
+            let kcal = workout.statistics(for: activeEnergyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
+                ?? workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+            guard let kcal, kcal > 0 else { continue }
+            let day = DateFormatting.isoString(from: workout.startDate)
+            dailyKcal[day, default: 0] += Int(kcal.rounded())
+        }
+        Self.markSynced(Self.activityReadSyncKind)
+        return dailyKcal
+    }
+
     private nonisolated static func stage(for rawValue: Int) -> SleepStage? {
         guard let value = HKCategoryValueSleepAnalysis(rawValue: rawValue) else { return nil }
         switch value {
@@ -730,6 +789,7 @@ final class HealthKitService {
     static let weightWriteSyncKind = "write_bodyMass"
     static let sleepReadSyncKind = "read_sleepAnalysis"
     static let sleepWriteSyncKind = "write_sleepAnalysis"
+    static let activityReadSyncKind = "read_activeEnergyBurned"
 
     static func nutrientWriteSyncKind(_ key: String) -> String {
         "write_\(key)"
@@ -755,6 +815,7 @@ final class HealthKitService {
             || defaults.bool(forKey: writeWeightEnabledKey)
             || defaults.bool(forKey: readSleepEnabledKey)
             || defaults.bool(forKey: writeSleepEnabledKey)
+            || defaults.bool(forKey: readActivityEnabledKey)
             || HealthNutrient.anyEnabled
     }
 }

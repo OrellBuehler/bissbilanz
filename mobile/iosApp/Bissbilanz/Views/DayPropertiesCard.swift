@@ -143,6 +143,16 @@ struct DayPropertiesCard: View {
                 Text(L10n.dayActivityTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                if properties?.activityCaloriesSource == "apple_health" {
+                    Spacer()
+                    HStack(spacing: 3) {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                        Text(L10n.appleHealth)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
             }
             adaptiveInputLayout {
                 TextField("0", text: $activityDraft)
@@ -175,11 +185,16 @@ struct DayPropertiesCard: View {
         }
     }
 
+    /// A hand-typed value is always attributed to "manual" — even one that
+    /// happens to match a previously imported number — since it's an
+    /// explicit user action from here on. Clearing the field this way clears
+    /// the source too, matching the dedicated clear button below.
     private func commitActivity() {
         let parsed = parseInt(activityDraft)
         let clamped = parsed.map { clamp($0, max: Self.maxActivityCalories) }
         activityDraft = clamped.map(String.init) ?? ""
-        save(DayPropertiesPatch(activityCalories: .some(clamped)))
+        let source: String?? = clamped == nil ? .some(nil) : .some("manual")
+        save(DayPropertiesPatch(activityCalories: .some(clamped), activityCaloriesSource: source))
     }
 
     private func commitActivityNote() {
@@ -192,7 +207,11 @@ struct DayPropertiesCard: View {
     private func clearActivity() {
         activityDraft = ""
         activityNoteDraft = ""
-        save(DayPropertiesPatch(activityCalories: .some(nil), activityNote: .some(nil)))
+        save(DayPropertiesPatch(
+            activityCalories: .some(nil),
+            activityCaloriesSource: .some(nil),
+            activityNote: .some(nil)
+        ))
     }
 
     // MARK: - Notes

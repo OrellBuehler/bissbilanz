@@ -543,6 +543,7 @@ final class LocalDataMigrator {
                 notes: .some(local.notes),
                 waterMl: .some(local.waterMl),
                 activityCalories: .some(local.activityCalories),
+                activityCaloriesSource: .some(local.activityCaloriesSource),
                 activityNote: .some(local.activityNote)
             )
             let server = try await api.setDayProperties(date: row.date, patch: patch)
@@ -608,6 +609,8 @@ final class LocalDataMigrator {
         update.locale = preferences.locale
         update.timeZone = preferences.timeZone
         update.waterGoalMl = preferences.waterGoalMl
+        update.activityGoalAdjustment = preferences.activityGoalAdjustment
+        update.activityCreditPercent = preferences.activityCreditPercent
         return update
     }
 

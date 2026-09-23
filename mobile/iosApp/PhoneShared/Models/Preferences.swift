@@ -38,6 +38,15 @@ struct Preferences: Codable, Equatable {
     /// object, and existing memberwise call sites keep compiling. Callers read
     /// `waterGoalMl ?? 2000`.
     var waterGoalMl: Int? = nil
+    /// Whether a day's calorie/macro goals are raised by its Apple Health/Health
+    /// Connect activity calories (see `adjustGoalsForActivity`). `var` with a
+    /// default like `showFastingWidget` above so a cached row or server
+    /// response from before this field existed still decodes as "off".
+    var activityGoalAdjustment: Bool = false
+    /// Percent (0-100) of a day's activity calories credited back to the
+    /// goal when `activityGoalAdjustment` is on. `var` with a default like
+    /// `activityGoalAdjustment` above.
+    var activityCreditPercent: Int = 100
 
     static let defaults = Preferences(
         showChartWidget: true,
@@ -57,7 +66,9 @@ struct Preferences: Codable, Equatable {
         biologicalSex: nil,
         locale: nil,
         timeZone: "UTC",
-        waterGoalMl: nil
+        waterGoalMl: nil,
+        activityGoalAdjustment: false,
+        activityCreditPercent: 100
     )
 }
 
@@ -73,6 +84,7 @@ extension Preferences {
         case showFastingWidget, showDayPropertiesWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, waterGoalMl
+        case activityGoalAdjustment, activityCreditPercent
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +107,8 @@ extension Preferences {
         locale = try container.decodeIfPresent(String.self, forKey: .locale)
         timeZone = try container.decodeIfPresent(String.self, forKey: .timeZone)
         waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
+        activityGoalAdjustment = try container.decodeIfPresent(Bool.self, forKey: .activityGoalAdjustment) ?? false
+        activityCreditPercent = try container.decodeIfPresent(Int.self, forKey: .activityCreditPercent) ?? 100
     }
 
     func encode(to encoder: Encoder) throws {
@@ -117,6 +131,8 @@ extension Preferences {
         try container.encodeIfPresent(locale, forKey: .locale)
         try container.encodeIfPresent(timeZone, forKey: .timeZone)
         try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
+        try container.encode(activityGoalAdjustment, forKey: .activityGoalAdjustment)
+        try container.encode(activityCreditPercent, forKey: .activityCreditPercent)
     }
 }
 
@@ -149,6 +165,8 @@ struct PreferencesUpdate: Codable {
     var timeZone: String?
     var favoriteMealTimeframes: [FavoriteMealTimeframe]?
     var waterGoalMl: Int?
+    var activityGoalAdjustment: Bool?
+    var activityCreditPercent: Int?
 }
 
 /// Declared in an extension so the memberwise initializer survives.
@@ -159,6 +177,7 @@ extension PreferencesUpdate {
         case showFastingWidget, showDayPropertiesWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes, waterGoalMl
+        case activityGoalAdjustment, activityCreditPercent
     }
 
     init(from decoder: Decoder) throws {
@@ -185,6 +204,8 @@ extension PreferencesUpdate {
             forKey: .favoriteMealTimeframes
         )
         waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
+        activityGoalAdjustment = try container.decodeIfPresent(Bool.self, forKey: .activityGoalAdjustment)
+        activityCreditPercent = try container.decodeIfPresent(Int.self, forKey: .activityCreditPercent)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -208,6 +229,8 @@ extension PreferencesUpdate {
         try container.encodeIfPresent(timeZone, forKey: .timeZone)
         try container.encodeIfPresent(favoriteMealTimeframes, forKey: .favoriteMealTimeframes)
         try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
+        try container.encodeIfPresent(activityGoalAdjustment, forKey: .activityGoalAdjustment)
+        try container.encodeIfPresent(activityCreditPercent, forKey: .activityCreditPercent)
     }
 }
 

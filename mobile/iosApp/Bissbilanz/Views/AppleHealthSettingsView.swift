@@ -19,12 +19,13 @@ struct AppleHealthSettingsView: View {
     @State private var weightWrite = UserDefaults.standard.bool(forKey: HealthKitService.writeWeightEnabledKey)
     @State private var sleepRead = UserDefaults.standard.bool(forKey: HealthKitService.readSleepEnabledKey)
     @State private var sleepWrite = UserDefaults.standard.bool(forKey: HealthKitService.writeSleepEnabledKey)
+    @State private var activityRead = UserDefaults.standard.bool(forKey: HealthKitService.readActivityEnabledKey)
     @State private var nutrientsEnabled: [String: Bool] = Dictionary(
         uniqueKeysWithValues: HealthNutrient.all.map { ($0.key, $0.isEnabled) }
     )
 
     private var isConnected: Bool {
-        weightRead || weightWrite || sleepRead || sleepWrite || nutrientsEnabled.values.contains(true)
+        weightRead || weightWrite || sleepRead || sleepWrite || activityRead || nutrientsEnabled.values.contains(true)
     }
 
     var body: some View {
@@ -154,6 +155,15 @@ struct AppleHealthSettingsView: View {
                 }
                 .disabled(isReimporting)
             }
+            syncRow(
+                name: L10n.healthWorkoutCalories,
+                identifier: HKQuantityTypeIdentifier.activeEnergyBurned.rawValue,
+                direction: .read,
+                lastSyncKind: HealthKitService.activityReadSyncKind,
+                isOn: toggleBinding($activityRead, key: HealthKitService.readActivityEnabledKey) {
+                    await healthKit.requestActivityReadAuthorization()
+                }
+            )
         } header: {
             Text(L10n.healthReadingSection)
         } footer: {
@@ -300,11 +310,13 @@ struct AppleHealthSettingsView: View {
         weightWrite = false
         sleepRead = false
         sleepWrite = false
+        activityRead = false
         let defaults = UserDefaults.standard
         defaults.set(false, forKey: HealthKitService.syncEnabledKey)
         defaults.set(false, forKey: HealthKitService.writeWeightEnabledKey)
         defaults.set(false, forKey: HealthKitService.readSleepEnabledKey)
         defaults.set(false, forKey: HealthKitService.writeSleepEnabledKey)
+        defaults.set(false, forKey: HealthKitService.readActivityEnabledKey)
         setAllNutrients(false)
     }
 

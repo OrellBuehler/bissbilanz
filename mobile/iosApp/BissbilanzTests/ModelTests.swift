@@ -207,6 +207,127 @@ struct GoalsTests {
     }
 }
 
+@Suite("Activity Goal Adjustment Tests")
+struct ActivityGoalAdjustmentTests {
+    private static let baseGoals = Goals(
+        calorieGoal: 2000,
+        proteinGoal: 150,
+        carbGoal: 250,
+        fatGoal: 65,
+        fiberGoal: 30,
+        sodiumGoal: 2300,
+        sugarGoal: 50
+    )
+
+    @Test("100% credit raises the calorie goal and scales macros proportionally")
+    func fullCredit() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: 400,
+            enabled: true,
+            creditPercent: 100
+        )
+
+        #expect(result.activityBonus == 400)
+        #expect(result.goals.calorieGoal == 2400)
+        #expect(result.goals.proteinGoal == 180) // 150 * 1.2
+        #expect(result.goals.carbGoal == 300) // 250 * 1.2
+        #expect(result.goals.fatGoal == 78) // 65 * 1.2
+        #expect(result.goals.fiberGoal == 36) // 30 * 1.2
+        // Non-calorie-proportional goals stay untouched.
+        #expect(result.goals.sodiumGoal == 2300)
+        #expect(result.goals.sugarGoal == 50)
+    }
+
+    @Test("Partial credit percent scales the bonus down")
+    func partialCredit() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: 400,
+            enabled: true,
+            creditPercent: 50
+        )
+
+        #expect(result.activityBonus == 200)
+        #expect(result.goals.calorieGoal == 2200)
+    }
+
+    @Test("Disabled leaves goals unchanged with zero bonus")
+    func disabled() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: 400,
+            enabled: false,
+            creditPercent: 100
+        )
+
+        #expect(result.activityBonus == 0)
+        #expect(result.goals.calorieGoal == 2000)
+        #expect(result.goals.proteinGoal == 150)
+    }
+
+    @Test("Nil activity calories leaves goals unchanged")
+    func nilActivityCalories() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: nil,
+            enabled: true,
+            creditPercent: 100
+        )
+
+        #expect(result.activityBonus == 0)
+        #expect(result.goals.calorieGoal == 2000)
+    }
+
+    @Test("Zero or negative activity calories leaves goals unchanged")
+    func nonPositiveActivityCalories() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: 0,
+            enabled: true,
+            creditPercent: 100
+        )
+
+        #expect(result.activityBonus == 0)
+        #expect(result.goals.calorieGoal == 2000)
+    }
+
+    @Test("Zero calorie goal leaves goals unchanged (avoids division by zero)")
+    func zeroCalorieGoal() {
+        let goals = Goals(
+            calorieGoal: 0,
+            proteinGoal: 150,
+            carbGoal: 250,
+            fatGoal: 65,
+            fiberGoal: 30,
+            sodiumGoal: nil,
+            sugarGoal: nil
+        )
+        let result = adjustGoalsForActivity(
+            goals: goals,
+            activityCalories: 400,
+            enabled: true,
+            creditPercent: 100
+        )
+
+        #expect(result.activityBonus == 0)
+        #expect(result.goals.calorieGoal == 0)
+    }
+
+    @Test("Zero credit percent leaves goals unchanged")
+    func zeroCreditPercent() {
+        let result = adjustGoalsForActivity(
+            goals: Self.baseGoals,
+            activityCalories: 400,
+            enabled: true,
+            creditPercent: 0
+        )
+
+        #expect(result.activityBonus == 0)
+        #expect(result.goals.calorieGoal == 2000)
+    }
+}
+
 @Suite("ServingUnit Tests")
 struct ServingUnitTests {
     @Test("Display names are correct")
@@ -697,6 +818,57 @@ struct SleepModelTests {
 
         #expect(json["durationMinutes"] as? Int == 420)
         #expect(json["bedtime"] == nil)
+    }
+}
+
+@Suite("DayProperties Model Tests")
+struct DayPropertiesModelTests {
+    // activityCaloriesSource is a double optional on DayPropertiesPatch, same
+    // rationale as the Weight/Sleep updates above: "manual" | "apple_health" |
+    // "health_connect" | an explicit null to clear it, distinct from "omitted".
+
+    @Test("DayPropertiesPatch encodes an explicit null for a cleared activity source")
+    func dayPropertiesPatchExplicitNullActivitySource() throws {
+        var patch = DayPropertiesPatch(activityCalories: .some(nil))
+        patch.activityCaloriesSource = .some(nil)
+
+        let data = try JSONEncoder().encode(patch)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json.keys.contains("activityCaloriesSource"))
+        #expect(json["activityCaloriesSource"] is NSNull)
+    }
+
+    @Test("DayPropertiesPatch omits an untouched activity source")
+    func dayPropertiesPatchOmitsUntouchedActivitySource() throws {
+        let patch = DayPropertiesPatch(activityCalories: .some(400))
+
+        let data = try JSONEncoder().encode(patch)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["activityCalories"] as? Int == 400)
+        #expect(json["activityCaloriesSource"] == nil)
+    }
+
+    @Test("DayPropertiesPatch round-trips an apple_health source")
+    func dayPropertiesPatchRoundTripsActivitySource() throws {
+        let patch = DayPropertiesPatch(
+            activityCalories: .some(400),
+            activityCaloriesSource: .some("apple_health")
+        )
+
+        let data = try JSONEncoder().encode(patch)
+        let decoded = try JSONDecoder().decode(DayPropertiesPatch.self, from: data)
+
+        // activityCalories/activityCaloriesSource are double optionals
+        // (`Int??`/`String??`) — one #require unwraps "the key was present",
+        // a second unwraps "the value wasn't JSON null".
+        let outerCalories = try #require(decoded.activityCalories)
+        let calories = try #require(outerCalories)
+        let outerSource = try #require(decoded.activityCaloriesSource)
+        let source = try #require(outerSource)
+        #expect(calories == 400)
+        #expect(source == "apple_health")
     }
 }
 
