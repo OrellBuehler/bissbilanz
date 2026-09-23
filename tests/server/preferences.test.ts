@@ -96,6 +96,7 @@ describe('preferences', () => {
 				'chart',
 				'streaks',
 				'favorites',
+				'recipe-suggestions',
 				'supplements',
 				'weight',
 				'meal-breakdown',

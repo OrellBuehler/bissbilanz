@@ -15,6 +15,7 @@ enum class DashboardSection(
     DAY_PROPERTIES("day-properties"),
     CHART("chart"),
     FAVORITES("favorites"),
+    RECIPE_SUGGESTIONS("recipe-suggestions"),
     SUPPLEMENTS("supplements"),
     WEIGHT("weight"),
     MEAL_BREAKDOWN("meal-breakdown"),
@@ -35,6 +36,7 @@ val DEFAULT_DASHBOARD_WIDGET_ORDER =
         "day-properties",
         "chart",
         "favorites",
+        "recipe-suggestions",
         "supplements",
         "weight",
         "meal-breakdown",
@@ -70,6 +72,7 @@ fun DashboardSection.isVisible(prefs: Preferences?): Boolean =
         DashboardSection.DAY_PROPERTIES -> prefs?.showDayPropertiesWidget == true
         DashboardSection.CHART -> prefs?.showChartWidget == true
         DashboardSection.FAVORITES -> prefs?.showFavoritesWidget == true
+        DashboardSection.RECIPE_SUGGESTIONS -> prefs?.showRecipeSuggestionsWidget == true
         DashboardSection.SUPPLEMENTS -> prefs?.showSupplementsWidget == true
         DashboardSection.WEIGHT -> prefs?.showWeightWidget == true
         DashboardSection.MEAL_BREAKDOWN -> prefs?.showMealBreakdownWidget == true
@@ -85,6 +88,7 @@ fun DashboardSection.visibilityUpdate(value: Boolean): PreferencesUpdate? =
         DashboardSection.DAY_PROPERTIES -> PreferencesUpdate(showDayPropertiesWidget = value)
         DashboardSection.CHART -> PreferencesUpdate(showChartWidget = value)
         DashboardSection.FAVORITES -> PreferencesUpdate(showFavoritesWidget = value)
+        DashboardSection.RECIPE_SUGGESTIONS -> PreferencesUpdate(showRecipeSuggestionsWidget = value)
         DashboardSection.SUPPLEMENTS -> PreferencesUpdate(showSupplementsWidget = value)
         DashboardSection.WEIGHT -> PreferencesUpdate(showWeightWidget = value)
         DashboardSection.MEAL_BREAKDOWN -> PreferencesUpdate(showMealBreakdownWidget = value)

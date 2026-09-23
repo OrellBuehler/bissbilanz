@@ -1636,6 +1636,80 @@ enum L10n {
         )
     }
 
+    static var dashboardSectionRecipeSuggestionsDescription: String {
+        localized(
+            "dashboard_section_recipe_suggestions_description",
+            en: "Recipes that fit your remaining macros",
+            de: "Rezepte, die in dein verbleibendes Budget passen"
+        )
+    }
+
+    // MARK: - Recipe Suggestions
+
+    static var recipeSuggestions: String {
+        localized("recipe_suggestions", en: "Recipe suggestions", de: "Rezeptvorschläge")
+    }
+
+    static var recipeSuggestionsCardTitle: String {
+        localized("recipe_suggestions_card_title", en: "What fits today", de: "Was heute noch passt")
+    }
+
+    static var recipeSuggestionsRemainingLabel: String {
+        localized("recipe_suggestions_remaining_label", en: "Remaining today", de: "Heute noch übrig")
+    }
+
+    static var recipeSuggestionsGoalReachedTitle: String {
+        localized("recipe_suggestions_goal_reached_title", en: "Goal reached", de: "Ziel erreicht")
+    }
+
+    static var recipeSuggestionsGoalReachedDescription: String {
+        localized(
+            "recipe_suggestions_goal_reached_description",
+            en: "You've hit today's goal — nothing left to fit in.",
+            de: "Du hast dein heutiges Ziel erreicht — nichts bleibt mehr übrig."
+        )
+    }
+
+    static var recipeSuggestionsNoRecipesTitle: String {
+        localized("recipe_suggestions_no_recipes_title", en: "No recipes yet", de: "Noch keine Rezepte")
+    }
+
+    static var recipeSuggestionsNoRecipesDescription: String {
+        localized(
+            "recipe_suggestions_no_recipes_description",
+            en: "Create a recipe to get suggestions.",
+            de: "Erstelle ein Rezept, um Vorschläge zu erhalten."
+        )
+    }
+
+    static var recipeSuggestionsNoGoalsTitle: String {
+        localized("recipe_suggestions_no_goals_title", en: "No goals set", de: "Keine Ziele festgelegt")
+    }
+
+    static var recipeSuggestionsNoGoalsDescription: String {
+        localized(
+            "recipe_suggestions_no_goals_description",
+            en: "Set your daily goals in Settings to see suggestions.",
+            de: "Lege deine Tagesziele in den Einstellungen fest, um Vorschläge zu sehen."
+        )
+    }
+
+    static var recipeSuggestionsNoMatchesTitle: String {
+        localized("recipe_suggestions_no_matches_title", en: "Nothing fits right now", de: "Gerade passt nichts")
+    }
+
+    static var recipeSuggestionsNoMatchesDescription: String {
+        localized(
+            "recipe_suggestions_no_matches_description",
+            en: "None of your recipes fit your remaining budget.",
+            de: "Keines deiner Rezepte passt in dein verbleibendes Budget."
+        )
+    }
+
+    static func recipeSuggestionsFitPercent(_ percent: Int) -> String {
+        localized("recipe_suggestions_fit_percent", en: "\(percent)% fit", de: "\(percent)% passend")
+    }
+
     static var favoriteBehavior: String {
         localized(
             "favorite_behavior",

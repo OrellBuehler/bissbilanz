@@ -20,6 +20,7 @@ import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -83,17 +84,17 @@ class RecipeRepository(
                             fat = s.fat,
                             fiber = s.fiber,
                             ingredients = emptyList(),
-                        )
+                        ).serverTotalsToPerServing()
                     queries.insertRecipe(
                         id = recipe.id,
                         name = recipe.name,
                         totalServings = recipe.totalServings,
                         isFavorite = if (recipe.isFavorite) 1L else 0L,
-                        calories = s.calories,
-                        protein = s.protein,
-                        carbs = s.carbs,
-                        fat = s.fat,
-                        fiber = s.fiber,
+                        calories = recipe.calories,
+                        protein = recipe.protein,
+                        carbs = recipe.carbs,
+                        fat = recipe.fat,
+                        fiber = recipe.fiber,
                         jsonData = json.encodeToString(recipe),
                     )
                 }
@@ -129,7 +130,7 @@ class RecipeRepository(
                 ?: throw IllegalStateException("Recipe $id not found in local database")
         }
         return try {
-            val recipe = api.getRecipe(id)
+            val recipe = api.getRecipe(id).serverTotalsToPerServing()
             withContext(Dispatchers.IO) { cacheRecipe(recipe) }
             recipe
         } catch (e: Exception) {

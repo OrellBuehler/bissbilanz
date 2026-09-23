@@ -25,6 +25,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -66,11 +67,13 @@ fun MealPickerSheet(
     date: String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString(),
     macros: MealPickerMacros? = null,
     imageUrl: String? = null,
+    initialServings: Double = 1.0,
+    initialMeal: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedMeal by remember { mutableStateOf("Lunch") }
-    var servingsText by remember { mutableStateOf("1") }
+    var selectedMeal by remember { mutableStateOf(initialMeal ?: "Lunch") }
+    var servingsText by remember { mutableStateOf(initialServings.toDisplayString()) }
     var selectedDate by remember { mutableStateOf(date) }
     val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
     var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
