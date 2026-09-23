@@ -133,7 +133,8 @@ extension WidgetSnapshotWriter {
             mealTypes: mealTypes(context: context),
             recents: watchRecents(context: context),
             weight: watchWeight(context: context),
-            sleep: watchSleep(context: context)
+            sleep: watchSleep(context: context),
+            privateCloudComputeEnabled: PrivateCloudComputeSettings.isEnabled
         )
     }
 

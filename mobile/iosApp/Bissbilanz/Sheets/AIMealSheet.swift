@@ -5,16 +5,19 @@ import SwiftUI
 private let maxAiTaskPhotos = 5
 
 /// Entry point for AI-assisted meal logging: a free-text description (and
-/// optionally up to five photos) can either be estimated on-device via `MealEstimator`
+/// optionally up to five photos) can either be estimated via `MealEstimator`
 /// — pushing `AIMealReviewView` within this sheet's stack — or queued as an
-/// `AiTask` for the assistant to pick up later. On-device text estimation runs
-/// on Apple Intelligence devices (iOS 26+); on-device photo estimation needs
-/// iOS 27+ (see `MealEstimator.supportsPhotoInput`) and is what makes the photo
-/// picker useful in Local mode, which has no server to queue a task on. In
-/// Synced mode, queueing is a secondary action where on-device estimation is
-/// available and the only action where it isn't — but only once an assistant
-/// is actually connected (`McpConnectionStatus`), since an `AiTask` otherwise
-/// has nothing to process it.
+/// `AiTask` for the assistant to pick up later. Text estimation runs on-device
+/// on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`),
+/// falling back to Apple's Private Cloud Compute (iOS 27+, see
+/// `MealEstimator.canEstimate`) when on-device is unavailable, refuses,
+/// overflows, or comes back weak. On-device photo estimation needs iOS 27+
+/// (see `MealEstimator.supportsPhotoInput`) and is what makes the photo picker
+/// useful in Local mode, which has no server to queue a task on. In Synced
+/// mode, queueing is a secondary action where estimation is available and the
+/// only action where it isn't — but only once an assistant is actually
+/// connected (`McpConnectionStatus`), since an `AiTask` otherwise has nothing
+/// to process it.
 struct AIMealSheet: View {
     @Environment(MealEstimator.self) private var mealEstimator
     @Environment(BissbilanzAPI.self) private var api
@@ -100,7 +103,7 @@ struct AIMealSheet: View {
                 // a single control group instead of two stacked bars.
                 Section {
                     VStack(spacing: 8) {
-                        if mealEstimator.availability != .available {
+                        if !availabilityMessage.isEmpty {
                             Label {
                                 Text(availabilityMessage)
                             } icon: {
@@ -123,7 +126,7 @@ struct AIMealSheet: View {
                         }
 
                         HStack(spacing: 8) {
-                            if mealEstimator.availability == .available {
+                            if mealEstimator.canEstimate {
                                 estimateButton
                             }
                             if !appMode.isLocal {
@@ -216,7 +219,7 @@ struct AIMealSheet: View {
     /// button spans the full width and its title fits on one line, so it keeps
     /// the standard control height instead of the two-line floor.
     private var showsBothActions: Bool {
-        mealEstimator.availability == .available && !appMode.isLocal
+        mealEstimator.canEstimate && !appMode.isLocal
     }
 
     /// The shared shape of both action labels: half the row each and the full
@@ -255,7 +258,7 @@ struct AIMealSheet: View {
         }
         .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating || !mcpConnectionStatus.isConnected)
 
-        if mealEstimator.availability == .available {
+        if mealEstimator.canEstimate {
             button.buttonStyle(.bordered)
         } else {
             button.buttonStyle(.borderedProminent)
@@ -338,7 +341,20 @@ struct AIMealSheet: View {
         !appMode.isLocal && !mcpConnectionStatus.isConnected
     }
 
+    /// Empty once an estimate can actually be produced (on-device or, absent
+    /// that, Private Cloud Compute) — otherwise the on-device unavailability
+    /// reason, or a Private Cloud Compute notice when that's why the estimate
+    /// button is showing at all despite on-device being unavailable.
     private var availabilityMessage: String {
+        switch mealEstimator.availability {
+        case .available:
+            ""
+        case .deviceNotEligible, .appleIntelligenceDisabled, .modelNotReady, .osUnsupported:
+            mealEstimator.isPrivateCloudComputeAvailable ? L10n.aiMealPrivateCloudNotice : onDeviceUnavailableMessage
+        }
+    }
+
+    private var onDeviceUnavailableMessage: String {
         switch mealEstimator.availability {
         case .available: ""
         case .deviceNotEligible: L10n.aiMealDeviceNotEligible

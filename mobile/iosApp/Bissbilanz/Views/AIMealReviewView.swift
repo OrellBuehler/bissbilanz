@@ -50,6 +50,11 @@ struct AIMealReviewView: View {
                         Text(L10n.aiMealDisclaimer)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if estimate.source == .privateCloudCompute {
+                            Label(L10n.aiMealPrivateCloudDisclaimer, systemImage: "cloud")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     ForEach($items) { $item in

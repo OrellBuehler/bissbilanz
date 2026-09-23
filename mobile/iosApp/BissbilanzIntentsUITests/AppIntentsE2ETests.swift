@@ -40,14 +40,26 @@ final class AppIntentsE2ETests: XCTestCase {
     private let app = XCUIApplication()
     private var definitions: IntentDefinitions!
 
+    /// Set once the first test hits the Customer-build restriction, so the
+    /// rest skip before `app.launch()` — relaunching per test only to skip
+    /// again is slow and flaky on CI simulators ("Failed to terminate").
+    private static var internalTestingUnavailable: XCTSkip?
+
     override func setUp() async throws {
         continueAfterFailure = false
+        if let skip = Self.internalTestingUnavailable {
+            throw skip
+        }
         app.launch()
         definitions = IntentDefinitions(bundleIdentifier: "com.bissbilanz.ios")
         do {
             try await definitions.intents["ResetIntentTestFixturesIntent"].makeIntent().run()
         } catch {
-            throw Self.skipIfInternalTestingUnavailable(error)
+            let mapped = Self.skipIfInternalTestingUnavailable(error)
+            if let skip = mapped as? XCTSkip {
+                Self.internalTestingUnavailable = skip
+            }
+            throw mapped
         }
     }
 

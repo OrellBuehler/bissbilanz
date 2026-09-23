@@ -166,6 +166,23 @@ struct SettingsView: View {
                     }
                 }
 
+                // AI estimation: whether a text meal estimate may fall back to
+                // Apple's Private Cloud Compute when on-device estimation isn't
+                // available or good enough (MealEstimatorPrivateCloud.swift).
+                // Device-local like the tab selection/snooze duration above, and
+                // shown regardless of AppMode — the fallback is a device/account
+                // capability, not a server feature.
+                Section {
+                    Toggle(L10n.aiPrivateCloudToggleLabel, isOn: Binding(
+                        get: { PrivateCloudComputeSettings.isEnabled },
+                        set: { PrivateCloudComputeSettings.isEnabled = $0 }
+                    ))
+                } header: {
+                    Text(L10n.aiPrivateCloudSectionTitle)
+                } footer: {
+                    Text(L10n.aiPrivateCloudToggleFooter)
+                }
+
                 // Apple Health — all sync controls live on the subpage.
                 if healthKitService.isAvailable {
                     Section(L10n.appleHealth) {
