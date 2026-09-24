@@ -122,6 +122,10 @@ struct ContentView: View {
                 NavigationStack {
                     AiTasksView()
                 }
+            case let .foodSearch(query):
+                NavigationStack {
+                    FoodSearchView(date: DateFormatting.today, initialQuery: query)
+                }
             }
         }
         // Only users who signed in initially are prompted — Local mode is

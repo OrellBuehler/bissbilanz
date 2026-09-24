@@ -14,6 +14,11 @@ enum DeepLink: Equatable, Identifiable {
     case supplements
     /// Tapping a dismissed-AI-task notification's body.
     case aiTasks
+    /// Visual Intelligence's "more results" hand-off
+    /// (`FoodVisualIntelligenceSearchIntent`) — the food search screen,
+    /// prefilled with the best label from what the system saw. An empty
+    /// query just opens the search screen.
+    case foodSearch(query: String)
 
     var id: String {
         switch self {
@@ -24,6 +29,7 @@ enum DeepLink: Equatable, Identifiable {
         case let .recipe(recipeId): "recipe-\(recipeId)"
         case .supplements: "supplements"
         case .aiTasks: "ai-tasks"
+        case let .foodSearch(query): "food-search-\(query)"
         }
     }
 
