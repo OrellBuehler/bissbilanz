@@ -35,6 +35,11 @@ async function refresh() {
 	});
 }
 
+/**
+ * Refreshes the cached copy and returns the full server response — including
+ * fields (like extended nutrients) that aren't persisted to Dexie — so a
+ * caller that's online can use them without a second request.
+ */
 async function refreshById(id: string) {
 	try {
 		const { data } = await api.GET('/api/recipes/{id}', {
@@ -42,6 +47,7 @@ async function refreshById(id: string) {
 		});
 		if (data) {
 			await putRecipeWithIngredients(id, data.recipe);
+			return data.recipe;
 		}
 	} catch (err) {
 		// fire-and-forget
@@ -49,6 +55,7 @@ async function refreshById(id: string) {
 			Sentry.captureException(err, { extra: { context: 'recipe-service.refreshById' } });
 		}
 	}
+	return null;
 }
 
 async function putRecipeWithIngredients(

@@ -283,6 +283,7 @@
 	"recipe_form_save": "Rezept speichern",
 	"recipe_form_select_food": "Lebensmittel wählen",
 	"recipe_form_no_foods": "Keine Lebensmittel gefunden.",
+	"recipe_form_nutrients": "Nährstoffe (pro Portion)",
 	"recipe_form_qty": "Menge",
 	"recipe_form_unit": "Einheit",
 	"nav_supplements": "Supplemente",

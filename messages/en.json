@@ -283,6 +283,7 @@
 	"recipe_form_save": "Save recipe",
 	"recipe_form_select_food": "Select food",
 	"recipe_form_no_foods": "No foods found.",
+	"recipe_form_nutrients": "Nutrients (per serving)",
 	"recipe_form_qty": "Qty",
 	"recipe_form_unit": "Unit",
 	"nav_supplements": "Supplements",

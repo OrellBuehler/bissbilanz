@@ -17,6 +17,7 @@ import {
 import { RDA_VALUES } from '$lib/analytics/rda';
 import { NUTRIENT_BY_KEY } from '$lib/nutrients';
 import { getPreferences } from '$lib/server/preferences';
+import { nutrientColumn } from '$lib/server/nutrient-columns';
 
 /**
  * Nutrient data for adequacy work, deliberately separate from `$lib/server/analytics`.
@@ -50,10 +51,6 @@ const EXTENDED_RDA = RDA_KEYS.filter((key) => !CORE_MACRO_KEYS.has(key)).map((ke
 	if (!def) throw new Error(`RDA nutrient "${key}" is missing from ALL_NUTRIENTS`);
 	return { key, dbColumn: def.dbColumn };
 });
-
-/** Drizzle keys nutrient columns by the same camelCase key `NutrientDef` uses. */
-const nutrientColumn = (table: unknown, key: string): AnyColumn =>
-	(table as Record<string, AnyColumn>)[key];
 
 /**
  * Per-serving recipe amounts for the reference nutrients. Aliases are prefixed `rn_` to

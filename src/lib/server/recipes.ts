@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/schema';
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, sql, type SQL } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -9,6 +9,8 @@ import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwnedForIngredient } from '$lib/server/ownership';
 import { unlinkUpload } from '$lib/server/images';
 import { convertedIngredientQuantitySql } from '$lib/server/recipe-macros';
+import { ALL_NUTRIENT_KEYS, NUTRIENT_BY_KEY } from '$lib/nutrients';
+import { nutrientColumn } from '$lib/server/nutrient-columns';
 
 type RecipeInput = {
 	name: string;
@@ -103,9 +105,45 @@ export const createRecipe = (
 		});
 	});
 
+/**
+ * Per-serving totals for every extended nutrient (`$lib/nutrients` —
+ * vitamins, minerals, fat breakdown, etc.), computed the same way as the
+ * core macros (`macroAggregations`): each ingredient contributes
+ * `food.nutrient * convertedQuantity / food.servingSize`, then the whole-
+ * recipe sum is divided by `totalServings`. Named "PerServing" (unlike the
+ * whole-recipe core macros) to match what a nutrient panel usually shows.
+ */
+const extendedNutrientFields = () => {
+	const fields: Record<string, SQL.Aliased<number | null>> = {};
+	for (const key of ALL_NUTRIENT_KEYS) {
+		const dbColumn = NUTRIENT_BY_KEY.get(key)?.dbColumn ?? key;
+		fields[key] = sql<
+			number | null
+		>`SUM(${nutrientColumn(foods, key)} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+			`ext_${dbColumn}`
+		);
+	}
+	return fields;
+};
+
+const getRecipeExtendedNutrients = async (
+	db: ReturnType<typeof getDB>,
+	userId: string,
+	id: string
+) => {
+	const [row] = await db
+		.select(extendedNutrientFields())
+		.from(recipeIngredients)
+		.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
+		.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+		.where(and(eq(recipeIngredients.recipeId, id), eq(recipes.userId, userId)))
+		.groupBy(recipes.totalServings);
+	return row ?? Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, null]));
+};
+
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
-	const [recipeResult, ingredients] = await Promise.all([
+	const [recipeResult, ingredients, extendedNutrientsPerServing] = await Promise.all([
 		db
 			.select({
 				id: recipes.id,
@@ -127,13 +165,14 @@ export const getRecipe = async (userId: string, id: string) => {
 			.select()
 			.from(recipeIngredients)
 			.where(eq(recipeIngredients.recipeId, id))
-			.orderBy(recipeIngredients.sortOrder)
+			.orderBy(recipeIngredients.sortOrder),
+		getRecipeExtendedNutrients(db, userId, id)
 	]);
 
 	const recipe = recipeResult[0];
 	if (!recipe) return null;
 
-	return roundNutrition({ ...recipe, ingredients });
+	return roundNutrition({ ...recipe, ingredients, extendedNutrientsPerServing });
 };
 
 export const updateRecipe = (

@@ -40,6 +40,7 @@
 	let uploading = $state(false);
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
+	let editingExtendedNutrients: Record<string, number | null> | null = $state(null);
 
 	let query = $state('');
 	let sortBy = $state<'name' | 'recent' | 'calories'>('name');
@@ -76,6 +77,7 @@
 		if (!consumeQuickAction(['new-recipe'])) return;
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 		showForm = true;
 	});
 
@@ -131,7 +133,12 @@
 	const openEdit = async (id: string) => {
 		// Best-effort refresh so an edit starts from the latest server copy;
 		// offline (or a failed fetch) falls back to whatever is cached.
-		await recipeService.refreshById(id);
+		const fresh = await recipeService.refreshById(id);
+		// TODO: drop this cast once the generated API client is regenerated
+		// (`bun run api:generate`) to include RecipeDetail.extendedNutrientsPerServing.
+		editingExtendedNutrients =
+			(fresh as { extendedNutrientsPerServing?: Record<string, number | null> } | null)
+				?.extendedNutrientsPerServing ?? null;
 		const recipe = await db.recipes.get(id);
 		if (!recipe) return;
 		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).sortBy('sortOrder');
@@ -185,6 +192,7 @@
 		showForm = false;
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 	};
 
 	const fmt = (n: number) => Math.round(n);
@@ -288,6 +296,7 @@
 	onclick={() => {
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 		showForm = true;
 	}}
 >
@@ -305,6 +314,7 @@
 			recipe={editingRecipe}
 			imageUrl={formImageUrl}
 			{uploading}
+			extendedNutrients={editingExtendedNutrients}
 			onSave={editingRecipe ? updateRecipe : createRecipe}
 			onImageUpload={handleImageUpload}
 			onImageRemove={handleImageRemove}

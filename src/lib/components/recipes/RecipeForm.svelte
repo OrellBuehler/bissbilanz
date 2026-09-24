@@ -9,6 +9,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
 	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
+	import ExtendedNutrientsList from '$lib/components/shared/ExtendedNutrientsList.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ServingUnit } from '$lib/units';
 
@@ -37,6 +38,9 @@
 		onImageUpload?: (file: File) => Promise<void>;
 		onImageRemove?: () => Promise<void>;
 		uploading?: boolean;
+		// Best-effort: only available when the edit form was opened online, since
+		// it isn't cached offline like the rest of the recipe.
+		extendedNutrients?: Record<string, number | null | undefined> | null;
 	};
 
 	let {
@@ -46,7 +50,8 @@
 		imageUrl,
 		onImageUpload,
 		onImageRemove,
-		uploading = false
+		uploading = false,
+		extendedNutrients = null
 	}: Props = $props();
 
 	const emptyIngredient = () => ({ foodId: '', quantity: 1, servingUnit: 'g' as ServingUnit });
@@ -140,6 +145,12 @@
 			{m.recipe_form_add_ingredient()}
 		</Button>
 	</div>
+	{#if extendedNutrients}
+		<div class="space-y-2">
+			<Label class="text-sm font-medium">{m.recipe_form_nutrients()}</Label>
+			<ExtendedNutrientsList nutrients={extendedNutrients} />
+		</div>
+	{/if}
 	<Button class="w-full" type="submit" disabled={!canSave}>
 		<Check class="size-4" />
 		{saving ? m.detail_saving() : m.recipe_form_save()}
