@@ -7,12 +7,14 @@ import com.bissbilanz.api.generated.model.RecipeIngredient
 
 /**
  * Replicates the server's per-serving recipe macro computation
- * (`buildRecipeMacrosCte` in `src/lib/server/entries.ts`):
+ * (`buildRecipeMacrosCte` in `src/lib/server/recipe-macros.ts`):
  *
- *     SUM(food.macro * ingredient.quantity / food.servingSize) / recipe.totalServings
+ *     SUM(food.macro * convertedQuantity / food.servingSize) / recipe.totalServings
  *
- * so values computed locally (Local mode, optimistic temp records) agree with what the
- * server reports for the same recipe after migration/upload.
+ * where the ingredient's quantity is converted into the food's own unit first (same
+ * dimension only — see `convertQuantityForMacros`), so values computed locally (Local
+ * mode, optimistic temp records) agree with what the server reports for the same
+ * recipe after migration/upload.
  *
  * Returns null when the macros cannot be computed faithfully — no ingredients, a
  * non-positive divisor, or a referenced food that cannot be resolved (e.g. not cached
