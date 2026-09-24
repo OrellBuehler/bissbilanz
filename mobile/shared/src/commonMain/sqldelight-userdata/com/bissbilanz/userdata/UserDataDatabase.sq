@@ -87,6 +87,13 @@ CREATE TABLE IF NOT EXISTS CachedSupplementLog (
     takenAt TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS CachedReminder (
+    id TEXT NOT NULL PRIMARY KEY,
+    time TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    jsonData TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS CachedWeightEntry (
     id TEXT NOT NULL PRIMARY KEY,
     entryDate TEXT NOT NULL,
@@ -293,6 +300,23 @@ DELETE FROM CachedSupplementLog WHERE supplementId = ? AND date = ?;
 deleteSupplementLogById:
 DELETE FROM CachedSupplementLog WHERE id = ?;
 
+-- Reminders
+selectAllReminders:
+SELECT * FROM CachedReminder ORDER BY time;
+
+selectReminderById:
+SELECT * FROM CachedReminder WHERE id = ?;
+
+insertReminder:
+INSERT OR REPLACE INTO CachedReminder(id, time, enabled, jsonData)
+VALUES (?, ?, ?, ?);
+
+deleteReminder:
+DELETE FROM CachedReminder WHERE id = ?;
+
+deleteAllReminders:
+DELETE FROM CachedReminder;
+
 -- Weight
 selectAllWeightEntries:
 SELECT * FROM CachedWeightEntry ORDER BY entryDate DESC;
@@ -374,6 +398,9 @@ DELETE FROM CachedSupplement;
 
 clearAllSupplementLogs:
 DELETE FROM CachedSupplementLog;
+
+clearAllReminders:
+DELETE FROM CachedReminder;
 
 clearAllWeightEntries:
 DELETE FROM CachedWeightEntry;

@@ -62,6 +62,11 @@ import com.bissbilanz.api.generated.model.RecipeResponse
 import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.RecipesListResponse
+import com.bissbilanz.api.generated.model.Reminder
+import com.bissbilanz.api.generated.model.ReminderCreate
+import com.bissbilanz.api.generated.model.ReminderResponse
+import com.bissbilanz.api.generated.model.ReminderUpdate
+import com.bissbilanz.api.generated.model.RemindersListResponse
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntriesResponse
 import com.bissbilanz.api.generated.model.SleepEntry
@@ -1138,6 +1143,48 @@ class BissbilanzApi(
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         delete("/api/sleep/$id", key, editedAt)
+    }
+
+    // Reminders
+    suspend fun getReminders(): List<Reminder> {
+        val response: RemindersListResponse = get("/api/reminders")
+        return response.reminders
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createReminder(
+        reminder: ReminderCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Reminder {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: ReminderResponse = post("/api/reminders", reminder, key, editedAt)
+        return response.reminder
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun updateReminder(
+        id: String,
+        reminder: ReminderUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Reminder {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: ReminderResponse = patch("/api/reminders/$id", reminder, key, editedAt)
+        return response.reminder
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteReminder(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/reminders/$id", key, editedAt)
     }
 
     // Analytics
