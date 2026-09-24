@@ -105,7 +105,7 @@ struct RemindersView: View {
     // MARK: - Notifications section
 
     private var notificationsSection: some View {
-        Section(L10n.remindersTitle) {
+        Section {
             Picker(L10n.snoozeDuration, selection: $snoozeMinutes) {
                 ForEach(SupplementReminderScheduler.snoozePresets, id: \.self) { minutes in
                     Text(
