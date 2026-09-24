@@ -233,7 +233,9 @@ export function createMcpServer(userId: string): McpServer {
 		name: 'Recipe name',
 		totalServings: 'Number of servings the recipe makes',
 		ingredients:
-			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit.',
+			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. ' +
+			"servingUnit must be the same kind of measurement as the food's own unit (mass with mass, " +
+			'volume with volume) — a mismatch is rejected with a 400 error.',
 		isFavorite: 'Mark as favorite',
 		imageUrl: 'Image URL or relative path (null to clear)'
 	};
@@ -406,7 +408,8 @@ export function createMcpServer(userId: string): McpServer {
 		'list_recipes',
 		{
 			title: 'List Recipes',
-			description: "List all recipes in the user's database with total macros per serving.",
+			description:
+				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts).",
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
@@ -417,7 +420,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_recipe',
 		{
 			title: 'Get Recipe',
-			description: 'Get a recipe with its full ingredient list and macros.',
+			description:
+				'Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts).',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
 			},

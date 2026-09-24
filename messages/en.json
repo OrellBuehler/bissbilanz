@@ -173,6 +173,8 @@
 	"foods_empty": "No foods yet. Add your first food!",
 	"foods_no_results": "No foods match your search.",
 	"foods_delete_has_entries": "This food is used in <strong>{count} food log entries</strong>. Delete them too?",
+	"foods_delete_has_recipes": "This food is used in <strong>{count} recipes</strong>. Deleting it will remove it from those recipes too.",
+	"foods_delete_has_entries_and_recipes": "This food is used in <strong>{entryCount} food log entries</strong> and <strong>{recipeCount} recipes</strong>. Deleting it will remove it from all of them.",
 	"food_form_name": "Name",
 	"food_form_brand": "Brand",
 	"food_form_barcode": "Barcode",

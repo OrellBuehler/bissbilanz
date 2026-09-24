@@ -173,6 +173,8 @@
 	"foods_empty": "Noch keine Lebensmittel. Füge dein erstes hinzu!",
 	"foods_no_results": "Keine Lebensmittel gefunden.",
 	"foods_delete_has_entries": "Dieses Lebensmittel wird in <strong>{count} Einträgen</strong> verwendet. Diese auch löschen?",
+	"foods_delete_has_recipes": "Dieses Lebensmittel wird in <strong>{count} Rezepten</strong> verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt.",
+	"foods_delete_has_entries_and_recipes": "Dieses Lebensmittel wird in <strong>{entryCount} Einträgen</strong> und <strong>{recipeCount} Rezepten</strong> verwendet. Beim Löschen wird es aus allen entfernt.",
 	"food_form_name": "Name",
 	"food_form_brand": "Marke",
 	"food_form_barcode": "Barcode",
