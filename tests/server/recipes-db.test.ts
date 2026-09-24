@@ -151,6 +151,12 @@ describe('recipes-db', () => {
 			expect(result?.id).toBe(TEST_RECIPE.id);
 		});
 
+		test('includes extendedNutrientsPerServing', async () => {
+			setResult([TEST_RECIPE]);
+			const result = await getRecipe(TEST_USER.id, TEST_RECIPE.id);
+			expect(result).toHaveProperty('extendedNutrientsPerServing');
+		});
+
 		test('returns null when recipe not found', async () => {
 			setResult([]);
 
