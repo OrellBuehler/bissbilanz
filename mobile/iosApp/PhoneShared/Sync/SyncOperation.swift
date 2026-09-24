@@ -14,6 +14,13 @@ enum SyncOperation: Codable {
     /// Replaces the user's labels for a food. Labels live in their own table
     /// server-side and never ride on a food body, so this is its own operation.
     case setFoodLabels(id: String, labels: [String])
+    /// Extends a food's labels with a labeller's suggestions rather than
+    /// replacing them — `source: llm, mode: extend` server-side, so it never
+    /// touches a label the user set by hand. Its own case (rather than
+    /// reusing `setFoodLabels`) so a queued op decodes to the write it
+    /// actually is: `FoodEditSheet`'s "Suggest labels" button and
+    /// `FoodAutoLabeler`'s unattended sweep both go through this.
+    case addGeneratedFoodLabels(id: String, labels: [String])
     case createEntry(body: EntryCreate, localId: String)
     case updateEntry(id: String, body: EntryUpdate)
     case deleteEntry(id: String)
@@ -54,6 +61,7 @@ enum SyncOperation: Codable {
         case .toggleFavorite: "toggle_favorite"
         case .setFoodImage: "set_food_image"
         case .setFoodLabels: "set_food_labels"
+        case .addGeneratedFoodLabels: "add_generated_food_labels"
         case .createEntry: "create_entry"
         case .updateEntry: "update_entry"
         case .deleteEntry: "delete_entry"
@@ -83,7 +91,8 @@ enum SyncOperation: Codable {
 
     var affectedTable: String? {
         switch self {
-        case .createFood, .updateFood, .deleteFood, .toggleFavorite, .setFoodImage, .setFoodLabels: "foods"
+        case .createFood, .updateFood, .deleteFood, .toggleFavorite, .setFoodImage, .setFoodLabels,
+             .addGeneratedFoodLabels: "foods"
         case .createEntry, .updateEntry, .deleteEntry: "entries"
         case .createRecipe, .updateRecipe, .setRecipeImage, .deleteRecipe: "recipes"
         case .setGoals: "goals"
@@ -104,7 +113,7 @@ enum SyncOperation: Codable {
              let .createSleep(_, localId), let .createSupplement(_, localId):
             localId
         case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
-             let .setFoodImage(id, _), let .setFoodLabels(id, _),
+             let .setFoodImage(id, _), let .setFoodLabels(id, _), let .addGeneratedFoodLabels(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
              let .updateRecipe(id, _), let .setRecipeImage(id, _), let .deleteRecipe(id),
              let .updateWeight(id, _), let .deleteWeight(id),
@@ -144,6 +153,9 @@ enum SyncOperation: Codable {
 
         case let .setFoodLabels(id, labels) where id == oldId:
             return .setFoodLabels(id: newId, labels: labels)
+
+        case let .addGeneratedFoodLabels(id, labels) where id == oldId:
+            return .addGeneratedFoodLabels(id: newId, labels: labels)
 
         case let .createEntry(body, localId) where body.foodId == oldId || body.recipeId == oldId:
             var patched = body
@@ -271,6 +283,7 @@ enum SyncOperation: Codable {
         case let .toggleFavorite(id, _): "toggle favorite \(id)"
         case let .setFoodImage(id, _): "set food image \(id)"
         case let .setFoodLabels(id, _): "set food labels \(id)"
+        case let .addGeneratedFoodLabels(id, _): "add generated food labels \(id)"
         case .createEntry: "create entry"
         case let .updateEntry(id, _): "update entry \(id)"
         case let .deleteEntry(id): "delete entry \(id)"

@@ -264,3 +264,14 @@ struct FoodLabelsSetResponse: Codable {
     let labels: [String]
     let dropped: [String]
 }
+
+/// Body of `PUT /api/foods/{id}/labels`. `source`/`mode` are Optional
+/// properties, so the compiler-synthesized `Encodable` omits them from the
+/// JSON entirely when nil (`foodLabelsSetSchema` on the server treats an
+/// absent `source` as `user` and an absent `mode` as `replace`) rather than
+/// encoding an explicit `null`.
+struct FoodLabelsSetBody: Encodable {
+    let labels: [String]
+    let source: String?
+    let mode: String?
+}

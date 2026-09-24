@@ -96,6 +96,29 @@ final class FoodRepository {
         return Array((favorites + otherMatches).prefix(limit))
     }
 
+    /// Local foods with no labels at all — the auto-label sweep's work list
+    /// and the Settings row's count (`LabelUnlabeledFoodsView`).
+    func unlabeledLocalFoods() -> [Food] {
+        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.filter { $0.labels.isEmpty }.compactMap { $0.toFood() }
+    }
+
+    /// The most-used labels already in the local catalog, most-common first —
+    /// handed to `FoodLabeler` so it reuses existing vocabulary instead of
+    /// inventing near-synonyms, mirroring the MCP `label_foods` prompt's
+    /// `list_labels` step.
+    func mostUsedLocalLabels(limit: Int = 60) -> [String] {
+        let rows = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
+        var counts: [String: Int] = [:]
+        for row in rows {
+            for label in row.labels { counts[label, default: 0] += 1 }
+        }
+        return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
+            .prefix(limit)
+            .map(\.key)
+    }
+
     /// Rank name matches ahead of brand-only matches; both stay alphabetical.
     ///
     /// One pass, with each row's comparisons evaluated once. The previous shape
@@ -504,6 +527,28 @@ final class FoodRepository {
         row.update(from: patched)
         save()
         syncManager.enqueue(.setFoodLabels(id: id, labels: labels))
+        return patched
+    }
+
+    /// Merges labeller-suggested labels into whatever the food already
+    /// carries — additive like the server's `source: llm, mode: extend`
+    /// write, so it never drops a label the user set by hand. Used by the
+    /// "Suggest labels" button's merge-for-review step and by
+    /// `FoodAutoLabeler`'s unattended sweep.
+    @discardableResult
+    func addGeneratedLabels(id: String, labels: [String]) async throws -> Food {
+        guard let row = fetchRow(id: id), let current = row.toFood() else {
+            throw APIError.notFound
+        }
+        let suggested = LabelNormalizer.normalizeAll(labels)
+        guard !suggested.isEmpty else { return current }
+        let merged = LabelNormalizer.normalizeAll((current.labels ?? []) + suggested).sorted()
+        guard let patched = try? JSONPatch.merged(Food.self, base: current, patch: ["labels": merged]) else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        syncManager.enqueue(.addGeneratedFoodLabels(id: id, labels: suggested))
         return patched
     }
 
