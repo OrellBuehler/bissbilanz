@@ -3134,7 +3134,7 @@ enum L10n {
     /// a plain static isn't tracked, and the switch only showed up after the
     /// app came back to the foreground.
     @Observable
-    private final class LocaleCache: @unchecked Sendable {
+    fileprivate final class LocaleCache: @unchecked Sendable {
         var value = UserDefaults.standard.string(forKey: "app_locale") ?? L10n.systemLocale().rawValue
     }
 
