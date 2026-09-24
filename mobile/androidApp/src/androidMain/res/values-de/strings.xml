@@ -624,6 +624,11 @@
     <string name="recipe_list_empty">Noch keine Rezepte.\nTippe auf +, um eines zu erstellen.</string>
     <string name="recipe_list_item_summary">%1$d Portionen  ·  %2$d Zutaten</string>
     <string name="recipe_list_log_content_desc">Rezept erfassen</string>
+    <string name="recipe_list_search_placeholder">Rezepte suchen</string>
+    <string name="recipe_list_no_results">Keine Rezepte gefunden.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
+    <string name="recipe_list_sort_calories">Kalorien/Portion</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Rezept konnte nicht geladen werden</string>
@@ -647,6 +652,7 @@
     <string name="recipe_edit_ingredients_count">Zutaten (%1$d)</string>
     <string name="recipe_edit_remove">Entfernen</string>
     <string name="recipe_edit_amount">Menge</string>
+    <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
 
     <!-- Supplements screen -->

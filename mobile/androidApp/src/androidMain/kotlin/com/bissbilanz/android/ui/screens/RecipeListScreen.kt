@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -47,9 +48,19 @@ fun RecipeListScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
     var showCreateSheet by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var sortBy by remember { mutableStateOf(RecipeSort.NAME) }
+    var showSortMenu by remember { mutableStateOf(false) }
     val loadFailedMessage = stringResource(R.string.recipe_list_load_failed)
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
     val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
+
+    val visibleRecipes =
+        remember(recipes, query, sortBy) {
+            recipes
+                .filter { it.name.contains(query, ignoreCase = true) }
+                .sortedWith(sortBy.comparator)
+        }
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -138,7 +149,59 @@ fun RecipeListScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                     ) {
-                        items(recipes, key = { it.id }) { recipe ->
+                        item(key = "recipe-search-sort") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = query,
+                                    onValueChange = { query = it },
+                                    placeholder = { Text(stringResource(R.string.recipe_list_search_placeholder)) },
+                                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                ExposedDropdownMenuBox(
+                                    expanded = showSortMenu,
+                                    onExpandedChange = { showSortMenu = it },
+                                ) {
+                                    OutlinedTextField(
+                                        value = stringResource(sortBy.labelRes),
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSortMenu)
+                                        },
+                                        modifier =
+                                            Modifier
+                                                .width(150.dp)
+                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                        singleLine = true,
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = showSortMenu,
+                                        onDismissRequest = { showSortMenu = false },
+                                    ) {
+                                        RecipeSort.entries.forEach { option ->
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(option.labelRes)) },
+                                                onClick = {
+                                                    sortBy = option
+                                                    showSortMenu = false
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (visibleRecipes.isEmpty()) {
+                            item(key = "recipe-no-results") {
+                                EmptyState(stringResource(R.string.recipe_list_no_results))
+                            }
+                        }
+                        items(visibleRecipes, key = { it.id }) { recipe ->
                             RecipeListItem(
                                 recipe = recipe,
                                 onClick = { navController.navigate("recipe/${recipe.id}") },
@@ -197,4 +260,19 @@ fun RecipeListItem(
             }
         }
     }
+}
+
+private enum class RecipeSort(
+    val labelRes: Int,
+    val comparator: Comparator<Recipe>,
+) {
+    NAME(R.string.recipe_list_sort_name, compareBy { it.name.lowercase() }),
+    RECENT(
+        R.string.recipe_list_sort_recent,
+        compareByDescending { it.updatedAt ?: it.createdAt ?: "" },
+    ),
+    CALORIES(
+        R.string.recipe_list_sort_calories,
+        compareBy { it.calories / it.totalServings.coerceAtLeast(1.0) },
+    ),
 }

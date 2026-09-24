@@ -626,6 +626,11 @@
     <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
     <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
     <string name="recipe_list_log_content_desc">Log recipe</string>
+    <string name="recipe_list_search_placeholder">Search recipes</string>
+    <string name="recipe_list_no_results">No recipes match your search.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Recently updated</string>
+    <string name="recipe_list_sort_calories">Calories/serving</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Failed to load recipe</string>
@@ -649,6 +654,7 @@
     <string name="recipe_edit_ingredients_count">Ingredients (%1$d)</string>
     <string name="recipe_edit_remove">Remove</string>
     <string name="recipe_edit_amount">Amount</string>
+    <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
 
     <!-- Supplements screen -->

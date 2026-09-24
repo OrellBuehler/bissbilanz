@@ -30,6 +30,7 @@ import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
@@ -43,9 +44,11 @@ fun RecipeDetailScreen(
 ) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
+    val foodRepo: FoodRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     var recipe by remember { mutableStateOf<Recipe?>(null) }
+    var foodNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -69,6 +72,32 @@ fun RecipeDetailScreen(
             snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
+    }
+
+    // The server's recipe response has no embedded `food` on ingredients — resolve each
+    // one's name through FoodRepository (cache first, then network) instead of showing
+    // the raw foodId. An ingredient whose food can't be resolved falls back to a generic
+    // placeholder rather than being hidden.
+    LaunchedEffect(recipe?.ingredients) {
+        val ids =
+            recipe
+                ?.ingredients
+                ?.map { it.foodId }
+                ?.distinct()
+                .orEmpty()
+        val resolved = mutableMapOf<String, String>()
+        for (id in ids) {
+            val food =
+                foodRepo.getFoodCached(id) ?: try {
+                    foodRepo.getFood(id)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    null
+                }
+            if (food != null) resolved[id] = food.name
+        }
+        foodNames = resolved
     }
 
     if (showEditSheet) {
@@ -245,7 +274,11 @@ fun RecipeDetailScreen(
                                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
-                                            Text(ing.foodId, modifier = Modifier.weight(1f))
+                                            Text(
+                                                foodNames[ing.foodId]
+                                                    ?: stringResource(R.string.food_detail_default_title),
+                                                modifier = Modifier.weight(1f),
+                                            )
                                             Text(
                                                 "$qty ${ing.servingUnit.value}",
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
