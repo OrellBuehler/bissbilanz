@@ -284,8 +284,9 @@ describe('PATCH recipe ingredients end to end (integration)', () => {
 
 		const recipe = await getRecipe(userId, created.data.id);
 		expect(recipe?.ingredients).toHaveLength(2);
-		// 89 (banana) + 20g of 588kcal/100g peanut butter (117.6) = 206.6
-		expect(recipe?.calories).toBeCloseTo(206.6, 1);
+		// 89 (banana) + 20g of 588kcal/100g peanut butter (117.6) = 206.6,
+		// rounded to the nearest whole calorie by roundNutrition.
+		expect(recipe?.calories).toBe(207);
 	});
 });
 
