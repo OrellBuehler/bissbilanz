@@ -9,7 +9,11 @@ import {
 	sleepEntries
 } from '$lib/server/schema';
 import { and, eq, gte, lte, sql, asc } from 'drizzle-orm';
-import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
+import {
+	buildRecipeMacrosCte,
+	convertedIngredientQuantitySql,
+	type RecipeMacrosCte
+} from '$lib/server/recipe-macros';
 
 const buildRecipeExtendedCte = (db: ReturnType<typeof getDB>) =>
 	db.$with('recipe_extended').as(
@@ -18,57 +22,57 @@ const buildRecipeExtendedCte = (db: ReturnType<typeof getDB>) =>
 				recipeId: recipeIngredients.recipeId,
 				reOmega3: sql<
 					number | null
-				>`SUM(${foods.omega3} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.omega3} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_omega3'
 				),
 				reOmega6: sql<
 					number | null
-				>`SUM(${foods.omega6} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.omega6} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_omega6'
 				),
 				reSodium: sql<
 					number | null
-				>`SUM(${foods.sodium} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.sodium} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_sodium'
 				),
 				reCaffeine: sql<
 					number | null
-				>`SUM(${foods.caffeine} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.caffeine} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_caffeine'
 				),
 				reSaturatedFat: sql<
 					number | null
-				>`SUM(${foods.saturatedFat} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.saturatedFat} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_saturated_fat'
 				),
 				reTransFat: sql<
 					number | null
-				>`SUM(${foods.transFat} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.transFat} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_trans_fat'
 				),
 				reVitaminC: sql<
 					number | null
-				>`SUM(${foods.vitaminC} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.vitaminC} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_vitamin_c'
 				),
 				reVitaminD: sql<
 					number | null
-				>`SUM(${foods.vitaminD} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.vitaminD} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_vitamin_d'
 				),
 				reVitaminE: sql<
 					number | null
-				>`SUM(${foods.vitaminE} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.vitaminE} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_vitamin_e'
 				),
 				reAlcohol: sql<
 					number | null
-				>`SUM(${foods.alcohol} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.alcohol} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_alcohol'
 				),
 				reAddedSugars: sql<
 					number | null
-				>`SUM(${foods.addedSugars} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+				>`SUM(${foods.addedSugars} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 					're_added_sugars'
 				)
 			})

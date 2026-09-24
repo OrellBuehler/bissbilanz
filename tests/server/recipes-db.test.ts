@@ -60,7 +60,7 @@ describe('recipes-db', () => {
 
 	describe('createRecipe', () => {
 		test('creates recipe with valid payload', async () => {
-			const newRecipe = { ...TEST_RECIPE };
+			const newRecipe = { ...TEST_RECIPE, servingUnit: 'g' };
 			setResult([newRecipe]);
 
 			const result = await createRecipe(TEST_USER.id, VALID_RECIPE_PAYLOAD);
@@ -79,7 +79,12 @@ describe('recipes-db', () => {
 					{ foodId: '10000000-0000-4000-8000-000000000011', quantity: 100, servingUnit: 'g' }
 				]
 			};
-			const newRecipe = { ...TEST_RECIPE, name: 'Complex Recipe', totalServings: 2 };
+			const newRecipe = {
+				...TEST_RECIPE,
+				name: 'Complex Recipe',
+				totalServings: 2,
+				servingUnit: 'g'
+			};
 			setResult([newRecipe]);
 
 			const result = await createRecipe(TEST_USER.id, payload);
@@ -190,7 +195,7 @@ describe('recipes-db', () => {
 		});
 
 		test('updates recipe and replaces ingredients', async () => {
-			const updatedRecipe = { ...TEST_RECIPE, name: 'Updated Recipe' };
+			const updatedRecipe = { ...TEST_RECIPE, name: 'Updated Recipe', servingUnit: 'g' };
 			setResult([updatedRecipe]);
 
 			const payload = {

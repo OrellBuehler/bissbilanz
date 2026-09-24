@@ -9,7 +9,11 @@ import {
 	recipes
 } from '$lib/server/schema';
 import { and, asc, eq, gte, isNotNull, lte, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
-import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
+import {
+	buildRecipeMacrosCte,
+	convertedIngredientQuantitySql,
+	type RecipeMacrosCte
+} from '$lib/server/recipe-macros';
 import { RDA_VALUES } from '$lib/analytics/rda';
 import { NUTRIENT_BY_KEY } from '$lib/nutrients';
 import { getPreferences } from '$lib/server/preferences';
@@ -63,7 +67,7 @@ const buildRecipeRdaCte = (db: DB, userId: string) => {
 		// `sqlBehavior: 'error'` and throws on access to a bare `sql` field.
 		fields[key] = sql<
 			number | null
-		>`SUM(${nutrientColumn(foods, key)} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+		>`SUM(${nutrientColumn(foods, key)} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 			`rn_${dbColumn}`
 		);
 	}

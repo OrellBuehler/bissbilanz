@@ -2,6 +2,7 @@ import { getDB } from '$lib/server/db';
 import { foods, recipes } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
+import { isSameUnitDimension, type ServingUnit } from '$lib/units';
 
 /**
  * Either a live DB handle or an open transaction — lets ownership checks run
@@ -28,6 +29,34 @@ export const assertFoodOwned = async (
 		.where(and(eq(foods.id, foodId), eq(foods.userId, userId)))
 		.limit(1);
 	if (!row) throw new ApiError(404, 'Food not found');
+};
+
+/**
+ * Verify a food belongs to the user before it can be used as a recipe
+ * ingredient, AND that the ingredient's serving unit is compatible with the
+ * food's own unit (same dimension — mass or volume). Throws ApiError(404) if
+ * the food isn't owned, or ApiError(400) if the units are incompatible (e.g.
+ * grams for a food measured in milliliters) — there is no valid conversion
+ * between mass and volume.
+ */
+export const assertFoodOwnedForIngredient = async (
+	tx: TxOrDb,
+	userId: string,
+	foodId: string,
+	ingredientServingUnit: ServingUnit
+): Promise<void> => {
+	const [row] = await tx
+		.select({ id: foods.id, servingUnit: foods.servingUnit })
+		.from(foods)
+		.where(and(eq(foods.id, foodId), eq(foods.userId, userId)))
+		.limit(1);
+	if (!row) throw new ApiError(404, 'Food not found');
+	if (!isSameUnitDimension(ingredientServingUnit, row.servingUnit)) {
+		throw new ApiError(
+			400,
+			`incompatible_unit: ingredient unit "${ingredientServingUnit}" cannot be converted to food unit "${row.servingUnit}"`
+		);
+	}
 };
 
 /**

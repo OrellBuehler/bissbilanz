@@ -6,8 +6,9 @@ import type { Result, DeleteResult } from '$lib/server/types';
 import { withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
-import { assertFoodOwned } from '$lib/server/ownership';
+import { assertFoodOwnedForIngredient } from '$lib/server/ownership';
 import { unlinkUpload } from '$lib/server/images';
+import { convertedIngredientQuantitySql } from '$lib/server/recipe-macros';
 
 type RecipeInput = {
 	name: string;
@@ -19,11 +20,11 @@ type RecipeInput = {
 export type { DeleteResult };
 
 export const macroAggregations = {
-	calories: sql<number>`COALESCE(SUM(${foods.calories} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-	protein: sql<number>`COALESCE(SUM(${foods.protein} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-	carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-	fat: sql<number>`COALESCE(SUM(${foods.fat} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`,
-	fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${recipeIngredients.quantity} / ${foods.servingSize}), 0)`
+	calories: sql<number>`COALESCE(SUM(${foods.calories} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
+	protein: sql<number>`COALESCE(SUM(${foods.protein} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
+	carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
+	fat: sql<number>`COALESCE(SUM(${foods.fat} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
+	fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`
 };
 
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
@@ -95,7 +96,7 @@ export const createRecipe = (
 
 			// Reject ingredients referencing foods the caller doesn't own (IDOR).
 			for (const ingredient of data.ingredients) {
-				await assertFoodOwned(tx, userId, ingredient.foodId);
+				await assertFoodOwnedForIngredient(tx, userId, ingredient.foodId, ingredient.servingUnit);
 			}
 			await tx.insert(recipeIngredients).values(ingredientRows);
 			return created;
@@ -170,7 +171,7 @@ export const updateRecipe = (
 			if (ingredients) {
 				// Reject ingredients referencing foods the caller doesn't own (IDOR).
 				for (const ingredient of ingredients) {
-					await assertFoodOwned(tx, userId, ingredient.foodId);
+					await assertFoodOwnedForIngredient(tx, userId, ingredient.foodId, ingredient.servingUnit);
 				}
 				await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id));
 				const rows = ingredients.map((ingredient, index) => ({
