@@ -64,10 +64,20 @@ type WithOfflineFallbackOpts<T> = {
 	onSuccess?: (data: T) => Promise<void> | void;
 };
 
+/**
+ * Outcome of an offline-fallback write, for callers that need to react beyond
+ * the optimistic local write — e.g. surfacing a 409 conflict in the UI
+ * instead of silently swallowing it.
+ */
+export type OfflineFallbackResult<T> =
+	| { status: 'applied'; data?: T; response: Response }
+	| { status: 'queued' }
+	| { status: 'error'; response: Response };
+
 export async function withOfflineFallback<T>(
 	apiCall: () => Promise<{ data?: T; response: Response }>,
 	opts: WithOfflineFallbackOpts<T>
-): Promise<void> {
+): Promise<OfflineFallbackResult<T>> {
 	// Enqueue directly while offline instead of letting the api client do it:
 	// the client only knows the URL, so it cannot attach `affectedId`, and
 	// without that a queued create can't be remapped to its server id later.
@@ -76,18 +86,23 @@ export async function withOfflineFallback<T>(
 			affectedTable: opts.affectedTable,
 			affectedId: opts.affectedId
 		});
-		return;
+		return { status: 'queued' };
 	}
 	try {
 		const { data, response } = await apiCall();
-		if (isQueued(response)) return;
+		if (isQueued(response)) return { status: 'queued' };
 		// response.ok (not `data`) is the success signal — some endpoints (e.g. a
 		// 204 DELETE) succeed with no body, so onSuccess must still run for those.
-		if (response.ok && opts.onSuccess) await opts.onSuccess(data as T);
+		if (response.ok) {
+			if (opts.onSuccess) await opts.onSuccess(data as T);
+			return { status: 'applied', data, response };
+		}
+		return { status: 'error', response };
 	} catch {
 		await enqueue(opts.method, opts.url, opts.body, {
 			affectedTable: opts.affectedTable,
 			affectedId: opts.affectedId
 		});
+		return { status: 'queued' };
 	}
 }

@@ -4,6 +4,7 @@ import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import type { DexieRecipe, DexieRecipeIngredient } from '$lib/db/types';
 import { api } from '$lib/api/client';
+import { enqueue } from '$lib/stores/offline-queue';
 import { refreshTable, withOfflineFallback } from './base';
 
 function allRecipes() {
@@ -40,21 +41,7 @@ async function refreshById(id: string) {
 			params: { path: { id } }
 		});
 		if (data) {
-			const { ingredients, ...recipeData } = data.recipe;
-			await db.recipes.put(recipeData as unknown as DexieRecipe);
-			if (Array.isArray(ingredients)) {
-				await db.recipeIngredients.where('recipeId').equals(id).delete();
-				await db.recipeIngredients.bulkPut(
-					ingredients.map((ing) => ({
-						id: ing.id ?? crypto.randomUUID(),
-						recipeId: ing.recipeId ?? id,
-						foodId: ing.foodId,
-						quantity: ing.quantity,
-						servingUnit: ing.servingUnit,
-						sortOrder: ing.sortOrder
-					}))
-				);
-			}
+			await putRecipeWithIngredients(id, data.recipe);
 		}
 	} catch (err) {
 		// fire-and-forget
@@ -64,7 +51,30 @@ async function refreshById(id: string) {
 	}
 }
 
-async function create(recipe: Record<string, unknown>) {
+async function putRecipeWithIngredients(
+	id: string,
+	recipe: { ingredients?: unknown } & Record<string, unknown>
+) {
+	const { ingredients, ...recipeData } = recipe;
+	await db.recipes.put(recipeData as unknown as DexieRecipe);
+	if (Array.isArray(ingredients)) {
+		await db.recipeIngredients.where('recipeId').equals(id).delete();
+		await db.recipeIngredients.bulkPut(
+			ingredients.map((ing) => ({
+				id: ing.id ?? crypto.randomUUID(),
+				recipeId: ing.recipeId ?? id,
+				foodId: ing.foodId,
+				quantity: ing.quantity,
+				servingUnit: ing.servingUnit,
+				sortOrder: ing.sortOrder
+			}))
+		);
+	}
+}
+
+type MutationResult = { status: 'applied' } | { status: 'queued' } | { status: 'failed' };
+
+async function create(recipe: Record<string, unknown>): Promise<MutationResult> {
 	const now = new Date().toISOString();
 	const id = (recipe.id as string) ?? crypto.randomUUID();
 
@@ -100,33 +110,24 @@ async function create(recipe: Record<string, unknown>) {
 		await db.recipeIngredients.bulkPut(items);
 	}
 
-	await withOfflineFallback(() => api.POST('/api/recipes', { body: recipe as never }), {
-		onSuccess: async (data) => {
-			const { ingredients, ...recipeData } = data.recipe;
-			await db.recipes.put(recipeData as unknown as DexieRecipe);
-			if (Array.isArray(ingredients)) {
-				await db.recipeIngredients.where('recipeId').equals(id).delete();
-				await db.recipeIngredients.bulkPut(
-					ingredients.map((ing) => ({
-						id: ing.id ?? crypto.randomUUID(),
-						recipeId: ing.recipeId ?? id,
-						foodId: ing.foodId,
-						quantity: ing.quantity,
-						servingUnit: ing.servingUnit,
-						sortOrder: ing.sortOrder
-					}))
-				);
-			}
-		},
-		method: 'POST',
-		url: '/api/recipes',
-		body: recipe,
-		affectedTable: 'recipes',
-		affectedId: id
-	});
+	const result = await withOfflineFallback(
+		() => api.POST('/api/recipes', { body: recipe as never }),
+		{
+			onSuccess: async (data) => {
+				await putRecipeWithIngredients(id, data.recipe);
+			},
+			method: 'POST',
+			url: '/api/recipes',
+			body: recipe,
+			affectedTable: 'recipes',
+			affectedId: id
+		}
+	);
+	if (result.status === 'error') return { status: 'failed' };
+	return { status: result.status };
 }
 
-async function update(id: string, recipe: Record<string, unknown>) {
+async function update(id: string, recipe: Record<string, unknown>): Promise<MutationResult> {
 	const now = new Date().toISOString();
 	const { ingredients, ...recipeUpdates } = recipe;
 	await db.recipes.update(id, { ...recipeUpdates, updatedAt: now });
@@ -146,7 +147,7 @@ async function update(id: string, recipe: Record<string, unknown>) {
 		await db.recipeIngredients.bulkPut(items);
 	}
 
-	await withOfflineFallback(
+	const result = await withOfflineFallback(
 		() =>
 			api.PATCH('/api/recipes/{id}', {
 				params: { path: { id } },
@@ -154,21 +155,7 @@ async function update(id: string, recipe: Record<string, unknown>) {
 			}),
 		{
 			onSuccess: async (data) => {
-				const { ingredients: respIngredients, ...respRecipeData } = data.recipe;
-				await db.recipes.put(respRecipeData as unknown as DexieRecipe);
-				if (Array.isArray(respIngredients)) {
-					await db.recipeIngredients.where('recipeId').equals(id).delete();
-					await db.recipeIngredients.bulkPut(
-						respIngredients.map((ing) => ({
-							id: ing.id ?? crypto.randomUUID(),
-							recipeId: ing.recipeId ?? id,
-							foodId: ing.foodId,
-							quantity: ing.quantity,
-							servingUnit: ing.servingUnit,
-							sortOrder: ing.sortOrder
-						}))
-					);
-				}
+				await putRecipeWithIngredients(id, data.recipe);
 			},
 			method: 'PATCH',
 			url: `/api/recipes/${id}`,
@@ -177,25 +164,68 @@ async function update(id: string, recipe: Record<string, unknown>) {
 			affectedId: id
 		}
 	);
+	if (result.status === 'error') return { status: 'failed' };
+	return { status: result.status };
 }
 
-async function deleteRecipe(id: string) {
-	await db.recipes.delete(id);
-	await db.recipeIngredients.where('recipeId').equals(id).delete();
+type DeleteRecipeResult =
+	{ status: 'deleted' } | { status: 'queued' } | { status: 'blocked'; entryCount: number };
 
-	await withOfflineFallback(
-		() =>
-			api.DELETE('/api/recipes/{id}', {
-				params: { path: { id } }
-			}),
-		{
-			method: 'DELETE',
-			url: `/api/recipes/${id}`,
-			body: {},
-			affectedTable: 'recipes',
-			affectedId: id
+/**
+ * Deletes a recipe, mirroring the web's other force-delete flows: a
+ * conflict (the recipe still has diary entries) must reach the UI instead of
+ * being silently swallowed, so this does NOT delete the local Dexie row
+ * until the server confirms (or the caller passes `force: true` after the
+ * user confirmed).
+ */
+async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<DeleteRecipeResult> {
+	const force = opts?.force ?? false;
+
+	if (browser && navigator.onLine === false) {
+		await db.recipes.delete(id);
+		await db.recipeIngredients.where('recipeId').equals(id).delete();
+		await enqueue(
+			'DELETE',
+			`/api/recipes/${id}${force ? '?force=true' : ''}`,
+			{},
+			{
+				affectedTable: 'recipes',
+				affectedId: id
+			}
+		);
+		return { status: 'queued' };
+	}
+
+	try {
+		const { error, response } = await api.DELETE('/api/recipes/{id}', {
+			params: { path: { id }, query: force ? { force: true } : undefined }
+		});
+		if ((error as { error?: string } | undefined)?.error === 'has_entries') {
+			return { status: 'blocked', entryCount: (error as { entryCount?: number }).entryCount ?? 0 };
 		}
-	);
+		if (response.ok) {
+			await db.recipes.delete(id);
+			await db.recipeIngredients.where('recipeId').equals(id).delete();
+			return { status: 'deleted' };
+		}
+		// Any other failure (e.g. a stale-delete LWW conflict) — a refresh will
+		// reconcile the local copy with whatever the server actually has.
+		await refresh();
+		return { status: 'queued' };
+	} catch {
+		await db.recipes.delete(id);
+		await db.recipeIngredients.where('recipeId').equals(id).delete();
+		await enqueue(
+			'DELETE',
+			`/api/recipes/${id}${force ? '?force=true' : ''}`,
+			{},
+			{
+				affectedTable: 'recipes',
+				affectedId: id
+			}
+		);
+		return { status: 'queued' };
+	}
 }
 
 export const recipeService = {
