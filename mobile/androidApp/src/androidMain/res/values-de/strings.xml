@@ -1139,4 +1139,25 @@
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Nach %1$s verschoben</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>
+
+    <!-- Contextual tips and help center -->
+    <string name="tip_learn_more">Mehr erfahren</string>
+    <string name="tip_got_it">Verstanden</string>
+    <string name="tip_dismiss">Schliessen</string>
+    <string name="tip_scanning_title">Scannen statt tippen</string>
+    <string name="tip_scanning_text">Scanne einen Barcode oder eine Nährwerttabelle, um ein Lebensmittel in Sekunden hinzuzufügen.</string>
+    <string name="tip_favorites_title">Mit einem Tipp erfassen</string>
+    <string name="tip_favorites_text">Markiere Lebensmittel, die du oft isst, als Favorit und erfasse sie danach mit einem Tipp im Favoriten-Tab.</string>
+    <string name="tip_widgets_title">Erfassen, ohne die App zu öffnen</string>
+    <string name="tip_widgets_text">Füge ein Homescreen-Widget hinzu, um den heutigen Fortschritt zu sehen oder Lebensmittel und Gewicht zu erfassen, ohne Bissbilanz zu öffnen.</string>
+    <string name="tip_widgets_add_widget">Widget hinzufügen</string>
+    <string name="tip_health_connect_weight_title">Gewicht nicht mehr von Hand eintragen</string>
+    <string name="tip_health_connect_weight_text">Verbinde Health Connect, um dein Gewicht automatisch von deiner Waage zu übernehmen.</string>
+    <string name="tip_health_connect_sleep_title">Schlaf nicht mehr von Hand eintragen</string>
+    <string name="tip_health_connect_sleep_text">Verbinde Health Connect, um deinen Schlaf automatisch von deinem Tracker zu übernehmen.</string>
+    <string name="tip_dashboard_layout_title">Mach dir diesen Bildschirm zu eigen</string>
+    <string name="tip_dashboard_layout_text">Ordne die Karten auf deinem Dashboard neu an oder blende sie aus, passend zu deiner Nutzung von Bissbilanz.</string>
+    <string name="settings_help_guides">Hilfe &amp; Anleitungen</string>
+    <string name="settings_show_tips_again">Tipps erneut anzeigen</string>
+    <string name="settings_tips_reset_message">Tipps werden wieder angezeigt, wo sie zutreffen</string>
 </resources>

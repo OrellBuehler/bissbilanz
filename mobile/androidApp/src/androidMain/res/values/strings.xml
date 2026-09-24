@@ -1141,4 +1141,25 @@
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Moved to %1$s</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>
+
+    <!-- Contextual tips and help center -->
+    <string name="tip_learn_more">Learn more</string>
+    <string name="tip_got_it">Got it</string>
+    <string name="tip_dismiss">Dismiss</string>
+    <string name="tip_scanning_title">Scan instead of typing</string>
+    <string name="tip_scanning_text">Scan a barcode or a nutrition label to add a food in seconds.</string>
+    <string name="tip_favorites_title">Log in one tap</string>
+    <string name="tip_favorites_text">Favorite the foods you eat often, then log them with a single tap from the Favorites tab.</string>
+    <string name="tip_widgets_title">Log without opening the app</string>
+    <string name="tip_widgets_text">Add a home screen widget to see today\'s progress, or log food and weight, without opening Bissbilanz.</string>
+    <string name="tip_widgets_add_widget">Add widget</string>
+    <string name="tip_health_connect_weight_title">Skip manual weigh-ins</string>
+    <string name="tip_health_connect_weight_text">Connect Health Connect to bring in weight from your scale automatically.</string>
+    <string name="tip_health_connect_sleep_title">Skip manual sleep entries</string>
+    <string name="tip_health_connect_sleep_text">Connect Health Connect to bring in sleep from your tracker automatically.</string>
+    <string name="tip_dashboard_layout_title">Make this screen yours</string>
+    <string name="tip_dashboard_layout_text">Reorder or hide the cards on your dashboard to match how you use Bissbilanz.</string>
+    <string name="settings_help_guides">Help &amp; guides</string>
+    <string name="settings_show_tips_again">Show tips again</string>
+    <string name="settings_tips_reset_message">Tips will show again where they apply</string>
 </resources>

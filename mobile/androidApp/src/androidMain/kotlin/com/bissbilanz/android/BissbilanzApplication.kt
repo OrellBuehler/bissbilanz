@@ -27,6 +27,7 @@ import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.AndroidLocalPhotoReader
 import com.bissbilanz.android.sync.AndroidPhotoLocalizer
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -142,6 +143,7 @@ class BissbilanzApplication :
                 single { FastingManager(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
                 single { HealthConnectService(androidContext()) }
                 single { HealthSyncPreferences(androidContext()) }
+                single { TipStore(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
                 single { AiTaskUploadQueue(androidContext()) }
@@ -196,6 +198,12 @@ class BissbilanzApplication :
             refreshDayWidgets()
             healthExporter.exportNutrition(today())
             wearPublisher.publish()
+        }
+        // Counts real food logs (not edits or deletes) toward the usage-gated tips —
+        // e.g. nudging a frequent logger toward favorites once they have earned it.
+        val tipStore = koin.get<TipStore>()
+        koin.get<EntryRepository>().onEntryCreated = {
+            tipStore.incrementFoodLogged()
         }
         // Entries logged elsewhere (web, MCP, iOS) arrive via refresh, not
         // onEntryChanged — export the refreshed day so Health Connect follows.
