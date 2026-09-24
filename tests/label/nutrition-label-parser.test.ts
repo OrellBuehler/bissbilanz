@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	hasCoreMacros,
 	isEmpty,
+	isVolumeBasis,
 	parseDecimal,
 	parseRows,
 	toFoodFormPatch
@@ -130,6 +131,38 @@ describe('nutrition label parser', () => {
 		const parsed = parseRows(['INGREDIENTS: water, salt', 'Best before 2026']);
 		expect(isEmpty(parsed)).toBe(true);
 		expect(hasCoreMacros(parsed)).toBe(false);
+	});
+
+	it('parses a two-column drink panel with a kJ/kcal header and no units', () => {
+		const rows = [
+			'Nährwerte pro 100 ml pro Dose 250 ml',
+			'Energie kJ/kcal 180/42 450/105',
+			'Fett 0 0',
+			'Kohlenhydrate 10,6 26,5',
+			'davon Zucker 10,6 26,5',
+			'Eiweiß 0,5 1,3',
+			'Salz 0,02 0,05'
+		];
+
+		expect(parseRows(rows)).toEqual({
+			calories: 42,
+			fat: 0,
+			carbs: 10.6,
+			sugar: 10.6,
+			protein: 0.5,
+			salt: 0.02
+		});
+		expect(isVolumeBasis(rows)).toBe(true);
+	});
+
+	it('reads kcal from a kcal/kJ header pair', () => {
+		expect(parseRows(['Brennwert kcal/kJ 42/180']).calories).toBe(42);
+	});
+
+	it('only treats a 100 ml basis as volume', () => {
+		expect(isVolumeBasis(['Nährwerte pro 100ml'])).toBe(true);
+		expect(isVolumeBasis(['Nährwerte pro 100 g'])).toBe(false);
+		expect(isVolumeBasis(['Zubereitung mit 1000 ml Wasser'])).toBe(false);
 	});
 
 	it('parses decimal variants', () => {

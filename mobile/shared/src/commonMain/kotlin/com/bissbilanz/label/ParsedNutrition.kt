@@ -19,6 +19,8 @@ data class ParsedNutrition(
     var saturatedFat: Double? = null,
     var salt: Double? = null,
     var sodium: Double? = null,
+    /** The basis column is per 100 ml (a drink) rather than per 100 g. */
+    var isVolume: Boolean = false,
 ) {
     /**
      * True when nothing usable was parsed — the scan surfaces an error instead

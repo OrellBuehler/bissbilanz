@@ -39,6 +39,9 @@ struct ParsedNutrition: Equatable {
     /// Decoded from a barcode visible in the same photo, if any.
     var barcode: String?
 
+    /// The basis column is per 100 ml (a drink) rather than per 100 g.
+    var isVolume = false
+
     /// True when nothing usable was parsed — the scan surfaces an error
     /// instead of opening an empty confirmation sheet.
     var isEmpty: Bool {

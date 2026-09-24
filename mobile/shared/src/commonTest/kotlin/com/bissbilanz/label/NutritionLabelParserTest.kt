@@ -2,6 +2,7 @@ package com.bissbilanz.label
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -159,6 +160,42 @@ class NutritionLabelParserTest {
     fun ignoresUnrelatedLines() {
         val parsed = NutritionLabelParser.parse(listOf("INGREDIENTS: water, salt", "Best before 2026"))
         assertTrue(parsed.isEmpty)
+    }
+
+    @Test
+    fun parsesTwoColumnDrinkPanel() {
+        val rows =
+            listOf(
+                "Nährwerte pro 100 ml pro Dose 250 ml",
+                "Energie kJ/kcal 180/42 450/105",
+                "Fett 0 0",
+                "Kohlenhydrate 10,6 26,5",
+                "davon Zucker 10,6 26,5",
+                "Eiweiß 0,5 1,3",
+                "Salz 0,02 0,05",
+            )
+
+        val parsed = NutritionLabelParser.parse(rows)
+
+        assertEquals(42.0, parsed.calories)
+        assertEquals(0.0, parsed.fat)
+        assertEquals(10.6, parsed.carbs)
+        assertEquals(10.6, parsed.sugar)
+        assertEquals(0.5, parsed.protein)
+        assertEquals(0.02, parsed.salt)
+        assertTrue(parsed.isVolume)
+    }
+
+    @Test
+    fun readsKcalFromKcalKjHeaderPair() {
+        assertEquals(42.0, NutritionLabelParser.parse(listOf("Brennwert kcal/kJ 42/180")).calories)
+    }
+
+    @Test
+    fun onlyA100MlBasisIsVolume() {
+        assertTrue(NutritionLabelParser.isVolumeBasis(listOf("Nährwerte pro 100ml")))
+        assertFalse(NutritionLabelParser.isVolumeBasis(listOf("Nährwerte pro 100 g")))
+        assertFalse(NutritionLabelParser.isVolumeBasis(listOf("Zubereitung mit 1000 ml Wasser")))
     }
 
     // MARK: - Number normalization
