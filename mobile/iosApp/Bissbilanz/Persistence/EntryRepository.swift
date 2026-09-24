@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import TipKit
 
 /// Local-first repository for food entries and day properties.
 ///
@@ -18,6 +19,13 @@ final class EntryRepository {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let syncManager: SyncManager
+
+    /// True under any XCTest host. Mirrors `BissbilanzApp.isRunningTests`
+    /// (private there, so re-derived here) — `BissbilanzTests` has no host
+    /// app, so `BissbilanzApp.init()`'s `Tips.configure()` never runs for it.
+    private static let isRunningUnderTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
 
     init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
         self.context = context
@@ -191,6 +199,15 @@ final class EntryRepository {
             IntentDonations.donateLog(food: food, recipe: recipe, mealType: create.mealType)
         }
         IntentDonations.dayChanged([create.date])
+        // Single funnel for every successful log (search, favorites, quick
+        // entry, recipes, Siri/Shortcuts, the Apple Watch relay) — feeds the
+        // `FavoritesLoggingTip` / `WidgetsTip` donation-count rules. Skipped
+        // under `BissbilanzTests`: that target has no host app, so
+        // `BissbilanzApp.init()` (and its `Tips.configure()`) never runs, and
+        // `Tip.Event.donate()` fatalErrors without it — see `isRunningUnderTests`.
+        if !Self.isRunningUnderTests {
+            Task { await TipEvents.foodLogged.donate() }
+        }
         return temp
     }
 

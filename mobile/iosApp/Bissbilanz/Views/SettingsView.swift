@@ -1,3 +1,4 @@
+import AppIntents
 import AuthenticationServices
 import SwiftUI
 import UserNotifications
@@ -30,6 +31,7 @@ struct SettingsView: View {
     @State private var downgradeError: String?
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
+    @State private var showHelpCenter = false
     private let healthKitService = HealthKitService.shared
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
     // Device-local, like selected_tabs: how long a snooze lasts is a property of the
@@ -417,6 +419,17 @@ struct SettingsView: View {
                     }
                 }
 
+                // Tips
+                Section {
+                    Button {
+                        UserDefaults.standard.set(true, forKey: BissbilanzApp.resetTipsOnLaunchKey)
+                    } label: {
+                        Label(L10n.showTipsAgain, systemImage: "lightbulb")
+                    }
+                } footer: {
+                    Text(L10n.showTipsAgainFooter)
+                }
+
                 // About
                 Section(L10n.about) {
                     HStack {
@@ -424,6 +437,11 @@ struct SettingsView: View {
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
+                    }
+                    Button {
+                        showHelpCenter = true
+                    } label: {
+                        Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
                     Link(destination: URL(string: "https://bissbilanz.orellbuehler.ch/privacy")!) {
                         Label(L10n.privacyPolicy, systemImage: "hand.raised")
@@ -437,6 +455,16 @@ struct SettingsView: View {
                     .disabled(!ErrorReporter.isEnabled)
                     #endif
                 }
+            }
+            // Below the nav title, discovering the quick-add Siri Shortcut.
+            // Kept here rather than on the dashboard so it doesn't compete
+            // with the ordered `TipGroup` there — the system decides on its
+            // own whether/when this is worth showing (no binding needed).
+            .safeAreaInset(edge: .top) {
+                SiriTipView(intent: LogFoodIntent(), isVisible: nil)
+            }
+            .sheet(isPresented: $showHelpCenter) {
+                SafariView(url: HelpLink.url())
             }
             .keyboardDismissable()
             // The number pad has no return key, so the keyboard toolbar's

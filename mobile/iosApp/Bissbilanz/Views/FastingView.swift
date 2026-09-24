@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 enum FastingProtocolOption: String, CaseIterable, Identifiable {
     case sixteenEight
@@ -42,6 +43,8 @@ struct FastingView: View {
     @State private var showsCustomStartPicker = false
     @State private var showAdjustStart = false
     @State private var editingSession: FastingSession?
+    @State private var showTipHelp = false
+    private let fastingLiveActivityTip = FastingLiveActivityTip()
 
     private var history: [FastingSession] {
         fastingManager.history
@@ -60,6 +63,11 @@ struct FastingView: View {
                     startSection
                 }
 
+                TipView(fastingLiveActivityTip) { action in
+                    guard action.id == "learn_more" else { return }
+                    showTipHelp = true
+                }
+
                 if !fastingManager.liveActivitiesEnabled {
                     liveActivityHint
                 }
@@ -70,6 +78,9 @@ struct FastingView: View {
         }
         .navigationTitle(L10n.fasting)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showTipHelp) {
+            SafariView(url: HelpLink.url(for: .bodyTracking))
+        }
         .task {
             fastingManager.refresh()
             await fastingManager.refreshFromServer()

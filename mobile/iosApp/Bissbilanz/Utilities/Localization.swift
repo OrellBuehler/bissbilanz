@@ -3109,6 +3109,116 @@ enum L10n {
         )
     }
 
+    // MARK: - Tips (TipKit)
+
+    static var tipLearnMore: String {
+        localized("tip_learn_more", en: "Learn more", de: "Mehr erfahren")
+    }
+
+    static var helpAndGuides: String {
+        localized("help_and_guides", en: "Help & guides", de: "Hilfe & Anleitungen")
+    }
+
+    static var showTipsAgain: String {
+        localized("show_tips_again", en: "Show tips again", de: "Tipps erneut anzeigen")
+    }
+
+    static var showTipsAgainFooter: String {
+        localized(
+            "show_tips_again_footer",
+            en: "Tips reappear the next time you restart the app.",
+            de: "Tipps erscheinen wieder, sobald du die App neu startest."
+        )
+    }
+
+    static var tipScanningTitle: String {
+        localized("tip_scanning_title", en: "Scan to log faster", de: "Scannen für schnelleres Eintragen")
+    }
+
+    static var tipScanningMessage: String {
+        localized(
+            "tip_scanning_message",
+            en: "Tap + and choose Scan Barcode to add packaged foods and nutrition labels instantly.",
+            de: "Tippe auf + und wähle Barcode scannen, um verpackte Lebensmittel und Nährwertetiketten sofort hinzuzufügen."
+        )
+    }
+
+    static var tipFavoritesTitle: String {
+        localized("tip_favorites_title", en: "One-tap logging", de: "Eintragen mit einem Tipp")
+    }
+
+    static var tipFavoritesMessage: String {
+        localized(
+            "tip_favorites_message",
+            en: "Mark foods as favorites to log them again with a single tap, from the Favorites tab or a widget.",
+            de: "Markiere Lebensmittel als Favoriten, um sie mit einem Tipp erneut einzutragen — über den Favoriten-Tab oder ein Widget."
+        )
+    }
+
+    static var tipWidgetsTitle: String {
+        localized("tip_widgets_title", en: "Add widgets to your Home Screen", de: "Widgets zum Homescreen hinzufügen")
+    }
+
+    static var tipWidgetsMessage: String {
+        localized(
+            "tip_widgets_message",
+            en: "See today's progress at a glance, or log a favorite in one tap, right from your Home Screen or Lock Screen.",
+            de: "Sieh deinen heutigen Fortschritt auf einen Blick oder trage einen Favoriten mit einem Tipp ein — direkt vom Homescreen oder Sperrbildschirm."
+        )
+    }
+
+    static var tipWatchAppTitle: String {
+        localized("tip_watch_app_title", en: "Bissbilanz on your wrist", de: "Bissbilanz am Handgelenk")
+    }
+
+    static var tipWatchAppMessage: String {
+        localized(
+            "tip_watch_app_message",
+            en: "Install the Apple Watch app to log food and see your progress without your phone.",
+            de: "Installiere die Apple-Watch-App, um Essen einzutragen und deinen Fortschritt ohne dein iPhone zu sehen."
+        )
+    }
+
+    static var tipFastingLiveActivityTitle: String {
+        localized(
+            "tip_fasting_live_activity_title",
+            en: "Track your fast from the Lock Screen",
+            de: "Verfolge dein Fasten vom Sperrbildschirm aus"
+        )
+    }
+
+    static var tipFastingLiveActivityMessage: String {
+        localized(
+            "tip_fasting_live_activity_message",
+            en: "Start a fast to see a Live Activity with your progress on the Lock Screen and in the Dynamic Island.",
+            de: "Starte ein Fasten, um eine Live-Aktivität mit deinem Fortschritt auf dem Sperrbildschirm und in der Dynamic Island zu sehen."
+        )
+    }
+
+    static var tipHealthImportTitle: String {
+        localized("tip_health_import_title", en: "Import from Apple Health", de: "Import aus Apple Health")
+    }
+
+    static var tipHealthImportMessage: String {
+        localized(
+            "tip_health_import_message",
+            en: "Turn on Apple Health import in Settings to bring this data in automatically.",
+            de: "Aktiviere den Apple-Health-Import in den Einstellungen, um diese Daten automatisch zu übernehmen."
+        )
+    }
+
+    static var tipDashboardLayoutTitle: String {
+        localized("tip_dashboard_layout_title", en: "Customize your dashboard", de: "Passe dein Dashboard an")
+    }
+
+    static var tipDashboardLayoutMessage: String {
+        localized(
+            "tip_dashboard_layout_message",
+            en: "Reorder or hide dashboard cards to match how you track.",
+            de: "Ordne Dashboard-Karten neu an oder blende sie aus — passend zu deiner Art zu tracken."
+        )
+    }
+
     // MARK: - Weekday Abbreviations
 
     static var weekdayHeaders: [String] {

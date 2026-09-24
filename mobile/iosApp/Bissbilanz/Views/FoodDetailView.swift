@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 struct FoodDetailView: View {
     @Environment(FoodRepository.self) private var foodRepository
@@ -20,6 +21,8 @@ struct FoodDetailView: View {
     @State private var errorMessage: String?
     @State private var toastMessage: String?
     @State private var ingredientsExpanded = false
+    @State private var showTipHelp = false
+    private let favoritesLoggingTip = FavoritesLoggingTip()
 
     var body: some View {
         Group {
@@ -61,6 +64,10 @@ struct FoodDetailView: View {
                     }
                     .disabled(isTogglingFavorite)
                     .accessibilityLabel(food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites)
+                    .popoverTip(favoritesLoggingTip) { action in
+                        guard action.id == "learn_more" else { return }
+                        showTipHelp = true
+                    }
 
                     Menu {
                         Button {
@@ -111,6 +118,9 @@ struct FoodDetailView: View {
                 Task { await deleteFood() }
             }
             Button(L10n.cancel, role: .cancel) {}
+        }
+        .sheet(isPresented: $showTipHelp) {
+            SafariView(url: HelpLink.url(for: .logging))
         }
         .task { await loadFood() }
         .toast(message: $toastMessage)

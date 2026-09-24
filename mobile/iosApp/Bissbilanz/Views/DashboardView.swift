@@ -1,6 +1,7 @@
 import Charts
 import Combine
 import SwiftUI
+import TipKit
 
 /// One day of the dashboard calorie trend.
 private struct DashboardTrendPoint: Identifiable {
@@ -100,6 +101,16 @@ struct DashboardView: View {
     /// refreshed) only while the widget is on, like `favoriteFoods` above.
     @State private var allRecipes: [Recipe] = []
 
+    /// Widgets, then the watch app — only one shows at a time, and the watch
+    /// nudge only appears once the widgets tip has been dismissed/invalidated.
+    @State private var dashboardTips = TipGroup(.ordered) {
+        [WidgetsTip(), WatchAppTip()]
+    }
+    private let scanningTip = ScanningTip()
+    private let dashboardLayoutTip = DashboardLayoutTip()
+    @State private var tipHelpSlug: HelpSlug = .mobileExtras
+    @State private var showTipHelp = false
+
     /// Days the trend chart and the top-foods card look back over, ending on
     /// the selected day.
     private static let trendWindowDays = 7
@@ -185,6 +196,16 @@ struct DashboardView: View {
                 VStack(spacing: 16) {
                     dateNavigator
 
+                    // Widgets/watch-app discovery — TipGroup shows at most one
+                    // at a time (`.ordered`: the watch tip only once the
+                    // widgets tip has been dismissed).
+                    if let currentTip = dashboardTips.currentTip {
+                        TipView(currentTip) { action in
+                            guard action.id == "learn_more" else { return }
+                            showHelp(for: .mobileExtras)
+                        }
+                    }
+
                     // ZStack so the outgoing and incoming day overlap during
                     // the push transition instead of stacking vertically.
                     ZStack {
@@ -219,11 +240,21 @@ struct DashboardView: View {
                     } label: {
                         Label(L10n.editDashboard, systemImage: "slider.horizontal.3")
                     }
+                    .popoverTip(dashboardLayoutTip) { action in
+                        guard action.id == "learn_more" else { return }
+                        showHelp(for: .gettingStarted)
+                    }
                 }
             }
             .refreshable { await loadData(paintFromStore: false) }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
+            .sheet(isPresented: $showTipHelp) {
+                SafariView(url: HelpLink.url(for: tipHelpSlug))
+            }
+            .onAppear {
+                WatchAppTip.isEligible = PhoneWatchConnectivity.shared.isWatchAppInstallEligible
+            }
             .sheet(isPresented: $showFoodSearch) {
                 NavigationStack {
                     FoodSearchView(date: dateString)
@@ -1114,8 +1145,17 @@ struct DashboardView: View {
             .buttonStyle(.plain)
             .circularGlassBackground(tint: MacroColors.calories)
             .accessibilityLabel(L10n.addFood)
+            .popoverTip(scanningTip) { action in
+                guard action.id == "learn_more" else { return }
+                showHelp(for: .scanning)
+            }
             .padding()
         }
+    }
+
+    private func showHelp(for slug: HelpSlug) {
+        tipHelpSlug = slug
+        showTipHelp = true
     }
 
     // MARK: - Data Loading
