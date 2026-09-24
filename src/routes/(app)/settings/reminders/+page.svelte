@@ -16,6 +16,7 @@
 	import BellRing from '@lucide/svelte/icons/bell-ring';
 	import { reminderService } from '$lib/services/reminder-service.svelte';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
+	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieReminder, DexieSupplement } from '$lib/db/types';
 	import PushNotifications from '../PushNotifications.svelte';
@@ -99,6 +100,7 @@
 	onMount(() => {
 		reminderService.refresh();
 		supplementService.refresh();
+		mealTypeService.refresh();
 	});
 </script>
 
