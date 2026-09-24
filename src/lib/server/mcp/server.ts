@@ -11,6 +11,7 @@ import { goalsSchema } from '$lib/server/validation/goals';
 import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
+import { topFoodsSortSchema } from '$lib/server/validation/stats';
 import { scheduleTypeValues } from '$lib/supplement-units';
 import { aiTaskStatusValues } from '$lib/server/schema';
 import { MAX_BATCH_ITEMS, MAX_LABELS_PER_FOOD } from '$lib/server/labels';
@@ -949,7 +950,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_top_foods',
 		{
 			title: 'Get Top Foods',
-			description: 'Get the most frequently logged foods over a period.',
+			description:
+				'Get the most frequently logged foods over a period, or with sort set to a macro, the foods that contributed the most of it in total (e.g. what drives fat intake). Macros are per logged entry on average; multiply by count for the total.',
 			inputSchema: {
 				days: z
 					.number()
@@ -964,7 +966,10 @@ export function createMcpServer(userId: string): McpServer {
 					.min(1)
 					.max(100)
 					.optional()
-					.describe('Max number of foods to return. Defaults to 10.')
+					.describe('Max number of foods to return. Defaults to 10.'),
+				sort: topFoodsSortSchema
+					.optional()
+					.describe('Rank by log count (default) or by total contribution to a macro.')
 			},
 			annotations: READ_ONLY
 		},

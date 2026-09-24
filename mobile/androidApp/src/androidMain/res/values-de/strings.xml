@@ -876,6 +876,11 @@
     <string name="insights_meal_distribution">Mahlzeitenverteilung</string>
     <string name="insights_top_foods">Top-Lebensmittel</string>
     <string name="insights_count_x">%1$dx</string>
+    <string name="insights_macro_sources_title">Hauptquellen</string>
+    <string name="insights_macro_sources_subtitle">Lebensmittel mit dem größten Anteil in den letzten %1$d Tagen</string>
+    <string name="insights_macro_sources_empty">In diesem Zeitraum nichts mit diesem Nährstoff erfasst.</string>
+    <string name="insights_macro_sources_share">der Gesamtmenge</string>
+    <string name="insights_macro_sources_amount">%1$dx · %2$s g</string>
     <string name="insights_more_with_account">Weitere Auswertungen mit einem Konto verfügbar</string>
     <string name="insights_below_avg_cal">&lt; %1$s kcal</string>
     <string name="insights_above_avg_cal">&gt; %1$s kcal</string>

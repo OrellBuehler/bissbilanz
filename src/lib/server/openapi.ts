@@ -18,6 +18,7 @@ import {
 import { weightCreateSchema, weightUpdateSchema } from './validation/weight';
 import { fastingSessionUpsertSchema, fastingSessionUpdateSchema } from './validation/fasting';
 import { preferencesUpdateSchema } from './validation/preferences';
+import { topFoodsSortSchema } from './validation/stats';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from './validation/meal-types';
 import {
 	errorResponseSchema,
@@ -1047,11 +1048,13 @@ export function generateSpec() {
 				get: {
 					operationId: 'getTopFoods',
 					tags: ['Stats'],
-					description: 'Get most frequently logged foods.',
+					description:
+						'Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average.',
 					requestParams: {
 						query: z.object({
 							days: z.number().int().optional(),
-							limit: z.number().int().optional()
+							limit: z.number().int().optional(),
+							sort: topFoodsSortSchema.optional()
 						})
 					},
 					responses: {

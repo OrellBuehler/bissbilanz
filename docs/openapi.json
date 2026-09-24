@@ -1846,7 +1846,7 @@
 			"get": {
 				"operationId": "getTopFoods",
 				"tags": ["Stats"],
-				"description": "Get most frequently logged foods.",
+				"description": "Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average.",
 				"parameters": [
 					{
 						"in": "query",
@@ -1864,6 +1864,14 @@
 							"type": "integer",
 							"minimum": -9007199254740991,
 							"maximum": 9007199254740991
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"type": "string",
+							"enum": ["count", "calories", "protein", "carbs", "fat", "fiber"]
 						}
 					}
 				],

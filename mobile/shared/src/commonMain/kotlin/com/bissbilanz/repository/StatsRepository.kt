@@ -49,7 +49,8 @@ class StatsRepository(
     suspend fun getTopFoods(
         days: Int = 7,
         limit: Int = 10,
-    ): TopFoodsResponse = api.getTopFoods(days, limit)
+        sort: String = "count",
+    ): TopFoodsResponse = api.getTopFoods(days, limit, sort)
 
     suspend fun getCalendarStats(month: String): List<CalendarDay> {
         // In Local mode the local DB is complete, so the calendar is computed from cache.
