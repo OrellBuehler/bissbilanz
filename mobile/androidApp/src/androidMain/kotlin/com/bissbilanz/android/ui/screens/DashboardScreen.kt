@@ -561,6 +561,7 @@ fun DashboardScreen(navController: NavController) {
                                                 Spacer(modifier = Modifier.height(16.dp))
                                                 RecipeSuggestionsWidget(
                                                     date = selectedDate.toString(),
+                                                    activityCalories = activityCalories,
                                                     onViewAll = { navController.navigate("recipe-suggestions") },
                                                     onLogged = { name ->
                                                         scope.launch {

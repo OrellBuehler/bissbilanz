@@ -9,10 +9,13 @@ struct RecipeSuggestionsView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(GoalsRepository.self) private var goalsRepository
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(PreferencesRepository.self) private var preferencesRepository
 
     @State private var recipes: [Recipe] = []
     @State private var goals: Goals?
     @State private var entries: [Entry] = []
+    @State private var preferences: Preferences = .defaults
+    @State private var activityCalories: Int?
     @State private var isLoading = true
     @State private var pendingLog: PendingLog?
 
@@ -41,9 +44,16 @@ struct RecipeSuggestionsView: View {
     }
 
     /// nil until goals have loaded at least once — distinguishes "no goals
-    /// set" from "goals are all zero".
+    /// set" from "goals are all zero". Raised by today's workout calories
+    /// when the activity goal adjustment is on, like the dashboard rings.
     private var remaining: (calories: Double, protein: Double, carbs: Double, fat: Double)? {
-        guard let goals else { return nil }
+        guard let baseGoals = goals else { return nil }
+        let goals = adjustGoalsForActivity(
+            goals: baseGoals,
+            activityCalories: activityCalories,
+            enabled: preferences.activityGoalAdjustment,
+            creditPercent: preferences.activityCreditPercent
+        ).goals
         return (
             calories: goals.calorieGoal - totalCalories,
             protein: goals.proteinGoal - totalProtein,
@@ -252,6 +262,8 @@ struct RecipeSuggestionsView: View {
         recipes = recipeRepository.recipes()
         goals = goalsRepository.goals()
         entries = entryRepository.entries(date: DateFormatting.today)
+        preferences = preferencesRepository.preferences() ?? .defaults
+        activityCalories = entryRepository.dayProperties(date: DateFormatting.today)?.activityCalories
         isLoading = recipes.isEmpty && goals == nil
 
         async let recipesTask: Void? = try? recipeRepository.refresh()
@@ -262,6 +274,8 @@ struct RecipeSuggestionsView: View {
         recipes = recipeRepository.recipes()
         goals = goalsRepository.goals()
         entries = entryRepository.entries(date: DateFormatting.today)
+        preferences = preferencesRepository.preferences() ?? .defaults
+        activityCalories = entryRepository.dayProperties(date: DateFormatting.today)?.activityCalories
         isLoading = false
     }
 }

@@ -146,10 +146,11 @@ struct DashboardView: View {
         MealGrouping.group(entries)
     }
 
-    /// Today's goal minus what's already logged — the budget the recipe
-    /// suggestions card scales recipes against.
+    /// Today's (activity-adjusted) goal minus what's already logged — the
+    /// budget the recipe suggestions card scales recipes against.
     private var remainingBudget: (calories: Double, protein: Double, carbs: Double, fat: Double) {
-        (
+        let goals = activityAdjustment.goals
+        return (
             calories: goals.calorieGoal - totalCalories,
             protein: goals.proteinGoal - totalProtein,
             carbs: goals.carbGoal - totalCarbs,
