@@ -9,6 +9,8 @@
 	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	let captureOpen = $state(false);
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
@@ -51,6 +53,15 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4">
+	{#if !isDismissed('ai-assistant')}
+		<HintCard
+			id="ai-assistant"
+			title={m.hint_ai_assistant_title()}
+			text={m.hint_ai_assistant_body()}
+			href="/help/ai-assistant"
+		/>
+	{/if}
+
 	<div class="flex items-center justify-between gap-2">
 		<p class="text-sm text-muted-foreground">{m.ai_tasks_page_description()}</p>
 		<Button size="sm" onclick={() => (captureOpen = true)}>

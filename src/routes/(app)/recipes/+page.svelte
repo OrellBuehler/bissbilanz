@@ -19,6 +19,8 @@
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
@@ -150,6 +152,15 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
+	{#if !isDismissed('recipes')}
+		<HintCard
+			id="recipes"
+			title={m.hint_recipes_title()}
+			text={m.hint_recipes_body()}
+			href="/help/recipes"
+		/>
+	{/if}
+
 	{#if recipes.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.recipes_no_recipes()}</p>
 	{:else}

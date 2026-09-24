@@ -17,6 +17,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
 	import * as Sentry from '@sentry/sveltekit';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	type MaintenanceResult = {
 		maintenanceCalories: number;
@@ -123,6 +125,15 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6 pb-8">
+	{#if !isDismissed('goals-maintenance')}
+		<HintCard
+			id="goals-maintenance"
+			title={m.hint_goals_maintenance_title()}
+			text={m.hint_goals_maintenance_body()}
+			href="/help/goals-maintenance"
+		/>
+	{/if}
+
 	<Card.Root class="overflow-hidden">
 		<Card.Header class="pb-3">
 			<div class="flex items-center gap-2">

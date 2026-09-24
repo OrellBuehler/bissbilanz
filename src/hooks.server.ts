@@ -168,6 +168,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		'/privacy',
 		'/account-deletion',
 		'/support',
+		'/help',
 		'/sitemap.xml',
 		'/api/',
 		'/authorize',

@@ -38,6 +38,8 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	let visibleNutrients = $state<string[]>([...DEFAULT_VISIBLE_NUTRIENTS]);
 	let query = $state('');
@@ -545,6 +547,22 @@
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
 	{#if !query && duplicateGroups.length > 0}
 		<DuplicatesBanner groups={duplicateGroups} onResolve={openMergeFromGroup} />
+	{/if}
+
+	{#if !isDismissed('scanning')}
+		<HintCard
+			id="scanning"
+			title={m.hint_scanning_title()}
+			text={m.hint_scanning_body()}
+			href="/help/scanning"
+		/>
+	{:else if !isDismissed('food-database')}
+		<HintCard
+			id="food-database"
+			title={m.hint_food_database_title()}
+			text={m.hint_food_database_body()}
+			href="/help/food-database"
+		/>
 	{/if}
 
 	<div class="flex flex-wrap items-center gap-2">
