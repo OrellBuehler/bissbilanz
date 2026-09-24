@@ -18,6 +18,7 @@ enum RecipeSort: String, CaseIterable, Identifiable {
 
 struct RecipeListView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(FoodRepository.self) private var foodRepository
 
     @State private var recipes: [Recipe] = []
     @State private var isLoading = true
@@ -187,7 +188,11 @@ struct RecipeListView: View {
             .font(.caption)
 
             if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                Text(ingredients.compactMap { $0.food?.name }.joined(separator: ", "))
+                // The server response has no embedded `food` on ingredients — fall
+                // back to the local cache (no network round trip, this runs once
+                // per row) instead of silently showing nothing for a synced recipe.
+                let names = ingredients.compactMap { $0.food?.name ?? foodRepository.food(id: $0.foodId)?.name }
+                Text(names.joined(separator: ", "))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
