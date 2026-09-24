@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plug from '@lucide/svelte/icons/plug';
+	import BellRing from '@lucide/svelte/icons/bell-ring';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
 	import type { LayoutData } from './$types';
@@ -10,6 +11,12 @@
 
 	const allTabs = [
 		{ href: '/settings', label: () => m.settings_tab_general(), icon: Settings, exact: true },
+		{
+			href: '/settings/reminders',
+			label: () => m.settings_tab_reminders(),
+			icon: BellRing,
+			exact: false
+		},
 		{ href: '/settings/mcp', label: () => m.settings_tab_mcp(), icon: Plug, exact: false }
 	];
 

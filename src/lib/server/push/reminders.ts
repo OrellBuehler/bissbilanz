@@ -1,5 +1,6 @@
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { ScheduleType } from '$lib/supplement-units';
+import type { ReminderKind } from '$lib/server/schema';
 
 export type ReminderSupplement = {
 	id: string;
@@ -85,5 +86,56 @@ export const dueReminders = ({
 			supplement.scheduleStartDate,
 			localDate
 		);
+	});
+};
+
+export type GeneralReminder = {
+	id: string;
+	kind: ReminderKind;
+	mealType: string | null;
+	time: string;
+	weekdays: number[];
+	enabled: boolean;
+	lastRemindedAt: Date | null;
+};
+
+export type DueGeneralRemindersInput = {
+	now: Date;
+	timeZone: string;
+	reminders: GeneralReminder[];
+	/** Reminder ids already satisfied for the user's local day. */
+	loggedReminderIds: Iterable<string>;
+};
+
+/**
+ * The general (weight/meal/sleep) reminders whose reminder fires in the current
+ * local minute: enabled, matching the local weekday and wall-clock time, not
+ * already satisfied by a log for the local day, and not already reminded within
+ * this same minute. Mirrors {@link dueReminders} for supplements.
+ */
+export const dueGeneralReminders = ({
+	now,
+	timeZone,
+	reminders,
+	loggedReminderIds
+}: DueGeneralRemindersInput): GeneralReminder[] => {
+	const clock = localClock(now, timeZone);
+	const logged = new Set(loggedReminderIds);
+	const [year, month, day] = clock.date.split('-').map(Number);
+	const localWeekday = new Date(year, month - 1, day).getDay();
+
+	return reminders.filter((reminder) => {
+		if (!reminder.enabled) return false;
+		if (reminder.time !== clock.time) return false;
+		if (!reminder.weekdays.includes(localWeekday)) return false;
+		if (logged.has(reminder.id)) return false;
+		if (reminder.lastRemindedAt) {
+			// Same local date + same local minute means this exact reminder already
+			// went out — including the hour a fall-back DST transition repeats.
+			const sent = localClock(reminder.lastRemindedAt, timeZone);
+			if (sent.date === clock.date && sent.time === clock.time) return false;
+			if (reminder.lastRemindedAt >= clock.minuteStart) return false;
+		}
+		return true;
 	});
 };

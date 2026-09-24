@@ -15,6 +15,7 @@ import {
 	supplementUpdateSchema,
 	supplementLogSchema
 } from './validation/supplements';
+import { reminderCreateSchema, reminderUpdateSchema } from './validation/reminders';
 import { weightCreateSchema, weightUpdateSchema } from './validation/weight';
 import { fastingSessionUpsertSchema, fastingSessionUpdateSchema } from './validation/fasting';
 import { preferencesUpdateSchema } from './validation/preferences';
@@ -51,6 +52,10 @@ import {
 	supplementLogResponseSchema,
 	supplementHistoryResponseSchema
 } from './validation/responses/supplements';
+import {
+	remindersListResponseSchema,
+	reminderResponseSchema
+} from './validation/responses/reminders';
 import {
 	weightEntriesResponseSchema,
 	weightEntryResponseSchema,
@@ -807,6 +812,86 @@ export function generateSpec() {
 							content: { 'application/json': { schema: supplementChecklistResponseSchema } }
 						},
 						'401': res401
+					}
+				}
+			},
+
+			// ── Reminders ─────────────────────────────────────────
+			'/api/reminders': {
+				get: {
+					operationId: 'listReminders',
+					tags: ['Reminders'],
+					description: 'List logging reminders (weight, meal, sleep).',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: remindersListResponseSchema } }
+						},
+						'401': res401
+					}
+				},
+				post: {
+					operationId: 'createReminder',
+					tags: ['Reminders'],
+					description: 'Create a new logging reminder.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: reminderCreateSchema } }
+					},
+					responses: {
+						'201': {
+							description: 'Created',
+							content: { 'application/json': { schema: reminderResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/reminders/{id}': {
+				get: {
+					operationId: 'getReminder',
+					tags: ['Reminders'],
+					description: 'Get a single reminder by ID.',
+					requestParams: { path: uuidPathId },
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: reminderResponseSchema } }
+						},
+						'401': res401,
+						'404': res404
+					}
+				},
+				patch: {
+					operationId: 'updateReminder',
+					tags: ['Reminders'],
+					description: 'Update a logging reminder.',
+					requestParams: { path: uuidPathId },
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: reminderUpdateSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: reminderResponseSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'404': res404,
+						'409': res409
+					}
+				},
+				delete: {
+					operationId: 'deleteReminder',
+					tags: ['Reminders'],
+					description: 'Delete a logging reminder.',
+					requestParams: { path: uuidPathId },
+					responses: {
+						'204': res204,
+						'401': res401,
+						'409': res409
 					}
 				}
 			},
