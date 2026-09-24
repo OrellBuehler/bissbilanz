@@ -705,15 +705,29 @@ struct WeightEntryRow: View {
                 Text("\(entry.weightKg, specifier: "%.1f") kg")
                     .foregroundStyle(.secondary)
             }
+            // A plain-style button only hit-tests its opaque content, so
+            // without this the Spacer gap between date and weight ignores taps.
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Lets Siri resolve "this entry" against the row on screen (iOS 18.4+;
         // a no-op before).
         .siriEntity(WeightEntity.self, id: entry.id)
-        .swipeActions(edge: .trailing) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
                 Label(L10n.delete, systemImage: "trash")
             }
+
+            Button(action: onEdit) {
+                Label(L10n.edit, systemImage: "pencil")
+            }
+            .tint(.blue)
+        }
+        .swipeActions(edge: .leading) {
+            Button(action: onEdit) {
+                Label(L10n.edit, systemImage: "pencil")
+            }
+            .tint(.blue)
         }
     }
 }
