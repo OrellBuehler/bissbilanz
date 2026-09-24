@@ -37,6 +37,8 @@ struct FoodEditSheet: View {
 /// after `onSaved` and one body stays correct in both modes.
 struct FoodEditForm: View {
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(FoodLabeler.self) private var foodLabeler
+    @Environment(McpConnectionStatus.self) private var mcpConnectionStatus
 
     let existingFood: Food?
     let onSaved: (Food) -> Void
@@ -64,6 +66,15 @@ struct FoodEditForm: View {
     @State private var labelInput = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    /// Collapsed by default — nutrients and labels are edited far less often
+    /// than the core fields above, so hiding them behind one disclosure
+    /// keeps the common case (name, macros, save) short. Mirrors web's
+    /// collapsible "Advanced" section (`FoodForm.svelte`) and Android's
+    /// `showAdvanced` toggle, but also folds labels in here on iOS rather
+    /// than keeping them a separate always-visible section.
+    @State private var showAdvanced = false
+    @State private var isSuggestingLabels = false
+    @State private var suggestLabelsError: String?
 
     /// Additional nutrients keyed by their FoodCreate field name. The user can
     /// add any supported nutrient here; the label scanner also fills a few.
@@ -144,59 +155,95 @@ struct FoodEditForm: View {
                 Text(L10n.macroBasisFooter)
             }
 
-            Section(L10n.additionalNutrients) {
-                ForEach(addedNutrients) { spec in
-                    additionalNutrientField(spec)
-                }
-                .onDelete(perform: removeAdditionalNutrients)
+            // Additional nutrients and labels share one collapsible "Advanced"
+            // section: a `DisclosureGroup` as the Section's sole row expands
+            // in place without leaving the Form's inset-grouped styling, and
+            // `ForEach`/`.onDelete` inside it still work exactly like they
+            // would at the Section's top level.
+            Section {
+                DisclosureGroup(isExpanded: $showAdvanced) {
+                    ForEach(addedNutrients) { spec in
+                        additionalNutrientField(spec)
+                    }
+                    .onDelete(perform: removeAdditionalNutrients)
 
-                Menu {
-                    ForEach(NutrientCatalog.categories) { category in
-                        if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
-                            Menu(category.title) {
-                                ForEach(category.nutrients) { spec in
-                                    if additionalValues[spec.key] == nil {
-                                        Button(spec.label) { additionalValues[spec.key] = "" }
+                    Menu {
+                        ForEach(NutrientCatalog.categories) { category in
+                            if category.nutrients.contains(where: { additionalValues[$0.key] == nil }) {
+                                Menu(category.title) {
+                                    ForEach(category.nutrients) { spec in
+                                        if additionalValues[spec.key] == nil {
+                                            Button(spec.label) { additionalValues[spec.key] = "" }
+                                        }
                                     }
                                 }
                             }
                         }
+                    } label: {
+                        Label(L10n.addNutrient, systemImage: "plus.circle")
                     }
-                } label: {
-                    Label(L10n.addNutrient, systemImage: "plus.circle")
-                }
-            }
 
-            Section {
-                ForEach(labels, id: \.self) { label in
+                    ForEach(labels, id: \.self) { label in
+                        HStack {
+                            Text(label)
+                            Spacer()
+                            Button(role: .destructive) {
+                                labels.removeAll { $0 == label }
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(L10n.removeLabel)
+                        }
+                    }
                     HStack {
-                        Text(label)
-                        Spacer()
-                        Button(role: .destructive) {
-                            labels.removeAll { $0 == label }
-                        } label: {
-                            Image(systemName: "minus.circle")
+                        TextField(L10n.addLabel, text: $labelInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onSubmit(addLabel)
+                        Button(action: addLabel) {
+                            Image(systemName: "plus.circle.fill")
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.removeLabel)
+                        .disabled(labelInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .accessibilityLabel(L10n.addLabel)
+                    }
+
+                    if foodLabeler.isAvailable {
+                        Button {
+                            Task { await suggestLabels() }
+                        } label: {
+                            if isSuggestingLabels {
+                                HStack {
+                                    ProgressView()
+                                    Text(L10n.suggestingLabels)
+                                }
+                            } else {
+                                Label(L10n.suggestLabels, systemImage: "sparkles")
+                            }
+                        }
+                        .disabled(isSuggestingLabels)
+                    }
+                    if let suggestLabelsError {
+                        Text(suggestLabelsError)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                } label: {
+                    HStack {
+                        Text(L10n.advanced)
+                        Spacer()
+                        if let advancedSummary {
+                            Text(advancedSummary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-                HStack {
-                    TextField(L10n.addLabel, text: $labelInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit(addLabel)
-                    Button(action: addLabel) {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(labelInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .accessibilityLabel(L10n.addLabel)
-                }
-            } header: {
-                Text(L10n.labels)
             } footer: {
-                Text(L10n.labelsHint)
+                if showAdvanced {
+                    Text(L10n.labelsHint)
+                }
             }
 
             Section {
@@ -257,6 +304,35 @@ struct FoodEditForm: View {
         for index in offsets {
             additionalValues[specs[index].key] = nil
         }
+    }
+
+    /// Nil while the collapsed "Advanced" section has nothing to summarize,
+    /// so it never reads "0 labels · 0 nutrients".
+    private var advancedSummary: String? {
+        var parts: [String] = []
+        if !labels.isEmpty { parts.append(L10n.labelCount(labels.count)) }
+        if !addedNutrients.isEmpty { parts.append(L10n.nutrientCount(addedNutrients.count)) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Runs the labeller on the form's current values and merges its
+    /// suggestions into `labels` for review — nothing is saved until the
+    /// user hits Save, same as a manually typed label.
+    private func suggestLabels() async {
+        isSuggestingLabels = true
+        suggestLabelsError = nil
+        do {
+            let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
+                name: name,
+                brand: brand.isEmpty ? nil : brand,
+                servingUnit: servingUnit,
+                ingredientsText: existingFood?.ingredientsText
+            ))
+            labels = LabelNormalizer.normalizeAll(labels + suggestions).sorted()
+        } catch {
+            suggestLabelsError = (error as? FoodLabelerError)?.localizedMessage ?? error.localizedDescription
+        }
+        isSuggestingLabels = false
     }
 
     private func prefill() {
@@ -401,6 +477,14 @@ struct FoodEditForm: View {
                 saved = try await foodRepository.setLabels(id: saved.id, labels: labels)
             }
             onSaved(saved)
+            // No-ops unless the food still has no labels at all, so this
+            // never overrides what was just typed or scanned above.
+            FoodAutoLabeler.labelIfNeeded(
+                saved,
+                mcpConnected: mcpConnectionStatus.isConnected,
+                labeler: foodLabeler,
+                foodRepository: foodRepository
+            )
         } catch {
             errorMessage = error.localizedDescription
         }
