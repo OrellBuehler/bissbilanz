@@ -15,8 +15,8 @@ import FoundationModels
 /// (`AIMealSheet`). `MealEstimatorPrivateCloud.swift` adds a second one,
 /// in-line rather than queued: when the on-device attempt is unavailable,
 /// refuses, overflows its context window, or comes back obviously weak,
-/// `estimate(description:)` retries on Apple's Private Cloud Compute server
-/// model (iOS 27+) before giving up.
+/// `estimate(description:)` (and the photo variant) retries on Apple's
+/// Private Cloud Compute server model (iOS 27+) before giving up.
 enum MealEstimatorAvailability: Equatable {
     case available
     case deviceNotEligible
@@ -156,46 +156,60 @@ final class MealEstimator {
     func estimate(description: String) async throws -> MealEstimate {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            if availability == .available {
-                do {
-                    let result = try await estimateWithFoundationModels(description: description)
-                    guard Self.isWeakEstimate(result) else { return result }
-                    // A weak result still beats nothing — only replace it if the
-                    // fallback actually produced something.
-                    return await privateCloudFallback(description: description) ?? result
-                } catch {
-                    if let fallback = await privateCloudFallback(description: description, retryableAfter: error) {
-                        return fallback
-                    }
-                    throw error
-                }
-            }
-            // On-device unavailable (ineligible device, Apple Intelligence off,
-            // model still downloading) — go straight to the cloud fallback
-            // instead of attempting a call `availability` already says will fail.
-            if let fallback = await privateCloudFallback(description: description) {
-                return fallback
-            }
+            return try await estimateWithFallback(
+                onDevice: { try await estimateWithFoundationModels(description: description) },
+                privateCloud: { try await estimateWithPrivateCloudCompute(description: description) }
+            )
         }
         #endif
         throw MealEstimatorError.generationFailed(L10n.aiMealOsUnsupported)
     }
 
+    /// Shared on-device → Private Cloud Compute routing for the text and photo
+    /// paths (`MealEstimator+Photo.swift`). On-device runs first when it's
+    /// available; a weak result or a refusal/context overflow retries on PCC.
+    /// When on-device is unavailable (ineligible device, Apple Intelligence
+    /// off, model still downloading), PCC is the only option, so its own error
+    /// surfaces instead of being swallowed.
+    func estimateWithFallback(
+        onDevice: () async throws -> MealEstimate,
+        privateCloud: () async throws -> MealEstimate
+    ) async throws -> MealEstimate {
+        guard availability == .available else {
+            guard isPrivateCloudComputeAvailable else {
+                throw MealEstimatorError.generationFailed(L10n.aiMealOsUnsupported)
+            }
+            return try await privateCloud()
+        }
+        do {
+            let result = try await onDevice()
+            guard Self.isWeakEstimate(result) else { return result }
+            // A weak result still beats nothing — only replace it if the
+            // fallback actually produced something better.
+            guard let fallback = await privateCloudFallback(privateCloud) else { return result }
+            return Self.preferredEstimate(onDevice: result, privateCloud: fallback)
+        } catch {
+            if let fallback = await privateCloudFallback(privateCloud, retryableAfter: error) {
+                return fallback
+            }
+            throw error
+        }
+    }
+
     /// Attempts the Private Cloud Compute fallback (`MealEstimatorPrivateCloud.swift`).
     /// `retryableAfter`, when given, only proceeds for the specific on-device
     /// failures that fallback is meant to catch (guardrail refusal, context
-    /// overflow) — omitting it (the "on-device unavailable" and "weak result"
-    /// call sites above) always proceeds. Returns `nil` whenever the fallback
-    /// isn't available or itself fails, so callers fall through to whatever
-    /// result or error they already have.
+    /// overflow) — omitting it (the "weak result" call site above) always
+    /// proceeds. Returns `nil` whenever the fallback isn't available or itself
+    /// fails, so callers fall through to whatever result or error they already have.
     private func privateCloudFallback(
-        description: String,
+        _ privateCloud: () async throws -> MealEstimate,
         retryableAfter error: Error? = nil
     ) async -> MealEstimate? {
         guard isPrivateCloudComputeAvailable else { return nil }
         if let error, !Self.isRetryableOnPrivateCloud(error) { return nil }
         do {
-            return try await estimateWithPrivateCloudCompute(description: description)
+            return try await privateCloud()
         } catch {
             // Reported rather than swallowed — the caller still degrades
             // gracefully to its own result/error, but a silent PCC failure

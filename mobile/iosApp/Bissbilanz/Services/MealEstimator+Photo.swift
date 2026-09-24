@@ -4,10 +4,11 @@ import UIKit
 import FoundationModels
 #endif
 
-/// On-device meal estimation from one or more photos (plus optional text),
-/// added on top of the text-only path in `MealEstimator.swift`. Kept in its
-/// own file so that file's diff stays small for the sibling PR that also
-/// touches it (a Private Cloud Compute text-estimate fallback).
+/// Meal estimation from one or more photos (plus optional text), added on top
+/// of the text-only path in `MealEstimator.swift`. Routes through the same
+/// `estimateWithFallback` as the text path: on-device first, Apple's Private
+/// Cloud Compute model (which also takes image attachments) when on-device is
+/// unavailable, refuses, overflows, or comes back weak.
 ///
 /// Foundation Models gained multimodal (image) prompts in iOS 27 — `Attachment`
 /// and `ImageAttachmentContent` are new API surface the Xcode 27 SDK declares,
@@ -20,14 +21,14 @@ import FoundationModels
 /// hallucination guard) and produces the same `EstimatedMeal`/`MealEstimate`
 /// result as the text path, so the review/confirm UI needs no changes.
 extension MealEstimator {
-    /// Whether photos can be estimated on-device on this OS/device. `AIMealSheet`
-    /// uses this to decide whether to show the photo picker to Local (anonymous)
-    /// users, who have no server fallback, and whether attached photos are
-    /// usable by the "Estimate" action at all.
+    /// Whether photos can be estimated on this OS/device, on-device or via
+    /// Private Cloud Compute. `AIMealSheet` uses this to decide whether to show
+    /// the photo picker to Local (anonymous) users, who have no server fallback,
+    /// and whether attached photos are usable by the "Estimate" action at all.
     var supportsPhotoInput: Bool {
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *) {
-            return availability == .available
+            return canEstimate
         }
         #endif
         return false
@@ -43,7 +44,22 @@ extension MealEstimator {
         }
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *) {
-            return try await estimateWithPhotos(description: description, images: images)
+            let attachments = await Self.makePhotoAttachments(images)
+            guard !attachments.isEmpty else {
+                throw MealEstimatorError.generationFailed(L10n.aiMealGenerationError)
+            }
+            return try await estimateWithFallback(
+                onDevice: {
+                    try await estimateWithPhotos(description: description, attachments: attachments, source: .onDevice)
+                },
+                privateCloud: {
+                    try await estimateWithPhotos(
+                        description: description,
+                        attachments: attachments,
+                        source: .privateCloudCompute
+                    )
+                }
+            )
         }
         #endif
         return try await estimate(description: description)
@@ -77,22 +93,36 @@ extension MealEstimator {
     /// own (documented) internal scaling.
     private static let photoMaxDimension: CGFloat = 1024
 
-    private func estimateWithPhotos(description: String, images: [UIImage]) async throws -> MealEstimate {
+    /// Downscales once up front so a Private Cloud Compute retry reuses the
+    /// same attachments instead of redrawing every photo again.
+    static func makePhotoAttachments(_ images: [UIImage]) async -> [Attachment] {
         // Downscaling (and the orientation-correcting redraw it does) is a
         // visible main-thread hang for a few full-resolution captures — see
         // `AiTaskStore`'s identical reasoning for its own JPEG re-encode.
-        let maxDimension = Self.photoMaxDimension
+        let maxDimension = photoMaxDimension
         let cgImages: [CGImage] = await Task.detached(priority: .userInitiated) {
             images.compactMap { $0.downscaledForModelInput(maxDimension: maxDimension).cgImage }
         }.value
-        let attachments = cgImages.map { Attachment($0) }
-        guard !attachments.isEmpty else {
-            throw MealEstimatorError.generationFailed(L10n.aiMealGenerationError)
-        }
+        return cgImages.map { Attachment($0) }
+    }
 
+    private func estimateWithPhotos(
+        description: String,
+        attachments: [Attachment],
+        source: MealEstimateSource
+    ) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
         let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)
-        let session = LanguageModelSession(tools: [tool], instructions: Self.photoInstructions)
+        let session = switch source {
+        case .onDevice:
+            LanguageModelSession(tools: [tool], instructions: Self.photoInstructions)
+        case .privateCloudCompute:
+            LanguageModelSession(
+                model: PrivateCloudComputeLanguageModel(),
+                tools: [tool],
+                instructions: Self.photoInstructions
+            )
+        }
         do {
             let response = try await session.respond(generating: EstimatedMeal.self) {
                 Self.photoPromptText(description: description)
@@ -101,25 +131,23 @@ extension MealEstimator {
                 }
             }
             let validIds = await matchedIds.ids
-            let items = response.content.items.map { item -> MealEstimateItem in
-                // Same hallucination guard as the text path: drop any matchedFoodId
-                // the tool never actually returned.
-                let matchedFoodId = item.matchedFoodId.flatMap { validIds.contains($0) ? $0 : nil }
-                return MealEstimateItem(
+            let items = response.content.items.map { item in
+                MealEstimateItem.fromGenerated(
                     name: item.name,
-                    matchedFoodId: matchedFoodId,
+                    matchedFoodId: item.matchedFoodId,
                     quantityDescription: item.quantityDescription,
                     grams: item.grams,
-                    servings: matchedFoodId != nil ? item.servings : nil,
+                    servings: item.servings,
                     calories: item.calories,
                     protein: item.protein,
                     carbs: item.carbs,
                     fat: item.fat,
                     fiber: item.fiber,
-                    confidence: item.confidence
+                    confidence: item.confidence,
+                    validMatchedFoodIds: validIds
                 )
             }
-            return MealEstimate(items: items)
+            return MealEstimate(items: items, source: source)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
