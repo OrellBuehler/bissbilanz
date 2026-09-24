@@ -32,6 +32,8 @@
 	import { entryService } from '$lib/services/entry-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
+	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
+	import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 	import * as m from '$lib/paraglide/messages';
 
 	type DisplaySuggestion = RecipeSuggestion & {
@@ -47,6 +49,7 @@
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(dateToday), []);
 	const prefsQuery = useLiveQuery(() => preferencesService.preferences(), undefined);
 	const mealTypesQuery = useLiveQuery(() => mealTypeService.mealTypes(), []);
+	const dayPropsQuery = useLiveQuery(() => dayPropertiesService.watch(dateToday), undefined);
 
 	let pickerOpen = $state(false);
 	let pickerItem: DisplaySuggestion | null = $state(null);
@@ -55,9 +58,14 @@
 	let prefsLoaded = $state(false);
 
 	const recipes = $derived(recipesQuery.value ?? []);
-	const goals = $derived(goalsQuery.value ?? null);
 	const totals = $derived(sumEntries(entriesQuery.value ?? []));
 	const prefs = $derived(prefsQuery.value ?? null);
+	const goals = $derived(
+		adjustGoalsForActivity(goalsQuery.value ?? null, dayPropsQuery.value?.activityCalories, {
+			enabled: prefs?.activityGoalAdjustment ?? false,
+			creditPercent: prefs?.activityCreditPercent ?? 100
+		})
+	);
 	const mealOptions = $derived(
 		mergeMealTypes(
 			[...DEFAULT_MEAL_TYPES],
@@ -142,6 +150,7 @@
 			goalsService.refresh();
 			entryService.refresh(dateToday);
 			mealTypeService.refresh();
+			dayPropertiesService.refresh(dateToday);
 			loadPreferences();
 		}
 	});

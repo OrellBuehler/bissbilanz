@@ -198,7 +198,7 @@
 	{:else if sectionKey === 'recipe-suggestions' && isToday && (userPrefs?.showRecipeSuggestionsWidget ?? true)}
 		<RecipeSuggestionsWidget
 			totals={daylogTotals}
-			goals={userGoals}
+			goals={effectiveGoals}
 			onEntryLogged={() => entryService.refresh(activeDate)}
 			favoriteMealAssignmentMode={(userPrefs?.favoriteMealAssignmentMode ?? 'time_based') as
 				'time_based' | 'ask_meal'}

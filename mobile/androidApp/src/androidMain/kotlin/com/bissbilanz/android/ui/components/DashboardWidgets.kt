@@ -47,6 +47,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.analytics.MacroBudget
 import com.bissbilanz.analytics.SuggestionCandidate
 import com.bissbilanz.analytics.SuggestionMacros
+import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.analytics.suggestRecipes
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
@@ -469,6 +470,7 @@ fun TopFoodsWidget(
 @Composable
 fun RecipeSuggestionsWidget(
     date: String,
+    activityCalories: Int?,
     onViewAll: () -> Unit,
     onLogged: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -495,8 +497,14 @@ fun RecipeSuggestionsWidget(
     }
 
     val suggestions =
-        remember(entries, recipes, goals) {
-            val g = goals
+        remember(entries, recipes, goals, prefs, activityCalories) {
+            val g =
+                adjustGoalsForActivity(
+                    goals,
+                    activityCalories,
+                    enabled = prefs?.activityGoalAdjustment ?: false,
+                    creditPercent = prefs?.activityCreditPercent ?: 100,
+                )?.goals
             if (g == null || recipes.isEmpty()) {
                 emptyList()
             } else {

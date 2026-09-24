@@ -7,6 +7,7 @@ import com.bissbilanz.analytics.MacroBudget
 import com.bissbilanz.analytics.RecipeSuggestion
 import com.bissbilanz.analytics.SuggestionCandidate
 import com.bissbilanz.analytics.SuggestionMacros
+import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.analytics.suggestRecipes
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.model.EntryCreate
@@ -66,9 +67,16 @@ class RecipeSuggestionsViewModel(
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    private val activityCalories = MutableStateFlow<Int?>(null)
+
     val remaining: StateFlow<MacroBudget?> =
-        combine(entryRepo.entriesByDate(today), goalsRepo.goals()) { entries, goals ->
-            goals?.let {
+        combine(entryRepo.entriesByDate(today), goalsRepo.goals(), preferences, activityCalories) { entries, goals, prefs, calories ->
+            adjustGoalsForActivity(
+                goals,
+                calories,
+                enabled = prefs?.activityGoalAdjustment ?: false,
+                creditPercent = prefs?.activityCreditPercent ?: 100,
+            )?.goals?.let {
                 val consumed = entries.totalMacros()
                 MacroBudget(
                     calories = it.calorieGoal - consumed.calories,
@@ -103,6 +111,12 @@ class RecipeSuggestionsViewModel(
                 recipeRepo.refresh()
                 goalsRepo.refresh()
                 prefsRepo.refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+            }
+            try {
+                activityCalories.value = entryRepo.getDayProperties(today)?.activityCalories
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
