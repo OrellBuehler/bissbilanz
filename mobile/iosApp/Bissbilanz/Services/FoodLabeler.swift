@@ -114,7 +114,14 @@ final class FoodLabeler {
     /// (`src/lib/server/mcp/prompts.ts`). Pure and available on every
     /// platform/compiler, with or without Apple Intelligence — see
     /// `FoodLabelerTests`.
-    static func buildPrompt(for input: FoodLabelInput, vocabulary: [String]) -> String {
+    ///
+    /// `nonisolated`: a pure function of its arguments with no access to
+    /// `FoodLabeler`'s own state — without this it inherits the class's
+    /// `@MainActor` isolation like every other member here, which is correct
+    /// for the instance members but makes this uncallable from a plain
+    /// synchronous context, including the unit tests (same reasoning as
+    /// `MealEstimatorPrivateCloud.swift`'s `isWeakEstimate`).
+    nonisolated static func buildPrompt(for input: FoodLabelInput, vocabulary: [String]) -> String {
         var lines = ["Food name: \(input.name)"]
         if let brand = input.brand, !brand.isEmpty {
             lines.append("Brand: \(brand)")
