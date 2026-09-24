@@ -94,7 +94,37 @@ enum WidgetSnapshotWriter {
             predicate: #Predicate { $0.isFavorite },
             sortBy: [SortDescriptor(\.name)]
         )
-        let favorites = (try? context.fetch(favoritesDescriptor)) ?? []
+        let favoriteFoods = (try? context.fetch(favoritesDescriptor)) ?? []
+
+        let favoriteRecipesDescriptor = FetchDescriptor<LocalRecipe>(
+            predicate: #Predicate { $0.isFavorite },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        let favoriteRecipes = (try? context.fetch(favoriteRecipesDescriptor)) ?? []
+
+        // Foods and recipes interleaved by name, matching the single
+        // alphabetical list the app's own Favorites screen shows.
+        let favorites: [WidgetSnapshot.FavoriteFood] = (
+            favoriteFoods.map {
+                WidgetSnapshot.FavoriteFood(
+                    id: $0.id,
+                    name: $0.name,
+                    calories: $0.calories,
+                    imageUrl: $0.toFood()?.imageUrl,
+                    isRecipe: false
+                )
+            } + favoriteRecipes.map {
+                WidgetSnapshot.FavoriteFood(
+                    id: $0.id,
+                    name: $0.name,
+                    // Whole-recipe total (like the server) — divide down to one
+                    // serving, guarding a non-positive totalServings.
+                    calories: $0.calories / max($0.totalServings, 1),
+                    imageUrl: $0.toRecipe()?.imageUrl,
+                    isRecipe: true
+                )
+            }
+        ).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
         let mealTotals = Dictionary(grouping: entries, by: \.mealType)
             .map { WidgetSnapshot.Meal(mealType: $0.key, calories: $0.value.reduce(0) { $0 + $1.totalCalories }) }
@@ -116,17 +146,7 @@ enum WidgetSnapshotWriter {
             meals: mealTotals,
             latestWeightKg: latestWeight?.weightKg,
             latestWeightDate: latestWeight?.entryDate,
-            // `imageUrl` lives only inside the encoded blob (there is no
-            // column for it), so the capped slice is decoded — at most
-            // `favoritesLimit` rows, not the whole favorites table.
-            favorites: favorites.prefix(favoritesLimit).map {
-                WidgetSnapshot.FavoriteFood(
-                    id: $0.id,
-                    name: $0.name,
-                    calories: $0.calories,
-                    imageUrl: $0.toFood()?.imageUrl
-                )
-            },
+            favorites: Array(favorites.prefix(favoritesLimit)),
             generatedAt: Date()
         )
     }
