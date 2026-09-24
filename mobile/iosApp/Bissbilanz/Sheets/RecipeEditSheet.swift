@@ -136,7 +136,18 @@ struct RecipeEditSheet: View {
         isFavorite = recipe.isFavorite
         imageUrl = recipe.imageUrl
         originalImageUrl = recipe.imageUrl
-        guard let recipeIngredients = recipe.ingredients else { return }
+        ingredients = await Self.resolvedIngredientRows(for: recipe, foodRepository: foodRepository)
+    }
+
+    /// Resolves each of `recipe`'s ingredients into an `IngredientRow`, hydrating
+    /// `food` from `foodRepository` (cache first, then API) when the recipe's own
+    /// ingredient carries none — the server response never embeds one. Every
+    /// ingredient is kept, even when its food can't be resolved at all: dropping
+    /// one here would silently delete it from the recipe on the next save.
+    /// Internal (not private) so it's directly testable.
+    @MainActor
+    static func resolvedIngredientRows(for recipe: Recipe, foodRepository: FoodRepository) async -> [IngredientRow] {
+        guard let recipeIngredients = recipe.ingredients else { return [] }
         var rows: [IngredientRow] = []
         for ing in recipeIngredients {
             var food = ing.food ?? foodRepository.food(id: ing.foodId)
@@ -148,7 +159,7 @@ struct RecipeEditSheet: View {
                 IngredientRow(foodId: ing.foodId, food: food, quantity: "\(ing.quantity)", unit: ing.servingUnit)
             )
         }
-        ingredients = rows
+        return rows
     }
 
     private func save() async {
