@@ -237,6 +237,12 @@ private struct NutritionLabelExtraction {
     @Guide(description: "The unit printed after the serving size, \"g\" or \"ml\"")
     let servingSizeUnit: String?
 
+    @Guide(
+        description: "The unit of the per-100 basis: \"ml\" when the label reads per 100 ml " +
+            "(drinks and other liquids), otherwise \"g\""
+    )
+    let basisUnit: String?
+
     @Guide(description: "Energy per 100 g/ml in kcal (converted from kJ if that's the only figure printed)")
     let calories: Double?
 
@@ -321,6 +327,7 @@ extension NutritionLabelExtraction {
         result.iron = iron
         result.vitaminD = vitaminD
         result.addedSugars = addedSugars
+        result.isVolume = basisUnit?.lowercased() == "ml"
         return result
     }
 }

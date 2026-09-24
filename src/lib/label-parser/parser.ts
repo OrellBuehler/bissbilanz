@@ -81,6 +81,11 @@ const match = (folded: string): Nutrient | null => {
 };
 
 const NUMBER_TOKEN = '[0-9]+(?:[.,\\s][0-9]+)*';
+/**
+ * Nutrient amounts never need a thousands separator, so a space ends the
+ * number — otherwise two unit-less columns ("10,6 35") fuse into one.
+ */
+const FIELD_NUMBER_TOKEN = '[0-9]+(?:[.,][0-9]+)*';
 const units = ['kcal', 'kj', 'mg', 'µg', 'mcg', 'g', 'ml'];
 
 type Measurement = { value: number; unit: string | null };
@@ -128,7 +133,7 @@ export const parseDecimal = (token: string, energyKJ = false): number | null => 
 /** First numeric value in a row, with the unit token that follows it. */
 const firstValue = (row: string): Measurement | null => {
 	const cleaned = stripBasis(row);
-	const found = new RegExp(NUMBER_TOKEN).exec(cleaned);
+	const found = new RegExp(FIELD_NUMBER_TOKEN).exec(cleaned);
 	if (!found) return null;
 	const value = parseDecimal(found[0]);
 	if (value === null) return null;
@@ -147,11 +152,26 @@ const firstNumber = (lowercased: string, unit: string, energyKJ = false): number
 };
 
 /**
+ * "kJ/kcal 180/42" — both units in a header and the values as a slash pair
+ * after it, so neither number is followed by its own unit.
+ */
+const pairedKcal = (lowercased: string): number | null => {
+	const kjFirst = new RegExp(
+		`kj\\s*/\\s*kcal\\D*?${NUMBER_TOKEN}\\s*/\\s*(${FIELD_NUMBER_TOKEN})`
+	).exec(lowercased);
+	if (kjFirst) return parseDecimal(kjFirst[1]);
+	const kcalFirst = new RegExp(`kcal\\s*/\\s*kj\\D*?(${FIELD_NUMBER_TOKEN})\\s*/`).exec(lowercased);
+	return kcalFirst ? parseDecimal(kcalFirst[1]) : null;
+};
+
+/**
  * Energy in kcal: prefer an explicit kcal figure, else convert kJ, else fall
  * back to the first number (US "Calories" has no unit word).
  */
 const energyKcal = (row: string): number | null => {
 	const cleaned = stripBasis(row).toLowerCase();
+	const paired = pairedKcal(cleaned);
+	if (paired !== null) return paired;
 	const kcal = firstNumber(cleaned, 'kcal');
 	if (kcal !== null) return kcal;
 	const kj = firstNumber(cleaned, 'kj', true);
@@ -180,6 +200,13 @@ const fold = (text: string): string =>
 		.replaceAll('ß', 'ss')
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '');
+
+/**
+ * True when the panel's basis column is per 100 ml (a drink) rather than per
+ * 100 g, so the caller can default the serving unit to ml.
+ */
+export const isVolumeBasis = (rows: string[]): boolean =>
+	rows.some((row) => /(?<![0-9])100\s*ml\b/i.test(row));
 
 /** Parses already-assembled rows (one nutrient per row, left-to-right text). */
 export const parseRows = (rows: string[]): ParsedNutrition => {

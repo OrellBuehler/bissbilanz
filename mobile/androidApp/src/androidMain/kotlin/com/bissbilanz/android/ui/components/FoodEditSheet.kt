@@ -247,10 +247,10 @@ fun FoodEditSheet(
     }
 
     fun applyParsed(parsed: ParsedNutrition) {
-        // Parsed values are per 100 g (the parser's canonical basis); the user
-        // adjusts the serving and confirms before saving.
+        // Parsed values are per 100 g or 100 ml (the parser's canonical basis);
+        // the user adjusts the serving and confirms before saving.
         servingSize = "100"
-        servingUnit = ServingUnit.g
+        servingUnit = if (parsed.isVolume) ServingUnit.ml else ServingUnit.g
         perHundredBasis = true
         parsed.calories?.let { calories = it.formatNutrient() }
         parsed.protein?.let { protein = it.formatNutrient() }
