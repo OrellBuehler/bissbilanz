@@ -22,8 +22,10 @@ enum APIError: Error, LocalizedError {
     /// HTTP 410 Gone — the resource existed and was permanently deleted.
     case gone
     case badRequest(String?)
-    /// HTTP 409 with `X-Sync-Conflict: server-newer` — LWW conflict.
-    case conflict(serverNewer: Bool)
+    /// HTTP 409. `serverNewer` is true for `X-Sync-Conflict: server-newer` (LWW
+    /// conflict); otherwise this is a validation/duplicate conflict, or — for a
+    /// DELETE — the `has_entries` body a "checked" delete needs to read.
+    case conflict(serverNewer: Bool, body: Data?)
     case serverError(Int, String?)
     case networkError(Error)
     /// The HTTP status and (truncated) body are carried alongside the underlying
@@ -43,6 +45,49 @@ enum APIError: Error, LocalizedError {
         case let .networkError(err): err.localizedDescription
         case let .decodingError(err, _, _): "Failed to parse response: \(err.localizedDescription)"
         }
+    }
+}
+
+/// Body of a food/recipe DELETE's `has_entries` 409 (`error` is dropped — the
+/// counts are all a "checked" delete needs).
+struct DeleteConflict: Decodable {
+    let entryCount: Int
+    let ingredientCount: Int?
+    let recipeCount: Int?
+
+    /// Mirrors the web's ForceDeleteDialog copy — the message varies by which
+    /// counts are actually present.
+    var message: String {
+        let recipeCount = recipeCount ?? 0
+        if entryCount > 0, recipeCount > 0 {
+            return L10n.deleteConflictEntriesAndRecipes(entries: entryCount, recipes: recipeCount)
+        }
+        if recipeCount > 0 {
+            return L10n.deleteConflictRecipes(recipeCount)
+        }
+        return L10n.deleteConflictEntries(entryCount)
+    }
+}
+
+/// Result of a "checked" delete (see `RecipeRepository.deleteRecipeChecked`,
+/// `FoodRepository.deleteFoodChecked`): the server (or, in Local mode, the local
+/// cache) was asked first, so a conflict reaches the caller instead of being
+/// silently dead-lettered by the sync queue.
+enum DeleteOutcome {
+    case deleted
+    case blocked(DeleteConflict)
+}
+
+extension APIError {
+    /// Parses `conflict(_:body:)`'s body as a delete conflict, falling back to
+    /// zero counts if the body is missing or isn't shaped that way (a validation
+    /// conflict has no counts at all) — the caller still knows *something* is
+    /// blocking the delete.
+    var deleteConflict: DeleteConflict? {
+        guard case let .conflict(_, body) = self else { return nil }
+        guard let body else { return DeleteConflict(entryCount: 0, ingredientCount: nil, recipeCount: nil) }
+        return (try? JSONDecoder().decode(DeleteConflict.self, from: body))
+            ?? DeleteConflict(entryCount: 0, ingredientCount: nil, recipeCount: nil)
     }
 }
 
@@ -125,11 +170,12 @@ final class BissbilanzAPI {
 
     func deleteFood(
         id: String,
+        force: Bool = false,
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws {
         try await deleteRequest(
-            "/api/foods/\(id)",
+            force ? "/api/foods/\(id)?force=true" : "/api/foods/\(id)",
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
     }
@@ -266,11 +312,12 @@ final class BissbilanzAPI {
 
     func deleteRecipe(
         id: String,
+        force: Bool = false,
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws {
         try await deleteRequest(
-            "/api/recipes/\(id)",
+            force ? "/api/recipes/\(id)?force=true" : "/api/recipes/\(id)",
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
     }
@@ -1216,7 +1263,7 @@ final class BissbilanzAPI {
         }
         if httpResponse.statusCode == 409 {
             let conflictHeader = httpResponse.value(forHTTPHeaderField: "X-Sync-Conflict")
-            throw APIError.conflict(serverNewer: conflictHeader == "server-newer")
+            throw APIError.conflict(serverNewer: conflictHeader == "server-newer", body: data)
         }
         if httpResponse.statusCode == 404 {
             throw APIError.notFound

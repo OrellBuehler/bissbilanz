@@ -122,7 +122,7 @@ enum LocalInsights {
                 id: recipe.id,
                 totalServings: recipe.totalServings,
                 ingredients: (recipe.ingredients ?? []).map {
-                    AggRecipeIngredient(foodId: $0.foodId, quantity: $0.quantity)
+                    AggRecipeIngredient(foodId: $0.foodId, quantity: $0.quantity, servingUnit: $0.servingUnit.rawValue)
                 }
             )
         }
@@ -148,7 +148,8 @@ enum LocalInsights {
             vitaminD: food.vitaminD.map { KotlinDouble(double: $0) },
             vitaminE: food.vitaminE.map { KotlinDouble(double: $0) },
             alcohol: food.alcohol.map { KotlinDouble(double: $0) },
-            addedSugars: food.addedSugars.map { KotlinDouble(double: $0) }
+            addedSugars: food.addedSugars.map { KotlinDouble(double: $0) },
+            servingUnit: food.servingUnit.rawValue
         )
     }
 }

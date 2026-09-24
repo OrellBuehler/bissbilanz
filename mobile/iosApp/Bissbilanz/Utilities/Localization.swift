@@ -846,6 +846,59 @@ enum L10n {
         localized("add_ingredient", en: "Add Ingredient", de: "Zutat hinzufügen")
     }
 
+    /// Shown for a recipe ingredient whose food couldn't be resolved (deleted, or
+    /// offline with nothing cached) — the ingredient is never dropped, only its name.
+    static var unknownIngredient: String {
+        localized("unknown_ingredient", en: "Food", de: "Lebensmittel")
+    }
+
+    static var sortBy: String {
+        localized("sort_by", en: "Sort by", de: "Sortieren nach")
+    }
+
+    static var sortRecentlyUpdated: String {
+        localized("sort_recently_updated", en: "Recently updated", de: "Zuletzt aktualisiert")
+    }
+
+    static var sortCaloriesPerServing: String {
+        localized("sort_calories_per_serving", en: "Calories per serving", de: "Kalorien pro Portion")
+    }
+
+    /// Mirrors the web's ForceDeleteDialog title.
+    static var stillInUse: String {
+        localized("still_in_use", en: "Still in use", de: "Noch in Verwendung")
+    }
+
+    static var deleteAnyway: String {
+        localized("delete_anyway", en: "Delete anyway", de: "Trotzdem löschen")
+    }
+
+    static func deleteConflictEntries(_ count: Int) -> String {
+        localized(
+            "delete_conflict_entries",
+            en: "This is used in \(count) food log entries. Delete it anyway?",
+            de: "Wird in \(count) Einträgen verwendet. Trotzdem löschen?"
+        )
+    }
+
+    static func deleteConflictRecipes(_ count: Int) -> String {
+        localized(
+            "delete_conflict_recipes",
+            en: "This is used in \(count) recipes. Deleting it will remove it from those recipes too.",
+            de: "Wird in \(count) Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt."
+        )
+    }
+
+    static func deleteConflictEntriesAndRecipes(entries: Int, recipes: Int) -> String {
+        localized(
+            "delete_conflict_entries_and_recipes",
+            en: "This is used in \(entries) food log entries and \(recipes) recipes. " +
+                "Deleting it will remove it from all of them.",
+            de: "Wird in \(entries) Einträgen und \(recipes) Rezepten verwendet. " +
+                "Beim Löschen wird es aus allen entfernt."
+        )
+    }
+
     // MARK: - Goals
 
     static var goals: String {
