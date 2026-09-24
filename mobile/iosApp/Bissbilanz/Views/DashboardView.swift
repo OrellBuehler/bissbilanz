@@ -104,7 +104,8 @@ struct DashboardView: View {
     /// Widgets, then the watch app — only one shows at a time, and the watch
     /// nudge only appears once the widgets tip has been dismissed/invalidated.
     @State private var dashboardTips = TipGroup(.ordered) {
-        [WidgetsTip(), WatchAppTip()]
+        WidgetsTip()
+        WatchAppTip()
     }
     private let scanningTip = ScanningTip()
     private let dashboardLayoutTip = DashboardLayoutTip()
