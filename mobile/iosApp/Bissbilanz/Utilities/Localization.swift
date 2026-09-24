@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 enum AppLocale: String, CaseIterable {
     case en
@@ -3129,7 +3130,15 @@ enum L10n {
 
     // MARK: - Private
 
-    private nonisolated(unsafe) static var _storedLocale: String?
+    /// Observable so a Settings change redraws every view that read a string —
+    /// a plain static isn't tracked, and the switch only showed up after the
+    /// app came back to the foreground.
+    @Observable
+    private final class LocaleCache: @unchecked Sendable {
+        var value = UserDefaults.standard.string(forKey: "app_locale") ?? L10n.systemLocale().rawValue
+    }
+
+    private static let localeCache = LocaleCache()
 
     /// Memoized on first read, not only on write: with the number of `L10n`
     /// call sites in the view layer this was a `UserDefaults` lookup per string
@@ -3142,13 +3151,10 @@ enum L10n {
     /// wins, because it is what's stored.
     private static var storedLocale: String {
         get {
-            if let cached = _storedLocale { return cached }
-            let resolved = UserDefaults.standard.string(forKey: "app_locale") ?? systemLocale().rawValue
-            _storedLocale = resolved
-            return resolved
+            localeCache.value
         }
         set {
-            _storedLocale = newValue
+            localeCache.value = newValue
             UserDefaults.standard.set(newValue, forKey: "app_locale")
         }
     }

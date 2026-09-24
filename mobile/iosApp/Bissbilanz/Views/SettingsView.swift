@@ -212,7 +212,10 @@ struct SettingsView: View {
                 Section(L10n.language) {
                     Picker(L10n.language, selection: Binding(
                         get: { L10n.currentLocale },
-                        set: { L10n.currentLocale = $0 }
+                        set: {
+                            L10n.currentLocale = $0
+                            WidgetSnapshotWriter.scheduleUpdate(context: modelContext)
+                        }
                     )) {
                         ForEach(AppLocale.allCases, id: \.self) { locale in
                             Text(locale.displayName).tag(locale)
