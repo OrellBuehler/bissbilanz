@@ -329,6 +329,33 @@ final class LocalSupplementLog {
     }
 }
 
+// MARK: - Reminders
+
+@Model
+final class LocalReminder {
+    var id: String = ""
+    var kind: String = ""
+    var enabled: Bool = true
+    var jsonData: Data = Data()
+
+    init(reminder: Reminder) {
+        id = reminder.id
+        kind = reminder.kind.rawValue
+        enabled = reminder.enabled
+        jsonData = LocalStoreCoding.encode(reminder)
+    }
+
+    func update(from reminder: Reminder) {
+        kind = reminder.kind.rawValue
+        enabled = reminder.enabled
+        jsonData = LocalStoreCoding.encode(reminder)
+    }
+
+    func toReminder() -> Reminder? {
+        LocalStoreCoding.decode(Reminder.self, from: jsonData)
+    }
+}
+
 // MARK: - Goals (singleton row)
 
 @Model
