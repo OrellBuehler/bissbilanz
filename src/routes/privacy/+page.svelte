@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'September 22, 2026' })}
+		{m.privacy_effective_date({ date: 'September 24, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -130,6 +130,29 @@
 		(MCP). This only happens if you explicitly authorize it; the assistant then accesses your data
 		with a token you can revoke at any time. What the assistant's provider does with data it reads
 		is governed by that provider's own privacy policy.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>
+	<p class="mb-3">
+		The iOS app can estimate a meal's calories and macros from a description or photos using Apple
+		Intelligence. Where your device supports it, this runs entirely on your device and nothing
+		leaves it.
+	</p>
+	<p class="mb-3">
+		If on-device estimation isn't available on your device, or can't produce a usable estimate, the
+		app can use Apple's
+		<a href="https://security.apple.com/blog/private-cloud-compute/" class="underline"
+			>Private Cloud Compute</a
+		>
+		instead. Your description, any photos you attached, and the foods from your own food database that
+		match them (name, serving size and nutrition values) are then sent to Apple's servers to produce the
+		estimate. Apple processes this data only to answer that request, does not store it, and does not make
+		it accessible to anyone, including Apple and the developer. Voice logging on the Apple Watch always
+		uses Private Cloud Compute, since the watch has no on-device model; it sends only what you dictated.
+	</p>
+	<p class="mb-6">
+		Estimates made with Private Cloud Compute are labeled as such in the app, and you can turn it
+		off at any time under Settings → AI Estimation.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Notifications</h2>

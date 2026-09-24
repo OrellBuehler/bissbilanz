@@ -18,8 +18,8 @@ extension L10n {
     static var aiMealPrivateCloudDisclaimer: String {
         localized(
             "ai_meal_private_cloud_disclaimer",
-            en: "Estimated using Apple's Private Cloud Compute — this description was processed on Apple's servers.",
-            de: "Geschätzt mit Apples Private Cloud Compute — diese Beschreibung wurde auf Apples Servern verarbeitet."
+            en: "Estimated using Apple's Private Cloud Compute — your meal was processed on Apple's servers.",
+            de: "Geschätzt mit Apples Private Cloud Compute — deine Mahlzeit wurde auf Apples Servern verarbeitet."
         )
     }
 
@@ -39,13 +39,14 @@ extension L10n {
         localized(
             "ai_private_cloud_toggle_footer",
             en: "When on-device AI can't estimate a meal, Bissbilanz can retry using Apple's Private Cloud Compute. " +
-                "Your description is sent to Apple's servers, processed there under the same privacy protections " +
-                "as on-device processing, and not stored. Also used for \"Log by Voice\" on Apple Watch, where " +
-                "it's the only option.",
+                "Your description and any attached photos are sent to Apple's servers, processed there under " +
+                "the same privacy protections as on-device processing, and not stored. Also used for " +
+                "\"Log by Voice\" on Apple Watch, where it's the only option.",
             de: "Wenn die KI auf dem Gerät eine Mahlzeit nicht schätzen kann, kann Bissbilanz es stattdessen mit " +
-                "Apples Private Cloud Compute versuchen. Deine Beschreibung wird dafür an Apples Server gesendet, " +
-                "dort unter denselben Datenschutzvorkehrungen wie auf dem Gerät verarbeitet und nicht gespeichert. " +
-                "Wird auf der Apple Watch auch für \"Per Sprache eintragen\" verwendet, wo es die einzige Option ist."
+                "Apples Private Cloud Compute versuchen. Deine Beschreibung und angehängte Fotos werden dafür an " +
+                "Apples Server gesendet, dort unter denselben Datenschutzvorkehrungen wie auf dem Gerät " +
+                "verarbeitet und nicht gespeichert. Wird auf der Apple Watch auch für \"Per Sprache eintragen\" " +
+                "verwendet, wo es die einzige Option ist."
         )
     }
 
