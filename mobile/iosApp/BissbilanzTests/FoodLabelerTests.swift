@@ -15,6 +15,7 @@ import FoundationModels
 @Suite("Food labeller prompt builder")
 struct FoodLabelerTests {
     @Test("The prompt includes the food's name, brand and a drink hint for a volume serving unit")
+    @MainActor
     func promptIncludesFieldsForADrink() {
         let prompt = FoodLabeler.buildPrompt(
             for: FoodLabelInput(name: "Coca-Cola", brand: "Coca-Cola", servingUnit: .ml, ingredientsText: nil),
@@ -28,6 +29,7 @@ struct FoodLabelerTests {
     }
 
     @Test("A non-volume serving unit gets no drink hint")
+    @MainActor
     func promptOmitsDrinkHintForSolidFoods() {
         let prompt = FoodLabeler.buildPrompt(
             for: FoodLabelInput(name: "Bread", brand: nil, servingUnit: .g, ingredientsText: nil),
@@ -37,6 +39,7 @@ struct FoodLabelerTests {
     }
 
     @Test("Ingredients text is truncated to ~300 characters")
+    @MainActor
     func promptTruncatesIngredients() {
         let longIngredients = String(repeating: "a", count: 500)
         let prompt = FoodLabeler.buildPrompt(
@@ -48,6 +51,7 @@ struct FoodLabelerTests {
     }
 
     @Test("An empty vocabulary produces no reuse-vocabulary line")
+    @MainActor
     func promptOmitsEmptyVocabulary() {
         let prompt = FoodLabeler.buildPrompt(
             for: FoodLabelInput(name: "Egg", brand: nil, servingUnit: .g, ingredientsText: nil),
@@ -57,6 +61,7 @@ struct FoodLabelerTests {
     }
 
     @Test("No brand line when the food has none")
+    @MainActor
     func promptOmitsMissingBrand() {
         let prompt = FoodLabeler.buildPrompt(
             for: FoodLabelInput(name: "Egg", brand: nil, servingUnit: .g, ingredientsText: nil),
