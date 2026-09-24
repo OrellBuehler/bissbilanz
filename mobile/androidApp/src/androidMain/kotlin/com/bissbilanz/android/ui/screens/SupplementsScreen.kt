@@ -24,8 +24,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -75,6 +77,15 @@ fun SupplementsScreen(navController: NavController) {
     var editingSupplementId by remember { mutableStateOf<String?>(null) }
     val loadFailedMessage = stringResource(R.string.supplements_load_failed)
     val updateFailedMessage = stringResource(R.string.supplements_update_failed)
+
+    // The Reminders screen deep-links here to edit a specific supplement's reminder
+    // times, the same savedStateHandle relay the barcode scanner uses for its own
+    // "create food from this barcode" handoff.
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(navBackStackEntry) {
+        val id = navBackStackEntry?.savedStateHandle?.remove<String>(NAV_KEY_EDIT_SUPPLEMENT_ID)
+        if (id != null) editingSupplementId = id
+    }
 
     LaunchedEffect(Unit) {
         isLoading = true
