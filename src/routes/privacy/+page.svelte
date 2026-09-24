@@ -158,14 +158,15 @@
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Notifications</h2>
 	<p class="mb-6">
 		The mobile apps can show local notifications — for example an ongoing notification or Live
-		Activity while a fast is running, or a reminder to take a supplement. These are generated on
-		your device; no push service is used and no notification content leaves your phone.
+		Activity while a fast is running, or a reminder to log your weight, a meal, your sleep, or take
+		a supplement. These are generated on your device; no push service is used and no notification
+		content leaves your phone.
 	</p>
 	<p class="mb-6">
-		If you enable supplement reminders in the web app (including when it's installed to your home
-		screen), it uses your browser's Web Push service to deliver them, which requires storing a
-		delivery endpoint and keys for your browser install. The reminder text is encrypted before it is
-		sent, so the push service that relays it cannot read it.
+		If you enable reminders in the web app (including when it's installed to your home screen), it
+		uses your browser's Web Push service to deliver them, which requires storing a delivery endpoint
+		and keys for your browser install. The reminder text is encrypted before it is sent, so the push
+		service that relays it cannot read it.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">How your data is stored</h2>
