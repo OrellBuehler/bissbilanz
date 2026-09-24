@@ -44,18 +44,18 @@ extension MealEstimator {
         }
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *) {
-            let attachments = await Self.makePhotoAttachments(images)
-            guard !attachments.isEmpty else {
+            let photos = await Self.downscalePhotos(images)
+            guard !photos.isEmpty else {
                 throw MealEstimatorError.generationFailed(L10n.aiMealGenerationError)
             }
             return try await estimateWithFallback(
                 onDevice: {
-                    try await estimateWithPhotos(description: description, attachments: attachments, source: .onDevice)
+                    try await estimateWithPhotos(description: description, photos: photos, source: .onDevice)
                 },
                 privateCloud: {
                     try await estimateWithPhotos(
                         description: description,
-                        attachments: attachments,
+                        photos: photos,
                         source: .privateCloudCompute
                     )
                 }
@@ -94,21 +94,20 @@ extension MealEstimator {
     private static let photoMaxDimension: CGFloat = 1024
 
     /// Downscales once up front so a Private Cloud Compute retry reuses the
-    /// same attachments instead of redrawing every photo again.
-    static func makePhotoAttachments(_ images: [UIImage]) async -> [Attachment] {
+    /// same images instead of redrawing every photo again.
+    static func downscalePhotos(_ images: [UIImage]) async -> [CGImage] {
         // Downscaling (and the orientation-correcting redraw it does) is a
         // visible main-thread hang for a few full-resolution captures — see
         // `AiTaskStore`'s identical reasoning for its own JPEG re-encode.
         let maxDimension = photoMaxDimension
-        let cgImages: [CGImage] = await Task.detached(priority: .userInitiated) {
+        return await Task.detached(priority: .userInitiated) {
             images.compactMap { $0.downscaledForModelInput(maxDimension: maxDimension).cgImage }
         }.value
-        return cgImages.map { Attachment($0) }
     }
 
     private func estimateWithPhotos(
         description: String,
-        attachments: [Attachment],
+        photos: [CGImage],
         source: MealEstimateSource
     ) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
@@ -126,8 +125,8 @@ extension MealEstimator {
         do {
             let response = try await session.respond(generating: EstimatedMeal.self) {
                 Self.photoPromptText(description: description)
-                for attachment in attachments {
-                    attachment
+                for photo in photos {
+                    Attachment(photo)
                 }
             }
             let validIds = await matchedIds.ids
