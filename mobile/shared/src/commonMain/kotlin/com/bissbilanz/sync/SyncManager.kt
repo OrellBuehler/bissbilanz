@@ -420,7 +420,7 @@ class SyncManager(
             }
 
             is SyncOperation.DeleteFood -> {
-                api.deleteFood(op.id, idempotencyKey, clientEditedAt)
+                api.deleteFood(op.id, op.force, idempotencyKey, clientEditedAt)
             }
 
             is SyncOperation.ToggleFavorite -> {
@@ -475,7 +475,7 @@ class SyncManager(
             }
 
             is SyncOperation.DeleteRecipe -> {
-                api.deleteRecipe(op.id, idempotencyKey, clientEditedAt)
+                api.deleteRecipe(op.id, op.force, idempotencyKey, clientEditedAt)
             }
 
             is SyncOperation.SetGoals -> {

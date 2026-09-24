@@ -35,6 +35,11 @@ sealed class SyncOperation {
     @SerialName("delete_food")
     data class DeleteFood(
         val id: String,
+        // Only set once the user has confirmed a "used elsewhere" conflict
+        // (see FoodRepository.forceDeleteFood) — a queued delete must never
+        // force silently, or a still-referenced food dead-letters on the
+        // very 409 that was supposed to ask the user first.
+        val force: Boolean = false,
     ) : SyncOperation() {
         override val affectedTable = "foods"
         override val affectedId get() = id
@@ -157,6 +162,8 @@ sealed class SyncOperation {
     @SerialName("delete_recipe")
     data class DeleteRecipe(
         val id: String,
+        // See DeleteFood.force.
+        val force: Boolean = false,
     ) : SyncOperation() {
         override val affectedTable = "recipes"
         override val affectedId get() = id

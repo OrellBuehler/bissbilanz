@@ -87,6 +87,11 @@
     <string name="sleep_delete_dialog_title">Delete Sleep Entry</string>
     <string name="sleep_delete_dialog_text">Delete sleep entry from %1$s?</string>
     <string name="action_delete">Delete</string>
+    <string name="action_delete_anyway">Delete anyway</string>
+    <string name="delete_conflict_title">Still in use</string>
+    <string name="delete_conflict_entries">This is used in %1$d food log entries. Delete it anyway?</string>
+    <string name="delete_conflict_recipes">This is used in %1$d recipes. Deleting it will remove it from those recipes too.</string>
+    <string name="delete_conflict_entries_and_recipes">This is used in %1$d food log entries and %2$d recipes. Deleting it will remove it from all of them.</string>
     <string name="sleep_log_dialog_title">Log Sleep</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>

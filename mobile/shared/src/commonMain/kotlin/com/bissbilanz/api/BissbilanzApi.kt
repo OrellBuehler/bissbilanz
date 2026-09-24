@@ -115,6 +115,8 @@ class ApiException(
     message: String,
     val statusCode: Int = 0,
     val rawResponse: HttpResponse? = null,
+    /** Response body, when the caller needs to parse a structured error (e.g. a 409's counts). */
+    val responseBody: String? = null,
 ) : Exception(message)
 
 class BissbilanzApi(
@@ -309,10 +311,12 @@ class BissbilanzApi(
                 applySyncHeaders(idempotencyKey, clientEditedAt)
             }
         if (!response.status.isSuccess()) {
+            val body = response.bodyAsText()
             throw ApiException(
-                "DELETE $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                "DELETE $path failed: HTTP ${response.status.value} $body",
                 response.status.value,
                 response,
+                body,
             )
         }
     }
@@ -447,12 +451,13 @@ class BissbilanzApi(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteFood(
         id: String,
+        force: Boolean = false,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
     ) {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        delete("/api/foods/$id", key, editedAt)
+        delete(if (force) "/api/foods/$id?force=true" else "/api/foods/$id", key, editedAt)
     }
 
     suspend fun searchFoods(query: String): List<Food> {
@@ -695,12 +700,13 @@ class BissbilanzApi(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteRecipe(
         id: String,
+        force: Boolean = false,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
     ) {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        delete("/api/recipes/$id", key, editedAt)
+        delete(if (force) "/api/recipes/$id?force=true" else "/api/recipes/$id", key, editedAt)
     }
 
     // Goals
