@@ -33,7 +33,9 @@ fun computeRecipePerServingMacros(
     for (ingredient in ingredients) {
         val food = resolveFood(ingredient.foodId) ?: return null
         if (food.servingSize <= 0.0) return null
-        val factor = ingredient.quantity / food.servingSize
+        val convertedQuantity =
+            convertQuantityForMacros(ingredient.quantity, ingredient.servingUnit.value, food.servingUnit.value)
+        val factor = convertedQuantity / food.servingSize
         calories += food.calories * factor
         protein += food.protein * factor
         carbs += food.carbs * factor
