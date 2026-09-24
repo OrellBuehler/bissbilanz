@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RecipeEditSheet: View {
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
     let existingRecipe: Recipe?
@@ -16,9 +17,13 @@ struct RecipeEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
+    /// `food` is nil when the server-shaped recipe's ingredient couldn't be resolved
+    /// against the local food store or the API (e.g. offline with nothing cached) —
+    /// the row is still kept and saved, showing `L10n.unknownIngredient` instead.
     struct IngredientRow: Identifiable {
         let id = UUID()
-        var food: Food
+        var foodId: String
+        var food: Food?
         var quantity: String
         var unit: ServingUnit
     }
@@ -51,15 +56,18 @@ struct RecipeEditSheet: View {
                 Section(L10n.ingredients) {
                     ForEach($ingredients) { $ingredient in
                         HStack {
-                            Text(ingredient.food.name)
+                            Text(ingredient.food?.name ?? L10n.unknownIngredient)
                                 .lineLimit(1)
                             Spacer()
                             TextField("1", text: $ingredient.quantity)
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 60)
+                            // Only units compatible with the ingredient's food (mass with
+                            // mass, volume with volume) — a mismatch has no conversion.
                             Picker("", selection: $ingredient.unit) {
-                                ForEach(ServingUnit.allCases, id: \.self) { unit in
+                                let units = compatibleUnits(for: ingredient.food?.servingUnit ?? ingredient.unit)
+                                ForEach(units, id: \.self) { unit in
                                     Text(unit.displayName).tag(unit)
                                 }
                             }
@@ -76,6 +84,7 @@ struct RecipeEditSheet: View {
                     NavigationLink {
                         FoodPicker { food in
                             ingredients.append(IngredientRow(
+                                foodId: food.id,
                                 food: food,
                                 quantity: "\(food.servingSize)",
                                 unit: food.servingUnit
@@ -105,27 +114,41 @@ struct RecipeEditSheet: View {
                     Button(L10n.save) {
                         Task { await save() }
                     }
-                    .disabled(name.isEmpty || ingredients.isEmpty || isSaving)
+                    .disabled(
+                        name.isEmpty || ingredients.isEmpty || isSaving ||
+                            !((Double.parseUserInput(totalServings) ?? 0) > 0)
+                    )
                     .fontWeight(.semibold)
                 }
             }
-            .onAppear { prefill() }
+            .task { await prefill() }
         }
     }
 
-    private func prefill() {
+    /// The server's recipe response has no embedded `food` on ingredients — resolve
+    /// each one against the local food store, fetching from the API if it isn't
+    /// cached. An ingredient whose food still can't be resolved is NEVER dropped
+    /// (it shows `L10n.unknownIngredient` and still saves).
+    private func prefill() async {
         guard let recipe = existingRecipe else { return }
         name = recipe.name
         totalServings = "\(recipe.totalServings)"
         isFavorite = recipe.isFavorite
         imageUrl = recipe.imageUrl
         originalImageUrl = recipe.imageUrl
-        if let recipeIngredients = recipe.ingredients {
-            ingredients = recipeIngredients.compactMap { ing in
-                guard let food = ing.food else { return nil }
-                return IngredientRow(food: food, quantity: "\(ing.quantity)", unit: ing.servingUnit)
+        guard let recipeIngredients = recipe.ingredients else { return }
+        var rows: [IngredientRow] = []
+        for ing in recipeIngredients {
+            var food = ing.food ?? foodRepository.food(id: ing.foodId)
+            if food == nil {
+                try? await foodRepository.refreshFood(id: ing.foodId)
+                food = foodRepository.food(id: ing.foodId)
             }
+            rows.append(
+                IngredientRow(foodId: ing.foodId, food: food, quantity: "\(ing.quantity)", unit: ing.servingUnit)
+            )
         }
+        ingredients = rows
     }
 
     private func save() async {
@@ -134,7 +157,7 @@ struct RecipeEditSheet: View {
 
         let ingredientInputs = ingredients.map { ing in
             RecipeIngredientInput(
-                foodId: ing.food.id,
+                foodId: ing.foodId,
                 quantity: Double.parseUserInput(ing.quantity) ?? 1,
                 servingUnit: ing.unit
             )
