@@ -2352,6 +2352,8 @@ enum L10n {
                 en: "Uploading day properties",
                 de: "Tageseigenschaften hochladen"
             )
+        case .reminders:
+            localized("migration_step_reminders", en: "Uploading reminders", de: "Erinnerungen hochladen")
         }
     }
 
