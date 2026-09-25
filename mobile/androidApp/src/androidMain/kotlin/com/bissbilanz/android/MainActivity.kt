@@ -12,6 +12,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.navigation.PendingNavigation
+import com.bissbilanz.android.reminders.RescheduleGeneralRemindersWorker
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.BissbilanzApp
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
         // OEM task-killer clears pending alarms silently, and there is no broadcast for
         // either. Re-arming on every activation is cheap and self-healing.
         RescheduleRemindersWorker.enqueue(this)
+        RescheduleGeneralRemindersWorker.enqueue(this)
     }
 
     override fun onNewIntent(intent: Intent) {

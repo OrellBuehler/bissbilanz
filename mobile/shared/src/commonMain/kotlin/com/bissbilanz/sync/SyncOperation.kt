@@ -353,4 +353,36 @@ sealed class SyncOperation {
         override val affectedId get() = id
         override val description get() = "delete sleep entry $id"
     }
+
+    @Serializable
+    @SerialName("create_reminder")
+    data class CreateReminder(
+        val body: String,
+        val localId: String? = null,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = localId
+        override val description = "create reminder"
+    }
+
+    @Serializable
+    @SerialName("update_reminder")
+    data class UpdateReminder(
+        val id: String,
+        val body: String,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = id
+        override val description get() = "update reminder $id"
+    }
+
+    @Serializable
+    @SerialName("delete_reminder")
+    data class DeleteReminder(
+        val id: String,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = id
+        override val description get() = "delete reminder $id"
+    }
 }
