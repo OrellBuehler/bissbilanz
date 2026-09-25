@@ -199,16 +199,14 @@ struct FoodEditForm: View {
             // read as one undifferentiated pile of fields.
             Section {
                 ForEach(labels, id: \.self) { label in
-                    HStack {
-                        Text(label)
-                        Spacer()
+                    LabeledContent(label) {
                         Button(role: .destructive) {
                             labels.removeAll { $0 == label }
                         } label: {
                             Image(systemName: "minus.circle")
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.removeLabel)
+                        .accessibilityLabel("\(L10n.removeLabel): \(label)")
                     }
                 }
                 HStack {
