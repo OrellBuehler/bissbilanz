@@ -252,7 +252,7 @@ struct SupplementEditSheet: View {
                 )
                 saved = try await supplementRepository.createSupplement(create)
             }
-            await SupplementReminderScheduler.refill(repository: supplementRepository)
+            await SupplementReminderScheduler.refill(supplementRepository: supplementRepository)
             onSaved(saved)
             dismiss()
         } catch {

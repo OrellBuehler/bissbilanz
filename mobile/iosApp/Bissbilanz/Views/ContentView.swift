@@ -106,6 +106,10 @@ struct ContentView: View {
                 BarcodeScannerView()
             case .weight:
                 WeightView()
+            case .sleep:
+                SleepView()
+            case .dashboard:
+                DashboardView()
             case let .food(foodId):
                 NavigationStack {
                     FoodDetailView(foodId: foodId)

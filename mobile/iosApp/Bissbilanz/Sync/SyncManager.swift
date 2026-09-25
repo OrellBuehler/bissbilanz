@@ -686,6 +686,30 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .createReminder(body, localId):
+            let server = try await api.createReminder(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+            guard LocalRemap.reminderRow(id: localId, in: context) != nil else {
+                enqueue(.deleteReminder(id: server.id))
+                return
+            }
+            LocalRemap.replaceReminder(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
+
+        case let .updateReminder(id, body):
+            _ = try await api.updateReminder(
+                id: id,
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
+        case let .deleteReminder(id):
+            try await api.deleteReminder(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+
         case let .setDayProperties(date, patch):
             _ = try await api.setDayProperties(
                 date: date,
@@ -784,7 +808,7 @@ final class SyncManager {
         switch operation {
         case .deleteFood, .deleteEntry, .deleteRecipe, .deleteWeight,
              .deleteSupplement, .deleteSleep, .deleteDayProperties,
-             .deleteFast, .unlogSupplement:
+             .deleteFast, .unlogSupplement, .deleteReminder:
             true
         default:
             false
@@ -796,7 +820,8 @@ final class SyncManager {
     /// reference, never "this row was deleted elsewhere".
     private func isCreateOperation(_ operation: SyncOperation) -> Bool {
         switch operation {
-        case .createFood, .createEntry, .createRecipe, .createWeight, .createSleep, .createSupplement:
+        case .createFood, .createEntry, .createRecipe, .createWeight, .createSleep, .createSupplement,
+             .createReminder:
             true
         default:
             false
@@ -963,6 +988,11 @@ final class SyncManager {
             ids["sync.supplement_id"] = id
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
             ids["sync.supplement_id"] = supplementId
+
+        case let .createReminder(_, localId):
+            ids["sync.reminder_id"] = localId
+        case let .updateReminder(id, _), let .deleteReminder(id):
+            ids["sync.reminder_id"] = id
 
         case let .setDayProperties(date, _), let .deleteDayProperties(date):
             ids["sync.day"] = date
