@@ -325,11 +325,12 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 		'csv/food-entries.csv': buildEntriesCsv(data),
 		'csv/foods.csv': buildFoodsCsv(data),
 		'csv/recipes.csv': toCsv(
-			['name', 'total_servings', 'is_favorite', 'image', 'created_at'],
+			['name', 'total_servings', 'is_favorite', 'cooked_weight_g', 'image', 'created_at'],
 			data.recipes.map((recipe) => [
 				recipe.name,
 				recipe.totalServings,
 				recipe.isFavorite,
+				recipe.cookedWeight,
 				imageName(recipe.imageUrl),
 				recipe.createdAt
 			])

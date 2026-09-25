@@ -14,6 +14,7 @@ const favoriteRecipeSchema = z
 		id: z.string().uuid(),
 		name: z.string(),
 		imageUrl: z.string().nullable(),
+		cookedWeight: z.number().nullable().optional(),
 		calories: z.number(),
 		protein: z.number(),
 		carbs: z.number(),

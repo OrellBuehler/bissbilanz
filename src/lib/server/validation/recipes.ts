@@ -17,7 +17,10 @@ export const recipeCreateSchema = z
 		totalServings: z.coerce.number().positive(),
 		ingredients: z.array(recipeIngredientSchema).min(1).max(100),
 		isFavorite: z.boolean().optional(),
-		imageUrl: imageUrlSchema.optional().nullable()
+		imageUrl: imageUrlSchema.optional().nullable(),
+		// Grams of the finished dish (optional) — lets an entry be logged by
+		// weight instead of by serving count.
+		cookedWeight: z.coerce.number().positive().optional().nullable()
 	})
 	.meta({ id: 'RecipeCreate' });
 

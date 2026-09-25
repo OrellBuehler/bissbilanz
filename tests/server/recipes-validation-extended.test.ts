@@ -133,6 +133,40 @@ describe('recipeCreateSchema - extended', () => {
 		const result = recipeCreateSchema.safeParse({});
 		expect(result.success).toBe(false);
 	});
+
+	test('accepts a positive cookedWeight', () => {
+		const result = recipeCreateSchema.safeParse({ ...validRecipe, cookedWeight: 850 });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.cookedWeight).toBe(850);
+	});
+
+	test('accepts a null cookedWeight', () => {
+		const result = recipeCreateSchema.safeParse({ ...validRecipe, cookedWeight: null });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.cookedWeight).toBeNull();
+	});
+
+	test('omits cookedWeight when not provided', () => {
+		const result = recipeCreateSchema.safeParse(validRecipe);
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.cookedWeight).toBeUndefined();
+	});
+
+	test('rejects a zero cookedWeight', () => {
+		const result = recipeCreateSchema.safeParse({ ...validRecipe, cookedWeight: 0 });
+		expect(result.success).toBe(false);
+	});
+
+	test('rejects a negative cookedWeight', () => {
+		const result = recipeCreateSchema.safeParse({ ...validRecipe, cookedWeight: -100 });
+		expect(result.success).toBe(false);
+	});
+
+	test('coerces a string cookedWeight to number', () => {
+		const result = recipeCreateSchema.safeParse({ ...validRecipe, cookedWeight: '850' });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.cookedWeight).toBe(850);
+	});
 });
 
 describe('recipeUpdateSchema', () => {
@@ -167,6 +201,22 @@ describe('recipeUpdateSchema', () => {
 
 	test('rejects zero totalServings in update', () => {
 		const result = recipeUpdateSchema.safeParse({ totalServings: 0 });
+		expect(result.success).toBe(false);
+	});
+
+	test('allows setting a cookedWeight', () => {
+		const result = recipeUpdateSchema.safeParse({ cookedWeight: 850 });
+		expect(result.success).toBe(true);
+	});
+
+	test('allows clearing cookedWeight to null', () => {
+		const result = recipeUpdateSchema.safeParse({ cookedWeight: null });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.cookedWeight).toBeNull();
+	});
+
+	test('rejects a zero cookedWeight in update', () => {
+		const result = recipeUpdateSchema.safeParse({ cookedWeight: 0 });
 		expect(result.success).toBe(false);
 	});
 });
