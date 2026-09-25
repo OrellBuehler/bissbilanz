@@ -160,6 +160,7 @@ private struct PendingUploadRow: View {
                 case .failed:
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
                     Text(L10n.aiTaskUploadFailedTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -221,6 +222,10 @@ private struct AiTaskRow: View {
                                 .padding(3)
                         }
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        task.photoUrls.count > 1 ? L10n.aiTasksPhotosOnly(task.photoUrls.count) : L10n.aiTasksPhotoOnly
+                    )
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
