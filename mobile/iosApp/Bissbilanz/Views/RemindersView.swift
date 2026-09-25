@@ -145,18 +145,30 @@ struct RemindersView: View {
 
     private func reminderRow(_ reminder: Reminder) -> some View {
         HStack {
-            Image(systemName: kindIcons[reminder.kind] ?? "bell")
-                .font(.title3)
-                .foregroundStyle(reminder.enabled ? Color.accentColor : .secondary)
-                .frame(width: 28)
+            HStack {
+                Image(systemName: kindIcons[reminder.kind] ?? "bell")
+                    .font(.title3)
+                    .foregroundStyle(reminder.enabled ? Color.accentColor : .secondary)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(kindLabel(reminder))
-                    .font(.body)
-                Text(summary(reminder))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(kindLabel(reminder))
+                        .font(.body)
+                    Text(summary(reminder))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { editingReminder = reminder }
+            // A bare onTapGesture is invisible to VoiceOver — expose it as a
+            // real button action instead of relying on the gesture.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(kindLabel(reminder))
+            .accessibilityValue(summary(reminder))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { editingReminder = reminder }
 
             Spacer()
 
@@ -167,8 +179,6 @@ struct RemindersView: View {
             .labelsHidden()
             .accessibilityLabel(L10n.remindersEnabled)
         }
-        .contentShape(Rectangle())
-        .onTapGesture { editingReminder = reminder }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 Task { await delete(reminder) }

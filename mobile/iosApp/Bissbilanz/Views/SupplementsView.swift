@@ -102,6 +102,7 @@ struct SupplementsView: View {
                         .contentTransition(.numericText(value: Double(takenCount)))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
 
                 ProgressView(value: progress)
                     .tint(progress >= 1.0 ? .green : .accentColor)
@@ -164,60 +165,67 @@ struct SupplementsView: View {
         let hasIngredients = supplement.ingredients.count > 1
 
         return VStack(alignment: .leading, spacing: 0) {
-            Button {
-                Task {
-                    await toggleSupplement(supplement, isTaken: isTaken)
-                }
-            } label: {
-                HStack {
-                    Image(systemName: isTaken ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundStyle(isTaken ? .green : .secondary)
-                        .contentTransition(.symbolEffect(.replace))
-                        .symbolEffect(.bounce, value: isTaken)
+            HStack {
+                // Everything except the expand/collapse control toggles "taken" —
+                // nesting that control inside this button's label made it
+                // unreachable on its own for VoiceOver, so it's a sibling instead.
+                Button {
+                    Task {
+                        await toggleSupplement(supplement, isTaken: isTaken)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: isTaken ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundStyle(isTaken ? .green : .secondary)
+                            .contentTransition(.symbolEffect(.replace))
+                            .symbolEffect(.bounce, value: isTaken)
+                            .accessibilityHidden(true)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(supplement.name)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .strikethrough(isTaken)
-                        Text(dosageSummary(supplement))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(supplement.name)
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                                .strikethrough(isTaken)
+                            Text(dosageSummary(supplement))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let time = supplement.timeOfDay {
+                                Label(timeOfDayLabel(time), systemImage: timeIcon(time))
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        scheduleLabel(supplement)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(supplement.name)
+                .accessibilityValue(isTaken ? L10n.markTaken : L10n.notTakenYet)
+
+                if hasIngredients {
+                    Button {
+                        withAnimation {
+                            if isExpanded {
+                                expandedIds.remove(supplement.id)
+                            } else {
+                                expandedIds.insert(supplement.id)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if let time = supplement.timeOfDay {
-                            Label(timeOfDayLabel(time), systemImage: timeIcon(time))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
+                            .contentTransition(.symbolEffect(.replace))
                     }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        scheduleLabel(supplement)
-
-                        if hasIngredients {
-                            Button {
-                                withAnimation {
-                                    if isExpanded {
-                                        expandedIds.remove(supplement.id)
-                                    } else {
-                                        expandedIds.insert(supplement.id)
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(isExpanded ? L10n.collapse : L10n.expand)
-                        }
-                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isExpanded ? L10n.collapse : L10n.expand)
                 }
             }
-            .buttonStyle(.plain)
 
             if isExpanded, !supplement.ingredients.isEmpty {
                 Divider()
@@ -239,6 +247,7 @@ struct SupplementsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
                 .padding(.leading, 44)
