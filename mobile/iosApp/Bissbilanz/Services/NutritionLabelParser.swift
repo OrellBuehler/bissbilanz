@@ -25,6 +25,7 @@ enum NutritionLabelParser {
     /// Parses already-assembled rows (one nutrient per row, left-to-right text).
     static func parse(rows: [String]) -> ParsedNutrition {
         var result = ParsedNutrition()
+        result.isVolume = isVolumeBasis(rows)
         for row in rows {
             let folded = fold(row)
             guard let nutrient = match(folded) else { continue }
@@ -43,6 +44,12 @@ enum NutritionLabelParser {
             }
         }
         return result
+    }
+
+    /// True when the panel's basis column is per 100 ml (a drink) rather than
+    /// per 100 g, so the edit sheet can default the serving unit to ml.
+    static func isVolumeBasis(_ rows: [String]) -> Bool {
+        rows.contains { $0.range(of: "(?i)(?<![0-9])100\\s*ml\\b", options: .regularExpression) != nil }
     }
 
     /// Convenience: cluster raw OCR lines into rows, then parse.
@@ -133,6 +140,9 @@ enum NutritionLabelParser {
     // MARK: - Value extraction
 
     private static let numberToken = "[0-9]+(?:[.,\\s][0-9]+)*"
+    /// Nutrient amounts never need a thousands separator, so a space ends the
+    /// number — otherwise two unit-less columns ("10,6 35") fuse into one.
+    private static let fieldNumberToken = "[0-9]+(?:[.,][0-9]+)*"
     private static let units = ["kcal", "kj", "mg", "\u{00B5}g", "mcg", "g", "ml"]
 
     /// A number plus the unit printed immediately after it (if any).
@@ -145,6 +155,9 @@ enum NutritionLabelParser {
     /// fall back to the first number (US "Calories" has no unit word).
     private static func energyKcal(in row: String) -> Double? {
         let cleaned = stripBasis(row).lowercased()
+        if let paired = pairedKcal(in: cleaned) {
+            return paired
+        }
         if let kcal = firstNumber(in: cleaned, followedBy: "kcal") {
             return kcal
         }
@@ -154,10 +167,33 @@ enum NutritionLabelParser {
         return firstValue(in: row)?.value
     }
 
+    /// "kJ/kcal 180/42" — both units in a header and the values as a slash
+    /// pair after it, so neither number is followed by its own unit.
+    private static func pairedKcal(in lowercased: String) -> Double? {
+        if let kcal = firstCapture(
+            of: "kj\\s*/\\s*kcal\\D*?\(numberToken)\\s*/\\s*(\(fieldNumberToken))",
+            in: lowercased
+        ) {
+            return parseDecimal(kcal)
+        }
+        return firstCapture(of: "kcal\\s*/\\s*kj\\D*?(\(fieldNumberToken))\\s*/", in: lowercased)
+            .flatMap { parseDecimal($0) }
+    }
+
+    private static func firstCapture(of pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let captureRange = Range(match.range(at: 1), in: text)
+        else {
+            return nil
+        }
+        return String(text[captureRange])
+    }
+
     /// First numeric value in a row, with the unit token that follows it.
     private static func firstValue(in row: String) -> Measurement? {
         let cleaned = stripBasis(row)
-        guard let range = cleaned.range(of: numberToken, options: .regularExpression) else { return nil }
+        guard let range = cleaned.range(of: fieldNumberToken, options: .regularExpression) else { return nil }
         guard let value = parseDecimal(String(cleaned[range])) else { return nil }
 
         let rest = cleaned[range.upperBound...].trimmingCharacters(in: .whitespaces).lowercased()

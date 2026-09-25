@@ -367,12 +367,12 @@ struct FoodEditForm: View {
     }
 
     /// Prefills the editable fields from a scanned nutrition label. Values are
-    /// per 100 g (`NutritionLabelScanner`'s canonical basis regardless of
+    /// per 100 g or 100 ml (`NutritionLabelScanner`'s canonical basis regardless of
     /// which recognition path produced them); the user adjusts the serving
     /// and confirms before saving.
     private func apply(_ parsed: ParsedNutrition) {
         servingSize = "100"
-        servingUnit = .g
+        servingUnit = parsed.isVolume ? .ml : .g
         // The parser reports per-100 g values, so switch the basis to match;
         // the user can change the serving and the totals are scaled on save.
         perHundredBasis = true

@@ -540,7 +540,7 @@ class SyncManagerTest {
             )
             coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
             coEvery { api.updateFood(any(), any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1", name = "Brown Rice")
-            coEvery { api.deleteFood(any(), any(), any()) } returns Unit
+            coEvery { api.deleteFood(any(), any(), any(), any()) } returns Unit
             val recipeCreates = mutableListOf<RecipeCreate>()
             coEvery { api.createRecipe(capture(recipeCreates), any(), any()) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
 
@@ -549,7 +549,7 @@ class SyncManagerTest {
             assertEquals(4, synced)
             assertEquals(0, syncQueue.pendingCount())
             coVerify { api.updateFood("srv-food-1", match { it.name == "Brown Rice" }, any(), any()) }
-            coVerify { api.deleteFood("srv-food-1", any(), any()) }
+            coVerify { api.deleteFood("srv-food-1", any(), any(), any()) }
             assertEquals(listOf("srv-food-1"), recipeCreates.single().ingredients.map { it.foodId })
         }
 

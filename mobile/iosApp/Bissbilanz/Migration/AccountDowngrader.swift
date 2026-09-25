@@ -82,6 +82,7 @@ final class AccountDowngrader {
         // `all: true` — archived supplements are as unrecoverable as any other
         // row once the account is deleted.
         let supplements = try await api.getSupplements(all: true)
+        let reminders = try await api.getReminders()
 
         var entries: [Entry] = []
         var supplementLogs: [SupplementHistoryEntry] = []
@@ -128,6 +129,7 @@ final class AccountDowngrader {
         try context.delete(model: LocalSleepEntry.self)
         try context.delete(model: LocalSupplement.self)
         try context.delete(model: LocalSupplementLog.self)
+        try context.delete(model: LocalReminder.self)
         try context.delete(model: LocalGoals.self)
         try context.delete(model: LocalPreferences.self)
         try context.delete(model: LocalDayProperties.self)
@@ -139,6 +141,7 @@ final class AccountDowngrader {
         await insert(supplementLogs) {
             LocalSupplementLog(supplementId: $0.supplementId, date: $0.date, takenAt: $0.takenAt)
         }
+        await insert(reminders) { LocalReminder(reminder: $0) }
         await insert(weightEntries) { LocalWeightEntry(entry: $0) }
         await insert(sleepEntries) { LocalSleepEntry(entry: $0) }
         await insert(dayProperties) { LocalDayProperties(properties: $0) }

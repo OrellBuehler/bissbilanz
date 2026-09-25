@@ -14,6 +14,7 @@ import type {
 	DexieSleepEntry,
 	DexieDayProperties,
 	DexieFastingSession,
+	DexieReminder,
 	DexieSyncQueueItem,
 	DexieSyncMeta
 } from './types';
@@ -32,6 +33,7 @@ type BissbilanzDB = Dexie & {
 	sleepEntries: EntityTable<DexieSleepEntry, 'id'>;
 	dayProperties: EntityTable<DexieDayProperties, 'date'>;
 	fastingSessions: EntityTable<DexieFastingSession, 'id'>;
+	reminders: EntityTable<DexieReminder, 'id'>;
 	syncQueue: EntityTable<DexieSyncQueueItem, 'id'>;
 	syncMeta: EntityTable<DexieSyncMeta, 'tableName'>;
 };
@@ -121,6 +123,11 @@ db.version(7)
 // it is ended, matching the mobile apps.
 db.version(8).stores({
 	fastingSessions: 'id, startedAt'
+});
+
+// v9: general logging reminders (weight/meal/sleep), synced across devices.
+db.version(9).stores({
+	reminders: 'id, kind, enabled'
 });
 
 export { db };

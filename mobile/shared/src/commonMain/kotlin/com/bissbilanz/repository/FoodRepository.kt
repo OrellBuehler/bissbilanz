@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
@@ -319,6 +320,77 @@ class FoodRepository(
             syncQueue.removeByAffected("foods", id)
         } else {
             syncQueue.enqueue(SyncOperation.DeleteFood(id))
+        }
+        onFoodChanged?.invoke()
+        imageUrl?.let { onImageOrphaned?.invoke(it) }
+    }
+
+    /**
+     * Asks first instead of deleting-then-hoping: [deleteFood] always deletes locally and
+     * queues the server delete, which — if the food still has diary entries or is used by
+     * a recipe — used to dead-letter on the resulting 409 and reappear on the next refresh,
+     * with no indication to the user why. In Local mode (or a not-yet-uploaded temp id)
+     * there is no server to ask, so diary entries referencing it are counted locally
+     * instead (recipe-ingredient references aren't tracked in the local cache).
+     */
+    suspend fun deleteFoodChecked(id: String): DeleteOutcome {
+        if (appModeManager.isLocal || id.isTempId()) {
+            val entryCount =
+                withContext(ioDispatcher) {
+                    db.userDataDatabaseQueries
+                        .selectEntriesByFoodId(id)
+                        .executeAsList()
+                        .size
+                }
+            if (entryCount > 0) return DeleteOutcome.Blocked(entryCount)
+            deleteFood(id)
+            return DeleteOutcome.Deleted
+        }
+        return try {
+            api.deleteFood(id)
+            val imageUrl = getFoodCached(id)?.imageUrl
+            withContext(ioDispatcher) {
+                db.userDataDatabaseQueries.deleteFoodLabels(id)
+                db.userDataDatabaseQueries.deleteFood(id)
+            }
+            syncQueue.removeByAffected("foods", id)
+            onFoodChanged?.invoke()
+            imageUrl?.let { onImageOrphaned?.invoke(it) }
+            DeleteOutcome.Deleted
+        } catch (e: ApiException) {
+            if (e.statusCode == 409) {
+                val conflict = e.responseBody?.let { json.decodeOrNull<DeleteConflictBody>(it) }
+                DeleteOutcome.Blocked(conflict?.entryCount ?: 0, conflict?.ingredientCount, conflict?.recipeCount)
+            } else {
+                deleteFood(id)
+                DeleteOutcome.Deleted
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            deleteFood(id)
+            DeleteOutcome.Deleted
+        }
+    }
+
+    /** Deletes a food the user already confirmed via a [DeleteOutcome.Blocked] prompt. */
+    suspend fun forceDeleteFood(id: String) {
+        if (appModeManager.isLocal || id.isTempId()) {
+            deleteFood(id)
+            return
+        }
+        val imageUrl = getFoodCached(id)?.imageUrl
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries.deleteFoodLabels(id)
+            db.userDataDatabaseQueries.deleteFood(id)
+        }
+        try {
+            api.deleteFood(id, force = true)
+            syncQueue.removeByAffected("foods", id)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            syncQueue.enqueue(SyncOperation.DeleteFood(id, force = true))
         }
         onFoodChanged?.invoke()
         imageUrl?.let { onImageOrphaned?.invoke(it) }

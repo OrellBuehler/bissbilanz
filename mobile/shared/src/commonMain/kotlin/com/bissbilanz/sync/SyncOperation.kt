@@ -35,6 +35,11 @@ sealed class SyncOperation {
     @SerialName("delete_food")
     data class DeleteFood(
         val id: String,
+        // Only set once the user has confirmed a "used elsewhere" conflict
+        // (see FoodRepository.forceDeleteFood) — a queued delete must never
+        // force silently, or a still-referenced food dead-letters on the
+        // very 409 that was supposed to ask the user first.
+        val force: Boolean = false,
     ) : SyncOperation() {
         override val affectedTable = "foods"
         override val affectedId get() = id
@@ -157,6 +162,8 @@ sealed class SyncOperation {
     @SerialName("delete_recipe")
     data class DeleteRecipe(
         val id: String,
+        // See DeleteFood.force.
+        val force: Boolean = false,
     ) : SyncOperation() {
         override val affectedTable = "recipes"
         override val affectedId get() = id
@@ -352,5 +359,37 @@ sealed class SyncOperation {
         override val affectedTable = "sleep"
         override val affectedId get() = id
         override val description get() = "delete sleep entry $id"
+    }
+
+    @Serializable
+    @SerialName("create_reminder")
+    data class CreateReminder(
+        val body: String,
+        val localId: String? = null,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = localId
+        override val description = "create reminder"
+    }
+
+    @Serializable
+    @SerialName("update_reminder")
+    data class UpdateReminder(
+        val id: String,
+        val body: String,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = id
+        override val description get() = "update reminder $id"
+    }
+
+    @Serializable
+    @SerialName("delete_reminder")
+    data class DeleteReminder(
+        val id: String,
+    ) : SyncOperation() {
+        override val affectedTable = "reminders"
+        override val affectedId get() = id
+        override val description get() = "delete reminder $id"
     }
 }

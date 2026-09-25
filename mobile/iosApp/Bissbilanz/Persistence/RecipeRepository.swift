@@ -163,8 +163,64 @@ final class RecipeRepository {
         if LocalStore.isTempId(id) {
             syncManager.removeQueued(table: "recipes", affectedId: id)
         } else {
-            syncManager.enqueue(.deleteRecipe(id: id))
+            syncManager.enqueue(.deleteRecipe(id: id, force: false))
         }
+    }
+
+    /// Asks first instead of deleting-then-hoping: `deleteRecipe` always deletes
+    /// locally and queues the server delete, which — if the recipe still has diary
+    /// entries — used to dead-letter on the resulting 409 and reappear on the next
+    /// refresh, with no indication to the user why. In Local mode (or a not-yet-
+    /// uploaded temp id) there is no server to ask, so diary entries referencing it
+    /// are counted locally instead.
+    func deleteRecipeChecked(id: String) async throws -> DeleteOutcome {
+        if appMode.isLocal || LocalStore.isTempId(id) {
+            let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId == id })
+            let entryCount = (try? context.fetch(descriptor))?.count ?? 0
+            if entryCount > 0 {
+                return .blocked(DeleteConflict(entryCount: entryCount, ingredientCount: nil, recipeCount: nil))
+            }
+            try await deleteRecipe(id: id)
+            return .deleted
+        }
+        do {
+            try await api.deleteRecipe(id: id)
+            LocalImageStore.evict(recipe(id: id)?.imageUrl)
+            deleteRow(id: id)
+            save()
+            syncManager.removeQueued(table: "recipes", affectedId: id)
+            return .deleted
+        } catch let error as APIError {
+            if let conflict = error.deleteConflict {
+                return .blocked(conflict)
+            }
+            // Not a conflict — likely offline/network. Fall back to the optimistic
+            // path so the delete isn't lost; it'll be resolved (and surfaced if it
+            // still conflicts) when the sync queue drains.
+            try await deleteRecipe(id: id)
+            return .deleted
+        }
+    }
+
+    /// Deletes a recipe the user already confirmed via a `DeleteOutcome.blocked` prompt.
+    func forceDeleteRecipe(id: String) async throws {
+        if appMode.isLocal || LocalStore.isTempId(id) {
+            try await deleteRecipe(id: id)
+            return
+        }
+        let imageUrl = recipe(id: id)?.imageUrl
+        deleteRow(id: id)
+        save()
+        do {
+            try await api.deleteRecipe(id: id, force: true)
+            syncManager.removeQueued(table: "recipes", affectedId: id)
+        } catch {
+            if error is CancellationError { throw error }
+            // Offline or a transient failure — queue the forced delete so the
+            // user's confirmed choice still lands once connectivity returns.
+            syncManager.enqueue(.deleteRecipe(id: id, force: true))
+        }
+        if let imageUrl { LocalImageStore.evict(imageUrl) }
     }
 
     /// Rewrites the still-queued create for a temp-id recipe so the eventual
@@ -219,8 +275,10 @@ final class RecipeRepository {
 
     /// Whole-recipe macro totals, replicating the server aggregation in
     /// `src/lib/server/recipes.ts`: each ingredient contributes
-    /// `food.macro * quantity / food.servingSize`; unresolved foods contribute
-    /// nothing. Per-serving division happens at entry creation
+    /// `food.macro * convertedQuantity / food.servingSize`, where the ingredient's
+    /// quantity is converted into the food's own unit (same dimension only —
+    /// see `convertQuantityForMacros`); unresolved foods contribute nothing.
+    /// Per-serving division happens at entry creation
     /// (`EntryRepository.makeEntry`), matching the server's entry shape.
     static func recipeMacros(
         of ingredients: [RecipeIngredient]
@@ -228,7 +286,12 @@ final class RecipeRepository {
         var totals = (calories: 0.0, protein: 0.0, carbs: 0.0, fat: 0.0, fiber: 0.0)
         for ingredient in ingredients {
             guard let food = ingredient.food, food.servingSize > 0 else { continue }
-            let factor = ingredient.quantity / food.servingSize
+            let convertedQuantity = convertQuantityForMacros(
+                ingredient.quantity,
+                from: ingredient.servingUnit,
+                to: food.servingUnit
+            )
+            let factor = convertedQuantity / food.servingSize
             totals.calories += food.calories * factor
             totals.protein += food.protein * factor
             totals.carbs += food.carbs * factor

@@ -90,7 +90,9 @@ struct DayLogView: View {
                 .accessibilityLabel(L10n.addFood)
             }
         }
-        .refreshable { await loadEntries() }
+        // Unstructured for the same reason as the dashboard: the state writes
+        // in `loadEntries` re-render the view, which cancels a refreshable task.
+        .refreshable { await Task { await loadEntries() }.value }
         .sheet(isPresented: $showFoodSearch) {
             NavigationStack {
                 FoodSearchView(date: date)

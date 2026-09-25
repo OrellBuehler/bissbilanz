@@ -12,6 +12,7 @@ import { foodColumnsWithLabels, seedCatalogLabels } from '$lib/server/food-label
 import {
 	and,
 	count,
+	countDistinct,
 	desc,
 	eq,
 	exists,
@@ -262,7 +263,10 @@ export const deleteFood = async (
 				.select({ count: count() })
 				.from(foodEntries)
 				.where(and(eq(foodEntries.foodId, id), eq(foodEntries.userId, userId))),
-			tx.select({ count: count() }).from(recipeIngredients).where(eq(recipeIngredients.foodId, id)),
+			tx
+				.select({ count: count(), recipeCount: countDistinct(recipeIngredients.recipeId) })
+				.from(recipeIngredients)
+				.where(eq(recipeIngredients.foodId, id)),
 			tx
 				.select({ count: count() })
 				.from(supplementIngredients)
@@ -270,6 +274,7 @@ export const deleteFood = async (
 		]);
 		const entryCount = entries[0].count;
 		const ingredientCount = ingredients[0].count;
+		const recipeCount = ingredients[0].recipeCount;
 		const supplementIngredientCount = supplementIngs[0].count;
 
 		// Supplement ingredients use ON DELETE RESTRICT on foodId, so they would
@@ -282,6 +287,7 @@ export const deleteFood = async (
 					blocked: true,
 					entryCount,
 					ingredientCount,
+					recipeCount,
 					supplementIngredientCount
 				} as DeleteResult,
 				imageUrl: null
@@ -290,7 +296,7 @@ export const deleteFood = async (
 
 		if ((entryCount > 0 || ingredientCount > 0) && !force) {
 			return {
-				deleted: { blocked: true, entryCount, ingredientCount } as DeleteResult,
+				deleted: { blocked: true, entryCount, ingredientCount, recipeCount } as DeleteResult,
 				imageUrl: null
 			};
 		}

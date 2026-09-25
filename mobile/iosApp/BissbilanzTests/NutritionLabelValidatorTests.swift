@@ -47,6 +47,20 @@ struct NutritionLabelValidatorTests {
         #expect(merged.protein == model.protein) // untouched fields stay the model's
     }
 
+    @Test("Keeps a per-100 ml basis found by either side")
+    func keepsVolumeBasisFromEitherSide() {
+        var fallback = ParsedNutrition()
+        fallback.isVolume = true
+
+        let merged = NutritionLabelValidator.merge(
+            model: coherentCandidate(),
+            fallback: fallback,
+            computedFromServing: false
+        )
+
+        #expect(merged.isVolume)
+    }
+
     @Test("Backfills salt/sodium independently of the core-macro coherence check")
     func backfillsSaltAndSodium() {
         var model = coherentCandidate()

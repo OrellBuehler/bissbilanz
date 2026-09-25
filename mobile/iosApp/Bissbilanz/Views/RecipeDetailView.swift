@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RecipeDetailView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
 
     let recipeId: String
@@ -13,6 +14,11 @@ struct RecipeDetailView: View {
     @State private var showDeleteConfirmation = false
     @State private var showLogSheet = false
     @State private var errorMessage: String?
+    @State private var deleteConflict: DeleteConflict?
+    // The server's recipe response has no embedded `food` on ingredients — resolved
+    // separately (cache first, then API) so the list shows real names instead of
+    // the raw food id.
+    @State private var foodNames: [String: String] = [:]
 
     var body: some View {
         VStack {
@@ -87,6 +93,18 @@ struct RecipeDetailView: View {
         } message: {
             if let errorMessage { Text(errorMessage) }
         }
+        .alert(
+            L10n.stillInUse,
+            isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
+        ) {
+            Button(L10n.deleteAnyway, role: .destructive) {
+                deleteConflict = nil
+                Task { await forceDeleteRecipe() }
+            }
+            Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+        } message: {
+            if let deleteConflict { Text(deleteConflict.message) }
+        }
     }
 
     private func recipeContent(_ recipe: Recipe) -> some View {
@@ -120,32 +138,32 @@ struct RecipeDetailView: View {
             }
 
             Section(L10n.perServing) {
-                if let cal = recipe.calories {
+                if let cal = recipe.caloriesPerServing {
                     NutrientRow(
                         label: L10n.calories,
-                        value: cal / recipe.totalServings,
+                        value: cal,
                         unit: "kcal",
                         color: MacroColors.calories
                     )
                 }
-                if let p = recipe.protein {
+                if let p = recipe.proteinPerServing {
                     NutrientRow(
                         label: L10n.protein,
-                        value: p / recipe.totalServings,
+                        value: p,
                         unit: "g",
                         color: MacroColors.protein
                     )
                 }
-                if let c = recipe.carbs {
-                    NutrientRow(label: L10n.carbs, value: c / recipe.totalServings, unit: "g", color: MacroColors.carbs)
+                if let c = recipe.carbsPerServing {
+                    NutrientRow(label: L10n.carbs, value: c, unit: "g", color: MacroColors.carbs)
                 }
-                if let f = recipe.fat {
-                    NutrientRow(label: L10n.fat, value: f / recipe.totalServings, unit: "g", color: MacroColors.fat)
+                if let f = recipe.fatPerServing {
+                    NutrientRow(label: L10n.fat, value: f, unit: "g", color: MacroColors.fat)
                 }
-                if let fb = recipe.fiber {
+                if let fb = recipe.fiberPerServing {
                     NutrientRow(
                         label: L10n.fiber,
-                        value: fb / recipe.totalServings,
+                        value: fb,
                         unit: "g",
                         color: MacroColors.fiber
                     )
@@ -156,7 +174,7 @@ struct RecipeDetailView: View {
                 Section(L10n.ingredients) {
                     ForEach(ingredients) { ingredient in
                         HStack {
-                            Text(ingredient.food?.name ?? "Food \(ingredient.foodId)")
+                            Text(ingredient.food?.name ?? foodNames[ingredient.foodId] ?? L10n.unknownIngredient)
                                 .lineLimit(1)
                             Spacer()
                             Text("\(ingredient.quantity, specifier: "%.1f") \(ingredient.servingUnit.displayName)")
@@ -201,11 +219,40 @@ struct RecipeDetailView: View {
             if recipe == nil { self.error = error }
         }
         isLoading = false
+        if let recipe { await resolveFoodNames(for: recipe) }
+    }
+
+    private func resolveFoodNames(for recipe: Recipe) async {
+        var names: [String: String] = [:]
+        for ingredient in recipe.ingredients ?? [] {
+            if let food = ingredient.food ?? foodRepository.food(id: ingredient.foodId) {
+                names[ingredient.foodId] = food.name
+                continue
+            }
+            try? await foodRepository.refreshFood(id: ingredient.foodId)
+            if let food = foodRepository.food(id: ingredient.foodId) {
+                names[ingredient.foodId] = food.name
+            }
+        }
+        foodNames = names
     }
 
     private func deleteRecipe() async {
         do {
-            try await recipeRepository.deleteRecipe(id: recipeId)
+            switch try await recipeRepository.deleteRecipeChecked(id: recipeId) {
+            case .deleted:
+                dismiss()
+            case let .blocked(conflict):
+                deleteConflict = conflict
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func forceDeleteRecipe() async {
+        do {
+            try await recipeRepository.forceDeleteRecipe(id: recipeId)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

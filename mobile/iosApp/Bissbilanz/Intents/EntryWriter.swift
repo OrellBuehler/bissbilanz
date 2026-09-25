@@ -56,6 +56,13 @@ final class EntryWriter {
         ids.compactMap { foodRepository.food(id: $0) }
     }
 
+    /// The whole local catalog — used by the iOS 27 full-reindex hook
+    /// (`SiriIOS27.swift`) when the system reports a problem with the
+    /// Spotlight index and asks for everything again.
+    func allFoods() -> [Food] {
+        foodRepository.allLocalFoods()
+    }
+
     /// Favorites first, then recently logged foods — what Siri / Shortcuts show
     /// before the user types. Local store only, so it stays instant. Falls back
     /// to the whole cached catalog so the picker is never empty while the store
@@ -93,6 +100,11 @@ final class EntryWriter {
     func suggestedRecipes(limit: Int = 12) -> [Recipe] {
         let favorites = recipeRepository.favoriteRecipes()
         return Array((favorites.isEmpty ? recipeRepository.recipes() : favorites).prefix(limit))
+    }
+
+    /// The whole cached recipe list — the same reindex use as `allFoods()`.
+    func allRecipes() -> [Recipe] {
+        recipeRepository.recipes()
     }
 
     // MARK: - Writes

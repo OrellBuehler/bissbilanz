@@ -1,5 +1,7 @@
 package com.bissbilanz.android.ui.screens
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +35,13 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.tips.AnchoredTip
+import com.bissbilanz.android.tips.HelpSlugs
+import com.bissbilanz.android.tips.HintCard
+import com.bissbilanz.android.tips.TipIds
+import com.bissbilanz.android.tips.TipStore
+import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.tips.rememberActiveTipId
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.CalorieTrendWidget
@@ -55,6 +65,7 @@ import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.util.DashboardSection
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.resolveDashboardSections
+import com.bissbilanz.android.widget.DayOverviewWidgetReceiver
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
@@ -120,6 +131,20 @@ fun DashboardScreen(navController: NavController) {
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
     var addFoodForMeal by remember { mutableStateOf<String?>(null) }
 
+    val tipStore: TipStore = koinInject()
+    val tipFoodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
+    // Priority order: the layout editor nudge comes first on every fresh install, the
+    // scan tip only while its menu happens to be open, and the widgets nudge once the
+    // user has proven they log often enough to want a shortcut past the app.
+    val activeTipId =
+        rememberActiveTipId(
+            listOf(
+                TipIds.DASHBOARD_LAYOUT to true,
+                TipIds.SCANNING to fabMenuExpanded,
+                TipIds.WIDGETS to (tipFoodLoggedCount >= 10),
+            ),
+        )
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
         val barcode = navBackStackEntry?.savedStateHandle?.remove<String>(NAV_KEY_CREATE_FOOD_BARCODE)
@@ -179,8 +204,16 @@ fun DashboardScreen(navController: NavController) {
                             stringResource(R.string.dashboard_next_day),
                         )
                     }
-                    IconButton(onClick = { navController.navigate("dashboard-layout") }) {
-                        Icon(Icons.Outlined.Tune, stringResource(R.string.dashboard_layout_title))
+                    AnchoredTip(
+                        tipId = TipIds.DASHBOARD_LAYOUT,
+                        title = stringResource(R.string.tip_dashboard_layout_title),
+                        text = stringResource(R.string.tip_dashboard_layout_text),
+                        helpSlug = HelpSlugs.GETTING_STARTED,
+                        eligible = activeTipId == TipIds.DASHBOARD_LAYOUT,
+                    ) {
+                        IconButton(onClick = { navController.navigate("dashboard-layout") }) {
+                            Icon(Icons.Outlined.Tune, stringResource(R.string.dashboard_layout_title))
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -216,14 +249,22 @@ fun DashboardScreen(navController: NavController) {
                             },
                         )
                     }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.scan_widget_content_desc)) },
-                        leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                        onClick = {
-                            fabMenuExpanded = false
-                            navController.navigate("scanner")
-                        },
-                    )
+                    AnchoredTip(
+                        tipId = TipIds.SCANNING,
+                        title = stringResource(R.string.tip_scanning_title),
+                        text = stringResource(R.string.tip_scanning_text),
+                        helpSlug = HelpSlugs.SCANNING,
+                        eligible = activeTipId == TipIds.SCANNING,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.scan_widget_content_desc)) },
+                            leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
+                            onClick = {
+                                fabMenuExpanded = false
+                                navController.navigate("scanner")
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.daylog_quick_add)) },
                         leadingIcon = { Icon(Icons.Default.Bolt, contentDescription = null) },
@@ -401,6 +442,33 @@ fun DashboardScreen(navController: NavController) {
                             color = CaloriesBlue.macroTextTone(),
                         )
                     }
+                }
+
+                if (activeTipId == TipIds.WIDGETS) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    val widgetTipContext = LocalContext.current
+                    val widgetManager = remember { AppWidgetManager.getInstance(widgetTipContext) }
+                    HintCard(
+                        title = stringResource(R.string.tip_widgets_title),
+                        text = stringResource(R.string.tip_widgets_text),
+                        onLearnMore = {
+                            openHelp(widgetTipContext, HelpSlugs.MOBILE_EXTRAS)
+                            tipStore.dismiss(TipIds.WIDGETS)
+                        },
+                        onDismiss = { tipStore.dismiss(TipIds.WIDGETS) },
+                        action = {
+                            if (widgetManager.isRequestPinAppWidgetSupported) {
+                                TextButton(onClick = {
+                                    widgetManager.requestPinAppWidget(
+                                        ComponentName(widgetTipContext, DayOverviewWidgetReceiver::class.java),
+                                        null,
+                                        null,
+                                    )
+                                    tipStore.dismiss(TipIds.WIDGETS)
+                                }) { Text(stringResource(R.string.tip_widgets_add_widget)) }
+                            }
+                        },
+                    )
                 }
 
                 // Order and visibility come from prefs.widgetOrder; see DashboardSection

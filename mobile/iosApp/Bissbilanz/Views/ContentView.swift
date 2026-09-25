@@ -106,6 +106,10 @@ struct ContentView: View {
                 BarcodeScannerView()
             case .weight:
                 WeightView()
+            case .sleep:
+                SleepView()
+            case .dashboard:
+                DashboardView()
             case let .food(foodId):
                 NavigationStack {
                     FoodDetailView(foodId: foodId)
@@ -121,6 +125,10 @@ struct ContentView: View {
             case .aiTasks:
                 NavigationStack {
                     AiTasksView()
+                }
+            case let .foodSearch(query):
+                NavigationStack {
+                    FoodSearchView(date: DateFormatting.today, initialQuery: query)
                 }
             }
         }

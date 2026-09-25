@@ -52,7 +52,8 @@
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
 		mcp: () => 'MCP',
-		'ai-tasks': () => m.nav_ai_tasks()
+		'ai-tasks': () => m.nav_ai_tasks(),
+		reminders: () => m.nav_reminders()
 	};
 
 	const UUID_RE = /^[0-9a-f]{8}-/i;

@@ -196,7 +196,7 @@ final class SupplementRepository {
             syncManager.enqueue(.unlogSupplement(supplementId: id, date: date))
         }
         // Un-ticking is usually an undo, so re-arm the rest of today's reminders.
-        await SupplementReminderScheduler.refill(repository: self)
+        await SupplementReminderScheduler.refill(supplementRepository: self)
     }
 
     @discardableResult

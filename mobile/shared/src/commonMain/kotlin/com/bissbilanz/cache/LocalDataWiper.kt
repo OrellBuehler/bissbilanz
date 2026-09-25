@@ -38,6 +38,7 @@ class LocalDataWiper(
                 queries.clearAllRecipes()
                 queries.clearAllSupplements()
                 queries.clearAllSupplementLogs()
+                queries.clearAllReminders()
                 queries.clearAllWeightEntries()
                 queries.clearAllSleepEntries()
                 queries.clearAllPreferences()

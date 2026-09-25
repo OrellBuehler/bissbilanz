@@ -447,12 +447,16 @@ class LocalAnalytics(
             vitaminE = vitaminE,
             alcohol = alcohol,
             addedSugars = addedSugars,
+            servingUnit = servingUnit.value,
         )
 
     private fun RecipeDetail.toAggRecipe(): AggRecipe =
         AggRecipe(
             id = id,
             totalServings = totalServings,
-            ingredients = ingredients.map { AggRecipeIngredient(foodId = it.foodId, quantity = it.quantity) },
+            ingredients =
+                ingredients.map {
+                    AggRecipeIngredient(foodId = it.foodId, quantity = it.quantity, servingUnit = it.servingUnit.value)
+                },
         )
 }

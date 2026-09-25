@@ -1,6 +1,5 @@
 import AuthenticationServices
 import SwiftUI
-import UserNotifications
 
 struct SettingsView: View {
     @Environment(GoalsRepository.self) private var goalsRepository
@@ -34,11 +33,6 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     private let healthKitService = HealthKitService.shared
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
-    // Device-local, like selected_tabs: how long a snooze lasts is a property of the
-    // phone you're being reminded on, not something to sync to the account.
-    @AppStorage(SupplementReminderScheduler.snoozeMinutesKey)
-    private var snoozeMinutes = SupplementReminderScheduler.defaultSnoozeMinutes
-    @State private var notificationsAuthorized = true
 
     private var selectedTabNames: String {
         selectedTabsRaw.split(separator: ",")
@@ -245,7 +239,10 @@ struct SettingsView: View {
                 Section(L10n.language) {
                     Picker(L10n.language, selection: Binding(
                         get: { L10n.currentLocale },
-                        set: { L10n.currentLocale = $0 }
+                        set: {
+                            L10n.currentLocale = $0
+                            WidgetSnapshotWriter.scheduleUpdate(context: modelContext)
+                        }
                     )) {
                         ForEach(AppLocale.allCases, id: \.self) { locale in
                             Text(locale.displayName).tag(locale)
@@ -285,7 +282,13 @@ struct SettingsView: View {
                     }
                 }
 
-                supplementRemindersSection
+                Section {
+                    NavigationLink {
+                        RemindersView()
+                    } label: {
+                        Label(L10n.reminders, systemImage: "bell")
+                    }
+                }
 
                 // Favorite logging behavior
                 Section(L10n.favoriteLogging) {
@@ -963,42 +966,6 @@ struct VisibleNutrientsView: View {
             ?? (preferencesRepository.preferences() ?? .defaults)
         isDirty = false
         isSaving = false
-    }
-}
-
-private extension SettingsView {
-    /// Snooze duration for supplement reminders, plus the authorization status.
-    ///
-    /// Presets rather than a numeric field — nothing to parse, clamp or reject, and it
-    /// stays parallel with the Android dropdown.
-    var supplementRemindersSection: some View {
-        Section(L10n.reminders) {
-            Picker(L10n.snoozeDuration, selection: $snoozeMinutes) {
-                ForEach(SupplementReminderScheduler.snoozePresets, id: \.self) { minutes in
-                    Text(
-                        minutes >= 60 && minutes % 60 == 0
-                            ? L10n.snoozeHours(minutes / 60)
-                            : L10n.snoozeMinutes(minutes)
-                    ).tag(minutes)
-                }
-            }
-            .pickerStyle(.menu)
-
-            if !notificationsAuthorized {
-                // A denied authorization can never be re-prompted from the app.
-                Text(L10n.notificationsDisabled)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                Button(L10n.openSettings) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-            }
-        }
-        .task {
-            notificationsAuthorized = await SupplementReminderScheduler.authorizationStatus() == .authorized
-        }
     }
 }
 

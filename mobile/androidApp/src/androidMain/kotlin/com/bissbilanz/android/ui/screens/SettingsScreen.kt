@@ -25,21 +25,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
-import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.AccountDowngradeController
+import com.bissbilanz.android.tips.TipStore
+import com.bissbilanz.android.tips.openHelp
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ToggleRow
-import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
@@ -47,6 +46,7 @@ import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncManager
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -80,6 +80,9 @@ fun SettingsScreen(navController: NavController) {
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val tipStore: TipStore = koinInject()
+    val scope = rememberCoroutineScope()
+    val tipsResetMessage = stringResource(R.string.settings_tips_reset_message)
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
     var selectedTabs by remember {
         mutableStateOf(
@@ -771,7 +774,11 @@ fun SettingsScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    SupplementRemindersCard()
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        SettingsNavItem(stringResource(R.string.reminders_title), Icons.Default.NotificationsActive) {
+                            navController.navigate("reminders")
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -1000,6 +1007,27 @@ fun SettingsScreen(navController: NavController) {
                     textAlign = TextAlign.Center,
                 )
                 TextButton(
+                    onClick = { openHelp(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_help_guides),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        tipStore.resetAll()
+                        scope.launch { snackbarHostState.showSnackbar(tipsResetMessage) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_show_tips_again),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                TextButton(
                     onClick = { uriHandler.openUri("https://bissbilanz.orellbuehler.ch/privacy") },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -1203,90 +1231,6 @@ private fun LanguageCard() {
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * Snooze duration for supplement reminders, plus the notification-permission status.
- *
- * Device-local (SharedPreferences), not a server preference: how long a snooze lasts is a
- * property of the phone you're being reminded on. Presets rather than a free-text field —
- * there is nothing to parse, clamp or reject, and it stays parallel with iOS.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SupplementRemindersCard() {
-    val context = LocalContext.current
-    val reminderPrefs: SupplementReminderPreferences = koinInject()
-    var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
-    var expanded by remember { mutableStateOf(false) }
-    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-
-    @Composable
-    fun label(minutes: Int) =
-        if (minutes % 60 == 0 && minutes >= 60) {
-            stringResource(R.string.settings_snooze_hours, minutes / 60)
-        } else {
-            stringResource(R.string.settings_snooze_minutes, minutes)
-        }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                stringResource(R.string.settings_reminders_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-            ) {
-                OutlinedTextField(
-                    value = label(snoozeMinutes),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.settings_snooze_duration)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier =
-                        Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
-                )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    SupplementReminderPreferences.SNOOZE_PRESETS.forEach { minutes ->
-                        DropdownMenuItem(
-                            text = { Text(label(minutes)) },
-                            onClick = {
-                                snoozeMinutes = minutes
-                                reminderPrefs.snoozeMinutes = minutes
-                                expanded = false
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (!notificationsEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.settings_reminders_permission_missing),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                TextButton(onClick = { openNotificationSettings(context) }) {
-                    Text(stringResource(R.string.settings_reminders_permission_grant))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.settings_reminders_delay_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

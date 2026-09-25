@@ -143,4 +143,60 @@ class AggregationTest {
         assertEquals(2354.0, result.maintenanceCalories, 1e-9)
         assertEquals(0.3, result.muscleRatio, 1e-9)
     }
+
+    @Test
+    fun recipeIngredientConvertsCompatibleUnit() {
+        // 100 ml of oil = 200 kcal, so 2 tbsp (30 ml) contributes 60 kcal.
+        val oil =
+            AggFood(
+                id = "oil",
+                servingSize = 100.0,
+                servingUnit = "ml",
+                calories = 200.0,
+                protein = 0.0,
+                carbs = 0.0,
+                fat = 22.0,
+                fiber = 0.0,
+            )
+        val dressing =
+            AggRecipe(
+                id = "dressing",
+                totalServings = 1.0,
+                ingredients = listOf(AggRecipeIngredient("oil", 2.0, servingUnit = "tbsp")),
+            )
+        val entries = listOf(AggEntry(date = "2025-04-01", mealType = "lunch", servings = 1.0, recipeId = "dressing"))
+
+        val totals = aggregateDailyNutrientTotals(entries, listOf(oil), listOf(dressing))
+
+        assertEquals(1, totals.size)
+        assertEquals(60.0, totals[0].calories, 1e-9)
+    }
+
+    @Test
+    fun recipeIngredientCrossDimensionFallsBackToRawQuantity() {
+        // Legacy row: 50 "ml" against a food measured in g — no valid conversion, so the
+        // raw quantity is used as-is (factor 1), matching the pre-conversion behavior.
+        val flour =
+            AggFood(
+                id = "flour",
+                servingSize = 100.0,
+                servingUnit = "g",
+                calories = 364.0,
+                protein = 10.0,
+                carbs = 76.0,
+                fat = 1.0,
+                fiber = 3.0,
+            )
+        val recipe =
+            AggRecipe(
+                id = "legacy",
+                totalServings = 1.0,
+                ingredients = listOf(AggRecipeIngredient("flour", 50.0, servingUnit = "ml")),
+            )
+        val entries = listOf(AggEntry(date = "2025-04-01", mealType = "lunch", servings = 1.0, recipeId = "legacy"))
+
+        val totals = aggregateDailyNutrientTotals(entries, listOf(flour), listOf(recipe))
+
+        assertEquals(182.0, totals[0].calories, 1e-9)
+    }
 }

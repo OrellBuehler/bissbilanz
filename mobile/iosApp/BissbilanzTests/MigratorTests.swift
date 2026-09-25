@@ -135,7 +135,7 @@ struct MigratorTests {
         try seedLocalData(harness)
         stubAllCreates(harness)
         // A stale queued op must be cleared, not double-applied.
-        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x")))
+        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x", force: false)))
         try harness.context.save()
 
         let migrator = harness.migrator
@@ -306,7 +306,7 @@ struct MigratorTests {
     func wipeLocalDataClearsEverythingButKeepsMode() throws {
         let harness = try RepositoryHarness(mode: .synced)
         try seedLocalData(harness)
-        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x")))
+        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x", force: false)))
         try harness.context.save()
         harness.defaults.set(true, forKey: "migration_normalized")
 
@@ -359,7 +359,7 @@ struct MigratorTests {
     func discardWipesEverything() throws {
         let harness = try RepositoryHarness(mode: .local)
         try seedLocalData(harness)
-        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x")))
+        harness.context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f-x", force: false)))
         try harness.context.save()
 
         harness.migrator.discardLocalData()

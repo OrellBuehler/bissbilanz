@@ -28,6 +28,7 @@ enum BackgroundRefresher {
         let sleepRepository: SleepRepository
         let foodRepository: FoodRepository
         let supplementRepository: SupplementRepository
+        let reminderRepository: ReminderRepository
         let aiTaskStore: AiTaskStore
     }
 
@@ -110,7 +111,16 @@ enum BackgroundRefresher {
         // one of the few chances iOS gives us to top the rolling window back up — a
         // delivered-but-untouched notification does not wake the app.
         try? await deps.supplementRepository.refresh()
-        await SupplementReminderScheduler.refill(repository: deps.supplementRepository)
+        try? await deps.reminderRepository.refresh()
+        await SupplementReminderScheduler.refill(
+            supplementRepository: deps.supplementRepository,
+            reminders: ReminderScheduler.SchedulingDependencies(
+                reminderRepository: deps.reminderRepository,
+                weightRepository: deps.weightRepository,
+                sleepRepository: deps.sleepRepository,
+                entryRepository: deps.entryRepository
+            )
+        )
         // Not widget data either: a dismissed AI task means a meal the user asked the
         // assistant to log never got logged, and with no push channel a background pull
         // is the only way they hear about it before opening the app.

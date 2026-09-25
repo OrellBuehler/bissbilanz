@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import SupplementForm from '$lib/components/supplements/SupplementForm.svelte';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -58,6 +61,17 @@
 
 	onMount(() => {
 		supplementService.refresh();
+	});
+
+	// Opened from the reminders view via /supplements?edit=<id>.
+	$effect(() => {
+		if (!browser) return;
+		const editId = $page.url.searchParams.get('edit');
+		if (!editId || untrack(() => showForm)) return;
+		const target = supplements.find((s) => s.id === editId);
+		if (!target) return;
+		openEdit(target);
+		goto('/supplements', { replaceState: true });
 	});
 </script>
 

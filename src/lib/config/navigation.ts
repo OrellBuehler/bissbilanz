@@ -47,7 +47,8 @@ export const breadcrumbLabelKeys = [
 	'maintenance',
 	'mcp',
 	'ai-tasks',
-	'recipe-suggestions'
+	'recipe-suggestions',
+	'reminders'
 ] as const;
 
 export function getNavGroups(): NavGroup[] {
