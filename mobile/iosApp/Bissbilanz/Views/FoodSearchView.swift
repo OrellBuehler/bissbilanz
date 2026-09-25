@@ -690,6 +690,8 @@ struct LogFoodForm: View {
             NutrientSection(title: L10n.minerals, nutrients: scaled(food.mineralNutrients))
             NutrientSection(title: L10n.vitamins, nutrients: scaled(food.vitaminNutrients))
             NutrientSection(title: L10n.other, nutrients: scaled(food.otherNutrients))
+
+            FoodQualitySection(food: food)
         }
         .task { loadMealTypes() }
         .navigationTitle(L10n.logFood)
