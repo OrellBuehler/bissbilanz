@@ -23,6 +23,8 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { requestQuickAction, consumeQuickAction } from '$lib/stores/command-palette.svelte';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	type EditingRecipe = {
 		id: string;
@@ -195,6 +197,15 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
+	{#if !isDismissed('recipes')}
+		<HintCard
+			id="recipes"
+			title={m.hint_recipes_title()}
+			text={m.hint_recipes_body()}
+			href="/help/recipes"
+		/>
+	{/if}
+
 	{#if recipes.length > 0}
 		<div class="flex gap-2">
 			<div class="relative flex-1">

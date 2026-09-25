@@ -248,10 +248,12 @@ async function del(id: string) {
 }
 
 async function copyEntries(fromDate: string, toDate: string) {
-	await api.POST('/api/entries/copy', {
+	const { data, error } = await api.POST('/api/entries/copy', {
 		params: { query: { fromDate, toDate } }
 	});
+	if (error) throw new Error((error as { error?: string }).error ?? 'copy_failed');
 	await refresh(toDate);
+	return data?.entries ?? [];
 }
 
 export const entryService = {

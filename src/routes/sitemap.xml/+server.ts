@@ -1,10 +1,17 @@
 import { locales } from '$lib/paraglide/runtime';
 import { absoluteUrl } from '$lib/seo';
+import { helpGuides } from '$lib/help/guides';
 import type { RequestHandler } from './$types';
 
 const PAGES = [
 	{ path: '/', changefreq: 'weekly', priority: '1.0' },
 	{ path: '/support', changefreq: 'monthly', priority: '0.6' },
+	{ path: '/help', changefreq: 'monthly', priority: '0.6' },
+	...helpGuides.map((guide) => ({
+		path: `/help/${guide.slug}`,
+		changefreq: 'monthly',
+		priority: '0.5'
+	})),
 	{ path: '/privacy', changefreq: 'yearly', priority: '0.3' },
 	{ path: '/account-deletion', changefreq: 'yearly', priority: '0.2' }
 ];

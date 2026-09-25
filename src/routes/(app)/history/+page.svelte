@@ -13,6 +13,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	type MacroKey = 'protein' | 'carbs' | 'fat' | 'fiber';
 	type DayStatus = 'on-target' | 'off-target' | 'logged' | 'none';
@@ -142,6 +144,15 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
+	{#if !isDismissed('logging')}
+		<HintCard
+			id="logging"
+			title={m.hint_logging_title()}
+			text={m.hint_logging_body()}
+			href="/help/logging"
+		/>
+	{/if}
+
 	<!-- Calendar & Averages -->
 	<div class="grid gap-6 md:grid-cols-2">
 		<Calendar
