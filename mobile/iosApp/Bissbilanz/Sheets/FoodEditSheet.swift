@@ -286,9 +286,11 @@ struct FoodEditForm: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+                .accessibilityLabel("\(label) (\(unit))")
             Text(unit)
                 .foregroundStyle(.secondary)
                 .frame(width: 35, alignment: .leading)
+                .accessibilityHidden(true)
         }
     }
 
