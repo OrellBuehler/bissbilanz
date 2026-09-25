@@ -11,15 +11,18 @@ import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
 import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.RecipeField
 import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
@@ -149,9 +152,49 @@ class RecipeRepository(
         return temp
     }
 
+    /**
+     * Copies a recipe (ingredients, servings, cooked weight) under a new name, not
+     * favorited, without its image — two recipes must never share one `imageUrl`,
+     * since the server's `unlinkUpload` has no reference count and would delete the
+     * file out from under whichever recipe keeps it once the other's image changes
+     * or is deleted. Goes through [createRecipe] so it works offline the same way,
+     * and returns a temp-id [RecipeDetail] the caller can immediately open for editing.
+     */
+    suspend fun duplicateRecipe(
+        id: String,
+        name: String,
+    ): RecipeDetail {
+        val source = getRecipe(id)
+        return createRecipe(
+            RecipeCreate(
+                name = name,
+                totalServings = source.totalServings,
+                ingredients = source.ingredients.toIngredientInputs(),
+                isFavorite = false,
+                cookedWeight = source.cookedWeight,
+            ),
+        )
+    }
+
+    private fun List<RecipeIngredient>.toIngredientInputs(): List<RecipeIngredientInput> =
+        map { ing ->
+            RecipeIngredientInput(
+                foodId = ing.foodId,
+                quantity = ing.quantity,
+                servingUnit = ServingUnit.valueOf(ing.servingUnit.name),
+            )
+        }
+
+    /**
+     * [cleared] names the fields the user deliberately emptied. `RecipeUpdate`
+     * represents both "unchanged" and "cleared" as null, so without it a cleared
+     * `cookedWeight` keeps its old value both here and on the server. See
+     * `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateRecipe(
         id: String,
         recipe: RecipeUpdate,
+        cleared: Set<RecipeField> = emptySet(),
     ): RecipeDetail {
         val existing = getRecipeCached(id)
         val result =
@@ -167,6 +210,8 @@ class RecipeRepository(
                             // this way would be dropped. [setImage] owns the field.
                             imageUrl = existing.imageUrl,
                             ingredients = recipe.ingredients?.toRecipeIngredients() ?: existing.ingredients,
+                            cookedWeight =
+                                cleared.pick(RecipeField.COOKED_WEIGHT, recipe.cookedWeight, existing.cookedWeight),
                         ).withRecomputedMacros()
                 withContext(Dispatchers.IO) { cacheRecipe(updated) }
                 updated
@@ -178,6 +223,7 @@ class RecipeRepository(
                     totalServings = recipe.totalServings ?: 1.0,
                     isFavorite = recipe.isFavorite ?: false,
                     imageUrl = recipe.imageUrl,
+                    cookedWeight = recipe.cookedWeight,
                     calories = 0.0,
                     protein = 0.0,
                     carbs = 0.0,
@@ -187,12 +233,19 @@ class RecipeRepository(
                 ).withRecomputedMacros()
             }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, recipe)
+            coalesceQueuedCreate(id, recipe, cleared)
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe)))
+            syncQueue.enqueue(SyncOperation.UpdateRecipe(id, json.encodeToString(recipe), cleared.jsonKeys()))
         }
         return result
     }
+
+    /** The cache-side counterpart of the explicit null a partial-update request carries. */
+    private fun <T> Set<RecipeField>.pick(
+        field: RecipeField,
+        updated: T?,
+        existing: T?,
+    ): T? = if (field in this) null else updated ?: existing
 
     /**
      * Attaches or removes a recipe's image, as a partial PATCH — a full
@@ -305,16 +358,20 @@ class RecipeRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: RecipeUpdate,
+        cleared: Set<RecipeField> = emptySet(),
     ) {
         syncQueue.rewriteQueuedCreate("recipes", tempId) { op ->
             val create = op as? SyncOperation.CreateRecipe ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<RecipeCreate>(create.body) ?: return@rewriteQueuedCreate null
+            // A create body needs no explicit nulls: an omitted field is already
+            // "no value", so nulling the merged property is the whole clear.
             val merged =
                 body.copy(
                     name = update.name ?: body.name,
                     totalServings = update.totalServings ?: body.totalServings,
                     ingredients = update.ingredients ?: body.ingredients,
                     isFavorite = update.isFavorite ?: body.isFavorite,
+                    cookedWeight = cleared.pick(RecipeField.COOKED_WEIGHT, update.cookedWeight, body.cookedWeight),
                 )
             create.copy(body = json.encodeToString(merged))
         }
@@ -343,6 +400,7 @@ class RecipeRepository(
             totalServings = recipe.totalServings,
             isFavorite = recipe.isFavorite ?: false,
             imageUrl = recipe.imageUrl,
+            cookedWeight = recipe.cookedWeight,
             calories = 0.0,
             protein = 0.0,
             carbs = 0.0,

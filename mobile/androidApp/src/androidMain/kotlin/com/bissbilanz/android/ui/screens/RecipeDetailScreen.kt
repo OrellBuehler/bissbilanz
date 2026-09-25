@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -34,6 +35,8 @@ import com.bissbilanz.repository.DeleteOutcome
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.caloriesPerHundredGrams
+import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -64,6 +67,9 @@ fun RecipeDetailScreen(
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
     val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
     val deleteFailedMessage = stringResource(R.string.recipe_detail_delete_failed)
+    val duplicateFailedMessage = stringResource(R.string.recipe_detail_duplicate_failed)
+    val copyNameTemplate = stringResource(R.string.recipe_copy_name_format)
+    var isDuplicating by remember { mutableStateOf(false) }
 
     LaunchedEffect(recipeId) {
         isLoading = true
@@ -150,6 +156,7 @@ fun RecipeDetailScreen(
             },
             macros = recipe?.let { MealPickerMacros(it.calories, it.protein, it.carbs, it.fat, it.fiber) },
             imageUrl = recipe?.imageUrl,
+            gramsPerServing = recipe?.let { cookedWeightServingSize(it.cookedWeight, it.totalServings) },
         )
     }
 
@@ -218,6 +225,29 @@ fun RecipeDetailScreen(
                         IconButton(onClick = { showEditSheet = true }) {
                             Icon(Icons.Default.Edit, stringResource(R.string.action_edit))
                         }
+                        IconButton(
+                            enabled = !isDuplicating,
+                            onClick = {
+                                isDuplicating = true
+                                scope.launch {
+                                    try {
+                                        val copy =
+                                            recipeRepo.duplicateRecipe(
+                                                recipeId,
+                                                String.format(copyNameTemplate, recipe!!.name),
+                                            )
+                                        navController.navigate("recipe/${copy.id}")
+                                    } catch (e: Exception) {
+                                        if (e is kotlinx.coroutines.CancellationException) throw e
+                                        errorReporter.captureException(e)
+                                        snackbarHostState.showSnackbar(duplicateFailedMessage)
+                                    }
+                                    isDuplicating = false
+                                }
+                            },
+                        ) {
+                            Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_detail_duplicate))
+                        }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
                         }
@@ -279,6 +309,23 @@ fun RecipeDetailScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+
+                        r.cookedWeight?.let { cookedWeight ->
+                            val perHundredG = caloriesPerHundredGrams(r.calories, cookedWeight, r.totalServings)
+                            Text(
+                                if (perHundredG != null) {
+                                    stringResource(
+                                        R.string.recipe_detail_cooked_weight,
+                                        cookedWeight.toInt(),
+                                        perHundredG.toInt(),
+                                    )
+                                } else {
+                                    stringResource(R.string.recipe_detail_cooked_weight_no_calories, cookedWeight.toInt())
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 

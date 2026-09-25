@@ -482,6 +482,9 @@
     <string name="meal_picker_log_food">Lebensmittel erfassen</string>
     <string name="meal_picker_meal_label">Mahlzeit</string>
     <string name="meal_picker_servings_label">Portionen</string>
+    <string name="meal_picker_mode_servings">Portionen</string>
+    <string name="meal_picker_mode_grams">Gramm</string>
+    <string name="meal_picker_grams_label">Gegessene Gramm</string>
     <string name="meal_picker_log">Erfassen</string>
     <string name="meal_picker_confirm">Bestätigen</string>
 
@@ -634,6 +637,8 @@
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
     <string name="recipe_list_sort_calories">Kalorien/Portion</string>
+    <string name="recipe_list_duplicate">Rezept duplizieren</string>
+    <string name="recipe_list_duplicate_failed">Rezept konnte nicht dupliziert werden</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Rezept konnte nicht geladen werden</string>
@@ -644,6 +649,11 @@
     <string name="recipe_detail_default_title">Rezept</string>
     <string name="recipe_detail_log_recipe">Rezept erfassen</string>
     <string name="recipe_detail_servings">%1$d Portionen</string>
+    <string name="recipe_detail_duplicate">Rezept duplizieren</string>
+    <string name="recipe_detail_duplicate_failed">Rezept konnte nicht dupliziert werden</string>
+    <string name="recipe_detail_cooked_weight">%1$d g gegart · ~%2$d kcal/100g</string>
+    <string name="recipe_detail_cooked_weight_no_calories">%1$d g gegart</string>
+    <string name="recipe_copy_name_format">%1$s (Kopie)</string>
 
     <!-- Recipe edit sheet -->
     <string name="recipe_edit_load_failed">Rezept konnte nicht geladen werden</string>
@@ -654,6 +664,9 @@
     <string name="recipe_edit_create_title">Rezept erstellen</string>
     <string name="recipe_edit_name">Rezeptname *</string>
     <string name="recipe_edit_total_servings">Gesamtportionen</string>
+    <string name="recipe_edit_cooked_weight">Fertiggewicht (g)</string>
+    <string name="recipe_edit_cooked_weight_hint">Wiege das fertige Gericht, um in Gramm zu protokollieren</string>
+    <string name="recipe_edit_cooked_weight_per_100g">~%1$d kcal pro 100 g</string>
     <string name="recipe_edit_ingredients_count">Zutaten (%1$d)</string>
     <string name="recipe_edit_remove">Entfernen</string>
     <string name="recipe_edit_amount">Menge</string>

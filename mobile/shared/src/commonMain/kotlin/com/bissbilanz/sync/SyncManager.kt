@@ -467,7 +467,13 @@ class SyncManager(
             }
 
             is SyncOperation.UpdateRecipe -> {
-                api.updateRecipe(op.id, json.decodeFromString<RecipeUpdate>(op.body), idempotencyKey, clientEditedAt)
+                api.updateRecipe(
+                    op.id,
+                    json.decodeFromString<RecipeUpdate>(op.body),
+                    idempotencyKey,
+                    clientEditedAt,
+                    op.clearedKeys,
+                )
             }
 
             is SyncOperation.SetRecipeImage -> {

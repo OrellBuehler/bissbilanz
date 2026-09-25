@@ -64,6 +64,7 @@ import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.repository.StatsRepository
+import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolveDefaultMeal
@@ -568,6 +569,7 @@ fun RecipeSuggestionsWidget(
             imageUrl = recipe.imageUrl,
             initialServings = suggested.suggestion.servings,
             initialMeal = resolveDefaultMeal(prefs),
+            gramsPerServing = cookedWeightServingSize(recipe.cookedWeight, recipe.totalServings),
         )
     }
 

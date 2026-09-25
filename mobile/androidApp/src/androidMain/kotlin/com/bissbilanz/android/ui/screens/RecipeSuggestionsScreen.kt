@@ -36,6 +36,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.RecipeSuggestionsViewModel
 import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
+import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.toDisplayString
 import org.koin.androidx.compose.koinViewModel
@@ -78,6 +79,7 @@ fun RecipeSuggestionsScreen(navController: NavController) {
             imageUrl = recipe.imageUrl,
             initialServings = suggested.suggestion.servings,
             initialMeal = viewModel.resolveDefaultMeal(),
+            gramsPerServing = cookedWeightServingSize(recipe.cookedWeight, recipe.totalServings),
         )
     }
 

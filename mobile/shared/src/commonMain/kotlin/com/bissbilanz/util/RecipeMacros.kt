@@ -70,3 +70,39 @@ fun RecipeDetail.serverTotalsToPerServing(): RecipeDetail {
         fiber = fiber / divisor,
     )
 }
+
+/**
+ * Grams per serving implied by a recipe's cooked weight — for offering "log by
+ * grams eaten" as an alternative to servings. `servings = grams / servingSize`.
+ * Returns null when there is no cooked weight (or [totalServings] is invalid),
+ * matching the web's `cookedWeightServingSize` in `src/lib/utils/recipe-yield.ts`.
+ */
+fun cookedWeightServingSize(
+    cookedWeight: Double?,
+    totalServings: Double,
+): Double? {
+    if (cookedWeight == null || cookedWeight <= 0.0) return null
+    if (totalServings <= 0.0) return null
+    return cookedWeight / totalServings
+}
+
+/** Servings implied by a target weight in grams — the inverse of [cookedWeightServingSize]. */
+fun gramsToServings(
+    grams: Double,
+    cookedWeight: Double?,
+    totalServings: Double,
+): Double? {
+    val servingSize = cookedWeightServingSize(cookedWeight, totalServings) ?: return null
+    if (grams <= 0.0) return null
+    return grams / servingSize
+}
+
+/** Calories per 100 g of the finished dish, given already per-serving calories. */
+fun caloriesPerHundredGrams(
+    perServingCalories: Double,
+    cookedWeight: Double?,
+    totalServings: Double,
+): Double? {
+    val servingSize = cookedWeightServingSize(cookedWeight, totalServings) ?: return null
+    return (perServingCalories / servingSize) * 100.0
+}

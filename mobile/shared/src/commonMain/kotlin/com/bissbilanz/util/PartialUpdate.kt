@@ -55,6 +55,13 @@ enum class SupplementField(
     SCHEDULE_DAYS("scheduleDays"),
 }
 
+/** Clearable fields of `RecipeUpdate`. */
+enum class RecipeField(
+    override val jsonKey: String,
+) : ClearableField {
+    COOKED_WEIGHT("cookedWeight"),
+}
+
 /** Clearable fields of the `DayPropertiesSet` body the day-properties PUT sends. */
 enum class DayPropertiesField(
     override val jsonKey: String,

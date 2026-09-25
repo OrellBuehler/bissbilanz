@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -326,5 +327,58 @@ class RecipeRepositoryTest {
             assertEquals(created.ingredients, fetched.ingredients)
             assertEquals(65.0, fetched.calories)
             assertTrue(syncQueue.pendingCount() == 0L) // Local mode never queues uploads.
+        }
+
+    // -------------------------------------------------------------------------------
+    // duplicateRecipe()
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun duplicateRecipeCopiesIngredientsServingsAndCookedWeightNotFavoriteOrImage() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created =
+                repository.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 4.0,
+                        ingredients = listOf(RecipeIngredientInput("temp_f1", 200.0, ServingUnit.g)),
+                        isFavorite = true,
+                        imageUrl = "/uploads/a.webp",
+                        cookedWeight = 800.0,
+                    ),
+                )
+
+            val copy = repository.duplicateRecipe(created.id, "Rice Bowl (copy)")
+
+            assertEquals("Rice Bowl (copy)", copy.name)
+            assertEquals(4.0, copy.totalServings)
+            assertEquals(800.0, copy.cookedWeight)
+            assertEquals(listOf("temp_f1"), copy.ingredients.map { it.foodId })
+            assertEquals(listOf(200.0), copy.ingredients.map { it.quantity })
+            assertEquals(65.0, copy.calories)
+            assertFalse(copy.isFavorite)
+            assertNull(copy.imageUrl)
+            // A distinct row from the source — not an in-place rename.
+            assertTrue(copy.id != created.id)
+            assertNotNull(db.userDataDatabaseQueries.selectRecipeById(created.id).executeAsOneOrNull())
+        }
+
+    @Test
+    fun duplicateRecipeWithoutACookedWeightLeavesItNull() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created =
+                repository.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+                    ),
+                )
+
+            val copy = repository.duplicateRecipe(created.id, "Rice Bowl (copy)")
+
+            assertNull(copy.cookedWeight)
         }
 }

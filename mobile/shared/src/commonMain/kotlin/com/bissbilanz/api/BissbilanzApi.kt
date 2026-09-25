@@ -676,10 +676,17 @@ class BissbilanzApi(
         recipe: RecipeUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): RecipeDetail {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: RecipeResponse = patch("/api/recipes/$id", recipe, key, editedAt)
+        val response: RecipeResponse =
+            patchRawJson(
+                "/api/recipes/$id",
+                json.encodePartialUpdate(recipe, clearedKeys).toString(),
+                key,
+                editedAt,
+            )
         return response.recipe
     }
 

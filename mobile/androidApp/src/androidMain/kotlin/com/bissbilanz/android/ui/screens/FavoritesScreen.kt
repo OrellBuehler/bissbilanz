@@ -32,6 +32,7 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
+import com.bissbilanz.util.cookedWeightServingSize
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -87,6 +88,7 @@ fun FavoritesScreen(navController: NavController) {
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
             imageUrl = recipe.imageUrl,
+            gramsPerServing = cookedWeightServingSize(recipe.cookedWeight, recipe.totalServings),
         )
     }
 
@@ -129,6 +131,7 @@ fun FavoritesScreen(navController: NavController) {
             showDateTimeNotes = false,
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
             imageUrl = recipe.imageUrl,
+            gramsPerServing = cookedWeightServingSize(recipe.cookedWeight, recipe.totalServings),
         )
     }
 
