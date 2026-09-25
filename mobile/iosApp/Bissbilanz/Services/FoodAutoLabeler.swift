@@ -1,14 +1,16 @@
 import Foundation
 
 /// Device-local toggle for whether a newly created/edited food with no
-/// labels yet gets an automatic on-device/Private Cloud Compute labelling
-/// pass (`FoodAutoLabeler.labelIfNeeded`). Same local-only reasoning as
-/// `PrivateCloudComputeSettings`: whether this device runs the model at all
-/// is a property of the device, not the account.
+/// labels yet gets an automatic labelling pass (`FoodAutoLabeler.labelIfNeeded`),
+/// using whichever provider `FoodLabelProviderSettings.selected` names. Same
+/// local-only reasoning as `PrivateCloudComputeSettings`: whether this device
+/// runs the model at all is a property of the device, not the account.
 ///
 /// Defaults to on: the labeller only ever fires when the food has no labels
-/// yet (never overwrites a user's or a scan's own choice) and no AI
-/// assistant is connected to label it with a bigger model instead.
+/// yet (never overwrites a user's or a scan's own choice) and the selected
+/// provider can actually produce something (`FoodLabeler.isAvailable`) — which
+/// is false while the provider is "AI assistant (MCP)", leaving it to the
+/// assistant exactly like before.
 enum FoodAutoLabelSettings {
     private static let key = "food_auto_label_enabled"
 
@@ -30,23 +32,24 @@ enum FoodAutoLabelSettings {
 enum FoodAutoLabeler {
     static func labelIfNeeded(
         _ food: Food,
-        mcpConnected: Bool,
         labeler: FoodLabeler,
-        foodRepository: FoodRepository
+        foodRepository: FoodRepository,
+        foodImageLoader: FoodImageLoader
     ) {
         guard FoodAutoLabelSettings.isEnabled,
-              !mcpConnected,
               (food.labels ?? []).isEmpty,
               labeler.isAvailable
         else { return }
 
         Task {
             do {
+                let image = await foodImageLoader.image(for: food.imageUrl)
                 let suggestions = try await labeler.labels(for: FoodLabelInput(
                     name: food.name,
                     brand: food.brand,
                     servingUnit: food.servingUnit,
-                    ingredientsText: food.ingredientsText
+                    ingredientsText: food.ingredientsText,
+                    image: image
                 ))
                 guard !suggestions.isEmpty else { return }
                 try await foodRepository.addGeneratedLabels(id: food.id, labels: suggestions)

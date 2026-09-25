@@ -282,31 +282,65 @@ struct SettingsView: View {
                     }
                 }
 
-                // Food labels: auto-labelling new foods, plus a sweep for
-                // whatever's still unlabelled. Shown whenever a labeller could
-                // run at all (on-device or Private Cloud Compute) — hidden
-                // entirely otherwise, since both rows would do nothing.
-                if foodLabeler.isAvailable {
+                // Food labels: which model does the labelling, auto-labelling
+                // new foods, plus a sweep for whatever's still unlabelled.
+                // Shown whenever there's a provider worth picking at all —
+                // on-device or Private Cloud Compute support, or an account
+                // that could have an AI assistant connected — hidden entirely
+                // otherwise, since every row would do nothing.
+                if foodLabeler.deviceCapableOfLabeling || !appModeManager.isLocal {
                     Section {
-                        Toggle(L10n.autoLabelToggleLabel, isOn: Binding(
-                            get: { FoodAutoLabelSettings.isEnabled },
-                            set: { FoodAutoLabelSettings.isEnabled = $0 }
-                        ))
-                        NavigationLink {
-                            LabelUnlabeledFoodsView()
-                        } label: {
-                            HStack {
-                                Text(L10n.labelUnlabeledFoods)
-                                Spacer()
-                                Text(L10n.unlabeledFoodCount(foodRepository.unlabeledLocalFoods().count))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        Picker(selection: Binding(
+                            get: { FoodLabelProviderSettings.selected },
+                            set: { FoodLabelProviderSettings.selected = $0 }
+                        )) {
+                            Text(L10n.foodLabelProviderAutomatic).tag(FoodLabelProvider.automatic)
+                            Text(L10n.foodLabelProviderOnDevice).tag(FoodLabelProvider.onDeviceOnly)
+                            // Hidden, not just disabled, when Apple doesn't
+                            // authorize Private Cloud Compute here (e.g. no
+                            // entitlement) — same gating as the AI Estimation
+                            // toggle above.
+                            if PrivateCloudComputeSettings.isSupported {
+                                Text(L10n.foodLabelProviderPrivateCloud).tag(FoodLabelProvider.privateCloudCompute)
                             }
+                            // MCP is a server-only feature — hidden in Local mode.
+                            if !appModeManager.isLocal {
+                                Text(L10n.foodLabelProviderMcp).tag(FoodLabelProvider.mcp)
+                            }
+                        } label: {
+                            Label(L10n.foodLabelProviderTitle, systemImage: "sparkles")
                         }
+                        .pickerStyle(.menu)
                     } header: {
                         Text(L10n.foodLabelsSectionTitle)
                     } footer: {
-                        Text(L10n.autoLabelToggleFooter)
+                        Text(L10n.foodLabelProviderFooter)
+                    }
+
+                    // The two rows below only do anything once the chosen
+                    // provider can actually produce a result right now
+                    // (`isAvailable` — false for "AI assistant (MCP)" by
+                    // design, or for a provider this device can't run).
+                    if foodLabeler.isAvailable {
+                        Section {
+                            Toggle(L10n.autoLabelToggleLabel, isOn: Binding(
+                                get: { FoodAutoLabelSettings.isEnabled },
+                                set: { FoodAutoLabelSettings.isEnabled = $0 }
+                            ))
+                            NavigationLink {
+                                LabelUnlabeledFoodsView()
+                            } label: {
+                                HStack {
+                                    Text(L10n.labelUnlabeledFoods)
+                                    Spacer()
+                                    Text(L10n.unlabeledFoodCount(foodRepository.unlabeledLocalFoods().count))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } footer: {
+                            Text(L10n.autoLabelToggleFooter)
+                        }
                     }
                 }
 

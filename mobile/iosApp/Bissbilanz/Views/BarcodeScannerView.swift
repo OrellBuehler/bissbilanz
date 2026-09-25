@@ -9,7 +9,7 @@ struct BarcodeScannerView: View {
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AppModeManager.self) private var appModeManager
     @Environment(FoodLabeler.self) private var foodLabeler
-    @Environment(McpConnectionStatus.self) private var mcpConnectionStatus
+    @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(\.dismiss) private var dismiss
 
     @State private var scannedBarcode: String?
@@ -237,9 +237,9 @@ struct BarcodeScannerView: View {
                     // No-ops unless the OFF import left it with no labels.
                     FoodAutoLabeler.labelIfNeeded(
                         created,
-                        mcpConnected: mcpConnectionStatus.isConnected,
                         labeler: foodLabeler,
-                        foodRepository: foodRepository
+                        foodRepository: foodRepository,
+                        foodImageLoader: foodImageLoader
                     )
                     path.append(.log(created))
                 } else {

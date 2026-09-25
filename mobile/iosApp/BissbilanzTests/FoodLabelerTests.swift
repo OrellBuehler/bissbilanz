@@ -102,3 +102,56 @@ struct FoodLabelerTests {
 
     #endif
 }
+
+/// Coverage for the device-local provider choice (`SettingsView`'s
+/// "Labelling Method" picker) that `FoodLabeler.isAvailable`/`labels(for:)`,
+/// `FoodAutoLabeler` and `LabelUnlabeledFoodsView` all read. Backed by plain
+/// `UserDefaults.standard`, like `PrivateCloudComputeSettings`/
+/// `FoodAutoLabelSettings` — the raw values are persisted, so a rename here
+/// would silently reset every user's choice back to the default.
+@Suite("Food label provider setting")
+struct FoodLabelProviderSettingsTests {
+    private static let key = "food_label_provider"
+
+    @Test("Defaults to automatic, and round-trips each provider's raw value")
+    func defaultsAndRoundTrips() {
+        let original = UserDefaults.standard.string(forKey: Self.key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: Self.key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.key)
+            }
+        }
+
+        UserDefaults.standard.removeObject(forKey: Self.key)
+        #expect(FoodLabelProviderSettings.selected == .automatic)
+
+        let expectedRawValues: [FoodLabelProvider: String] = [
+            .automatic: "automatic",
+            .onDeviceOnly: "on_device",
+            .privateCloudCompute: "private_cloud",
+            .mcp: "mcp",
+        ]
+        for (provider, rawValue) in expectedRawValues {
+            FoodLabelProviderSettings.selected = provider
+            #expect(FoodLabelProviderSettings.selected == provider)
+            #expect(UserDefaults.standard.string(forKey: Self.key) == rawValue)
+        }
+    }
+
+    @Test("An unrecognized stored value falls back to automatic")
+    func unrecognizedValueFallsBackToAutomatic() {
+        let original = UserDefaults.standard.string(forKey: Self.key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: Self.key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.key)
+            }
+        }
+
+        UserDefaults.standard.set("not_a_real_provider", forKey: Self.key)
+        #expect(FoodLabelProviderSettings.selected == .automatic)
+    }
+}
