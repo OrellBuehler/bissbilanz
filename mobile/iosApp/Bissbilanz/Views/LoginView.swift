@@ -74,6 +74,7 @@ struct LoginView: View {
                     .scaledToFit()
                     .frame(width: brandIconSize, height: brandIconSize)
                     .clipShape(RoundedRectangle(cornerRadius: brandIconSize * 0.22, style: .continuous))
+                    .accessibilityHidden(true)
 
                 Text(L10n.appName)
                     .font(.largeTitle)
