@@ -35,6 +35,7 @@ import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
+import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
@@ -162,6 +163,7 @@ class BissbilanzApplication :
                 viewModelOf(::InsightsViewModel)
                 viewModelOf(::FoodSearchViewModel)
                 viewModelOf(::FavoritesViewModel)
+                viewModelOf(::FoodDuplicatesViewModel)
                 viewModelOf(::RecipeSuggestionsViewModel)
                 viewModelOf(::WeightViewModel)
                 viewModelOf(::SleepViewModel)

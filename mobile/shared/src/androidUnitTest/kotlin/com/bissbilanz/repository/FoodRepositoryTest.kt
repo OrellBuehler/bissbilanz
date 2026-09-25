@@ -6,6 +6,7 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -52,6 +53,7 @@ class FoodRepositoryTest {
                 NoopErrorReporter(),
                 appModeManager(),
                 mockk<OpenFoodFactsClient>(relaxed = true),
+                mockk<ConnectivityProvider>(relaxed = true),
                 kotlinx.coroutines.Dispatchers.Unconfined,
             )
     }

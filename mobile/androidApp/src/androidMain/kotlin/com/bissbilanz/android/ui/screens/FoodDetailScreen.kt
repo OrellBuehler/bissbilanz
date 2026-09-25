@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
@@ -38,12 +39,15 @@ import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
+import com.bissbilanz.android.ui.components.MergeConfirmDialog
+import com.bissbilanz.android.ui.components.MergeTargetSearchDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.DeleteOutcome
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodMergeUnavailableException
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.formatNutrient
@@ -82,6 +86,9 @@ fun FoodDetailScreen(
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
+    var showMergeTargetPicker by remember { mutableStateOf(false) }
+    var mergeTarget by remember { mutableStateOf<Food?>(null) }
+    var isMerging by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -92,6 +99,8 @@ fun FoodDetailScreen(
     val enrichFailedMessage = stringResource(R.string.food_detail_enrich_failed)
     val refreshFailedMessage = stringResource(R.string.food_detail_refresh_failed)
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
+    val mergeFailedMessage = stringResource(R.string.food_merge_failed)
+    val mergeOfflineMessage = stringResource(R.string.food_merge_unavailable_offline)
 
     LaunchedEffect(foodId) {
         isLoading = true
@@ -199,6 +208,46 @@ fun FoodDetailScreen(
         )
     }
 
+    if (showMergeTargetPicker && food != null) {
+        MergeTargetSearchDialog(
+            excludeId = foodId,
+            onDismiss = { showMergeTargetPicker = false },
+            onSelected = { target ->
+                showMergeTargetPicker = false
+                mergeTarget = target
+            },
+        )
+    }
+
+    mergeTarget?.let { target ->
+        MergeConfirmDialog(
+            message = stringResource(R.string.food_merge_confirm_message, food?.name ?: "", target.name),
+            isSubmitting = isMerging,
+            onConfirm = {
+                isMerging = true
+                scope.launch {
+                    try {
+                        foodRepo.mergeFoods(keeperId = target.id, sourceIds = listOf(foodId))
+                        refreshManager.refreshAll()
+                        mergeTarget = null
+                        navController.popBackStack()
+                    } catch (e: FoodMergeUnavailableException) {
+                        errorReporter.captureException(e)
+                        snackbarHostState.showSnackbar(mergeOfflineMessage)
+                        mergeTarget = null
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                        snackbarHostState.showSnackbar(mergeFailedMessage)
+                        mergeTarget = null
+                    }
+                    isMerging = false
+                }
+            },
+            onDismiss = { mergeTarget = null },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -258,6 +307,9 @@ fun FoodDetailScreen(
                                     Icon(Icons.Default.AutoAwesome, stringResource(R.string.food_detail_enrich))
                                 }
                             }
+                        }
+                        IconButton(onClick = { showMergeTargetPicker = true }) {
+                            Icon(Icons.AutoMirrored.Filled.CallMerge, stringResource(R.string.food_detail_merge))
                         }
                         IconButton(onClick = { showEditSheet = true }) {
                             Icon(Icons.Default.Edit, stringResource(R.string.action_edit))

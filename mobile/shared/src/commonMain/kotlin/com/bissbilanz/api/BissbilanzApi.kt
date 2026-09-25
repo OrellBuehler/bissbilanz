@@ -29,8 +29,12 @@ import com.bissbilanz.api.generated.model.FastingSessionsResponse
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDiversityResponse
+import com.bissbilanz.api.generated.model.FoodDuplicateGroup
+import com.bissbilanz.api.generated.model.FoodDuplicatesResponse
 import com.bissbilanz.api.generated.model.FoodLabelsSet
 import com.bissbilanz.api.generated.model.FoodLabelsSetResponse
+import com.bissbilanz.api.generated.model.FoodMerge
+import com.bissbilanz.api.generated.model.FoodMergeOverrides
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
@@ -468,6 +472,38 @@ class BissbilanzApi(
     suspend fun searchFoods(query: String): List<Food> {
         val response: FoodsListResponse = get("/api/foods") { parameter("q", query) }
         return response.foods
+    }
+
+    /**
+     * Merges [sourceIds] into [keeperId]: every food_entries/recipe_ingredients/
+     * supplement_ingredients row referencing a source is re-pointed to the keeper and
+     * the source rows are permanently deleted server-side (`src/lib/server/
+     * food-merge.ts`). Returns the merged keeper.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun mergeFoods(
+        keeperId: String,
+        sourceIds: List<String>,
+        overrides: FoodMergeOverrides? = null,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Food {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: FoodResponse =
+            post(
+                "/api/foods/merge",
+                FoodMerge(keeperId = keeperId, sourceIds = sourceIds, overrides = overrides),
+                key,
+                editedAt,
+            )
+        return response.food
+    }
+
+    /** Candidate duplicate groups across the user's whole food set (`src/lib/server/food-duplicates.ts`). */
+    suspend fun getFoodDuplicates(): List<FoodDuplicateGroup> {
+        val response: FoodDuplicatesResponse = get("/api/foods/duplicates")
+        return response.groups
     }
 
     suspend fun getRecentFoods(limit: Int = 20): List<FoodRecent> {

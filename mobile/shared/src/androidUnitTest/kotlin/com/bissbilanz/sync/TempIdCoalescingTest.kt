@@ -69,6 +69,7 @@ class TempIdCoalescingTest {
             NoopErrorReporter(),
             appModeManager(),
             mockk<OpenFoodFactsClient>(relaxed = true),
+            mockk<ConnectivityProvider>(relaxed = true),
             Dispatchers.Unconfined,
         )
 

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.JoinFull
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -136,7 +137,13 @@ fun FoodSearchScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.food_search_title), scrollBehavior) },
+        topBar = {
+            AppTopBar(stringResource(R.string.food_search_title), scrollBehavior) {
+                IconButton(onClick = { navController.navigate("food-duplicates") }) {
+                    Icon(Icons.Default.JoinFull, stringResource(R.string.food_duplicates_title))
+                }
+            }
+        },
         floatingActionButton = {
             // A menu rather than a single action: the Foods tab is the entry
             // point for creating recipes too, matching the iOS toolbar menu.

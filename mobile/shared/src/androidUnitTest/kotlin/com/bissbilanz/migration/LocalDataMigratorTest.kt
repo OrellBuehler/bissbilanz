@@ -25,6 +25,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
+import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
@@ -454,6 +455,7 @@ class LocalDataMigratorTest {
                     NoopErrorReporter(),
                     appMode,
                     mockk(relaxed = true),
+                    mockk<ConnectivityProvider>(relaxed = true),
                     kotlinx.coroutines.Dispatchers.Unconfined,
                 )
             val recipeRepo = com.bissbilanz.repository.RecipeRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appMode)
@@ -542,6 +544,7 @@ class LocalDataMigratorTest {
                     NoopErrorReporter(),
                     appMode,
                     mockk(relaxed = true),
+                    mockk<ConnectivityProvider>(relaxed = true),
                     kotlinx.coroutines.Dispatchers.Unconfined,
                 )
             val recipeRepo = com.bissbilanz.repository.RecipeRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appMode)

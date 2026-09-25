@@ -605,6 +605,29 @@
     <string name="food_detail_ingredients">Ingredients</string>
     <string name="food_detail_collapse">Collapse</string>
     <string name="food_detail_expand">Expand</string>
+    <string name="food_detail_merge">Merge into…</string>
+
+    <!-- Food merge (shared by the food detail screen and the duplicates screen) -->
+    <string name="food_merge_pick_keeper">Choose keeper</string>
+    <string name="food_merge_search_placeholder">Search foods to merge into…</string>
+    <string name="food_merge_no_results">No matching foods.</string>
+    <string name="food_merge_confirm_title">Merge foods</string>
+    <string name="food_merge_confirm_message">This will merge \"%1$s\" into \"%2$s\". \"%1$s\" will be permanently deleted, and any diary entries, recipes, or labels referencing it will move to \"%2$s\". This cannot be undone.</string>
+    <string name="food_merge_confirm">Merge</string>
+    <string name="food_merge_success">Foods merged.</string>
+    <string name="food_merge_failed">Could not merge foods.</string>
+    <string name="food_merge_unavailable_offline">Merging foods requires an internet connection.</string>
+
+    <!-- Food duplicates screen -->
+    <string name="food_duplicates_title">Duplicate foods</string>
+    <string name="food_duplicates_description">Foods that look like the same product. Pick one to keep — the others will be merged into it.</string>
+    <string name="food_duplicates_empty">No duplicates detected. Nice and tidy.</string>
+    <string name="food_duplicates_load_failed">Failed to load duplicate foods</string>
+    <string name="food_duplicates_reason_barcode">Same barcode</string>
+    <string name="food_duplicates_reason_name_brand">Same name and brand</string>
+    <string name="food_duplicates_reason_similar">Similar name and macros</string>
+    <string name="food_duplicates_resolve">Resolve</string>
+    <string name="food_duplicates_merge_confirm_message">This will merge %1$d other food(s) in this group into \"%2$s\". They will be permanently deleted, and any diary entries, recipes, or labels referencing them will move to \"%2$s\". This cannot be undone.</string>
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Create food</string>
