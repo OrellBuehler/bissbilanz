@@ -83,6 +83,12 @@ struct DashboardView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     /// Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
@@ -1026,7 +1032,7 @@ struct DashboardView: View {
             Text("\(MacroFormat.kcal(item.suggestion.calories)) kcal")
                 .font(.caption)
                 .monospacedDigit()
-                .foregroundStyle(MacroColors.calories)
+                .foregroundStyle(accessibleColor(.calories))
         }
         .accessibilityElement(children: .combine)
     }
@@ -1124,7 +1130,7 @@ struct DashboardView: View {
                         Text("\(MacroFormat.kcal(food.calories)) kcal")
                             .font(.caption)
                             .monospacedDigit()
-                            .foregroundStyle(MacroColors.calories)
+                            .foregroundStyle(accessibleColor(.calories))
                     }
                     .accessibilityElement(children: .combine)
                 }
