@@ -423,7 +423,7 @@ struct SyncManagerTests {
         // Let the drain start and suspend on the delayed response, then
         // enqueue another op mid-drain (its scheduleDrain is a no-op here).
         try await Task.sleep(for: .milliseconds(100))
-        harness.syncManager.enqueue(.deleteFood(id: "f1"))
+        harness.syncManager.enqueue(.deleteFood(id: "f1", force: false))
 
         let drained = await drainTask.value
 
@@ -442,7 +442,7 @@ struct SyncManagerTests {
         // the bug).
         harness.stub("DELETE", "/api/foods/f1", status: 204, json: "")
 
-        harness.syncManager.enqueue(.deleteFood(id: "f1"))
+        harness.syncManager.enqueue(.deleteFood(id: "f1", force: false))
         let drained = await harness.syncManager.drainPendingQueue()
 
         #expect(drained == 1)
@@ -480,7 +480,7 @@ struct SyncManagerTests {
     @Test("Queue survives across manager instances (persisted in the store)")
     func queuePersistsInStore() throws {
         let harness = try RepositoryHarness()
-        harness.syncManager.enqueue(.deleteFood(id: "f1"))
+        harness.syncManager.enqueue(.deleteFood(id: "f1", force: false))
         harness.syncManager.enqueue(.deleteEntry(id: "e1"))
 
         // A fresh manager over the same context sees the same rows in order.

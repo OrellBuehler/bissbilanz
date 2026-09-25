@@ -91,8 +91,8 @@ struct LocalStoreTests {
     func nextSeqIncrementsFromHighest() throws {
         let container = try LocalStore.makeContainer(inMemory: true)
         let context = container.mainContext
-        context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f1")))
-        context.insert(PendingSyncOperation(seq: 5, operation: .deleteFood(id: "f2")))
+        context.insert(PendingSyncOperation(seq: 1, operation: .deleteFood(id: "f1", force: false)))
+        context.insert(PendingSyncOperation(seq: 5, operation: .deleteFood(id: "f2", force: false)))
         try context.save()
 
         #expect(PendingSyncOperation.nextSeq(in: context) == 6)

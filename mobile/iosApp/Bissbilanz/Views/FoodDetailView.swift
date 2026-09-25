@@ -23,6 +23,7 @@ struct FoodDetailView: View {
     @State private var ingredientsExpanded = false
     @State private var showTipHelp = false
     private let favoritesLoggingTip = FavoritesLoggingTip()
+    @State private var deleteConflict: DeleteConflict?
 
     var body: some View {
         Group {
@@ -128,6 +129,18 @@ struct FoodDetailView: View {
             Button(L10n.ok, role: .cancel) {}
         } message: {
             if let errorMessage { Text(errorMessage) }
+        }
+        .alert(
+            L10n.stillInUse,
+            isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
+        ) {
+            Button(L10n.deleteAnyway, role: .destructive) {
+                deleteConflict = nil
+                Task { await forceDeleteFood() }
+            }
+            Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+        } message: {
+            if let deleteConflict { Text(deleteConflict.message) }
         }
     }
 
@@ -369,7 +382,20 @@ struct FoodDetailView: View {
 
     private func deleteFood() async {
         do {
-            try await foodRepository.deleteFood(id: foodId)
+            switch try await foodRepository.deleteFoodChecked(id: foodId) {
+            case .deleted:
+                dismiss()
+            case let .blocked(conflict):
+                deleteConflict = conflict
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func forceDeleteFood() async {
+        do {
+            try await foodRepository.forceDeleteFood(id: foodId)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

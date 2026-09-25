@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.api.generated.model.Food
@@ -103,6 +104,7 @@ class DashboardScreenTest {
                     single<FastingManager> { fastingManager }
                     single<AppModeManager> { appModeManager }
                     single<ErrorReporter> { errorReporter }
+                    single { TipStore(ApplicationProvider.getApplicationContext()) }
                     viewModelOf(::DashboardViewModel)
                 },
             )

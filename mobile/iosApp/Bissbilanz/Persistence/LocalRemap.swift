@@ -75,6 +75,14 @@ enum LocalRemap {
         }
     }
 
+    static func replaceReminder(id oldId: String, with reminder: Reminder, in context: ModelContext) {
+        if let row = reminderRow(id: oldId, in: context), reminder.id != oldId {
+            context.delete(row)
+        }
+        upsertReminder(reminder, in: context)
+        try? context.save()
+    }
+
     static func replaceSupplement(
         id oldId: String,
         with supplement: Supplement,
@@ -207,6 +215,14 @@ enum LocalRemap {
         }
     }
 
+    static func upsertReminder(_ reminder: Reminder, in context: ModelContext) {
+        if let row = reminderRow(id: reminder.id, in: context) {
+            row.update(from: reminder)
+        } else {
+            context.insert(LocalReminder(reminder: reminder))
+        }
+    }
+
     static func upsertSupplement(_ supplement: Supplement, in context: ModelContext) {
         if let row = supplementRow(id: supplement.id, in: context) {
             row.update(from: supplement)
@@ -243,6 +259,12 @@ enum LocalRemap {
 
     static func sleepRow(id: String, in context: ModelContext) -> LocalSleepEntry? {
         var descriptor = FetchDescriptor<LocalSleepEntry>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
+    }
+
+    static func reminderRow(id: String, in context: ModelContext) -> LocalReminder? {
+        var descriptor = FetchDescriptor<LocalReminder>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor))?.first
     }

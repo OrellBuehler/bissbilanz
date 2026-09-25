@@ -9,10 +9,15 @@ import {
 	recipes
 } from '$lib/server/schema';
 import { and, asc, eq, gte, isNotNull, lte, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
-import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
+import {
+	buildRecipeMacrosCte,
+	convertedIngredientQuantitySql,
+	type RecipeMacrosCte
+} from '$lib/server/recipe-macros';
 import { RDA_VALUES } from '$lib/analytics/rda';
 import { NUTRIENT_BY_KEY } from '$lib/nutrients';
 import { getPreferences } from '$lib/server/preferences';
+import { nutrientColumn } from '$lib/server/nutrient-columns';
 
 /**
  * Nutrient data for adequacy work, deliberately separate from `$lib/server/analytics`.
@@ -47,10 +52,6 @@ const EXTENDED_RDA = RDA_KEYS.filter((key) => !CORE_MACRO_KEYS.has(key)).map((ke
 	return { key, dbColumn: def.dbColumn };
 });
 
-/** Drizzle keys nutrient columns by the same camelCase key `NutrientDef` uses. */
-const nutrientColumn = (table: unknown, key: string): AnyColumn =>
-	(table as Record<string, AnyColumn>)[key];
-
 /**
  * Per-serving recipe amounts for the reference nutrients. Aliases are prefixed `rn_` to
  * avoid colliding with `recipe_macros` (`rm_*`) and `recipe_extended` (`re_*`), which may
@@ -63,7 +64,7 @@ const buildRecipeRdaCte = (db: DB, userId: string) => {
 		// `sqlBehavior: 'error'` and throws on access to a bare `sql` field.
 		fields[key] = sql<
 			number | null
-		>`SUM(${nutrientColumn(foods, key)} * ${recipeIngredients.quantity} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
+		>`SUM(${nutrientColumn(foods, key)} * ${convertedIngredientQuantitySql} / NULLIF(${foods.servingSize}, 0)) / NULLIF(${recipes.totalServings}, 0)`.as(
 			`rn_${dbColumn}`
 		);
 	}

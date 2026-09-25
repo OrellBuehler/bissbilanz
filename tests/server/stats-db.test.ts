@@ -66,7 +66,7 @@ vi.mock('$lib/server/day-properties', () => ({
 }));
 
 // Import after mocking
-const { getWeeklyStats, getMonthlyStats } = await import('$lib/server/stats');
+const { getWeeklyStats, getMonthlyStats, getTopFoods } = await import('$lib/server/stats');
 
 describe('stats-db', () => {
 	beforeEach(() => {
@@ -559,6 +559,44 @@ describe('stats-db', () => {
 			expect(result.carbs).toBe(70);
 			expect(result.fat).toBe(26.7);
 			expect(result.fiber).toBe(13.7);
+		});
+	});
+
+	describe('getTopFoods', () => {
+		const entry = (foodId: string, foodName: string, fat: number, calories: number) =>
+			({
+				date: '2026-01-01',
+				servings: 1,
+				calories,
+				protein: 0,
+				carbs: 0,
+				fat,
+				fiber: 0,
+				foodId,
+				recipeId: null,
+				foodName
+			}) as never;
+
+		beforeEach(() => {
+			setMockEntries([
+				entry('apple', 'Apple', 0, 50),
+				entry('apple', 'Apple', 0, 50),
+				entry('apple', 'Apple', 0, 50),
+				entry('butter', 'Butter', 40, 360),
+				entry('cheese', 'Cheese', 10, 120),
+				entry('cheese', 'Cheese', 10, 120)
+			]);
+		});
+
+		test('ranks by log count by default', async () => {
+			const result = await getTopFoods(TEST_USER.id, 7, 10);
+			expect(result.map((f) => f.foodName)).toEqual(['Apple', 'Cheese', 'Butter']);
+		});
+
+		test('ranks by total macro contribution and drops foods without any', async () => {
+			const result = await getTopFoods(TEST_USER.id, 7, 10, 'fat');
+			expect(result.map((f) => f.foodName)).toEqual(['Butter', 'Cheese']);
+			expect(result[1]).toMatchObject({ count: 2, fat: 10 });
 		});
 	});
 });

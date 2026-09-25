@@ -516,7 +516,7 @@ final class SyncManager {
         case let .createFood(body, localId):
             let server = try await api.createFood(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard LocalRemap.foodRow(id: localId, in: context) != nil else {
-                enqueue(.deleteFood(id: server.id))
+                enqueue(.deleteFood(id: server.id, force: false))
                 return
             }
             LocalRemap.replaceFood(id: localId, with: server, in: context)
@@ -525,8 +525,13 @@ final class SyncManager {
         case let .updateFood(id, body):
             _ = try await api.updateFood(id: id, body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
-        case let .deleteFood(id):
-            try await api.deleteFood(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+        case let .deleteFood(id, force):
+            try await api.deleteFood(
+                id: id,
+                force: force,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .toggleFavorite(id, isFavorite):
             _ = try await api.toggleFavorite(
@@ -575,7 +580,7 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
             guard LocalRemap.recipeRow(id: localId, in: context) != nil else {
-                enqueue(.deleteRecipe(id: server.id))
+                enqueue(.deleteRecipe(id: server.id, force: false))
                 return
             }
             LocalRemap.replaceRecipe(id: localId, with: server, in: context)
@@ -592,8 +597,13 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
-        case let .deleteRecipe(id):
-            try await api.deleteRecipe(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+        case let .deleteRecipe(id, force):
+            try await api.deleteRecipe(
+                id: id,
+                force: force,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
 
         case let .setGoals(body):
             _ = try await api.setGoals(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
@@ -686,6 +696,30 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .createReminder(body, localId):
+            let server = try await api.createReminder(
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+            guard LocalRemap.reminderRow(id: localId, in: context) != nil else {
+                enqueue(.deleteReminder(id: server.id))
+                return
+            }
+            LocalRemap.replaceReminder(id: localId, with: server, in: context)
+            remapQueuedReferences(from: localId, to: server.id)
+
+        case let .updateReminder(id, body):
+            _ = try await api.updateReminder(
+                id: id,
+                body,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
+        case let .deleteReminder(id):
+            try await api.deleteReminder(id: id, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+
         case let .setDayProperties(date, patch):
             _ = try await api.setDayProperties(
                 date: date,
@@ -746,7 +780,7 @@ final class SyncManager {
         switch apiError {
         case .unauthorized:
             return .unauthorized
-        case let .conflict(serverNewer):
+        case let .conflict(serverNewer, _):
             return .conflict(serverNewer: serverNewer)
         case .notFound:
             return .notFound
@@ -784,7 +818,7 @@ final class SyncManager {
         switch operation {
         case .deleteFood, .deleteEntry, .deleteRecipe, .deleteWeight,
              .deleteSupplement, .deleteSleep, .deleteDayProperties,
-             .deleteFast, .unlogSupplement:
+             .deleteFast, .unlogSupplement, .deleteReminder:
             true
         default:
             false
@@ -796,7 +830,8 @@ final class SyncManager {
     /// reference, never "this row was deleted elsewhere".
     private func isCreateOperation(_ operation: SyncOperation) -> Bool {
         switch operation {
-        case .createFood, .createEntry, .createRecipe, .createWeight, .createSleep, .createSupplement:
+        case .createFood, .createEntry, .createRecipe, .createWeight, .createSleep, .createSupplement,
+             .createReminder:
             true
         default:
             false
@@ -909,7 +944,7 @@ final class SyncManager {
         switch operation {
         case let .createFood(_, localId):
             ids["sync.food_id"] = localId
-        case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
+        case let .updateFood(id, _), let .deleteFood(id, _), let .toggleFavorite(id, _),
              let .setFoodImage(id, _), let .setFoodLabels(id, _):
             ids["sync.food_id"] = id
 
@@ -933,7 +968,7 @@ final class SyncManager {
             if let ingredients = body.ingredients {
                 ids["sync.ingredient_food_ids"] = ingredients.map(\.foodId)
             }
-        case let .setRecipeImage(id, _), let .deleteRecipe(id):
+        case let .setRecipeImage(id, _), let .deleteRecipe(id, _):
             ids["sync.recipe_id"] = id
 
         case .setGoals:
@@ -963,6 +998,11 @@ final class SyncManager {
             ids["sync.supplement_id"] = id
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
             ids["sync.supplement_id"] = supplementId
+
+        case let .createReminder(_, localId):
+            ids["sync.reminder_id"] = localId
+        case let .updateReminder(id, _), let .deleteReminder(id):
+            ids["sync.reminder_id"] = id
 
         case let .setDayProperties(date, _), let .deleteDayProperties(date):
             ids["sync.day"] = date

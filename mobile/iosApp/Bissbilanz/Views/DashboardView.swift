@@ -247,7 +247,12 @@ struct DashboardView: View {
                     }
                 }
             }
-            .refreshable { await loadData(paintFromStore: false) }
+            // Unstructured so SwiftUI can't cancel it: `loadData` flips
+            // `isLoading` straight away, the body re-renders, and the
+            // refreshable task got cancelled mid-flight — every request died
+            // as "cancelled", the stale cache repainted and entries logged via
+            // MCP never showed until a relaunch.
+            .refreshable { await Task { await loadData(paintFromStore: false) }.value }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
             .sheet(isPresented: $showTipHelp) {
@@ -307,13 +312,20 @@ struct DashboardView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 let newToday = Calendar.current.startOfDay(for: Date())
-                guard newToday != trackedToday else { return }
-                // Day rolled over while backgrounded; if we were showing the old
-                // "today", follow the rollover instead of staying stuck on it.
-                if Calendar.current.isDate(selectedDate, inSameDayAs: trackedToday) {
-                    selectedDate = Date()
+                if newToday != trackedToday {
+                    // Day rolled over while backgrounded; if we were showing the old
+                    // "today", follow the rollover instead of staying stuck on it.
+                    let followRollover = Calendar.current.isDate(selectedDate, inSameDayAs: trackedToday)
+                    trackedToday = newToday
+                    if followRollover {
+                        // The date change re-runs `.task(id: dateString)`.
+                        selectedDate = Date()
+                        return
+                    }
                 }
-                trackedToday = newToday
+                // Entries logged elsewhere (MCP, web, another device) while
+                // backgrounded only arrive through a refresh — same as DayLogView.
+                Task { await loadData() }
             }
             // The on-activation Apple Health import (BissbilanzApp) finishes
             // after this view is already showing — re-read the store so the

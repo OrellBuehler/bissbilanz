@@ -87,6 +87,11 @@
     <string name="sleep_delete_dialog_title">Delete Sleep Entry</string>
     <string name="sleep_delete_dialog_text">Delete sleep entry from %1$s?</string>
     <string name="action_delete">Delete</string>
+    <string name="action_delete_anyway">Delete anyway</string>
+    <string name="delete_conflict_title">Still in use</string>
+    <string name="delete_conflict_entries">This is used in %1$d food log entries. Delete it anyway?</string>
+    <string name="delete_conflict_recipes">This is used in %1$d recipes. Deleting it will remove it from those recipes too.</string>
+    <string name="delete_conflict_entries_and_recipes">This is used in %1$d food log entries and %2$d recipes. Deleting it will remove it from all of them.</string>
     <string name="sleep_log_dialog_title">Log Sleep</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
@@ -626,6 +631,11 @@
     <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
     <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
     <string name="recipe_list_log_content_desc">Log recipe</string>
+    <string name="recipe_list_search_placeholder">Search recipes</string>
+    <string name="recipe_list_no_results">No recipes match your search.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Recently updated</string>
+    <string name="recipe_list_sort_calories">Calories/serving</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Failed to load recipe</string>
@@ -649,6 +659,7 @@
     <string name="recipe_edit_ingredients_count">Ingredients (%1$d)</string>
     <string name="recipe_edit_remove">Remove</string>
     <string name="recipe_edit_amount">Amount</string>
+    <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
 
     <!-- Supplements screen -->
@@ -681,13 +692,46 @@
     <string name="supplement_add_reminder">Add reminder time</string>
     <string name="supplement_remove_reminder">Remove reminder time</string>
     <string name="supplement_reminders_none">No reminders</string>
-    <string name="settings_reminders_title">Supplement reminders</string>
+    <string name="settings_reminders_title">Notifications</string>
     <string name="settings_snooze_duration">Remind me again after</string>
     <string name="settings_snooze_minutes">%1$d min</string>
     <string name="settings_snooze_hours">%1$d h</string>
     <string name="settings_reminders_delay_note">Reminders may arrive up to about 10 minutes late while your phone is idle, and are silenced by Do Not Disturb.</string>
     <string name="settings_reminders_permission_missing">Notifications are turned off, so reminders won\'t appear.</string>
     <string name="settings_reminders_permission_grant">Open notification settings</string>
+    <string name="reminders_title">Reminders</string>
+    <string name="reminders_add">Add reminder</string>
+    <string name="reminders_edit">Edit reminder</string>
+    <string name="reminders_empty">No reminders yet. Add one to get a nudge when it\'s time to log.</string>
+    <string name="reminders_save">Save</string>
+    <string name="reminders_kind">Remind me to</string>
+    <string name="reminders_kind_weight">Log weight</string>
+    <string name="reminders_kind_meal">Log a meal</string>
+    <string name="reminders_kind_sleep">Log sleep</string>
+    <string name="reminders_meal_type">Meal</string>
+    <string name="reminders_time">Time</string>
+    <string name="reminders_weekdays">Days</string>
+    <string name="reminders_enabled">Enabled</string>
+    <string name="reminders_every_day">Every day</string>
+    <string name="reminders_delete_title">Delete reminder</string>
+    <string name="reminders_delete_text">This reminder will be permanently deleted.</string>
+    <string name="reminders_load_failed">Couldn\'t load the reminder.</string>
+    <string name="reminders_save_failed">Couldn\'t save the reminder. Please try again.</string>
+    <string name="reminders_delete_failed">Couldn\'t delete the reminder. Please try again.</string>
+    <string name="reminders_days_required">Pick at least one day.</string>
+    <string name="reminders_health_hint_weight">Health Connect is already importing your weight — a reminder here is optional.</string>
+    <string name="reminders_health_hint_sleep">Health Connect is already importing your sleep — a reminder here is optional.</string>
+    <string name="reminders_supplements_title">Supplement reminders</string>
+    <string name="reminders_supplements_desc">Set per supplement — tap one to change its reminder times.</string>
+    <string name="reminders_supplements_empty">No supplements have reminders set.</string>
+    <string name="reminder_action_snooze">Remind later</string>
+    <string name="reminder_action_skip">Skip today</string>
+    <string name="reminder_notification_channel">Logging reminders</string>
+    <string name="reminder_notification_channel_desc">Nudges to log your weight, a meal, or last night\'s sleep.</string>
+    <string name="reminder_notification_summary">Reminders due</string>
+    <string name="reminder_notification_weight">Time to log your weight</string>
+    <string name="reminder_notification_sleep">Time to log last night\'s sleep</string>
+    <string name="reminder_notification_meal">Time to log %1$s</string>
     <string name="supplement_unit_drops">drops</string>
     <string name="supplement_unit_capsules">capsules</string>
     <string name="supplement_unit_tablets">tablets</string>
@@ -878,6 +922,11 @@
     <string name="insights_meal_distribution">Meal Distribution</string>
     <string name="insights_top_foods">Top Foods</string>
     <string name="insights_count_x">%1$dx</string>
+    <string name="insights_macro_sources_title">Top Sources</string>
+    <string name="insights_macro_sources_subtitle">Foods that contributed the most over the last %1$d days</string>
+    <string name="insights_macro_sources_empty">Nothing logged with this nutrient in this period.</string>
+    <string name="insights_macro_sources_share">of total</string>
+    <string name="insights_macro_sources_amount">%1$dx · %2$s g</string>
     <string name="insights_more_with_account">More insights available with an account</string>
     <string name="insights_below_avg_cal">&lt; %1$s kcal</string>
     <string name="insights_above_avg_cal">&gt; %1$s kcal</string>
@@ -1141,4 +1190,25 @@
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Moved to %1$s</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>
+
+    <!-- Contextual tips and help center -->
+    <string name="tip_learn_more">Learn more</string>
+    <string name="tip_got_it">Got it</string>
+    <string name="tip_dismiss">Dismiss</string>
+    <string name="tip_scanning_title">Scan instead of typing</string>
+    <string name="tip_scanning_text">Scan a barcode or a nutrition label to add a food in seconds.</string>
+    <string name="tip_favorites_title">Log in one tap</string>
+    <string name="tip_favorites_text">Favorite the foods you eat often, then log them with a single tap from the Favorites tab.</string>
+    <string name="tip_widgets_title">Log without opening the app</string>
+    <string name="tip_widgets_text">Add a home screen widget to see today\'s progress, or log food and weight, without opening Bissbilanz.</string>
+    <string name="tip_widgets_add_widget">Add widget</string>
+    <string name="tip_health_connect_weight_title">Skip manual weigh-ins</string>
+    <string name="tip_health_connect_weight_text">Connect Health Connect to bring in weight from your scale automatically.</string>
+    <string name="tip_health_connect_sleep_title">Skip manual sleep entries</string>
+    <string name="tip_health_connect_sleep_text">Connect Health Connect to bring in sleep from your tracker automatically.</string>
+    <string name="tip_dashboard_layout_title">Make this screen yours</string>
+    <string name="tip_dashboard_layout_text">Reorder or hide the cards on your dashboard to match how you use Bissbilanz.</string>
+    <string name="settings_help_guides">Help &amp; guides</string>
+    <string name="settings_show_tips_again">Show tips again</string>
+    <string name="settings_tips_reset_message">Tips will show again where they apply</string>
 </resources>

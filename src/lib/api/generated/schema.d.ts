@@ -409,6 +409,43 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/reminders': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List logging reminders (weight, meal, sleep). */
+		get: operations['listReminders'];
+		put?: never;
+		/** @description Create a new logging reminder. */
+		post: operations['createReminder'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/reminders/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Get a single reminder by ID. */
+		get: operations['getReminder'];
+		put?: never;
+		post?: never;
+		/** @description Delete a logging reminder. */
+		delete: operations['deleteReminder'];
+		options?: never;
+		head?: never;
+		/** @description Update a logging reminder. */
+		patch: operations['updateReminder'];
+		trace?: never;
+	};
 	'/api/weight': {
 		parameters: {
 			query?: never;
@@ -573,7 +610,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description Get most frequently logged foods. */
+		/** @description Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average. */
 		get: operations['getTopFoods'];
 		put?: never;
 		post?: never;
@@ -1478,6 +1515,22 @@ export interface components {
 		SupplementLogCreate: {
 			date?: string;
 		};
+		ReminderCreate: {
+			/** @enum {string} */
+			kind: 'weight' | 'meal' | 'sleep';
+			mealType?: string | null;
+			time: string;
+			weekdays?: number[];
+			enabled?: boolean;
+		};
+		ReminderUpdate: {
+			/** @enum {string} */
+			kind?: 'weight' | 'meal' | 'sleep';
+			mealType?: string | null;
+			time?: string;
+			weekdays?: number[];
+			enabled?: boolean;
+		};
 		WeightCreate: {
 			weightKg: number;
 			entryDate: string;
@@ -1850,6 +1903,9 @@ export interface components {
 		ConflictErrorResponse: {
 			error: string;
 			entryCount?: number;
+			ingredientCount?: number;
+			recipeCount?: number;
+			supplementIngredientCount?: number;
 		};
 		EntriesListResponse: {
 			entries: components['schemas']['EntryListItem'][];
@@ -1984,6 +2040,7 @@ export interface components {
 			createdAt?: string;
 			updatedAt?: string;
 			ingredients: components['schemas']['RecipeIngredient'][];
+			extendedNutrientsPerServing?: components['schemas']['RecipeExtendedNutrients'];
 		};
 		RecipeIngredient: {
 			/** Format: uuid */
@@ -1996,6 +2053,51 @@ export interface components {
 			/** @enum {string} */
 			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
 			sortOrder: number;
+		};
+		RecipeExtendedNutrients: {
+			saturatedFat: number | null;
+			monounsaturatedFat: number | null;
+			polyunsaturatedFat: number | null;
+			transFat: number | null;
+			cholesterol: number | null;
+			omega3: number | null;
+			omega6: number | null;
+			sugar: number | null;
+			addedSugars: number | null;
+			sugarAlcohols: number | null;
+			starch: number | null;
+			sodium: number | null;
+			potassium: number | null;
+			calcium: number | null;
+			iron: number | null;
+			magnesium: number | null;
+			phosphorus: number | null;
+			zinc: number | null;
+			copper: number | null;
+			manganese: number | null;
+			selenium: number | null;
+			iodine: number | null;
+			fluoride: number | null;
+			chromium: number | null;
+			molybdenum: number | null;
+			chloride: number | null;
+			vitaminA: number | null;
+			vitaminC: number | null;
+			vitaminD: number | null;
+			vitaminE: number | null;
+			vitaminK: number | null;
+			vitaminB1: number | null;
+			vitaminB2: number | null;
+			vitaminB3: number | null;
+			vitaminB5: number | null;
+			vitaminB6: number | null;
+			vitaminB7: number | null;
+			vitaminB9: number | null;
+			vitaminB12: number | null;
+			caffeine: number | null;
+			alcohol: number | null;
+			water: number | null;
+			salt: number | null;
 		};
 		SupplementsListResponse: {
 			supplements: components['schemas']['Supplement'][];
@@ -2079,6 +2181,26 @@ export interface components {
 			date: string;
 			takenAt: string;
 			entryIds: string[];
+		};
+		RemindersListResponse: {
+			reminders: components['schemas']['Reminder'][];
+		};
+		Reminder: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			userId: string;
+			/** @enum {string} */
+			kind: 'weight' | 'meal' | 'sleep';
+			mealType: string | null;
+			time: string;
+			weekdays: number[];
+			enabled: boolean;
+			createdAt?: string;
+			updatedAt?: string;
+		};
+		ReminderResponse: {
+			reminder: components['schemas']['Reminder'];
 		};
 		WeightEntriesResponse: {
 			entries: components['schemas']['WeightEntry'][];
@@ -3634,6 +3756,123 @@ export interface operations {
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
+	listReminders: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RemindersListResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	createReminder: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ReminderCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ReminderResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getReminder: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ReminderResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	deleteReminder: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
+	updateReminder: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ReminderUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ReminderResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
 	listWeightEntries: {
 		parameters: {
 			query?: {
@@ -3945,6 +4184,7 @@ export interface operations {
 			query?: {
 				days?: number;
 				limit?: number;
+				sort?: 'count' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
 			};
 			header?: never;
 			path?: never;

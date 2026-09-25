@@ -30,7 +30,16 @@ export const DELETE: RequestHandler = withAuthedResource(
 		const force = url.searchParams.get('force') === 'true';
 		const result = await deleteFood(userId, id, force);
 		if (result.blocked) {
-			return json({ error: 'has_entries', entryCount: result.entryCount }, { status: 409 });
+			return json(
+				{
+					error: 'has_entries',
+					entryCount: result.entryCount,
+					ingredientCount: result.ingredientCount,
+					recipeCount: result.recipeCount,
+					supplementIngredientCount: result.supplementIngredientCount
+				},
+				{ status: 409 }
+			);
 		}
 		return new Response(null, { status: 204 });
 	}

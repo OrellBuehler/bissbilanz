@@ -1,35 +1,69 @@
 <script lang="ts">
 	import RecipeForm from '$lib/components/recipes/RecipeForm.svelte';
-	import RecipeEditForm from '$lib/components/recipes/RecipeEditForm.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
+	import Star from '@lucide/svelte/icons/star';
+	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 	import { api } from '$lib/api/client';
-	import type { components } from '$lib/api/generated/schema';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
-	import type { buildRecipePayload } from '$lib/utils/recipe-builder';
+	import type { RecipeFormPayload } from '$lib/components/recipes/RecipeForm.svelte';
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
-	import { foodService } from '$lib/services/food-service.svelte';
-	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
+	import { requestQuickAction, consumeQuickAction } from '$lib/stores/command-palette.svelte';
+
+	type EditingRecipe = {
+		id: string;
+		name: string;
+		totalServings: number;
+		isFavorite: boolean;
+		imageUrl: string | null;
+		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
+	};
 
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
-	let editingRecipe = $state<components['schemas']['RecipeDetail'] | null>(null);
+	let editingRecipe = $state<EditingRecipe | null>(null);
 	let formImageUrl: string | null = $state(null);
 	let uploading = $state(false);
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteCount = $state(0);
+	let editingExtendedNutrients: Record<string, number | null> | null = $state(null);
+
+	let query = $state('');
+	let sortBy = $state<'name' | 'recent' | 'calories'>('name');
 
 	const recipesQuery = useLiveQuery(() => recipeService.allRecipes());
 	const recipes = $derived(recipesQuery.value ?? []);
+
+	const perServingCalories = (r: (typeof recipes)[number]) =>
+		(r.calories ?? 0) / (r.totalServings > 0 ? r.totalServings : 1);
+
+	const visibleRecipes = $derived(
+		[...recipes]
+			.filter((r) => r.name.toLowerCase().includes(query.trim().toLowerCase()))
+			.sort((a, b) => {
+				if (sortBy === 'calories') return perServingCalories(a) - perServingCalories(b);
+				if (sortBy === 'recent') {
+					const aTime = a.updatedAt ?? a.createdAt ?? '';
+					const bTime = b.updatedAt ?? b.createdAt ?? '';
+					return bTime.localeCompare(aTime);
+				}
+				return a.name.localeCompare(b.name);
+			})
+	);
 
 	$effect(() => {
 		if (browser) {
@@ -43,6 +77,7 @@
 		if (!consumeQuickAction(['new-recipe'])) return;
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 		showForm = true;
 	});
 
@@ -51,62 +86,71 @@
 		if (data) foods = data.foods;
 	};
 
-	const createRecipe = async (payload: ReturnType<typeof buildRecipePayload>) => {
-		await api.POST('/api/recipes', {
-			body: formImageUrl ? { ...payload, imageUrl: formImageUrl } : payload
-		});
-		closeForm();
-		recipeService.refresh();
-	};
-
-	const updateRecipe = async (payload: {
-		name: string;
-		totalServings: number;
-		isFavorite: boolean;
-		imageUrl: string | null;
-	}) => {
-		if (!editingRecipe) return;
-		const { error } = await api.PATCH('/api/recipes/{id}', {
-			params: { path: { id: editingRecipe.id } },
-			body: payload
-		});
-		if (!error) {
-			toast.success(m.detail_saved());
-		} else {
+	const createRecipe = async (payload: RecipeFormPayload) => {
+		const body = formImageUrl ? { ...payload, imageUrl: formImageUrl } : payload;
+		const result = await recipeService.create(body);
+		if (result.status === 'failed') {
 			toast.error(m.detail_save_failed());
+			return;
 		}
 		closeForm();
-		recipeService.refresh();
+	};
+
+	const updateRecipe = async (payload: RecipeFormPayload) => {
+		if (!editingRecipe) return;
+		const result = await recipeService.update(editingRecipe.id, payload);
+		if (result.status === 'failed') {
+			toast.error(m.detail_save_failed());
+			return;
+		}
+		toast.success(m.detail_saved());
+		closeForm();
 	};
 
 	const deleteRecipe = async (id: string) => {
-		const { error, response } = await api.DELETE('/api/recipes/{id}', {
-			params: { path: { id } }
-		});
-		if (response.status === 409 && error) {
+		const result = await recipeService.delete(id);
+		if (result.status === 'blocked') {
 			forceDeleteId = id;
-			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
-			return;
+			forceDeleteCount = result.entryCount;
 		}
-		recipeService.refresh();
 	};
 
 	const confirmForceDelete = async () => {
 		if (!forceDeleteId) return;
-		await api.DELETE('/api/recipes/{id}', {
-			params: { path: { id: forceDeleteId }, query: { force: true } }
-		});
+		await recipeService.delete(forceDeleteId, { force: true });
 		forceDeleteId = null;
-		recipeService.refresh();
+	};
+
+	const toggleFavorite = async (recipe: (typeof recipes)[number]) => {
+		await recipeService.update(recipe.id, { isFavorite: !recipe.isFavorite });
+	};
+
+	const logRecipe = (recipeId: string) => {
+		requestQuickAction({ type: 'add-food', recipeId });
+		goto('/home');
 	};
 
 	const openEdit = async (id: string) => {
-		const { data, error } = await api.GET('/api/recipes/{id}', {
-			params: { path: { id } }
-		});
-		if (error || !data) return;
-		editingRecipe = data.recipe;
-		formImageUrl = data.recipe.imageUrl;
+		// Best-effort refresh so an edit starts from the latest server copy;
+		// offline (or a failed fetch) falls back to whatever is cached.
+		const fresh = await recipeService.refreshById(id);
+		editingExtendedNutrients = fresh?.extendedNutrientsPerServing ?? null;
+		const recipe = await db.recipes.get(id);
+		if (!recipe) return;
+		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).sortBy('sortOrder');
+		editingRecipe = {
+			id: recipe.id,
+			name: recipe.name,
+			totalServings: recipe.totalServings,
+			isFavorite: recipe.isFavorite,
+			imageUrl: recipe.imageUrl,
+			ingredients: ingredients.map((i) => ({
+				foodId: i.foodId,
+				quantity: i.quantity,
+				servingUnit: i.servingUnit
+			}))
+		};
+		formImageUrl = recipe.imageUrl;
 		showForm = true;
 	};
 
@@ -144,17 +188,47 @@
 		showForm = false;
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 	};
 
 	const fmt = (n: number) => Math.round(n);
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
+	{#if recipes.length > 0}
+		<div class="flex gap-2">
+			<div class="relative flex-1">
+				<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+				<Input placeholder={m.recipes_search_placeholder()} bind:value={query} class="pl-8" />
+			</div>
+			<Select.Root
+				type="single"
+				value={sortBy}
+				onValueChange={(v) => v && (sortBy = v as typeof sortBy)}
+			>
+				<Select.Trigger class="w-40 shrink-0">
+					{sortBy === 'recent'
+						? m.recipes_sort_recent()
+						: sortBy === 'calories'
+							? m.recipes_sort_calories()
+							: m.recipes_sort_name()}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="name">{m.recipes_sort_name()}</Select.Item>
+					<Select.Item value="recent">{m.recipes_sort_recent()}</Select.Item>
+					<Select.Item value="calories">{m.recipes_sort_calories()}</Select.Item>
+				</Select.Content>
+			</Select.Root>
+		</div>
+	{/if}
+
 	{#if recipes.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">{m.recipes_no_recipes()}</p>
+	{:else if visibleRecipes.length === 0}
+		<p class="py-8 text-center text-sm text-muted-foreground">{m.recipes_no_results()}</p>
 	{:else}
 		<div class="space-y-2">
-			{#each recipes as recipe}
+			{#each visibleRecipes as recipe (recipe.id)}
 				<Card.Root
 					class="cursor-pointer transition-colors hover:bg-accent/50"
 					onclick={() => openEdit(recipe.id)}
@@ -175,7 +249,35 @@
 								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
 						</div>
-						<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
+						<div class="flex shrink-0 items-center">
+							<Button
+								variant="ghost"
+								size="icon"
+								aria-label={recipe.isFavorite ? m.foods_bulk_unfavorite() : m.foods_bulk_favorite()}
+								onclick={(e) => {
+									e.stopPropagation();
+									toggleFavorite(recipe);
+								}}
+							>
+								<Star
+									class={recipe.isFavorite
+										? 'size-4 fill-yellow-400 text-yellow-400'
+										: 'size-4 text-muted-foreground'}
+								/>
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								aria-label={m.favorites_log()}
+								onclick={(e) => {
+									e.stopPropagation();
+									logRecipe(recipe.id);
+								}}
+							>
+								<CirclePlus class="size-4" />
+							</Button>
+							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
+						</div>
 					</Card.Content>
 				</Card.Root>
 			{/each}
@@ -190,6 +292,7 @@
 	onclick={() => {
 		editingRecipe = null;
 		formImageUrl = null;
+		editingExtendedNutrients = null;
 		showForm = true;
 	}}
 >
@@ -201,27 +304,18 @@
 	title={editingRecipe ? editingRecipe.name : m.recipes_new()}
 	description={editingRecipe ? undefined : m.recipes_new_description()}
 >
-	{#if editingRecipe}
-		{#key editingRecipe.id}
-			<RecipeEditForm
-				recipe={editingRecipe}
-				imageUrl={formImageUrl}
-				{uploading}
-				onSave={updateRecipe}
-				onImageUpload={handleImageUpload}
-				onImageRemove={handleImageRemove}
-			/>
-		{/key}
-	{:else}
+	{#key editingRecipe?.id ?? 'new'}
 		<RecipeForm
 			{foods}
+			recipe={editingRecipe}
 			imageUrl={formImageUrl}
 			{uploading}
-			onSave={createRecipe}
+			extendedNutrients={editingExtendedNutrients}
+			onSave={editingRecipe ? updateRecipe : createRecipe}
 			onImageUpload={handleImageUpload}
 			onImageRemove={handleImageRemove}
 		/>
-	{/if}
+	{/key}
 </ResponsiveModal>
 
 <ForceDeleteDialog

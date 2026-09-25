@@ -102,6 +102,7 @@ import type {
 	getFastingDays
 } from '$lib/server/day-properties';
 import type { DayPropertiesPatch } from '$lib/server/validation/day-properties';
+import type { TopFoodsSort } from '$lib/server/validation/stats';
 import type { getCalendarStats } from '$lib/server/stats';
 import type {
 	listAiTasks,
@@ -886,9 +887,12 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleGetTopFoods = async (userId: string, args: { days?: number; limit?: number }) => {
+	const handleGetTopFoods = async (
+		userId: string,
+		args: { days?: number; limit?: number; sort?: TopFoodsSort }
+	) => {
 		try {
-			return d.getTopFoods(userId, args.days ?? 7, args.limit ?? 10);
+			return d.getTopFoods(userId, args.days ?? 7, args.limit ?? 10, args.sort);
 		} catch (e) {
 			wrapError('get top foods', e);
 		}

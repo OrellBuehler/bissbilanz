@@ -48,6 +48,13 @@ class EntryRepository(
      */
     var onEntriesRefreshed: (suspend (date: String) -> Unit)? = null
 
+    /**
+     * Fired only after [createEntry], never on update or delete — unlike
+     * [onEntryChanged]. Android's tip system counts real food logs here to decide
+     * when to nudge the user toward favorites and other shortcuts.
+     */
+    var onEntryCreated: (suspend () -> Unit)? = null
+
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.userDataDatabaseQueries
             .selectEntriesByDate(date)
@@ -87,6 +94,7 @@ class EntryRepository(
         withContext(Dispatchers.IO) { cacheEntry(tempEntry) }
         syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
         onEntryChanged?.invoke()
+        onEntryCreated?.invoke()
         return tempEntry
     }
 

@@ -11,13 +11,14 @@ struct MigrationPlan {
     let sleepEntries: Int
     let supplements: Int
     let supplementLogs: Int
+    let reminders: Int
     let dayProperties: Int
     let hasGoals: Bool
     let hasPreferences: Bool
 
     var total: Int {
         foods + recipes + entries + weights + sleepEntries + supplements + supplementLogs
-            + dayProperties + (hasGoals ? 1 : 0) + (hasPreferences ? 1 : 0)
+            + reminders + dayProperties + (hasGoals ? 1 : 0) + (hasPreferences ? 1 : 0)
     }
 }
 
@@ -30,6 +31,7 @@ enum MigrationStep: String {
     case sleep
     case supplements
     case supplementLogs = "supplement_logs"
+    case reminders
     case goals
     case preferences
     case dayProperties = "day_properties"
@@ -111,6 +113,7 @@ final class LocalDataMigrator {
             sleepEntries: count(LocalSleepEntry.self),
             supplements: count(LocalSupplement.self),
             supplementLogs: count(LocalSupplementLog.self),
+            reminders: count(LocalReminder.self),
             dayProperties: count(LocalDayProperties.self),
             hasGoals: count(LocalGoals.self) > 0,
             hasPreferences: count(LocalPreferences.self) > 0
@@ -146,6 +149,7 @@ final class LocalDataMigrator {
             done = try await uploadSleep(done: done, total: total)
             done = try await uploadSupplements(done: done, total: total)
             done = try await uploadSupplementLogs(done: done, total: total)
+            done = try await uploadReminders(done: done, total: total)
             done = try await uploadGoals(done: done, total: total)
             done = try await uploadPreferences(done: done, total: total)
             _ = try await uploadDayProperties(done: done, total: total)
@@ -178,6 +182,7 @@ final class LocalDataMigrator {
         try? context.delete(model: LocalSleepEntry.self)
         try? context.delete(model: LocalSupplement.self)
         try? context.delete(model: LocalSupplementLog.self)
+        try? context.delete(model: LocalReminder.self)
         try? context.delete(model: LocalGoals.self)
         try? context.delete(model: LocalPreferences.self)
         try? context.delete(model: LocalDayProperties.self)
@@ -254,6 +259,14 @@ final class LocalDataMigrator {
                 LocalRemap.replaceSleep(id: row.id, with: patched, in: context)
             }
         }
+        for row in fetchAll(LocalReminder.self) where !LocalStore.isTempId(row.id) {
+            let newId = LocalStore.makeTempId()
+            if let reminder = row.toReminder(),
+               let patched = try? JSONPatch.merged(Reminder.self, base: reminder, patch: ["id": newId])
+            {
+                LocalRemap.replaceReminder(id: row.id, with: patched, in: context)
+            }
+        }
         try? context.save()
         defaults.set(true, forKey: Self.normalizedMarkerKey)
     }
@@ -267,6 +280,7 @@ final class LocalDataMigrator {
             + fetchAll(LocalSleepEntry.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalSupplement.self).count { !LocalStore.isTempId($0.id) }
             + fetchAll(LocalSupplementLog.self).count { !LocalStore.isTempId($0.id) }
+            + fetchAll(LocalReminder.self).count { !LocalStore.isTempId($0.id) }
     }
 
     // MARK: - Upload steps
@@ -507,6 +521,31 @@ final class LocalDataMigrator {
             try? context.save()
             done += 1
             progress(done, total, .supplementLogs)
+        }
+        return done
+    }
+
+    private func uploadReminders(done startDone: Int, total: Int) async throws -> Int {
+        var done = startDone
+        progress(done, total, .reminders)
+        for row in fetchAll(LocalReminder.self) where LocalStore.isTempId(row.id) {
+            guard let reminder = row.toReminder() else {
+                throw MigrationError.unreadableRow("reminder \(row.kind)")
+            }
+            let create = ReminderCreate(
+                kind: reminder.kind,
+                mealType: reminder.mealType,
+                time: reminder.time,
+                weekdays: reminder.weekdays,
+                enabled: reminder.enabled
+            )
+            let server = try await api.createReminder(
+                create,
+                idempotencyKey: Self.migrationKey("reminder", row.id)
+            )
+            LocalRemap.replaceReminder(id: row.id, with: server, in: context)
+            done += 1
+            progress(done, total, .reminders)
         }
         return done
     }

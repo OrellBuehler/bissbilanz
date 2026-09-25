@@ -7,6 +7,10 @@ struct FoodSearchView: View {
     @Environment(\.dismiss) private var dismiss
 
     var date: String?
+    /// Prefills the search field — the Visual Intelligence "more results"
+    /// hand-off (`FoodVisualIntelligenceSearchIntent`) opens this screen with
+    /// its best-guess label already typed in.
+    var initialQuery: String?
 
     @State private var query = ""
     @State private var searchResults: [Food] = []
@@ -128,6 +132,9 @@ struct FoodSearchView: View {
             RecipeEditSheet()
         }
         .task {
+            if let initialQuery, !initialQuery.isEmpty {
+                query = initialQuery
+            }
             await loadRecent()
             await loadFavorites()
             await loadAll()

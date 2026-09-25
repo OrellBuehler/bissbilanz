@@ -381,6 +381,25 @@ export const VALID_MULTI_SUPPLEMENT_PAYLOAD = {
 	]
 };
 
+// Test reminder
+export const TEST_REMINDER = {
+	id: '10000000-0000-4000-8000-000000000090',
+	userId: TEST_USER.id,
+	kind: 'weight' as const,
+	mealType: null,
+	time: '08:00',
+	weekdays: [0, 1, 2, 3, 4, 5, 6],
+	enabled: true,
+	lastRemindedAt: null,
+	createdAt: new Date('2026-01-01T00:00:00Z'),
+	updatedAt: new Date('2026-01-01T00:00:00Z')
+};
+
+export const VALID_REMINDER_PAYLOAD = {
+	kind: 'weight',
+	time: '08:00'
+};
+
 export const VALID_OAUTH_CLIENT_PAYLOAD = {
 	clientId: 'test-client',
 	clientSecret: 'secret',

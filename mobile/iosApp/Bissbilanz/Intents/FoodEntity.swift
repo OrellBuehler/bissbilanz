@@ -14,6 +14,10 @@ struct FoodEntity: AppEntity, IndexedEntity {
     let brand: String?
     let calories: Double
     let imageUrl: String?
+    /// The food's English labels (`Food.labels`, e.g. ["banana", "fruit"]),
+    /// folded into `attributeSet.keywords` so Spotlight can match a search
+    /// term the name itself never contains.
+    let labels: [String]
 
     init(food: Food) {
         id = food.id
@@ -21,6 +25,7 @@ struct FoodEntity: AppEntity, IndexedEntity {
         brand = food.brand
         imageUrl = food.imageUrl
         calories = food.calories
+        labels = food.labels ?? []
     }
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
@@ -50,7 +55,7 @@ struct FoodEntity: AppEntity, IndexedEntity {
         set.contentDescription = [brand, "\(Int(calories.rounded())) kcal"]
             .compactMap { $0 }
             .joined(separator: " · ")
-        set.keywords = [name, brand].compactMap { $0 }
+        set.keywords = [name, brand].compactMap { $0 } + labels
         return set
     }
 }
@@ -59,7 +64,10 @@ struct FoodEntity: AppEntity, IndexedEntity {
 /// a spoken/typed string to candidates (multiple → automatic disambiguation),
 /// and a suggestion list shown before the user types.
 struct FoodEntityQuery: EntityStringQuery {
-    @Dependency private var entryWriter: EntryWriter
+    /// Not `private`: the iOS 27 `IndexedEntityQuery` conformance lives in
+    /// `SiriIOS27.swift`, where the version fence is, and reindexing delegates
+    /// back to the writer.
+    @Dependency var entryWriter: EntryWriter
 
     func entities(for identifiers: [String]) async throws -> [FoodEntity] {
         await entryWriter.foods(ids: identifiers).map(FoodEntity.init)

@@ -85,6 +85,11 @@
     <string name="sleep_delete_dialog_title">Schlafeintrag löschen</string>
     <string name="sleep_delete_dialog_text">Schlafeintrag vom %1$s löschen?</string>
     <string name="action_delete">Löschen</string>
+    <string name="action_delete_anyway">Trotzdem löschen</string>
+    <string name="delete_conflict_title">Noch in Verwendung</string>
+    <string name="delete_conflict_entries">Wird in %1$d Einträgen verwendet. Trotzdem löschen?</string>
+    <string name="delete_conflict_recipes">Wird in %1$d Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt.</string>
+    <string name="delete_conflict_entries_and_recipes">Wird in %1$d Einträgen und %2$d Rezepten verwendet. Beim Löschen wird es aus allen entfernt.</string>
     <string name="sleep_log_dialog_title">Schlaf erfassen</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>
@@ -624,6 +629,11 @@
     <string name="recipe_list_empty">Noch keine Rezepte.\nTippe auf +, um eines zu erstellen.</string>
     <string name="recipe_list_item_summary">%1$d Portionen  ·  %2$d Zutaten</string>
     <string name="recipe_list_log_content_desc">Rezept erfassen</string>
+    <string name="recipe_list_search_placeholder">Rezepte suchen</string>
+    <string name="recipe_list_no_results">Keine Rezepte gefunden.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
+    <string name="recipe_list_sort_calories">Kalorien/Portion</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Rezept konnte nicht geladen werden</string>
@@ -647,6 +657,7 @@
     <string name="recipe_edit_ingredients_count">Zutaten (%1$d)</string>
     <string name="recipe_edit_remove">Entfernen</string>
     <string name="recipe_edit_amount">Menge</string>
+    <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
 
     <!-- Supplements screen -->
@@ -679,13 +690,46 @@
     <string name="supplement_add_reminder">Erinnerungszeit hinzufügen</string>
     <string name="supplement_remove_reminder">Erinnerungszeit entfernen</string>
     <string name="supplement_reminders_none">Keine Erinnerungen</string>
-    <string name="settings_reminders_title">Supplement-Erinnerungen</string>
+    <string name="settings_reminders_title">Benachrichtigungen</string>
     <string name="settings_snooze_duration">Erneut erinnern nach</string>
     <string name="settings_snooze_minutes">%1$d Min.</string>
     <string name="settings_snooze_hours">%1$d Std.</string>
     <string name="settings_reminders_delay_note">Erinnerungen können bis zu etwa 10 Minuten später eintreffen, während dein Handy im Ruhezustand ist, und werden von \"Nicht stören\" stummgeschaltet.</string>
     <string name="settings_reminders_permission_missing">Benachrichtigungen sind deaktiviert, daher erscheinen keine Erinnerungen.</string>
     <string name="settings_reminders_permission_grant">Benachrichtigungseinstellungen öffnen</string>
+    <string name="reminders_title">Erinnerungen</string>
+    <string name="reminders_add">Erinnerung hinzufügen</string>
+    <string name="reminders_edit">Erinnerung bearbeiten</string>
+    <string name="reminders_empty">Noch keine Erinnerungen. Füge eine hinzu, um erinnert zu werden.</string>
+    <string name="reminders_save">Speichern</string>
+    <string name="reminders_kind">Erinnere mich an</string>
+    <string name="reminders_kind_weight">Gewicht eintragen</string>
+    <string name="reminders_kind_meal">Mahlzeit eintragen</string>
+    <string name="reminders_kind_sleep">Schlaf eintragen</string>
+    <string name="reminders_meal_type">Mahlzeit</string>
+    <string name="reminders_time">Uhrzeit</string>
+    <string name="reminders_weekdays">Tage</string>
+    <string name="reminders_enabled">Aktiviert</string>
+    <string name="reminders_every_day">Jeden Tag</string>
+    <string name="reminders_delete_title">Erinnerung löschen</string>
+    <string name="reminders_delete_text">Diese Erinnerung wird dauerhaft gelöscht.</string>
+    <string name="reminders_load_failed">Erinnerung konnte nicht geladen werden.</string>
+    <string name="reminders_save_failed">Erinnerung konnte nicht gespeichert werden. Bitte versuche es erneut.</string>
+    <string name="reminders_delete_failed">Erinnerung konnte nicht gelöscht werden. Bitte versuche es erneut.</string>
+    <string name="reminders_days_required">Mindestens einen Tag auswählen.</string>
+    <string name="reminders_health_hint_weight">Health Connect importiert dein Gewicht bereits — eine Erinnerung hier ist optional.</string>
+    <string name="reminders_health_hint_sleep">Health Connect importiert deinen Schlaf bereits — eine Erinnerung hier ist optional.</string>
+    <string name="reminders_supplements_title">Supplement-Erinnerungen</string>
+    <string name="reminders_supplements_desc">Pro Supplement festgelegt — tippe eines an, um dessen Erinnerungszeiten zu ändern.</string>
+    <string name="reminders_supplements_empty">Für keine Supplements sind Erinnerungen eingestellt.</string>
+    <string name="reminder_action_snooze">Später erinnern</string>
+    <string name="reminder_action_skip">Heute überspringen</string>
+    <string name="reminder_notification_channel">Erinnerungen</string>
+    <string name="reminder_notification_channel_desc">Erinnert dich daran, dein Gewicht, eine Mahlzeit oder deinen Schlaf einzutragen.</string>
+    <string name="reminder_notification_summary">Erinnerungen fällig</string>
+    <string name="reminder_notification_weight">Zeit, dein Gewicht einzutragen</string>
+    <string name="reminder_notification_sleep">Zeit, deinen Schlaf einzutragen</string>
+    <string name="reminder_notification_meal">Zeit, %1$s einzutragen</string>
     <string name="supplement_unit_drops">Tropfen</string>
     <string name="supplement_unit_capsules">Kapseln</string>
     <string name="supplement_unit_tablets">Tabletten</string>
@@ -876,6 +920,11 @@
     <string name="insights_meal_distribution">Mahlzeitenverteilung</string>
     <string name="insights_top_foods">Top-Lebensmittel</string>
     <string name="insights_count_x">%1$dx</string>
+    <string name="insights_macro_sources_title">Hauptquellen</string>
+    <string name="insights_macro_sources_subtitle">Lebensmittel mit dem größten Anteil in den letzten %1$d Tagen</string>
+    <string name="insights_macro_sources_empty">In diesem Zeitraum nichts mit diesem Nährstoff erfasst.</string>
+    <string name="insights_macro_sources_share">der Gesamtmenge</string>
+    <string name="insights_macro_sources_amount">%1$dx · %2$s g</string>
     <string name="insights_more_with_account">Weitere Auswertungen mit einem Konto verfügbar</string>
     <string name="insights_below_avg_cal">&lt; %1$s kcal</string>
     <string name="insights_above_avg_cal">&gt; %1$s kcal</string>
@@ -1139,4 +1188,25 @@
     <string name="unit_kcal">kcal</string>
     <string name="entry_edit_moved">Nach %1$s verschoben</string>
     <string name="ai_task_time_day_label">%1$s · %2$s</string>
+
+    <!-- Contextual tips and help center -->
+    <string name="tip_learn_more">Mehr erfahren</string>
+    <string name="tip_got_it">Verstanden</string>
+    <string name="tip_dismiss">Schliessen</string>
+    <string name="tip_scanning_title">Scannen statt tippen</string>
+    <string name="tip_scanning_text">Scanne einen Barcode oder eine Nährwerttabelle, um ein Lebensmittel in Sekunden hinzuzufügen.</string>
+    <string name="tip_favorites_title">Mit einem Tipp erfassen</string>
+    <string name="tip_favorites_text">Markiere Lebensmittel, die du oft isst, als Favorit und erfasse sie danach mit einem Tipp im Favoriten-Tab.</string>
+    <string name="tip_widgets_title">Erfassen, ohne die App zu öffnen</string>
+    <string name="tip_widgets_text">Füge ein Homescreen-Widget hinzu, um den heutigen Fortschritt zu sehen oder Lebensmittel und Gewicht zu erfassen, ohne Bissbilanz zu öffnen.</string>
+    <string name="tip_widgets_add_widget">Widget hinzufügen</string>
+    <string name="tip_health_connect_weight_title">Gewicht nicht mehr von Hand eintragen</string>
+    <string name="tip_health_connect_weight_text">Verbinde Health Connect, um dein Gewicht automatisch von deiner Waage zu übernehmen.</string>
+    <string name="tip_health_connect_sleep_title">Schlaf nicht mehr von Hand eintragen</string>
+    <string name="tip_health_connect_sleep_text">Verbinde Health Connect, um deinen Schlaf automatisch von deinem Tracker zu übernehmen.</string>
+    <string name="tip_dashboard_layout_title">Mach dir diesen Bildschirm zu eigen</string>
+    <string name="tip_dashboard_layout_text">Ordne die Karten auf deinem Dashboard neu an oder blende sie aus, passend zu deiner Nutzung von Bissbilanz.</string>
+    <string name="settings_help_guides">Hilfe &amp; Anleitungen</string>
+    <string name="settings_show_tips_again">Tipps erneut anzeigen</string>
+    <string name="settings_tips_reset_message">Tipps werden wieder angezeigt, wo sie zutreffen</string>
 </resources>

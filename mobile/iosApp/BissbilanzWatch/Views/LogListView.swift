@@ -19,7 +19,9 @@ struct LogListView: View {
     }
 
     private var favorites: [WatchFoodRef] {
-        state.snapshot.favorites.map { WatchFoodRef(id: $0.id, name: $0.name, calories: $0.calories) }
+        state.snapshot.favorites.map {
+            WatchFoodRef(id: $0.id, name: $0.name, calories: $0.calories, isRecipe: $0.isRecipe ?? false)
+        }
     }
 
     private var voiceLogAvailable: Bool {

@@ -129,6 +129,38 @@ extension SleepEntityQuery: IndexedEntityQuery {
     }
 }
 
+// Food and recipe entities need no reader indirection to rebuild — unlike
+// day/weight/sleep, `FoodEntity(food:)`/`RecipeEntity(recipe:)` are plain
+// mappings already available through `EntryWriter` — so both conformances
+// read straight off it.
+@available(iOS 27, *)
+extension FoodEntityQuery: IndexedEntityQuery {
+    func reindexEntities(for identifiers: [String], indexDescription _: CSSearchableIndexDescription) async throws {
+        let entities = try await entities(for: identifiers)
+        try await SpotlightReindex.write(entities, requested: identifiers)
+    }
+
+    func reindexAllEntities(indexDescription _: CSSearchableIndexDescription) async throws {
+        let foods = await entryWriter.allFoods()
+        guard !foods.isEmpty else { return }
+        try await CSSearchableIndex.default().indexAppEntities(foods.map(FoodEntity.init))
+    }
+}
+
+@available(iOS 27, *)
+extension RecipeEntityQuery: IndexedEntityQuery {
+    func reindexEntities(for identifiers: [String], indexDescription _: CSSearchableIndexDescription) async throws {
+        let entities = try await entities(for: identifiers)
+        try await SpotlightReindex.write(entities, requested: identifiers)
+    }
+
+    func reindexAllEntities(indexDescription _: CSSearchableIndexDescription) async throws {
+        let recipes = await entryWriter.allRecipes()
+        guard !recipes.isEmpty else { return }
+        try await CSSearchableIndex.default().indexAppEntities(recipes.map(RecipeEntity.init))
+    }
+}
+
 #endif
 
 // MARK: - On-screen awareness (iOS 18.4)

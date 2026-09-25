@@ -62,6 +62,11 @@ import com.bissbilanz.api.generated.model.RecipeResponse
 import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.RecipesListResponse
+import com.bissbilanz.api.generated.model.Reminder
+import com.bissbilanz.api.generated.model.ReminderCreate
+import com.bissbilanz.api.generated.model.ReminderResponse
+import com.bissbilanz.api.generated.model.ReminderUpdate
+import com.bissbilanz.api.generated.model.RemindersListResponse
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntriesResponse
 import com.bissbilanz.api.generated.model.SleepEntry
@@ -115,6 +120,8 @@ class ApiException(
     message: String,
     val statusCode: Int = 0,
     val rawResponse: HttpResponse? = null,
+    /** Response body, when the caller needs to parse a structured error (e.g. a 409's counts). */
+    val responseBody: String? = null,
 ) : Exception(message)
 
 class BissbilanzApi(
@@ -309,10 +316,12 @@ class BissbilanzApi(
                 applySyncHeaders(idempotencyKey, clientEditedAt)
             }
         if (!response.status.isSuccess()) {
+            val body = response.bodyAsText()
             throw ApiException(
-                "DELETE $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                "DELETE $path failed: HTTP ${response.status.value} $body",
                 response.status.value,
                 response,
+                body,
             )
         }
     }
@@ -447,12 +456,13 @@ class BissbilanzApi(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteFood(
         id: String,
+        force: Boolean = false,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
     ) {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        delete("/api/foods/$id", key, editedAt)
+        delete(if (force) "/api/foods/$id?force=true" else "/api/foods/$id", key, editedAt)
     }
 
     suspend fun searchFoods(query: String): List<Food> {
@@ -695,12 +705,13 @@ class BissbilanzApi(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun deleteRecipe(
         id: String,
+        force: Boolean = false,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
     ) {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        delete("/api/recipes/$id", key, editedAt)
+        delete(if (force) "/api/recipes/$id?force=true" else "/api/recipes/$id", key, editedAt)
     }
 
     // Goals
@@ -904,13 +915,16 @@ class BissbilanzApi(
 
     suspend fun getStreaks(): StreaksResponse = get("/api/stats/streaks")
 
+    /** [sort] is "count" (most logged) or a macro key, ranking by total contribution to it. */
     suspend fun getTopFoods(
         days: Int = 7,
         limit: Int = 10,
+        sort: String = "count",
     ): TopFoodsResponse =
         get("/api/stats/top-foods") {
             parameter("days", days)
             parameter("limit", limit)
+            parameter("sort", sort)
         }
 
     // Preferences
@@ -1138,6 +1152,48 @@ class BissbilanzApi(
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
         delete("/api/sleep/$id", key, editedAt)
+    }
+
+    // Reminders
+    suspend fun getReminders(): List<Reminder> {
+        val response: RemindersListResponse = get("/api/reminders")
+        return response.reminders
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun createReminder(
+        reminder: ReminderCreate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Reminder {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: ReminderResponse = post("/api/reminders", reminder, key, editedAt)
+        return response.reminder
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun updateReminder(
+        id: String,
+        reminder: ReminderUpdate,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): Reminder {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        val response: ReminderResponse = patch("/api/reminders/$id", reminder, key, editedAt)
+        return response.reminder
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun deleteReminder(
+        id: String,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ) {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        delete("/api/reminders/$id", key, editedAt)
     }
 
     // Analytics
