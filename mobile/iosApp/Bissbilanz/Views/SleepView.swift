@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import TipKit
 
 /// Sleep duration in "7h 30m" form — shared by the cards, rows and chart.
 func formatSleepDuration(_ minutes: Int) -> String {
@@ -24,6 +25,8 @@ struct SleepView: View {
     @State private var editingEntry: SleepEntry?
     @State private var selectedRange = 30
     @State private var errorMessage: String?
+    @State private var showTipHelp = false
+    private let healthImportTip = HealthImportSleepTip()
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
@@ -71,6 +74,10 @@ struct SleepView: View {
                     )
                 } else {
                     List {
+                        TipView(healthImportTip) { action in
+                            guard action.id == "learn_more" else { return }
+                            showTipHelp = true
+                        }
                         statsSection
                         if chartEntries.count >= 2 { chartSection }
                         historySection
@@ -99,11 +106,19 @@ struct SleepView: View {
                     Task { await loadEntries() }
                 }
             }
+            .sheet(isPresented: $showTipHelp) {
+                SafariView(url: HelpLink.url(for: .mobileExtras))
+            }
             .refreshable { await loadEntries() }
             .task { await loadEntries(showSpinner: true) }
             // Cheap local re-read when popping back from the history subpage,
             // where entries can be edited or deleted.
-            .onAppear { entries = sleepRepository.entries() }
+            .onAppear {
+                entries = sleepRepository.entries()
+                HealthImportSleepTip.isImportDisabled = !UserDefaults.standard.bool(
+                    forKey: HealthKitService.readSleepEnabledKey
+                )
+            }
             .alert(
                 L10n.error,
                 isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })

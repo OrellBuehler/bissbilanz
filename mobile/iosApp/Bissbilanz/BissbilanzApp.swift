@@ -1,6 +1,7 @@
 import AppIntents
 import SwiftData
 import SwiftUI
+import TipKit
 import UserNotifications
 
 /// Top-level destination shown at the app root, resolved from auth state and app mode.
@@ -76,9 +77,22 @@ struct BissbilanzApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
 
+    /// Set by the Settings "Show tips again" row; read and cleared here on the
+    /// next launch, before `Tips.configure`, so every tip's dismissed/shown
+    /// state resets. Tips only re-appear after a restart because
+    /// `Tips.resetDatastore()` must run before `Tips.configure` — TipKit
+    /// forbids calling it afterwards.
+    static let resetTipsOnLaunchKey = "resetTipsOnLaunch"
+
     init() {
         // Start crash reporting before anything else can fail.
         ErrorReporter.start()
+
+        if UserDefaults.standard.bool(forKey: Self.resetTipsOnLaunchKey) {
+            try? Tips.resetDatastore()
+            UserDefaults.standard.removeObject(forKey: Self.resetTipsOnLaunchKey)
+        }
+        try? Tips.configure([.displayFrequency(.daily)])
 
         let auth = AuthManager()
         let api = BissbilanzAPI(authManager: auth)
