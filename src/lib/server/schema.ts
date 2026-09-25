@@ -39,6 +39,10 @@ export const labelSourceValues = ['user', 'llm', 'external', 'catalog'] as const
 export type LabelSource = (typeof labelSourceValues)[number];
 export const labelSourceEnum = pgEnum('label_source', labelSourceValues);
 
+export const reminderKindValues = ['weight', 'meal', 'sleep'] as const;
+export type ReminderKind = (typeof reminderKindValues)[number];
+export const reminderKindEnum = pgEnum('reminder_kind', reminderKindValues);
+
 // Users (identified via one or more linked OIDC identities)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -563,6 +567,46 @@ export const supplementIngredients = pgTable(
 	]
 );
 
+// Reminders — general logging reminders (weight / meal / sleep), synced across
+// devices. Distinct from supplements.reminderTimes, which is a supplement's own
+// schedule; these fire independently and are skipped when the thing they remind
+// about is already logged for the local day.
+export const reminders = pgTable(
+	'reminders',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		kind: reminderKindEnum('kind').notNull(),
+		// Required (and only meaningful) when kind='meal'. Plain text, not a foreign
+		// key — same as food_entries.mealType, so a deleted custom meal type doesn't
+		// invalidate the reminder.
+		mealType: text('meal_type'),
+		// Local wall-clock 'HH:MM' (24h) the reminder fires at. Timezone-naive on
+		// purpose, same convention as supplements.reminderTimes.
+		time: text('time').notNull(),
+		// Days of week the reminder is active, Sun=0..Sat=6. Same numbering as
+		// supplements.scheduleDays.
+		weekdays: integer('weekdays').array().notNull(),
+		enabled: boolean('enabled').notNull().default(true),
+		// Dedupe marker for the web-push dispatcher, claimed atomically like
+		// supplements.lastRemindedAt.
+		lastRemindedAt: timestamp('last_reminded_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		index('idx_reminders_user_id').on(table.userId),
+		check(
+			'reminders_meal_type_required',
+			sql`(${table.kind} = 'meal' AND ${table.mealType} IS NOT NULL) OR (${table.kind} != 'meal' AND ${table.mealType} IS NULL)`
+		),
+		check('reminders_time_format', sql`${table.time} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`),
+		check('reminders_weekdays_not_empty', sql`array_length(${table.weekdays}, 1) > 0`)
+	]
+);
+
 // Day Properties (fasting day, etc.)
 export const dayProperties = pgTable(
 	'day_properties',
@@ -1007,6 +1051,8 @@ export type Supplement = typeof supplements.$inferSelect;
 export type NewSupplement = typeof supplements.$inferInsert;
 export type SupplementIngredient = typeof supplementIngredients.$inferSelect;
 export type NewSupplementIngredient = typeof supplementIngredients.$inferInsert;
+export type Reminder = typeof reminders.$inferSelect;
+export type NewReminder = typeof reminders.$inferInsert;
 export type OAuthClient = typeof oauthClients.$inferSelect;
 export type NewOAuthClient = typeof oauthClients.$inferInsert;
 export type OAuthAuthorization = typeof oauthAuthorizations.$inferSelect;
