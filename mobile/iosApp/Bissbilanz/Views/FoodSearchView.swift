@@ -694,6 +694,7 @@ struct LogFoodForm: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
             }
 
             Section {
