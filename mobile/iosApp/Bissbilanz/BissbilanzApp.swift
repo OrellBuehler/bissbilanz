@@ -240,6 +240,7 @@ struct BissbilanzApp: App {
         // watch-state scans on the main context are the hang BISSBILANZ-39.
         PhoneWatchConnectivity.shared.onLogRequest = { request in
             let food = request.foodId.flatMap { foodRepo.food(id: $0) }
+            let recipe = request.recipeId.flatMap { recipeRepo.recipe(id: $0) }
             let create = EntryCreate(
                 foodId: request.foodId,
                 recipeId: request.recipeId,
@@ -253,7 +254,7 @@ struct BissbilanzApp: App {
                 quickFat: request.quickFat,
                 quickFiber: request.quickFiber
             )
-            _ = try await entryRepo.createEntry(create, food: food)
+            _ = try await entryRepo.createEntry(create, food: food, recipe: recipe)
             return await WidgetSnapshotWriter.build(container: container).snapshot
         }
         // Weight/sleep logs from the watch run through the same offline-first

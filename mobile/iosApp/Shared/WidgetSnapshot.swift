@@ -30,6 +30,10 @@ struct WidgetSnapshot: Codable, Sendable {
         /// `try?` — a required field would blank every widget until the app
         /// next ran.
         var imageUrl: String?
+        /// `true` when `id` is a recipe id rather than a food id. Optional for
+        /// the same reason as `imageUrl` — a snapshot from before recipes were
+        /// included in favorites still decodes; treat a missing value as `false`.
+        var isRecipe: Bool?
     }
 
     /// ISO day ("yyyy-MM-dd") the consumed values refer to.

@@ -1,6 +1,11 @@
 import 'zod-openapi';
 import { z } from 'zod';
 import { servingUnitValues } from '$lib/units';
+import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+
+const extendedNutrientsSchema = z
+	.object(Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, z.number().nullable()])))
+	.meta({ id: 'RecipeExtendedNutrients' });
 
 const recipeSummarySchema = z
 	.object({
@@ -43,7 +48,10 @@ const recipeDetailSchema = z
 		fiber: z.number(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
-		ingredients: z.array(recipeIngredientResponseSchema)
+		ingredients: z.array(recipeIngredientResponseSchema),
+		// Per-serving (unlike the whole-recipe core macros above), to match
+		// what a food's nutrient panel shows.
+		extendedNutrientsPerServing: extendedNutrientsSchema.optional()
 	})
 	.meta({ id: 'RecipeDetail' });
 

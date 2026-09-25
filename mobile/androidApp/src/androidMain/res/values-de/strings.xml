@@ -85,6 +85,11 @@
     <string name="sleep_delete_dialog_title">Schlafeintrag löschen</string>
     <string name="sleep_delete_dialog_text">Schlafeintrag vom %1$s löschen?</string>
     <string name="action_delete">Löschen</string>
+    <string name="action_delete_anyway">Trotzdem löschen</string>
+    <string name="delete_conflict_title">Noch in Verwendung</string>
+    <string name="delete_conflict_entries">Wird in %1$d Einträgen verwendet. Trotzdem löschen?</string>
+    <string name="delete_conflict_recipes">Wird in %1$d Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt.</string>
+    <string name="delete_conflict_entries_and_recipes">Wird in %1$d Einträgen und %2$d Rezepten verwendet. Beim Löschen wird es aus allen entfernt.</string>
     <string name="sleep_log_dialog_title">Schlaf erfassen</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Abbrechen</string>
@@ -624,6 +629,11 @@
     <string name="recipe_list_empty">Noch keine Rezepte.\nTippe auf +, um eines zu erstellen.</string>
     <string name="recipe_list_item_summary">%1$d Portionen  ·  %2$d Zutaten</string>
     <string name="recipe_list_log_content_desc">Rezept erfassen</string>
+    <string name="recipe_list_search_placeholder">Rezepte suchen</string>
+    <string name="recipe_list_no_results">Keine Rezepte gefunden.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
+    <string name="recipe_list_sort_calories">Kalorien/Portion</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Rezept konnte nicht geladen werden</string>
@@ -647,6 +657,7 @@
     <string name="recipe_edit_ingredients_count">Zutaten (%1$d)</string>
     <string name="recipe_edit_remove">Entfernen</string>
     <string name="recipe_edit_amount">Menge</string>
+    <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
 
     <!-- Supplements screen -->

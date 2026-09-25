@@ -87,6 +87,11 @@
     <string name="sleep_delete_dialog_title">Delete Sleep Entry</string>
     <string name="sleep_delete_dialog_text">Delete sleep entry from %1$s?</string>
     <string name="action_delete">Delete</string>
+    <string name="action_delete_anyway">Delete anyway</string>
+    <string name="delete_conflict_title">Still in use</string>
+    <string name="delete_conflict_entries">This is used in %1$d food log entries. Delete it anyway?</string>
+    <string name="delete_conflict_recipes">This is used in %1$d recipes. Deleting it will remove it from those recipes too.</string>
+    <string name="delete_conflict_entries_and_recipes">This is used in %1$d food log entries and %2$d recipes. Deleting it will remove it from all of them.</string>
     <string name="sleep_log_dialog_title">Log Sleep</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Cancel</string>
@@ -626,6 +631,11 @@
     <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
     <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
     <string name="recipe_list_log_content_desc">Log recipe</string>
+    <string name="recipe_list_search_placeholder">Search recipes</string>
+    <string name="recipe_list_no_results">No recipes match your search.</string>
+    <string name="recipe_list_sort_name">Name</string>
+    <string name="recipe_list_sort_recent">Recently updated</string>
+    <string name="recipe_list_sort_calories">Calories/serving</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Failed to load recipe</string>
@@ -649,6 +659,7 @@
     <string name="recipe_edit_ingredients_count">Ingredients (%1$d)</string>
     <string name="recipe_edit_remove">Remove</string>
     <string name="recipe_edit_amount">Amount</string>
+    <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
 
     <!-- Supplements screen -->

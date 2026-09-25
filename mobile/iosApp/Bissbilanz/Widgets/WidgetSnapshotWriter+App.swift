@@ -224,14 +224,15 @@ extension WidgetSnapshotWriter {
         return standardMealTypes + custom
     }
 
-    /// Recently logged foods (most recent first), derived from the local entry
-    /// log the same way the in-app recents list is. Recipes are skipped — the
-    /// watch logs by food id in Phase 1.
+    /// Recently logged foods and recipes (most recent first), derived from the
+    /// local entry log the same way the in-app recents list is.
     private nonisolated static func watchRecents(context: ModelContext, limit: Int = 10) -> [WatchFoodRef] {
         // Read off the typed columns instead of decoding `jsonData`: `foodName`
         // and `calories` are stored already coalesced with their `quick*`
-        // counterparts, so `displayName`/`totalCalories` add nothing here. That
-        // drops the per-entry JSON decode this used to pay on every save.
+        // counterparts (and, for a recipe entry, the recipe's per-serving name/
+        // calories — see `Entry`'s server shape), so `displayName`/`totalCalories`
+        // add nothing here. That drops the per-entry JSON decode this used to pay
+        // on every save.
         //
         // Ordering is by day, descending, which loses the intra-day precision
         // `createdAt` gave — the only reason the decode existed. Within a
@@ -239,19 +240,20 @@ extension WidgetSnapshotWriter {
         // list is close enough to not be worth a decode per row.
         let cutoff = DateFormatting.isoString(from: Date().adding(days: -recentsWindowDays))
         var descriptor = FetchDescriptor<LocalEntry>(
-            predicate: #Predicate { $0.foodId != nil && $0.date >= cutoff },
+            predicate: #Predicate { ($0.foodId != nil || $0.recipeId != nil) && $0.date >= cutoff },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         descriptor.fetchLimit = recentsScanLimit
 
-        var seenFoodIds: Set<String> = []
+        var seenIds: Set<String> = []
         var recents: [WatchFoodRef] = []
         for row in (try? context.fetch(descriptor)) ?? [] {
-            guard let foodId = row.foodId, seenFoodIds.insert(foodId).inserted else { continue }
+            guard let refId = row.recipeId ?? row.foodId, seenIds.insert(refId).inserted else { continue }
             recents.append(WatchFoodRef(
-                id: foodId,
+                id: refId,
                 name: row.foodName ?? "Unknown",
-                calories: row.calories
+                calories: row.calories,
+                isRecipe: row.recipeId != nil
             ))
             if recents.count == limit { break }
         }

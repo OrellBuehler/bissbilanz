@@ -514,8 +514,60 @@ final class FoodRepository {
         if LocalStore.isTempId(id) {
             syncManager.removeQueued(table: "foods", affectedId: id)
         } else {
-            syncManager.enqueue(.deleteFood(id: id))
+            syncManager.enqueue(.deleteFood(id: id, force: false))
         }
+    }
+
+    /// Asks first instead of deleting-then-hoping: `deleteFood` always deletes
+    /// locally and queues the server delete, which — if the food still has diary
+    /// entries or is used by a recipe — used to dead-letter on the resulting 409
+    /// and reappear on the next refresh, with no indication to the user why. In
+    /// Local mode (or a not-yet-uploaded temp id) there is no server to ask, so
+    /// diary entries referencing it are counted locally instead (recipe-ingredient
+    /// references aren't tracked in the local cache).
+    func deleteFoodChecked(id: String) async throws -> DeleteOutcome {
+        if appMode.isLocal || LocalStore.isTempId(id) {
+            let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId == id })
+            let entryCount = (try? context.fetch(descriptor))?.count ?? 0
+            if entryCount > 0 {
+                return .blocked(DeleteConflict(entryCount: entryCount, ingredientCount: nil, recipeCount: nil))
+            }
+            try await deleteFood(id: id)
+            return .deleted
+        }
+        do {
+            try await api.deleteFood(id: id)
+            LocalImageStore.evict(food(id: id)?.imageUrl)
+            deleteRow(id: id)
+            save()
+            syncManager.removeQueued(table: "foods", affectedId: id)
+            return .deleted
+        } catch let error as APIError {
+            if let conflict = error.deleteConflict {
+                return .blocked(conflict)
+            }
+            try await deleteFood(id: id)
+            return .deleted
+        }
+    }
+
+    /// Deletes a food the user already confirmed via a `DeleteOutcome.blocked` prompt.
+    func forceDeleteFood(id: String) async throws {
+        if appMode.isLocal || LocalStore.isTempId(id) {
+            try await deleteFood(id: id)
+            return
+        }
+        let imageUrl = food(id: id)?.imageUrl
+        deleteRow(id: id)
+        save()
+        do {
+            try await api.deleteFood(id: id, force: true)
+            syncManager.removeQueued(table: "foods", affectedId: id)
+        } catch {
+            if error is CancellationError { throw error }
+            syncManager.enqueue(.deleteFood(id: id, force: true))
+        }
+        if let imageUrl { LocalImageStore.evict(imageUrl) }
     }
 
     @discardableResult

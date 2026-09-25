@@ -193,16 +193,21 @@
 				params: { query: { type: 'recipes' } }
 			});
 			if (data) {
-				favoriteRecipes = (data.recipes ?? []).map((r: any): FavoriteItem => ({
-					id: r.id,
-					name: r.name,
-					imageUrl: r.imageUrl ?? null,
-					calories: r.calories ?? 0,
-					protein: r.protein ?? 0,
-					carbs: r.carbs ?? 0,
-					fat: r.fat ?? 0,
-					type: 'recipe'
-				}));
+				favoriteRecipes = (data.recipes ?? []).map((r: any): FavoriteItem => {
+					// The API reports whole-recipe totals; the picker previews one
+					// serving, so divide down (guarding a non-positive totalServings).
+					const servings = r.totalServings > 0 ? r.totalServings : 1;
+					return {
+						id: r.id,
+						name: r.name,
+						imageUrl: r.imageUrl ?? null,
+						calories: (r.calories ?? 0) / servings,
+						protein: (r.protein ?? 0) / servings,
+						carbs: (r.carbs ?? 0) / servings,
+						fat: (r.fat ?? 0) / servings,
+						type: 'recipe'
+					};
+				});
 			}
 		} catch (e) {
 			if (dev) console.warn('Failed to load favorite recipes:', e);

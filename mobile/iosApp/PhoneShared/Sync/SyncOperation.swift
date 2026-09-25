@@ -7,7 +7,11 @@ import Foundation
 enum SyncOperation: Codable {
     case createFood(body: FoodCreate, localId: String)
     case updateFood(id: String, body: FoodCreate)
-    case deleteFood(id: String)
+    /// `force` is only set once the user has confirmed a "used elsewhere" conflict
+    /// (see `FoodRepository.forceDeleteFood`) — a queued delete must never force
+    /// silently, or a still-referenced food dead-letters on the very 409 that was
+    /// supposed to ask the user first.
+    case deleteFood(id: String, force: Bool)
     case toggleFavorite(id: String, isFavorite: Bool)
     /// Attaches or, with a nil `imageUrl`, removes a food's image.
     case setFoodImage(id: String, imageUrl: String?)
@@ -24,7 +28,8 @@ enum SyncOperation: Codable {
     /// nil optionals, so a removal sent on a normal update body would be
     /// dropped and the old image would stay.
     case setRecipeImage(id: String, imageUrl: String?)
-    case deleteRecipe(id: String)
+    /// See `deleteFood`'s `force`.
+    case deleteRecipe(id: String, force: Bool)
     case setGoals(body: Goals)
     case createWeight(body: WeightCreate, localId: String)
     case updateWeight(id: String, body: WeightUpdate)
@@ -111,10 +116,10 @@ enum SyncOperation: Codable {
              let .createSleep(_, localId), let .createSupplement(_, localId),
              let .createReminder(_, localId):
             localId
-        case let .updateFood(id, _), let .deleteFood(id), let .toggleFavorite(id, _),
+        case let .updateFood(id, _), let .deleteFood(id, _), let .toggleFavorite(id, _),
              let .setFoodImage(id, _), let .setFoodLabels(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
-             let .updateRecipe(id, _), let .setRecipeImage(id, _), let .deleteRecipe(id),
+             let .updateRecipe(id, _), let .setRecipeImage(id, _), let .deleteRecipe(id, _),
              let .updateWeight(id, _), let .deleteWeight(id),
              let .updateSleep(id, _), let .deleteSleep(id),
              let .updateSupplement(id, _), let .deleteSupplement(id),
@@ -142,8 +147,8 @@ enum SyncOperation: Codable {
         case let .updateFood(id, body) where id == oldId:
             return .updateFood(id: newId, body: body)
 
-        case let .deleteFood(id) where id == oldId:
-            return .deleteFood(id: newId)
+        case let .deleteFood(id, force) where id == oldId:
+            return .deleteFood(id: newId, force: force)
 
         case let .toggleFavorite(id, isFavorite) where id == oldId:
             return .toggleFavorite(id: newId, isFavorite: isFavorite)
@@ -191,8 +196,8 @@ enum SyncOperation: Codable {
         case let .setRecipeImage(id, imageUrl) where id == oldId:
             return .setRecipeImage(id: newId, imageUrl: imageUrl)
 
-        case let .deleteRecipe(id) where id == oldId:
-            return .deleteRecipe(id: newId)
+        case let .deleteRecipe(id, force) where id == oldId:
+            return .deleteRecipe(id: newId, force: force)
 
         case let .updateWeight(id, body) where id == oldId:
             return .updateWeight(id: newId, body: body)
@@ -276,7 +281,7 @@ enum SyncOperation: Codable {
         switch self {
         case .createFood: "create food"
         case let .updateFood(id, _): "update food \(id)"
-        case let .deleteFood(id): "delete food \(id)"
+        case let .deleteFood(id, _): "delete food \(id)"
         case let .toggleFavorite(id, _): "toggle favorite \(id)"
         case let .setFoodImage(id, _): "set food image \(id)"
         case let .setFoodLabels(id, _): "set food labels \(id)"
@@ -286,7 +291,7 @@ enum SyncOperation: Codable {
         case .createRecipe: "create recipe"
         case let .updateRecipe(id, _): "update recipe \(id)"
         case let .setRecipeImage(id, _): "set recipe image \(id)"
-        case let .deleteRecipe(id): "delete recipe \(id)"
+        case let .deleteRecipe(id, _): "delete recipe \(id)"
         case .setGoals: "set goals"
         case .createWeight: "create weight entry"
         case let .updateWeight(id, _): "update weight entry \(id)"

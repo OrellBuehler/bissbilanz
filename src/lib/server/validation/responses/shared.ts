@@ -17,6 +17,11 @@ export const validationErrorResponseSchema = z
 export const conflictErrorResponseSchema = z
 	.object({
 		error: z.string(),
-		entryCount: z.number().optional()
+		entryCount: z.number().optional(),
+		// `has_entries` on a food delete: rows in recipe_ingredients referencing
+		// it, and the distinct recipes among them.
+		ingredientCount: z.number().optional(),
+		recipeCount: z.number().optional(),
+		supplementIngredientCount: z.number().optional()
 	})
 	.meta({ id: 'ConflictErrorResponse' });
