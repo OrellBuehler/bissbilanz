@@ -11,6 +11,7 @@ struct RemindersView: View {
     @Environment(WeightRepository.self) private var weightRepository
     @Environment(SleepRepository.self) private var sleepRepository
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(SyncManager.self) private var syncManager
 
     @State private var reminders: [Reminder] = []
     @State private var supplements: [Supplement] = []
@@ -91,6 +92,16 @@ struct RemindersView: View {
         .task {
             await loadData()
             notificationsAuthorized = await SupplementReminderScheduler.authorizationStatus() == .authorized
+        }
+        // `reminders` is a manual snapshot, not a live query: a reminder
+        // created just before this view appeared can have its optimistic
+        // temp id replaced by the server id (`LocalRemap.replaceReminder`)
+        // via the background sync drain before the next explicit reload.
+        // Without this, `reminders` keeps pointing at the pre-drain id, and
+        // toggling/editing/deleting it then fails with "Not found" because
+        // that row no longer exists locally under that id.
+        .onChange(of: syncManager.pendingCount) { _, _ in
+            reloadReminders()
         }
         .alert(
             L10n.error,
@@ -260,6 +271,13 @@ struct RemindersView: View {
             reloadReminders()
             await refill()
         } catch {
+            // Reload even on failure: a "Not found" here almost always means
+            // `reminder.id` was a pre-drain temp id that the background sync
+            // already replaced (see the `pendingCount` `onChange` above), so
+            // the row itself is fine — only this stale reference to it is
+            // not. Without the reload the row would keep failing every
+            // toggle until something else happened to refresh the list.
+            reloadReminders()
             errorMessage = error.localizedDescription
         }
     }
@@ -270,6 +288,7 @@ struct RemindersView: View {
             reloadReminders()
             await refill()
         } catch {
+            reloadReminders()
             errorMessage = error.localizedDescription
         }
     }

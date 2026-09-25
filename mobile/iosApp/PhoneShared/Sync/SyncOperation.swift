@@ -257,6 +257,12 @@ enum SyncOperation: Codable {
         case let .unlogSupplement(supplementId, date) where supplementId == oldId:
             return .unlogSupplement(supplementId: newId, date: date)
 
+        case let .updateReminder(id, body) where id == oldId:
+            return .updateReminder(id: newId, body: body)
+
+        case let .deleteReminder(id) where id == oldId:
+            return .deleteReminder(id: newId)
+
         default:
             return nil
         }

@@ -78,6 +78,14 @@ internal fun remapTempIds(
             op.copy(supplementId = remap(op.supplementId))
         }
 
+        is SyncOperation.UpdateReminder -> {
+            op.copy(id = remap(op.id))
+        }
+
+        is SyncOperation.DeleteReminder -> {
+            op.copy(id = remap(op.id))
+        }
+
         is SyncOperation.CreateEntry -> {
             op.copy(body = remapEntryCreateBody(op.body, remaps, json))
         }
