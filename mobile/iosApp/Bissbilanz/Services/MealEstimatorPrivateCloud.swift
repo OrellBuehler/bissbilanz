@@ -5,9 +5,10 @@ import FoundationModels
 
 /// Private Cloud Compute fallback for `MealEstimator`: when the on-device
 /// model is unavailable, refuses, overflows its context window, or comes back
-/// obviously weak, `MealEstimator.estimate(description:)` retries the same
-/// tool-augmented, `@Generable`-guided prompt on Apple's server model instead
-/// of just failing. See `MealEstimator.swift` for the on-device path this
+/// obviously weak, `MealEstimator.estimateWithFallback` retries the same
+/// tool-augmented, `@Generable`-guided prompt (text here, photos in
+/// `MealEstimator+Photo.swift`) on Apple's server model instead of just
+/// failing. See `MealEstimator.swift` for the on-device path this
 /// mirrors and the call sites that use this file.
 ///
 /// `PrivateCloudComputeLanguageModel` and the `LanguageModelSession.init(
@@ -40,12 +41,7 @@ extension MealEstimator {
     /// composite check `SystemLanguageModel.availability` does for the
     /// on-device model.
     var isPrivateCloudComputeAvailable: Bool {
-        #if compiler(>=6.4) && canImport(FoundationModels)
-        if #available(iOS 27, *) {
-            return PrivateCloudComputeSettings.isEnabled && PrivateCloudComputeLanguageModel().isAvailable
-        }
-        #endif
-        return false
+        PrivateCloudComputeSettings.isEnabled && PrivateCloudComputeSettings.isSupported
     }
 
     /// Whether an estimate can be produced at all, on-device or via Private
@@ -59,7 +55,7 @@ extension MealEstimator {
     /// Runs the same tool-augmented, hallucination-guarded estimate as the
     /// on-device path, backed by `PrivateCloudComputeLanguageModel` instead of
     /// `SystemLanguageModel`. Callers should check `isPrivateCloudComputeAvailable`
-    /// first — `MealEstimator.estimate(description:)` is the entry point that
+    /// first — `MealEstimator.estimateWithFallback` is the entry point that
     /// actually decides when to call this.
     func estimateWithPrivateCloudCompute(description: String) async throws -> MealEstimate {
         #if compiler(>=6.4) && canImport(FoundationModels)
@@ -83,6 +79,23 @@ extension MealEstimator {
     nonisolated static func isWeakEstimate(_ estimate: MealEstimate) -> Bool {
         guard !estimate.items.isEmpty else { return true }
         return estimate.items.allSatisfy { $0.confidence < 0.5 }
+    }
+
+    /// Picks between a weak on-device result and the Private Cloud Compute
+    /// retry, instead of always taking the retry: a non-weak retry wins; if
+    /// both are weak, an empty result never beats a non-empty one, and
+    /// otherwise the higher mean confidence wins, with ties staying on-device.
+    ///
+    /// `nonisolated`: see `isWeakEstimate` above.
+    nonisolated static func preferredEstimate(onDevice: MealEstimate, privateCloud: MealEstimate) -> MealEstimate {
+        if !isWeakEstimate(privateCloud) { return privateCloud }
+        if privateCloud.items.isEmpty { return onDevice }
+        if onDevice.items.isEmpty { return privateCloud }
+        return meanConfidence(privateCloud) > meanConfidence(onDevice) ? privateCloud : onDevice
+    }
+
+    private nonisolated static func meanConfidence(_ estimate: MealEstimate) -> Double {
+        estimate.items.map(\.confidence).reduce(0, +) / Double(estimate.items.count)
     }
 
     /// Only the two on-device failures the fallback is meant to catch: a
@@ -147,7 +160,7 @@ private extension MealEstimator {
 #endif
 
 /// Device-local (not synced to the account) toggle for whether an AI estimate
-/// may leave the device at all for Apple's Private Cloud Compute. Backs
+/// (text or photos) may leave the device at all for Apple's Private Cloud Compute. Backs
 /// `SettingsView`'s "AI Estimation" toggle and also gates the Apple Watch
 /// voice-logging entry point (`WatchMealEstimator`), which has no on-device
 /// model to fall back from — PCC is its only option, so turning this off also
@@ -175,5 +188,19 @@ enum PrivateCloudComputeSettings {
             return UserDefaults.standard.bool(forKey: key)
         }
         set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+
+    /// Whether Apple currently authorizes Private Cloud Compute for this
+    /// account/device, independent of the toggle — which folds in the managed
+    /// entitlement, Apple Intelligence region rules and iCloud sign-in.
+    /// `SettingsView` only shows the toggle when this is true, so it isn't a
+    /// dead switch on builds without the entitlement.
+    static var isSupported: Bool {
+        #if compiler(>=6.4) && canImport(FoundationModels)
+        if #available(iOS 27, *) {
+            return PrivateCloudComputeLanguageModel().isAvailable
+        }
+        #endif
+        return false
     }
 }

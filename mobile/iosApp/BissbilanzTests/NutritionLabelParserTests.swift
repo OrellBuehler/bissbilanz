@@ -150,6 +150,41 @@ struct NutritionLabelParserTests {
         #expect(parsed.isEmpty)
     }
 
+    @Test("Parses a two-column drink panel with a kJ/kcal header and no units")
+    func parsesTwoColumnDrinkPanel() {
+        let rows = [
+            "Nährwerte pro 100 ml pro Dose 250 ml",
+            "Energie kJ/kcal 180/42 450/105",
+            "Fett 0 0",
+            "Kohlenhydrate 10,6 26,5",
+            "davon Zucker 10,6 26,5",
+            "Eiweiß 0,5 1,3",
+            "Salz 0,02 0,05",
+        ]
+
+        let parsed = NutritionLabelParser.parse(rows: rows)
+
+        #expect(parsed.calories == 42)
+        #expect(parsed.fat == 0)
+        #expect(parsed.carbs == 10.6)
+        #expect(parsed.sugar == 10.6)
+        #expect(parsed.protein == 0.5)
+        #expect(parsed.salt == 0.02)
+        #expect(parsed.isVolume)
+    }
+
+    @Test("Reads kcal from a kcal/kJ header pair")
+    func readsKcalFromKcalKJHeaderPair() {
+        #expect(NutritionLabelParser.parse(rows: ["Brennwert kcal/kJ 42/180"]).calories == 42)
+    }
+
+    @Test("Only a 100 ml basis counts as volume")
+    func onlyA100MlBasisIsVolume() {
+        #expect(NutritionLabelParser.isVolumeBasis(["Nährwerte pro 100ml"]))
+        #expect(!NutritionLabelParser.isVolumeBasis(["Nährwerte pro 100 g"]))
+        #expect(!NutritionLabelParser.isVolumeBasis(["Zubereitung mit 1000 ml Wasser"]))
+    }
+
     // MARK: - Number normalization
 
     @Test("parseDecimal handles comma/point and thousands separators")

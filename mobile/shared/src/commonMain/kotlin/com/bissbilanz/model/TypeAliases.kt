@@ -37,6 +37,9 @@ import com.bissbilanz.api.generated.model.RecipeCreate as GeneratedRecipeCreate
 import com.bissbilanz.api.generated.model.RecipeIngredient as GeneratedRecipeIngredient
 import com.bissbilanz.api.generated.model.RecipeIngredientInput as GeneratedRecipeIngredientInput
 import com.bissbilanz.api.generated.model.RecipeUpdate as GeneratedRecipeUpdate
+import com.bissbilanz.api.generated.model.Reminder as GeneratedReminder
+import com.bissbilanz.api.generated.model.ReminderCreate as GeneratedReminderCreate
+import com.bissbilanz.api.generated.model.ReminderUpdate as GeneratedReminderUpdate
 import com.bissbilanz.api.generated.model.ServingUnit as GeneratedServingUnit
 import com.bissbilanz.api.generated.model.SleepCreate as GeneratedSleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry as GeneratedSleepEntry
@@ -92,10 +95,14 @@ typealias SleepCreate = GeneratedSleepCreate
 typealias SleepUpdate = GeneratedSleepUpdate
 typealias SleepFoodCorrelationEntry = GeneratedSleepFoodCorrelationEntry
 typealias SleepFoodCorrelationResponse = GeneratedSleepFoodCorrelationResponse
+typealias Reminder = GeneratedReminder
+typealias ReminderCreate = GeneratedReminderCreate
+typealias ReminderUpdate = GeneratedReminderUpdate
 
 // Nested enum aliases
 typealias ScheduleType = GeneratedSupplement.ScheduleType
 typealias TimeOfDay = GeneratedSupplement.TimeOfDay
+typealias ReminderKind = GeneratedReminder.Kind
 
 // Stats types
 typealias MacroTotals = MacroSummary

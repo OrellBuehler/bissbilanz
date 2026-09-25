@@ -15,6 +15,7 @@ import {
 	identities,
 	recipeIngredients,
 	recipes,
+	reminders,
 	sleepEntries,
 	supplementIngredients,
 	supplements,
@@ -75,6 +76,7 @@ async function gatherData(userId: string) {
 		sleepRows,
 		dayPropertyRows,
 		fastingRows,
+		reminderRows,
 		[goals],
 		[preferences],
 		mealTypeRows,
@@ -201,6 +203,7 @@ async function gatherData(userId: string) {
 			.from(fastingSessions)
 			.where(eq(fastingSessions.userId, userId))
 			.orderBy(asc(fastingSessions.startedAt)),
+		db.select().from(reminders).where(eq(reminders.userId, userId)).orderBy(asc(reminders.time)),
 		db.select().from(userGoals).where(eq(userGoals.userId, userId)),
 		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
 		db
@@ -229,6 +232,7 @@ async function gatherData(userId: string) {
 		sleepEntries: stripUserId(sleepRows),
 		dayProperties: stripUserId(dayPropertyRows),
 		fastingSessions: stripUserId(fastingRows),
+		reminders: stripUserId(reminderRows),
 		goals: goals ? stripUserId([goals])[0] : null,
 		preferences: preferences ? stripUserId([preferences])[0] : null,
 		customMealTypes: stripUserId(mealTypeRows),
@@ -425,6 +429,16 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 		'csv/fasting-sessions.csv': toCsv(
 			['id', 'started_at', 'ended_at', 'target_hours'],
 			data.fastingSessions.map((fast) => [fast.id, fast.startedAt, fast.endedAt, fast.targetHours])
+		),
+		'csv/reminders.csv': toCsv(
+			['kind', 'meal_type', 'time', 'weekdays', 'enabled'],
+			data.reminders.map((reminder) => [
+				reminder.kind,
+				reminder.mealType,
+				reminder.time,
+				reminder.weekdays.join(';'),
+				reminder.enabled
+			])
 		),
 		'csv/meal-types.csv': toCsv(
 			['name', 'sort_order'],

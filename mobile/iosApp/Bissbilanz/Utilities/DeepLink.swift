@@ -8,6 +8,10 @@ enum DeepLink: Equatable, Identifiable {
     case logFood
     case scanner
     case weight
+    /// Tapping a sleep logging reminder's body.
+    case sleep
+    /// Tapping a meal (or unrecognized-kind) logging reminder's body.
+    case dashboard
     case food(String)
     case recipe(String)
     /// Tapping a supplement reminder's body.
@@ -20,6 +24,8 @@ enum DeepLink: Equatable, Identifiable {
         case .logFood: "log"
         case .scanner: "scan"
         case .weight: "weight"
+        case .sleep: "sleep"
+        case .dashboard: "dashboard"
         case let .food(foodId): "food-\(foodId)"
         case let .recipe(recipeId): "recipe-\(recipeId)"
         case .supplements: "supplements"

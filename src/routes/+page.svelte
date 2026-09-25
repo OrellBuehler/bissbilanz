@@ -16,6 +16,9 @@
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Apple from '@lucide/svelte/icons/apple';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Flame from '@lucide/svelte/icons/flame';
+	import GlassWater from '@lucide/svelte/icons/glass-water';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Seo from '$lib/components/Seo.svelte';
 	import StripeBuyButton from '$lib/components/StripeBuyButton.svelte';
@@ -57,11 +60,22 @@
 			desc: m.landing_feature_recipes_desc
 		},
 		{
+			icon: ChefHat,
+			title: m.landing_feature_suggestions_title,
+			desc: m.landing_feature_suggestions_desc
+		},
+		{
 			icon: Pill,
 			title: m.landing_feature_supplements_title,
 			desc: m.landing_feature_supplements_desc
 		},
 		{ icon: Scale, title: m.landing_feature_weight_title, desc: m.landing_feature_weight_desc },
+		{
+			icon: Flame,
+			title: m.landing_feature_activity_title,
+			desc: m.landing_feature_activity_desc
+		},
+		{ icon: GlassWater, title: m.landing_feature_day_title, desc: m.landing_feature_day_desc },
 		{ icon: Moon, title: m.landing_feature_sleep_title, desc: m.landing_feature_sleep_desc },
 		{ icon: Timer, title: m.landing_feature_fasting_title, desc: m.landing_feature_fasting_desc },
 		{

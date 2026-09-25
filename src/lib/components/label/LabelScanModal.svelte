@@ -20,6 +20,7 @@
 	import { recognizeLabel, type OcrPhase } from '$lib/ocr/label-ocr';
 	import {
 		isEmpty,
+		isVolumeBasis,
 		PARSED_NUTRITION_KEYS,
 		toFoodFormPatch,
 		type FoodFormPatch,
@@ -144,7 +145,7 @@
 
 		try {
 			const prepared = await prepareImage(source);
-			const { parsed } = await recognizeLabel(prepared, (update) => {
+			const { parsed, rows } = await recognizeLabel(prepared, (update) => {
 				phase = update.phase;
 				progress = update.progress;
 			});
@@ -154,6 +155,7 @@
 				return;
 			}
 			values = { ...parsed };
+			servingUnit = isVolumeBasis(rows) ? 'ml' : 'g';
 			stage = 'review';
 		} catch (err) {
 			Sentry.captureException(err, { tags: { feature: 'label-scan', stage: 'ocr' } });

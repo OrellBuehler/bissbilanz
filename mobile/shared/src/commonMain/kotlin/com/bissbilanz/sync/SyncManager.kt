@@ -606,6 +606,32 @@ class SyncManager(
             is SyncOperation.DeleteSleep -> {
                 api.deleteSleepEntry(op.id, idempotencyKey, clientEditedAt)
             }
+
+            is SyncOperation.CreateReminder -> {
+                val server =
+                    api.createReminder(
+                        json.decodeFromString<ReminderCreate>(op.body),
+                        idempotencyKey,
+                        clientEditedAt,
+                    )
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
+                    replaceLocalReminder(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
+            }
+
+            is SyncOperation.UpdateReminder -> {
+                api.updateReminder(
+                    op.id,
+                    json.decodeFromString<ReminderUpdate>(op.body),
+                    idempotencyKey,
+                    clientEditedAt,
+                )
+            }
+
+            is SyncOperation.DeleteReminder -> {
+                api.deleteReminder(op.id, idempotencyKey, clientEditedAt)
+            }
         }
         return null
     }
@@ -633,7 +659,8 @@ class SyncManager(
             op is SyncOperation.DeleteSupplement ||
             op is SyncOperation.DeleteSleep ||
             op is SyncOperation.DeleteDayProperties ||
-            op is SyncOperation.UnlogSupplement
+            op is SyncOperation.UnlogSupplement ||
+            op is SyncOperation.DeleteReminder
 
     /**
      * Ops that insert a brand-new server row. These have no prior record of their
@@ -646,7 +673,8 @@ class SyncManager(
             op is SyncOperation.CreateRecipe ||
             op is SyncOperation.CreateWeight ||
             op is SyncOperation.CreateSleep ||
-            op is SyncOperation.CreateSupplement
+            op is SyncOperation.CreateSupplement ||
+            op is SyncOperation.CreateReminder
 
     /**
      * The first still-`temp_` foodId/recipeId [op]'s payload references, paired with
@@ -812,6 +840,22 @@ class SyncManager(
                     takenAt = log.takenAt,
                 )
             }
+        }
+    }
+
+    private fun replaceLocalReminder(
+        tempId: String,
+        server: Reminder,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteReminder(tempId)
+            queries.insertReminder(
+                id = server.id,
+                time = server.time,
+                enabled = if (server.enabled) 1L else 0L,
+                jsonData = json.encodeToString(server),
+            )
         }
     }
 

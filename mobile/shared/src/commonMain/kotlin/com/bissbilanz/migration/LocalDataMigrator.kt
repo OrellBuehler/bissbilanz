@@ -12,6 +12,8 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.Reminder
+import com.bissbilanz.api.generated.model.ReminderCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
@@ -52,6 +54,7 @@ data class MigrationPlan(
     val sleepEntries: Int,
     val supplements: Int,
     val supplementLogs: Int,
+    val reminders: Int,
     val dayProperties: Int,
     val hasGoals: Boolean,
     val hasPreferences: Boolean,
@@ -59,7 +62,7 @@ data class MigrationPlan(
     val total: Int
         get() =
             foods + recipes + entries + weights + sleepEntries + supplements +
-                supplementLogs + dayProperties + (if (hasGoals) 1 else 0) + (if (hasPreferences) 1 else 0)
+                supplementLogs + reminders + dayProperties + (if (hasGoals) 1 else 0) + (if (hasPreferences) 1 else 0)
 }
 
 sealed class MigrationState {
@@ -151,6 +154,7 @@ class LocalDataMigrator(
             sleepEntries = queries.selectAllSleepEntries().executeAsList().size,
             supplements = queries.selectAllSupplements().executeAsList().size,
             supplementLogs = queries.selectAllSupplementLogs().executeAsList().size,
+            reminders = queries.selectAllReminders().executeAsList().size,
             dayProperties = queries.selectAllDayProperties().executeAsList().size,
             hasGoals = queries.selectGoals().executeAsOneOrNull() != null,
             hasPreferences = queries.selectPreferences().executeAsOneOrNull() != null,
@@ -204,6 +208,7 @@ class LocalDataMigrator(
             done = uploadSleep(done, total)
             done = uploadSupplements(done, total)
             done = uploadSupplementLogs(done, total)
+            done = uploadReminders(done, total)
             done = uploadGoals(done, total)
             done = uploadPreferences(done, total)
             uploadDayProperties(done, total)
@@ -230,6 +235,7 @@ class LocalDataMigrator(
             normalizeEntries()
             normalizeWeights()
             normalizeSleep()
+            normalizeReminders()
         }
         // The marker lives in the cache DB, so it cannot be committed atomically with
         // the normalization above. Written only after the commit: a crash in between
@@ -338,6 +344,21 @@ class LocalDataMigrator(
                 quality = row.quality,
                 loggedAt = row.loggedAt,
                 jsonData = entry?.let { json.encodeToString(it) } ?: row.jsonData,
+            )
+        }
+    }
+
+    private fun normalizeReminders() {
+        for (row in queries.selectAllReminders().executeAsList()) {
+            if (row.id.isTempId()) continue
+            val newId = newTempId()
+            val reminder = json.decodeOrNull<Reminder>(row.jsonData)?.copy(id = newId)
+            queries.deleteReminder(row.id)
+            queries.insertReminder(
+                id = newId,
+                time = row.time,
+                enabled = row.enabled,
+                jsonData = reminder?.let { json.encodeToString(it) } ?: row.jsonData,
             )
         }
     }
@@ -472,7 +493,8 @@ class LocalDataMigrator(
             queries.selectAllWeightEntries().executeAsList().count { !it.id.isTempId() } +
             queries.selectAllSleepEntries().executeAsList().count { !it.id.isTempId() } +
             queries.selectAllSupplements().executeAsList().count { !it.id.isTempId() } +
-            queries.selectAllSupplementLogs().executeAsList().count { !it.id.isTempId() }
+            queries.selectAllSupplementLogs().executeAsList().count { !it.id.isTempId() } +
+            queries.selectAllReminders().executeAsList().count { !it.id.isTempId() }
 
     private fun progress(
         done: Int,
@@ -753,6 +775,39 @@ class LocalDataMigrator(
         return done
     }
 
+    private suspend fun uploadReminders(
+        startDone: Int,
+        total: Int,
+    ): Int {
+        var done = startDone
+        progress(done, total, STEP_REMINDERS)
+        for (row in queries.selectAllReminders().executeAsList().filter { it.id.isTempId() }) {
+            val cached =
+                json.decodeOrNull<Reminder>(row.jsonData)
+                    ?: throw IllegalStateException("Could not read local reminder from ${row.time}")
+            val create =
+                ReminderCreate(
+                    kind = ReminderCreate.Kind.valueOf(cached.kind.name),
+                    time = cached.time,
+                    mealType = cached.mealType,
+                    weekdays = cached.weekdays,
+                    enabled = cached.enabled,
+                )
+            val server = api.createReminder(create)
+            queries.transaction {
+                queries.deleteReminder(row.id)
+                queries.insertReminder(
+                    id = server.id,
+                    time = server.time,
+                    enabled = if (server.enabled) 1L else 0L,
+                    jsonData = json.encodeToString(server),
+                )
+            }
+            progress(++done, total, STEP_REMINDERS)
+        }
+        return done
+    }
+
     private suspend fun uploadGoals(
         startDone: Int,
         total: Int,
@@ -1018,6 +1073,7 @@ class LocalDataMigrator(
         const val STEP_SLEEP = "sleep"
         const val STEP_SUPPLEMENTS = "supplements"
         const val STEP_SUPPLEMENT_LOGS = "supplement_logs"
+        const val STEP_REMINDERS = "reminders"
         const val STEP_GOALS = "goals"
         const val STEP_PREFERENCES = "preferences"
         const val STEP_DAY_PROPERTIES = "day_properties"

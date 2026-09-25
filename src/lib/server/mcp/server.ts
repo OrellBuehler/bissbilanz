@@ -707,7 +707,7 @@ export function createMcpServer(userId: string): McpServer {
 					.max(6)
 					.optional()
 					.describe(
-						'Local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. The mobile apps schedule local notifications from these; the web app never notifies.'
+						'Local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it.'
 					),
 				ingredients: z
 					.array(supplementIngredientInputSchema)
@@ -765,7 +765,7 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.nullable()
 					.describe(
-						'New local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. Replaces all existing times; the web app never notifies.'
+						'New local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. Replaces all existing times. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it.'
 					),
 				isActive: z.boolean().optional().describe('Active status'),
 				ingredients: z

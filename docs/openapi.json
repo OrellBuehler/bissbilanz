@@ -1356,6 +1356,177 @@
 				}
 			}
 		},
+		"/api/reminders": {
+			"get": {
+				"operationId": "listReminders",
+				"tags": ["Reminders"],
+				"description": "List logging reminders (weight, meal, sleep).",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RemindersListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createReminder",
+				"tags": ["Reminders"],
+				"description": "Create a new logging reminder.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReminderCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/reminders/{id}": {
+			"get": {
+				"operationId": "getReminder",
+				"tags": ["Reminders"],
+				"description": "Get a single reminder by ID.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			},
+			"patch": {
+				"operationId": "updateReminder",
+				"tags": ["Reminders"],
+				"description": "Update a logging reminder.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReminderUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteReminder",
+				"tags": ["Reminders"],
+				"description": "Delete a logging reminder.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
 		"/api/weight": {
 			"get": {
 				"operationId": "listWeightEntries",
@@ -6139,6 +6310,82 @@
 					}
 				}
 			},
+			"ReminderCreate": {
+				"type": "object",
+				"properties": {
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 50
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"time": {
+						"type": "string",
+						"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+					},
+					"weekdays": {
+						"maxItems": 7,
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 6
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					}
+				},
+				"required": ["kind", "time"]
+			},
+			"ReminderUpdate": {
+				"type": "object",
+				"properties": {
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 50
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"time": {
+						"type": "string",
+						"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+					},
+					"weekdays": {
+						"minItems": 1,
+						"maxItems": 7,
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 6
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					}
+				}
+			},
 			"WeightCreate": {
 				"type": "object",
 				"properties": {
@@ -8746,6 +8993,73 @@
 					}
 				},
 				"required": ["supplementId", "date", "takenAt", "entryIds"],
+				"additionalProperties": false
+			},
+			"RemindersListResponse": {
+				"type": "object",
+				"properties": {
+					"reminders": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Reminder"
+						}
+					}
+				},
+				"required": ["reminders"],
+				"additionalProperties": false
+			},
+			"Reminder": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"type": ["string", "null"]
+					},
+					"time": {
+						"type": "string"
+					},
+					"weekdays": {
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "userId", "kind", "mealType", "time", "weekdays", "enabled"],
+				"additionalProperties": false
+			},
+			"ReminderResponse": {
+				"type": "object",
+				"properties": {
+					"reminder": {
+						"$ref": "#/components/schemas/Reminder"
+					}
+				},
+				"required": ["reminder"],
 				"additionalProperties": false
 			},
 			"WeightEntriesResponse": {

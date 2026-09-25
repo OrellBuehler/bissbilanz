@@ -54,6 +54,7 @@ val allMiddleTabs =
     listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements, Screen.RecipeSuggestions)
 
 const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
+const val NAV_KEY_EDIT_SUPPLEMENT_ID = "edit_supplement_id"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
 @Composable
@@ -111,6 +112,7 @@ fun AppNavigation() {
                         "health",
                         "ai-tasks",
                         "connect-claude",
+                        "reminders",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -279,5 +281,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("connect-claude") {
         com.bissbilanz.android.ui.screens
             .ConnectClaudeScreen(navController)
+    }
+    composable("reminders") {
+        com.bissbilanz.android.ui.screens
+            .RemindersScreen(navController)
     }
 }

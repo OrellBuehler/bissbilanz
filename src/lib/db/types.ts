@@ -234,6 +234,19 @@ export type DexieSupplementLog = {
 	entryIds: string[];
 };
 
+// ── Reminders ──────────────────────────────────────────────────────
+export type DexieReminder = {
+	id: string;
+	userId: string;
+	kind: 'weight' | 'meal' | 'sleep';
+	mealType: string | null;
+	time: string;
+	weekdays: number[];
+	enabled: boolean;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
 // ── Weight ─────────────────────────────────────────────────────────
 export type DexieWeightEntry = {
 	id: string;

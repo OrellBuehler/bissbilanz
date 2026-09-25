@@ -42,6 +42,9 @@ enum SyncOperation: Codable {
     case deleteSupplement(id: String)
     case logSupplement(supplementId: String, date: String)
     case unlogSupplement(supplementId: String, date: String)
+    case createReminder(body: ReminderCreate, localId: String)
+    case updateReminder(id: String, body: ReminderUpdate)
+    case deleteReminder(id: String)
     case setDayProperties(date: String, patch: DayPropertiesPatch)
     case deleteDayProperties(date: String)
     /// Uploads a finished fast. Keyed by the client UUID (see
@@ -78,6 +81,9 @@ enum SyncOperation: Codable {
         case .deleteSupplement: "delete_supplement"
         case .logSupplement: "log_supplement"
         case .unlogSupplement: "unlog_supplement"
+        case .createReminder: "create_reminder"
+        case .updateReminder: "update_reminder"
+        case .deleteReminder: "delete_reminder"
         case .setDayProperties: "set_day_properties"
         case .deleteDayProperties: "delete_day_properties"
         case .upsertFast: "upsert_fast"
@@ -96,6 +102,7 @@ enum SyncOperation: Codable {
         case .createSleep, .updateSleep, .deleteSleep: "sleep"
         case .createSupplement, .updateSupplement, .deleteSupplement,
              .logSupplement, .unlogSupplement: "supplements"
+        case .createReminder, .updateReminder, .deleteReminder: "reminders"
         case .setDayProperties, .deleteDayProperties: "day_properties"
         case .upsertFast, .deleteFast: "fasts"
         case .updatePreferences: "preferences"
@@ -106,7 +113,8 @@ enum SyncOperation: Codable {
         switch self {
         case let .createFood(_, localId), let .createEntry(_, localId),
              let .createRecipe(_, localId), let .createWeight(_, localId),
-             let .createSleep(_, localId), let .createSupplement(_, localId):
+             let .createSleep(_, localId), let .createSupplement(_, localId),
+             let .createReminder(_, localId):
             localId
         case let .updateFood(id, _), let .deleteFood(id, _), let .toggleFavorite(id, _),
              let .setFoodImage(id, _), let .setFoodLabels(id, _),
@@ -115,6 +123,7 @@ enum SyncOperation: Codable {
              let .updateWeight(id, _), let .deleteWeight(id),
              let .updateSleep(id, _), let .deleteSleep(id),
              let .updateSupplement(id, _), let .deleteSupplement(id),
+             let .updateReminder(id, _), let .deleteReminder(id),
              let .upsertFast(id, _), let .deleteFast(id):
             id
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
@@ -296,6 +305,9 @@ enum SyncOperation: Codable {
         case let .deleteSupplement(id): "delete supplement \(id)"
         case let .logSupplement(id, _): "log supplement \(id)"
         case let .unlogSupplement(id, _): "unlog supplement \(id)"
+        case .createReminder: "create reminder"
+        case let .updateReminder(id, _): "update reminder \(id)"
+        case let .deleteReminder(id): "delete reminder \(id)"
         case let .setDayProperties(date, _): "set day properties \(date)"
         case let .deleteDayProperties(date): "delete day properties \(date)"
         case let .upsertFast(id, _): "upsert fast \(id)"

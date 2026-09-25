@@ -33,6 +33,7 @@ enum LocalStore {
             LocalSleepEntry.self,
             LocalSupplement.self,
             LocalSupplementLog.self,
+            LocalReminder.self,
             LocalGoals.self,
             LocalPreferences.self,
             LocalDayProperties.self,
