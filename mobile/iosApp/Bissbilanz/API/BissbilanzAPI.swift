@@ -621,10 +621,13 @@ final class BissbilanzAPI {
         try await get("/api/stats/streaks")
     }
 
-    func getTopFoods(days: Int = 7, limit: Int = 10) async throws -> [TopFoodEntry] {
+    /// `sort` is "count" (most logged) or a macro key, ranking by the food's
+    /// total contribution to it over the period.
+    func getTopFoods(days: Int = 7, limit: Int = 10, sort: String = "count") async throws -> [TopFoodEntry] {
         let response: TopFoodsResponse = try await get("/api/stats/top-foods", params: [
             "days": "\(days)",
             "limit": "\(limit)",
+            "sort": sort,
         ])
         return response.data
     }

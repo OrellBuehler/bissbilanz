@@ -30,10 +30,14 @@ async function getMealBreakdown(query?: { date?: string; startDate?: string; end
 	}
 }
 
-async function getTopFoods(days?: number, limit?: number) {
+async function getTopFoods(
+	days?: number,
+	limit?: number,
+	sort?: 'count' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'
+) {
 	try {
 		const { data } = await api.GET('/api/stats/top-foods', {
-			params: { query: { days, limit } }
+			params: { query: { days, limit, sort } }
 		});
 		return data ?? null;
 	} catch (err) {

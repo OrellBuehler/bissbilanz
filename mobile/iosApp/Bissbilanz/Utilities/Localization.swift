@@ -3392,6 +3392,30 @@ enum L10n {
         localized("sleep_section_title", en: "Sleep", de: "Schlaf")
     }
 
+    static var macroSourcesTitle: String {
+        localized("macro_sources_title", en: "Top Sources", de: "Hauptquellen")
+    }
+
+    static func macroSourcesSubtitle(days: Int) -> String {
+        localized(
+            "macro_sources_subtitle",
+            en: "Foods that contributed the most over the last \(days) days",
+            de: "Lebensmittel mit dem größten Anteil in den letzten \(days) Tagen"
+        )
+    }
+
+    static var macroSourcesEmpty: String {
+        localized(
+            "macro_sources_empty",
+            en: "Nothing logged with this nutrient in this period.",
+            de: "In diesem Zeitraum nichts mit diesem Nährstoff erfasst."
+        )
+    }
+
+    static var macroSourcesShareHint: String {
+        localized("macro_sources_share_hint", en: "of total", de: "der Gesamtmenge")
+    }
+
     static var insightsMoreWithAccount: String {
         localized(
             "insights_more_with_account",

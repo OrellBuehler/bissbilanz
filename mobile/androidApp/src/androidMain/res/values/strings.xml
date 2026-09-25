@@ -922,6 +922,11 @@
     <string name="insights_meal_distribution">Meal Distribution</string>
     <string name="insights_top_foods">Top Foods</string>
     <string name="insights_count_x">%1$dx</string>
+    <string name="insights_macro_sources_title">Top Sources</string>
+    <string name="insights_macro_sources_subtitle">Foods that contributed the most over the last %1$d days</string>
+    <string name="insights_macro_sources_empty">Nothing logged with this nutrient in this period.</string>
+    <string name="insights_macro_sources_share">of total</string>
+    <string name="insights_macro_sources_amount">%1$dx · %2$s g</string>
     <string name="insights_more_with_account">More insights available with an account</string>
     <string name="insights_below_avg_cal">&lt; %1$s kcal</string>
     <string name="insights_above_avg_cal">&gt; %1$s kcal</string>

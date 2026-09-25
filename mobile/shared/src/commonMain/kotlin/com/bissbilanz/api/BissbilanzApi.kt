@@ -915,13 +915,16 @@ class BissbilanzApi(
 
     suspend fun getStreaks(): StreaksResponse = get("/api/stats/streaks")
 
+    /** [sort] is "count" (most logged) or a macro key, ranking by total contribution to it. */
     suspend fun getTopFoods(
         days: Int = 7,
         limit: Int = 10,
+        sort: String = "count",
     ): TopFoodsResponse =
         get("/api/stats/top-foods") {
             parameter("days", days)
             parameter("limit", limit)
+            parameter("sort", sort)
         }
 
     // Preferences
