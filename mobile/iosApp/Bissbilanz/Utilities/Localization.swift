@@ -1816,6 +1816,22 @@ enum L10n {
         )
     }
 
+    static var settingsSectionTracking: String {
+        localized("settings_section_tracking", en: "Tracking", de: "Erfassung")
+    }
+
+    static var settingsSectionPersonalization: String {
+        localized("settings_section_personalization", en: "Personalization", de: "Personalisierung")
+    }
+
+    static var settingsSectionIntegrations: String {
+        localized("settings_section_integrations", en: "Integrations", de: "Integrationen")
+    }
+
+    static var settingsSectionHelp: String {
+        localized("settings_section_help", en: "Help", de: "Hilfe")
+    }
+
     // MARK: - Dashboard Layout
 
     static var dashboardLayout: String {
