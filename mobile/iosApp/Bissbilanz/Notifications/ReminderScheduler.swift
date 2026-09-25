@@ -101,9 +101,9 @@ enum ReminderScheduler {
     ) -> Bool {
         switch reminder.kind {
         case .weight:
-            dependencies.weightRepository.entryDates().contains(today)
+            return dependencies.weightRepository.entryDates().contains(today)
         case .sleep:
-            dependencies.sleepRepository.entryDates().contains(today)
+            return dependencies.sleepRepository.entryDates().contains(today)
         case .meal:
             guard let mealType = reminder.mealType else { return false }
             return dependencies.entryRepository.entries(date: today).contains { $0.mealType == mealType }
