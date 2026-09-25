@@ -27,6 +27,8 @@ struct SleepView: View {
     @State private var errorMessage: String?
     @State private var showTipHelp = false
     private let healthImportTip = HealthImportSleepTip()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     private enum RangeOption: Int, CaseIterable, Identifiable {
         case week = 7
@@ -160,7 +162,7 @@ struct SleepView: View {
             Text(formatSleepDuration(entries.first?.durationMinutes ?? 0))
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundStyle(.indigo)
+                .foregroundStyle(Color.indigo.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(latestDateText)
@@ -171,6 +173,9 @@ struct SleepView: View {
         .padding(12)
         .background(.indigo.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.lastNight)
+        .accessibilityValue("\(formatSleepDuration(entries.first?.durationMinutes ?? 0)), \(latestDateText)")
     }
 
     private var latestDateText: String {
@@ -196,7 +201,7 @@ struct SleepView: View {
             Text(recent.isEmpty ? "—" : formatSleepDuration(avgMinutes))
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundStyle(.purple)
+                .foregroundStyle(Color.purple.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(recent.isEmpty ? "" : "\(L10n.sleepQuality) \(String(format: "%.1f", avgQuality))/10")
@@ -207,6 +212,13 @@ struct SleepView: View {
         .padding(12)
         .background(.purple.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.sevenDayAverage)
+        .accessibilityValue(
+            recent.isEmpty
+                ? L10n.noEntries
+                : "\(formatSleepDuration(avgMinutes)), \(L10n.sleepQuality) \(String(format: "%.1f", avgQuality))/10"
+        )
     }
 
     // MARK: - Chart Section
@@ -254,9 +266,18 @@ struct SleepView: View {
                     }
                 }
                 .frame(height: 200)
+                .accessibilityLabel(L10n.trend)
+                .accessibilityValue(sleepChartAccessibilitySummary)
             }
             .padding(.vertical, 4)
         }
+    }
+
+    /// Read before a VoiceOver user swipes through each night.
+    private var sleepChartAccessibilitySummary: String {
+        guard !chartEntries.isEmpty else { return L10n.noEntries }
+        let avgMinutes = chartEntries.map(\.durationMinutes).reduce(0, +) / chartEntries.count
+        return "\(L10n.average): \(formatSleepDuration(avgMinutes))"
     }
 
     // MARK: - History Section
@@ -326,6 +347,9 @@ struct SleepEntryRow: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     var body: some View {
         Button(action: onEdit) {
             HStack {
@@ -352,11 +376,12 @@ struct SleepEntryRow: View {
                         .foregroundStyle(.secondary)
                     Text("\(formatSleepQuality(entry.quality))/10")
                         .font(.caption)
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Color.purple.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
                 }
             }
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         // Lets Siri resolve "this entry" against the row on screen (iOS 18.4+;
         // a no-op before).
         .siriEntity(SleepEntity.self, id: entry.id)
@@ -469,6 +494,9 @@ struct AddSleepSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     init(existingEntry: SleepEntry? = nil, onSaved: @escaping () -> Void) {
         self.existingEntry = existingEntry
         self.onSaved = onSaved
@@ -514,13 +542,15 @@ struct AddSleepSheet: View {
                         Spacer()
                         Text("\(Int(quality))/10")
                             .fontWeight(.semibold)
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(Color.purple.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
                     }
+                    .accessibilityElement(children: .combine)
                     HStack(spacing: 8) {
                         Text(L10n.sleepQualityPoor)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         Slider(value: $quality, in: 1 ... 10, step: 1)
+                            .accessibilityLabel(L10n.sleepQuality)
                         Text(L10n.sleepQualityGreat)
                             .font(.caption2)
                             .foregroundStyle(.secondary)

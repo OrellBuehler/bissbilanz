@@ -19,6 +19,8 @@ enum RecipeSort: String, CaseIterable, Identifiable {
 struct RecipeListView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     @State private var recipes: [Recipe] = []
     @State private var isLoading = true
@@ -110,6 +112,7 @@ struct RecipeListView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel(L10n.createRecipe)
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Menu {
@@ -121,6 +124,7 @@ struct RecipeListView: View {
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
                     }
+                    .accessibilityLabel(L10n.sortBy)
                 }
             }
             .sheet(isPresented: $showCreateSheet) {
@@ -173,9 +177,12 @@ struct RecipeListView: View {
                 FoodImageView(imageUrl: recipe.imageUrl)
                     .frame(width: 40, height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
             }
             recipeRowText(recipe)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(recipeAccessibilityLabel(recipe))
     }
 
     private func recipeRowText(_ recipe: Recipe) -> some View {
@@ -192,7 +199,7 @@ struct RecipeListView: View {
             HStack(spacing: 8) {
                 if let cal = recipe.caloriesPerServing {
                     Text("\(Int(cal)) \(L10n.calories.lowercased())/\(L10n.servings.lowercased())")
-                        .foregroundStyle(MacroColors.calories)
+                        .foregroundStyle(accessibleColor(.calories))
                 }
                 Text("\(Int(recipe.totalServings)) \(L10n.servings.lowercased())")
                     .foregroundStyle(.secondary)
@@ -210,6 +217,20 @@ struct RecipeListView: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
+
+    private func recipeAccessibilityLabel(_ recipe: Recipe) -> String {
+        var parts = [recipe.name]
+        if recipe.isFavorite { parts.append(L10n.favorite) }
+        if let cal = recipe.caloriesPerServing {
+            parts.append(L10n.caloriesAmount(Int(cal)) + "/\(L10n.servings.lowercased())")
+        }
+        parts.append("\(Int(recipe.totalServings)) \(L10n.servings.lowercased())")
+        return parts.joined(separator: ", ")
     }
 
     private func deleteRecipe(_ recipe: Recipe) async {
@@ -280,6 +301,9 @@ struct LogRecipeSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 
     /// Grams per serving implied by the recipe's cooked weight, if any — offers
@@ -305,6 +329,10 @@ struct LogRecipeSheet: View {
         _mealType = State(initialValue: initialMealType ?? "Lunch")
     }
 
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
+
     /// Servings to log, resolved from whichever field is active.
     private var resolvedServings: Double {
         guard logByWeight, let gramsPerServing, gramsPerServing > 0 else {
@@ -318,6 +346,7 @@ struct LogRecipeSheet: View {
             Form {
                 Section {
                     FoodHeaderImage(imageUrl: recipe.imageUrl)
+                        .accessibilityHidden(true)
                     HStack {
                         Text(recipe.name)
                             .font(.headline)
@@ -327,6 +356,7 @@ struct LogRecipeSheet: View {
                                 .foregroundStyle(.yellow)
                         }
                     }
+                    .accessibilityElement(children: .combine)
                 }
 
                 if let cal = recipe.caloriesPerServing {
@@ -335,14 +365,14 @@ struct LogRecipeSheet: View {
                             label: L10n.calories,
                             value: cal,
                             unit: "kcal",
-                            color: MacroColors.calories
+                            color: accessibleColor(.calories)
                         )
                         if let p = recipe.proteinPerServing {
                             NutrientRow(
                                 label: L10n.protein,
                                 value: p,
                                 unit: "g",
-                                color: MacroColors.protein
+                                color: accessibleColor(.protein)
                             )
                         }
                         if let c = recipe.carbsPerServing {
@@ -350,7 +380,7 @@ struct LogRecipeSheet: View {
                                 label: L10n.carbs,
                                 value: c,
                                 unit: "g",
-                                color: MacroColors.carbs
+                                color: accessibleColor(.carbs)
                             )
                         }
                         if let f = recipe.fatPerServing {
@@ -358,7 +388,7 @@ struct LogRecipeSheet: View {
                                 label: L10n.fat,
                                 value: f,
                                 unit: "g",
-                                color: MacroColors.fat
+                                color: accessibleColor(.fat)
                             )
                         }
                     }
