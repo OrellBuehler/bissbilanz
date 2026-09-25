@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ fun RemindersScreen(navController: NavController) {
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     val reminderPrefs: SupplementReminderPreferences = koinInject()
@@ -63,7 +65,7 @@ fun RemindersScreen(navController: NavController) {
 
     LaunchedEffect(snackbarMessageRes) {
         snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(context.getString(res))
+            snackbarHostState.showSnackbar(resources.getString(res))
             viewModel.clearSnackbar()
         }
     }
