@@ -36,6 +36,18 @@ extension L10n {
         localized("suggesting_labels", en: "Suggesting…", de: "Wird vorgeschlagen…")
     }
 
+    static var suggestLabelsHint: String {
+        localized(
+            "suggest_labels_hint",
+            en: "Suggestions use the food's name, brand, serving unit and ingredients — and its photo too, " +
+                "on iOS 27 or later, when the food has one. Adding a photo helps most for foods without a " +
+                "descriptive name or ingredients list.",
+            de: "Vorschläge basieren auf Name, Marke, Portionseinheit und Zutaten des Lebensmittels – ab " +
+                "iOS 27 zusätzlich auf dem Foto, falls vorhanden. Ein Foto hilft besonders bei Lebensmitteln " +
+                "ohne aussagekräftigen Namen oder Zutatenliste."
+        )
+    }
+
     static var foodLabelUnavailable: String {
         localized(
             "food_label_unavailable",
@@ -67,14 +79,101 @@ extension L10n {
     static var autoLabelToggleFooter: String {
         localized(
             "auto_label_toggle_footer",
-            en: "When a new food has no labels yet, Bissbilanz can suggest some automatically using " +
-                "on-device Apple Intelligence or, as a fallback, Private Cloud Compute. Skipped while an " +
-                "AI assistant (MCP) is connected, since it labels with larger models.",
-            de: "Wenn ein neues Lebensmittel noch keine Labels hat, kann Bissbilanz automatisch welche " +
-                "vorschlagen – mit Apple Intelligence auf dem Gerät oder, als Ausweichoption, mit Private " +
-                "Cloud Compute. Wird übersprungen, solange ein KI-Assistent (MCP) verbunden ist, da dieser " +
-                "mit größeren Modellen labelt."
+            en: "When a new food has no labels yet, Bissbilanz suggests some automatically using the " +
+                "labelling method chosen above.",
+            de: "Wenn ein neues Lebensmittel noch keine Labels hat, schlägt Bissbilanz automatisch welche " +
+                "vor – mit der oben gewählten Labelling-Methode."
         )
+    }
+
+    static var foodLabelProviderTitle: String {
+        localized("food_label_provider_title", en: "Labelling Method", de: "Labelling-Methode")
+    }
+
+    static var foodLabelProviderAutomatic: String {
+        localized("food_label_provider_automatic", en: "Automatic", de: "Automatisch")
+    }
+
+    static var foodLabelProviderOnDevice: String {
+        localized("food_label_provider_on_device", en: "On-Device Only", de: "Nur auf dem Gerät")
+    }
+
+    static var foodLabelProviderPrivateCloud: String {
+        localized(
+            "food_label_provider_private_cloud",
+            en: "Private Cloud Compute",
+            de: "Private Cloud Compute"
+        )
+    }
+
+    static var foodLabelProviderMcp: String {
+        localized("food_label_provider_mcp", en: "AI Assistant (MCP)", de: "KI-Assistent (MCP)")
+    }
+
+    static var foodLabelProviderFooter: String {
+        localized(
+            "food_label_provider_footer",
+            en: "Choose what suggests food labels — for new foods, \"Suggest Labels\" and the labelling " +
+                "sweep below. Automatic tries on-device Apple Intelligence first and falls back to Private " +
+                "Cloud Compute. On-Device Only and Private Cloud Compute each use just one of those, even " +
+                "if the other would work. AI Assistant (MCP) leaves labelling entirely to a connected " +
+                "assistant instead, and never runs it automatically.",
+            de: "Wähle, was Lebensmittel-Labels vorschlägt – für neue Lebensmittel, „Labels vorschlagen“ " +
+                "und den Labelling-Durchlauf unten. Automatisch versucht zuerst Apple Intelligence auf dem " +
+                "Gerät und weicht bei Bedarf auf Private Cloud Compute aus. „Nur auf dem Gerät“ und „Private " +
+                "Cloud Compute“ verwenden jeweils nur eine der beiden Methoden, auch wenn die andere " +
+                "funktionieren würde. „KI-Assistent (MCP)“ überlässt das Labeln stattdessen vollständig " +
+                "einem verbundenen Assistenten und führt es nie automatisch aus."
+        )
+    }
+
+    static func labelSweepExplanation(provider: FoodLabelProvider) -> String {
+        switch provider {
+        case .automatic:
+            localized(
+                "food_label_sweep_explanation_automatic",
+                en: "Each unlabeled food below is sent to Apple Intelligence on this device — or, if " +
+                    "that's not available, to Apple's Private Cloud Compute — to suggest a few English " +
+                    "words for what it is. Suggestions are saved to the food automatically. On-device " +
+                    "processing never leaves your phone; Private Cloud Compute processes it on Apple's " +
+                    "servers under the same privacy protections and doesn't retain the data.",
+                de: "Jedes unbeschriftete Lebensmittel unten wird an Apple Intelligence auf diesem Gerät " +
+                    "gesendet – oder, falls das nicht verfügbar ist, an Apples Private Cloud Compute –, um " +
+                    "ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge werden " +
+                    "automatisch beim Lebensmittel gespeichert. Die Verarbeitung auf dem Gerät verlässt " +
+                    "dein Handy nie; Private Cloud Compute verarbeitet die Daten auf Apples Servern unter " +
+                    "denselben Datenschutzvorkehrungen und speichert sie nicht dauerhaft."
+            )
+        case .onDeviceOnly:
+            localized(
+                "food_label_sweep_explanation_on_device",
+                en: "Each unlabeled food below is sent to Apple Intelligence on this device to suggest a " +
+                    "few English words for what it is. Suggestions are saved to the food automatically. " +
+                    "Processing happens entirely on this device and never leaves your phone.",
+                de: "Jedes unbeschriftete Lebensmittel unten wird an Apple Intelligence auf diesem Gerät " +
+                    "gesendet, um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge " +
+                    "werden automatisch beim Lebensmittel gespeichert. Die Verarbeitung erfolgt vollständig " +
+                    "auf dem Gerät und verlässt dein Handy nie."
+            )
+        case .privateCloudCompute:
+            localized(
+                "food_label_sweep_explanation_private_cloud",
+                en: "Each unlabeled food below is sent to Apple's Private Cloud Compute to suggest a few " +
+                    "English words for what it is. Suggestions are saved to the food automatically. " +
+                    "Private Cloud Compute processes it on Apple's servers under the same privacy " +
+                    "protections as on-device processing and doesn't retain the data.",
+                de: "Jedes unbeschriftete Lebensmittel unten wird an Apples Private Cloud Compute gesendet, " +
+                    "um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge werden " +
+                    "automatisch beim Lebensmittel gespeichert. Private Cloud Compute verarbeitet die Daten " +
+                    "auf Apples Servern unter denselben Datenschutzvorkehrungen wie bei der Verarbeitung " +
+                    "auf dem Gerät und speichert sie nicht dauerhaft."
+            )
+        case .mcp:
+            // `LabelUnlabeledFoodsView` is only reachable while
+            // `FoodLabeler.isAvailable` is true, which "AI assistant (MCP)"
+            // never is — kept only so this switch stays exhaustive.
+            ""
+        }
     }
 
     static var labelUnlabeledFoods: String {

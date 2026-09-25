@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -12,9 +13,13 @@ import FoundationModels
 ///
 /// Routing is simpler than `MealEstimator`'s: labelling never retries a
 /// result it already got — there's no per-label confidence to judge a result
-/// "weak" by — it just prefers on-device Apple Intelligence when available
-/// and falls back to Private Cloud Compute (`MealEstimatorPrivateCloud.swift`)
-/// only when on-device isn't available at all.
+/// "weak" by. Which of on-device, Private Cloud Compute or neither runs is
+/// decided by `FoodLabelProviderSettings.selected` (`isAvailable` and
+/// `labels(for:)` both switch on it); "Automatic" is the only case that
+/// mirrors the old fixed routing (on-device first, Private Cloud Compute as
+/// the fallback). When the food has a photo and the OS supports attaching one
+/// to a Foundation Models prompt (iOS 27, same gate `MealEstimator+Photo.swift`
+/// uses), it's sent along too — see `attachableImage(for:)`.
 enum FoodLabelerError: Error {
     case unavailable
     case generationFailed(String)
@@ -36,6 +41,49 @@ struct FoodLabelInput {
     var brand: String?
     var servingUnit: ServingUnit
     var ingredientsText: String?
+    /// The food's photo, loaded via `FoodImageLoader`, when it has one.
+    /// Attached to the prompt on OS versions that support it — see
+    /// `FoodLabeler.attachableImage(for:)` — and otherwise simply ignored, so
+    /// callers can always pass whatever `FoodImageLoader.image(for:)`
+    /// returned without checking availability themselves.
+    var image: UIImage?
+}
+
+/// Which model(s) `FoodLabeler` is allowed to use, chosen in `SettingsView`'s
+/// "Food Labels" section (`FoodLabelProviderSettings`) and respected by
+/// `FoodLabeler.isAvailable`/`labels(for:)`, `FoodAutoLabeler`'s unattended
+/// sweep, and `LabelUnlabeledFoodsView`'s bulk sweep.
+enum FoodLabelProvider: String, CaseIterable {
+    /// On-device Apple Intelligence first, Private Cloud Compute as a
+    /// fallback when on-device isn't available — the original, and still
+    /// default, behavior.
+    case automatic
+    /// On-device Apple Intelligence only; never leaves the device.
+    case onDeviceOnly = "on_device"
+    /// Private Cloud Compute only, even when on-device is available.
+    case privateCloudCompute = "private_cloud"
+    /// Neither: labelling is left entirely to a connected AI assistant (MCP),
+    /// the same way the app already leaves logging itself to one.
+    case mcp
+}
+
+/// Device-local (not synced to the account) choice of which labeller
+/// `FoodLabeler` uses. Local like `PrivateCloudComputeSettings`/
+/// `FoodAutoLabelSettings`: which model(s) this device is allowed to run
+/// suggestions through is a property of the device/account, not something
+/// that follows the user to another one.
+enum FoodLabelProviderSettings {
+    private static let key = "food_label_provider"
+
+    static var selected: FoodLabelProvider {
+        get {
+            guard let raw = UserDefaults.standard.string(forKey: key),
+                  let provider = FoodLabelProvider(rawValue: raw)
+            else { return .automatic }
+            return provider
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
+    }
 }
 
 @MainActor
@@ -47,11 +95,38 @@ final class FoodLabeler {
         self.foodRepository = foodRepository
     }
 
-    /// Whether `labels(for:)` can produce anything right now: on-device Apple
-    /// Intelligence, or Private Cloud Compute as a fallback. Drives whether
-    /// the "Suggest labels" button and the "Food labels" settings section
-    /// show at all.
+    /// Whether `labels(for:)` can produce anything right now, given the
+    /// selected `FoodLabelProviderSettings.selected`. Drives whether the
+    /// "Suggest labels" button, and the auto-label toggle/"Label Unlabeled
+    /// Foods" row in `SettingsView`, show at all.
     var isAvailable: Bool {
+        switch FoodLabelProviderSettings.selected {
+        case .automatic:
+            isOnDeviceAvailable || isPrivateCloudComputeAvailable
+        case .onDeviceOnly:
+            isOnDeviceAvailable
+        case .privateCloudCompute:
+            isPrivateCloudComputeAvailable
+        case .mcp:
+            // Deliberately not "connected" — choosing this provider means
+            // leaving labelling to the assistant, whether or not one happens
+            // to be connected right now.
+            false
+        }
+    }
+
+    /// Whether the "Food Labels" section in `SettingsView` has anything
+    /// worth showing at all: a provider to pick even before one is
+    /// selected/available, which `isAvailable` alone can't answer once the
+    /// user has chosen "AI assistant (MCP)" (always unavailable by design)
+    /// or a provider this device doesn't support.
+    var deviceCapableOfLabeling: Bool {
+        isOnDeviceAvailable || PrivateCloudComputeSettings.isSupported
+    }
+
+    /// Whether on-device Apple Intelligence can produce a result right now,
+    /// independent of the selected provider.
+    private var isOnDeviceAvailable: Bool {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
             if case .available = SystemLanguageModel.default.availability {
@@ -59,7 +134,7 @@ final class FoodLabeler {
             }
         }
         #endif
-        return isPrivateCloudComputeAvailable
+        return false
     }
 
     /// Same composite check `MealEstimatorPrivateCloud.swift` uses for meal
@@ -69,35 +144,47 @@ final class FoodLabeler {
         PrivateCloudComputeSettings.isEnabled && PrivateCloudComputeSettings.isSupported
     }
 
-    /// Suggests labels for a food from its name, brand, serving unit and
-    /// (truncated) ingredients text, reusing whatever vocabulary the local
-    /// catalog already carries. The result is already normalized
-    /// (`LabelNormalizer.normalizeAll`) — callers still merge it with any
-    /// labels the food already has.
+    /// Suggests labels for a food from its name, brand, serving unit,
+    /// (truncated) ingredients text and — when there is one and the OS
+    /// supports attaching it — its photo, reusing whatever vocabulary the
+    /// local catalog already carries. Routes to on-device Apple Intelligence
+    /// and/or Private Cloud Compute according to
+    /// `FoodLabelProviderSettings.selected`; throws `.unavailable` when the
+    /// selected provider is "AI assistant (MCP)" or isn't usable right now.
+    /// The result is already normalized (`LabelNormalizer.normalizeAll`) —
+    /// callers still merge it with any labels the food already has.
     func labels(for input: FoodLabelInput) async throws -> [String] {
         let prompt = Self.buildPrompt(for: input, vocabulary: foodRepository.mostUsedLocalLabels())
+        let image = attachableImage(for: input)
+        let provider = FoodLabelProviderSettings.selected
 
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            if case .available = SystemLanguageModel.default.availability {
-                do {
-                    return try await labelsOnDevice(prompt: prompt)
-                } catch {
-                    ErrorReporter.captureWarning(
-                        "On-device food labelling failed",
-                        context: ["reason": ErrorReporter.reason(for: error)]
-                    )
-                    throw Self.wrap(error)
+        guard provider != .mcp else {
+            throw FoodLabelerError.unavailable
+        }
+
+        if provider != .privateCloudCompute {
+            #if canImport(FoundationModels)
+            if #available(iOS 26.0, *) {
+                if case .available = SystemLanguageModel.default.availability {
+                    do {
+                        return try await labelsOnDevice(prompt: prompt, image: image)
+                    } catch {
+                        ErrorReporter.captureWarning(
+                            "On-device food labelling failed",
+                            context: ["reason": ErrorReporter.reason(for: error)]
+                        )
+                        throw Self.wrap(error)
+                    }
                 }
             }
+            #endif
         }
-        #endif
 
-        guard isPrivateCloudComputeAvailable else {
+        guard provider != .onDeviceOnly, isPrivateCloudComputeAvailable else {
             throw FoodLabelerError.unavailable
         }
         do {
-            return try await labelsWithPrivateCloudCompute(prompt: prompt)
+            return try await labelsWithPrivateCloudCompute(prompt: prompt, image: image)
         } catch {
             ErrorReporter.captureWarning(
                 "Private Cloud Compute food labelling failed",
@@ -105,6 +192,20 @@ final class FoodLabeler {
             )
             throw Self.wrap(error)
         }
+    }
+
+    /// The food's photo, ready to attach to a Foundation Models prompt — nil
+    /// unless the input has one *and* image prompts are supported here (iOS
+    /// 27, `#if compiler(>=6.4)`, the same gate `MealEstimator+Photo.swift`
+    /// uses for `Attachment`), so `labelsOnDevice`/the Private Cloud Compute
+    /// path below don't each need their own version of this check.
+    private func attachableImage(for input: FoodLabelInput) -> CGImage? {
+        #if compiler(>=6.4) && canImport(FoundationModels)
+        if #available(iOS 27, *) {
+            return input.image?.flattenedForModelInput().cgImage
+        }
+        #endif
+        return nil
     }
 
     /// Builds the prompt handed to the model: the food's own fields plus up
@@ -153,10 +254,10 @@ final class FoodLabeler {
     /// `PrivateCloudComputeLanguageModel` and the `LanguageModelSession.init(
     /// model:instructions:)` overload it needs are new in the Xcode 27 SDK, so
     /// this stays callable (and simply unavailable) on older SDKs/OS versions.
-    private func labelsWithPrivateCloudCompute(prompt: String) async throws -> [String] {
+    private func labelsWithPrivateCloudCompute(prompt: String, image: CGImage?) async throws -> [String] {
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *) {
-            return try await labelsWithPCCModel(prompt: prompt)
+            return try await labelsWithPCCModel(prompt: prompt, image: image)
         }
         #endif
         throw FoodLabelerError.unavailable
@@ -188,8 +289,17 @@ final class FoodLabeler {
     """
 
     @available(iOS 26.0, *)
-    private func labelsOnDevice(prompt: String) async throws -> [String] {
+    private func labelsOnDevice(prompt: String, image: CGImage?) async throws -> [String] {
         let session = LanguageModelSession(instructions: Self.instructions)
+        #if compiler(>=6.4) && canImport(FoundationModels)
+        if #available(iOS 27, *), let image {
+            let response = try await session.respond(generating: GeneratedFoodLabels.self) {
+                prompt
+                Attachment(image)
+            }
+            return LabelNormalizer.normalizeAll(response.content.labels)
+        }
+        #endif
         let response = try await session.respond(to: prompt, generating: GeneratedFoodLabels.self)
         return LabelNormalizer.normalizeAll(response.content.labels)
     }
@@ -201,13 +311,38 @@ final class FoodLabeler {
 
 @available(iOS 27, *)
 private extension FoodLabeler {
-    func labelsWithPCCModel(prompt: String) async throws -> [String] {
+    func labelsWithPCCModel(prompt: String, image: CGImage?) async throws -> [String] {
         let session = LanguageModelSession(
             model: PrivateCloudComputeLanguageModel(),
             instructions: Self.instructions
         )
+        if let image {
+            let response = try await session.respond(generating: GeneratedFoodLabels.self) {
+                prompt
+                Attachment(image)
+            }
+            return LabelNormalizer.normalizeAll(response.content.labels)
+        }
         let response = try await session.respond(to: prompt, generating: GeneratedFoodLabels.self)
         return LabelNormalizer.normalizeAll(response.content.labels)
+    }
+}
+
+/// Redraws the image upright so `Attachment(_ image: CGImage)` doesn't need an
+/// orientation told to it explicitly — the same technique
+/// `MealEstimator+Photo.swift` uses for camera captures. A food photo is
+/// already downscaled and square-cropped on upload (`FoodImageField`), so
+/// this only has to flatten orientation, not resize. Not itself version-gated
+/// (`UIGraphicsImageRenderer` predates iOS 27) — only textually grouped with
+/// the `Attachment`-using code above that's the only caller.
+private extension UIImage {
+    func flattenedForModelInput() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }
 
