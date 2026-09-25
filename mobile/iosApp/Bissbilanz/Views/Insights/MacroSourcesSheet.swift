@@ -25,6 +25,15 @@ enum MacroKind: String, CaseIterable, Identifiable {
         }
     }
 
+    var accessibleMacro: AccessibleMacroColor.Macro {
+        switch self {
+        case .protein: .protein
+        case .carbs: .carbs
+        case .fat: .fat
+        case .fiber: .fiber
+        }
+    }
+
     func value(_ food: TopFoodEntry) -> Double {
         switch self {
         case .protein: food.protein
@@ -49,6 +58,8 @@ enum MacroKind: String, CaseIterable, Identifiable {
 struct MacroSourcesSheet: View {
     @Environment(BissbilanzAPI.self) private var api
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     let days: Int
     let dailyStats: [DailyStatsEntry]
@@ -129,7 +140,9 @@ struct MacroSourcesSheet: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .monospacedDigit()
-                        .foregroundStyle(macro.color)
+                        .foregroundStyle(
+                            AccessibleMacroColor.color(macro.accessibleMacro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+                        )
                     Text(L10n.macroSourcesShareHint)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
