@@ -1304,6 +1304,107 @@ struct RepositoryTests {
         #expect(updated.ingredients.first?.food.ingredientsText == "200 mg")
     }
 
+    // MARK: Reminders
+
+    @Test("Drained reminder create replaces the temp row with the server record")
+    func reminderCreateDrainReplacesTempId() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.reminderRepository
+        harness.stub("POST", "/api/reminders", json: """
+        {"reminder": {
+            "id": "r-server", "userId": "u1", "kind": "meal", "mealType": "Breakfast",
+            "time": "08:00", "weekdays": [0, 1, 2, 3, 4, 5, 6], "enabled": true
+        }}
+        """)
+
+        let temp = try await repo.createReminder(ReminderCreate(
+            kind: .meal, mealType: "Breakfast", time: "08:00", weekdays: Array(0 ... 6), enabled: true
+        ))
+        #expect(LocalStore.isTempId(temp.id))
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(repo.reminders().map(\.id) == ["r-server"])
+    }
+
+    @Test("Toggling a reminder while its create is still queued coalesces into the pending upload")
+    func reminderToggleCoalescesIntoQueuedCreate() async throws {
+        let harness = try RepositoryHarness(online: false)
+        let repo = harness.reminderRepository
+
+        let temp = try await repo.createReminder(ReminderCreate(
+            kind: .meal, mealType: "Breakfast", time: "08:00", weekdays: Array(0 ... 6), enabled: true
+        ))
+        _ = try await repo.updateReminder(id: temp.id, ReminderUpdate(enabled: false))
+
+        let rows = harness.syncManager.queuedRows()
+        #expect(rows.count == 1)
+        guard case let .createReminder(body, _)? = rows.first?.operation() else {
+            Issue.record("Expected a coalesced createReminder operation")
+            return
+        }
+        #expect(body.enabled == false)
+    }
+
+    /// Reproduces the TestFlight report (1.49.0/107): creating a reminder and
+    /// toggling it off before the screen reloaded from a background sync that
+    /// had already drained. The create's local temp row is replaced wholesale
+    /// (`LocalRemap.replaceReminder`), so a caller still holding the
+    /// pre-drain id gets `.notFound` — the alert's "Not found" text is
+    /// `APIError.notFound.errorDescription`. The real fix is `RemindersView`
+    /// reloading its list whenever `SyncManager.pendingCount` changes rather
+    /// than acting on a stale id; this pins down the repository contract that
+    /// makes that reload necessary.
+    @Test("Updating a reminder by its pre-drain temp id throws notFound once the create has resolved")
+    func reminderUpdateAfterDrainThrowsNotFoundForStaleId() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.reminderRepository
+        harness.stub("POST", "/api/reminders", json: """
+        {"reminder": {
+            "id": "r-server", "userId": "u1", "kind": "meal", "mealType": "Breakfast",
+            "time": "08:00", "weekdays": [0, 1, 2, 3, 4, 5, 6], "enabled": true
+        }}
+        """)
+
+        let temp = try await repo.createReminder(ReminderCreate(
+            kind: .meal, mealType: "Breakfast", time: "08:00", weekdays: Array(0 ... 6), enabled: true
+        ))
+        await harness.syncManager.drainPendingQueue()
+        #expect(repo.reminders().map(\.id) == ["r-server"])
+
+        do {
+            _ = try await repo.updateReminder(id: temp.id, ReminderUpdate(enabled: false))
+            Issue.record("Expected updateReminder to throw for the now-replaced temp id")
+        } catch APIError.notFound {
+            // expected
+        } catch {
+            Issue.record("Expected APIError.notFound, got \(error)")
+        }
+    }
+
+    @Test("A queued reminder update follows its reminder to the server id")
+    func reminderUpdateRemapsTempId() {
+        let op = SyncOperation.updateReminder(id: "temp-1", body: ReminderUpdate(enabled: false))
+        let remapped = op.remappingReferences(from: "temp-1", to: "srv-1")
+        guard case let .updateReminder(id, body)? = remapped else {
+            Issue.record("expected a remapped updateReminder")
+            return
+        }
+        #expect(id == "srv-1")
+        #expect(body.enabled == false)
+        #expect(op.remappingReferences(from: "other", to: "x") == nil)
+    }
+
+    @Test("A queued reminder delete follows its reminder to the server id")
+    func reminderDeleteRemapsTempId() {
+        let op = SyncOperation.deleteReminder(id: "temp-1")
+        guard case let .deleteReminder(id)? = op.remappingReferences(from: "temp-1", to: "srv-1") else {
+            Issue.record("expected a remapped deleteReminder")
+            return
+        }
+        #expect(id == "srv-1")
+        #expect(op.remappingReferences(from: "other", to: "x") == nil)
+    }
+
     // MARK: Goals
 
     @Test("Goals write locally first and survive an upload failure")
