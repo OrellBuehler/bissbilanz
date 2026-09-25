@@ -4561,6 +4561,10 @@ enum L10n {
         localized("a11y_chart_trending_down", en: "trending down", de: "fallender Trend")
     }
 
+    static func quickLogFoodAccessibility(_ name: String) -> String {
+        localized("a11y_quick_log_food", en: "Quick log \(name)", de: "\(name) schnell eintragen")
+    }
+
     static var macroSourcesHint: String {
         localized(
             "a11y_macro_sources_hint",

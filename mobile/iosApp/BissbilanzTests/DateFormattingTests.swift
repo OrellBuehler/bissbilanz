@@ -242,6 +242,46 @@ struct LocalizationTests {
         L10n.currentLocale = .de
         #expect(L10n.entriesCopied(3) == "3 Einträge kopiert")
     }
+
+    @Test("Macro spoken summary reads calories then each macro in grams")
+    func macroSpokenSummaryEnglish() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        let summary = MacroSpokenSummary.macros(calories: 34, protein: 2, carbs: 6.4, fat: 0.2)
+        #expect(summary == "34 calories, Protein 2 grams, Carbs 6 grams, Fat 0 grams")
+    }
+
+    @Test("Macro spoken summary includes fiber when provided")
+    func macroSpokenSummaryWithFiber() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        let summary = MacroSpokenSummary.macros(calories: 100, protein: 5, carbs: 20, fat: 3, fiber: 4)
+        #expect(summary == "100 calories, Protein 5 grams, Carbs 20 grams, Fat 3 grams, Fiber 4 grams")
+    }
+
+    @Test("Macro spoken summary rounds fractional grams")
+    func macroSpokenSummaryRounding() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .en
+        defer { L10n.currentLocale = savedLocale }
+
+        let summary = MacroSpokenSummary.macros(calories: 49.6, protein: 2.5, carbs: 0.4, fat: 8.9)
+        #expect(summary == "50 calories, Protein 3 grams, Carbs 0 grams, Fat 9 grams")
+    }
+
+    @Test("Macro spoken summary in German")
+    func macroSpokenSummaryGerman() {
+        let savedLocale = L10n.currentLocale
+        L10n.currentLocale = .de
+        defer { L10n.currentLocale = savedLocale }
+
+        let summary = MacroSpokenSummary.macros(calories: 34, protein: 2, carbs: 6, fat: 0)
+        #expect(summary == "34 Kalorien, Eiweiß 2 Gramm, Kohlenhydrate 6 Gramm, Fett 0 Gramm")
+    }
 }
 
 @Suite("JSON Encoding Tests")

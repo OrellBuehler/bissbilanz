@@ -145,6 +145,7 @@ struct MacroSourcesSheet: View {
             }
             .frame(height: 4)
             .padding(.leading, 22)
+            .accessibilityHidden(true)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
