@@ -30,7 +30,6 @@ struct SettingsView: View {
     @State private var downgradePhase: AccountDowngrader.Phase?
     @State private var downgradeFinished = false
     @State private var downgradeError: String?
-    @State private var newMealTypeName = ""
     @State private var errorMessage: String?
     @State private var showHelpCenter = false
     private let healthKitService = HealthKitService.shared
@@ -60,13 +59,36 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Goals section
-                Section(L10n.goals) {
+                // Account status — only when something needs attention
+                // (local mode, an expired session, unsynced or failed changes).
+                if appModeManager.isLocal || authManager.authState == .expired
+                    || syncManager.pendingCount > 0 || syncManager.errors.last != nil
+                {
+                    Section {
+                        accountStatusRows
+                    }
+                }
+
+                // Goals
+                Section {
                     goalRow(L10n.calories, value: goals.calorieGoal, unit: "kcal", color: MacroColors.calories)
                     goalRow(L10n.protein, value: goals.proteinGoal, unit: "g", color: MacroColors.protein)
                     goalRow(L10n.carbs, value: goals.carbGoal, unit: "g", color: MacroColors.carbs)
                     goalRow(L10n.fat, value: goals.fatGoal, unit: "g", color: MacroColors.fat)
                     goalRow(L10n.fiber, value: goals.fiberGoal, unit: "g", color: MacroColors.fiber)
+                    // Daily water goal — surfaced on the day card's water tracker.
+                    HStack {
+                        Text(L10n.settingsWaterGoalLabel)
+                        Spacer()
+                        TextField("", text: $waterGoalDraft)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                            .focused($waterGoalFocused)
+                            .onSubmit { Task { await saveWaterGoal() } }
+                        Text(L10n.dayUnitMl)
+                            .foregroundStyle(.secondary)
+                    }
                     Button(L10n.editGoals) {
                         editCalories = "\(Int(goals.calorieGoal))"
                         editProtein = "\(Int(goals.proteinGoal))"
@@ -80,24 +102,8 @@ struct SettingsView: View {
                         editActivityCreditPercent = preferences.activityCreditPercent
                         isEditingGoals = true
                     }
-                }
-
-                // Daily water goal — surfaced on the day card's water tracker.
-                Section {
-                    HStack {
-                        Text(L10n.settingsWaterGoalLabel)
-                        Spacer()
-                        TextField("", text: $waterGoalDraft)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                            .focused($waterGoalFocused)
-                            .onSubmit { Task { await saveWaterGoal() } }
-                        Text(L10n.dayUnitMl)
-                            .foregroundStyle(.secondary)
-                    }
                 } header: {
-                    Text(L10n.settingsWaterGoal)
+                    Text(L10n.goals)
                 } footer: {
                     Text(L10n.settingsWaterGoalDesc)
                 }
@@ -115,24 +121,8 @@ struct SettingsView: View {
                     Text(L10n.biologicalSexHint)
                 }
 
-                // Navigation Tabs
-                Section(L10n.navigationTabs) {
-                    NavigationLink {
-                        TabSelectionView()
-                    } label: {
-                        HStack {
-                            Label(L10n.selectTabs, systemImage: "rectangle.3.group")
-                            Spacer()
-                            Text("\(selectedTabNames)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-
-                // Navigation section
-                Section {
+                // Screens that aren't tabs
+                Section(L10n.settingsSectionTracking) {
                     NavigationLink { WeightView() } label: {
                         Label(L10n.weight, systemImage: "scalemass")
                     }
@@ -156,14 +146,118 @@ struct SettingsView: View {
                         NavigationLink { MaintenanceView() } label: {
                             Label(L10n.maintenance, systemImage: "function")
                         }
-                        // The queue only exists server-side — the assistant reaches it
-                        // over MCP — so it has no meaning in Local mode.
-                        NavigationLink { AiTasksView() } label: {
-                            Label(L10n.aiTasks, systemImage: "sparkles")
+                    }
+                    NavigationLink { RemindersView() } label: {
+                        Label(L10n.reminders, systemImage: "bell")
+                    }
+                }
+
+                // How the app looks and behaves
+                Section(L10n.settingsSectionPersonalization) {
+                    NavigationLink {
+                        TabSelectionView()
+                    } label: {
+                        HStack {
+                            Label(L10n.navigationTabs, systemImage: "rectangle.3.group")
+                            Spacer()
+                            Text("\(selectedTabNames)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
-                        // MCP is a server-only feature — hidden in Local mode.
-                        NavigationLink { ConnectClaudeView() } label: {
-                            Label(L10n.connectClaudeTitle, systemImage: "link")
+                    }
+                    NavigationLink {
+                        DashboardLayoutView()
+                    } label: {
+                        Label(L10n.dashboardLayout, systemImage: "square.grid.2x2")
+                    }
+                    NavigationLink {
+                        VisibleNutrientsView(preferences: $preferences)
+                    } label: {
+                        HStack {
+                            Label(L10n.visibleNutrients, systemImage: "list.bullet")
+                            Spacer()
+                            Text("\(preferences.visibleNutrients.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    // Custom meal types are server-only — hidden in Local mode.
+                    if !appModeManager.isLocal {
+                        NavigationLink {
+                            MealTypesView(mealTypes: $mealTypes)
+                        } label: {
+                            HStack {
+                                Label(L10n.customMealTypes, systemImage: "fork.knife")
+                                Spacer()
+                                Text("\(mealTypes.count)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    Picker(selection: Binding(
+                        get: { preferences.favoriteMealAssignmentMode },
+                        set: { newValue in
+                            Task {
+                                var update = PreferencesUpdate()
+                                update.favoriteMealAssignmentMode = newValue
+                                preferences = await (try? preferencesRepository.update(update))
+                                    ?? (preferencesRepository.preferences() ?? .defaults)
+                            }
+                        }
+                    )) {
+                        Text(L10n.autoAssignByTime).tag("time_based")
+                        Text(L10n.alwaysAsk).tag("ask_meal")
+                    } label: {
+                        Label(L10n.favoriteLogging, systemImage: "star")
+                    }
+                    .pickerStyle(.menu)
+                    Picker(selection: Binding(
+                        get: { L10n.currentLocale },
+                        set: {
+                            L10n.currentLocale = $0
+                            WidgetSnapshotWriter.scheduleUpdate(context: modelContext)
+                        }
+                    )) {
+                        ForEach(AppLocale.allCases, id: \.self) { locale in
+                            Text(locale.displayName).tag(locale)
+                        }
+                    } label: {
+                        Label(L10n.language, systemImage: "globe")
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                // Apple Health and the server-side AI assistant
+                if healthKitService.isAvailable || !appModeManager.isLocal {
+                    Section(L10n.settingsSectionIntegrations) {
+                        // All Apple Health sync controls live on the subpage.
+                        if healthKitService.isAvailable {
+                            NavigationLink {
+                                AppleHealthSettingsView()
+                            } label: {
+                                HStack {
+                                    Label(L10n.appleHealth, systemImage: "heart")
+                                    Spacer()
+                                    Text(
+                                        HealthKitService.isAnySyncEnabled
+                                            ? L10n.healthConnected
+                                            : L10n.healthNotConnected
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        if !appModeManager.isLocal {
+                            // MCP is a server-only feature — hidden in Local mode.
+                            NavigationLink { ConnectClaudeView() } label: {
+                                Label(L10n.connectClaudeTitle, systemImage: "link")
+                            }
+                            // The queue only exists server-side — the assistant reaches it
+                            // over MCP — so it has no meaning in Local mode.
+                            NavigationLink { AiTasksView() } label: {
+                                Label(L10n.aiTasks, systemImage: "sparkles")
+                            }
                         }
                     }
                 }
@@ -171,7 +265,7 @@ struct SettingsView: View {
                 // AI estimation: whether a meal estimate may fall back to
                 // Apple's Private Cloud Compute when on-device estimation isn't
                 // available or good enough (MealEstimatorPrivateCloud.swift).
-                // Device-local like the tab selection/snooze duration above, and
+                // Device-local like the tab selection/snooze duration, and
                 // shown regardless of AppMode — the fallback is a device/account
                 // capability, not a server feature. Hidden when Apple doesn't
                 // authorize PCC here (e.g. no entitlement), where it would do nothing.
@@ -216,254 +310,30 @@ struct SettingsView: View {
                     }
                 }
 
-                // Apple Health — all sync controls live on the subpage.
-                if healthKitService.isAvailable {
-                    Section(L10n.appleHealth) {
-                        NavigationLink {
-                            AppleHealthSettingsView()
-                        } label: {
-                            HStack {
-                                Label(L10n.appleHealth, systemImage: "heart")
-                                Spacer()
-                                Text(
-                                    HealthKitService.isAnySyncEnabled
-                                        ? L10n.healthConnected
-                                        : L10n.healthNotConnected
-                                )
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                // Language section
-                Section(L10n.language) {
-                    Picker(L10n.language, selection: Binding(
-                        get: { L10n.currentLocale },
-                        set: {
-                            L10n.currentLocale = $0
-                            WidgetSnapshotWriter.scheduleUpdate(context: modelContext)
-                        }
-                    )) {
-                        ForEach(AppLocale.allCases, id: \.self) { locale in
-                            Text(locale.displayName).tag(locale)
-                        }
-                    }
-                }
-
-                // Custom meal types (server-only, hidden in Local mode)
-                if !appModeManager.isLocal {
-                    Section(L10n.customMealTypes) {
-                        ForEach(mealTypes) { mealType in
-                            Text(mealType.name)
-                                .swipeActions {
-                                    Button(role: .destructive) {
-                                        Task { await deleteMealType(mealType) }
-                                    } label: {
-                                        Label(L10n.delete, systemImage: "trash")
-                                    }
-                                }
-                        }
-                        HStack {
-                            TextField(L10n.customMealTypes, text: $newMealTypeName)
-                            Button(L10n.add) {
-                                Task { await addMealType() }
-                            }
-                            .disabled(newMealTypeName.isEmpty)
-                        }
-                    }
-                }
-
-                // Dashboard widgets
-                Section(L10n.dashboardWidgets) {
-                    NavigationLink {
-                        DashboardLayoutView()
-                    } label: {
-                        Label(L10n.dashboardLayout, systemImage: "square.grid.2x2")
-                    }
-                }
-
+                // Help
                 Section {
-                    NavigationLink {
-                        RemindersView()
+                    Button {
+                        showHelpCenter = true
                     } label: {
-                        Label(L10n.reminders, systemImage: "bell")
+                        Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
-                }
-
-                // Favorite logging behavior
-                Section(L10n.favoriteLogging) {
-                    Picker(L10n.favoriteLogging, selection: Binding(
-                        get: { preferences.favoriteMealAssignmentMode },
-                        set: { newValue in
-                            Task {
-                                var update = PreferencesUpdate()
-                                update.favoriteMealAssignmentMode = newValue
-                                preferences = await (try? preferencesRepository.update(update))
-                                    ?? (preferencesRepository.preferences() ?? .defaults)
-                            }
-                        }
-                    )) {
-                        Text(L10n.autoAssignByTime).tag("time_based")
-                        Text(L10n.alwaysAsk).tag("ask_meal")
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                }
-
-                // Visible nutrients
-                Section(L10n.visibleNutrients) {
-                    NavigationLink {
-                        VisibleNutrientsView(preferences: $preferences)
-                    } label: {
-                        HStack {
-                            Text(L10n.visibleNutrients)
-                            Spacer()
-                            Text("\(preferences.visibleNutrients.count)")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // Account
-                Section(L10n.account) {
-                    if appModeManager.isLocal {
-                        HStack {
-                            Image(systemName: "iphone")
-                                .foregroundStyle(.secondary)
-                            Text(L10n.localModeStatus)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Button {
-                            signInSession = SignInFlow.start(authManager: authManager)
-                        } label: {
-                            Label(L10n.signInToSync, systemImage: "person.crop.circle")
-                        }
-                    } else {
-                        if authManager.authState == .expired {
-                            HStack(alignment: .firstTextBaseline) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.orange)
-                                Text(L10n.sessionExpiredMessage)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Button {
-                                signInSession = SignInFlow.start(authManager: authManager)
-                            } label: {
-                                Label(L10n.signIn, systemImage: "person.crop.circle")
-                            }
-                        }
-                        if syncManager.pendingCount > 0 {
-                            NavigationLink {
-                                PendingSyncView()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                        .foregroundStyle(.secondary)
-                                    Text(L10n.pendingSyncCount(syncManager.pendingCount))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        if let syncError = syncManager.errors.last {
-                            HStack(alignment: .firstTextBaseline) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundStyle(.red)
-                                Text(syncError)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                        Button {
-                            exportData()
-                        } label: {
-                            HStack {
-                                Label(L10n.exportData, systemImage: "square.and.arrow.up")
-                                if isExportingData {
-                                    Spacer()
-                                    ProgressView()
-                                }
-                            }
-                        }
-                        .disabled(isExportingData)
-                        Button(role: .destructive) {
-                            showLogoutConfirmation = true
-                        } label: {
-                            Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                        // Anchor the confirmation to the sign-out button itself —
-                        // attached to the enclosing List it presents as a popover
-                        // pointing at an unrelated row.
-                        .confirmationDialog(
-                            L10n.signOut + "?",
-                            isPresented: $showLogoutConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button(L10n.signOut, role: .destructive) {
-                                // The local store and pending queue belong to the
-                                // signed-out account — wipe them so nothing leaks
-                                // into the next session (Local mode or another
-                                // account).
-                                migrator.wipeLocalData()
-                                // wipeLocalData clears the files; this also
-                                // drops the decoded images the loader still
-                                // holds in memory, which outlive them.
-                                foodImageLoader.clear()
-                                authManager.logout()
-                                // Reset the mode so the next start shows the login
-                                // screen with the mode choice again.
-                                appModeManager.clear()
-                            }
-                            Button(L10n.cancel, role: .cancel) {}
-                        } message: {
-                            Text(L10n.signOutConfirmation)
-                        }
-                        Button(role: .destructive) {
-                            showDeleteAccountConfirmation = true
-                        } label: {
-                            Label(L10n.deleteAccount, systemImage: "trash")
-                        }
-                        .disabled(isDeletingAccount)
-                        .confirmationDialog(
-                            L10n.deleteAccountTitle,
-                            isPresented: $showDeleteAccountConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button(L10n.downgradeOption) {
-                                showDowngradeSheet = true
-                            }
-                            Button(L10n.exportDataFirst) {
-                                exportData()
-                            }
-                            Button(L10n.deleteAccountConfirm, role: .destructive) {
-                                deleteAccount()
-                            }
-                            Button(L10n.cancel, role: .cancel) {}
-                        } message: {
-                            Text(L10n.deleteAccountConfirmation)
-                        }
-                        .sheet(item: $exportedArchive) { archive in
-                            ShareSheet(url: archive.url)
-                        }
-                        .sheet(isPresented: $showDowngradeSheet) {
-                            downgradeSheet
-                        }
-                    }
-                }
-
-                // Tips
-                Section {
                     Button {
                         UserDefaults.standard.set(true, forKey: BissbilanzApp.resetTipsOnLaunchKey)
                     } label: {
                         Label(L10n.showTipsAgain, systemImage: "lightbulb")
                     }
+                } header: {
+                    Text(L10n.settingsSectionHelp)
                 } footer: {
                     Text(L10n.showTipsAgainFooter)
+                }
+
+                // Account actions — signed-in only; sign-in itself sits in the
+                // status section at the top.
+                if !appModeManager.isLocal {
+                    Section(L10n.account) {
+                        accountActionRows
+                    }
                 }
 
                 // About
@@ -473,11 +343,6 @@ struct SettingsView: View {
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
-                    }
-                    Button {
-                        showHelpCenter = true
-                    } label: {
-                        Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
                     Link(destination: URL(string: "https://bissbilanz.orellbuehler.ch/privacy")!) {
                         Label(L10n.privacyPolicy, systemImage: "hand.raised")
@@ -521,6 +386,141 @@ struct SettingsView: View {
             } message: {
                 if let errorMessage { Text(errorMessage) }
             }
+        }
+    }
+
+    // MARK: - Account
+
+    @ViewBuilder
+    private var accountStatusRows: some View {
+        if appModeManager.isLocal {
+            HStack {
+                Image(systemName: "iphone")
+                    .foregroundStyle(.secondary)
+                Text(L10n.localModeStatus)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                signInSession = SignInFlow.start(authManager: authManager)
+            } label: {
+                Label(L10n.signInToSync, systemImage: "person.crop.circle")
+            }
+        } else {
+            if authManager.authState == .expired {
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text(L10n.sessionExpiredMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button {
+                    signInSession = SignInFlow.start(authManager: authManager)
+                } label: {
+                    Label(L10n.signIn, systemImage: "person.crop.circle")
+                }
+            }
+            if syncManager.pendingCount > 0 {
+                NavigationLink {
+                    PendingSyncView()
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.secondary)
+                        Text(L10n.pendingSyncCount(syncManager.pendingCount))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if let syncError = syncManager.errors.last {
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                    Text(syncError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var accountActionRows: some View {
+        Button {
+            exportData()
+        } label: {
+            HStack {
+                Label(L10n.exportData, systemImage: "square.and.arrow.up")
+                if isExportingData {
+                    Spacer()
+                    ProgressView()
+                }
+            }
+        }
+        .disabled(isExportingData)
+        Button(role: .destructive) {
+            showLogoutConfirmation = true
+        } label: {
+            Label(L10n.signOut, systemImage: "rectangle.portrait.and.arrow.right")
+        }
+        // Anchor the confirmation to the sign-out button itself —
+        // attached to the enclosing List it presents as a popover
+        // pointing at an unrelated row.
+        .confirmationDialog(
+            L10n.signOut + "?",
+            isPresented: $showLogoutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.signOut, role: .destructive) {
+                // The local store and pending queue belong to the
+                // signed-out account — wipe them so nothing leaks
+                // into the next session (Local mode or another
+                // account).
+                migrator.wipeLocalData()
+                // wipeLocalData clears the files; this also
+                // drops the decoded images the loader still
+                // holds in memory, which outlive them.
+                foodImageLoader.clear()
+                authManager.logout()
+                // Reset the mode so the next start shows the login
+                // screen with the mode choice again.
+                appModeManager.clear()
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.signOutConfirmation)
+        }
+        Button(role: .destructive) {
+            showDeleteAccountConfirmation = true
+        } label: {
+            Label(L10n.deleteAccount, systemImage: "trash")
+        }
+        .disabled(isDeletingAccount)
+        .confirmationDialog(
+            L10n.deleteAccountTitle,
+            isPresented: $showDeleteAccountConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.downgradeOption) {
+                showDowngradeSheet = true
+            }
+            Button(L10n.exportDataFirst) {
+                exportData()
+            }
+            Button(L10n.deleteAccountConfirm, role: .destructive) {
+                deleteAccount()
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.deleteAccountConfirmation)
+        }
+        .sheet(item: $exportedArchive) { archive in
+            ShareSheet(url: archive.url)
+        }
+        .sheet(isPresented: $showDowngradeSheet) {
+            downgradeSheet
         }
     }
 
@@ -861,6 +861,52 @@ struct SettingsView: View {
         update.waterGoalMl = clamped
         preferences = await (try? preferencesRepository.update(update))
             ?? (preferencesRepository.preferences() ?? .defaults)
+    }
+}
+
+// MARK: - Meal Types View
+
+/// Custom meal types are server-only — the list stays on the direct API.
+struct MealTypesView: View {
+    @Environment(BissbilanzAPI.self) private var api
+    @Binding var mealTypes: [MealType]
+
+    @State private var newMealTypeName = ""
+    @State private var errorMessage: String?
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(mealTypes) { mealType in
+                    Text(mealType.name)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                Task { await deleteMealType(mealType) }
+                            } label: {
+                                Label(L10n.delete, systemImage: "trash")
+                            }
+                        }
+                }
+                HStack {
+                    TextField(L10n.customMealTypes, text: $newMealTypeName)
+                    Button(L10n.add) {
+                        Task { await addMealType() }
+                    }
+                    .disabled(newMealTypeName.isEmpty)
+                }
+            }
+        }
+        .navigationTitle(L10n.customMealTypes)
+        .navigationBarTitleDisplayMode(.inline)
+        .keyboardDismissable()
+        .alert(
+            L10n.error,
+            isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+        ) {
+            Button(L10n.ok, role: .cancel) {}
+        } message: {
+            if let errorMessage { Text(errorMessage) }
+        }
     }
 
     private func addMealType() async {
