@@ -67,33 +67,95 @@ final class FoodRepository {
         return rows.compactMap { $0.toFood() }
     }
 
+    /// The whole local catalog, unlimited — used for the periodic full
+    /// Spotlight reindex (`BissbilanzApp.runDeferredActivationWork`) and the
+    /// iOS 27 full-reindex hook, where every food has to be searchable, not
+    /// just the last-resort suggestion pool `localFoods` serves.
+    func allLocalFoods() -> [Food] {
+        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.compactMap { $0.toFood() }
+    }
+
     /// Visual Intelligence supplies general English nouns, not a text search.
     /// Match only stored labels so names/brands cannot introduce unrelated hits.
-    /// Local-only even in Synced mode: system queries must return promptly offline.
-    func foods(matchingLabels labels: [String], limit: Int = 5) -> [Food] {
+    ///
+    /// Both sides are expanded to a *term set* — a label plus each of its
+    /// individual words, normalized the same way — before comparing: a food
+    /// labelled "banana bread" then still surfaces for a lone "bread"
+    /// descriptor, and a two-word "banana bread" descriptor still finds a food
+    /// labelled only "bread". The score is the number of distinct terms the
+    /// two sets share; only foods with at least one shared term are returned,
+    /// ranked by that score first, then favorite, then name, then id.
+    /// Local-only even in Synced mode: system queries must return promptly
+    /// offline.
+    func foods(matchingLabels labels: [String], limit: Int = 10) -> [Food] {
         guard limit > 0 else { return [] }
-        let normalized = Set(LabelNormalizer.normalizeAll(labels))
-        guard !normalized.isEmpty else { return [] }
+        let normalizedLabels = LabelNormalizer.normalizeAll(labels)
+        let queryTerms = Self.termSet(forLabels: normalizedLabels)
+        guard !queryTerms.isEmpty else { return [] }
+
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [
             SortDescriptor(\.name),
             SortDescriptor(\.id),
         ])
         let rows = (try? context.fetch(descriptor)) ?? []
-        var favorites: [Food] = []
-        var otherMatches: [Food] = []
-        var seen = Set<String>()
-        for row in rows where !normalized.isDisjoint(with: row.labels) {
-            guard row.isFavorite || otherMatches.count < limit,
-                  seen.insert(row.id).inserted, let food = row.toFood()
-            else { continue }
-            if row.isFavorite {
-                favorites.append(food)
-                if favorites.count == limit { break }
-            } else {
-                otherMatches.append(food)
+
+        let scored: [(food: Food, score: Int, row: LocalFood)] = rows.compactMap { row in
+            let overlap = queryTerms.intersection(Self.termSet(forLabels: row.labels)).count
+            guard overlap > 0, let food = row.toFood() else { return nil }
+            return (food, overlap, row)
+        }
+        let ranked = scored.sorted { lhs, rhs in
+            if lhs.score != rhs.score { return lhs.score > rhs.score }
+            if lhs.row.isFavorite != rhs.row.isFavorite { return lhs.row.isFavorite }
+            if lhs.row.name != rhs.row.name { return lhs.row.name < rhs.row.name }
+            return lhs.row.id < rhs.row.id
+        }
+        return ranked.prefix(limit).map(\.food)
+    }
+
+    /// A label plus its individual words, each independently normalized —
+    /// used by `foods(matchingLabels:limit:)` to compare a descriptor's labels
+    /// against a food's stored ones term-by-term rather than whole label by
+    /// whole label. Labels are already normalized by the caller, so splitting
+    /// on the space `normalize` itself would have collapsed onto is safe.
+    private static func termSet(forLabels labels: [String]) -> Set<String> {
+        var terms = Set<String>()
+        for label in labels {
+            terms.insert(label)
+            let words = label.split(separator: " ").map(String.init)
+            guard words.count > 1 else { continue }
+            for word in words {
+                if let normalizedWord = LabelNormalizer.normalize(word) {
+                    terms.insert(normalizedWord)
+                }
             }
         }
-        return Array((favorites + otherMatches).prefix(limit))
+        return terms
+    }
+
+    /// Local foods with no labels at all — the auto-label sweep's work list
+    /// and the Settings row's count (`LabelUnlabeledFoodsView`).
+    func unlabeledLocalFoods() -> [Food] {
+        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.filter { $0.labels.isEmpty }.compactMap { $0.toFood() }
+    }
+
+    /// The most-used labels already in the local catalog, most-common first —
+    /// handed to `FoodLabeler` so it reuses existing vocabulary instead of
+    /// inventing near-synonyms, mirroring the MCP `label_foods` prompt's
+    /// `list_labels` step.
+    func mostUsedLocalLabels(limit: Int = 60) -> [String] {
+        let rows = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
+        var counts: [String: Int] = [:]
+        for row in rows {
+            for label in row.labels { counts[label, default: 0] += 1 }
+        }
+        return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }
+            .prefix(limit)
+            .map(\.key)
     }
 
     /// Rank name matches ahead of brand-only matches; both stay alphabetical.
@@ -455,6 +517,7 @@ final class FoodRepository {
         } else {
             syncManager.enqueue(.updateFood(id: id, body: create))
         }
+        IntentDonations.reindexFood(optimistic)
         return optimistic
     }
 
@@ -504,6 +567,29 @@ final class FoodRepository {
         row.update(from: patched)
         save()
         syncManager.enqueue(.setFoodLabels(id: id, labels: labels))
+        IntentDonations.reindexFood(patched)
+        return patched
+    }
+
+    /// Merges labeller-suggested labels into whatever the food already
+    /// carries — additive like the server's `source: llm, mode: extend`
+    /// write, so it never drops a label the user set by hand. Used by the
+    /// "Suggest labels" button's merge-for-review step and by
+    /// `FoodAutoLabeler`'s unattended sweep.
+    @discardableResult
+    func addGeneratedLabels(id: String, labels: [String]) async throws -> Food {
+        guard let row = fetchRow(id: id), let current = row.toFood() else {
+            throw APIError.notFound
+        }
+        let suggested = LabelNormalizer.normalizeAll(labels)
+        guard !suggested.isEmpty else { return current }
+        let merged = LabelNormalizer.normalizeAll((current.labels ?? []) + suggested).sorted()
+        guard let patched = try? JSONPatch.merged(Food.self, base: current, patch: ["labels": merged]) else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        syncManager.enqueue(.addGeneratedFoodLabels(id: id, labels: suggested))
         return patched
     }
 
@@ -516,6 +602,7 @@ final class FoodRepository {
         } else {
             syncManager.enqueue(.deleteFood(id: id, force: false))
         }
+        IntentDonations.removeFoods([id])
     }
 
     /// Asks first instead of deleting-then-hoping: `deleteFood` always deletes

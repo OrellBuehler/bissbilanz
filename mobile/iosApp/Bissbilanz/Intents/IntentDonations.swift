@@ -140,8 +140,11 @@ enum IntentDonations {
         }
     }
 
-    /// Reindex the searchable catalog (favorites + recents) into Spotlight.
-    /// Called at launch / foreground so results exist before any manual log.
+    /// Reindex the searchable catalog into Spotlight. Called at launch /
+    /// foreground so results exist before any manual log; `foods` is the
+    /// whole local catalog on a full reindex and empty otherwise (see
+    /// `catalogReindexDue`/`markCatalogReindexed`), `recipes` the favorites,
+    /// indexed every time — a small, cheap set.
     static func indexCatalog(foods: [Food], recipes: [Recipe]) {
         guard isEnabled else { return }
         let foodEntities = foods.map(FoodEntity.init)
@@ -155,5 +158,45 @@ enum IntentDonations {
                 try? await CSSearchableIndex.default().indexAppEntities(recipeEntities)
             }
         }
+    }
+
+    /// Reindex a single food right after an edit (labels, name, …) so
+    /// Spotlight and Visual Intelligence matching reflect it without waiting
+    /// for the next throttled full reindex. Called from `FoodRepository`
+    /// directly — unlike weight/sleep/day, `FoodEntity(food:)` needs no
+    /// reader to rebuild, so there is no closure indirection to wire up.
+    static func reindexFood(_ food: Food) {
+        guard isEnabled else { return }
+        let entity = FoodEntity(food: food)
+        Task {
+            try? await CSSearchableIndex.default().indexAppEntities([entity])
+        }
+    }
+
+    /// Drops food entries that are gone, so a stale answer can't outlive the
+    /// data — the food counterpart of `removeWeights`/`removeSleeps`.
+    static func removeFoods(_ ids: [String]) {
+        guard isEnabled, !ids.isEmpty else { return }
+        Task {
+            try? await CSSearchableIndex.default()
+                .deleteAppEntities(identifiedBy: ids, ofType: FoodEntity.self)
+        }
+    }
+
+    /// Throttles the full local-catalog reindex in `indexCatalog` to once
+    /// every six hours — rebuilding every food's `attributeSet` is real work,
+    /// and Spotlight already has a recent copy from the last run. Read/write
+    /// once per activation from `BissbilanzApp.runDeferredActivationWork`,
+    /// mirroring `HealthKitService.lastSync`/`markSynced`.
+    private static let catalogReindexIntervalSeconds: TimeInterval = 6 * 60 * 60
+    private static let catalogReindexDefaultsKey = "intent_donations_catalog_reindexed_at"
+
+    static func catalogReindexDue() -> Bool {
+        let last = UserDefaults.standard.double(forKey: catalogReindexDefaultsKey)
+        return Date().timeIntervalSince1970 - last >= catalogReindexIntervalSeconds
+    }
+
+    static func markCatalogReindexed() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: catalogReindexDefaultsKey)
     }
 }

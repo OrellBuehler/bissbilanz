@@ -152,9 +152,63 @@ struct IntentsTests {
             try seedFood(harness, food)
         }
         let writer = makeWriter(harness)
-        #expect(writer.foods(matchingLabels: ["vegetables"]).map(\.id) == ["f7", "f0", "f1", "f2", "f3"])
+        // Every food shares the same single-term score, so the full default
+        // limit of 10 returns all eight, favorite first, then by id (all tied
+        // on name).
+        #expect(
+            writer.foods(matchingLabels: ["vegetables"]).map(\.id) ==
+                ["f7", "f0", "f1", "f2", "f3", "f4", "f5", "f6"]
+        )
+        #expect(harness.foodRepository.foods(matchingLabels: ["vegetable"], limit: 5).map(\.id) ==
+            ["f7", "f0", "f1", "f2", "f3"])
         #expect(harness.foodRepository.foods(matchingLabels: ["vegetable"], limit: 0).isEmpty)
         #expect(harness.foodRepository.foods(matchingLabels: ["vegetable"], limit: -1).isEmpty)
+    }
+
+    @Test("Visual search ranks by shared term count before favorite or name")
+    func visualSearchScoringOrder() throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let fewTerms = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "few-terms", name: "Apple", isFavorite: true),
+            patch: ["labels": ["fruit"]]
+        )
+        try seedFood(harness, fewTerms)
+        let moreTerms = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "more-terms", name: "Banana", isFavorite: false),
+            patch: ["labels": ["fruit", "yellow", "sweet"]]
+        )
+        try seedFood(harness, moreTerms)
+        let writer = makeWriter(harness)
+
+        // more-terms shares three labels with the query and outranks the
+        // favorited few-terms food, which shares only one — score beats the
+        // favorite tie-break.
+        #expect(writer.foods(matchingLabels: ["fruit", "yellow", "sweet"]).map(\.id) == ["more-terms", "few-terms"])
+    }
+
+    @Test("Visual search expands multi-word labels into their individual words")
+    func visualSearchMultiWordExpansion() throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let breadOnly = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "bread-only", name: "Toast"),
+            patch: ["labels": ["bread"]]
+        )
+        try seedFood(harness, breadOnly)
+        let bananaBread = try JSONPatch.merged(
+            Food.self, base: harness.food(id: "banana-bread", name: "Banana Bread"),
+            patch: ["labels": ["banana bread"]]
+        )
+        try seedFood(harness, bananaBread)
+        let writer = makeWriter(harness)
+
+        // A single-word query reaches a food labelled with a multi-word
+        // phrase that contains it.
+        #expect(Set(writer.foods(matchingLabels: ["bread"]).map(\.id)) == ["banana-bread", "bread-only"])
+        // A multi-word descriptor's individual words also reach a food
+        // labelled with just one of them, but the food matching on every
+        // term (the full phrase plus both its words) outranks the one
+        // sharing only a single word.
+        #expect(writer.foods(matchingLabels: ["banana bread"]).map(\.id) == ["banana-bread", "bread-only"])
     }
 
     @Test("Food entities provide a placeholder for missing or remote images")

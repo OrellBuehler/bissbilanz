@@ -14,6 +14,12 @@
 		is read and answered personally, usually within a few days.
 	</p>
 
+	<p class="mb-6">
+		Looking for how something works rather than reporting a problem? The
+		<a href="/help" class="underline">help center</a> has step-by-step guides for logging, scanning, recipes,
+		goals, the AI assistant and more.
+	</p>
+
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Get in touch</h2>
 	<p class="mb-3">
 		Bug reports and feature requests are best filed on GitHub. The forms ask for everything needed

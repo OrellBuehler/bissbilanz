@@ -13,6 +13,7 @@ import Target from '@lucide/svelte/icons/target';
 import Calculator from '@lucide/svelte/icons/calculator';
 import Calendar from '@lucide/svelte/icons/calendar';
 import Settings from '@lucide/svelte/icons/settings';
+import CircleHelp from '@lucide/svelte/icons/circle-help';
 import * as m from '$lib/paraglide/messages';
 import type { Component } from 'svelte';
 
@@ -167,6 +168,13 @@ export function getNavGroups(): NavGroup[] {
 		},
 		{
 			items: [
+				{
+					title: () => m.nav_help(),
+					href: '/help',
+					icon: CircleHelp,
+					badgeColor: 'bg-sky-100 text-sky-600',
+					activeRing: 'ring-2 ring-inset ring-sky-300/80 dark:ring-sky-700/80'
+				},
 				{
 					title: () => m.nav_settings(),
 					href: '/settings',

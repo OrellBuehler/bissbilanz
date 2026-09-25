@@ -8,7 +8,10 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.model.WeightEntry
@@ -79,6 +82,9 @@ class WeightScreenDeleteTest {
                     single<GoalsRepository> { mockk(relaxed = true) { every { goals() } returns flowOf(null) } }
                     single<RefreshManager> { mockk(relaxed = true) }
                     single<ErrorReporter> { mockk(relaxed = true) }
+                    single { TipStore(ApplicationProvider.getApplicationContext()) }
+                    single<HealthConnectService> { mockk(relaxed = true) }
+                    single<HealthSyncPreferences> { mockk(relaxed = true) }
                     viewModelOf(::WeightViewModel)
                 },
             )

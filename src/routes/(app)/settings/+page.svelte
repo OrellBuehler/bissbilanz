@@ -13,7 +13,10 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Download from '@lucide/svelte/icons/download';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import CircleHelp from '@lucide/svelte/icons/circle-help';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
 	import { getUser } from '$lib/stores/auth.svelte';
+	import { resetAll as resetDismissedHints } from '$lib/stores/hints.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
 	import { api } from '$lib/api/client';
@@ -226,6 +229,11 @@
 	const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
 	const user = $derived(getUser());
 
+	const showTipsAgain = () => {
+		resetDismissedHints();
+		toast.success(m.settings_show_tips_again_toast());
+	};
+
 	onMount(() => {
 		loadMealTypes();
 	});
@@ -416,6 +424,23 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.settings_help_title()}</Card.Title>
+			<p class="text-muted-foreground text-sm">{m.settings_help_desc()}</p>
+		</Card.Header>
+		<Card.Content class="flex flex-wrap gap-2">
+			<Button variant="outline" href="/help">
+				<CircleHelp class="size-4" />
+				{m.settings_help_link()}
+			</Button>
+			<Button variant="outline" onclick={showTipsAgain}>
+				<Lightbulb class="size-4" />
+				{m.settings_show_tips_again()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
 
 	<Card.Root>
 		<Card.Header>

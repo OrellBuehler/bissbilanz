@@ -381,6 +381,83 @@ struct RepositoryTests {
         #expect(op.affectedId == "temp-1")
     }
 
+    @Test("Adding generated labels merges with the existing set, normalizes, caps at 20 and sorts, then queues an extend PUT")
+    func addGeneratedLabelsMergesAndCaps() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stub("PUT", "/api/foods/f-1/labels", json: #"{"labels": [], "dropped": []}"#)
+        var food = try FoodRepository.makeFood(from: FoodCreate(
+            name: "Banane", servingSize: 100, servingUnit: .g,
+            calories: 89, protein: 1, carbs: 23, fat: 0, fiber: 2
+        ), id: "f-1")
+        food = try JSONPatch.merged(Food.self, base: food, patch: ["labels": ["banana"]])
+        harness.context.insert(LocalFood(food: food))
+        try harness.context.save()
+
+        // Far more than the 20-per-food cap, with a duplicate ("Bananas") of
+        // what's already stored — normalizeAll both dedupes and caps.
+        let generated = (1 ... 25).map { "label\($0)" } + ["Bananas"]
+        let updated = try await repo.addGeneratedLabels(id: "f-1", labels: generated)
+
+        #expect(updated.labels?.count == LabelNormalizer.maxLabelsPerFood)
+        #expect(updated.labels?.contains("banana") == true)
+        #expect(updated.labels?.contains("label25") == false)
+        #expect(updated.labels == updated.labels?.sorted())
+
+        let drained = await harness.syncManager.drainPendingQueue()
+        #expect(drained == 1)
+        let body = try #require(harness.recordedBodies("PUT", "/api/foods/f-1/labels").first)
+        let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["source"] as? String == "llm")
+        #expect(json["mode"] as? String == "extend")
+        #expect(harness.syncManager.errors.isEmpty)
+    }
+
+    @Test("Suggestions that add nothing new leave the food and the queue untouched")
+    func addGeneratedLabelsNoOpsWhenEmpty() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        var food = try FoodRepository.makeFood(from: FoodCreate(
+            name: "Banane", servingSize: 100, servingUnit: .g,
+            calories: 89, protein: 1, carbs: 23, fat: 0, fiber: 2
+        ), id: "f-1")
+        food = try JSONPatch.merged(Food.self, base: food, patch: ["labels": ["banana"]])
+        harness.context.insert(LocalFood(food: food))
+        try harness.context.save()
+
+        let updated = try await repo.addGeneratedLabels(id: "f-1", labels: [])
+        #expect(updated.labels == ["banana"])
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A queued generated-label write follows its food to the server id")
+    func addGeneratedLabelsRemapsTempId() {
+        let op = SyncOperation.addGeneratedFoodLabels(id: "temp-1", labels: ["banana"])
+        let remapped = op.remappingReferences(from: "temp-1", to: "srv-1")
+        guard case let .addGeneratedFoodLabels(id, labels)? = remapped else {
+            Issue.record("expected a remapped addGeneratedFoodLabels")
+            return
+        }
+        #expect(id == "srv-1")
+        #expect(labels == ["banana"])
+        #expect(op.remappingReferences(from: "other", to: "x") == nil)
+        #expect(op.affectedTable == "foods")
+        #expect(op.affectedId == "temp-1")
+    }
+
+    @Test("A queued generated-label write decodes back to the same operation")
+    func addGeneratedLabelsCodableRoundTrip() throws {
+        let op = SyncOperation.addGeneratedFoodLabels(id: "f-1", labels: ["banana", "fruit"])
+        let data = try JSONEncoder().encode(op)
+        let decoded = try JSONDecoder().decode(SyncOperation.self, from: data)
+        guard case let .addGeneratedFoodLabels(id, labels) = decoded else {
+            Issue.record("expected addGeneratedFoodLabels to decode back to itself")
+            return
+        }
+        #expect(id == "f-1")
+        #expect(labels == ["banana", "fruit"])
+    }
+
     @Test("Updating a temp food rewrites the queued create body")
     func foodUpdateCoalescesIntoQueuedCreate() async throws {
         let harness = try RepositoryHarness()

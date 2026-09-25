@@ -8,6 +8,8 @@ struct BarcodeScannerView: View {
     // mode queries Open Food Facts directly (there is no backend session).
     @Environment(BissbilanzAPI.self) private var api
     @Environment(AppModeManager.self) private var appModeManager
+    @Environment(FoodLabeler.self) private var foodLabeler
+    @Environment(McpConnectionStatus.self) private var mcpConnectionStatus
     @Environment(\.dismiss) private var dismiss
 
     @State private var scannedBarcode: String?
@@ -232,6 +234,13 @@ struct BarcodeScannerView: View {
                         ingredientsText: food.ingredientsText,
                         categoriesTags: hit.categoriesTags
                     ))
+                    // No-ops unless the OFF import left it with no labels.
+                    FoodAutoLabeler.labelIfNeeded(
+                        created,
+                        mcpConnected: mcpConnectionStatus.isConnected,
+                        labeler: foodLabeler,
+                        foodRepository: foodRepository
+                    )
                     path.append(.log(created))
                 } else {
                     notFound = true

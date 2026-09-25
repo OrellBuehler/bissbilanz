@@ -1,6 +1,7 @@
 import Charts
 import Combine
 import SwiftUI
+import TipKit
 
 /// One day of the dashboard calorie trend.
 private struct DashboardTrendPoint: Identifiable {
@@ -100,6 +101,17 @@ struct DashboardView: View {
     /// refreshed) only while the widget is on, like `favoriteFoods` above.
     @State private var allRecipes: [Recipe] = []
 
+    /// Widgets, then the watch app — only one shows at a time, and the watch
+    /// nudge only appears once the widgets tip has been dismissed/invalidated.
+    @State private var dashboardTips = TipGroup(.ordered) {
+        WidgetsTip()
+        WatchAppTip()
+    }
+    private let scanningTip = ScanningTip()
+    private let dashboardLayoutTip = DashboardLayoutTip()
+    @State private var tipHelpSlug: HelpSlug = .mobileExtras
+    @State private var showTipHelp = false
+
     /// Days the trend chart and the top-foods card look back over, ending on
     /// the selected day.
     private static let trendWindowDays = 7
@@ -185,6 +197,16 @@ struct DashboardView: View {
                 VStack(spacing: 16) {
                     dateNavigator
 
+                    // Widgets/watch-app discovery — TipGroup shows at most one
+                    // at a time (`.ordered`: the watch tip only once the
+                    // widgets tip has been dismissed).
+                    if let currentTip = dashboardTips.currentTip {
+                        TipView(currentTip) { action in
+                            guard action.id == "learn_more" else { return }
+                            showHelp(for: .mobileExtras)
+                        }
+                    }
+
                     // ZStack so the outgoing and incoming day overlap during
                     // the push transition instead of stacking vertically.
                     ZStack {
@@ -219,11 +241,26 @@ struct DashboardView: View {
                     } label: {
                         Label(L10n.editDashboard, systemImage: "slider.horizontal.3")
                     }
+                    .popoverTip(dashboardLayoutTip) { action in
+                        guard action.id == "learn_more" else { return }
+                        showHelp(for: .gettingStarted)
+                    }
                 }
             }
-            .refreshable { await loadData(paintFromStore: false) }
+            // Unstructured so SwiftUI can't cancel it: `loadData` flips
+            // `isLoading` straight away, the body re-renders, and the
+            // refreshable task got cancelled mid-flight — every request died
+            // as "cancelled", the stale cache repainted and entries logged via
+            // MCP never showed until a relaunch.
+            .refreshable { await Task { await loadData(paintFromStore: false) }.value }
             .toast(message: $toastMessage)
             .overlay(alignment: .bottomTrailing) { fab }
+            .sheet(isPresented: $showTipHelp) {
+                SafariView(url: HelpLink.url(for: tipHelpSlug))
+            }
+            .onAppear {
+                WatchAppTip.isEligible = PhoneWatchConnectivity.shared.isWatchAppInstallEligible
+            }
             .sheet(isPresented: $showFoodSearch) {
                 NavigationStack {
                     FoodSearchView(date: dateString)
@@ -275,13 +312,20 @@ struct DashboardView: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 let newToday = Calendar.current.startOfDay(for: Date())
-                guard newToday != trackedToday else { return }
-                // Day rolled over while backgrounded; if we were showing the old
-                // "today", follow the rollover instead of staying stuck on it.
-                if Calendar.current.isDate(selectedDate, inSameDayAs: trackedToday) {
-                    selectedDate = Date()
+                if newToday != trackedToday {
+                    // Day rolled over while backgrounded; if we were showing the old
+                    // "today", follow the rollover instead of staying stuck on it.
+                    let followRollover = Calendar.current.isDate(selectedDate, inSameDayAs: trackedToday)
+                    trackedToday = newToday
+                    if followRollover {
+                        // The date change re-runs `.task(id: dateString)`.
+                        selectedDate = Date()
+                        return
+                    }
                 }
-                trackedToday = newToday
+                // Entries logged elsewhere (MCP, web, another device) while
+                // backgrounded only arrive through a refresh — same as DayLogView.
+                Task { await loadData() }
             }
             // The on-activation Apple Health import (BissbilanzApp) finishes
             // after this view is already showing — re-read the store so the
@@ -1114,8 +1158,17 @@ struct DashboardView: View {
             .buttonStyle(.plain)
             .circularGlassBackground(tint: MacroColors.calories)
             .accessibilityLabel(L10n.addFood)
+            .popoverTip(scanningTip) { action in
+                guard action.id == "learn_more" else { return }
+                showHelp(for: .scanning)
+            }
             .padding()
         }
+    }
+
+    private func showHelp(for slug: HelpSlug) {
+        tipHelpSlug = slug
+        showTipHelp = true
     }
 
     // MARK: - Data Loading

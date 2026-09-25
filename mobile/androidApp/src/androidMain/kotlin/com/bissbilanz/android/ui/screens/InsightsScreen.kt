@@ -8,11 +8,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +23,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -30,6 +33,8 @@ import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CalendarHeatmap
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.components.MacroRadarChart
+import com.bissbilanz.android.ui.components.MacroSource
+import com.bissbilanz.android.ui.components.MacroSourcesSheet
 import com.bissbilanz.android.ui.components.MealColors
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RadarAxis
@@ -99,6 +104,8 @@ fun InsightsScreen(navController: NavController) {
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
 
     val isLocalMode = viewModel.isLocalMode
+    val macroSourcesState by viewModel.macroSources.collectAsStateWithLifecycle()
+    var macroSources by rememberSaveable { mutableStateOf<MacroSource?>(null) }
 
     val ranges =
         listOf(
@@ -119,6 +126,22 @@ fun InsightsScreen(navController: NavController) {
         )
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    macroSources?.let { source ->
+        LaunchedEffect(source) { viewModel.loadMacroSources(source.key) }
+        MacroSourcesSheet(
+            macro = source,
+            days =
+                when (selectedRange) {
+                    0 -> 7
+                    1 -> 30
+                    else -> 90
+                },
+            dailyStats = dailyStats,
+            state = macroSourcesState,
+            onDismiss = { macroSources = null },
+        )
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -326,6 +349,40 @@ fun InsightsScreen(navController: NavController) {
                                         ),
                                     )
                                 MacroRadarChart(axes = radarAxes)
+                                // The radar says how far off a macro is, not why: each
+                                // button lists the foods that contributed the most of it.
+                                if (!isLocalMode) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    MacroSource.entries.chunked(2).forEach { pair ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            pair.forEach { source ->
+                                                OutlinedButton(
+                                                    onClick = { macroSources = source },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors =
+                                                        ButtonDefaults.outlinedButtonColors(
+                                                            contentColor = source.color.macroTextTone(),
+                                                        ),
+                                                ) {
+                                                    Text(
+                                                        stringResource(source.label),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false),
+                                                    )
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                         }

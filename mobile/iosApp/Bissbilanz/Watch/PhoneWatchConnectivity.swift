@@ -45,6 +45,15 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
         WCSession.isSupported() ? .default : nil
     }
 
+    /// Whether a watch is paired but doesn't have the app installed yet —
+    /// the signal `WatchAppTip` uses to decide whether to nudge the user
+    /// toward installing it. Reads the one session this class owns rather
+    /// than a second `WCSession.default` reference.
+    var isWatchAppInstallEligible: Bool {
+        guard let session else { return false }
+        return session.isPaired && !session.isWatchAppInstalled
+    }
+
     private static let appliedRequestIdsKey = "watch_applied_request_ids_v1"
     private static let appliedRequestIdsLimit = 64
 

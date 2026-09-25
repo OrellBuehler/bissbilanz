@@ -28,6 +28,7 @@ struct InsightsView: View {
     @State private var calendarMonth = Date()
     @State private var selectedTab: Tab = .overview
     @State private var analytics = InsightsAnalyticsModel()
+    @State private var macroSources: MacroKind?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -49,6 +50,9 @@ struct InsightsView: View {
             .padding(.top, 8)
             .navigationTitle(L10n.insights)
             .task { await loadAll() }
+            .sheet(item: $macroSources) { macro in
+                MacroSourcesSheet(days: selectedRange, dailyStats: dailyStats, macro: macro)
+            }
         }
     }
 
@@ -328,6 +332,28 @@ struct InsightsView: View {
 
                     MacroRadarView(axes: axes)
                         .frame(height: 200)
+
+                    // The radar says how far off a macro is, not why: each
+                    // button lists the foods that contributed the most of it.
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(MacroKind.allCases) { macro in
+                            Button {
+                                macroSources = macro
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(macro.label)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "chevron.right")
+                                        .imageScale(.small)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(macro.color)
+                        }
+                    }
                 }
             }
         }

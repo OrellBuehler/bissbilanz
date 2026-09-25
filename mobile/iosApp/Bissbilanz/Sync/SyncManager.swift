@@ -557,6 +557,19 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .addGeneratedFoodLabels(id, labels):
+            // A machine write, not the device's own edit: no clientEditedAt,
+            // so it never wins last-write-wins over an edit the user actually
+            // made on another device.
+            _ = try await api.setFoodLabels(
+                id: id,
+                labels: labels,
+                source: "llm",
+                mode: "extend",
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: nil
+            )
+
         case let .createEntry(body, localId):
             let server = try await api.createEntry(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
             guard let local = LocalRemap.entryRow(id: localId, in: context)?.toEntry() else {
@@ -945,7 +958,7 @@ final class SyncManager {
         case let .createFood(_, localId):
             ids["sync.food_id"] = localId
         case let .updateFood(id, _), let .deleteFood(id, _), let .toggleFavorite(id, _),
-             let .setFoodImage(id, _), let .setFoodLabels(id, _):
+             let .setFoodImage(id, _), let .setFoodLabels(id, _), let .addGeneratedFoodLabels(id, _):
             ids["sync.food_id"] = id
 
         case let .createEntry(body, localId):

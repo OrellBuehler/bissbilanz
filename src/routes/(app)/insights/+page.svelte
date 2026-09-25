@@ -31,6 +31,8 @@
 	import MacroValue from '$lib/components/shared/MacroValue.svelte';
 	import { formatKcal, formatGrams, formatKg as formatKgValue } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 	import type { DexieWeightEntry } from '$lib/db/types';
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
@@ -296,6 +298,15 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6">
+	{#if !isDismissed('insights')}
+		<HintCard
+			id="insights"
+			title={m.hint_insights_title()}
+			text={m.hint_insights_body()}
+			href="/help/insights"
+		/>
+	{/if}
+
 	<div class="flex gap-1">
 		{#each tabs as tab}
 			<Button

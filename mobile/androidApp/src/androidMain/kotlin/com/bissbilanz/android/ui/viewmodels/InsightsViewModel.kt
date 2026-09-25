@@ -12,6 +12,7 @@ import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +53,10 @@ class InsightsViewModel(
 
     private val _topFoods = MutableStateFlow<List<TopFoodEntry>>(emptyList())
     val topFoods: StateFlow<List<TopFoodEntry>> = _topFoods.asStateFlow()
+
+    private val _macroSources = MutableStateFlow<MacroSourcesState>(MacroSourcesState.Loading)
+    val macroSources: StateFlow<MacroSourcesState> = _macroSources.asStateFlow()
+    private var macroSourcesJob: Job? = null
 
     private val _dailyStats = MutableStateFlow<List<DailyStatsEntry>>(emptyList())
     val dailyStats: StateFlow<List<DailyStatsEntry>> = _dailyStats.asStateFlow()
@@ -470,10 +475,43 @@ class InsightsViewModel(
         _snackbarMessage.value = null
     }
 
+    /** Foods that contributed the most of [sort] (a macro key) over the selected range. */
+    fun loadMacroSources(sort: String) {
+        macroSourcesJob?.cancel()
+        macroSourcesJob =
+            viewModelScope.launch {
+                _macroSources.value = MacroSourcesState.Loading
+                val days =
+                    when (selectedRange.value) {
+                        0 -> 7
+                        1 -> 30
+                        else -> 90
+                    }
+                _macroSources.value =
+                    try {
+                        MacroSourcesState.Loaded(statsRepo.getTopFoods(days, 10, sort).data)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                        MacroSourcesState.Failed
+                    }
+            }
+    }
+
     companion object {
         private const val KEY_SELECTED_RANGE = "selectedRange"
         private const val KEY_SELECTED_TAB = "selectedTab"
         private const val KEY_CALENDAR_MONTH = "calendarMonth"
         private const val KEY_CALENDAR_YEAR = "calendarYear"
     }
+}
+
+sealed interface MacroSourcesState {
+    data object Loading : MacroSourcesState
+
+    data class Loaded(
+        val foods: List<TopFoodEntry>,
+    ) : MacroSourcesState
+
+    data object Failed : MacroSourcesState
 }

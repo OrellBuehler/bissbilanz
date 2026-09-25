@@ -610,7 +610,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description Get most frequently logged foods. */
+		/** @description Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average. */
 		get: operations['getTopFoods'];
 		put?: never;
 		post?: never;
@@ -4189,6 +4189,7 @@ export interface operations {
 			query?: {
 				days?: number;
 				limit?: number;
+				sort?: 'count' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
 			};
 			header?: never;
 			path?: never;

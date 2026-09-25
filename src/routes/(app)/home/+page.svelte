@@ -35,6 +35,8 @@
 	import ChartPie from '@lucide/svelte/icons/chart-pie';
 	import Target from '@lucide/svelte/icons/target';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import HintCard from '$lib/components/help/HintCard.svelte';
+	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	let { data } = $props();
 	const activeDate = $derived(data.date);
@@ -247,6 +249,17 @@
 				</Button>
 			</div>
 		</div>
+
+		{#if !isDismissed('getting-started')}
+			<div class="mt-4">
+				<HintCard
+					id="getting-started"
+					title={m.hint_getting_started_title()}
+					text={m.hint_getting_started_body()}
+					href="/help/getting-started"
+				/>
+			</div>
+		{/if}
 
 		<!-- Mobile FAB for AI task capture -->
 		<Button

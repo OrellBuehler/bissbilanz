@@ -1,6 +1,7 @@
 import Charts
 import shared
 import SwiftUI
+import TipKit
 
 /// Bridges Swift `Double` arrays to/from the boxed-number arrays the shared
 /// Kotlin analytics expose across the Objective-C interop boundary.
@@ -116,6 +117,8 @@ struct WeightView: View {
     @State private var errorMessage: String?
     @State private var showProjection = false
     @State private var projectionDays = 30
+    @State private var showTipHelp = false
+    private let healthImportTip = HealthImportWeightTip()
     /// X-position the user is touching on the chart, used to surface the nearest
     /// data point (Apple Health-style scrubbing).
     @State private var selectedDate: Date?
@@ -242,6 +245,10 @@ struct WeightView: View {
                     )
                 } else {
                     List {
+                        TipView(healthImportTip) { action in
+                            guard action.id == "learn_more" else { return }
+                            showTipHelp = true
+                        }
                         statsChipsSection
                         if goals.targetWeightKg != nil { targetSection }
                         if chartEntries.count >= 2 { chartSection }
@@ -271,6 +278,9 @@ struct WeightView: View {
                     Task { await loadEntries() }
                 }
             }
+            .sheet(isPresented: $showTipHelp) {
+                SafariView(url: HelpLink.url(for: .mobileExtras))
+            }
             .refreshable { await loadEntries() }
             .task {
                 await loadEntries(showSpinner: true)
@@ -281,7 +291,12 @@ struct WeightView: View {
             }
             // Cheap local re-read when popping back from the history subpage,
             // where entries can be edited or deleted.
-            .onAppear { entries = weightRepository.entries() }
+            .onAppear {
+                entries = weightRepository.entries()
+                HealthImportWeightTip.isImportDisabled = !UserDefaults.standard.bool(
+                    forKey: HealthKitService.syncEnabledKey
+                )
+            }
             .alert(
                 L10n.error,
                 isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })

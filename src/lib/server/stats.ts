@@ -15,6 +15,7 @@ import { and, eq, gte, sql } from 'drizzle-orm';
 import { getFastingDays, getNotedDays } from '$lib/server/day-properties';
 import { listFastingSessions } from '$lib/server/fasting';
 import { fastLocalDates } from '$lib/utils/fasting';
+import type { TopFoodsSort } from '$lib/server/validation/stats';
 import type { CalendarDay } from '$lib/utils/insights';
 import type { FastingSessionRow } from '$lib/server/fasting';
 
@@ -262,7 +263,8 @@ export const getStreaks = async (userId: string) => {
 export const getTopFoods = async (
 	userId: string,
 	days: number,
-	limit: number
+	limit: number,
+	sort: TopFoodsSort = 'count'
 ): Promise<
 	Array<{
 		foodId: string | null;
@@ -308,7 +310,10 @@ export const getTopFoods = async (
 	}
 
 	return Object.values(groups)
-		.sort((a, b) => b.count - a.count)
+		.sort((a, b) =>
+			sort === 'count' ? b.count - a.count : b.totalMacros[sort] - a.totalMacros[sort]
+		)
+		.filter((g) => sort === 'count' || g.totalMacros[sort] > 0)
 		.slice(0, limit)
 		.map((g) => ({
 			foodId: g.foodId,

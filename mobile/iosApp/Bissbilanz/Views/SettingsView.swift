@@ -1,3 +1,4 @@
+import AppIntents
 import AuthenticationServices
 import SwiftUI
 
@@ -12,6 +13,8 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(FoodLabeler.self) private var foodLabeler
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -29,6 +32,7 @@ struct SettingsView: View {
     @State private var downgradeError: String?
     @State private var newMealTypeName = ""
     @State private var errorMessage: String?
+    @State private var showHelpCenter = false
     private let healthKitService = HealthKitService.shared
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
 
@@ -184,6 +188,34 @@ struct SettingsView: View {
                     }
                 }
 
+                // Food labels: auto-labelling new foods, plus a sweep for
+                // whatever's still unlabelled. Shown whenever a labeller could
+                // run at all (on-device or Private Cloud Compute) — hidden
+                // entirely otherwise, since both rows would do nothing.
+                if foodLabeler.isAvailable {
+                    Section {
+                        Toggle(L10n.autoLabelToggleLabel, isOn: Binding(
+                            get: { FoodAutoLabelSettings.isEnabled },
+                            set: { FoodAutoLabelSettings.isEnabled = $0 }
+                        ))
+                        NavigationLink {
+                            LabelUnlabeledFoodsView()
+                        } label: {
+                            HStack {
+                                Text(L10n.labelUnlabeledFoods)
+                                Spacer()
+                                Text(L10n.unlabeledFoodCount(foodRepository.unlabeledLocalFoods().count))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } header: {
+                        Text(L10n.foodLabelsSectionTitle)
+                    } footer: {
+                        Text(L10n.autoLabelToggleFooter)
+                    }
+                }
+
                 // Apple Health — all sync controls live on the subpage.
                 if healthKitService.isAvailable {
                     Section(L10n.appleHealth) {
@@ -209,7 +241,10 @@ struct SettingsView: View {
                 Section(L10n.language) {
                     Picker(L10n.language, selection: Binding(
                         get: { L10n.currentLocale },
-                        set: { L10n.currentLocale = $0 }
+                        set: {
+                            L10n.currentLocale = $0
+                            WidgetSnapshotWriter.scheduleUpdate(context: modelContext)
+                        }
                     )) {
                         ForEach(AppLocale.allCases, id: \.self) { locale in
                             Text(locale.displayName).tag(locale)
@@ -420,6 +455,17 @@ struct SettingsView: View {
                     }
                 }
 
+                // Tips
+                Section {
+                    Button {
+                        UserDefaults.standard.set(true, forKey: BissbilanzApp.resetTipsOnLaunchKey)
+                    } label: {
+                        Label(L10n.showTipsAgain, systemImage: "lightbulb")
+                    }
+                } footer: {
+                    Text(L10n.showTipsAgainFooter)
+                }
+
                 // About
                 Section(L10n.about) {
                     HStack {
@@ -427,6 +473,11 @@ struct SettingsView: View {
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                             .foregroundStyle(.secondary)
+                    }
+                    Button {
+                        showHelpCenter = true
+                    } label: {
+                        Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
                     Link(destination: URL(string: "https://bissbilanz.orellbuehler.ch/privacy")!) {
                         Label(L10n.privacyPolicy, systemImage: "hand.raised")
@@ -440,6 +491,16 @@ struct SettingsView: View {
                     .disabled(!ErrorReporter.isEnabled)
                     #endif
                 }
+            }
+            // Below the nav title, discovering the quick-add Siri Shortcut.
+            // Kept here rather than on the dashboard so it doesn't compete
+            // with the ordered `TipGroup` there — the system decides on its
+            // own whether/when this is worth showing (no binding needed).
+            .safeAreaInset(edge: .top) {
+                SiriTipView(intent: LogFoodIntent(), isVisible: nil)
+            }
+            .sheet(isPresented: $showHelpCenter) {
+                SafariView(url: HelpLink.url())
             }
             .keyboardDismissable()
             // The number pad has no return key, so the keyboard toolbar's

@@ -1,6 +1,7 @@
 import AppIntents
 import SwiftData
 import SwiftUI
+import TipKit
 import UserNotifications
 
 /// Top-level destination shown at the app root, resolved from auth state and app mode.
@@ -51,6 +52,7 @@ struct BissbilanzApp: App {
     @State private var preferencesRepository: PreferencesRepository
     @State private var deepLinkRouter: DeepLinkRouter
     @State private var mealEstimator: MealEstimator
+    @State private var foodLabeler: FoodLabeler
     @State private var fastingManager: FastingTimerManager
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
@@ -76,9 +78,22 @@ struct BissbilanzApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
 
+    /// Set by the Settings "Show tips again" row; read and cleared here on the
+    /// next launch, before `Tips.configure`, so every tip's dismissed/shown
+    /// state resets. Tips only re-appear after a restart because
+    /// `Tips.resetDatastore()` must run before `Tips.configure` — TipKit
+    /// forbids calling it afterwards.
+    static let resetTipsOnLaunchKey = "resetTipsOnLaunch"
+
     init() {
         // Start crash reporting before anything else can fail.
         ErrorReporter.start()
+
+        if UserDefaults.standard.bool(forKey: Self.resetTipsOnLaunchKey) {
+            try? Tips.resetDatastore()
+            UserDefaults.standard.removeObject(forKey: Self.resetTipsOnLaunchKey)
+        }
+        try? Tips.configure([.displayFrequency(.daily)])
 
         let auth = AuthManager()
         let api = BissbilanzAPI(authManager: auth)
@@ -160,6 +175,7 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
+        _foodLabeler = State(wrappedValue: FoodLabeler(foodRepository: foodRepo))
         let imageLoader = FoodImageLoader(api: api)
         _foodImageLoader = State(wrappedValue: imageLoader)
         // The widget extension renders favorites off `LocalImageStore` and
@@ -390,6 +406,7 @@ struct BissbilanzApp: App {
             .environment(preferencesRepository)
             .environment(deepLinkRouter)
             .environment(mealEstimator)
+            .environment(foodLabeler)
             .environment(fastingManager)
             .environment(foodImageLoader)
             .environment(aiTaskStore)
@@ -469,11 +486,20 @@ struct BissbilanzApp: App {
             LocalDedup.sweep(in: modelContainer.mainContext)
         }
         // Keep Spotlight in step with the searchable catalog so
-        // foods/recipes are findable before the next manual log.
+        // foods/recipes are findable before the next manual log. The whole
+        // local catalog is indexed — not just favorites/recents — so keyword
+        // and label search reach every food, but rebuilding it is real work
+        // (one attributeSet per row), so it's throttled to once every six
+        // hours; favorite recipes are cheap enough to redo on every
+        // activation.
+        let reindexFullCatalog = IntentDonations.catalogReindexDue()
         IntentDonations.indexCatalog(
-            foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
+            foods: reindexFullCatalog ? foodRepository.allLocalFoods() : [],
             recipes: recipeRepository.favoriteRecipes()
         )
+        if reindexFullCatalog {
+            IntentDonations.markCatalogReindexed()
+        }
         // The same for the day summaries Siri answers questions from: the last
         // 90 days that have anything on them, in two fetches. Days written on
         // this device are indexed as they change (IntentDonations.dayChanged);
