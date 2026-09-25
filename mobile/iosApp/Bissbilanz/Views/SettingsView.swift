@@ -34,6 +34,9 @@ struct SettingsView: View {
     @State private var showHelpCenter = false
     private let healthKitService = HealthKitService.shared
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+    // Remembers the quick-add Siri Shortcut tip's dismissal across launches —
+    // `SiriTipView` doesn't persist that on its own without a binding.
+    @AppStorage("show_siri_log_food_tip") private var showSiriLogFoodTip = true
 
     private var selectedTabNames: String {
         selectedTabsRaw.split(separator: ",")
@@ -336,6 +339,13 @@ struct SettingsView: View {
                     }
                 }
 
+                // Discovering the quick-add Siri Shortcut. Moved down here
+                // (was pinned above the list, which read as stuck) and given
+                // a persisted binding so dismissing it sticks.
+                Section {
+                    SiriTipView(intent: LogFoodIntent(), isVisible: $showSiriLogFoodTip)
+                }
+
                 // About
                 Section(L10n.about) {
                     HStack {
@@ -356,13 +366,6 @@ struct SettingsView: View {
                     .disabled(!ErrorReporter.isEnabled)
                     #endif
                 }
-            }
-            // Below the nav title, discovering the quick-add Siri Shortcut.
-            // Kept here rather than on the dashboard so it doesn't compete
-            // with the ordered `TipGroup` there — the system decides on its
-            // own whether/when this is worth showing (no binding needed).
-            .safeAreaInset(edge: .top) {
-                SiriTipView(intent: LogFoodIntent(), isVisible: nil)
             }
             .sheet(isPresented: $showHelpCenter) {
                 SafariView(url: HelpLink.url())

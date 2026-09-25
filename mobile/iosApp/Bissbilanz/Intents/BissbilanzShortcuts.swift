@@ -11,8 +11,13 @@ struct BissbilanzShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: LogFoodIntent(),
             phrases: [
-                "Log \(\.$food) with \(.applicationName)",
+                // Parameterless phrase first: `SiriTipView` displays an
+                // intent's first phrase verbatim, and a phrase referencing
+                // `\.$food` renders there as the literal placeholder "${food}"
+                // since no value is bound yet. All phrases still work for
+                // invocation regardless of order.
                 "Log a food with \(.applicationName)",
+                "Log \(\.$food) with \(.applicationName)",
                 "Add food to \(.applicationName)",
             ],
             shortTitle: "Log Food",
