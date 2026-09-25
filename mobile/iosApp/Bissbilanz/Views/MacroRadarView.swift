@@ -43,6 +43,7 @@ struct MacroRadarView: View {
                 context.fill(dataPath, with: .color(.blue.opacity(0.15)))
                 context.stroke(dataPath, with: .color(.blue), lineWidth: 2)
             }
+            .accessibilityHidden(true)
 
             // Draw labels
             ForEach(0 ..< count, id: \.self) { i in
@@ -57,8 +58,10 @@ struct MacroRadarView: View {
                     .foregroundStyle(axes[i].2)
                     .multilineTextAlignment(.center)
                     .position(point)
+                    .accessibilityLabel("\(axes[i].0), \(pct)%")
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func angleFor(index: Int, total: Int) -> Double {
