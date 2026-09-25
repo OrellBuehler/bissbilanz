@@ -143,7 +143,10 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.platforms != 'android'
     # GitHub's arm64 Xcode 27 image, matching the iOS PR build
     # (mobile-ios.yml): its SDK is the first that declares the iOS 27 App
-    # Intents types the Siri data queries adopt.
+    # Intents types the Siri data queries adopt. The image is still labeled
+    # "preview" and carries the Xcode 27.0 GM alongside 27.1/27.2 previews
+    # (see the Xcode selection step below) — it's the only image with an iOS
+    # 27 SDK at all, so there's nowhere else to run this job.
     runs-on: xcode-27
     timeout-minutes: 45
     permissions:
@@ -226,13 +229,68 @@ jobs:
             exit 1
           fi
 
-      # latest-stable Xcode, matching the iOS PR build (mobile-ios.yml), pinned
-      # explicitly so a version-gated feature can never silently drop out of the
-      # archive.
-      - name: Select latest stable Xcode
+      # Xcode 27.0 (build 27A266a), Apple's GM release from 2026-09-14 —
+      # pinned to the exact GM rather than `latest-stable`. Run 36175108021
+      # used `latest-stable` and got Xcode 27.1 Beta 1 (build 27A9269): the
+      # xcode-27 image also carries the not-yet-released 27.1/27.2 previews,
+      # setup-xcode's beta/GM detection misjudged the 27.1 preview as
+      # "stable", and it sorts higher than 27.0 — so `latest-stable` picked
+      # the beta. App Store Connect then refused the archive outright
+      # ("This build is using a beta version of Xcode"). Bump this pin only
+      # once the xcode-27 image's default Xcode moves to a newer GM.
+      - name: Select Xcode 27.0 (GM)
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '27.0'
+
+      # Belt and suspenders on top of the exact pin above: setup-xcode's own
+      # stable/beta detection is exactly what picked a beta last time (see the
+      # comment above), so this checks the installed Xcode directly rather
+      # than trusting the action. Fails loudly instead of silently archiving
+      # with a beta SDK that App Store Connect will reject ~40 minutes later.
+      - name: Verify selected Xcode is the GM, not a beta
+        run: |
+          set -euo pipefail
+          XCODE_APP="$(xcode-select -p | sed 's#/Contents/Developer$##')"
+          VERSION_OUTPUT="$(xcodebuild -version)"
+          BUILD_NUMBER="$(echo "$VERSION_OUTPUT" | sed -n 's/^Build version //p')"
+          echo "$VERSION_OUTPUT"
+          echo "path: $XCODE_APP"
+
+          # Betas known to be on the xcode-27 image as of 2026-09-25 (see
+          # https://xcodereleases.com and Apple's "Xcode 27.1/27.2 Beta
+          # Release Notes"). Add to this list if a newer beta ships before
+          # its GM does.
+          KNOWN_BETA_BUILDS="27A9269 27B5019j"
+          EXPECTED_GM_BUILD="27A266a"
+
+          fail=0
+          case "$XCODE_APP" in
+            *[Bb]eta*)
+              echo "::error::Selected Xcode path looks like a beta: $XCODE_APP"
+              fail=1
+              ;;
+          esac
+          case "$VERSION_OUTPUT" in
+            *[Bb]eta*)
+              echo "::error::xcodebuild -version reports a beta: $VERSION_OUTPUT"
+              fail=1
+              ;;
+          esac
+          for beta in $KNOWN_BETA_BUILDS; do
+            if [ "$BUILD_NUMBER" = "$beta" ]; then
+              echo "::error::Selected Xcode build $BUILD_NUMBER is a known beta build"
+              fail=1
+            fi
+          done
+          if [ "$BUILD_NUMBER" != "$EXPECTED_GM_BUILD" ]; then
+            echo "::error::Expected Xcode GM build $EXPECTED_GM_BUILD, got $BUILD_NUMBER. If Apple shipped a new Xcode 27.x GM, update EXPECTED_GM_BUILD and the xcode-version pin in the previous step."
+            fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+          echo "OK: confirmed GM Xcode ($BUILD_NUMBER) at $XCODE_APP"
 
       - name: Cache Homebrew packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -243,8 +301,11 @@ jobs:
             /opt/homebrew/Cellar/sentry-cli
           # Keyed on the image as well: Homebrew bottles are built per macOS
           # release, so a Cellar restored from the macOS 15 image would be the
-          # wrong bottle on macOS 27 (see mobile-ios.yml).
-          key: brew-xcodegen-sentry-cli-xcode27-${{ runner.os }}-${{ runner.arch }}
+          # wrong bottle on macOS 27 (see mobile-ios.yml). The `xcode27-0`
+          # suffix (bumped from `xcode27` when the Xcode selection moved from
+          # `latest-stable` to a pinned 27.0 GM) forces a clean Cellar rather
+          # than reusing one cached under the old key.
+          key: brew-xcodegen-sentry-cli-xcode27-0-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install XcodeGen
         # Link explicitly: a cache-restored Cellar makes `brew install` skip
