@@ -28,6 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param ingredients
  * @param isFavorite
  * @param imageUrl
+ * @param cookedWeight
  */
 @Serializable
 data class RecipeCreate(
@@ -36,4 +37,5 @@ data class RecipeCreate(
     @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<RecipeIngredientInput>,
     @SerialName(value = "isFavorite") val isFavorite: kotlin.Boolean? = null,
     @SerialName(value = "imageUrl") val imageUrl: kotlin.String? = null,
+    @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
 )

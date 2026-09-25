@@ -36,6 +36,7 @@ import kotlinx.serialization.encoding.*
  * @param fat
  * @param fiber
  * @param ingredients
+ * @param cookedWeight
  * @param createdAt
  * @param updatedAt
  * @param extendedNutrientsPerServing
@@ -54,6 +55,7 @@ data class RecipeDetail(
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
     @SerialName(value = "ingredients") @Required val ingredients: kotlin.collections.List<RecipeIngredient>,
+    @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
     @SerialName(value = "extendedNutrientsPerServing") val extendedNutrientsPerServing: RecipeExtendedNutrients? = null,

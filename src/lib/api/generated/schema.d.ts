@@ -1430,6 +1430,7 @@ export interface components {
 			ingredients: components['schemas']['RecipeIngredientInput'][];
 			isFavorite?: boolean;
 			imageUrl?: string | null;
+			cookedWeight?: number | null;
 		};
 		RecipeIngredientInput: {
 			/** Format: uuid */
@@ -1443,6 +1444,7 @@ export interface components {
 			ingredients?: components['schemas']['RecipeIngredientInput'][];
 			isFavorite?: boolean;
 			imageUrl?: string | null;
+			cookedWeight?: number | null;
 		};
 		SupplementIngredientInput: {
 			/** Format: uuid */
@@ -1961,6 +1963,7 @@ export interface components {
 			totalServings: number;
 			isFavorite: boolean;
 			imageUrl: string | null;
+			cookedWeight?: number | null;
 			calories: number;
 			protein: number;
 			carbs: number;
@@ -1979,6 +1982,7 @@ export interface components {
 			totalServings: number;
 			isFavorite: boolean;
 			imageUrl: string | null;
+			cookedWeight?: number | null;
 			calories: number;
 			protein: number;
 			carbs: number;
@@ -2404,6 +2408,7 @@ export interface components {
 			id: string;
 			name: string;
 			imageUrl: string | null;
+			cookedWeight?: number | null;
 			calories: number;
 			protein: number;
 			carbs: number;
