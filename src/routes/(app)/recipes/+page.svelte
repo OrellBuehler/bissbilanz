@@ -134,11 +134,7 @@
 		// Best-effort refresh so an edit starts from the latest server copy;
 		// offline (or a failed fetch) falls back to whatever is cached.
 		const fresh = await recipeService.refreshById(id);
-		// TODO: drop this cast once the generated API client is regenerated
-		// (`bun run api:generate`) to include RecipeDetail.extendedNutrientsPerServing.
-		editingExtendedNutrients =
-			(fresh as { extendedNutrientsPerServing?: Record<string, number | null> } | null)
-				?.extendedNutrientsPerServing ?? null;
+		editingExtendedNutrients = fresh?.extendedNutrientsPerServing ?? null;
 		const recipe = await db.recipes.get(id);
 		if (!recipe) return;
 		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).sortBy('sortOrder');

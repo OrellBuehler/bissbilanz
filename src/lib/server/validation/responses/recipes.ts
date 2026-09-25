@@ -51,7 +51,7 @@ const recipeDetailSchema = z
 		ingredients: z.array(recipeIngredientResponseSchema),
 		// Per-serving (unlike the whole-recipe core macros above), to match
 		// what a food's nutrient panel shows.
-		extendedNutrientsPerServing: extendedNutrientsSchema
+		extendedNutrientsPerServing: extendedNutrientsSchema.optional()
 	})
 	.meta({ id: 'RecipeDetail' });
 

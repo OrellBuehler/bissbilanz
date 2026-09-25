@@ -7574,6 +7574,15 @@
 					},
 					"entryCount": {
 						"type": "number"
+					},
+					"ingredientCount": {
+						"type": "number"
+					},
+					"recipeCount": {
+						"type": "number"
+					},
+					"supplementIngredientCount": {
+						"type": "number"
 					}
 				},
 				"required": ["error"],
@@ -8162,6 +8171,9 @@
 						"items": {
 							"$ref": "#/components/schemas/RecipeIngredient"
 						}
+					},
+					"extendedNutrientsPerServing": {
+						"$ref": "#/components/schemas/RecipeExtendedNutrients"
 					}
 				},
 				"required": [
@@ -8212,6 +8224,186 @@
 					}
 				},
 				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
+				"additionalProperties": false
+			},
+			"RecipeExtendedNutrients": {
+				"type": "object",
+				"properties": {
+					"saturatedFat": {
+						"type": ["number", "null"]
+					},
+					"monounsaturatedFat": {
+						"type": ["number", "null"]
+					},
+					"polyunsaturatedFat": {
+						"type": ["number", "null"]
+					},
+					"transFat": {
+						"type": ["number", "null"]
+					},
+					"cholesterol": {
+						"type": ["number", "null"]
+					},
+					"omega3": {
+						"type": ["number", "null"]
+					},
+					"omega6": {
+						"type": ["number", "null"]
+					},
+					"sugar": {
+						"type": ["number", "null"]
+					},
+					"addedSugars": {
+						"type": ["number", "null"]
+					},
+					"sugarAlcohols": {
+						"type": ["number", "null"]
+					},
+					"starch": {
+						"type": ["number", "null"]
+					},
+					"sodium": {
+						"type": ["number", "null"]
+					},
+					"potassium": {
+						"type": ["number", "null"]
+					},
+					"calcium": {
+						"type": ["number", "null"]
+					},
+					"iron": {
+						"type": ["number", "null"]
+					},
+					"magnesium": {
+						"type": ["number", "null"]
+					},
+					"phosphorus": {
+						"type": ["number", "null"]
+					},
+					"zinc": {
+						"type": ["number", "null"]
+					},
+					"copper": {
+						"type": ["number", "null"]
+					},
+					"manganese": {
+						"type": ["number", "null"]
+					},
+					"selenium": {
+						"type": ["number", "null"]
+					},
+					"iodine": {
+						"type": ["number", "null"]
+					},
+					"fluoride": {
+						"type": ["number", "null"]
+					},
+					"chromium": {
+						"type": ["number", "null"]
+					},
+					"molybdenum": {
+						"type": ["number", "null"]
+					},
+					"chloride": {
+						"type": ["number", "null"]
+					},
+					"vitaminA": {
+						"type": ["number", "null"]
+					},
+					"vitaminC": {
+						"type": ["number", "null"]
+					},
+					"vitaminD": {
+						"type": ["number", "null"]
+					},
+					"vitaminE": {
+						"type": ["number", "null"]
+					},
+					"vitaminK": {
+						"type": ["number", "null"]
+					},
+					"vitaminB1": {
+						"type": ["number", "null"]
+					},
+					"vitaminB2": {
+						"type": ["number", "null"]
+					},
+					"vitaminB3": {
+						"type": ["number", "null"]
+					},
+					"vitaminB5": {
+						"type": ["number", "null"]
+					},
+					"vitaminB6": {
+						"type": ["number", "null"]
+					},
+					"vitaminB7": {
+						"type": ["number", "null"]
+					},
+					"vitaminB9": {
+						"type": ["number", "null"]
+					},
+					"vitaminB12": {
+						"type": ["number", "null"]
+					},
+					"caffeine": {
+						"type": ["number", "null"]
+					},
+					"alcohol": {
+						"type": ["number", "null"]
+					},
+					"water": {
+						"type": ["number", "null"]
+					},
+					"salt": {
+						"type": ["number", "null"]
+					}
+				},
+				"required": [
+					"saturatedFat",
+					"monounsaturatedFat",
+					"polyunsaturatedFat",
+					"transFat",
+					"cholesterol",
+					"omega3",
+					"omega6",
+					"sugar",
+					"addedSugars",
+					"sugarAlcohols",
+					"starch",
+					"sodium",
+					"potassium",
+					"calcium",
+					"iron",
+					"magnesium",
+					"phosphorus",
+					"zinc",
+					"copper",
+					"manganese",
+					"selenium",
+					"iodine",
+					"fluoride",
+					"chromium",
+					"molybdenum",
+					"chloride",
+					"vitaminA",
+					"vitaminC",
+					"vitaminD",
+					"vitaminE",
+					"vitaminK",
+					"vitaminB1",
+					"vitaminB2",
+					"vitaminB3",
+					"vitaminB5",
+					"vitaminB6",
+					"vitaminB7",
+					"vitaminB9",
+					"vitaminB12",
+					"caffeine",
+					"alcohol",
+					"water",
+					"salt"
+				],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {
