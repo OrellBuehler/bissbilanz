@@ -64,20 +64,25 @@ Then add this iOS-only paragraph before the closing "ONLY FOR YOU" / "NUR FÜR D
 
 All questionnaire answers "No" → 4+.
 
-## App Privacy labels (fill in App Store Connect)
+## App Privacy labels (published in App Store Connect 2026-09-25)
+
+**Keep in sync:** these answers are live on the product page. Any change to what the app sends off
+the device — a new SDK, new Sentry options, a new synced data type, push tokens, analytics — must be
+reflected here AND re-published under App Store Connect → App Privacy (and in the Play Data Safety
+form, `store/play-data-safety.md`) before the release that ships it.
 
 Data used to track you: **none**.
 Data linked to you:
 
-| Data type                                  | Purpose           | Notes                                                                                                                                                                                                                 |
-| ------------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name                                       | App Functionality | From the sign-in provider                                                                                                                                                                                             |
-| Email address                              | App Functionality | From the sign-in provider; a relay address when Hide My Email is used                                                                                                                                                 |
-| User ID                                    | App Functionality | The account identifier each linked provider uses for the user                                                                                                                                                         |
-| Health & Fitness                           | App Functionality | Food, weight, sleep logs; optional Apple Health (weight/sleep import; write of weight, sleep and, per nutrient the user opts into, nutrition)                                                                         |
-| Photos (user photos)                       | App Functionality | Food/recipe photos, AI meal estimation                                                                                                                                                                                |
-| User content                               | App Functionality | Foods, recipes, notes                                                                                                                                                                                                 |
-| Diagnostics (Crash Data, Performance Data) | App Functionality | Sentry. Linked via a persistent internal account identifier (not name or email); crash events also attach an on-device screenshot and view hierarchy of the screen in use, which can show food-log or account content |
+| Data type                                                         | Purpose           | Notes                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name                                                              | App Functionality | From the sign-in provider                                                                                                                                                                                             |
+| Email address                                                     | App Functionality | From the sign-in provider; a relay address when Hide My Email is used                                                                                                                                                 |
+| User ID                                                           | App Functionality | The account identifier each linked provider uses for the user                                                                                                                                                         |
+| Health & Fitness                                                  | App Functionality | Food, weight, sleep logs; optional Apple Health (weight/sleep import; write of weight, sleep and, per nutrient the user opts into, nutrition)                                                                         |
+| Photos (user photos)                                              | App Functionality | Food/recipe photos, AI meal estimation                                                                                                                                                                                |
+| User content                                                      | App Functionality | Foods, recipes, notes                                                                                                                                                                                                 |
+| Diagnostics (Crash Data, Performance Data, Other Diagnostic Data) | App Functionality | Sentry. Linked via a persistent internal account identifier (not name or email); crash events also attach an on-device screenshot and view hierarchy of the screen in use, which can show food-log or account content |
 
 Sign-in providers: Infomaniak, Google and Sign in with Apple. Only the one the user picks is
 involved; where the provider supplies a profile picture (Infomaniak, Google), its URL is stored with
