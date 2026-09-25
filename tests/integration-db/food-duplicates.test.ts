@@ -51,19 +51,11 @@ const baseFood = {
 };
 
 describe('findDuplicateGroups (integration)', () => {
-	it('groups foods sharing a barcode with similar names', async () => {
-		const db = getTestDB(dbUrl);
-		await db.insert(foods).values([
-			{ userId, name: 'Greek Yogurt', barcode: '1234567890', ...baseFood },
-			{ userId, name: 'Greek Yogurt (import)', barcode: '1234567890', ...baseFood }
-		]);
-
-		const { findDuplicateGroups } = await import('$lib/server/food-duplicates');
-		const groups = await findDuplicateGroups(userId);
-		const barcodeGroups = groups.filter((g) => g.reason === 'barcode');
-		expect(barcodeGroups).toHaveLength(1);
-		expect(barcodeGroups[0].foods).toHaveLength(2);
-	});
+	// Note: the `barcode` reason (two foods sharing a non-null barcode) is
+	// covered by the mocked-DB unit tests in tests/server/food-duplicates.test.ts
+	// rather than here — `idx_foods_barcode` is a unique index on
+	// (userId, barcode), so two real rows with the same barcode for one user
+	// can never coexist to exercise it against a live database.
 
 	it('groups foods by name+brand, case/whitespace/diacritics-insensitively', async () => {
 		const db = getTestDB(dbUrl);
