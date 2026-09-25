@@ -676,6 +676,50 @@ final class FoodRepository {
         return patched
     }
 
+    /// Server-computed candidate groups for foods that may be the same
+    /// product (same barcode, same normalized name+brand, or a similar name
+    /// with near-identical per-serving macros). No local fallback: this is
+    /// inherently a server-side computation over the whole food set, and
+    /// unavailable to an anonymous/local-only account.
+    func fetchDuplicates() async throws -> [FoodDuplicateGroup] {
+        guard !appMode.isLocal else {
+            throw APIError.badRequest("Duplicate detection requires an account")
+        }
+        return try await api.getFoodDuplicates()
+    }
+
+    /// Merges `sourceIds` into `keeperId` and reconciles local state: the
+    /// keeper's cached row is updated with the (possibly auto-filled) server
+    /// fields, each source is pruned from the local catalog exactly like
+    /// `deleteFood` (image eviction, queued-write cleanup), and any locally
+    /// cached entry still pointing at a source id is refreshed from the
+    /// server via the same `SyncManager.onFoodReferenceMissing` path that
+    /// already reconciles a food gone missing mid-queue-drain (BISSBILANZ-33,
+    /// see the comment on `refreshFood` above) — its app-level handler
+    /// re-fetches each affected food (pruning it again, harmlessly) and
+    /// refreshes every locally cached day that still names it, so the
+    /// entry's `foodId` and rescaled servings catch up with the merge.
+    /// Unavailable to an anonymous/local-only account — there is no server to
+    /// merge on.
+    @discardableResult
+    func mergeFoods(keeperId: String, sourceIds: [String]) async throws -> Food {
+        guard !appMode.isLocal else {
+            throw APIError.badRequest("Merging foods requires an account")
+        }
+        let merged = try await api.mergeFoods(keeperId: keeperId, sourceIds: sourceIds)
+        upsert(merged)
+        for sourceId in sourceIds {
+            LocalImageStore.evict(food(id: sourceId)?.imageUrl)
+            deleteRow(id: sourceId)
+            syncManager.removeQueued(table: "foods", affectedId: sourceId)
+        }
+        save()
+        IntentDonations.reindexFood(merged)
+        IntentDonations.removeFoods(sourceIds)
+        await syncManager.onFoodReferenceMissing?(Set(sourceIds))
+        return merged
+    }
+
     /// Rewrites the still-queued create for a temp-id food. If the create has
     /// already drained (no queued op found), the edit stays local-only.
     private func coalesceQueuedCreate(tempId: String, rewrite: (FoodCreate) -> FoodCreate) {
