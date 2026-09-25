@@ -52,6 +52,7 @@ struct BissbilanzApp: App {
     @State private var preferencesRepository: PreferencesRepository
     @State private var deepLinkRouter: DeepLinkRouter
     @State private var mealEstimator: MealEstimator
+    @State private var foodLabeler: FoodLabeler
     @State private var fastingManager: FastingTimerManager
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
@@ -174,6 +175,7 @@ struct BissbilanzApp: App {
             context: context, api: api, appMode: appMode, syncManager: sync
         ))
         _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
+        _foodLabeler = State(wrappedValue: FoodLabeler(foodRepository: foodRepo))
         let imageLoader = FoodImageLoader(api: api)
         _foodImageLoader = State(wrappedValue: imageLoader)
         // The widget extension renders favorites off `LocalImageStore` and
@@ -404,6 +406,7 @@ struct BissbilanzApp: App {
             .environment(preferencesRepository)
             .environment(deepLinkRouter)
             .environment(mealEstimator)
+            .environment(foodLabeler)
             .environment(fastingManager)
             .environment(foodImageLoader)
             .environment(aiTaskStore)

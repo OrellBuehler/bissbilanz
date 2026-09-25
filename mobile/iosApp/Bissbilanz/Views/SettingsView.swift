@@ -13,6 +13,8 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(FoodLabeler.self) private var foodLabeler
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -183,6 +185,34 @@ struct SettingsView: View {
                         Text(L10n.aiPrivateCloudSectionTitle)
                     } footer: {
                         Text(L10n.aiPrivateCloudToggleFooter)
+                    }
+                }
+
+                // Food labels: auto-labelling new foods, plus a sweep for
+                // whatever's still unlabelled. Shown whenever a labeller could
+                // run at all (on-device or Private Cloud Compute) — hidden
+                // entirely otherwise, since both rows would do nothing.
+                if foodLabeler.isAvailable {
+                    Section {
+                        Toggle(L10n.autoLabelToggleLabel, isOn: Binding(
+                            get: { FoodAutoLabelSettings.isEnabled },
+                            set: { FoodAutoLabelSettings.isEnabled = $0 }
+                        ))
+                        NavigationLink {
+                            LabelUnlabeledFoodsView()
+                        } label: {
+                            HStack {
+                                Text(L10n.labelUnlabeledFoods)
+                                Spacer()
+                                Text(L10n.unlabeledFoodCount(foodRepository.unlabeledLocalFoods().count))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } header: {
+                        Text(L10n.foodLabelsSectionTitle)
+                    } footer: {
+                        Text(L10n.autoLabelToggleFooter)
                     }
                 }
 

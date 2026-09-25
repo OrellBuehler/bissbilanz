@@ -185,17 +185,24 @@ final class BissbilanzAPI {
         return response.foods.first
     }
 
-    /// Replaces the user's labels for a food. The source defaults to `user`
-    /// server-side, which makes the write authoritative over anything a
-    /// labeller seeded. A 409 means a newer edit already won last-write-wins.
+    /// Sets a food's labels. With `source`/`mode` both nil this is a user
+    /// write — the source defaults to `user` server-side and replaces
+    /// everything, which makes it authoritative over anything a labeller
+    /// seeded. `FoodAutoLabeler`/the "Suggest labels" button instead pass
+    /// `source: "llm", mode: "extend"`, which only adds the given labels
+    /// without touching the user's own. A 409 means a newer edit already won
+    /// last-write-wins.
     func setFoodLabels(
         id: String,
         labels: [String],
+        source: String? = nil,
+        mode: String? = nil,
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
     ) async throws -> FoodLabelsSetResponse {
         try await put(
-            "/api/foods/\(id)/labels", body: ["labels": labels],
+            "/api/foods/\(id)/labels",
+            body: FoodLabelsSetBody(labels: labels, source: source, mode: mode),
             idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
         )
     }
