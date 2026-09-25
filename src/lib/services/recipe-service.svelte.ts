@@ -92,6 +92,7 @@ async function create(recipe: Record<string, unknown>): Promise<MutationResult> 
 		totalServings: (recipe.totalServings as number) ?? 1,
 		isFavorite: false,
 		imageUrl: null,
+		cookedWeight: (recipe.cookedWeight as number | null | undefined) ?? null,
 		calories: null,
 		protein: null,
 		carbs: null,
@@ -132,6 +133,92 @@ async function create(recipe: Record<string, unknown>): Promise<MutationResult> 
 	);
 	if (result.status === 'error') return { status: 'failed' };
 	return { status: result.status };
+}
+
+type DuplicateRecipeResult = { status: 'created' | 'queued'; id: string } | { status: 'failed' };
+
+/**
+ * Copies a recipe (ingredients, servings, cooked weight) under a new name,
+ * not favorited, without its image (two recipes must never share one
+ * `imageUrl` — deleting or changing either row's image would unlink the
+ * file out from under the other, since `unlinkUpload` has no reference
+ * count). Written against the offline-capable create path directly (rather
+ * than delegating to `create()`) so the row can be reopened for editing
+ * immediately afterward under one consistent id, online or off.
+ */
+async function duplicate(id: string, name: string): Promise<DuplicateRecipeResult> {
+	const source = await db.recipes.get(id);
+	if (!source) return { status: 'failed' };
+	const sourceIngredients = await db.recipeIngredients
+		.where('recipeId')
+		.equals(id)
+		.sortBy('sortOrder');
+
+	const now = new Date().toISOString();
+	const localId = crypto.randomUUID();
+	const payload = {
+		name,
+		totalServings: source.totalServings,
+		isFavorite: false,
+		cookedWeight: source.cookedWeight,
+		ingredients: sourceIngredients.map((i) => ({
+			foodId: i.foodId,
+			quantity: i.quantity,
+			servingUnit: i.servingUnit
+		}))
+	};
+
+	const dexieRecipe: DexieRecipe = {
+		id: localId,
+		userId: '',
+		name,
+		totalServings: source.totalServings,
+		isFavorite: false,
+		imageUrl: null,
+		cookedWeight: source.cookedWeight,
+		calories: source.calories,
+		protein: source.protein,
+		carbs: source.carbs,
+		fat: source.fat,
+		fiber: source.fiber,
+		createdAt: now,
+		updatedAt: now
+	};
+	await db.recipes.put(dexieRecipe);
+	await db.recipeIngredients.bulkPut(
+		sourceIngredients.map((i): DexieRecipeIngredient => ({
+			id: crypto.randomUUID(),
+			recipeId: localId,
+			foodId: i.foodId,
+			quantity: i.quantity,
+			servingUnit: i.servingUnit,
+			sortOrder: i.sortOrder
+		}))
+	);
+
+	const result = await withOfflineFallback(
+		() => api.POST('/api/recipes', { body: payload as never }),
+		{
+			onSuccess: async (data) => {
+				// Move the optimistic row onto the server-assigned id so it's
+				// reachable under one consistent key afterward.
+				await db.recipes.delete(localId);
+				await db.recipeIngredients.where('recipeId').equals(localId).delete();
+				await putRecipeWithIngredients(data.recipe.id as string, data.recipe);
+			},
+			method: 'POST',
+			url: '/api/recipes',
+			body: payload,
+			affectedTable: 'recipes',
+			affectedId: localId
+		}
+	);
+
+	if (result.status === 'error') return { status: 'failed' };
+	if (result.status === 'applied' && result.data) {
+		return { status: 'created', id: (result.data as { recipe: { id: string } }).recipe.id };
+	}
+	return { status: 'queued', id: localId };
 }
 
 async function update(id: string, recipe: Record<string, unknown>): Promise<MutationResult> {
@@ -241,6 +328,7 @@ export const recipeService = {
 	refresh,
 	refreshById,
 	create,
+	duplicate,
 	update,
 	delete: deleteRecipe
 };

@@ -100,6 +100,7 @@ const makeRecipe = (overrides: Partial<DexieRecipe> = {}): DexieRecipe => ({
 	totalServings: 1,
 	isFavorite: false,
 	imageUrl: null,
+	cookedWeight: null,
 	calories: null,
 	protein: null,
 	carbs: null,

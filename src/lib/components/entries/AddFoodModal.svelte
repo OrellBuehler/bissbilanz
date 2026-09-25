@@ -20,6 +20,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { cookedWeightServingSize } from '$lib/utils/recipe-yield';
 
 	const formId = $props.id();
 
@@ -119,7 +120,17 @@
 				calories: selection.food.calories
 			};
 		} else if (selection.type === 'recipe') {
-			selectedFood = { id: selection.recipe.id, name: selection.recipe.name, type: 'recipe' };
+			const servingSize = cookedWeightServingSize(
+				selection.recipe.cookedWeight,
+				selection.recipe.totalServings
+			);
+			selectedFood = {
+				id: selection.recipe.id,
+				name: selection.recipe.name,
+				type: 'recipe',
+				servingSize,
+				servingUnit: servingSize ? 'g' : undefined
+			};
 		} else if (selection.type === 'catalog') {
 			const food = await foodService.saveFromCatalog(selection.catalog.id);
 			if (!food) {
