@@ -32,6 +32,8 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.sync.AccountDowngradeController
+import com.bissbilanz.android.tips.TipStore
+import com.bissbilanz.android.tips.openHelp
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CheckboxRow
@@ -44,6 +46,7 @@ import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncManager
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -77,6 +80,9 @@ fun SettingsScreen(navController: NavController) {
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val tipStore: TipStore = koinInject()
+    val scope = rememberCoroutineScope()
+    val tipsResetMessage = stringResource(R.string.settings_tips_reset_message)
     val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
     var selectedTabs by remember {
         mutableStateOf(
@@ -1000,6 +1006,27 @@ fun SettingsScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
+                TextButton(
+                    onClick = { openHelp(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_help_guides),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        tipStore.resetAll()
+                        scope.launch { snackbarHostState.showSnackbar(tipsResetMessage) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_show_tips_again),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 TextButton(
                     onClick = { uriHandler.openUri("https://bissbilanz.orellbuehler.ch/privacy") },
                     modifier = Modifier.fillMaxWidth(),

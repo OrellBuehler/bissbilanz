@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,7 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.tips.HelpSlugs
+import com.bissbilanz.android.tips.HintCard
+import com.bissbilanz.android.tips.TipIds
+import com.bissbilanz.android.tips.TipStore
+import com.bissbilanz.android.tips.openHelp
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
@@ -60,6 +68,16 @@ import kotlin.time.Instant
 fun SleepScreen(navController: NavController) {
     val viewModel: SleepViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
+    val tipStore: TipStore = koinInject()
+    val healthConnect: HealthConnectService = koinInject()
+    val healthSyncPrefs: HealthSyncPreferences = koinInject()
+    val context = LocalContext.current
+    // Read once per screen visit, like HealthConnectScreen's own toggles — this is not
+    // a live sync target, just a one-time nudge to try the real thing.
+    val healthConnectTipEligible =
+        remember { healthConnect.isAvailable() && !healthSyncPrefs.readSleep }
+    val dismissedTipIds by tipStore.dismissedIds.collectAsStateWithLifecycle()
+    val showHealthConnectTip = healthConnectTipEligible && TipIds.HEALTH_CONNECT_SLEEP !in dismissedTipIds
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -186,6 +204,20 @@ fun SleepScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
                     ) {
+                        if (showHealthConnectTip) {
+                            item {
+                                HintCard(
+                                    title = stringResource(R.string.tip_health_connect_sleep_title),
+                                    text = stringResource(R.string.tip_health_connect_sleep_text),
+                                    onLearnMore = {
+                                        openHelp(context, HelpSlugs.MOBILE_EXTRAS)
+                                        tipStore.dismiss(TipIds.HEALTH_CONNECT_SLEEP)
+                                    },
+                                    onDismiss = { tipStore.dismiss(TipIds.HEALTH_CONNECT_SLEEP) },
+                                )
+                            }
+                        }
+
                         item { SleepSummaryRow(entries) }
 
                         item {
