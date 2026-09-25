@@ -7,7 +7,16 @@ import {
 	getTestDB,
 	closeTestDB
 } from './helpers';
-import { users, foods, foodEntries, recipes, recipeIngredients } from '$lib/server/schema';
+import {
+	users,
+	foods,
+	foodEntries,
+	recipes,
+	recipeIngredients,
+	foodLabels,
+	supplements,
+	supplementIngredients
+} from '$lib/server/schema';
 
 const DB_NAME = 'test_food_merge';
 let dbUrl: string;
@@ -35,6 +44,9 @@ let recipeId: string;
 beforeEach(async () => {
 	const db = getTestDB(dbUrl);
 
+	await db.delete(supplementIngredients);
+	await db.delete(supplements);
+	await db.delete(foodLabels);
 	await db.delete(recipeIngredients);
 	await db.delete(recipes);
 	await db.delete(foodEntries);
@@ -309,5 +321,111 @@ describe('mergeFoods (integration)', () => {
 		// factor = source.servingSize / keeper.servingSize = 50/100 = 0.5 → 2 * 0.5 = 1
 		// i.e. still 100 g against the keeper's 100 g serving — macros unchanged.
 		expect(updated.servings).toBeCloseTo(1, 5);
+	});
+
+	it('unions food_labels from source onto keeper, skipping labels the keeper already has', async () => {
+		const db = getTestDB(dbUrl);
+		await db.insert(foodLabels).values([
+			{ foodId: keeperId, userId, label: 'yogurt', source: 'user' },
+			{ foodId: sourceId, userId, label: 'yogurt', source: 'llm', confidence: 0.9 },
+			{ foodId: sourceId, userId, label: 'dairy', source: 'catalog', confidence: 0.8 }
+		]);
+
+		const { mergeFoods } = await import('$lib/server/food-merge');
+		const result = await mergeFoods(userId, { keeperId, sourceIds: [sourceId] });
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		expect(result.data.labels).toEqual(expect.arrayContaining(['yogurt', 'dairy']));
+
+		const labels = await db.select().from(foodLabels).where(eq(foodLabels.foodId, keeperId));
+		expect(labels).toHaveLength(2);
+		// The keeper's own 'yogurt' row wins — source's duplicate label is dropped,
+		// not overwritten (still 'user' sourced, not 'llm').
+		const yogurt = labels.find((l) => l.label === 'yogurt');
+		expect(yogurt?.source).toBe('user');
+		const dairy = labels.find((l) => l.label === 'dairy');
+		expect(dairy?.source).toBe('catalog');
+
+		// Source's labels are gone (cascade-deleted with the source food row).
+		const sourceLabels = await db.select().from(foodLabels).where(eq(foodLabels.foodId, sourceId));
+		expect(sourceLabels).toHaveLength(0);
+	});
+
+	it('re-points supplement_ingredients from source to keeper without violating the FK restrict, rescaling servings', async () => {
+		const db = getTestDB(dbUrl);
+
+		// Two duplicate supplement-backing foods with different serving sizes.
+		const [keeperBacking] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Vitamin D 1000 IU',
+				kind: 'supplement',
+				servingSize: 1,
+				servingUnit: 'g',
+				calories: 0,
+				protein: 0,
+				carbs: 0,
+				fat: 0,
+				fiber: 0,
+				vitaminD: 25
+			})
+			.returning();
+
+		const [sourceBacking] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Vitamin D3 1000 IU (dup)',
+				kind: 'supplement',
+				servingSize: 2,
+				servingUnit: 'g',
+				calories: 0,
+				protein: 0,
+				carbs: 0,
+				fat: 0,
+				fiber: 0,
+				vitaminD: 50
+			})
+			.returning();
+
+		const [supplement] = await db
+			.insert(supplements)
+			.values({ userId, name: 'Vitamin D', scheduleType: 'daily' })
+			.returning();
+
+		const [ingredient] = await db
+			.insert(supplementIngredients)
+			.values({
+				supplementId: supplement.id,
+				foodId: sourceBacking.id,
+				servings: 1,
+				sortOrder: 0
+			})
+			.returning();
+
+		const { mergeFoods } = await import('$lib/server/food-merge');
+		// Without the fix, this throws a foreign key violation (foodId onDelete: 'restrict').
+		const result = await mergeFoods(userId, {
+			keeperId: keeperBacking.id,
+			sourceIds: [sourceBacking.id]
+		});
+		expect(result.success).toBe(true);
+
+		const [updated] = await db
+			.select()
+			.from(supplementIngredients)
+			.where(eq(supplementIngredients.id, ingredient.id));
+		expect(updated.foodId).toBe(keeperBacking.id);
+		// factor = source.servingSize / keeper.servingSize = 2/1 = 2 → 1 * 2 = 2,
+		// i.e. still 2 g against the keeper's 1 g serving — nutrients unchanged.
+		expect(updated.servings).toBeCloseTo(2, 5);
+
+		const remainingBackingFoods = await db
+			.select()
+			.from(foods)
+			.where(eq(foods.id, sourceBacking.id));
+		expect(remainingBackingFoods).toHaveLength(0);
 	});
 });

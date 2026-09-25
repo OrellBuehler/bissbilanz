@@ -7684,7 +7684,7 @@
 				"properties": {
 					"reason": {
 						"type": "string",
-						"enum": ["barcode", "name_brand"]
+						"enum": ["barcode", "name_brand", "similar"]
 					},
 					"key": {
 						"type": "string"

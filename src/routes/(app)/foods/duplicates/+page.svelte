@@ -79,7 +79,9 @@
 							<Badge variant="outline" class="text-[10px]">
 								{group.reason === 'barcode'
 									? m.foods_duplicates_reason_barcode()
-									: m.foods_duplicates_reason_name_brand()}
+									: group.reason === 'name_brand'
+										? m.foods_duplicates_reason_name_brand()
+										: m.foods_duplicates_reason_similar()}
 							</Badge>
 							<Button size="sm" onclick={() => resolve(group)}>
 								<GitMerge class="mr-2 size-4" />

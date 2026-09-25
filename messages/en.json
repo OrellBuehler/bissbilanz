@@ -1149,6 +1149,7 @@
 	"foods_duplicates_empty": "No duplicates detected. Nice and tidy.",
 	"foods_duplicates_reason_barcode": "Same barcode",
 	"foods_duplicates_reason_name_brand": "Same name and brand",
+	"foods_duplicates_reason_similar": "Similar name and macros",
 	"foods_duplicates_back": "Back to foods",
 	"foods_duplicates_resolve": "Resolve",
 	"foods_recent_link": "Recently logged",

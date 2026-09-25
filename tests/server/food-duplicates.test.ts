@@ -14,7 +14,8 @@ vi.mock('$lib/server/db', () => ({
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-const { findDuplicateGroups, similarity } = await import('$lib/server/food-duplicates');
+const { findDuplicateGroups, similarity, macrosSimilar, groupBySimilarNameAndMacros } =
+	await import('$lib/server/food-duplicates');
 
 const FOOD_A = {
 	...TEST_FOOD,
@@ -89,6 +90,88 @@ describe('similarity', () => {
 	test('similar but slightly different strings score above threshold', () => {
 		expect(similarity('Greek Yogurt', 'greek yoghurt')).toBeGreaterThan(0.5);
 	});
+
+	test('is diacritics-insensitive', () => {
+		expect(similarity('Müller Reis', 'Muller Reis')).toBe(1);
+		expect(similarity('Käse', 'Kase')).toBe(1);
+	});
+});
+
+describe('macrosSimilar', () => {
+	const grams = (overrides: Partial<Parameters<typeof macrosSimilar>[0]> = {}) => ({
+		servingSize: 100,
+		servingUnit: 'g' as const,
+		calories: 60,
+		protein: 10,
+		carbs: 4,
+		fat: 0,
+		...overrides
+	});
+
+	test('matches identical per-serving macros', () => {
+		expect(macrosSimilar(grams(), grams())).toBe(true);
+	});
+
+	test('matches the same product at a different serving size', () => {
+		const a = grams({ servingSize: 100, calories: 60, protein: 10, carbs: 4, fat: 0 });
+		const b = grams({ servingSize: 30, calories: 18, protein: 3, carbs: 1.2, fat: 0 });
+		expect(macrosSimilar(a, b)).toBe(true);
+	});
+
+	test('rejects meaningfully different macros', () => {
+		expect(
+			macrosSimilar(grams({ calories: 60, protein: 10 }), grams({ calories: 250, protein: 2 }))
+		).toBe(false);
+	});
+
+	test('rejects mismatched unit dimensions (mass vs. volume)', () => {
+		expect(macrosSimilar(grams({ servingUnit: 'g' }), grams({ servingUnit: 'ml' }))).toBe(false);
+	});
+});
+
+describe('groupBySimilarNameAndMacros', () => {
+	const row = (
+		id: string,
+		name: string,
+		overrides: Partial<Parameters<typeof groupBySimilarNameAndMacros>[0][number]> = {}
+	) => ({
+		id,
+		name,
+		brand: null,
+		barcode: null,
+		servingSize: 100,
+		servingUnit: 'g' as const,
+		calories: 60,
+		protein: 10,
+		carbs: 4,
+		fat: 0,
+		...overrides
+	});
+
+	test('clusters foods with near-identical names and macros', () => {
+		const rows = [
+			row('a', 'Greek Yogurt'),
+			row('b', 'Greek Yoghurt'),
+			row('c', 'Chicken Breast', { calories: 165, protein: 31, carbs: 0, fat: 3.6 })
+		];
+		const groups = groupBySimilarNameAndMacros(rows);
+		expect(groups).toHaveLength(1);
+		expect(groups[0].reason).toBe('similar');
+		expect(groups[0].foods.map((f) => f.id).sort()).toEqual(['a', 'b']);
+	});
+
+	test('does not group similar names with different macros', () => {
+		const rows = [
+			row('a', 'Greek Yogurt', { calories: 60, protein: 10 }),
+			row('b', 'Greek Yogurt', { calories: 250, protein: 2 })
+		];
+		expect(groupBySimilarNameAndMacros(rows)).toHaveLength(0);
+	});
+
+	test('ignores blank names (defensive)', () => {
+		const rows = [row('a', ''), row('b', '   ')];
+		expect(groupBySimilarNameAndMacros(rows)).toHaveLength(0);
+	});
 });
 
 describe('findDuplicateGroups', () => {
@@ -156,6 +239,58 @@ describe('findDuplicateGroups', () => {
 		const groups = await findDuplicateGroups(TEST_USER.id);
 		expect(groups.filter((g) => g.reason === 'barcode')).toHaveLength(1);
 		expect(groups.filter((g) => g.reason === 'name_brand')).toHaveLength(1);
+	});
+
+	test('detects name+brand duplicates across diacritics', async () => {
+		const withDiacritics = {
+			...TEST_FOOD,
+			id: '20000000-0000-4000-8000-000000000050',
+			name: 'Müller Reis',
+			brand: 'Müller',
+			barcode: null
+		};
+		const withoutDiacritics = {
+			...TEST_FOOD,
+			id: '20000000-0000-4000-8000-000000000051',
+			name: 'Muller Reis',
+			brand: 'muller',
+			barcode: null
+		};
+		setResult([withDiacritics, withoutDiacritics]);
+		const groups = await findDuplicateGroups(TEST_USER.id);
+		const nameGroups = groups.filter((g) => g.reason === 'name_brand');
+		expect(nameGroups).toHaveLength(1);
+		expect(nameGroups[0].foods).toHaveLength(2);
+	});
+
+	test('detects similar-name/similar-macro duplicates that share no barcode or exact name+brand', async () => {
+		const a = {
+			...TEST_FOOD,
+			id: '20000000-0000-4000-8000-000000000060',
+			name: 'Chicken Breast',
+			brand: null,
+			barcode: null,
+			calories: 165,
+			protein: 31,
+			carbs: 0,
+			fat: 3.6
+		};
+		const b = {
+			...TEST_FOOD,
+			id: '20000000-0000-4000-8000-000000000061',
+			name: 'Chicken Breasts',
+			brand: null,
+			barcode: null,
+			calories: 166,
+			protein: 31.2,
+			carbs: 0,
+			fat: 3.5
+		};
+		setResult([a, b, FOOD_UNIQUE]);
+		const groups = await findDuplicateGroups(TEST_USER.id);
+		const similarGroups = groups.filter((g) => g.reason === 'similar');
+		expect(similarGroups).toHaveLength(1);
+		expect(similarGroups[0].foods.map((f) => f.id).sort()).toEqual([a.id, b.id].sort());
 	});
 
 	test('ignores foods with empty name (defensive)', async () => {

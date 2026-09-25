@@ -1,5 +1,14 @@
 import { getDB } from '$lib/server/db';
-import { foods, foodEntries, recipeIngredients, recipes } from '$lib/server/schema';
+import {
+	foods,
+	foodEntries,
+	recipeIngredients,
+	recipes,
+	foodLabels,
+	supplements,
+	supplementIngredients
+} from '$lib/server/schema';
+import type { NewFoodLabel } from '$lib/server/schema';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '$lib/server/errors';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
@@ -107,13 +116,22 @@ export type MergeFoodsInput = {
  * Overrides win over both.
  *
  * Cross-table updates:
- *   - food_entries.food_id rows pointing at sources are re-pointed to keeper
+ *   - food_entries.food_id rows pointing at sources are re-pointed to keeper,
+ *     rescaling `servings` so historical macros stay invariant
+ *   - supplement_ingredients.food_id rows pointing at sources are re-pointed to
+ *     keeper, rescaled the same way (servings is a serving count like food_entries,
+ *     not an absolute quantity)
  *   - recipe_ingredients.food_id rows pointing at sources are re-pointed to keeper
+ *   - food_labels on sources are unioned onto the keeper (skipping labels the
+ *     keeper already has) before the source rows — and their cascade-deleted
+ *     labels — are gone
  *   - source food rows are deleted
  *
  * Ordering note: sources are deleted BEFORE the keeper is updated to avoid the
  * partial-unique (user_id, barcode) index conflicting when the keeper adopts a
- * source's barcode.
+ * source's barcode. Every source-row read (labels, entries, ingredients) happens
+ * before that delete, since food_labels cascade-deletes with the food row and
+ * food_entries/supplement_ingredients would otherwise FK-restrict the delete.
  */
 export async function mergeFoods(
 	userId: string,
@@ -159,17 +177,40 @@ export async function mergeFoods(
 			}
 			merged = applyOverrides(merged, overrides);
 
-			// Re-point entries to the keeper, rescaling `servings` so the logged
-			// amount — and therefore historical macros — is preserved when source
-			// and keeper define different serving sizes. Entry macros are
+			// Re-point entries (and supplement ingredients, which reference foods by
+			// serving count the same way) to the keeper, rescaling `servings` so the
+			// logged amount — and therefore historical macros — is preserved when
+			// source and keeper define different serving sizes. Macros are
 			// per-serving × servings, and the keeper's servingSize wins the merge,
-			// so without this the past days' totals would silently change.
+			// so without this the past days'/supplements' totals would silently change.
 			for (const source of sources) {
 				const factor = keeper.servingSize > 0 ? source.servingSize / keeper.servingSize : 1;
 				await tx
 					.update(foodEntries)
 					.set({ foodId: keeperId, servings: sql`${foodEntries.servings} * ${factor}` })
 					.where(and(eq(foodEntries.userId, userId), eq(foodEntries.foodId, source.id)));
+
+				// Scope to the user's supplements — supplement_ingredients has no
+				// user_id column. foodId has an onDelete: 'restrict' FK, so this must
+				// run before the source is deleted below.
+				await tx
+					.update(supplementIngredients)
+					.set({
+						foodId: keeperId,
+						servings: sql`${supplementIngredients.servings} * ${factor}`
+					})
+					.where(
+						and(
+							eq(supplementIngredients.foodId, source.id),
+							inArray(
+								supplementIngredients.supplementId,
+								tx
+									.select({ id: supplements.id })
+									.from(supplements)
+									.where(eq(supplements.userId, userId))
+							)
+						)
+					);
 			}
 
 			// Recipe ingredients reference foods by absolute quantity (grams), which
@@ -187,6 +228,37 @@ export async function mergeFoods(
 						)
 					)
 				);
+
+			// Union food_labels onto the keeper: adopt any source label the keeper
+			// doesn't already carry. food_labels.food_id cascade-deletes with the
+			// food row, so this has to run before the delete below or the sources'
+			// labels are gone for good instead of merged.
+			const keeperLabelRows = await tx
+				.select({ label: foodLabels.label })
+				.from(foodLabels)
+				.where(eq(foodLabels.foodId, keeperId));
+			const haveLabels = new Set(keeperLabelRows.map((l) => l.label));
+
+			const sourceLabelRows = await tx
+				.select()
+				.from(foodLabels)
+				.where(inArray(foodLabels.foodId, uniqueSources));
+
+			const labelsToInsert: NewFoodLabel[] = [];
+			for (const row of sourceLabelRows) {
+				if (haveLabels.has(row.label)) continue;
+				haveLabels.add(row.label);
+				labelsToInsert.push({
+					foodId: keeperId,
+					userId,
+					label: row.label,
+					source: row.source,
+					confidence: row.confidence
+				});
+			}
+			if (labelsToInsert.length > 0) {
+				await tx.insert(foodLabels).values(labelsToInsert);
+			}
 
 			await tx.delete(foods).where(and(eq(foods.userId, userId), inArray(foods.id, uniqueSources)));
 
