@@ -371,6 +371,7 @@ struct FoodPicker: View {
                 }
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func detailText(calories: Double, servingSize: Double, unit: String) -> String {
