@@ -1,0 +1,53 @@
+name: Probe Xcode Runner
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  probe-xcode-27:
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - name: List installed Xcode apps
+        run: |
+          echo "=== /Applications/Xcode* ==="
+          ls -la /Applications | grep -i xcode || true
+          echo
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            echo "--- $app ---"
+            SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/version.plist" 2>/dev/null || echo "?")
+            BUILD=$(/usr/libexec/PlistBuddy -c "Print :ProductBuildVersion" "$app/Contents/version.plist" 2>/dev/null || echo "?")
+            echo "version=$SHORT build=$BUILD"
+            if [ -f "$app/Contents/Resources/LicenseInfo.plist" ]; then
+              /usr/libexec/PlistBuddy -c "Print :licenseType" "$app/Contents/Resources/LicenseInfo.plist" 2>/dev/null || echo "licenseType: <missing key>"
+            else
+              echo "licenseType: <no LicenseInfo.plist>"
+            fi
+            "$app/Contents/Developer/usr/bin/xcodebuild" -version 2>&1 || true
+            echo
+          done
+
+      - name: Select Xcode 27.0 via setup-xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: '27.0'
+
+      - name: Report selected Xcode (27.0 pin)
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          echo "iphoneos SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "watchos SDK: $(xcrun --sdk watchos --show-sdk-version)"
+
+      - name: Select Xcode via latest-stable (for comparison)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Report selected Xcode (latest-stable)
+        run: |
+          xcodebuild -version
+          xcode-select -p
