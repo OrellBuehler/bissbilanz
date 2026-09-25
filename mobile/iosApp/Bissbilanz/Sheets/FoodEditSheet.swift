@@ -126,12 +126,14 @@ struct FoodEditForm: View {
                         TextField("100", text: $servingSize)
                             .keyboardType(.decimalPad)
                             .frame(width: max(geo.size.width * 0.6 - 4, 0), alignment: .leading)
+                            .accessibilityLabel(L10n.servingSize)
                         Picker(L10n.unit, selection: $servingUnit) {
                             ForEach(ServingUnit.allCases, id: \.self) { unit in
                                 Text(unit.displayName).tag(unit)
                             }
                         }
                         .labelsHidden()
+                        .accessibilityLabel(L10n.unit)
                         .frame(width: max(geo.size.width * 0.4 - 4, 0), alignment: .trailing)
                     }
                 }
