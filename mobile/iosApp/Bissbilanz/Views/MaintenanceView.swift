@@ -2,6 +2,12 @@ import SwiftUI
 
 struct MaintenanceView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     @State private var selectedWeeks = 4
     @State private var bodyFatRatio = 0.5
@@ -61,11 +67,15 @@ struct MaintenanceView: View {
                 HStack {
                     Text(L10n.fatLabel)
                         .font(.caption)
-                        .foregroundStyle(MacroColors.fat)
+                        .foregroundStyle(accessibleColor(.fat))
+                        .accessibilityHidden(true)
                     Slider(value: $bodyFatRatio, in: 0 ... 1, step: 0.05)
+                        .accessibilityLabel(L10n.bodyComposition)
+                        .accessibilityValue(compositionAccessibilityValue)
                     Text(L10n.muscleLabel)
                         .font(.caption)
-                        .foregroundStyle(MacroColors.protein)
+                        .foregroundStyle(accessibleColor(.protein))
+                        .accessibilityHidden(true)
                 }
 
                 HStack {
@@ -77,8 +87,14 @@ struct MaintenanceView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityHidden(true)
             }
         }
+    }
+
+    private var compositionAccessibilityValue: String {
+        "\(MacroFormat.percent(bodyFatRatio * 100)) \(L10n.fatLabel), " +
+            "\(MacroFormat.percent((1 - bodyFatRatio) * 100)) \(L10n.muscleLabel)"
     }
 
     private var calculateButton: some View {
@@ -106,11 +122,14 @@ struct MaintenanceView: View {
 
                 Text(MacroFormat.kcal(result.maintenanceCalories))
                     .font(.system(size: heroNumberSize, weight: .bold))
-                    .foregroundStyle(MacroColors.calories)
+                    .foregroundStyle(accessibleColor(.calories))
+                    .accessibilityLabel(L10n.maintenanceCalories)
+                    .accessibilityValue("\(MacroFormat.kcal(result.maintenanceCalories)) \(L10n.kcalPerDay)")
 
                 Text(L10n.kcalPerDay)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
 
                 Divider()
 
@@ -146,6 +165,7 @@ struct MaintenanceView: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
+                            .accessibilityHidden(true)
                         Text(L10n.lowCoverageWarning)
                             .font(.caption)
                             .foregroundStyle(.orange)
@@ -165,6 +185,7 @@ struct MaintenanceView: View {
                 .fontWeight(.medium)
         }
         .font(.subheadline)
+        .accessibilityElement(children: .combine)
     }
 
     private func calculate() {
