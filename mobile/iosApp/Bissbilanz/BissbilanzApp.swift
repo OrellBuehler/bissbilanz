@@ -469,11 +469,20 @@ struct BissbilanzApp: App {
             LocalDedup.sweep(in: modelContainer.mainContext)
         }
         // Keep Spotlight in step with the searchable catalog so
-        // foods/recipes are findable before the next manual log.
+        // foods/recipes are findable before the next manual log. The whole
+        // local catalog is indexed — not just favorites/recents — so keyword
+        // and label search reach every food, but rebuilding it is real work
+        // (one attributeSet per row), so it's throttled to once every six
+        // hours; favorite recipes are cheap enough to redo on every
+        // activation.
+        let reindexFullCatalog = IntentDonations.catalogReindexDue()
         IntentDonations.indexCatalog(
-            foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
+            foods: reindexFullCatalog ? foodRepository.allLocalFoods() : [],
             recipes: recipeRepository.favoriteRecipes()
         )
+        if reindexFullCatalog {
+            IntentDonations.markCatalogReindexed()
+        }
         // The same for the day summaries Siri answers questions from: the last
         // 90 days that have anything on them, in two fetches. Days written on
         // this device are indexed as they change (IntentDonations.dayChanged);
