@@ -108,7 +108,7 @@ Conventions that apply to every tool:
 - Dates are "YYYY-MM-DD" in the user's own timezone. "Today" is resolved server-side from the user's timezone preference, so omit the date to mean today instead of computing it yourself. Timestamps (eatenAt, bedtime, wakeTime) are ISO 8601 with an explicit UTC offset.
 - Meal types are capitalized: "Breakfast", "Lunch", "Dinner", "Snacks". Lowercase aliases are normalized, but custom meal types are matched verbatim; call list_meal_types when unsure.
 - Search before you create. Check search_foods (and find_food_by_barcode or search_openfoodfacts for packaged products) before create_food, and prefer logging an existing foodId or recipeId over a quick log. Use quickName/quickCalories only for one-off estimates such as restaurant meals.
-- Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes.
+- Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes. A recipe with a cookedWeight (grams of the finished dish) can be logged by weight: call get_recipe first, then servings = grams / (cookedWeight / totalServings).
 - Supplements: timeOfDay ("morning", "noon", "evening", or omitted for anytime) and reminderTimes (local "HH:MM") are scheduling preferences only. log_supplement marks a supplement taken for the whole day and creates the matching food entries; there are no per-slot logs. Check get_supplement_status before logging to avoid duplicates.
 - log_food and delete_entry return the updated daily status, so a follow-up get_daily_status is unnecessary after logging.
 - Food labels are general en_US nouns for what a food physically is ("banana", "bottle", "sandwich"), always English whatever the food is named in. Write them with set_food_labels_batch after paging list_unlabeled_foods; the label_foods prompt does the whole sweep.`;
@@ -238,7 +238,10 @@ export function createMcpServer(userId: string): McpServer {
 			"servingUnit must be the same kind of measurement as the food's own unit (mass with mass, " +
 			'volume with volume) — a mismatch is rejected with a 400 error.',
 		isFavorite: 'Mark as favorite',
-		imageUrl: 'Image URL or relative path (null to clear)'
+		imageUrl: 'Image URL or relative path (null to clear)',
+		cookedWeight:
+			'Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings ' +
+			'for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings).'
 	};
 
 	server.registerTool(
@@ -258,7 +261,9 @@ export function createMcpServer(userId: string): McpServer {
 		recipeId: 'Recipe ID to log',
 		mealType:
 			'Meal type. Default values: "Breakfast", "Lunch", "Dinner", "Snacks". Custom meal types are also supported if configured by the user.',
-		servings: 'Number of servings',
+		servings:
+			'Number of servings. For a recipe logged by weight, convert grams eaten to servings first: ' +
+			'call get_recipe to read cookedWeight and totalServings, then servings = grams / (cookedWeight / totalServings).',
 		notes: 'Optional notes for the entry',
 		date: 'Date in YYYY-MM-DD format. Defaults to today.',
 		quickName: 'Label for quick log entry (e.g., "Restaurant lunch")',
@@ -278,7 +283,7 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'Log Food',
 			outputSchema: TOOL_OUTPUT.log_food,
 			description:
-				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). Quick logs can also carry extended nutrients via quickNutrients. If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
+				"Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). The amount is always in servings, not grams — for a recipe with a cookedWeight, convert grams eaten via get_recipe's cookedWeight/totalServings first. Quick logs can also carry extended nutrients via quickNutrients. If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
 			inputSchema: describeShape(
 				{ ...entryBaseSchema.shape, date: entryBaseSchema.shape.date.optional() },
 				ENTRY_FIELD_DOCS
@@ -410,7 +415,8 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List Recipes',
 			description:
-				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts).",
+				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). " +
+				'A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food.',
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
@@ -422,7 +428,8 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Get Recipe',
 			description:
-				'Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts).',
+				'Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts). ' +
+				'cookedWeight (grams of the finished dish, if set) lets grams eaten be converted to servings: grams / (cookedWeight / totalServings).',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
 			},

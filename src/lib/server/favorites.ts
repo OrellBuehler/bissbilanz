@@ -47,6 +47,7 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 			id: recipes.id,
 			name: recipes.name,
 			imageUrl: recipes.imageUrl,
+			cookedWeight: recipes.cookedWeight,
 			totalServings: recipes.totalServings,
 			logCount: sql<number>`COALESCE(${logCountSq.logCount}, 0)`,
 			...macroAggregations
@@ -65,6 +66,7 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 			id: r.id,
 			name: r.name,
 			imageUrl: r.imageUrl,
+			cookedWeight: r.cookedWeight,
 			totalServings: r.totalServings,
 			calories: Number(r.calories),
 			protein: Number(r.protein),

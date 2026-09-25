@@ -23,6 +23,8 @@ import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.RecipeField
+import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.isSameUnitDimension
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
@@ -63,6 +65,8 @@ fun RecipeEditSheet(
     var isFavorite by remember { mutableStateOf(false) }
     var imageUrl by remember { mutableStateOf<String?>(null) }
     var originalImageUrl by remember { mutableStateOf<String?>(null) }
+    var cookedWeightText by remember { mutableStateOf("") }
+    var loadedCalories by remember { mutableStateOf<Double?>(null) }
 
     var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
     var openUnitDropdownIndex by remember { mutableStateOf<Int?>(null) }
@@ -106,6 +110,8 @@ fun RecipeEditSheet(
                 isFavorite = recipe.isFavorite
                 imageUrl = recipe.imageUrl
                 originalImageUrl = recipe.imageUrl
+                cookedWeightText = recipe.cookedWeight?.toDisplayString() ?: ""
+                loadedCalories = recipe.calories
                 ingredients =
                     recipe.ingredients.map { ing ->
                         RecipeIngredientRow(
@@ -319,6 +325,30 @@ fun RecipeEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
+                OutlinedTextField(
+                    value = cookedWeightText,
+                    onValueChange = { cookedWeightText = it },
+                    label = { Text(stringResource(R.string.recipe_edit_cooked_weight)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = {
+                        val cookedWeightVal = cookedWeightText.toLocalizedDoubleOrNull()
+                        val perHundredG =
+                            loadedCalories?.let { cals ->
+                                caloriesPerHundredGrams(
+                                    cals,
+                                    cookedWeightVal,
+                                    totalServings.toLocalizedDoubleOrNull() ?: 1.0,
+                                )
+                            }
+                        Text(
+                            perHundredG?.let {
+                                stringResource(R.string.recipe_edit_cooked_weight_per_100g, it.toInt())
+                            } ?: stringResource(R.string.recipe_edit_cooked_weight_hint),
+                        )
+                    },
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -483,6 +513,8 @@ fun RecipeEditSheet(
                                                 servingUnit = ing.unit,
                                             )
                                         }
+                                    val cookedWeightVal =
+                                        cookedWeightText.toLocalizedDoubleOrNull()?.takeIf { it > 0.0 }
                                     if (isEditing) {
                                         val id = recipeId ?: return@launch
                                         recipeRepo.updateRecipe(
@@ -494,7 +526,10 @@ fun RecipeEditSheet(
                                                         .coerceAtLeast(1.0),
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
+                                                cookedWeight = cookedWeightVal,
                                             ),
+                                            cleared =
+                                                if (cookedWeightVal == null) setOf(RecipeField.COOKED_WEIGHT) else emptySet(),
                                         )
                                         bodySaved = true
                                         // Separate from the body: `imageUrl` defaults to
@@ -528,6 +563,7 @@ fun RecipeEditSheet(
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
                                                 imageUrl = imageUrl,
+                                                cookedWeight = cookedWeightVal,
                                             ),
                                         )
                                     }

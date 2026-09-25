@@ -33,6 +33,7 @@ import kotlinx.serialization.encoding.*
  * @param logCount
  * @param totalServings
  * @param type
+ * @param cookedWeight
  */
 @Serializable
 data class FavoriteRecipe(
@@ -47,6 +48,7 @@ data class FavoriteRecipe(
     @SerialName(value = "logCount") @Required val logCount: kotlin.Int,
     @SerialName(value = "totalServings") @Required val totalServings: kotlin.Double,
     @SerialName(value = "type") @Required val type: FavoriteRecipe.Type,
+    @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
 ) {
     /**
      *

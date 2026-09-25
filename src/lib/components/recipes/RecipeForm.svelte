@@ -12,6 +12,7 @@
 	import ExtendedNutrientsList from '$lib/components/shared/ExtendedNutrientsList.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ServingUnit } from '$lib/units';
+	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
 
 	type IngredientFood = {
 		id: string;
@@ -31,6 +32,8 @@
 			name: string;
 			totalServings: number;
 			isFavorite: boolean;
+			cookedWeight?: number | null;
+			calories?: number | null;
 			ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
 		} | null;
 		onSave: (payload: RecipeFormPayload) => Promise<void>;
@@ -60,6 +63,7 @@
 		name: recipe?.name ?? '',
 		totalServings: recipe?.totalServings ?? 1,
 		isFavorite: recipe?.isFavorite ?? false,
+		cookedWeight: recipe?.cookedWeight ?? null,
 		ingredients:
 			recipe && recipe.ingredients.length > 0
 				? recipe.ingredients.map((i) => ({
@@ -81,6 +85,12 @@
 	const removeIngredient = (index: number) => {
 		formState.ingredients = formState.ingredients.filter((_, i) => i !== index);
 	};
+
+	const perHundredGramCalories = $derived(
+		recipe?.calories != null
+			? caloriesPerHundredGrams(recipe.calories, formState.cookedWeight)
+			: null
+	);
 
 	const canSave = $derived(
 		!saving &&
@@ -134,6 +144,19 @@
 			min="1"
 			bind:value={() => formState.totalServings, (v) => (formState.totalServings = v ?? 1)}
 		/>
+	</div>
+	<div>
+		<Label class="text-sm">{m.recipe_form_cooked_weight()}</Label>
+		<NumberInput
+			class="w-28"
+			min="0"
+			bind:value={() => formState.cookedWeight, (v) => (formState.cookedWeight = v)}
+		/>
+		<p class="mt-1 text-xs text-muted-foreground">
+			{perHundredGramCalories != null
+				? m.recipe_form_cooked_weight_per_100g({ kcal: String(Math.round(perHundredGramCalories)) })
+				: m.recipe_form_cooked_weight_hint()}
+		</p>
 	</div>
 	<div class="space-y-2">
 		<Label class="text-sm font-medium">{m.recipe_form_ingredients()}</Label>

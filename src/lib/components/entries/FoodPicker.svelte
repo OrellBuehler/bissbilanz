@@ -9,6 +9,7 @@
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 	import { dev } from '$app/environment';
+	import { cookedWeightServingSize } from '$lib/utils/recipe-yield';
 
 	export type PickerFoodItem = {
 		id: string;
@@ -28,6 +29,8 @@
 		name: string;
 		isFavorite?: boolean;
 		imageUrl?: string | null;
+		totalServings?: number;
+		cookedWeight?: number | null;
 	};
 
 	export type PickerSelection =
@@ -197,6 +200,7 @@
 					// The API reports whole-recipe totals; the picker previews one
 					// serving, so divide down (guarding a non-positive totalServings).
 					const servings = r.totalServings > 0 ? r.totalServings : 1;
+					const servingSize = cookedWeightServingSize(r.cookedWeight, r.totalServings);
 					return {
 						id: r.id,
 						name: r.name,
@@ -205,7 +209,9 @@
 						protein: (r.protein ?? 0) / servings,
 						carbs: (r.carbs ?? 0) / servings,
 						fat: (r.fat ?? 0) / servings,
-						type: 'recipe'
+						type: 'recipe',
+						servingSize,
+						servingUnit: servingSize ? 'g' : undefined
 					};
 				});
 			}

@@ -32,6 +32,7 @@ import kotlinx.serialization.encoding.*
  * @param carbs
  * @param fat
  * @param fiber
+ * @param cookedWeight
  */
 @Serializable
 data class RecipeSummary(
@@ -45,4 +46,5 @@ data class RecipeSummary(
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
+    @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
 )

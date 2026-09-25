@@ -69,11 +69,17 @@ fun MealPickerSheet(
     imageUrl: String? = null,
     initialServings: Double = 1.0,
     initialMeal: String? = null,
+    /** Grams per serving implied by a recipe's cooked weight, if any — offers "log by grams". */
+    gramsPerServing: Double? = null,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedMeal by remember { mutableStateOf(initialMeal ?: "Lunch") }
     var servingsText by remember { mutableStateOf(initialServings.toDisplayString()) }
+    var byWeight by remember { mutableStateOf(false) }
+    var gramsText by remember {
+        mutableStateOf(gramsPerServing?.let { (initialServings * it).toDisplayString() } ?: "")
+    }
     var selectedDate by remember { mutableStateOf(date) }
     val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
     var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
@@ -81,7 +87,12 @@ fun MealPickerSheet(
     var notes by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
+    val servings =
+        if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
+            (gramsText.toLocalizedDoubleOrNull() ?: 0.0) / gramsPerServing
+        } else {
+            servingsText.toLocalizedDoubleOrNull() ?: 1.0
+        }
 
     if (showDatePicker) {
         val initialMillis =
@@ -187,14 +198,44 @@ fun MealPickerSheet(
                 }
             }
 
-            OutlinedTextField(
-                value = servingsText,
-                onValueChange = { servingsText = it },
-                label = { Text(stringResource(R.string.meal_picker_servings_label)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            if (gramsPerServing != null && gramsPerServing > 0.0) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = !byWeight,
+                        onClick = { byWeight = false },
+                        shape = SegmentedButtonDefaults.itemShape(0, 2),
+                    ) {
+                        Text(stringResource(R.string.meal_picker_mode_servings))
+                    }
+                    SegmentedButton(
+                        selected = byWeight,
+                        onClick = { byWeight = true },
+                        shape = SegmentedButtonDefaults.itemShape(1, 2),
+                    ) {
+                        Text(stringResource(R.string.meal_picker_mode_grams))
+                    }
+                }
+            }
+
+            if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
+                OutlinedTextField(
+                    value = gramsText,
+                    onValueChange = { gramsText = it },
+                    label = { Text(stringResource(R.string.meal_picker_grams_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            } else {
+                OutlinedTextField(
+                    value = servingsText,
+                    onValueChange = { servingsText = it },
+                    label = { Text(stringResource(R.string.meal_picker_servings_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
 
             macros?.let {
                 Card(modifier = Modifier.fillMaxWidth()) {

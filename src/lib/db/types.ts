@@ -113,6 +113,9 @@ export type DexieRecipe = {
 	totalServings: number;
 	isFavorite: boolean;
 	imageUrl: string | null;
+	// Grams of the finished dish (optional) — lets an entry be logged by
+	// weight instead of by serving count.
+	cookedWeight: number | null;
 	// Computed macros (from server aggregation)
 	calories: number | null;
 	protein: number | null;

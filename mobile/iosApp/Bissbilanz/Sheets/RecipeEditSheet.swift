@@ -10,6 +10,7 @@ struct RecipeEditSheet: View {
 
     @State private var name = ""
     @State private var totalServings = "1"
+    @State private var cookedWeight = ""
     @State private var isFavorite = false
     @State private var ingredients: [IngredientRow] = []
     @State private var imageUrl: String?
@@ -51,6 +52,19 @@ struct RecipeEditSheet: View {
                             .frame(width: 60)
                     }
                     Toggle(L10n.favorites, isOn: $isFavorite)
+                }
+
+                Section {
+                    HStack {
+                        Text(L10n.cookedWeight)
+                        Spacer()
+                        TextField("", text: $cookedWeight)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                    }
+                } footer: {
+                    Text(cookedWeightFooter)
                 }
 
                 Section(L10n.ingredients) {
@@ -125,6 +139,16 @@ struct RecipeEditSheet: View {
         }
     }
 
+    /// The per-100g calorie hint once a cooked weight is entered, or the generic
+    /// hint before one is. Uses the recipe's last-known whole-recipe calories
+    /// (from `existingRecipe`) since a fresh, unsaved edit has no server total yet.
+    private var cookedWeightFooter: String {
+        if let calories = existingRecipe?.calories, let value = Double.parseUserInput(cookedWeight), value > 0 {
+            return L10n.cookedWeightPer100g(Int((calories / value) * 100))
+        }
+        return L10n.cookedWeightHint
+    }
+
     /// The server's recipe response has no embedded `food` on ingredients — resolve
     /// each one against the local food store, fetching from the API if it isn't
     /// cached. An ingredient whose food still can't be resolved is NEVER dropped
@@ -133,6 +157,7 @@ struct RecipeEditSheet: View {
         guard let recipe = existingRecipe else { return }
         name = recipe.name
         totalServings = "\(recipe.totalServings)"
+        cookedWeight = recipe.cookedWeight.map { "\($0)" } ?? ""
         isFavorite = recipe.isFavorite
         imageUrl = recipe.imageUrl
         originalImageUrl = recipe.imageUrl
@@ -177,13 +202,18 @@ struct RecipeEditSheet: View {
         do {
             var saved: Recipe
             var photoFailed = false
+            let parsedCookedWeight = Double.parseUserInput(cookedWeight).flatMap { $0 > 0 ? $0 : nil }
             if let existing = existingRecipe {
-                let update = RecipeUpdate(
+                var update = RecipeUpdate(
                     name: name,
                     totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )
+                // Always sent, never omitted — see `EntryEditSheet.notes` for the
+                // same reasoning: an emptied cooked weight has to reach the server
+                // as an explicit null or the old value survives the edit.
+                update.cookedWeight = .some(parsedCookedWeight)
                 saved = try await recipeRepository.updateRecipe(id: existing.id, update)
                 // Separate from the body when editing: `RecipeUpdate` omits nil
                 // optionals, so a removal sent that way would be dropped and
@@ -212,7 +242,8 @@ struct RecipeEditSheet: View {
                     totalServings: Double.parseUserInput(totalServings) ?? 1,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite,
-                    imageUrl: imageUrl
+                    imageUrl: imageUrl,
+                    cookedWeight: parsedCookedWeight
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }

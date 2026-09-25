@@ -6042,6 +6042,17 @@
 								"type": "null"
 							}
 						]
+					},
+					"cookedWeight": {
+						"anyOf": [
+							{
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
 				"required": ["name", "totalServings", "ingredients"]
@@ -6092,6 +6103,17 @@
 							{
 								"type": "string",
 								"maxLength": 2048
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cookedWeight": {
+						"anyOf": [
+							{
+								"type": "number",
+								"exclusiveMinimum": 0
 							},
 							{
 								"type": "null"
@@ -8335,6 +8357,9 @@
 					"imageUrl": {
 						"type": ["string", "null"]
 					},
+					"cookedWeight": {
+						"type": ["number", "null"]
+					},
 					"calories": {
 						"type": "number"
 					},
@@ -8399,6 +8424,9 @@
 					},
 					"imageUrl": {
 						"type": ["string", "null"]
+					},
+					"cookedWeight": {
+						"type": ["number", "null"]
 					},
 					"calories": {
 						"type": "number"
@@ -10153,6 +10181,9 @@
 					},
 					"imageUrl": {
 						"type": ["string", "null"]
+					},
+					"cookedWeight": {
+						"type": ["number", "null"]
 					},
 					"calories": {
 						"type": "number"

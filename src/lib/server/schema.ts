@@ -427,13 +427,20 @@ export const recipes = pgTable(
 		totalServings: real('total_servings').notNull(),
 		isFavorite: boolean('is_favorite').notNull().default(false),
 		imageUrl: text('image_url'),
+		// Grams of the finished dish, so an entry can be logged by weight
+		// instead of by serving count (servings = grams / (cookedWeight / totalServings)).
+		cookedWeight: real('cooked_weight'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
 		index('idx_recipes_user_id').on(table.userId),
 		index('idx_recipes_created_at').on(table.createdAt),
-		check('recipes_servings_positive', sql`${table.totalServings} > 0`)
+		check('recipes_servings_positive', sql`${table.totalServings} > 0`),
+		check(
+			'recipes_cooked_weight_positive',
+			sql`${table.cookedWeight} IS NULL OR ${table.cookedWeight} > 0`
+		)
 	]
 );
 

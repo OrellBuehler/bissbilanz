@@ -909,6 +909,84 @@ struct RepositoryTests {
         #expect(op.typeName == "set_recipe_image")
     }
 
+    @Test("A recipe's cookedWeight round-trips through create and cache")
+    func recipeCookedWeightRoundTrips() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+
+        let created = try await repo.createRecipe(RecipeCreate(
+            name: "Stew",
+            totalServings: 4,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 400, servingUnit: .g)],
+            cookedWeight: 800
+        ))
+
+        #expect(created.cookedWeight == 800)
+        #expect(repo.recipe(id: created.id)?.cookedWeight == 800)
+        #expect(created.cookedWeightServingSize == 200)
+    }
+
+    @Test("Updating cookedWeight patches the local row and sends an explicit null when cleared")
+    func recipeUpdateCookedWeightSetAndClear() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+        harness.stub("PATCH", "/api/recipes/r1", json: """
+        {"recipe": {
+            "id": "r1", "userId": "u1", "name": "Stew", "totalServings": 4,
+            "isFavorite": false, "cookedWeight": 800
+        }}
+        """)
+        try harness.context.insert(LocalRecipe(recipe: harness.recipe(id: "r1", name: "Stew")))
+        try harness.context.save()
+
+        var update = RecipeUpdate()
+        update.cookedWeight = .some(800)
+        _ = try await repo.updateRecipe(id: "r1", update)
+        #expect(repo.recipe(id: "r1")?.cookedWeight == 800)
+
+        var clear = RecipeUpdate()
+        clear.cookedWeight = .some(nil)
+        _ = try await repo.updateRecipe(id: "r1", clear)
+        #expect(repo.recipe(id: "r1")?.cookedWeight == nil)
+
+        await harness.syncManager.drainPendingQueue()
+        let bodies = harness.recordedBodies("PATCH", "/api/recipes/r1")
+        #expect(bodies.count == 2)
+        let lastBody = try #require(bodies.last)
+        let last = try JSONSerialization.jsonObject(with: lastBody) as? [String: Any]
+        #expect(last?["cookedWeight"] is NSNull)
+    }
+
+    @Test("Duplicating a recipe copies ingredients, servings and cooked weight but not favorite or image")
+    func recipeDuplicateCopiesButDropsFavoriteAndImage() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let repo = harness.recipeRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Rice")))
+        try harness.context.save()
+        let source = try await repo.createRecipe(RecipeCreate(
+            name: "Rice Bowl",
+            totalServings: 4,
+            ingredients: [RecipeIngredientInput(foodId: "f1", quantity: 400, servingUnit: .g)],
+            isFavorite: true,
+            imageUrl: "/uploads/a1b2.webp",
+            cookedWeight: 800
+        ))
+
+        let copy = try await repo.duplicateRecipe(id: source.id, name: "Rice Bowl (copy)")
+
+        #expect(copy.id != source.id)
+        #expect(copy.name == "Rice Bowl (copy)")
+        #expect(copy.totalServings == 4)
+        #expect(copy.cookedWeight == 800)
+        #expect(copy.ingredients?.map(\.foodId) == ["f1"])
+        #expect(copy.ingredients?.map(\.quantity) == [400])
+        #expect(copy.calories == source.calories)
+        #expect(copy.isFavorite == false)
+        #expect(copy.imageUrl == nil)
+        // The source recipe is untouched.
+        #expect(repo.recipe(id: source.id) != nil)
+    }
+
     // MARK: Weight
 
     @Test("Weight refresh upserts by id and updates changed rows")

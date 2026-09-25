@@ -135,11 +135,13 @@ sealed class SyncOperation {
         override val description = "create recipe"
     }
 
+    /** [clearedKeys] carries fields the user deliberately emptied — see [UpdateEntry]. */
     @Serializable
     @SerialName("update_recipe")
     data class UpdateRecipe(
         val id: String,
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "recipes"
         override val affectedId get() = id

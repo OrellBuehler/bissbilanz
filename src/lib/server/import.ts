@@ -545,6 +545,7 @@ export async function runImport(
 						totalServings: row.totalServings,
 						isFavorite: row.isFavorite ?? false,
 						imageUrl: null,
+						cookedWeight: row.cookedWeight ?? null,
 						createdAt: toDate(row.createdAt, now),
 						updatedAt: now
 					}))

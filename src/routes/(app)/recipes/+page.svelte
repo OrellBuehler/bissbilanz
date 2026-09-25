@@ -12,6 +12,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Star from '@lucide/svelte/icons/star';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
@@ -23,6 +24,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { requestQuickAction, consumeQuickAction } from '$lib/stores/command-palette.svelte';
+	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
 
@@ -32,6 +34,8 @@
 		totalServings: number;
 		isFavorite: boolean;
 		imageUrl: string | null;
+		cookedWeight: number | null;
+		calories: number | null;
 		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
 	};
 
@@ -127,6 +131,18 @@
 		await recipeService.update(recipe.id, { isFavorite: !recipe.isFavorite });
 	};
 
+	const duplicateRecipe = async (recipe: (typeof recipes)[number]) => {
+		const result = await recipeService.duplicate(
+			recipe.id,
+			m.recipe_copy_name({ name: recipe.name })
+		);
+		if (result.status === 'failed') {
+			toast.error(m.detail_save_failed());
+			return;
+		}
+		await openEdit(result.id);
+	};
+
 	const logRecipe = (recipeId: string) => {
 		requestQuickAction({ type: 'add-food', recipeId });
 		goto('/home');
@@ -146,6 +162,8 @@
 			totalServings: recipe.totalServings,
 			isFavorite: recipe.isFavorite,
 			imageUrl: recipe.imageUrl,
+			cookedWeight: recipe.cookedWeight,
+			calories: recipe.calories,
 			ingredients: ingredients.map((i) => ({
 				foodId: i.foodId,
 				quantity: i.quantity,
@@ -194,6 +212,15 @@
 	};
 
 	const fmt = (n: number) => Math.round(n);
+
+	const cookedWeightSubtitle = (r: (typeof recipes)[number]) => {
+		if (!r.cookedWeight) return null;
+		const per100g = caloriesPerHundredGrams(r.calories ?? 0, r.cookedWeight);
+		return m.recipes_cooked_weight_subtitle({
+			grams: String(Math.round(r.cookedWeight)),
+			kcal: String(Math.round(per100g ?? 0))
+		});
+	};
 </script>
 
 <div class="mx-auto max-w-2xl space-y-4 pb-4">
@@ -259,6 +286,9 @@
 								<span class="text-orange-500">{fmt(recipe.carbs ?? 0)}g C</span>
 								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
+							{#if cookedWeightSubtitle(recipe)}
+								<p class="mt-1 text-xs text-muted-foreground">{cookedWeightSubtitle(recipe)}</p>
+							{/if}
 						</div>
 						<div class="flex shrink-0 items-center">
 							<Button
@@ -286,6 +316,17 @@
 								}}
 							>
 								<CirclePlus class="size-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								aria-label={m.recipes_duplicate()}
+								onclick={(e) => {
+									e.stopPropagation();
+									duplicateRecipe(recipe);
+								}}
+							>
+								<Copy class="size-4" />
 							</Button>
 							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
 						</div>

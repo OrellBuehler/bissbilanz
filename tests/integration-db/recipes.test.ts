@@ -368,6 +368,137 @@ describe('food delete conflict counts (integration)', () => {
 	});
 });
 
+describe('cookedWeight round-trip (integration)', () => {
+	it('persists cookedWeight through create and get', async () => {
+		const db = getTestDB(dbUrl);
+		const { createRecipe, getRecipe } = await import('$lib/server/recipes');
+
+		const [food] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Chicken',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 165,
+				protein: 31,
+				carbs: 0,
+				fat: 4,
+				fiber: 0
+			})
+			.returning();
+
+		const created = await createRecipe(userId, {
+			name: 'Chicken Stew',
+			totalServings: 4,
+			cookedWeight: 800,
+			ingredients: [{ foodId: food.id, quantity: 400, servingUnit: 'g' }]
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+
+		const recipe = await getRecipe(userId, created.data.id);
+		expect(recipe?.cookedWeight).toBe(800);
+	});
+
+	it('leaves cookedWeight null when not provided', async () => {
+		const db = getTestDB(dbUrl);
+		const { createRecipe, getRecipe } = await import('$lib/server/recipes');
+
+		const [food] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Rice',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 130,
+				protein: 3,
+				carbs: 28,
+				fat: 0,
+				fiber: 0
+			})
+			.returning();
+
+		const created = await createRecipe(userId, {
+			name: 'Plain Rice',
+			totalServings: 2,
+			ingredients: [{ foodId: food.id, quantity: 200, servingUnit: 'g' }]
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+
+		const recipe = await getRecipe(userId, created.data.id);
+		expect(recipe?.cookedWeight ?? null).toBeNull();
+	});
+
+	it('updates cookedWeight via PATCH and clears it back to null', async () => {
+		const db = getTestDB(dbUrl);
+		const { createRecipe, updateRecipe, getRecipe } = await import('$lib/server/recipes');
+
+		const [food] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Lentils',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 116,
+				protein: 9,
+				carbs: 20,
+				fat: 0,
+				fiber: 8
+			})
+			.returning();
+
+		const created = await createRecipe(userId, {
+			name: 'Lentil Soup',
+			totalServings: 3,
+			ingredients: [{ foodId: food.id, quantity: 300, servingUnit: 'g' }]
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+
+		const updated = await updateRecipe(userId, created.data.id, { cookedWeight: 900 });
+		expect(updated.success).toBe(true);
+		let recipe = await getRecipe(userId, created.data.id);
+		expect(recipe?.cookedWeight).toBe(900);
+
+		const cleared = await updateRecipe(userId, created.data.id, { cookedWeight: null });
+		expect(cleared.success).toBe(true);
+		recipe = await getRecipe(userId, created.data.id);
+		expect(recipe?.cookedWeight ?? null).toBeNull();
+	});
+
+	it('rejects a zero or negative cookedWeight on create', async () => {
+		const db = getTestDB(dbUrl);
+		const { createRecipe } = await import('$lib/server/recipes');
+
+		const [food] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Beans',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 100,
+				protein: 6,
+				carbs: 18,
+				fat: 0,
+				fiber: 6
+			})
+			.returning();
+
+		const result = await createRecipe(userId, {
+			name: 'Bad Weight Recipe',
+			totalServings: 1,
+			cookedWeight: 0,
+			ingredients: [{ foodId: food.id, quantity: 100, servingUnit: 'g' }]
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
 describe('favorite recipe preview math (integration)', () => {
 	it('listFavoriteRecipes returns whole-recipe totals with totalServings', async () => {
 		const db = getTestDB(dbUrl);

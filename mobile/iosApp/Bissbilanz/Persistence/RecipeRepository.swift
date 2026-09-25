@@ -87,6 +87,33 @@ final class RecipeRepository {
         return temp
     }
 
+    /// Copies a recipe (ingredients, servings, cooked weight) under a new name,
+    /// not favorited, without its image — two recipes must never share one
+    /// `imageUrl`, since the server's upload cleanup has no reference count and
+    /// would delete the file out from under whichever recipe keeps it once the
+    /// other's image changes or is deleted. Goes through `createRecipe` so it
+    /// works offline the same way.
+    @discardableResult
+    func duplicateRecipe(id: String, name: String) async throws -> Recipe {
+        guard let source = recipe(id: id) else { throw APIError.notFound }
+        let inputs = (source.ingredients ?? []).map { ingredient in
+            RecipeIngredientInput(
+                foodId: ingredient.foodId,
+                quantity: ingredient.quantity,
+                servingUnit: ingredient.servingUnit
+            )
+        }
+        let create = RecipeCreate(
+            name: name,
+            totalServings: source.totalServings,
+            ingredients: inputs,
+            isFavorite: false,
+            imageUrl: nil,
+            cookedWeight: source.cookedWeight
+        )
+        return try await createRecipe(create)
+    }
+
     /// See `EntryRepository.updateEntry` — a missing local row is reported as a
     /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
@@ -252,6 +279,7 @@ final class RecipeRepository {
             carbs: macros.carbs,
             fat: macros.fat,
             fiber: macros.fiber,
+            cookedWeight: create.cookedWeight,
             createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
             ingredients: ingredients
@@ -316,6 +344,7 @@ final class RecipeRepository {
             carbs: macros.carbs,
             fat: macros.fat,
             fiber: macros.fiber,
+            cookedWeight: recipe.cookedWeight,
             createdAt: recipe.createdAt,
             updatedAt: recipe.updatedAt,
             ingredients: ingredients

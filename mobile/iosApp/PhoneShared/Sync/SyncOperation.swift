@@ -192,7 +192,8 @@ enum SyncOperation: Codable {
                 totalServings: body.totalServings,
                 ingredients: ingredients,
                 isFavorite: body.isFavorite,
-                imageUrl: body.imageUrl
+                imageUrl: body.imageUrl,
+                cookedWeight: body.cookedWeight
             )
             return .createRecipe(body: patched, localId: localId)
 

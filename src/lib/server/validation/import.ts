@@ -45,6 +45,7 @@ export const importRecipeSchema = z.object({
 	name: text(200),
 	totalServings: z.number().positive(),
 	isFavorite: z.boolean().nullish(),
+	cookedWeight: z.number().positive().nullish(),
 	createdAt: z.string().nullish()
 });
 

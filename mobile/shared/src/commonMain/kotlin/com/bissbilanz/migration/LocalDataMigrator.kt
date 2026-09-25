@@ -573,6 +573,7 @@ class LocalDataMigrator(
                     ingredients = ingredients,
                     isFavorite = cached.isFavorite,
                     imageUrl = uploadableImageUrl(cached.imageUrl),
+                    cookedWeight = cached.cookedWeight,
                 )
             val server = api.createRecipe(create).serverTotalsToPerServing()
             queries.transaction {

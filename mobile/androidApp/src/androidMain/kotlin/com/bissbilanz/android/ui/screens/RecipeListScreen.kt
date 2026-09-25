@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,7 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.cookedWeightServingSize
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -54,6 +56,8 @@ fun RecipeListScreen(navController: NavController) {
     val loadFailedMessage = stringResource(R.string.recipe_list_load_failed)
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
     val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
+    val duplicateFailedMessage = stringResource(R.string.recipe_list_duplicate_failed)
+    val copyNameTemplate = stringResource(R.string.recipe_copy_name_format)
 
     val visibleRecipes =
         remember(recipes, query, sortBy) {
@@ -102,7 +106,21 @@ fun RecipeListScreen(navController: NavController) {
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
             imageUrl = recipe.imageUrl,
+            gramsPerServing = cookedWeightServingSize(recipe.cookedWeight, recipe.totalServings),
         )
+    }
+
+    fun duplicateRecipe(recipe: Recipe) {
+        scope.launch {
+            try {
+                val copy = recipeRepo.duplicateRecipe(recipe.id, String.format(copyNameTemplate, recipe.name))
+                navController.navigate("recipe/${copy.id}")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                snackbarHostState.showSnackbar(duplicateFailedMessage)
+            }
+        }
     }
 
     if (showCreateSheet) {
@@ -206,6 +224,7 @@ fun RecipeListScreen(navController: NavController) {
                                 recipe = recipe,
                                 onClick = { navController.navigate("recipe/${recipe.id}") },
                                 onQuickLog = { recipeToLog = recipe },
+                                onDuplicate = { duplicateRecipe(recipe) },
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -221,6 +240,7 @@ fun RecipeListItem(
     recipe: Recipe,
     onClick: () -> Unit,
     onQuickLog: () -> Unit,
+    onDuplicate: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
@@ -253,6 +273,11 @@ fun RecipeListItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                }
+            }
+            onDuplicate?.let { duplicate ->
+                IconButton(onClick = duplicate) {
+                    Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_list_duplicate))
                 }
             }
             IconButton(onClick = onQuickLog) {

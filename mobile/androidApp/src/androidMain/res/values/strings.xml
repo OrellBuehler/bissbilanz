@@ -484,6 +484,9 @@
     <string name="meal_picker_log_food">Log Food</string>
     <string name="meal_picker_meal_label">Meal</string>
     <string name="meal_picker_servings_label">Servings</string>
+    <string name="meal_picker_mode_servings">Servings</string>
+    <string name="meal_picker_mode_grams">Grams</string>
+    <string name="meal_picker_grams_label">Grams eaten</string>
     <string name="meal_picker_log">Log</string>
     <string name="meal_picker_confirm">Confirm</string>
 
@@ -636,6 +639,8 @@
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Recently updated</string>
     <string name="recipe_list_sort_calories">Calories/serving</string>
+    <string name="recipe_list_duplicate">Duplicate recipe</string>
+    <string name="recipe_list_duplicate_failed">Failed to duplicate recipe</string>
 
     <!-- Recipe detail screen -->
     <string name="recipe_detail_load_failed">Failed to load recipe</string>
@@ -646,6 +651,11 @@
     <string name="recipe_detail_default_title">Recipe</string>
     <string name="recipe_detail_log_recipe">Log recipe</string>
     <string name="recipe_detail_servings">%1$d servings</string>
+    <string name="recipe_detail_duplicate">Duplicate recipe</string>
+    <string name="recipe_detail_duplicate_failed">Failed to duplicate recipe</string>
+    <string name="recipe_detail_cooked_weight">%1$d g cooked · ~%2$d kcal/100g</string>
+    <string name="recipe_detail_cooked_weight_no_calories">%1$d g cooked</string>
+    <string name="recipe_copy_name_format">%1$s (copy)</string>
 
     <!-- Recipe edit sheet -->
     <string name="recipe_edit_load_failed">Failed to load recipe</string>
@@ -656,6 +666,9 @@
     <string name="recipe_edit_create_title">Create Recipe</string>
     <string name="recipe_edit_name">Recipe name *</string>
     <string name="recipe_edit_total_servings">Total servings</string>
+    <string name="recipe_edit_cooked_weight">Cooked weight (g)</string>
+    <string name="recipe_edit_cooked_weight_hint">Weigh the finished dish to log by grams</string>
+    <string name="recipe_edit_cooked_weight_per_100g">~%1$d kcal per 100 g</string>
     <string name="recipe_edit_ingredients_count">Ingredients (%1$d)</string>
     <string name="recipe_edit_remove">Remove</string>
     <string name="recipe_edit_amount">Amount</string>

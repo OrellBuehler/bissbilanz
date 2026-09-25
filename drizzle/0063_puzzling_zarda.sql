@@ -1,0 +1,2 @@
+ALTER TABLE "recipes" ADD COLUMN "cooked_weight" real;--> statement-breakpoint
+ALTER TABLE "recipes" ADD CONSTRAINT "recipes_cooked_weight_positive" CHECK ("recipes"."cooked_weight" IS NULL OR "recipes"."cooked_weight" > 0);

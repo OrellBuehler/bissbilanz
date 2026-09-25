@@ -17,6 +17,7 @@ type RecipeInput = {
 	totalServings: number;
 	isFavorite?: boolean;
 	imageUrl?: string | null;
+	cookedWeight?: number | null;
 };
 
 export type { DeleteResult };
@@ -34,7 +35,8 @@ export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	name: input.name,
 	totalServings: input.totalServings,
 	isFavorite: input.isFavorite ?? false,
-	imageUrl: input.imageUrl ?? null
+	imageUrl: input.imageUrl ?? null,
+	cookedWeight: input.cookedWeight ?? null
 });
 
 export const listRecipes = async (
@@ -51,6 +53,7 @@ export const listRecipes = async (
 			totalServings: recipes.totalServings,
 			isFavorite: recipes.isFavorite,
 			imageUrl: recipes.imageUrl,
+			cookedWeight: recipes.cookedWeight,
 			...macroAggregations
 		})
 		.from(recipes)
@@ -152,6 +155,7 @@ export const getRecipe = async (userId: string, id: string) => {
 				totalServings: recipes.totalServings,
 				isFavorite: recipes.isFavorite,
 				imageUrl: recipes.imageUrl,
+				cookedWeight: recipes.cookedWeight,
 				...macroAggregations,
 				createdAt: recipes.createdAt,
 				updatedAt: recipes.updatedAt

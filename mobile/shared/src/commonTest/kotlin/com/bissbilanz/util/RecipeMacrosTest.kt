@@ -5,6 +5,7 @@ import com.bissbilanz.api.generated.model.RecipeIngredient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class RecipeMacrosTest {
     private fun food(
@@ -78,5 +79,43 @@ class RecipeMacrosTest {
 
         assertNotNull(macros)
         assertEquals(182.0, macros.calories, 1e-9)
+    }
+
+    @Test
+    fun cookedWeightServingSizeDividesByTotalServings() {
+        assertEquals(200.0, cookedWeightServingSize(800.0, 4.0))
+    }
+
+    @Test
+    fun cookedWeightServingSizeIsNullWithoutACookedWeight() {
+        assertNull(cookedWeightServingSize(null, 4.0))
+        assertNull(cookedWeightServingSize(0.0, 4.0))
+    }
+
+    @Test
+    fun cookedWeightServingSizeIsNullForANonPositiveTotalServings() {
+        assertNull(cookedWeightServingSize(800.0, 0.0))
+    }
+
+    @Test
+    fun gramsToServingsConvertsGramsEatenIntoServings() {
+        // 800g cooked / 4 servings = 200g/serving; eating 300g = 1.5 servings.
+        assertEquals(1.5, gramsToServings(300.0, 800.0, 4.0))
+    }
+
+    @Test
+    fun gramsToServingsIsNullWithoutACookedWeight() {
+        assertNull(gramsToServings(300.0, null, 4.0))
+    }
+
+    @Test
+    fun caloriesPerHundredGramsScalesPerServingCaloriesDown() {
+        // 200 kcal/serving * 4 servings = 800 kcal total / 800g dish = 100 kcal/100g.
+        assertEquals(100.0, caloriesPerHundredGrams(200.0, 800.0, 4.0))
+    }
+
+    @Test
+    fun caloriesPerHundredGramsIsNullWithoutACookedWeight() {
+        assertNull(caloriesPerHundredGrams(200.0, null, 4.0))
     }
 }
