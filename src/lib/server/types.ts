@@ -16,6 +16,9 @@ export type DeleteResult =
 			blocked: true;
 			entryCount: number;
 			ingredientCount?: number;
+			// Distinct recipes referencing the food (ingredientCount counts rows,
+			// which can exceed this if a food appears twice in one recipe).
+			recipeCount?: number;
 			supplementIngredientCount?: number;
 	  }
 	| { blocked: false };

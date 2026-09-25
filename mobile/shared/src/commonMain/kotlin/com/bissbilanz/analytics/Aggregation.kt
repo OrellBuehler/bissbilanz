@@ -1,5 +1,6 @@
 package com.bissbilanz.analytics
 
+import com.bissbilanz.util.convertQuantityForMacros
 import kotlinx.datetime.LocalDate
 
 /*
@@ -44,12 +45,23 @@ data class AggFood(
     val vitaminE: Double? = null,
     val alcohol: Double? = null,
     val addedSugars: Double? = null,
+    /**
+     * Raw serving unit string (e.g. "g", "tbsp") the food's own macros are measured in.
+     * Defaults to "g" so existing fixtures that don't set it keep behaving as a same-unit
+     * (factor 1) match, exactly as before unit-aware conversion was added.
+     */
+    val servingUnit: String = "g",
 )
 
-/** One ingredient line of a recipe: a [foodId] taken in [quantity] of the food's serving unit. */
+/**
+ * One ingredient line of a recipe: a [foodId] taken in [quantity] of [servingUnit]. Converted
+ * into the food's own unit (same dimension only — see `convertQuantityForMacros`) before the
+ * macro math; defaults to "g" for the same reason as [AggFood.servingUnit].
+ */
 data class AggRecipeIngredient(
     val foodId: String,
     val quantity: Double,
+    val servingUnit: String = "g",
 )
 
 /** A recipe and its ingredient lines; [totalServings] divides the summed ingredient nutrients. */
@@ -263,7 +275,8 @@ private fun recipePerServing(
         recipe.ingredients.mapNotNull { ing ->
             val food = foodsById[ing.foodId] ?: return@mapNotNull null
             val value = nutrient(food) ?: return@mapNotNull null
-            nullDiv(value * ing.quantity, food.servingSize)
+            val quantity = convertQuantityForMacros(ing.quantity, ing.servingUnit, food.servingUnit)
+            nullDiv(value * quantity, food.servingSize)
         }
     if (terms.isEmpty()) return null
     return nullDiv(terms.sum(), recipe.totalServings)

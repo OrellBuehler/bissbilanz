@@ -125,6 +125,7 @@ enum NutritionLabelValidator {
         }
         result.salt = result.salt ?? fallback.salt
         result.sodium = result.sodium ?? fallback.sodium
+        result.isVolume = result.isVolume || fallback.isVolume
 
         return result
     }

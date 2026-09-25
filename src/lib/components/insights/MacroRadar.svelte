@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MacroSourcesModal from './MacroSourcesModal.svelte';
 	import { MACRO_COLORS } from '$lib/colors';
 	import { today, shiftDate } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
@@ -29,12 +31,17 @@
 		'90d': () => m.insights_90d()
 	};
 
-	const axes: {
-		key: MacroKey;
+	type Axis = {
+		key: Exclude<MacroKey, 'calories'>;
 		label: () => string;
 		goalKey: keyof NonNullable<Goals>;
 		color: string;
-	}[] = [
+	};
+
+	let sourcesAxis = $state<Axis | null>(null);
+	let sourcesOpen = $state(false);
+
+	const axes: Axis[] = [
 		{
 			key: 'protein',
 			label: () => m.macro_protein(),
@@ -202,14 +209,38 @@
 		>
 			{#each axes as axis (axis.key)}
 				{@const goalVal = goals[axis.goalKey]}
-				<div class="rounded-lg border p-2 text-center">
-					<div class="text-xs font-medium" style="color: {axis.color}">{axis.label()}</div>
+				<!-- The radar says how far off a macro is, not why: each tile lists
+				     the foods that contributed the most of it. -->
+				<Button
+					variant="outline"
+					class="h-auto flex-col gap-0 p-2 font-normal"
+					aria-label={m.insights_macro_sources_open({ macro: axis.label() })}
+					onclick={() => {
+						sourcesAxis = axis;
+						sourcesOpen = true;
+					}}
+				>
+					<div class="flex items-center gap-0.5 text-xs font-medium" style="color: {axis.color}">
+						{axis.label()}
+						<ChevronRight class="size-3.5" />
+					</div>
 					<div class="mt-0.5 text-sm font-bold tabular-nums">{averages[axis.key]}g</div>
 					<div class="text-muted-foreground text-xs tabular-nums">
 						{m.insights_goal()}: {goalVal}g
 					</div>
-				</div>
+				</Button>
 			{/each}
 		</div>
 	{/if}
 </div>
+
+{#if sourcesAxis}
+	<MacroSourcesModal
+		bind:open={sourcesOpen}
+		macro={sourcesAxis.key}
+		label={sourcesAxis.label()}
+		color={sourcesAxis.color}
+		days={rangeDays[range] + 1}
+		rows={data}
+	/>
+{/if}

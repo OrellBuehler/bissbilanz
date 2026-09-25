@@ -34,6 +34,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -41,6 +42,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
+import com.bissbilanz.repository.DeleteOutcome
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
@@ -77,6 +79,7 @@ fun FoodDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -153,17 +156,19 @@ fun FoodDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        showDeleteDialog = false
                         scope.launch {
                             try {
-                                foodRepo.deleteFood(foodId)
-                                navController.popBackStack()
+                                when (val outcome = foodRepo.deleteFoodChecked(foodId)) {
+                                    DeleteOutcome.Deleted -> navController.popBackStack()
+                                    is DeleteOutcome.Blocked -> deleteConflict = outcome
+                                }
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
                                 snackbarHostState.showSnackbar(deleteFailedMessage)
                             }
                         }
-                        showDeleteDialog = false
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(R.string.action_delete)) }
@@ -171,6 +176,26 @@ fun FoodDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
+        )
+    }
+
+    deleteConflict?.let { conflict ->
+        ForceDeleteDialog(
+            outcome = conflict,
+            onConfirm = {
+                deleteConflict = null
+                scope.launch {
+                    try {
+                        foodRepo.forceDeleteFood(foodId)
+                        navController.popBackStack()
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                        snackbarHostState.showSnackbar(deleteFailedMessage)
+                    }
+                }
+            },
+            onCancel = { deleteConflict = null },
         )
     }
 

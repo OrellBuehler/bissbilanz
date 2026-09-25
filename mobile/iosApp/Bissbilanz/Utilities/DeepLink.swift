@@ -8,22 +8,34 @@ enum DeepLink: Equatable, Identifiable {
     case logFood
     case scanner
     case weight
+    /// Tapping a sleep logging reminder's body.
+    case sleep
+    /// Tapping a meal (or unrecognized-kind) logging reminder's body.
+    case dashboard
     case food(String)
     case recipe(String)
     /// Tapping a supplement reminder's body.
     case supplements
     /// Tapping a dismissed-AI-task notification's body.
     case aiTasks
+    /// Visual Intelligence's "more results" hand-off
+    /// (`FoodVisualIntelligenceSearchIntent`) — the food search screen,
+    /// prefilled with the best label from what the system saw. An empty
+    /// query just opens the search screen.
+    case foodSearch(query: String)
 
     var id: String {
         switch self {
         case .logFood: "log"
         case .scanner: "scan"
         case .weight: "weight"
+        case .sleep: "sleep"
+        case .dashboard: "dashboard"
         case let .food(foodId): "food-\(foodId)"
         case let .recipe(recipeId): "recipe-\(recipeId)"
         case .supplements: "supplements"
         case .aiTasks: "ai-tasks"
+        case let .foodSearch(query): "food-search-\(query)"
         }
     }
 

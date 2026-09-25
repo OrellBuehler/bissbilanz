@@ -37,6 +37,43 @@ struct MealEstimatorPrivateCloudTests {
         #expect(MealEstimator.isWeakEstimate(MealEstimate(items: [makeItem(confidence: 0.49)])))
     }
 
+    // MARK: - preferredEstimate
+
+    @Test("A non-weak cloud retry replaces a weak on-device result")
+    func strongCloudWins() {
+        let onDevice = MealEstimate(items: [makeItem(confidence: 0.3)])
+        let cloud = MealEstimate(items: [makeItem(confidence: 0.8)], source: .privateCloudCompute)
+        #expect(MealEstimator.preferredEstimate(onDevice: onDevice, privateCloud: cloud).source == .privateCloudCompute)
+    }
+
+    @Test("An empty cloud retry keeps the weak on-device result")
+    func emptyCloudLoses() {
+        let onDevice = MealEstimate(items: [makeItem(confidence: 0.3)])
+        let cloud = MealEstimate(items: [], source: .privateCloudCompute)
+        #expect(MealEstimator.preferredEstimate(onDevice: onDevice, privateCloud: cloud).source == .onDevice)
+    }
+
+    @Test("A weak cloud retry beats an empty on-device result")
+    func weakCloudBeatsEmpty() {
+        let onDevice = MealEstimate(items: [])
+        let cloud = MealEstimate(items: [makeItem(confidence: 0.2)], source: .privateCloudCompute)
+        #expect(MealEstimator.preferredEstimate(onDevice: onDevice, privateCloud: cloud).source == .privateCloudCompute)
+    }
+
+    @Test("Both weak: higher mean confidence wins, ties stay on-device")
+    func bothWeakCompareConfidence() {
+        let onDevice = MealEstimate(items: [makeItem(confidence: 0.25), makeItem(confidence: 0.25)])
+        let better = MealEstimate(items: [makeItem(confidence: 0.45)], source: .privateCloudCompute)
+        let worse = MealEstimate(items: [makeItem(confidence: 0.1)], source: .privateCloudCompute)
+        let tie = MealEstimate(items: [makeItem(confidence: 0.25)], source: .privateCloudCompute)
+        func winner(_ cloud: MealEstimate) -> MealEstimateSource {
+            MealEstimator.preferredEstimate(onDevice: onDevice, privateCloud: cloud).source
+        }
+        #expect(winner(better) == .privateCloudCompute)
+        #expect(winner(worse) == .onDevice)
+        #expect(winner(tie) == .onDevice)
+    }
+
     // MARK: - isRetryableOnPrivateCloud
 
     @Test("Guardrail violation and context overflow are retryable")

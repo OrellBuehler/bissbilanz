@@ -82,6 +82,7 @@ class MigrationViewModelTest {
             sleepEntries = 0,
             supplements = 0,
             supplementLogs = 0,
+            reminders = 0,
             dayProperties = 0,
             hasGoals = false,
             hasPreferences = false,

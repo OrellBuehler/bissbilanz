@@ -21,12 +21,15 @@ import com.bissbilanz.android.images.FoodImageResolver
 import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.images.LocalImageStore
 import com.bissbilanz.android.images.LocalImageSweeper
+import com.bissbilanz.android.reminders.ReminderPreferences
+import com.bissbilanz.android.reminders.RescheduleGeneralRemindersWorker
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.AndroidLocalPhotoReader
 import com.bissbilanz.android.sync.AndroidPhotoLocalizer
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -36,6 +39,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.android.ui.viewmodels.RecipeSuggestionsViewModel
+import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
@@ -118,7 +122,7 @@ class BissbilanzApplication :
                 single { FoodImageResolver(androidContext(), get(), get(named("baseUrl"))) }
                 single { LocalImageSweeper(androidContext(), get(), get(), get()) }
                 single { FoodImageUploader(androidContext(), get(), get()) }
-                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+                single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(
                         api = get(),
@@ -142,7 +146,9 @@ class BissbilanzApplication :
                 single { FastingManager(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
                 single { HealthConnectService(androidContext()) }
                 single { HealthSyncPreferences(androidContext()) }
+                single { TipStore(androidContext()) }
                 single { SupplementReminderPreferences(androidContext()) }
+                single { ReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
                 single { AiTaskUploadQueue(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get(), get()) }
@@ -159,6 +165,7 @@ class BissbilanzApplication :
                 viewModelOf(::RecipeSuggestionsViewModel)
                 viewModelOf(::WeightViewModel)
                 viewModelOf(::SleepViewModel)
+                viewModelOf(::RemindersViewModel)
                 viewModelOf(::SettingsViewModel)
                 viewModelOf(::AddFoodViewModel)
                 viewModelOf(::MigrationViewModel)
@@ -196,6 +203,12 @@ class BissbilanzApplication :
             refreshDayWidgets()
             healthExporter.exportNutrition(today())
             wearPublisher.publish()
+        }
+        // Counts real food logs (not edits or deletes) toward the usage-gated tips —
+        // e.g. nudging a frequent logger toward favorites once they have earned it.
+        val tipStore = koin.get<TipStore>()
+        koin.get<EntryRepository>().onEntryCreated = {
+            tipStore.incrementFoodLogged()
         }
         // Entries logged elsewhere (web, MCP, iOS) arrive via refresh, not
         // onEntryChanged — export the refreshed day so Health Connect follows.
@@ -269,9 +282,14 @@ class BissbilanzApplication :
         koin.get<SupplementRepository>().onSupplementsChanged = {
             RescheduleRemindersWorker.enqueue(this@BissbilanzApplication)
         }
+        // Same reasoning as the supplement hook above, for general logging reminders.
+        koin.get<ReminderRepository>().onRemindersChanged = {
+            RescheduleGeneralRemindersWorker.enqueue(this@BissbilanzApplication)
+        }
         // Alarms do not survive a reboot, an app update, or an OEM task-killer, so arm
         // them from a known-good state on every start.
         RescheduleRemindersWorker.enqueue(this)
+        RescheduleGeneralRemindersWorker.enqueue(this)
 
         // The assistant dismissing a task is the one AI task outcome the user has to
         // hear about — the meal never got logged. Acknowledgement happens when the list

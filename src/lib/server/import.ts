@@ -7,6 +7,7 @@ import {
 	foods,
 	recipeIngredients,
 	recipes,
+	reminders,
 	sleepEntries,
 	supplementIngredients,
 	supplements,
@@ -179,7 +180,8 @@ const countRows = (data: ImportArchive): number =>
 	(data.entries?.length ?? 0) +
 	(data.weightEntries?.length ?? 0) +
 	(data.sleepEntries?.length ?? 0) +
-	(data.dayProperties?.length ?? 0);
+	(data.dayProperties?.length ?? 0) +
+	(data.reminders?.length ?? 0);
 
 type OwnedRow = { id: string; userId: string };
 
@@ -241,12 +243,14 @@ async function planImport(userId: string, data: ImportArchive) {
 	const foodRows = dedupeBy(data.foods ?? [], (row) => row.id);
 	const recipeRows = dedupeBy(data.recipes ?? [], (row) => row.id);
 	const supplementRows = dedupeBy(data.supplements ?? [], (row) => row.id);
+	const reminderRows = dedupeBy(data.reminders ?? [], (row) => row.id);
 
 	const foodIds = foodRows.map((row) => row.id);
 	const recipeIds = recipeRows.map((row) => row.id);
 	const supplementIds = supplementRows.map((row) => row.id);
+	const reminderIds = reminderRows.map((row) => row.id);
 
-	const [foodOwners, recipeOwners, supplementOwners] = await Promise.all([
+	const [foodOwners, recipeOwners, supplementOwners, reminderOwners] = await Promise.all([
 		collect(foodIds, (part) =>
 			db.select({ id: foods.id, userId: foods.userId }).from(foods).where(inArray(foods.id, part))
 		),
@@ -261,12 +265,19 @@ async function planImport(userId: string, data: ImportArchive) {
 				.select({ id: supplements.id, userId: supplements.userId })
 				.from(supplements)
 				.where(inArray(supplements.id, part))
+		),
+		collect(reminderIds, (part) =>
+			db
+				.select({ id: reminders.id, userId: reminders.userId })
+				.from(reminders)
+				.where(inArray(reminders.id, part))
 		)
 	]);
 
 	const foodState = splitOwnership(userId, foodOwners);
 	const recipeState = splitOwnership(userId, recipeOwners);
 	const supplementState = splitOwnership(userId, supplementOwners);
+	const reminderState = splitOwnership(userId, reminderOwners);
 
 	const candidateFoods = foodRows.filter(
 		(row) => !foodState.owned.has(row.id) && !foodState.foreign.has(row.id)
@@ -313,6 +324,9 @@ async function planImport(userId: string, data: ImportArchive) {
 	);
 	const newSupplements = supplementRows.filter(
 		(row) => !supplementState.owned.has(row.id) && !supplementState.foreign.has(row.id)
+	);
+	const newReminders = reminderRows.filter(
+		(row) => !reminderState.owned.has(row.id) && !reminderState.foreign.has(row.id)
 	);
 
 	for (const row of foodRows) {
@@ -418,6 +432,7 @@ async function planImport(userId: string, data: ImportArchive) {
 	section('weight', weightRows.length, newWeight.length);
 	section('sleep', sleepRows.length, newSleep.length);
 	section('dayProperties', dayRows.length, newDays.length);
+	section('reminders', reminderRows.length, newReminders.length);
 
 	return {
 		issues,
@@ -431,7 +446,8 @@ async function planImport(userId: string, data: ImportArchive) {
 		newEntries,
 		newWeight,
 		newSleep,
-		newDays
+		newDays,
+		newReminders
 	};
 }
 
@@ -660,6 +676,24 @@ export async function runImport(
 						userId,
 						date: row.date,
 						isFastingDay: row.isFastingDay,
+						createdAt: now,
+						updatedAt: now
+					}))
+				)
+				.onConflictDoNothing()
+		);
+		await inChunks(plan.newReminders, (part) =>
+			tx
+				.insert(reminders)
+				.values(
+					part.map((row) => ({
+						id: row.id,
+						userId,
+						kind: row.kind,
+						mealType: row.kind === 'meal' ? (row.mealType ?? null) : null,
+						time: row.time,
+						weekdays: row.weekdays,
+						enabled: row.enabled ?? true,
 						createdAt: now,
 						updatedAt: now
 					}))

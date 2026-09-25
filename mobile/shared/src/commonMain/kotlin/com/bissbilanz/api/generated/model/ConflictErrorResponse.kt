@@ -24,9 +24,15 @@ import kotlinx.serialization.encoding.*
  *
  * @param error
  * @param entryCount
+ * @param ingredientCount
+ * @param recipeCount
+ * @param supplementIngredientCount
  */
 @Serializable
 data class ConflictErrorResponse(
     @SerialName(value = "error") @Required val error: kotlin.String,
     @SerialName(value = "entryCount") val entryCount: kotlin.Double? = null,
+    @SerialName(value = "ingredientCount") val ingredientCount: kotlin.Double? = null,
+    @SerialName(value = "recipeCount") val recipeCount: kotlin.Double? = null,
+    @SerialName(value = "supplementIngredientCount") val supplementIngredientCount: kotlin.Double? = null,
 )

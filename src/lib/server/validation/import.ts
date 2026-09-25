@@ -4,6 +4,7 @@ import { isCalendarDate } from '$lib/import/csv';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { scheduleTypeValues } from '$lib/supplement-units';
+import { reminderKindValues } from '$lib/server/schema';
 
 const uuid = z.string().uuid();
 const isoDate = z
@@ -128,6 +129,15 @@ export const importDayPropertySchema = z.object({
 	isFastingDay: z.boolean()
 });
 
+export const importReminderSchema = z.object({
+	id: uuid,
+	kind: z.enum(reminderKindValues),
+	mealType: optionalText(50),
+	time: z.string().regex(/^\d{2}:\d{2}$/),
+	weekdays: z.array(z.number().int().min(0).max(6)).min(1),
+	enabled: z.boolean().nullish()
+});
+
 /**
  * The subset of a Bissbilanz export archive that can be restored. Unknown keys
  * (profile, identities, preferences, AI tasks, images) are ignored rather than
@@ -143,7 +153,8 @@ export const importArchiveSchema = z.object({
 	entries: z.array(importEntrySchema).optional(),
 	weightEntries: z.array(importWeightEntrySchema).optional(),
 	sleepEntries: z.array(importSleepEntrySchema).optional(),
-	dayProperties: z.array(importDayPropertySchema).optional()
+	dayProperties: z.array(importDayPropertySchema).optional(),
+	reminders: z.array(importReminderSchema).optional()
 });
 
 export type ImportArchive = z.infer<typeof importArchiveSchema>;

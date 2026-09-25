@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'September 22, 2026' })}
+		{m.privacy_effective_date({ date: 'September 24, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -132,17 +132,41 @@
 		is governed by that provider's own privacy policy.
 	</p>
 
+	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>
+	<p class="mb-3">
+		The iOS app can estimate a meal's calories and macros from a description or photos using Apple
+		Intelligence. Where your device supports it, this runs entirely on your device and nothing
+		leaves it.
+	</p>
+	<p class="mb-3">
+		If on-device estimation isn't available on your device, or can't produce a usable estimate, the
+		app can use Apple's
+		<a href="https://security.apple.com/blog/private-cloud-compute/" class="underline"
+			>Private Cloud Compute</a
+		>
+		instead. Your description, any photos you attached, and the foods from your own food database that
+		match them (name, serving size and nutrition values) are then sent to Apple's servers to produce the
+		estimate. Apple processes this data only to answer that request, does not store it, and does not make
+		it accessible to anyone, including Apple and the developer. Voice logging on the Apple Watch always
+		uses Private Cloud Compute, since the watch has no on-device model; it sends only what you dictated.
+	</p>
+	<p class="mb-6">
+		Estimates made with Private Cloud Compute are labeled as such in the app, and you can turn it
+		off at any time under Settings → AI Estimation.
+	</p>
+
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Notifications</h2>
 	<p class="mb-6">
 		The mobile apps can show local notifications — for example an ongoing notification or Live
-		Activity while a fast is running, or a reminder to take a supplement. These are generated on
-		your device; no push service is used and no notification content leaves your phone.
+		Activity while a fast is running, or a reminder to log your weight, a meal, your sleep, or take
+		a supplement. These are generated on your device; no push service is used and no notification
+		content leaves your phone.
 	</p>
 	<p class="mb-6">
-		If you enable supplement reminders in the web app (including when it's installed to your home
-		screen), it uses your browser's Web Push service to deliver them, which requires storing a
-		delivery endpoint and keys for your browser install. The reminder text is encrypted before it is
-		sent, so the push service that relays it cannot read it.
+		If you enable reminders in the web app (including when it's installed to your home screen), it
+		uses your browser's Web Push service to deliver them, which requires storing a delivery endpoint
+		and keys for your browser install. The reminder text is encrypted before it is sent, so the push
+		service that relays it cannot read it.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">How your data is stored</h2>

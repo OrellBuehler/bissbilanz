@@ -18,12 +18,19 @@ final class EntryRepository {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let syncManager: SyncManager
+    /// Used only to cancel today's meal reminder on a log — nil in tests that
+    /// don't need reminder behavior.
+    private let reminderRepository: ReminderRepository?
 
-    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
+    init(
+        context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager,
+        reminderRepository: ReminderRepository? = nil
+    ) {
         self.context = context
         self.api = api
         self.appMode = appMode
         self.syncManager = syncManager
+        self.reminderRepository = reminderRepository
     }
 
     // MARK: - Reads (local)
@@ -191,6 +198,13 @@ final class EntryRepository {
             IntentDonations.donateLog(food: food, recipe: recipe, mealType: create.mealType)
         }
         IntentDonations.dayChanged([create.date])
+        // See `WeightRepository.createEntry` for why this has to happen here.
+        if let reminderRepository {
+            await ReminderScheduler.cancelToday(
+                repository: reminderRepository, kind: .meal, mealType: create.mealType,
+                on: DateFormatting.date(from: create.date) ?? Date()
+            )
+        }
         return temp
     }
 

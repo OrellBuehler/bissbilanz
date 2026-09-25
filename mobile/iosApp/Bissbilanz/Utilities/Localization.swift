@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 enum AppLocale: String, CaseIterable {
     case en
@@ -846,6 +847,59 @@ enum L10n {
         localized("add_ingredient", en: "Add Ingredient", de: "Zutat hinzufügen")
     }
 
+    /// Shown for a recipe ingredient whose food couldn't be resolved (deleted, or
+    /// offline with nothing cached) — the ingredient is never dropped, only its name.
+    static var unknownIngredient: String {
+        localized("unknown_ingredient", en: "Food", de: "Lebensmittel")
+    }
+
+    static var sortBy: String {
+        localized("sort_by", en: "Sort by", de: "Sortieren nach")
+    }
+
+    static var sortRecentlyUpdated: String {
+        localized("sort_recently_updated", en: "Recently updated", de: "Zuletzt aktualisiert")
+    }
+
+    static var sortCaloriesPerServing: String {
+        localized("sort_calories_per_serving", en: "Calories per serving", de: "Kalorien pro Portion")
+    }
+
+    /// Mirrors the web's ForceDeleteDialog title.
+    static var stillInUse: String {
+        localized("still_in_use", en: "Still in use", de: "Noch in Verwendung")
+    }
+
+    static var deleteAnyway: String {
+        localized("delete_anyway", en: "Delete anyway", de: "Trotzdem löschen")
+    }
+
+    static func deleteConflictEntries(_ count: Int) -> String {
+        localized(
+            "delete_conflict_entries",
+            en: "This is used in \(count) food log entries. Delete it anyway?",
+            de: "Wird in \(count) Einträgen verwendet. Trotzdem löschen?"
+        )
+    }
+
+    static func deleteConflictRecipes(_ count: Int) -> String {
+        localized(
+            "delete_conflict_recipes",
+            en: "This is used in \(count) recipes. Deleting it will remove it from those recipes too.",
+            de: "Wird in \(count) Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt."
+        )
+    }
+
+    static func deleteConflictEntriesAndRecipes(entries: Int, recipes: Int) -> String {
+        localized(
+            "delete_conflict_entries_and_recipes",
+            en: "This is used in \(entries) food log entries and \(recipes) recipes. " +
+                "Deleting it will remove it from all of them.",
+            de: "Wird in \(entries) Einträgen und \(recipes) Rezepten verwendet. " +
+                "Beim Löschen wird es aus allen entfernt."
+        )
+    }
+
     // MARK: - Goals
 
     static var goals: String {
@@ -1020,6 +1074,146 @@ enum L10n {
 
     static func snoozeHours(_ hours: Int) -> String {
         localized("supplement_snooze_hours", en: "\(hours) h", de: "\(hours) Std.")
+    }
+
+    // MARK: - Logging reminders
+
+    static var remindersTitle: String {
+        localized("reminders_title", en: "Reminders", de: "Erinnerungen")
+    }
+
+    static var remindersAdd: String {
+        localized("reminders_add", en: "Add reminder", de: "Erinnerung hinzufügen")
+    }
+
+    static var remindersEdit: String {
+        localized("reminders_edit", en: "Edit reminder", de: "Erinnerung bearbeiten")
+    }
+
+    static var remindersDelete: String {
+        localized("reminders_delete", en: "Delete reminder", de: "Erinnerung löschen")
+    }
+
+    static var remindersDeleteConfirm: String {
+        localized(
+            "reminders_delete_confirm",
+            en: "This reminder will be permanently deleted.",
+            de: "Diese Erinnerung wird dauerhaft gelöscht."
+        )
+    }
+
+    static var remindersEmpty: String {
+        localized(
+            "reminders_empty",
+            en: "No reminders yet. Add one to get a nudge when it's time to log.",
+            de: "Noch keine Erinnerungen. Füge eine hinzu, um beim Loggen erinnert zu werden."
+        )
+    }
+
+    static var remindersEnabled: String {
+        localized("reminders_enabled", en: "Enabled", de: "Aktiv")
+    }
+
+    static var remindersEveryDay: String {
+        localized("reminders_every_day", en: "Every day", de: "Jeden Tag")
+    }
+
+    static var remindersKind: String {
+        localized("reminders_kind", en: "Remind me to", de: "Erinnere mich an")
+    }
+
+    static var remindersKindWeight: String {
+        localized("reminders_kind_weight", en: "Log weight", de: "Gewicht loggen")
+    }
+
+    static var remindersKindMeal: String {
+        localized("reminders_kind_meal", en: "Log a meal", de: "Mahlzeit loggen")
+    }
+
+    static var remindersKindSleep: String {
+        localized("reminders_kind_sleep", en: "Log sleep", de: "Schlaf loggen")
+    }
+
+    static var remindersMealType: String {
+        localized("reminders_meal_type", en: "Meal", de: "Mahlzeit")
+    }
+
+    static var remindersTime: String {
+        localized("reminders_time", en: "Time", de: "Uhrzeit")
+    }
+
+    static var remindersWeekdays: String {
+        localized("reminders_weekdays", en: "Days", de: "Tage")
+    }
+
+    static var remindersSave: String {
+        localized("reminders_save", en: "Save", de: "Speichern")
+    }
+
+    static var remindersSupplementsTitle: String {
+        localized("reminders_supplements_title", en: "Supplement reminders", de: "Supplement-Erinnerungen")
+    }
+
+    static var remindersSupplementsDesc: String {
+        localized(
+            "reminders_supplements_desc",
+            en: "Set per supplement — tap one to change its reminder times.",
+            de: "Pro Supplement festgelegt — tippe eines an, um die Erinnerungszeiten zu ändern."
+        )
+    }
+
+    static var remindersSupplementsEmpty: String {
+        localized(
+            "reminders_supplements_empty",
+            en: "No supplements have reminders set.",
+            de: "Für kein Supplement sind Erinnerungen eingerichtet."
+        )
+    }
+
+    /// Hint shown on weight/sleep reminders when the matching Apple Health
+    /// import is already on — logging happens automatically in that case.
+    static var remindersHealthKitHint: String {
+        localized(
+            "reminders_healthkit_hint",
+            en: "Apple Health import is on for this — it's usually logged automatically.",
+            de: "Der Import aus Apple Health ist dafür aktiv — es wird meist automatisch erfasst."
+        )
+    }
+
+    static var reminderWeightTitle: String {
+        localized("push_reminder_weight_title", en: "Time to log your weight", de: "Zeit, dein Gewicht zu loggen")
+    }
+
+    static var reminderWeightBody: String {
+        localized(
+            "push_reminder_weight_body",
+            en: "Tap to log today's weight.",
+            de: "Tippen, um das heutige Gewicht zu loggen."
+        )
+    }
+
+    static var reminderSleepTitle: String {
+        localized("push_reminder_sleep_title", en: "Time to log your sleep", de: "Zeit, deinen Schlaf zu loggen")
+    }
+
+    static var reminderSleepBody: String {
+        localized(
+            "push_reminder_sleep_body",
+            en: "Tap to log last night's sleep.",
+            de: "Tippen, um den letzten Schlaf zu loggen."
+        )
+    }
+
+    static func reminderMealTitle(_ mealType: String) -> String {
+        localized("push_reminder_meal_title", en: "Time to log \(mealType)", de: "Zeit für \(mealType)")
+    }
+
+    static func reminderMealBody(_ mealType: String) -> String {
+        localized(
+            "push_reminder_meal_body",
+            en: "Tap to log your \(mealType).",
+            de: "Tippen, um \(mealType) zu loggen."
+        )
     }
 
     static var createSupplement: String {
@@ -2212,6 +2406,8 @@ enum L10n {
                 en: "Uploading day properties",
                 de: "Tageseigenschaften hochladen"
             )
+        case .reminders:
+            localized("migration_step_reminders", en: "Uploading reminders", de: "Erinnerungen hochladen")
         }
     }
 
@@ -3129,7 +3325,15 @@ enum L10n {
 
     // MARK: - Private
 
-    private nonisolated(unsafe) static var _storedLocale: String?
+    /// Observable so a Settings change redraws every view that read a string —
+    /// a plain static isn't tracked, and the switch only showed up after the
+    /// app came back to the foreground.
+    @Observable
+    fileprivate final class LocaleCache: @unchecked Sendable {
+        var value = UserDefaults.standard.string(forKey: "app_locale") ?? L10n.systemLocale().rawValue
+    }
+
+    private static let localeCache = LocaleCache()
 
     /// Memoized on first read, not only on write: with the number of `L10n`
     /// call sites in the view layer this was a `UserDefaults` lookup per string
@@ -3142,13 +3346,10 @@ enum L10n {
     /// wins, because it is what's stored.
     private static var storedLocale: String {
         get {
-            if let cached = _storedLocale { return cached }
-            let resolved = UserDefaults.standard.string(forKey: "app_locale") ?? systemLocale().rawValue
-            _storedLocale = resolved
-            return resolved
+            localeCache.value
         }
         set {
-            _storedLocale = newValue
+            localeCache.value = newValue
             UserDefaults.standard.set(newValue, forKey: "app_locale")
         }
     }
@@ -3195,6 +3396,30 @@ enum L10n {
 
     static var sleepSectionTitle: String {
         localized("sleep_section_title", en: "Sleep", de: "Schlaf")
+    }
+
+    static var macroSourcesTitle: String {
+        localized("macro_sources_title", en: "Top Sources", de: "Hauptquellen")
+    }
+
+    static func macroSourcesSubtitle(days: Int) -> String {
+        localized(
+            "macro_sources_subtitle",
+            en: "Foods that contributed the most over the last \(days) days",
+            de: "Lebensmittel mit dem größten Anteil in den letzten \(days) Tagen"
+        )
+    }
+
+    static var macroSourcesEmpty: String {
+        localized(
+            "macro_sources_empty",
+            en: "Nothing logged with this nutrient in this period.",
+            de: "In diesem Zeitraum nichts mit diesem Nährstoff erfasst."
+        )
+    }
+
+    static var macroSourcesShareHint: String {
+        localized("macro_sources_share_hint", en: "of total", de: "der Gesamtmenge")
     }
 
     static var insightsMoreWithAccount: String {

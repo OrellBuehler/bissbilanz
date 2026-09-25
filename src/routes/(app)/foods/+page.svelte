@@ -61,7 +61,8 @@
 	// Below this many local matches, offer Open Food Facts results to fill the gap.
 	const OFF_FALLBACK_THRESHOLD = 5;
 	let forceDeleteId: string | null = $state(null);
-	let forceDeleteCount = $state(0);
+	let forceDeleteEntryCount = $state(0);
+	let forceDeleteRecipeCount = $state(0);
 	let qualityOpen = $state(false);
 
 	let selecting = $state(false);
@@ -245,8 +246,10 @@
 			params: { path: { id } }
 		});
 		if (response.status === 409 && error) {
+			const conflict = error as { entryCount?: number; recipeCount?: number };
 			forceDeleteId = id;
-			forceDeleteCount = (error as { entryCount?: number }).entryCount ?? 0;
+			forceDeleteEntryCount = conflict.entryCount ?? 0;
+			forceDeleteRecipeCount = conflict.recipeCount ?? 0;
 			return;
 		}
 		foodService.refresh();
@@ -259,6 +262,19 @@
 		});
 		forceDeleteId = null;
 		foodService.refresh();
+	};
+
+	const foodDeleteDescription = () => {
+		if (forceDeleteEntryCount > 0 && forceDeleteRecipeCount > 0) {
+			return m.foods_delete_has_entries_and_recipes({
+				entryCount: forceDeleteEntryCount,
+				recipeCount: forceDeleteRecipeCount
+			});
+		}
+		if (forceDeleteRecipeCount > 0) {
+			return m.foods_delete_has_recipes({ count: forceDeleteRecipeCount });
+		}
+		return m.foods_delete_has_entries({ count: forceDeleteEntryCount });
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
@@ -772,8 +788,8 @@
 
 <ForceDeleteDialog
 	open={forceDeleteId !== null}
-	count={forceDeleteCount}
-	description={m.foods_delete_has_entries({ count: forceDeleteCount })}
+	count={forceDeleteEntryCount + forceDeleteRecipeCount}
+	description={foodDeleteDescription()}
 	onConfirm={confirmForceDelete}
 	onCancel={() => (forceDeleteId = null)}
 />

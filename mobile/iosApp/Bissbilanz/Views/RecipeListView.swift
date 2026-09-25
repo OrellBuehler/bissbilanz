@@ -1,19 +1,47 @@
 import SwiftUI
 
+enum RecipeSort: String, CaseIterable, Identifiable {
+    case name
+    case recentlyUpdated
+    case caloriesPerServing
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .name: L10n.name
+        case .recentlyUpdated: L10n.sortRecentlyUpdated
+        case .caloriesPerServing: L10n.sortCaloriesPerServing
+        }
+    }
+}
+
 struct RecipeListView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(FoodRepository.self) private var foodRepository
 
     @State private var recipes: [Recipe] = []
     @State private var isLoading = true
     @State private var error: Error?
     @State private var searchQuery = ""
+    @State private var sortBy: RecipeSort = .name
     @State private var showCreateSheet = false
     @State private var loggingRecipe: Recipe?
     @State private var errorMessage: String?
+    @State private var deleteConflict: (recipe: Recipe, conflict: DeleteConflict)?
 
     private var filteredRecipes: [Recipe] {
-        guard !searchQuery.isEmpty else { return recipes }
-        return recipes.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+        let matching = searchQuery.isEmpty
+            ? recipes
+            : recipes.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+        switch sortBy {
+        case .name:
+            return matching.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .recentlyUpdated:
+            return matching.sorted { ($0.updatedAt ?? $0.createdAt ?? "") > ($1.updatedAt ?? $1.createdAt ?? "") }
+        case .caloriesPerServing:
+            return matching.sorted { ($0.caloriesPerServing ?? 0) < ($1.caloriesPerServing ?? 0) }
+        }
     }
 
     var body: some View {
@@ -76,6 +104,17 @@ struct RecipeListView: View {
                         Image(systemName: "plus")
                     }
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    Menu {
+                        Picker(L10n.sortBy, selection: $sortBy) {
+                            ForEach(RecipeSort.allCases) { sort in
+                                Text(sort.label).tag(sort)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                }
             }
             .sheet(isPresented: $showCreateSheet) {
                 RecipeEditSheet { _ in
@@ -96,6 +135,20 @@ struct RecipeListView: View {
                 Button(L10n.ok, role: .cancel) {}
             } message: {
                 if let errorMessage { Text(errorMessage) }
+            }
+            .alert(
+                L10n.stillInUse,
+                isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
+            ) {
+                Button(L10n.deleteAnyway, role: .destructive) {
+                    if let recipe = deleteConflict?.recipe {
+                        deleteConflict = nil
+                        Task { await forceDeleteRecipe(recipe) }
+                    }
+                }
+                Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+            } message: {
+                if let deleteConflict { Text(deleteConflict.conflict.message) }
             }
         }
     }
@@ -125,7 +178,7 @@ struct RecipeListView: View {
                 }
             }
             HStack(spacing: 8) {
-                if let cal = recipe.calories {
+                if let cal = recipe.caloriesPerServing {
                     Text("\(Int(cal)) \(L10n.calories.lowercased())/\(L10n.servings.lowercased())")
                         .foregroundStyle(MacroColors.calories)
                 }
@@ -135,7 +188,11 @@ struct RecipeListView: View {
             .font(.caption)
 
             if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                Text(ingredients.compactMap { $0.food?.name }.joined(separator: ", "))
+                // The server response has no embedded `food` on ingredients — fall
+                // back to the local cache (no network round trip, this runs once
+                // per row) instead of silently showing nothing for a synced recipe.
+                let names = ingredients.compactMap { $0.food?.name ?? foodRepository.food(id: $0.foodId)?.name }
+                Text(names.joined(separator: ", "))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
@@ -145,7 +202,21 @@ struct RecipeListView: View {
 
     private func deleteRecipe(_ recipe: Recipe) async {
         do {
-            try await recipeRepository.deleteRecipe(id: recipe.id)
+            switch try await recipeRepository.deleteRecipeChecked(id: recipe.id) {
+            case .deleted:
+                break
+            case let .blocked(conflict):
+                deleteConflict = (recipe, conflict)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        recipes = recipeRepository.recipes()
+    }
+
+    private func forceDeleteRecipe(_ recipe: Recipe) async {
+        do {
+            try await recipeRepository.forceDeleteRecipe(id: recipe.id)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -214,34 +285,34 @@ struct LogRecipeSheet: View {
                     }
                 }
 
-                if let cal = recipe.calories {
+                if let cal = recipe.caloriesPerServing {
                     Section(L10n.perServing) {
                         NutrientRow(
                             label: L10n.calories,
-                            value: cal / recipe.totalServings,
+                            value: cal,
                             unit: "kcal",
                             color: MacroColors.calories
                         )
-                        if let p = recipe.protein {
+                        if let p = recipe.proteinPerServing {
                             NutrientRow(
                                 label: L10n.protein,
-                                value: p / recipe.totalServings,
+                                value: p,
                                 unit: "g",
                                 color: MacroColors.protein
                             )
                         }
-                        if let c = recipe.carbs {
+                        if let c = recipe.carbsPerServing {
                             NutrientRow(
                                 label: L10n.carbs,
-                                value: c / recipe.totalServings,
+                                value: c,
                                 unit: "g",
                                 color: MacroColors.carbs
                             )
                         }
-                        if let f = recipe.fat {
+                        if let f = recipe.fatPerServing {
                             NutrientRow(
                                 label: L10n.fat,
-                                value: f / recipe.totalServings,
+                                value: f,
                                 unit: "g",
                                 color: MacroColors.fat
                             )

@@ -13,12 +13,19 @@ final class SleepRepository {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let syncManager: SyncManager
+    /// Used only to cancel today's sleep reminder on a log — nil in tests
+    /// that don't need reminder behavior.
+    private let reminderRepository: ReminderRepository?
 
-    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
+    init(
+        context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager,
+        reminderRepository: ReminderRepository? = nil
+    ) {
         self.context = context
         self.api = api
         self.appMode = appMode
         self.syncManager = syncManager
+        self.reminderRepository = reminderRepository
     }
 
     // MARK: - Reads (local)
@@ -144,6 +151,13 @@ final class SleepRepository {
         save()
         syncManager.enqueue(.createSleep(body: create, localId: temp.id))
         IntentDonations.sleepChanged([temp.id])
+        // See `WeightRepository.createEntry` for why this has to happen here.
+        if let reminderRepository {
+            await ReminderScheduler.cancelToday(
+                repository: reminderRepository, kind: .sleep,
+                on: DateFormatting.date(from: create.entryDate) ?? Date()
+            )
+        }
         return temp
     }
 

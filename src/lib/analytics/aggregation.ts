@@ -17,9 +17,13 @@
  * parity test can import it without the server runtime.
  */
 
+import { convertQuantityForMacros, type ServingUnit } from '../units';
+
 export type AggFood = {
 	id: string;
 	servingSize: number;
+	/** Defaults to 'g' when omitted, matching the Kotlin port's default. */
+	servingUnit?: ServingUnit;
 	calories: number;
 	protein: number;
 	carbs: number;
@@ -42,6 +46,8 @@ export type AggFood = {
 export type AggRecipeIngredient = {
 	foodId: string;
 	quantity: number;
+	/** Defaults to 'g' when omitted, matching the Kotlin port's default. */
+	servingUnit?: ServingUnit;
 };
 
 export type AggRecipe = {
@@ -178,7 +184,12 @@ function recipePerServing(
 		if (!food) continue;
 		const value = nutrient(food);
 		if (value === null || value === undefined) continue;
-		const term = nullDiv(value * ing.quantity, food.servingSize);
+		const quantity = convertQuantityForMacros(
+			ing.quantity,
+			ing.servingUnit ?? 'g',
+			food.servingUnit ?? 'g'
+		);
+		const term = nullDiv(value * quantity, food.servingSize);
 		if (term !== null) terms.push(term);
 	}
 	if (terms.length === 0) return null;

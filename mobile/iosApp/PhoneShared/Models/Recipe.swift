@@ -26,6 +26,15 @@ struct Recipe: Codable, Identifiable, Hashable {
     static func == (lhs: Recipe, rhs: Recipe) -> Bool {
         lhs.id == rhs.id
     }
+
+    /// `calories`/`protein`/etc. are whole-recipe totals (matching the server and the
+    /// list/detail endpoints) — divide by `totalServings` for a one-serving preview.
+    /// Guards a non-positive `totalServings`, matching `EntryFactory.makeEntry`.
+    var caloriesPerServing: Double? { calories.map { $0 / max(totalServings, 1) } }
+    var proteinPerServing: Double? { protein.map { $0 / max(totalServings, 1) } }
+    var carbsPerServing: Double? { carbs.map { $0 / max(totalServings, 1) } }
+    var fatPerServing: Double? { fat.map { $0 / max(totalServings, 1) } }
+    var fiberPerServing: Double? { fiber.map { $0 / max(totalServings, 1) } }
 }
 
 struct RecipeIngredient: Codable, Identifiable {

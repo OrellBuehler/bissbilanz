@@ -130,8 +130,8 @@ struct FavoritesView: View {
                             FavoriteCard(
                                 name: recipe.name,
                                 brand: nil,
-                                calories: recipe.calories.map { Int($0) } ?? 0,
-                                protein: recipe.protein.map { Int($0) } ?? 0,
+                                calories: recipe.caloriesPerServing.map { Int($0) } ?? 0,
+                                protein: recipe.proteinPerServing.map { Int($0) } ?? 0,
                                 imageUrl: recipe.imageUrl,
                                 onTap: {
                                     selectedRecipe = recipe

@@ -44,11 +44,26 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
     static let shared = SupplementNotificationDelegate()
 
     @MainActor private var repository: SupplementRepository?
+    @MainActor private var reminderRepository: ReminderRepository?
+    @MainActor private var weightRepository: WeightRepository?
+    @MainActor private var sleepRepository: SleepRepository?
+    @MainActor private var entryRepository: EntryRepository?
     @MainActor private var router: DeepLinkRouter?
 
     @MainActor
-    func configure(repository: SupplementRepository, router: DeepLinkRouter) {
+    func configure(
+        repository: SupplementRepository,
+        reminderRepository: ReminderRepository,
+        weightRepository: WeightRepository,
+        sleepRepository: SleepRepository,
+        entryRepository: EntryRepository,
+        router: DeepLinkRouter
+    ) {
         self.repository = repository
+        self.reminderRepository = reminderRepository
+        self.weightRepository = weightRepository
+        self.sleepRepository = sleepRepository
+        self.entryRepository = entryRepository
         self.router = router
     }
 
@@ -72,15 +87,33 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let content = response.notification.request.content
+        let category = content.categoryIdentifier
+        let action = response.actionIdentifier
+        let completion = UncheckedSendable(completionHandler)
+
+        if category == ReminderScheduler.categoryIdentifier {
+            let payload = ReminderNotificationPayload(
+                reminderId: content.userInfo[ReminderScheduler.userInfoReminderId] as? String,
+                kind: content.userInfo[ReminderScheduler.userInfoKind] as? String,
+                date: content.userInfo[ReminderScheduler.userInfoDate] as? String,
+                title: content.title,
+                body: content.body
+            )
+            Task { @MainActor in
+                await handleReminder(action: action, payload: payload)
+                await refill()
+                completion.value()
+            }
+            return
+        }
+
         let payload = SupplementReminderPayload(
-            category: content.categoryIdentifier,
+            category: category,
             supplementId: content.userInfo[SupplementReminderScheduler.userInfoSupplementId] as? String,
             date: content.userInfo[SupplementReminderScheduler.userInfoDate] as? String,
             title: content.title,
             body: content.body
         )
-        let action = response.actionIdentifier
-        let completion = UncheckedSendable(completionHandler)
         Task { @MainActor in
             await handle(action: action, payload: payload)
             // A notification interaction is one of the few reliable chances to run, so top the
@@ -129,9 +162,51 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
     }
 
     @MainActor
+    private func handleReminder(action: String, payload: ReminderNotificationPayload) async {
+        switch action {
+        case ReminderScheduler.snoozeAction:
+            ReminderScheduler.snooze(payload)
+
+        case ReminderScheduler.skipAction:
+            if let reminderId = payload.reminderId {
+                // Same rule as the supplement skip action: the skip belongs to
+                // the reminder's day, not the tap time.
+                let day = payload.date.flatMap { DateFormatting.date(from: $0) } ?? Date()
+                ReminderSkips.markSkipped(reminderId: reminderId, on: day)
+                await ReminderScheduler.cancelToday(reminderId: reminderId, on: day)
+            }
+
+        case UNNotificationDefaultActionIdentifier:
+            router?.pending = Self.destination(forKind: payload.kind)
+
+        default:
+            break
+        }
+    }
+
+    private static func destination(forKind kind: String?) -> DeepLink {
+        switch kind {
+        case ReminderKind.weight.rawValue: .weight
+        case ReminderKind.sleep.rawValue: .sleep
+        default: .dashboard
+        }
+    }
+
+    @MainActor
     private func refill() async {
         guard let repository else { return }
-        await SupplementReminderScheduler.refill(repository: repository)
+        let reminders: ReminderScheduler.SchedulingDependencies?
+        if let reminderRepository, let weightRepository, let sleepRepository, let entryRepository {
+            reminders = ReminderScheduler.SchedulingDependencies(
+                reminderRepository: reminderRepository,
+                weightRepository: weightRepository,
+                sleepRepository: sleepRepository,
+                entryRepository: entryRepository
+            )
+        } else {
+            reminders = nil
+        }
+        await SupplementReminderScheduler.refill(supplementRepository: repository, reminders: reminders)
     }
 }
 

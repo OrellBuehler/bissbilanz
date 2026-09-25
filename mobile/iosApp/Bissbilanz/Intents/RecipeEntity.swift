@@ -55,7 +55,10 @@ struct RecipeEntity: AppEntity, IndexedEntity {
 }
 
 struct RecipeEntityQuery: EntityStringQuery {
-    @Dependency private var entryWriter: EntryWriter
+    /// Not `private`: the iOS 27 `IndexedEntityQuery` conformance lives in
+    /// `SiriIOS27.swift`, where the version fence is, and reindexing delegates
+    /// back to the writer.
+    @Dependency var entryWriter: EntryWriter
 
     func entities(for identifiers: [String]) async throws -> [RecipeEntity] {
         await entryWriter.recipes(ids: identifiers).map(RecipeEntity.init)

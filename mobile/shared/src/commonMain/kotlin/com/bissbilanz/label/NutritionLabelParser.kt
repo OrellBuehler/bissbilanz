@@ -24,7 +24,7 @@ object NutritionLabelParser {
 
     /** Parses already-assembled rows (one nutrient per row, left-to-right text). */
     fun parse(rows: List<String>): ParsedNutrition {
-        val result = ParsedNutrition()
+        val result = ParsedNutrition(isVolume = isVolumeBasis(rows))
         for (row in rows) {
             val folded = fold(row)
             when (val nutrient = match(folded)) {
@@ -48,6 +48,15 @@ object NutritionLabelParser {
             }
         }
         return result
+    }
+
+    /**
+     * True when the panel's basis column is per 100 ml (a drink) rather than
+     * per 100 g, so the edit sheet can default the serving unit to ml.
+     */
+    fun isVolumeBasis(rows: List<String>): Boolean {
+        val pattern = Regex("(?i)(?<![0-9])100\\s*ml\\b")
+        return rows.any { pattern.containsMatchIn(it) }
     }
 
     /** Convenience: cluster raw OCR lines into rows, then parse. */
@@ -138,6 +147,12 @@ object NutritionLabelParser {
     // MARK: - Value extraction
 
     private const val NUMBER_TOKEN = "[0-9]+(?:[.,\\s][0-9]+)*"
+
+    /**
+     * Nutrient amounts never need a thousands separator, so a space ends the
+     * number — otherwise two unit-less columns ("10,6 35") fuse into one.
+     */
+    private const val FIELD_NUMBER_TOKEN = "[0-9]+(?:[.,][0-9]+)*"
     private val units = listOf("kcal", "kj", "mg", "µg", "mcg", "g", "ml")
 
     /** A number plus the unit printed immediately after it (if any). */
@@ -152,15 +167,29 @@ object NutritionLabelParser {
      */
     private fun energyKcal(row: String): Double? {
         val cleaned = stripBasis(row).lowercase()
+        pairedKcal(cleaned)?.let { return it }
         firstNumber(cleaned, "kcal")?.let { return it }
         firstNumber(cleaned, "kj", energyKJ = true)?.let { return it / 4.184 }
         return firstValue(row)?.value
     }
 
+    /**
+     * "kJ/kcal 180/42" — both units in a header and the values as a slash pair
+     * after it, so neither number is followed by its own unit.
+     */
+    private fun pairedKcal(lowercased: String): Double? {
+        Regex("kj\\s*/\\s*kcal\\D*?$NUMBER_TOKEN\\s*/\\s*($FIELD_NUMBER_TOKEN)")
+            .find(lowercased)
+            ?.let { return parseDecimal(it.groupValues[1]) }
+        return Regex("kcal\\s*/\\s*kj\\D*?($FIELD_NUMBER_TOKEN)\\s*/")
+            .find(lowercased)
+            ?.let { parseDecimal(it.groupValues[1]) }
+    }
+
     /** First numeric value in a row, with the unit token that follows it. */
     private fun firstValue(row: String): Measurement? {
         val cleaned = stripBasis(row)
-        val match = Regex(NUMBER_TOKEN).find(cleaned) ?: return null
+        val match = Regex(FIELD_NUMBER_TOKEN).find(cleaned) ?: return null
         val value = parseDecimal(match.value) ?: return null
         val rest = cleaned.substring(match.range.last + 1).trim().lowercase()
         val unit = units.firstOrNull { rest.startsWith(it) }

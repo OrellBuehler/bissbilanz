@@ -18,14 +18,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.bissbilanz.android.R
+import com.bissbilanz.android.tips.AnchoredTip
+import com.bissbilanz.android.tips.HelpSlugs
+import com.bissbilanz.android.tips.TipIds
+import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
+import org.koin.compose.koinInject
 
 sealed class Screen(
     val route: String,
@@ -54,8 +60,10 @@ val allMiddleTabs =
     listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements, Screen.RecipeSuggestions)
 
 const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
+const val NAV_KEY_EDIT_SUPPLEMENT_ID = "edit_supplement_id"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -111,6 +119,7 @@ fun AppNavigation() {
                         "health",
                         "ai-tasks",
                         "connect-claude",
+                        "reminders",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -120,10 +129,28 @@ fun AppNavigation() {
                     currentRoute?.startsWith("recipe/") == true
 
             if (!hideBottomBar) {
+                val tipStore: TipStore = koinInject()
+                val foodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = null) },
+                            icon = {
+                                if (screen == Screen.Favorites) {
+                                    // One-tap logging is only worth advertising once someone
+                                    // has logged enough to feel the friction of typing every time.
+                                    AnchoredTip(
+                                        tipId = TipIds.FAVORITES,
+                                        title = stringResource(R.string.tip_favorites_title),
+                                        text = stringResource(R.string.tip_favorites_text),
+                                        helpSlug = HelpSlugs.LOGGING,
+                                        eligible = foodLoggedCount >= 5,
+                                    ) {
+                                        Icon(screen.icon, contentDescription = null)
+                                    }
+                                } else {
+                                    Icon(screen.icon, contentDescription = null)
+                                }
+                            },
                             label = { Text(stringResource(screen.titleRes)) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
@@ -279,5 +306,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("connect-claude") {
         com.bissbilanz.android.ui.screens
             .ConnectClaudeScreen(navController)
+    }
+    composable("reminders") {
+        com.bissbilanz.android.ui.screens
+            .RemindersScreen(navController)
     }
 }

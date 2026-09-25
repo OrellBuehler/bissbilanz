@@ -235,6 +235,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- General logging reminders (weight / meal / sleep). Own parallel classes to
+             the supplement ones above — targeted only by our own explicit, immutable
+             PendingIntents, so no intent-filter is needed. -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.ReminderActionReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

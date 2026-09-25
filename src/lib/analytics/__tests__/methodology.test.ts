@@ -295,3 +295,57 @@ describe('nutrient adequacy references', () => {
 		expect(assessAdequacy(vitaminK, 120, 'male', null).verdict).toBe('likely_adequate');
 	});
 });
+
+describe('recipe ingredient unit conversion', () => {
+	// Golden cases — must agree with the Kotlin (AggregationTest.kt) and Swift
+	// ports of this same recipe resolution.
+	it('converts a compatible-unit ingredient into the food’s own unit', () => {
+		const oil = {
+			id: 'oil',
+			servingSize: 100,
+			servingUnit: 'ml' as const,
+			calories: 200,
+			protein: 0,
+			carbs: 0,
+			fat: 22,
+			fiber: 0
+		};
+		const dressing = {
+			id: 'dressing',
+			totalServings: 1,
+			ingredients: [{ foodId: 'oil', quantity: 2, servingUnit: 'tbsp' as const }]
+		};
+		const totals = aggregateDailyNutrientTotals(
+			[{ date: '2024-01-01', mealType: 'Lunch', servings: 1, recipeId: 'dressing' }],
+			[oil],
+			[dressing]
+		);
+		// 2 tbsp (30 ml) of a 200kcal/100ml food = 60 kcal.
+		expect(totals[0].calories).toBeCloseTo(60, 9);
+	});
+
+	it('falls back to the raw quantity for a legacy cross-dimension row', () => {
+		const flour = {
+			id: 'flour',
+			servingSize: 100,
+			servingUnit: 'g' as const,
+			calories: 364,
+			protein: 10,
+			carbs: 76,
+			fat: 1,
+			fiber: 3
+		};
+		const legacy = {
+			id: 'legacy',
+			totalServings: 1,
+			// 50 "ml" against a food measured in g — predates unit-aware validation.
+			ingredients: [{ foodId: 'flour', quantity: 50, servingUnit: 'ml' as const }]
+		};
+		const totals = aggregateDailyNutrientTotals(
+			[{ date: '2024-01-01', mealType: 'Lunch', servings: 1, recipeId: 'legacy' }],
+			[flour],
+			[legacy]
+		);
+		expect(totals[0].calories).toBeCloseTo(182, 9);
+	});
+});

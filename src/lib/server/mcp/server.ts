@@ -11,6 +11,7 @@ import { goalsSchema } from '$lib/server/validation/goals';
 import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
+import { topFoodsSortSchema } from '$lib/server/validation/stats';
 import { scheduleTypeValues } from '$lib/supplement-units';
 import { aiTaskStatusValues } from '$lib/server/schema';
 import { MAX_BATCH_ITEMS, MAX_LABELS_PER_FOOD } from '$lib/server/labels';
@@ -233,7 +234,9 @@ export function createMcpServer(userId: string): McpServer {
 		name: 'Recipe name',
 		totalServings: 'Number of servings the recipe makes',
 		ingredients:
-			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit.',
+			'List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. ' +
+			"servingUnit must be the same kind of measurement as the food's own unit (mass with mass, " +
+			'volume with volume) — a mismatch is rejected with a 400 error.',
 		isFavorite: 'Mark as favorite',
 		imageUrl: 'Image URL or relative path (null to clear)'
 	};
@@ -406,7 +409,8 @@ export function createMcpServer(userId: string): McpServer {
 		'list_recipes',
 		{
 			title: 'List Recipes',
-			description: "List all recipes in the user's database with total macros per serving.",
+			description:
+				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts).",
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
@@ -417,7 +421,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_recipe',
 		{
 			title: 'Get Recipe',
-			description: 'Get a recipe with its full ingredient list and macros.',
+			description:
+				'Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts).',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
 			},
@@ -696,7 +701,7 @@ export function createMcpServer(userId: string): McpServer {
 					.max(6)
 					.optional()
 					.describe(
-						'Local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. The mobile apps schedule local notifications from these; the web app never notifies.'
+						'Local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it.'
 					),
 				ingredients: z
 					.array(supplementIngredientInputSchema)
@@ -754,7 +759,7 @@ export function createMcpServer(userId: string): McpServer {
 					.optional()
 					.nullable()
 					.describe(
-						'New local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. Replaces all existing times; the web app never notifies.'
+						'New local wall-clock reminder times as HH:MM (24h), e.g. ["08:00", "20:00"]. Max 6. Replaces all existing times. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it.'
 					),
 				isActive: z.boolean().optional().describe('Active status'),
 				ingredients: z
@@ -949,7 +954,8 @@ export function createMcpServer(userId: string): McpServer {
 		'get_top_foods',
 		{
 			title: 'Get Top Foods',
-			description: 'Get the most frequently logged foods over a period.',
+			description:
+				'Get the most frequently logged foods over a period, or with sort set to a macro, the foods that contributed the most of it in total (e.g. what drives fat intake). Macros are per logged entry on average; multiply by count for the total.',
 			inputSchema: {
 				days: z
 					.number()
@@ -964,7 +970,10 @@ export function createMcpServer(userId: string): McpServer {
 					.min(1)
 					.max(100)
 					.optional()
-					.describe('Max number of foods to return. Defaults to 10.')
+					.describe('Max number of foods to return. Defaults to 10.'),
+				sort: topFoodsSortSchema
+					.optional()
+					.describe('Rank by log count (default) or by total contribution to a macro.')
 			},
 			annotations: READ_ONLY
 		},

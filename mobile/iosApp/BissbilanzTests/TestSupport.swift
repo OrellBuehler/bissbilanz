@@ -225,6 +225,10 @@ struct RepositoryHarness {
         SupplementRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }
 
+    var reminderRepository: ReminderRepository {
+        ReminderRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
+    }
+
     var goalsRepository: GoalsRepository {
         GoalsRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
     }
@@ -318,6 +322,28 @@ struct RepositoryHarness {
             "durationMinutes": durationMinutes,
             "quality": quality,
         ])
+    }
+
+    func reminder(
+        id: String,
+        kind: ReminderKind = .weight,
+        mealType: String? = nil,
+        time: String = "08:00",
+        weekdays: [Int] = Array(0 ... 6),
+        enabled: Bool = true
+    ) throws -> Reminder {
+        var dict: [String: Any] = [
+            "id": id,
+            "userId": "u1",
+            "kind": kind.rawValue,
+            "time": time,
+            "weekdays": weekdays,
+            "enabled": enabled,
+        ]
+        if let mealType {
+            dict["mealType"] = mealType
+        }
+        return try JSONPatch.decode(Reminder.self, from: dict)
     }
 
     func supplement(id: String, name: String, sortOrder: Int = 0) throws -> Supplement {

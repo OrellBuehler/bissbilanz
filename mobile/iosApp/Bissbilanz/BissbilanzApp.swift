@@ -46,6 +46,7 @@ struct BissbilanzApp: App {
     @State private var weightRepository: WeightRepository
     @State private var sleepRepository: SleepRepository
     @State private var supplementRepository: SupplementRepository
+    @State private var reminderRepository: ReminderRepository
     @State private var goalsRepository: GoalsRepository
     @State private var preferencesRepository: PreferencesRepository
     @State private var deepLinkRouter: DeepLinkRouter
@@ -128,11 +129,22 @@ struct BissbilanzApp: App {
             appMode: appMode,
             syncManager: sync
         ))
-        let entryRepo = EntryRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        // Constructed before the repositories below so they can hold a direct
+        // reference and cancel today's reminder on a log, the same way
+        // `SupplementRepository.logSupplement` calls `cancelToday` itself.
+        let reminderRepo = ReminderRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        _reminderRepository = State(wrappedValue: reminderRepo)
+        let entryRepo = EntryRepository(
+            context: context, api: api, appMode: appMode, syncManager: sync, reminderRepository: reminderRepo
+        )
         let foodRepo = FoodRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         let recipeRepo = RecipeRepository(context: context, api: api, appMode: appMode, syncManager: sync)
-        let weightRepo = WeightRepository(context: context, api: api, appMode: appMode, syncManager: sync)
-        let sleepRepo = SleepRepository(context: context, api: api, appMode: appMode, syncManager: sync)
+        let weightRepo = WeightRepository(
+            context: context, api: api, appMode: appMode, syncManager: sync, reminderRepository: reminderRepo
+        )
+        let sleepRepo = SleepRepository(
+            context: context, api: api, appMode: appMode, syncManager: sync, reminderRepository: reminderRepo
+        )
         _entryRepository = State(wrappedValue: entryRepo)
         _foodRepository = State(wrappedValue: foodRepo)
         _recipeRepository = State(wrappedValue: recipeRepo)
@@ -228,6 +240,7 @@ struct BissbilanzApp: App {
         // watch-state scans on the main context are the hang BISSBILANZ-39.
         PhoneWatchConnectivity.shared.onLogRequest = { request in
             let food = request.foodId.flatMap { foodRepo.food(id: $0) }
+            let recipe = request.recipeId.flatMap { recipeRepo.recipe(id: $0) }
             let create = EntryCreate(
                 foodId: request.foodId,
                 recipeId: request.recipeId,
@@ -241,7 +254,7 @@ struct BissbilanzApp: App {
                 quickFat: request.quickFat,
                 quickFiber: request.quickFiber
             )
-            _ = try await entryRepo.createEntry(create, food: food)
+            _ = try await entryRepo.createEntry(create, food: food, recipe: recipe)
             return await WidgetSnapshotWriter.build(container: container).snapshot
         }
         // Weight/sleep logs from the watch run through the same offline-first
@@ -299,6 +312,7 @@ struct BissbilanzApp: App {
             try? await weightRepo.refresh()
             try? await sleepRepo.refresh()
             try? await foodRepo.refreshFavorites()
+            try? await reminderRepo.refresh()
         }
 
         // A dropped createEntry named a foodId the server no longer has (see
@@ -323,17 +337,27 @@ struct BissbilanzApp: App {
             sleepRepository: sleepRepo,
             foodRepository: foodRepo,
             supplementRepository: supplementRepo,
+            reminderRepository: reminderRepo,
             aiTaskStore: aiTasks
         ))
 
-        // Supplement reminders. The category costs nothing and must be registered before
-        // any request is scheduled, so it happens regardless of authorization — the
-        // permission itself is only asked for when the user adds their first reminder
-        // time. The delegate is assigned here rather than later because an action tap
-        // that cold-launches the app is dropped if no delegate exists by the time launch
-        // finishes; `UNUserNotificationCenter.delegate` is weak, hence the singleton.
+        // Supplement and logging reminders. The categories cost nothing and must be
+        // registered before any request is scheduled, so it happens regardless of
+        // authorization — the permission itself is only asked for when the user adds
+        // their first reminder time. The delegate is assigned here rather than later
+        // because an action tap that cold-launches the app is dropped if no delegate
+        // exists by the time launch finishes; `UNUserNotificationCenter.delegate` is
+        // weak, hence the singleton.
         SupplementReminderScheduler.registerCategory()
-        SupplementNotificationDelegate.shared.configure(repository: supplementRepo, router: router)
+        ReminderScheduler.registerCategory()
+        SupplementNotificationDelegate.shared.configure(
+            repository: supplementRepo,
+            reminderRepository: reminderRepo,
+            weightRepository: weightRepo,
+            sleepRepository: sleepRepo,
+            entryRepository: entryRepo,
+            router: router
+        )
         UNUserNotificationCenter.current().delegate = SupplementNotificationDelegate.shared
     }
 
@@ -361,6 +385,7 @@ struct BissbilanzApp: App {
             .environment(weightRepository)
             .environment(sleepRepository)
             .environment(supplementRepository)
+            .environment(reminderRepository)
             .environment(goalsRepository)
             .environment(preferencesRepository)
             .environment(deepLinkRouter)
@@ -444,11 +469,20 @@ struct BissbilanzApp: App {
             LocalDedup.sweep(in: modelContainer.mainContext)
         }
         // Keep Spotlight in step with the searchable catalog so
-        // foods/recipes are findable before the next manual log.
+        // foods/recipes are findable before the next manual log. The whole
+        // local catalog is indexed — not just favorites/recents — so keyword
+        // and label search reach every food, but rebuilding it is real work
+        // (one attributeSet per row), so it's throttled to once every six
+        // hours; favorite recipes are cheap enough to redo on every
+        // activation.
+        let reindexFullCatalog = IntentDonations.catalogReindexDue()
         IntentDonations.indexCatalog(
-            foods: foodRepository.favorites() + foodRepository.localRecentFoods(),
+            foods: reindexFullCatalog ? foodRepository.allLocalFoods() : [],
             recipes: recipeRepository.favoriteRecipes()
         )
+        if reindexFullCatalog {
+            IntentDonations.markCatalogReindexed()
+        }
         // The same for the day summaries Siri answers questions from: the last
         // 90 days that have anything on them, in two fetches. Days written on
         // this device are indexed as they change (IntentDonations.dayChanged);
@@ -473,9 +507,22 @@ struct BissbilanzApp: App {
             sleepRepository: sleepRepository,
             entryRepository: entryRepository
         )
-        // Top up the rolling reminder window (iOS caps pending requests at 64)
-        // and re-resolve wall-clock times against the current timezone.
-        await SupplementReminderScheduler.refill(repository: supplementRepository)
+        // Pull the current reminders so the refill below sees edits made on
+        // another device, mirroring the supplement pull that already happens
+        // via HealthKitImporter/refresh above.
+        try? await reminderRepository.refresh()
+        // Top up the rolling reminder window (iOS caps pending requests at 64,
+        // shared between supplement and logging reminders) and re-resolve
+        // wall-clock times against the current timezone.
+        await SupplementReminderScheduler.refill(
+            supplementRepository: supplementRepository,
+            reminders: ReminderScheduler.SchedulingDependencies(
+                reminderRepository: reminderRepository,
+                weightRepository: weightRepository,
+                sleepRepository: sleepRepository,
+                entryRepository: entryRepository
+            )
+        )
         // A dismissal is the one AI task outcome the user has to hear about — the meal
         // never got logged. No push channel exists, so this and the background pull are
         // the only chances to tell them.

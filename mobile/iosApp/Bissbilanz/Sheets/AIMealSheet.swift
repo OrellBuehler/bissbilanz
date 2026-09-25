@@ -11,9 +11,9 @@ private let maxAiTaskPhotos = 5
 /// on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`),
 /// falling back to Apple's Private Cloud Compute (iOS 27+, see
 /// `MealEstimator.canEstimate`) when on-device is unavailable, refuses,
-/// overflows, or comes back weak. On-device photo estimation needs iOS 27+
-/// (see `MealEstimator.supportsPhotoInput`) and is what makes the photo picker
-/// useful in Local mode, which has no server to queue a task on. In Synced
+/// overflows, or comes back weak. Photo estimation needs iOS 27+ and takes the
+/// same route (see `MealEstimator.supportsPhotoInput`); it is what makes the
+/// photo picker useful in Local mode, which has no server to queue a task on. In Synced
 /// mode, queueing is a secondary action where estimation is available and the
 /// only action where it isn't — but only once an assistant is actually
 /// connected (`McpConnectionStatus`), since an `AiTask` otherwise has nothing
@@ -91,7 +91,7 @@ struct AIMealSheet: View {
                 }
 
                 // Shown in Synced mode regardless (for "send to assistant"), and in
-                // Local mode only when on-device photo estimation can use them —
+                // Local mode only when photo estimation can use them —
                 // Local mode has no server to queue a task on.
                 if !appMode.isLocal || mealEstimator.supportsPhotoInput {
                     Section(L10n.aiTaskPhotoSectionTitle) {
@@ -328,8 +328,9 @@ struct AIMealSheet: View {
     }
 
     /// Text is always usable; attached photos only count when this device can
-    /// actually estimate from them on-device (`AIMealReviewView` never sees
-    /// photos otherwise — there is no server-side estimation path).
+    /// actually estimate from them, on-device or via Private Cloud Compute
+    /// (`AIMealReviewView` never sees photos otherwise — there is no
+    /// Bissbilanz-server estimation path).
     private var canEstimate: Bool {
         let hasUsablePhotos = mealEstimator.supportsPhotoInput && !attachedImages.isEmpty
         return (!trimmedDescription.isEmpty || hasUsablePhotos) && !isEstimating && !isSendingToAssistant

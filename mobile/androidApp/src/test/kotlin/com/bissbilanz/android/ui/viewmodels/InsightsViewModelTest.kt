@@ -350,7 +350,7 @@ class InsightsViewModelTest {
             coVerify(exactly = 0) { statsRepo.getWeeklyStats() }
             coVerify(exactly = 0) { statsRepo.getMonthlyStats() }
             coVerify(exactly = 0) { statsRepo.getStreaks() }
-            coVerify(exactly = 0) { statsRepo.getTopFoods(any(), any()) }
+            coVerify(exactly = 0) { statsRepo.getTopFoods(any(), any(), any()) }
             coVerify(exactly = 0) { statsRepo.getMealBreakdown(any(), any()) }
             coVerify(atLeast = 1) { statsRepo.getDailyStats(any(), any()) }
             coVerify(atLeast = 1) { statsRepo.getCalendarStats(any()) }
@@ -406,7 +406,7 @@ class InsightsViewModelTest {
 
             coVerify(atLeast = 1) { statsRepo.getWeeklyStats() }
             coVerify(atLeast = 1) { statsRepo.getStreaks() }
-            coVerify(atLeast = 1) { statsRepo.getTopFoods(any(), any()) }
+            coVerify(atLeast = 1) { statsRepo.getTopFoods(any(), any(), any()) }
             coVerify(atLeast = 1) { statsRepo.getMealBreakdown(any(), any()) }
         }
 

@@ -153,6 +153,7 @@ describe('buildAccountExport (integration)', () => {
 			'csv/meal-types.csv',
 			'csv/recipe-ingredients.csv',
 			'csv/recipes.csv',
+			'csv/reminders.csv',
 			'csv/sleep.csv',
 			'csv/supplement-ingredients.csv',
 			'csv/supplements.csv',

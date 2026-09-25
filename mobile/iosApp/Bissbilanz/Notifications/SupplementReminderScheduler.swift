@@ -121,21 +121,53 @@ enum SupplementReminderScheduler {
 
     // MARK: - Refill
 
-    /// Rebuilds the rolling window from the current supplements.
+    /// One notification candidate considered during a combined refill pass —
+    /// shared between this scheduler and `ReminderScheduler`, whose own
+    /// content is looked up separately (see `refill` below) since
+    /// `UNMutableNotificationContent` isn't a great `Equatable`/test fixture.
+    struct ScheduledCandidate: Equatable {
+        let identifier: String
+        let date: Date
+    }
+
+    /// Merges `candidates`, sorts soonest-first and keeps the first `budget`.
+    /// Pure and side-effect free so the budget math is directly testable
+    /// without touching `UNUserNotificationCenter`.
+    static func trimmedCombined(_ candidates: [ScheduledCandidate], budget: Int) -> [ScheduledCandidate] {
+        Array(candidates.sorted { $0.date < $1.date }.prefix(budget))
+    }
+
+    /// Rebuilds the rolling window from the current supplements and, when
+    /// `reminders` is supplied, the current logging reminders too.
+    ///
+    /// iOS caps an app at 64 pending notification requests, so the two
+    /// schedulers share one budget: candidates from both are merged, sorted
+    /// soonest-first, and the first `slotBudget` are kept — spending the
+    /// shared slots on whichever kind fires next, not on a fixed split.
+    /// `reminders` defaults to nil for call sites that only want to re-arm
+    /// this supplement's own reminders (`SupplementRepository.unlogSupplement`);
+    /// in that case reminder-prefixed pending requests are left untouched
+    /// entirely, never swept as "stale" — this pass simply has no opinion on
+    /// them.
     ///
     /// Diffs against what is already pending rather than clearing and re-adding, so a
     /// refill neither churns the whole set nor leaves a moment with nothing scheduled.
     @MainActor
-    static func refill(repository: SupplementRepository, now: Date = Date()) async {
+    static func refill(
+        supplementRepository: SupplementRepository,
+        reminders: ReminderScheduler.SchedulingDependencies? = nil,
+        now: Date = Date()
+    ) async {
         let center = UNUserNotificationCenter.current()
         guard await authorizationStatus() == .authorized else { return }
 
         SupplementReminderSkips.prune(now: now)
 
-        let supplements = repository.supplements()
-        let loggedToday = repository.loggedSupplementIds(date: DateFormatting.today)
+        let supplements = supplementRepository.supplements()
+        let loggedToday = supplementRepository.loggedSupplementIds(date: DateFormatting.today)
         let todayKey = SupplementReminderDay.key(for: now)
-        var wanted: [(identifier: String, date: Date, supplement: Supplement)] = []
+        var candidates: [ScheduledCandidate] = []
+        var contentById: [String: UNMutableNotificationContent] = [:]
         for supplement in supplements where supplement.isActive {
             guard let times = supplement.reminderTimes, !times.isEmpty else { continue }
             for hhmm in times {
@@ -148,40 +180,49 @@ enum SupplementReminderScheduler {
                         if loggedToday.contains(supplement.id) { continue }
                         if SupplementReminderSkips.isSkipped(supplementId: supplement.id, on: now) { continue }
                     }
-                    wanted.append((
-                        identifier: identifier(supplementId: supplement.id, day: day, hhmm: hhmm),
-                        date: fireDate,
-                        supplement: supplement
-                    ))
+                    let id = identifier(supplementId: supplement.id, day: day, hhmm: hhmm)
+                    candidates.append(ScheduledCandidate(identifier: id, date: fireDate))
+                    contentById[id] = content(
+                        for: supplement, hhmm: time(from: id), date: DateFormatting.isoString(from: fireDate)
+                    )
                 }
             }
         }
 
-        // Soonest first, so the budget is spent on the reminders that fire next.
-        wanted.sort { $0.date < $1.date }
-        let keep = Array(wanted.prefix(slotBudget))
+        if let reminders {
+            for item in ReminderScheduler.wanted(dependencies: reminders, now: now) {
+                candidates.append(ScheduledCandidate(identifier: item.identifier, date: item.date))
+                contentById[item.identifier] = item.content
+            }
+        }
+
+        // Soonest first, so the shared budget is spent on whichever fires next.
+        let keep = trimmedCombined(candidates, budget: slotBudget)
         let keepIds = Set(keep.map(\.identifier))
 
         let pending = await pendingIdentifiers()
-        let stale = pending
+        let includeReminders = reminders != nil
+        let stale = pending.filter { id in
             // Snoozes are one-offs this pass knows nothing about; leave them alone.
-            .filter { $0.hasPrefix(identifierPrefix) && !$0.hasPrefix(snoozePrefix) && !keepIds.contains($0) }
+            let isSupplementManaged = id.hasPrefix(identifierPrefix) && !id.hasPrefix(snoozePrefix)
+            let isReminderManaged = includeReminders
+                && id.hasPrefix(ReminderScheduler.identifierPrefix)
+                && !id.hasPrefix(ReminderScheduler.snoozePrefix)
+            return (isSupplementManaged || isReminderManaged) && !keepIds.contains(id)
+        }
         if !stale.isEmpty {
             center.removePendingNotificationRequests(withIdentifiers: stale)
         }
 
         let pendingIds = Set(pending)
         for item in keep where !pendingIds.contains(item.identifier) {
+            guard let content = contentById[item.identifier] else { continue }
             let components = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute], from: item.date
             )
             let request = UNNotificationRequest(
                 identifier: item.identifier,
-                content: content(
-                    for: item.supplement,
-                    hhmm: time(from: item.identifier),
-                    date: DateFormatting.isoString(from: item.date)
-                ),
+                content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
             // The completion-handler form: `add(_:)`'s async form would send a

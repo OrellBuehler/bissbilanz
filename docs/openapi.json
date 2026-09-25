@@ -1356,6 +1356,177 @@
 				}
 			}
 		},
+		"/api/reminders": {
+			"get": {
+				"operationId": "listReminders",
+				"tags": ["Reminders"],
+				"description": "List logging reminders (weight, meal, sleep).",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RemindersListResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createReminder",
+				"tags": ["Reminders"],
+				"description": "Create a new logging reminder.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReminderCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/reminders/{id}": {
+			"get": {
+				"operationId": "getReminder",
+				"tags": ["Reminders"],
+				"description": "Get a single reminder by ID.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			},
+			"patch": {
+				"operationId": "updateReminder",
+				"tags": ["Reminders"],
+				"description": "Update a logging reminder.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ReminderUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReminderResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteReminder",
+				"tags": ["Reminders"],
+				"description": "Delete a logging reminder.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
 		"/api/weight": {
 			"get": {
 				"operationId": "listWeightEntries",
@@ -1846,7 +2017,7 @@
 			"get": {
 				"operationId": "getTopFoods",
 				"tags": ["Stats"],
-				"description": "Get most frequently logged foods.",
+				"description": "Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average.",
 				"parameters": [
 					{
 						"in": "query",
@@ -1864,6 +2035,14 @@
 							"type": "integer",
 							"minimum": -9007199254740991,
 							"maximum": 9007199254740991
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"type": "string",
+							"enum": ["count", "calories", "protein", "carbs", "fat", "fiber"]
 						}
 					}
 				],
@@ -6117,6 +6296,82 @@
 					}
 				}
 			},
+			"ReminderCreate": {
+				"type": "object",
+				"properties": {
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 50
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"time": {
+						"type": "string",
+						"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+					},
+					"weekdays": {
+						"maxItems": 7,
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 6
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					}
+				},
+				"required": ["kind", "time"]
+			},
+			"ReminderUpdate": {
+				"type": "object",
+				"properties": {
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 50
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"time": {
+						"type": "string",
+						"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+					},
+					"weekdays": {
+						"minItems": 1,
+						"maxItems": 7,
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 6
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					}
+				}
+			},
 			"WeightCreate": {
 				"type": "object",
 				"properties": {
@@ -7574,6 +7829,15 @@
 					},
 					"entryCount": {
 						"type": "number"
+					},
+					"ingredientCount": {
+						"type": "number"
+					},
+					"recipeCount": {
+						"type": "number"
+					},
+					"supplementIngredientCount": {
+						"type": "number"
 					}
 				},
 				"required": ["error"],
@@ -8162,6 +8426,9 @@
 						"items": {
 							"$ref": "#/components/schemas/RecipeIngredient"
 						}
+					},
+					"extendedNutrientsPerServing": {
+						"$ref": "#/components/schemas/RecipeExtendedNutrients"
 					}
 				},
 				"required": [
@@ -8212,6 +8479,186 @@
 					}
 				},
 				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
+				"additionalProperties": false
+			},
+			"RecipeExtendedNutrients": {
+				"type": "object",
+				"properties": {
+					"saturatedFat": {
+						"type": ["number", "null"]
+					},
+					"monounsaturatedFat": {
+						"type": ["number", "null"]
+					},
+					"polyunsaturatedFat": {
+						"type": ["number", "null"]
+					},
+					"transFat": {
+						"type": ["number", "null"]
+					},
+					"cholesterol": {
+						"type": ["number", "null"]
+					},
+					"omega3": {
+						"type": ["number", "null"]
+					},
+					"omega6": {
+						"type": ["number", "null"]
+					},
+					"sugar": {
+						"type": ["number", "null"]
+					},
+					"addedSugars": {
+						"type": ["number", "null"]
+					},
+					"sugarAlcohols": {
+						"type": ["number", "null"]
+					},
+					"starch": {
+						"type": ["number", "null"]
+					},
+					"sodium": {
+						"type": ["number", "null"]
+					},
+					"potassium": {
+						"type": ["number", "null"]
+					},
+					"calcium": {
+						"type": ["number", "null"]
+					},
+					"iron": {
+						"type": ["number", "null"]
+					},
+					"magnesium": {
+						"type": ["number", "null"]
+					},
+					"phosphorus": {
+						"type": ["number", "null"]
+					},
+					"zinc": {
+						"type": ["number", "null"]
+					},
+					"copper": {
+						"type": ["number", "null"]
+					},
+					"manganese": {
+						"type": ["number", "null"]
+					},
+					"selenium": {
+						"type": ["number", "null"]
+					},
+					"iodine": {
+						"type": ["number", "null"]
+					},
+					"fluoride": {
+						"type": ["number", "null"]
+					},
+					"chromium": {
+						"type": ["number", "null"]
+					},
+					"molybdenum": {
+						"type": ["number", "null"]
+					},
+					"chloride": {
+						"type": ["number", "null"]
+					},
+					"vitaminA": {
+						"type": ["number", "null"]
+					},
+					"vitaminC": {
+						"type": ["number", "null"]
+					},
+					"vitaminD": {
+						"type": ["number", "null"]
+					},
+					"vitaminE": {
+						"type": ["number", "null"]
+					},
+					"vitaminK": {
+						"type": ["number", "null"]
+					},
+					"vitaminB1": {
+						"type": ["number", "null"]
+					},
+					"vitaminB2": {
+						"type": ["number", "null"]
+					},
+					"vitaminB3": {
+						"type": ["number", "null"]
+					},
+					"vitaminB5": {
+						"type": ["number", "null"]
+					},
+					"vitaminB6": {
+						"type": ["number", "null"]
+					},
+					"vitaminB7": {
+						"type": ["number", "null"]
+					},
+					"vitaminB9": {
+						"type": ["number", "null"]
+					},
+					"vitaminB12": {
+						"type": ["number", "null"]
+					},
+					"caffeine": {
+						"type": ["number", "null"]
+					},
+					"alcohol": {
+						"type": ["number", "null"]
+					},
+					"water": {
+						"type": ["number", "null"]
+					},
+					"salt": {
+						"type": ["number", "null"]
+					}
+				},
+				"required": [
+					"saturatedFat",
+					"monounsaturatedFat",
+					"polyunsaturatedFat",
+					"transFat",
+					"cholesterol",
+					"omega3",
+					"omega6",
+					"sugar",
+					"addedSugars",
+					"sugarAlcohols",
+					"starch",
+					"sodium",
+					"potassium",
+					"calcium",
+					"iron",
+					"magnesium",
+					"phosphorus",
+					"zinc",
+					"copper",
+					"manganese",
+					"selenium",
+					"iodine",
+					"fluoride",
+					"chromium",
+					"molybdenum",
+					"chloride",
+					"vitaminA",
+					"vitaminC",
+					"vitaminD",
+					"vitaminE",
+					"vitaminK",
+					"vitaminB1",
+					"vitaminB2",
+					"vitaminB3",
+					"vitaminB5",
+					"vitaminB6",
+					"vitaminB7",
+					"vitaminB9",
+					"vitaminB12",
+					"caffeine",
+					"alcohol",
+					"water",
+					"salt"
+				],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {
@@ -8526,6 +8973,73 @@
 					}
 				},
 				"required": ["supplementId", "date", "takenAt", "entryIds"],
+				"additionalProperties": false
+			},
+			"RemindersListResponse": {
+				"type": "object",
+				"properties": {
+					"reminders": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Reminder"
+						}
+					}
+				},
+				"required": ["reminders"],
+				"additionalProperties": false
+			},
+			"Reminder": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"kind": {
+						"type": "string",
+						"enum": ["weight", "meal", "sleep"]
+					},
+					"mealType": {
+						"type": ["string", "null"]
+					},
+					"time": {
+						"type": "string"
+					},
+					"weekdays": {
+						"type": "array",
+						"items": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					},
+					"enabled": {
+						"type": "boolean"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "userId", "kind", "mealType", "time", "weekdays", "enabled"],
+				"additionalProperties": false
+			},
+			"ReminderResponse": {
+				"type": "object",
+				"properties": {
+					"reminder": {
+						"$ref": "#/components/schemas/Reminder"
+					}
+				},
+				"required": ["reminder"],
 				"additionalProperties": false
 			},
 			"WeightEntriesResponse": {
