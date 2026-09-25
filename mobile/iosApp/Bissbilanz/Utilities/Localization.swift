@@ -814,6 +814,58 @@ enum L10n {
         localized("total_servings", en: "Total Servings", de: "Gesamtportionen")
     }
 
+    static var cookedWeight: String {
+        localized("cooked_weight", en: "Cooked Weight (g)", de: "Fertiggewicht (g)")
+    }
+
+    static var cookedWeightHint: String {
+        localized(
+            "cooked_weight_hint",
+            en: "Weigh the finished dish to log by grams",
+            de: "Wiege das fertige Gericht, um in Gramm zu protokollieren"
+        )
+    }
+
+    static func cookedWeightPer100g(_ kcal: Int) -> String {
+        localized("cooked_weight_per_100g", en: "~\(kcal) kcal per 100 g", de: "~\(kcal) kcal pro 100 g")
+    }
+
+    static func recipeCookedWeightSummary(grams: Int, kcalPer100g: Int) -> String {
+        localized(
+            "recipe_cooked_weight_summary",
+            en: "\(grams) g cooked \u{00B7} ~\(kcalPer100g) kcal/100g",
+            de: "\(grams) g gegart \u{00B7} ~\(kcalPer100g) kcal/100g"
+        )
+    }
+
+    static func recipeCookedWeightSummaryNoCalories(grams: Int) -> String {
+        localized("recipe_cooked_weight_summary_no_calories", en: "\(grams) g cooked", de: "\(grams) g gegart")
+    }
+
+    static var duplicateRecipe: String {
+        localized("duplicate_recipe", en: "Duplicate Recipe", de: "Rezept duplizieren")
+    }
+
+    static func recipeCopyName(_ name: String) -> String {
+        localized("recipe_copy_name", en: "\(name) (copy)", de: "\(name) (Kopie)")
+    }
+
+    static var duplicateRecipeFailed: String {
+        localized("duplicate_recipe_failed", en: "Failed to duplicate recipe", de: "Rezept konnte nicht dupliziert werden")
+    }
+
+    static var logByWeight: String {
+        localized("log_by_weight", en: "Grams", de: "Gramm")
+    }
+
+    static var logByServings: String {
+        localized("log_by_servings", en: "Servings", de: "Portionen")
+    }
+
+    static var gramsEaten: String {
+        localized("grams_eaten", en: "Grams eaten", de: "Gegessene Gramm")
+    }
+
     static var perServing: String {
         localized("per_serving", en: "Per Serving", de: "Pro Portion")
     }

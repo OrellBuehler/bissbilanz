@@ -15,6 +15,8 @@ struct RecipeDetailView: View {
     @State private var showLogSheet = false
     @State private var errorMessage: String?
     @State private var deleteConflict: DeleteConflict?
+    @State private var duplicatedRecipe: Recipe?
+    @State private var isDuplicating = false
     // The server's recipe response has no embedded `food` on ingredients — resolved
     // separately (cache first, then API) so the list shows real names instead of
     // the raw food id.
@@ -56,6 +58,13 @@ struct RecipeDetailView: View {
                             Label(L10n.edit, systemImage: "pencil")
                         }
 
+                        Button {
+                            Task { await duplicateRecipe() }
+                        } label: {
+                            Label(L10n.duplicateRecipe, systemImage: "doc.on.doc")
+                        }
+                        .disabled(isDuplicating)
+
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
                         } label: {
@@ -80,6 +89,9 @@ struct RecipeDetailView: View {
                     showLogSheet = false
                 }
             }
+        }
+        .sheet(item: $duplicatedRecipe) { copy in
+            RecipeEditSheet(recipe: copy) { _ in }
         }
         .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button(L10n.delete, role: .destructive) {
@@ -133,6 +145,19 @@ struct RecipeDetailView: View {
                         Spacer()
                         Image(systemName: "star.fill")
                             .foregroundStyle(.yellow)
+                    }
+                }
+                if let cookedWeight = recipe.cookedWeight {
+                    HStack {
+                        Text(L10n.cookedWeight)
+                        Spacer()
+                        if let perHundredG = recipe.caloriesPerHundredGrams {
+                            Text(L10n.recipeCookedWeightSummary(grams: Int(cookedWeight), kcalPer100g: Int(perHundredG)))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(L10n.recipeCookedWeightSummaryNoCalories(grams: Int(cookedWeight)))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -256,6 +281,24 @@ struct RecipeDetailView: View {
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Copies the recipe under a new name and opens the copy in the editor —
+    /// see `RecipeRepository.duplicateRecipe` for why the image is never copied.
+    private func duplicateRecipe() async {
+        guard let recipe, !isDuplicating else { return }
+        isDuplicating = true
+        defer { isDuplicating = false }
+        do {
+            duplicatedRecipe = try await recipeRepository.duplicateRecipe(
+                id: recipe.id,
+                name: L10n.recipeCopyName(recipe.name)
+            )
+        } catch {
+            if error is CancellationError { return }
+            ErrorReporter.captureWarning("Recipe duplicate failed", context: ["reason": ErrorReporter.reason(for: error)])
+            errorMessage = L10n.duplicateRecipeFailed
         }
     }
 }

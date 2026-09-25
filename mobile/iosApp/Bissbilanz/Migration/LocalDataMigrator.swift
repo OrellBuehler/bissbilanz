@@ -341,7 +341,8 @@ final class LocalDataMigrator {
                     .map { RecipeIngredientInput(foodId: $0.foodId, quantity: $0.quantity, servingUnit: $0.servingUnit)
                     },
                 isFavorite: recipe.isFavorite,
-                imageUrl: await uploadableImageUrl(recipe.imageUrl)
+                imageUrl: await uploadableImageUrl(recipe.imageUrl),
+                cookedWeight: recipe.cookedWeight
             )
             let server = try await api.createRecipe(
                 create,

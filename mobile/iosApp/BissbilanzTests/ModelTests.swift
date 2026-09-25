@@ -569,6 +569,7 @@ struct RecipeModelTests {
             carbs: 10,
             fat: 3,
             fiber: 2,
+            cookedWeight: nil,
             createdAt: nil,
             updatedAt: nil,
             ingredients: nil
@@ -585,6 +586,7 @@ struct RecipeModelTests {
             carbs: 20,
             fat: 6,
             fiber: 4,
+            cookedWeight: nil,
             createdAt: nil,
             updatedAt: nil,
             ingredients: nil
@@ -601,6 +603,7 @@ struct RecipeModelTests {
             carbs: 10,
             fat: 3,
             fiber: 2,
+            cookedWeight: nil,
             createdAt: nil,
             updatedAt: nil,
             ingredients: nil
@@ -624,6 +627,7 @@ struct RecipeModelTests {
             carbs: nil,
             fat: nil,
             fiber: nil,
+            cookedWeight: nil,
             createdAt: nil,
             updatedAt: nil,
             ingredients: nil
@@ -640,6 +644,7 @@ struct RecipeModelTests {
             carbs: nil,
             fat: nil,
             fiber: nil,
+            cookedWeight: nil,
             createdAt: nil,
             updatedAt: nil,
             ingredients: nil
@@ -649,6 +654,51 @@ struct RecipeModelTests {
         set.insert(r1)
         set.insert(r2)
         #expect(set.count == 1)
+    }
+
+    private static func recipe(
+        totalServings: Double,
+        calories: Double? = nil,
+        cookedWeight: Double? = nil
+    ) -> Recipe {
+        Recipe(
+            id: "r1",
+            userId: "u1",
+            name: "Stew",
+            totalServings: totalServings,
+            isFavorite: false,
+            imageUrl: nil,
+            calories: calories,
+            protein: nil,
+            carbs: nil,
+            fat: nil,
+            fiber: nil,
+            cookedWeight: cookedWeight,
+            createdAt: nil,
+            updatedAt: nil,
+            ingredients: nil
+        )
+    }
+
+    @Test("cookedWeightServingSize divides cooked weight by total servings")
+    func cookedWeightServingSizeDivides() {
+        let recipe = Self.recipe(totalServings: 4, cookedWeight: 800)
+        #expect(recipe.cookedWeightServingSize == 200)
+    }
+
+    @Test("cookedWeightServingSize is nil without a cooked weight")
+    func cookedWeightServingSizeNilWithoutCookedWeight() {
+        let recipe = Self.recipe(totalServings: 4)
+        #expect(recipe.cookedWeightServingSize == nil)
+    }
+
+    @Test("caloriesPerHundredGrams scales whole-recipe calories down to a per-100g rate")
+    func caloriesPerHundredGramsScales() {
+        let recipe = Self.recipe(totalServings: 4, calories: 1600, cookedWeight: 800)
+        #expect(recipe.caloriesPerHundredGrams == 200)
+
+        let withoutCookedWeight = Self.recipe(totalServings: 4, calories: 1600)
+        #expect(withoutCookedWeight.caloriesPerHundredGrams == nil)
     }
 }
 

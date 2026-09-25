@@ -27,6 +27,7 @@ struct RecipeListView: View {
     @State private var sortBy: RecipeSort = .name
     @State private var showCreateSheet = false
     @State private var loggingRecipe: Recipe?
+    @State private var duplicatedRecipe: Recipe?
     @State private var errorMessage: String?
     @State private var deleteConflict: (recipe: Recipe, conflict: DeleteConflict)?
 
@@ -81,6 +82,12 @@ struct RecipeListView: View {
                             } label: {
                                 Label(L10n.delete, systemImage: "trash")
                             }
+                            Button {
+                                Task { await duplicateRecipe(recipe) }
+                            } label: {
+                                Label(L10n.duplicateRecipe, systemImage: "doc.on.doc")
+                            }
+                            .tint(.blue)
                         }
                         .swipeActions(edge: .leading) {
                             Button {
@@ -124,6 +131,11 @@ struct RecipeListView: View {
             .sheet(item: $loggingRecipe) { recipe in
                 LogRecipeSheet(recipe: recipe) {
                     loggingRecipe = nil
+                }
+            }
+            .sheet(item: $duplicatedRecipe) { copy in
+                RecipeEditSheet(recipe: copy) { _ in
+                    Task { await loadRecipes() }
                 }
             }
             .refreshable { await loadRecipes() }
@@ -223,6 +235,20 @@ struct RecipeListView: View {
         recipes = recipeRepository.recipes()
     }
 
+    /// Copies the recipe under a new name and opens the copy in the editor —
+    /// see `RecipeRepository.duplicateRecipe` for why the image is never copied.
+    private func duplicateRecipe(_ recipe: Recipe) async {
+        do {
+            duplicatedRecipe = try await recipeRepository.duplicateRecipe(
+                id: recipe.id,
+                name: L10n.recipeCopyName(recipe.name)
+            )
+        } catch {
+            ErrorReporter.captureWarning("Recipe duplicate failed", context: ["reason": ErrorReporter.reason(for: error)])
+            errorMessage = L10n.duplicateRecipeFailed
+        }
+    }
+
     private func loadRecipes() async {
         recipes = recipeRepository.recipes()
         isLoading = recipes.isEmpty
@@ -247,12 +273,18 @@ struct LogRecipeSheet: View {
     let onLogged: () -> Void
 
     @State private var servings: String
+    @State private var gramsText: String
+    @State private var logByWeight = false
     @State private var mealType: String
     @State private var date = Date()
     @State private var isSaving = false
     @State private var errorMessage: String?
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
+
+    /// Grams per serving implied by the recipe's cooked weight, if any — offers
+    /// "log by grams" as an alternative to servings.
+    private var gramsPerServing: Double? { recipe.cookedWeightServingSize }
 
     /// `initialServings`/`initialMealType` let a suggestion (recipe suggestions
     /// screen/card) prefill the form with its scaled portion and time-of-day
@@ -265,8 +297,20 @@ struct LogRecipeSheet: View {
     ) {
         self.recipe = recipe
         self.onLogged = onLogged
-        _servings = State(initialValue: initialServings.map(MacroFormat.servings) ?? "1")
+        let servingsValue = initialServings ?? 1
+        _servings = State(initialValue: MacroFormat.servings(servingsValue))
+        _gramsText = State(
+            initialValue: recipe.cookedWeightServingSize.map { MacroFormat.servings($0 * servingsValue) } ?? ""
+        )
         _mealType = State(initialValue: initialMealType ?? "Lunch")
+    }
+
+    /// Servings to log, resolved from whichever field is active.
+    private var resolvedServings: Double {
+        guard logByWeight, let gramsPerServing, gramsPerServing > 0 else {
+            return Double.parseUserInput(servings) ?? 1
+        }
+        return (Double.parseUserInput(gramsText) ?? 0) / gramsPerServing
     }
 
     var body: some View {
@@ -321,13 +365,32 @@ struct LogRecipeSheet: View {
                 }
 
                 Section {
-                    HStack {
-                        Text(L10n.servings)
-                        Spacer()
-                        TextField("1", text: $servings)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 60)
+                    if gramsPerServing != nil {
+                        Picker("", selection: $logByWeight) {
+                            Text(L10n.logByServings).tag(false)
+                            Text(L10n.logByWeight).tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    if logByWeight, gramsPerServing != nil {
+                        HStack {
+                            Text(L10n.gramsEaten)
+                            Spacer()
+                            TextField("0", text: $gramsText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
+                    } else {
+                        HStack {
+                            Text(L10n.servings)
+                            Spacer()
+                            TextField("1", text: $servings)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                        }
                     }
 
                     Picker(L10n.meal, selection: $mealType) {
@@ -370,7 +433,7 @@ struct LogRecipeSheet: View {
         let entry = EntryCreate(
             recipeId: recipe.id,
             mealType: mealType,
-            servings: Double.parseUserInput(servings) ?? 1,
+            servings: resolvedServings,
             date: DateFormatting.isoString(from: date)
         )
         do {
