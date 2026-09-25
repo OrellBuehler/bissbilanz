@@ -4569,6 +4569,10 @@ enum L10n {
         localized("a11y_ai_meal_include_item", en: "Include \(name)", de: "\(name) einschließen")
     }
 
+    static var amount: String {
+        localized("a11y_amount", en: "Amount", de: "Menge")
+    }
+
     static var macroSourcesHint: String {
         localized(
             "a11y_macro_sources_hint",

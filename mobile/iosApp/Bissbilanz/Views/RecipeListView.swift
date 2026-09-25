@@ -411,6 +411,7 @@ struct LogRecipeSheet: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 60)
+                                .accessibilityLabel(L10n.gramsEaten)
                         }
                     } else {
                         HStack {
@@ -420,6 +421,7 @@ struct LogRecipeSheet: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 60)
+                                .accessibilityLabel(L10n.servings)
                         }
                     }
 

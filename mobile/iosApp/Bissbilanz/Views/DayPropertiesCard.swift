@@ -167,6 +167,7 @@ struct DayPropertiesCard: View {
                     .frame(minWidth: 68)
                     .focused($focusedField, equals: .activity)
                     .onSubmit(commitActivity)
+                    .accessibilityLabel(L10n.dayActivityTitle)
                 Text(L10n.insightsKcalUnit)
                     .font(.caption)
                     .foregroundStyle(.secondary)

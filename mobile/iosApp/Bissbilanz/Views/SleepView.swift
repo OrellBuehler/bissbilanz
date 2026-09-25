@@ -577,6 +577,7 @@ struct AddSleepSheet: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 80)
+                            .accessibilityLabel(L10n.wakeUps)
                     }
                     TextField(L10n.notes, text: $notes)
                 }

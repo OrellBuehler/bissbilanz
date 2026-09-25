@@ -50,6 +50,7 @@ struct RecipeEditSheet: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
+                            .accessibilityLabel(L10n.totalServings)
                     }
                     Toggle(L10n.favorites, isOn: $isFavorite)
                 }
@@ -62,6 +63,7 @@ struct RecipeEditSheet: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 60)
+                            .accessibilityLabel(L10n.cookedWeight)
                     }
                 } footer: {
                     Text(cookedWeightFooter)
@@ -77,6 +79,7 @@ struct RecipeEditSheet: View {
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 60)
+                                .accessibilityLabel(L10n.amount)
                             // Only units compatible with the ingredient's food (mass with
                             // mass, volume with volume) — a mismatch has no conversion.
                             Picker("", selection: $ingredient.unit) {
@@ -86,6 +89,7 @@ struct RecipeEditSheet: View {
                                 }
                             }
                             .frame(width: 60)
+                            .accessibilityLabel(L10n.unit)
                         }
                     }
                     .onDelete { indices in
