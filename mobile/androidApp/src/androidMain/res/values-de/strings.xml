@@ -207,6 +207,8 @@
     <string name="ai_tasks_empty_dismissed">Nichts verworfen</string>
     <string name="ai_tasks_photo_only">Nur Foto, keine Beschreibung</string>
     <string name="ai_tasks_photos_only">%1$d Fotos, keine Beschreibung</string>
+    <string name="ai_tasks_photo_index">Foto %1$d von %2$d</string>
+    <string name="ai_tasks_photo_viewer_close">Fotoansicht schließen</string>
     <string name="ai_tasks_agent_comment">Von deinem Assistenten</string>
     <string name="ai_tasks_unread">Neu</string>
     <string name="ai_tasks_delete">Aufgabe löschen</string>

@@ -209,6 +209,8 @@
     <string name="ai_tasks_empty_dismissed">Nothing dismissed</string>
     <string name="ai_tasks_photo_only">Photo only, no description</string>
     <string name="ai_tasks_photos_only">%1$d photos, no description</string>
+    <string name="ai_tasks_photo_index">Photo %1$d of %2$d</string>
+    <string name="ai_tasks_photo_viewer_close">Close photo viewer</string>
     <string name="ai_tasks_agent_comment">From your assistant</string>
     <string name="ai_tasks_unread">New</string>
     <string name="ai_tasks_delete">Delete task</string>

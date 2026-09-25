@@ -5,8 +5,10 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +35,9 @@ import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskUploadStatus
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
+import com.bissbilanz.android.ui.components.AiTaskImageViewer
 import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
@@ -41,9 +45,7 @@ import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.api.generated.model.AiTask
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.qualifier.named
 import java.io.File
 import kotlin.time.Instant
 
@@ -51,7 +53,6 @@ import kotlin.time.Instant
 @Composable
 fun AiTasksScreen(navController: NavController) {
     val viewModel: AiTasksViewModel = koinViewModel()
-    val baseUrl: String = koinInject(named("baseUrl"))
     val context = LocalContext.current
     val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle(emptyList())
     val queuedUploads by viewModel.queuedUploads.collectAsStateWithLifecycle()
@@ -162,7 +163,6 @@ fun AiTasksScreen(navController: NavController) {
                             items(tasks, key = { it.id }) { task ->
                                 AiTaskListItem(
                                     task = task,
-                                    baseUrl = baseUrl,
                                     onDelete = { taskToDelete = task },
                                     modifier = Modifier.animateItem(),
                                 )
@@ -263,11 +263,12 @@ private fun QueuedUploadCard(
 @Composable
 private fun AiTaskListItem(
     task: AiTask,
-    baseUrl: String,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isUnread = task.status == AiTask.Status.dismissed && task.acknowledgedAt == null
+    var galleryIndex by remember(task.id) { mutableStateOf<Int?>(null) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors =
@@ -278,23 +279,32 @@ private fun AiTaskListItem(
             },
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                task.photoUrls.firstOrNull()?.let { url ->
-                    Box {
-                        AsyncImage(
-                            model = if (url.startsWith("/")) "$baseUrl$url" else url,
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+            // Every photo of the meal, in a row — not just the first with a "+N"
+            // badge — so the user can check any of them against what the
+            // assistant read without leaving the list. Tapping one opens it
+            // full screen.
+            if (task.photoUrls.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    items(task.photoUrls.size) { index ->
+                        FoodImage(
+                            imageUrl = task.photoUrls[index],
+                            contentDescription =
+                                stringResource(R.string.ai_tasks_photo_index, index + 1, task.photoUrls.size),
+                            modifier =
+                                Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { galleryIndex = index },
                             contentScale = ContentScale.Crop,
                         )
-                        if (task.photoUrls.size > 1) {
-                            Badge(
-                                modifier = Modifier.align(Alignment.BottomEnd),
-                            ) { Text("+${task.photoUrls.size - 1}") }
-                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
                 }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         buildString {
@@ -307,16 +317,18 @@ private fun AiTaskListItem(
                     )
                     val description = task.description
                     if (description.isNullOrBlank()) {
-                        Text(
-                            if (task.photoUrls.size > 1) {
-                                stringResource(R.string.ai_tasks_photos_only, task.photoUrls.size)
-                            } else {
-                                stringResource(R.string.ai_tasks_photo_only)
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        if (task.photoUrls.isNotEmpty()) {
+                            Text(
+                                if (task.photoUrls.size > 1) {
+                                    stringResource(R.string.ai_tasks_photos_only, task.photoUrls.size)
+                                } else {
+                                    stringResource(R.string.ai_tasks_photo_only)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontStyle = FontStyle.Italic,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     } else {
                         Text(description, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -357,6 +369,14 @@ private fun AiTaskListItem(
                 }
             }
         }
+    }
+
+    galleryIndex?.let { index ->
+        AiTaskImageViewer(
+            imageUrls = task.photoUrls,
+            initialIndex = index,
+            onDismiss = { galleryIndex = null },
+        )
     }
 }
 
