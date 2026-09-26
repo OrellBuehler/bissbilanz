@@ -14,13 +14,16 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
+	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
 	import { removeImage, uploadImage } from '$lib/utils/image-upload';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import { browser } from '$app/environment';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import type { components } from '$lib/api/generated/schema';
 
 	const VALID_GRADES = ['a', 'b', 'c', 'd', 'e'] as const;
 	type Grade = (typeof VALID_GRADES)[number];
@@ -53,6 +56,18 @@
 	const foodId = $derived($page.params.id!);
 	const foodQuery = useLiveQuery(() => foodService.foodById(foodId));
 	const food = $derived(foodQuery.value);
+
+	type Food = components['schemas']['Food'];
+	let mergeOpen = $state(false);
+	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
+	const allFoods = $derived((allFoodsQuery.value as unknown as Food[]) ?? []);
+
+	const onMergeCompleted = () => {
+		// This food is the merge source, so it no longer exists — leave the page.
+		// Refresh before navigating so the foods list doesn't show a stale row.
+		foodService.refresh();
+		goto('/foods');
+	};
 
 	$effect(() => {
 		if (browser) {
@@ -190,21 +205,33 @@
 			<ArrowLeft class="size-4 sm:mr-1" />
 			<span class="hidden sm:inline">{m.back_to_foods()}</span>
 		</Button>
-		{#if food?.barcode}
-			<Button
-				variant="outline"
-				size="sm"
-				class="ml-auto"
-				onclick={enrichFood}
-				disabled={enriching}
-				aria-label={m.quality_enrich()}
-			>
-				<Sparkles class="size-4 sm:mr-1" />
-				<span class="hidden sm:inline"
-					>{enriching ? m.quality_enriching() : m.quality_enrich()}</span
+		<div class="ml-auto flex items-center gap-2">
+			{#if food?.barcode}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={enrichFood}
+					disabled={enriching}
+					aria-label={m.quality_enrich()}
 				>
-			</Button>
-		{/if}
+					<Sparkles class="size-4 sm:mr-1" />
+					<span class="hidden sm:inline"
+						>{enriching ? m.quality_enriching() : m.quality_enrich()}</span
+					>
+				</Button>
+			{/if}
+			{#if food}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => (mergeOpen = true)}
+					aria-label={m.foods_merge()}
+				>
+					<GitMerge class="size-4 sm:mr-1" />
+					<span class="hidden sm:inline">{m.foods_merge()}</span>
+				</Button>
+			{/if}
+		</div>
 	</div>
 
 	{#if !food && !initialized}
@@ -283,3 +310,13 @@
 		</Button>
 	{/if}
 </div>
+
+{#if food}
+	<MergeFoodDialog
+		bind:open={mergeOpen}
+		candidates={[food as unknown as Food]}
+		{allFoods}
+		onClose={() => (mergeOpen = false)}
+		onCompleted={onMergeCompleted}
+	/>
+{/if}

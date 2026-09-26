@@ -4,6 +4,8 @@ export const toolNames = [
 	'update_food',
 	'delete_food',
 	'list_recent_foods',
+	'merge_foods',
+	'find_duplicate_foods',
 	'create_recipe',
 	'update_recipe',
 	'delete_recipe',

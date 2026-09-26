@@ -1149,6 +1149,7 @@
 	"foods_duplicates_empty": "Keine Duplikate gefunden. Alles aufgeräumt.",
 	"foods_duplicates_reason_barcode": "Gleicher Barcode",
 	"foods_duplicates_reason_name_brand": "Gleicher Name und Marke",
+	"foods_duplicates_reason_similar": "Ähnlicher Name und Nährwerte",
 	"foods_duplicates_back": "Zurück zu Lebensmitteln",
 	"foods_duplicates_resolve": "Zusammenführen",
 	"foods_recent_link": "Zuletzt erfasst",

@@ -221,6 +221,27 @@ final class BissbilanzAPI {
         return response.food
     }
 
+    /// Server-computed candidate groups for foods that may be the same
+    /// product — see `FoodDuplicateGroup`. No params: it scans the whole
+    /// personal food database.
+    func getFoodDuplicates() async throws -> [FoodDuplicateGroup] {
+        let response: FoodDuplicatesResponse = try await get("/api/foods/duplicates")
+        return response.groups
+    }
+
+    /// Merges `sourceIds` into `keeperId`: every food_entries/recipe_ingredients/
+    /// supplement_ingredients row referencing a source is re-pointed to the
+    /// keeper (servings rescaled so historical macros stay invariant), food
+    /// labels are unioned onto the keeper, and the source food rows are
+    /// permanently deleted. Fields the keeper is missing are auto-filled from
+    /// the sources. Returns the merged keeper (the full `Food` shape).
+    func mergeFoods(keeperId: String, sourceIds: [String]) async throws -> Food {
+        let response: FoodResponse = try await post(
+            "/api/foods/merge", body: FoodMergeRequest(keeperId: keeperId, sourceIds: sourceIds)
+        )
+        return response.food
+    }
+
     // MARK: - Entries
 
     func getEntries(date: String) async throws -> [Entry] {
@@ -831,14 +852,6 @@ final class BissbilanzAPI {
     }
 
     // MARK: - AI Tasks
-
-    /// Resolves a server-relative upload path (`/uploads/...`) against the API host.
-    /// The photo endpoint is session-authenticated, so `AsyncImage` can load it directly.
-    nonisolated static func absoluteURL(for path: String) -> URL? {
-        guard path.hasPrefix("/") else { return URL(string: path) }
-        return URL(string: "\(defaultBaseURL)\(path)")
-    }
-
 
     func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
         for attempt in 0 ... 3 {

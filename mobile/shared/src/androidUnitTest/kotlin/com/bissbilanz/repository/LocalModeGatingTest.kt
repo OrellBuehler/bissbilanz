@@ -7,6 +7,7 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
+import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
@@ -24,6 +25,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -60,6 +62,7 @@ class LocalModeGatingTest {
                 NoopErrorReporter(),
                 localMode,
                 openFoodFactsClient,
+                mockk<ConnectivityProvider>(relaxed = true),
                 Dispatchers.Unconfined,
             )
     }
@@ -89,6 +92,24 @@ class LocalModeGatingTest {
             foodRepository.refreshFoods()
             foodRepository.refreshFavorites()
             foodRepository.refreshRecentFoods()
+        }
+
+    @Test
+    fun mergeFoodsThrowsInLocalModeWithoutTouchingApi() =
+        runTest {
+            // Strict api mock: a call to POST /api/foods/merge would throw.
+            assertFailsWith<FoodMergeUnavailableException> {
+                foodRepository.mergeFoods(keeperId = "keeper", sourceIds = listOf("source"))
+            }
+        }
+
+    @Test
+    fun fetchDuplicateGroupsThrowsInLocalModeWithoutTouchingApi() =
+        runTest {
+            // Strict api mock: a call to GET /api/foods/duplicates would throw.
+            assertFailsWith<FoodMergeUnavailableException> {
+                foodRepository.fetchDuplicateGroups()
+            }
         }
 
     @Test

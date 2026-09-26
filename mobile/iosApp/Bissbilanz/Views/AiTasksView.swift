@@ -192,6 +192,9 @@ private struct PendingUploadRow: View {
 private struct AiTaskRow: View {
     let task: AiTask
 
+    @State private var galleryIndex = 0
+    @State private var showGallery = false
+
     /// "2026-09-05 · 12:30 · Lunch", dropping whichever parts the task lacks.
     private var taskSubtitle: String {
         let time = task.eatenAt
@@ -202,59 +205,35 @@ private struct AiTaskRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                if let photoUrl = task.photoUrls.first {
-                    ZStack(alignment: .bottomTrailing) {
-                        AsyncImage(url: BissbilanzAPI.absoluteURL(for: photoUrl)) { image in
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Color.secondary.opacity(0.15)
-                        }
-                        .frame(width: 56, height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+            if !task.photoUrls.isEmpty {
+                photoStrip
+            }
 
-                        if task.photoUrls.count > 1 {
-                            Text("+\(task.photoUrls.count - 1)")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 4))
-                                .padding(3)
-                        }
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(
-                        task.photoUrls.count > 1 ? L10n.aiTasksPhotosOnly(task.photoUrls.count) : L10n.aiTasksPhotoOnly
-                    )
+            HStack(spacing: 6) {
+                Text(taskSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if task.isUnreadDismissal {
+                    Text(L10n.aiTasksUnread)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.15))
+                        .clipShape(Capsule())
                 }
+            }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(taskSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if task.isUnreadDismissal {
-                            Text(L10n.aiTasksUnread)
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.accentColor.opacity(0.15))
-                                .clipShape(Capsule())
-                        }
-                    }
-                    if let description = task.description, !description.isEmpty {
-                        Text(description).font(.body)
-                    } else {
-                        Text(
-                            task.photoUrls.count > 1
-                                ? L10n.aiTasksPhotosOnly(task.photoUrls.count)
-                                : L10n.aiTasksPhotoOnly
-                        )
-                        .font(.body)
-                        .italic()
-                        .foregroundStyle(.secondary)
-                    }
-                }
+            if let description = task.description, !description.isEmpty {
+                Text(description).font(.body)
+            } else if !task.photoUrls.isEmpty {
+                Text(
+                    task.photoUrls.count > 1
+                        ? L10n.aiTasksPhotosOnly(task.photoUrls.count)
+                        : L10n.aiTasksPhotoOnly
+                )
+                .font(.body)
+                .italic()
+                .foregroundStyle(.secondary)
             }
 
             // The assistant's own words. On a dismissal this is the whole point of the
@@ -274,5 +253,32 @@ private struct AiTaskRow: View {
             }
         }
         .padding(.vertical, 4)
+        .fullScreenCover(isPresented: $showGallery) {
+            AiTaskImageViewer(imageUrls: task.photoUrls, initialIndex: galleryIndex) {
+                showGallery = false
+            }
+        }
+    }
+
+    /// Every photo of the meal, in a row — not just the first with a "+N"
+    /// badge — so the user can check any of them against what the assistant
+    /// read without leaving the list. Tapping one opens it full screen.
+    private var photoStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(task.photoUrls.enumerated()), id: \.offset) { index, url in
+                    Button {
+                        galleryIndex = index
+                        showGallery = true
+                    } label: {
+                        FoodImageView(imageUrl: url)
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.aiTasksPhotoIndex(index + 1, task.photoUrls.count))
+                }
+            }
+        }
     }
 }

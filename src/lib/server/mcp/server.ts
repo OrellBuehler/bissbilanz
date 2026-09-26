@@ -20,6 +20,8 @@ import {
 	handleUpdateFood,
 	handleDeleteFood,
 	handleListRecentFoods,
+	handleMergeFoods,
+	handleFindDuplicateFoods,
 	handleCreateRecipe,
 	handleUpdateRecipe,
 	handleDeleteRecipe,
@@ -608,6 +610,46 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: DESTRUCTIVE
 		},
 		safe((args) => handleDeleteFood(userId, args))
+	);
+
+	server.registerTool(
+		'merge_foods',
+		{
+			title: 'Merge Foods',
+			description:
+				'Merge one or more duplicate foods into a keeper food. Re-points every diary entry, recipe ingredient, and supplement ingredient referencing a source food to the keeper (rescaling servings so historical macros stay the same), unions food labels onto the keeper, and deletes the source foods. Fields the keeper is missing are backfilled from the sources; use overrides to force a specific value. Irreversible.',
+			inputSchema: {
+				keeperId: z
+					.string()
+					.uuid()
+					.describe('The food ID to keep — every source is merged into this one.'),
+				sourceIds: z
+					.array(z.string().uuid())
+					.min(1)
+					.max(20)
+					.describe('Food IDs to merge into the keeper and delete. Cannot include keeperId.'),
+				overrides: z
+					.record(z.string(), z.unknown())
+					.optional()
+					.describe(
+						'Optional field values to force on the merged result, overriding both the keeper and the auto-filled source values, e.g. {"name": "Greek Yogurt", "brand": "FAGE"}.'
+					)
+			},
+			annotations: DESTRUCTIVE
+		},
+		safe((args) => handleMergeFoods(userId, args))
+	);
+
+	server.registerTool(
+		'find_duplicate_foods',
+		{
+			title: 'Find Duplicate Foods',
+			description:
+				"Scan the user's food database for likely duplicates: foods sharing a barcode, foods with the exact same name and brand, and foods with a very similar name and near-identical macros per serving. Returns groups of candidate foods to review and merge with merge_foods.",
+			inputSchema: {},
+			annotations: READ_ONLY
+		},
+		safe(() => handleFindDuplicateFoods(userId))
 	);
 
 	server.registerTool(

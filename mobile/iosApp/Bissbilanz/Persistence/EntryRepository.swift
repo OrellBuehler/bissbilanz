@@ -191,6 +191,21 @@ final class EntryRepository {
         IntentDonations.dayChanged(Set(fetched.compactMap(\.date)))
     }
 
+    /// Dates with a locally cached entry pointing at any of `foodIds` — used
+    /// after a food goes missing server-side (deleted, or merged into
+    /// another food via `mergeFoods`) to know which days to re-pull so the
+    /// entry's `foodId` and (for a merge) rescaled servings catch up with the
+    /// server's repoint. See `SyncManager.onFoodReferenceMissing`.
+    func localDates(referencingFoodIds foodIds: Set<String>) -> Set<String> {
+        guard !foodIds.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId != nil })
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return Set(rows.compactMap { row in
+            guard let foodId = row.foodId, foodIds.contains(foodId) else { return nil }
+            return row.date
+        })
+    }
+
     // MARK: - Writes (local first + queued upload)
 
     @discardableResult

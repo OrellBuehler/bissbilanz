@@ -275,3 +275,45 @@ struct FoodLabelsSetBody: Encodable {
     let source: String?
     let mode: String?
 }
+
+/// Body of `POST /api/foods/merge`. `overrides` is intentionally omitted —
+/// callers always want the keeper's own values preserved and its missing
+/// fields auto-filled from the sources, the server's default behavior when
+/// no overrides are sent.
+struct FoodMergeRequest: Encodable {
+    let keeperId: String
+    let sourceIds: [String]
+}
+
+/// Why `GET /api/foods/duplicates` flagged a group: same barcode, same
+/// normalized name + brand, or a similar name with near-identical
+/// per-serving macros.
+enum FoodDuplicateReason: String, Codable {
+    case barcode
+    case nameBrand = "name_brand"
+    case similar
+}
+
+/// One food inside a `FoodDuplicateGroup` — enough to render a duplicate
+/// candidate row and merge it (as source or keeper).
+struct FoodDuplicateFood: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let brand: String?
+    let barcode: String?
+}
+
+/// One candidate group from `GET /api/foods/duplicates`. A food can appear in
+/// more than one group; `key` is unique only within a given `reason`, so the
+/// pair together identifies the group.
+struct FoodDuplicateGroup: Codable, Identifiable {
+    let reason: FoodDuplicateReason
+    let key: String
+    let foods: [FoodDuplicateFood]
+
+    var id: String { "\(reason.rawValue):\(key)" }
+}
+
+struct FoodDuplicatesResponse: Codable {
+    let groups: [FoodDuplicateGroup]
+}

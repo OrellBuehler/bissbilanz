@@ -45,7 +45,9 @@
 							<span class="ml-2 text-xs text-muted-foreground">
 								({group.reason === 'barcode'
 									? m.foods_duplicates_reason_barcode()
-									: m.foods_duplicates_reason_name_brand()})
+									: group.reason === 'name_brand'
+										? m.foods_duplicates_reason_name_brand()
+										: m.foods_duplicates_reason_similar()})
 							</span>
 						</span>
 						<Button size="sm" variant="outline" class="shrink-0" onclick={() => onResolve(group)}>

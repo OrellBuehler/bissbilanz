@@ -3,6 +3,7 @@ import TipKit
 
 struct FoodDetailView: View {
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
     let foodId: String
@@ -20,10 +21,12 @@ struct FoodDetailView: View {
     @State private var isEnriching = false
     @State private var errorMessage: String?
     @State private var toastMessage: String?
-    @State private var ingredientsExpanded = false
     @State private var showTipHelp = false
     private let favoritesLoggingTip = FavoritesLoggingTip()
     @State private var deleteConflict: DeleteConflict?
+    @State private var showMergePicker = false
+    @State private var mergeTarget: Food?
+    @State private var isMerging = false
 
     var body: some View {
         Group {
@@ -88,6 +91,19 @@ struct FoodDetailView: View {
                             .disabled(isEnriching)
                         }
 
+                        // Merging requires an account — there is no server to
+                        // merge on in Local mode, same as every other
+                        // account-only action (mirrors AIMealSheet's
+                        // `!appMode.isLocal` gating).
+                        if !appMode.isLocal {
+                            Button {
+                                showMergePicker = true
+                            } label: {
+                                Label(L10n.foodsMerge, systemImage: "arrow.triangle.merge")
+                            }
+                            .disabled(isMerging)
+                        }
+
                         Divider()
 
                         Button(role: .destructive) {
@@ -114,11 +130,37 @@ struct FoodDetailView: View {
                 LogFoodSheet(food: food, date: DateFormatting.today, onLogged: onLogged)
             }
         }
+        .sheet(isPresented: $showMergePicker) {
+            NavigationStack {
+                FoodPicker(onPicked: { picked in mergeTarget = picked }, excludingIds: [foodId])
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { showMergePicker = false }
+                    }
+                }
+            }
+        }
         .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button(L10n.delete, role: .destructive) {
                 Task { await deleteFood() }
             }
             Button(L10n.cancel, role: .cancel) {}
+        }
+        .alert(
+            L10n.foodsMergeTitle,
+            isPresented: .init(get: { mergeTarget != nil }, set: { if !$0 { mergeTarget = nil } })
+        ) {
+            Button(L10n.foodsMergeConfirm, role: .destructive) {
+                if let target = mergeTarget {
+                    mergeTarget = nil
+                    Task { await performMerge(into: target) }
+                }
+            }
+            Button(L10n.cancel, role: .cancel) { mergeTarget = nil }
+        } message: {
+            if let food {
+                Text(L10n.foodsMergeDescription(food.name))
+            }
         }
         .sheet(isPresented: $showTipHelp) {
             SafariView(url: HelpLink.url(for: .logging))
@@ -201,156 +243,9 @@ struct FoodDetailView: View {
             NutrientSection(title: L10n.vitamins, nutrients: food.vitaminNutrients)
             NutrientSection(title: L10n.other, nutrients: food.otherNutrients)
 
-            if food.nutriScore != nil || food
-                .novaGroup != nil || !(food.additives?.isEmpty ?? true) || !(food.ingredientsText?.isEmpty ?? true)
-            {
-                Section(L10n.quality) {
-                    if let nutriScore = food.nutriScore {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(L10n.nutriScore)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            nutriScoreBadge(nutriScore)
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityLabel(L10n.nutriScore)
-                                .accessibilityValue(nutriScore.uppercased())
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    if let novaGroup = food.novaGroup {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(L10n.novaGroup)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            novaGroupBadge(novaGroup)
-                                .accessibilityElement(children: .combine)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    if let additives = food.additives, !additives.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 8) {
-                                Text(L10n.additives)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                Text("\(additives.count)")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red.opacity(0.15))
-                                    .foregroundStyle(.red)
-                                    .clipShape(Capsule())
-                            }
-                            .accessibilityElement(children: .combine)
-                            ForEach(additives, id: \.self) { additive in
-                                Text(formatAdditive(additive))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                    if let ingredients = food.ingredientsText, !ingredients.isEmpty {
-                        ingredientsRow(ingredients)
-                    }
-                }
-            }
+            FoodQualitySection(food: food)
         }
         .listStyle(.insetGrouped)
-    }
-
-    private func nutriScoreBadge(_ score: String) -> some View {
-        let letters = ["A", "B", "C", "D", "E"]
-        let colors: [Color] = [
-            Color(red: 0.01, green: 0.51, blue: 0.25),
-            Color(red: 0.52, green: 0.73, blue: 0.18),
-            Color(red: 1.0, green: 0.80, blue: 0.01),
-            Color(red: 0.93, green: 0.51, blue: 0.0),
-            Color(red: 0.90, green: 0.24, blue: 0.07),
-        ]
-        let activeIndex = letters.firstIndex(where: { $0.caseInsensitiveCompare(score) == .orderedSame }) ?? -1
-
-        return HStack(spacing: 4) {
-            ForEach(Array(zip(letters.indices, letters)), id: \.0) { index, letter in
-                let isActive = index == activeIndex
-                Text(letter)
-                    .font(isActive ? .body : .caption)
-                    .fontWeight(.bold)
-                    .foregroundStyle(isActive ? .white : colors[index].opacity(0.5))
-                    .frame(width: isActive ? 36 : 28, height: isActive ? 36 : 28)
-                    .background(isActive ? colors[index] : colors[index].opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-        }
-    }
-
-    private func novaGroupBadge(_ group: Int) -> some View {
-        let info: (String, Color) = switch group {
-        case 1: (L10n.novaGroupDescription(1), Color(red: 0.01, green: 0.51, blue: 0.25))
-        case 2: (L10n.novaGroupDescription(2), Color(red: 1.0, green: 0.80, blue: 0.01))
-        case 3: (L10n.novaGroupDescription(3), Color(red: 0.93, green: 0.51, blue: 0.0))
-        case 4: (L10n.novaGroupDescription(4), Color(red: 0.90, green: 0.24, blue: 0.07))
-        default: (L10n.novaGroupDescription(group), Color.secondary)
-        }
-
-        return HStack(spacing: 10) {
-            Text("\(group)")
-                .font(.body)
-                .fontWeight(.bold)
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(info.1)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            Text(info.0)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(info.1)
-        }
-    }
-
-    private func formatAdditive(_ raw: String) -> String {
-        var text = raw.trimmingCharacters(in: .whitespaces)
-        if text.hasPrefix("en:") { text = String(text.dropFirst(3)) }
-        let parts = text.components(separatedBy: " - ")
-        if parts.count >= 2 {
-            return "\(parts[0].trimmingCharacters(in: .whitespaces).uppercased()) - \(parts[1].trimmingCharacters(in: .whitespaces).capitalized)"
-        }
-        return text.uppercased()
-    }
-
-    private func ingredientsRow(_ text: String) -> some View {
-        let isLong = text.count > 150
-        return VStack(alignment: .leading, spacing: 6) {
-            if isLong {
-                Button {
-                    withAnimation { ingredientsExpanded.toggle() }
-                } label: {
-                    HStack {
-                        Text(L10n.ingredients)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Image(systemName: ingredientsExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.ingredients)
-                .accessibilityValue(ingredientsExpanded ? L10n.collapse : L10n.expand)
-            } else {
-                Text(L10n.ingredients)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(isLong && !ingredientsExpanded ? 3 : nil)
-        }
-        .padding(.vertical, 4)
     }
 
     private func toggleFavorite() async {
@@ -381,6 +276,24 @@ struct FoodDetailView: View {
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.enrichFailed
+        }
+    }
+
+    /// Merges this food into `target`: `target` keeps its id and absorbs
+    /// everything (entries, recipe/supplement ingredients, labels) that
+    /// referenced this food, which is then permanently deleted. Dismisses
+    /// back to the food list on success, since this food no longer exists.
+    private func performMerge(into target: Food) async {
+        guard !isMerging else { return }
+        isMerging = true
+        defer { isMerging = false }
+        do {
+            try await foodRepository.mergeFoods(keeperId: target.id, sourceIds: [foodId])
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            dismiss()
+        } catch {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            errorMessage = L10n.foodsMergeFailed
         }
     }
 
