@@ -37,6 +37,12 @@ struct FoodSearchView: View {
     @State private var toastMessage: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -240,6 +246,7 @@ struct FoodSearchView: View {
                     FoodImageView(imageUrl: hit.imageUrl)
                         .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .accessibilityHidden(true)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(hit.name)
@@ -247,15 +254,15 @@ struct FoodSearchView: View {
                         .foregroundStyle(.primary)
                     HStack(spacing: 4) {
                         Text("\(Int(hit.calories)) cal")
-                            .foregroundStyle(MacroColors.calories)
+                            .foregroundStyle(accessibleColor(.calories))
                         Text("\u{00B7}")
                             .foregroundStyle(.secondary)
                         Text("P\(Int(hit.protein))")
-                            .foregroundStyle(MacroColors.protein)
+                            .foregroundStyle(accessibleColor(.protein))
                         Text("C\(Int(hit.carbs))")
-                            .foregroundStyle(MacroColors.carbs)
+                            .foregroundStyle(accessibleColor(.carbs))
                         Text("F\(Int(hit.fat))")
-                            .foregroundStyle(MacroColors.fat)
+                            .foregroundStyle(accessibleColor(.fat))
                     }
                     .font(.caption)
                 }
@@ -268,6 +275,15 @@ struct FoodSearchView: View {
             }
         }
         .disabled(isResolvingOff)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(openFoodFactsAccessibilityLabel(hit))
+    }
+
+    private func openFoodFactsAccessibilityLabel(_ hit: BissbilanzAPI.OpenFoodFactsSearchHit) -> String {
+        var parts = [hit.name]
+        if let brand = hit.brand, !brand.isEmpty { parts.append(brand) }
+        parts.append(MacroSpokenSummary.macros(calories: hit.calories, protein: hit.protein, carbs: hit.carbs, fat: hit.fat))
+        return parts.joined(separator: ", ")
     }
 
     private func addFromOpenFoodFacts(_ hit: BissbilanzAPI.OpenFoodFactsSearchHit) async {
@@ -343,54 +359,63 @@ struct FoodSearchView: View {
     }
 
     private func foodRow(_ food: Food) -> some View {
-        Button {
-            selectedFood = food
-        } label: {
-            HStack {
-                if food.imageUrl != nil {
-                    FoodImageView(imageUrl: food.imageUrl)
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(food.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    HStack(spacing: 4) {
-                        Text("\(Int(food.calories)) cal")
-                            .foregroundStyle(MacroColors.calories)
-                        Text("\u{00B7}")
-                            .foregroundStyle(.secondary)
-                        Text("P\(Int(food.protein))")
-                            .foregroundStyle(MacroColors.protein)
-                        Text("C\(Int(food.carbs))")
-                            .foregroundStyle(MacroColors.carbs)
-                        Text("F\(Int(food.fat))")
-                            .foregroundStyle(MacroColors.fat)
+        HStack {
+            Button {
+                selectedFood = food
+            } label: {
+                HStack {
+                    if food.imageUrl != nil {
+                        FoodImageView(imageUrl: food.imageUrl)
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .accessibilityHidden(true)
                     }
-                    .font(.caption)
-                }
-                Spacer()
-                if let brand = food.brand {
-                    Text(brand)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(food.name)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                        HStack(spacing: 4) {
+                            Text("\(Int(food.calories)) cal")
+                                .foregroundStyle(accessibleColor(.calories))
+                            Text("\u{00B7}")
+                                .foregroundStyle(.secondary)
+                            Text("P\(Int(food.protein))")
+                                .foregroundStyle(accessibleColor(.protein))
+                            Text("C\(Int(food.carbs))")
+                                .foregroundStyle(accessibleColor(.carbs))
+                            Text("F\(Int(food.fat))")
+                                .foregroundStyle(accessibleColor(.fat))
+                        }
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                if food.isFavorite {
-                    Image(systemName: "star.fill")
-                        .font(.caption)
-                        .foregroundStyle(.yellow)
-                }
-                if date != nil {
-                    Button {
-                        Task { await quickLogFood(food) }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(Color.accentColor)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
+                    if let brand = food.brand {
+                        Text(brand)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    if food.isFavorite {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                            .accessibilityHidden(true)
+                    }
                 }
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(foodAccessibilityLabel(food))
+
+            if date != nil {
+                Button {
+                    Task { await quickLogFood(food) }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.quickLogFoodAccessibility(food.name))
             }
         }
         // A bare long-press used to jump straight into editing, which gave no
@@ -416,6 +441,14 @@ struct FoodSearchView: View {
                 )
             }
         }
+    }
+
+    private func foodAccessibilityLabel(_ food: Food) -> String {
+        var parts = [food.name]
+        if let brand = food.brand { parts.append(brand) }
+        parts.append(MacroSpokenSummary.macros(calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat))
+        if food.isFavorite { parts.append(L10n.favorite) }
+        return parts.joined(separator: ", ")
     }
 
     private func toggleFavorite(_ food: Food) async {
@@ -653,6 +686,7 @@ struct LogFoodForm: View {
         Form {
             Section {
                 FoodHeaderImage(imageUrl: food.imageUrl)
+                    .accessibilityHidden(true)
                 HStack {
                     Text(food.name)
                         .font(.headline)
@@ -663,6 +697,7 @@ struct LogFoodForm: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .accessibilityElement(children: .combine)
             }
 
             Section(L10n.servings) {
@@ -674,6 +709,7 @@ struct LogFoodForm: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                .accessibilityElement(children: .combine)
             }
 
             Section {

@@ -116,6 +116,7 @@ struct EntryEditSheet: View {
                     // medium detent, where the full-size square would push the
                     // servings field off screen.
                     FoodHeaderImage(imageUrl: imageUrl, size: 120)
+                        .accessibilityHidden(true)
                     Text(entry.displayName)
                         .font(.headline)
                 }
@@ -130,6 +131,7 @@ struct EntryEditSheet: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
+                        .accessibilityElement(children: .combine)
                     }
                     Picker(L10n.meal, selection: $mealType) {
                         ForEach(mealTypes, id: \.self) { meal in

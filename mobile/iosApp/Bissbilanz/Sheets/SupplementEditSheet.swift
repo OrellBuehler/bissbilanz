@@ -19,6 +19,8 @@ struct SupplementEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
     struct IngredientInputRow: Identifiable {
         let id = UUID()
         var name: String = ""
@@ -71,9 +73,16 @@ struct SupplementEditSheet: View {
                                         .background(scheduleDays.contains(day) ? Color.accentColor : Color.clear)
                                         .foregroundStyle(scheduleDays.contains(day) ? .white : .primary)
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .overlay {
+                                            if differentiateWithoutColor, scheduleDays.contains(day) {
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .strokeBorder(.primary, lineWidth: 2)
+                                            }
+                                        }
                                         .contentShape(RoundedRectangle(cornerRadius: 6))
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityAddTraits(scheduleDays.contains(day) ? .isSelected : [])
                             }
                         }
                     }

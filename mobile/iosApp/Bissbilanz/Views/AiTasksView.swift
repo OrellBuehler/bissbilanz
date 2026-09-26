@@ -160,6 +160,7 @@ private struct PendingUploadRow: View {
                 case .failed:
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
                     Text(L10n.aiTaskUploadFailedTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
