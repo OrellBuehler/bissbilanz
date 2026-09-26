@@ -87,3 +87,4 @@ tests/fixtures/catalog/bad.jsonl
 *.jks
 *.keystore
 *.p12
+/store/promo/out/
