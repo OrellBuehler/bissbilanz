@@ -332,12 +332,19 @@ struct BissbilanzApp: App {
         }
 
         // A dropped createEntry named a foodId the server no longer has (see
-        // BISSBILANZ-33). Re-fetch each one — `refreshFood` prunes the local
-        // row on a 404/410 — so the food stops surfacing in search/recents/
-        // favorites for the next offline log.
+        // BISSBILANZ-33), or `FoodRepository.mergeFoods` just pruned its
+        // source ids after an in-app merge. Re-fetch each one — `refreshFood`
+        // prunes the local row on a 404/410 — so the food stops surfacing in
+        // search/recents/favorites for the next offline log, then refresh any
+        // locally cached day that still has an entry pointing at it, so the
+        // entry's foodId and (for a merge) rescaled servings catch up with
+        // the server's repoint.
         sync.onFoodReferenceMissing = { foodIds in
             for id in foodIds {
                 try? await foodRepo.refreshFood(id: id)
+            }
+            for date in entryRepo.localDates(referencingFoodIds: foodIds) {
+                try? await entryRepo.refresh(date: date)
             }
         }
 

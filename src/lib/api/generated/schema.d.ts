@@ -1859,7 +1859,7 @@ export interface components {
 		};
 		FoodDuplicateGroup: {
 			/** @enum {string} */
-			reason: 'barcode' | 'name_brand';
+			reason: 'barcode' | 'name_brand' | 'similar';
 			key: string;
 			foods: components['schemas']['FoodDuplicateFood'][];
 		};

@@ -605,6 +605,29 @@
     <string name="food_detail_ingredients">Zutaten</string>
     <string name="food_detail_collapse">Einklappen</string>
     <string name="food_detail_expand">Ausklappen</string>
+    <string name="food_detail_merge">Zusammenführen mit…</string>
+
+    <!-- Food merge (shared by the food detail screen and the duplicates screen) -->
+    <string name="food_merge_pick_keeper">Behaltenes Lebensmittel wählen</string>
+    <string name="food_merge_search_placeholder">Lebensmittel zum Zusammenführen suchen…</string>
+    <string name="food_merge_no_results">Keine passenden Lebensmittel.</string>
+    <string name="food_merge_confirm_title">Lebensmittel zusammenführen</string>
+    <string name="food_merge_confirm_message">Dadurch wird «%1$s» mit «%2$s» zusammengeführt. «%1$s» wird dauerhaft gelöscht, und alle Tagebucheinträge, Rezepte oder Labels, die darauf verweisen, werden zu «%2$s» verschoben. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="food_merge_confirm">Zusammenführen</string>
+    <string name="food_merge_success">Lebensmittel zusammengeführt.</string>
+    <string name="food_merge_failed">Lebensmittel konnten nicht zusammengeführt werden.</string>
+    <string name="food_merge_unavailable_offline">Für das Zusammenführen von Lebensmitteln ist eine Internetverbindung erforderlich.</string>
+
+    <!-- Food duplicates screen -->
+    <string name="food_duplicates_title">Doppelte Lebensmittel</string>
+    <string name="food_duplicates_description">Lebensmittel, die wie dasselbe Produkt aussehen. Wähle eines zum Behalten — die anderen werden hineingeführt.</string>
+    <string name="food_duplicates_empty">Keine Duplikate gefunden. Alles aufgeräumt.</string>
+    <string name="food_duplicates_load_failed">Doppelte Lebensmittel konnten nicht geladen werden.</string>
+    <string name="food_duplicates_reason_barcode">Gleicher Barcode</string>
+    <string name="food_duplicates_reason_name_brand">Gleicher Name und Marke</string>
+    <string name="food_duplicates_reason_similar">Ähnlicher Name und Nährwerte</string>
+    <string name="food_duplicates_resolve">Zusammenführen</string>
+    <string name="food_duplicates_merge_confirm_message">Dadurch werden %1$d weitere Lebensmittel dieser Gruppe mit «%2$s» zusammengeführt. Sie werden dauerhaft gelöscht, und alle Tagebucheinträge, Rezepte oder Labels, die darauf verweisen, werden zu «%2$s» verschoben. Dies kann nicht rückgängig gemacht werden.</string>
 
     <!-- Food search screen -->
     <string name="food_search_create_food">Lebensmittel erstellen</string>

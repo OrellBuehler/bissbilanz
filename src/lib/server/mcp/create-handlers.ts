@@ -29,6 +29,8 @@ import type {
 	findFoodByBarcode,
 	listRecentFoods
 } from '$lib/server/foods';
+import type { mergeFoods } from '$lib/server/food-merge';
+import type { findDuplicateGroups } from '$lib/server/food-duplicates';
 import type {
 	createRecipe,
 	updateRecipe,
@@ -127,6 +129,8 @@ export type HandlerDeps = {
 	getFood: typeof getFood;
 	findFoodByBarcode: typeof findFoodByBarcode;
 	listRecentFoods: typeof listRecentFoods;
+	mergeFoods: typeof mergeFoods;
+	findDuplicateGroups: typeof findDuplicateGroups;
 	// Food labels
 	setFoodLabels: typeof setFoodLabels;
 	setFoodLabelsBatch: typeof setFoodLabelsBatch;
@@ -685,6 +689,28 @@ export function createHandlers(d: HandlerDeps) {
 			return d.listRecentFoods(userId, args.limit ?? 25);
 		} catch (e) {
 			wrapError('list recent foods', e);
+		}
+	};
+
+	const handleMergeFoods = async (
+		userId: string,
+		args: { keeperId: string; sourceIds: string[]; overrides?: Record<string, unknown> }
+	) => {
+		try {
+			const result = await d.mergeFoods(userId, args);
+			if (!result.success) return errorPayload(result.error);
+			return { success: true, food: result.data };
+		} catch (e) {
+			wrapError('merge foods', e);
+		}
+	};
+
+	const handleFindDuplicateFoods = async (userId: string) => {
+		try {
+			const groups = await d.findDuplicateGroups(userId);
+			return { total: groups.length, groups };
+		} catch (e) {
+			wrapError('find duplicate foods', e);
 		}
 	};
 
@@ -1730,6 +1756,8 @@ export function createHandlers(d: HandlerDeps) {
 		handleUpdateFood,
 		handleDeleteFood,
 		handleListRecentFoods,
+		handleMergeFoods,
+		handleFindDuplicateFoods,
 		handleUpdateRecipe,
 		handleDeleteRecipe,
 		handleCreateSupplement,

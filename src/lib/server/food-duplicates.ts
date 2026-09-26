@@ -1,6 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foods } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
+import { unitDimension, unitConversionFactor, type ServingUnit } from '$lib/units';
 
 /**
  * Narrow projection returned for duplicate detection. We only need the fields
@@ -14,23 +15,42 @@ export type DuplicateFood = {
 	barcode: string | null;
 };
 
-export type DuplicateReason = 'barcode' | 'name_brand';
+/** Internal row used for the macro-similarity strategy — never returned as-is. */
+type MacroRow = DuplicateFood & {
+	servingSize: number;
+	servingUnit: ServingUnit;
+	calories: number;
+	protein: number;
+	carbs: number;
+	fat: number;
+};
+
+function toPublic(food: DuplicateFood): DuplicateFood {
+	return { id: food.id, name: food.name, brand: food.brand, barcode: food.barcode };
+}
+
+export type DuplicateReason = 'barcode' | 'name_brand' | 'similar';
 
 export type DuplicateGroup = {
 	reason: DuplicateReason;
-	/** Stable key per group: barcode value or normalized "name|brand" */
+	/** Stable key per group: barcode value, normalized "name|brand", or sorted food ids */
 	key: string;
 	foods: DuplicateFood[];
 };
 
+/** Strip combining diacritical marks after Unicode NFD decomposition ("Müller" -> "Muller"). */
+function stripDiacritics(value: string): string {
+	return value.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 /**
- * Normalize a string for fuzzy matching: lowercase, trim, collapse whitespace.
- * Punctuation is preserved — for typical food names ("Müller's Reis") the
- * apostrophe and accent matter for distinguishing similar products.
+ * Normalize a string for fuzzy matching: lowercase, trim, collapse whitespace,
+ * strip diacritics. Punctuation is preserved — it still carries meaning for
+ * distinguishing similar product names.
  */
 function normalize(value: string | null | undefined): string {
 	if (!value) return '';
-	return value.toLowerCase().trim().replace(/\s+/g, ' ');
+	return stripDiacritics(value.toLowerCase().trim().replace(/\s+/g, ' '));
 }
 
 /** Levenshtein distance, iterative two-row implementation. */
@@ -64,6 +84,18 @@ export function similarity(a: string, b: string): number {
 	return 1 - levenshtein(na, nb) / maxLen;
 }
 
+/**
+ * Cheap pre-filter: the best possible similarity two strings of these lengths
+ * could achieve (edit distance can never be less than the length difference)
+ * is below the threshold, so a full Levenshtein pass would be wasted work.
+ */
+function couldMeetThreshold(na: string, nb: string, threshold: number): boolean {
+	const maxLen = Math.max(na.length, nb.length);
+	if (maxLen === 0) return true;
+	const bestPossibleDistance = Math.abs(na.length - nb.length);
+	return 1 - bestPossibleDistance / maxLen >= threshold;
+}
+
 const NAME_SIMILARITY_THRESHOLD = 0.4;
 
 /**
@@ -85,15 +117,151 @@ function barcodeGroupNamesAreSimilar(groupFoods: DuplicateFood[]): boolean {
 	return true;
 }
 
+// --- Strategy 3: near-identical name + near-identical macros per serving ---
+//
+// Catches duplicates that share neither a barcode nor an exact (name, brand)
+// tuple — e.g. one entry typed by hand, another imported with slightly
+// different capitalization/wording. Name similarity alone would be too loose
+// (lots of foods have similar names), so this requires BOTH a high name
+// similarity AND near-identical macros, normalized to a common base unit
+// (per gram for mass servings, per ml for volume) so a 100 g entry and a
+// 30 g single-serve entry of the same product still match.
+
+const SIMILAR_NAME_THRESHOLD = 0.82;
+const MACRO_RELATIVE_TOLERANCE = 0.1;
+// Absolute floor for the relative check, so near-zero values (e.g. fat = 0
+// for both) don't flip on floating-point noise.
+const MACRO_ABSOLUTE_TOLERANCE = 0.05;
+
+function baseUnitFor(dimension: 'mass' | 'volume'): ServingUnit {
+	return dimension === 'mass' ? 'g' : 'ml';
+}
+
+/** Macro profile per base unit (gram or ml), or null if it can't be computed. */
+function perBaseUnitMacros(
+	food: Pick<MacroRow, 'servingSize' | 'servingUnit' | 'calories' | 'protein' | 'carbs' | 'fat'>
+): { calories: number; protein: number; carbs: number; fat: number } | null {
+	const base = baseUnitFor(unitDimension(food.servingUnit));
+	const factor = unitConversionFactor(food.servingUnit, base);
+	if (factor === null) return null;
+	const servingSizeInBase = food.servingSize * factor;
+	if (servingSizeInBase <= 0) return null;
+	return {
+		calories: food.calories / servingSizeInBase,
+		protein: food.protein / servingSizeInBase,
+		carbs: food.carbs / servingSizeInBase,
+		fat: food.fat / servingSizeInBase
+	};
+}
+
+function nearlyEqual(a: number, b: number): boolean {
+	const diff = Math.abs(a - b);
+	const tolerance = Math.max(
+		MACRO_ABSOLUTE_TOLERANCE,
+		MACRO_RELATIVE_TOLERANCE * Math.max(Math.abs(a), Math.abs(b))
+	);
+	return diff <= tolerance;
+}
+
+/**
+ * Whether two foods have near-identical macros per serving, normalized to a
+ * common base unit. Foods with servings in different dimensions (mass vs.
+ * volume) are never considered macro-similar — there's no fair comparison.
+ */
+export function macrosSimilar(
+	a: Pick<MacroRow, 'servingSize' | 'servingUnit' | 'calories' | 'protein' | 'carbs' | 'fat'>,
+	b: Pick<MacroRow, 'servingSize' | 'servingUnit' | 'calories' | 'protein' | 'carbs' | 'fat'>
+): boolean {
+	if (unitDimension(a.servingUnit) !== unitDimension(b.servingUnit)) return false;
+	const pa = perBaseUnitMacros(a);
+	const pb = perBaseUnitMacros(b);
+	if (!pa || !pb) return false;
+	return (
+		nearlyEqual(pa.calories, pb.calories) &&
+		nearlyEqual(pa.protein, pb.protein) &&
+		nearlyEqual(pa.carbs, pb.carbs) &&
+		nearlyEqual(pa.fat, pb.fat)
+	);
+}
+
+/** Minimal union-find so mutually-similar foods cluster into one group. */
+class DisjointSet {
+	private parent = new Map<string, string>();
+
+	find(id: string): string {
+		const p = this.parent.get(id);
+		if (p === undefined) {
+			this.parent.set(id, id);
+			return id;
+		}
+		if (p === id) return id;
+		const root = this.find(p);
+		this.parent.set(id, root);
+		return root;
+	}
+
+	union(a: string, b: string): void {
+		const ra = this.find(a);
+		const rb = this.find(b);
+		if (ra !== rb) this.parent.set(ra, rb);
+	}
+}
+
+/**
+ * Cluster foods whose (normalized) names and per-serving macros are both
+ * near-identical. Deterministic: same input always produces the same
+ * clusters, in insertion order. Exported standalone (independent of the DB)
+ * so it's directly unit-testable.
+ */
+export function groupBySimilarNameAndMacros(rows: MacroRow[]): DuplicateGroup[] {
+	const normalizedNames = rows.map((r) => normalize(r.name));
+	const dsu = new DisjointSet();
+
+	for (let i = 0; i < rows.length; i++) {
+		if (normalizedNames[i] === '') continue;
+		for (let j = i + 1; j < rows.length; j++) {
+			if (normalizedNames[j] === '') continue;
+			if (!couldMeetThreshold(normalizedNames[i], normalizedNames[j], SIMILAR_NAME_THRESHOLD)) {
+				continue;
+			}
+			if (similarity(rows[i].name, rows[j].name) < SIMILAR_NAME_THRESHOLD) continue;
+			if (!macrosSimilar(rows[i], rows[j])) continue;
+			dsu.union(rows[i].id, rows[j].id);
+		}
+	}
+
+	const clusters = new Map<string, MacroRow[]>();
+	for (const row of rows) {
+		const root = dsu.find(row.id);
+		const list = clusters.get(root) ?? [];
+		list.push(row);
+		clusters.set(root, list);
+	}
+
+	const groups: DuplicateGroup[] = [];
+	for (const items of clusters.values()) {
+		if (items.length < 2) continue;
+		const key = items
+			.map((f) => f.id)
+			.sort()
+			.join(',');
+		groups.push({ reason: 'similar', key, foods: items.map(toPublic) });
+	}
+	return groups;
+}
+
 /**
  * Find duplicate groups in the user's food database.
  *
- * Two detection strategies, returned as separate groups so the UI can label
+ * Three detection strategies, returned as separate groups so the UI can label
  * the reason:
  *   1. `barcode`     — foods sharing the same non-null barcode AND with
  *                      mutually similar names (guards against scan typos)
  *   2. `name_brand`  — foods whose normalized (name, brand) tuple matches
- *                      exactly across rows
+ *                      exactly across rows (case/whitespace/diacritics-insensitive)
+ *   3. `similar`     — foods with near-identical names AND near-identical
+ *                      macros per serving, catching duplicates that share
+ *                      neither a barcode nor an exact name/brand match
  *
  * A single food may appear in multiple groups; the UI handles that gracefully
  * by listing each group as its own actionable card.
@@ -105,7 +273,13 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 			id: foods.id,
 			name: foods.name,
 			brand: foods.brand,
-			barcode: foods.barcode
+			barcode: foods.barcode,
+			servingSize: foods.servingSize,
+			servingUnit: foods.servingUnit,
+			calories: foods.calories,
+			protein: foods.protein,
+			carbs: foods.carbs,
+			fat: foods.fat
 		})
 		.from(foods)
 		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')));
@@ -117,13 +291,13 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 		if (food.barcode) {
 			const key = food.barcode;
 			const list = byBarcode.get(key) ?? [];
-			list.push(food);
+			list.push(toPublic(food));
 			byBarcode.set(key, list);
 		}
 		const nameBrandKey = `${normalize(food.name)}|${normalize(food.brand)}`;
 		if (nameBrandKey !== '|') {
 			const list = byNameBrand.get(nameBrandKey) ?? [];
-			list.push(food);
+			list.push(toPublic(food));
 			byNameBrand.set(nameBrandKey, list);
 		}
 	}
@@ -148,6 +322,8 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 			foods: items
 		});
 	}
+
+	groups.push(...groupBySimilarNameAndMacros(all));
 
 	return groups;
 }

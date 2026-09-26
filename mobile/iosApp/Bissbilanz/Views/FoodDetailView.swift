@@ -3,6 +3,7 @@ import TipKit
 
 struct FoodDetailView: View {
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
     let foodId: String
@@ -23,6 +24,9 @@ struct FoodDetailView: View {
     @State private var showTipHelp = false
     private let favoritesLoggingTip = FavoritesLoggingTip()
     @State private var deleteConflict: DeleteConflict?
+    @State private var showMergePicker = false
+    @State private var mergeTarget: Food?
+    @State private var isMerging = false
 
     var body: some View {
         Group {
@@ -87,6 +91,19 @@ struct FoodDetailView: View {
                             .disabled(isEnriching)
                         }
 
+                        // Merging requires an account — there is no server to
+                        // merge on in Local mode, same as every other
+                        // account-only action (mirrors AIMealSheet's
+                        // `!appMode.isLocal` gating).
+                        if !appMode.isLocal {
+                            Button {
+                                showMergePicker = true
+                            } label: {
+                                Label(L10n.foodsMerge, systemImage: "arrow.triangle.merge")
+                            }
+                            .disabled(isMerging)
+                        }
+
                         Divider()
 
                         Button(role: .destructive) {
@@ -113,11 +130,37 @@ struct FoodDetailView: View {
                 LogFoodSheet(food: food, date: DateFormatting.today, onLogged: onLogged)
             }
         }
+        .sheet(isPresented: $showMergePicker) {
+            NavigationStack {
+                FoodPicker(onPicked: { picked in mergeTarget = picked }, excludingIds: [foodId])
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { showMergePicker = false }
+                    }
+                }
+            }
+        }
         .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button(L10n.delete, role: .destructive) {
                 Task { await deleteFood() }
             }
             Button(L10n.cancel, role: .cancel) {}
+        }
+        .alert(
+            L10n.foodsMergeTitle,
+            isPresented: .init(get: { mergeTarget != nil }, set: { if !$0 { mergeTarget = nil } })
+        ) {
+            Button(L10n.foodsMergeConfirm, role: .destructive) {
+                if let target = mergeTarget {
+                    mergeTarget = nil
+                    Task { await performMerge(into: target) }
+                }
+            }
+            Button(L10n.cancel, role: .cancel) { mergeTarget = nil }
+        } message: {
+            if let food {
+                Text(L10n.foodsMergeDescription(food.name))
+            }
         }
         .sheet(isPresented: $showTipHelp) {
             SafariView(url: HelpLink.url(for: .logging))
@@ -229,6 +272,24 @@ struct FoodDetailView: View {
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.enrichFailed
+        }
+    }
+
+    /// Merges this food into `target`: `target` keeps its id and absorbs
+    /// everything (entries, recipe/supplement ingredients, labels) that
+    /// referenced this food, which is then permanently deleted. Dismisses
+    /// back to the food list on success, since this food no longer exists.
+    private func performMerge(into target: Food) async {
+        guard !isMerging else { return }
+        isMerging = true
+        defer { isMerging = false }
+        do {
+            try await foodRepository.mergeFoods(keeperId: target.id, sourceIds: [foodId])
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            dismiss()
+        } catch {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            errorMessage = L10n.foodsMergeFailed
         }
     }
 

@@ -120,6 +120,7 @@ fun AppNavigation() {
                         "ai-tasks",
                         "connect-claude",
                         "reminders",
+                        "food-duplicates",
                     ) ||
                     (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
                     (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
@@ -310,5 +311,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("reminders") {
         com.bissbilanz.android.ui.screens
             .RemindersScreen(navController)
+    }
+    composable("food-duplicates") {
+        com.bissbilanz.android.ui.screens
+            .FoodDuplicatesScreen(navController)
     }
 }

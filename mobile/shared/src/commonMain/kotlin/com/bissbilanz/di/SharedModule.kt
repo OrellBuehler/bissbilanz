@@ -62,7 +62,7 @@ val sharedModule =
                 isLenient = true
             }
         }
-        single { FoodRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+        single { FoodRepository(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         single { EntryRepository(get(), get(), get(), get(), get(), get(), get()) }
         single { RecipeRepository(get(), get(), get(), get(), get(), get(), get()) }
         single { GoalsRepository(get(), get(), get(), get(), get(), get()) }

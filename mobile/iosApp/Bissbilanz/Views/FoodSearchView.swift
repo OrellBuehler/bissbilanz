@@ -4,6 +4,7 @@ import SwiftUI
 struct FoodSearchView: View {
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
     var date: String?
@@ -67,24 +68,38 @@ struct FoodSearchView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                // A single + presents a menu: foods and recipes are both
-                // created from here, so the Settings "quick actions" duplicates
-                // are gone and the Foods tab is the one place to add either.
-                Menu {
-                    Button {
-                        showCreateFood = true
-                    } label: {
-                        Label(L10n.createFood, systemImage: "fork.knife")
+                HStack(spacing: 12) {
+                    // Duplicate detection is a server-side computation — no
+                    // account, no server to scan (mirrors AIMealSheet's
+                    // `!appMode.isLocal` gating on other account-only actions).
+                    if date == nil, !appMode.isLocal {
+                        NavigationLink {
+                            FoodDuplicatesView()
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
+                        .accessibilityLabel(L10n.foodsDuplicatesViewAll)
                     }
-                    Button {
-                        showCreateRecipe = true
+
+                    // A single + presents a menu: foods and recipes are both
+                    // created from here, so the Settings "quick actions" duplicates
+                    // are gone and the Foods tab is the one place to add either.
+                    Menu {
+                        Button {
+                            showCreateFood = true
+                        } label: {
+                            Label(L10n.createFood, systemImage: "fork.knife")
+                        }
+                        Button {
+                            showCreateRecipe = true
+                        } label: {
+                            Label(L10n.createRecipe, systemImage: "book")
+                        }
                     } label: {
-                        Label(L10n.createRecipe, systemImage: "book")
+                        Image(systemName: "plus")
                     }
-                } label: {
-                    Image(systemName: "plus")
+                    .accessibilityLabel(L10n.create)
                 }
-                .accessibilityLabel(L10n.create)
             }
         }
         .searchable(text: $query, prompt: L10n.searchFoods)

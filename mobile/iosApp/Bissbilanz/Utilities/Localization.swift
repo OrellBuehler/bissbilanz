@@ -385,6 +385,92 @@ enum L10n {
         localized("barcode", en: "Barcode", de: "Barcode")
     }
 
+    static var foodsMerge: String {
+        localized("foods_merge", en: "Merge into…", de: "Zusammenführen mit…")
+    }
+
+    static var foodsMergeTitle: String {
+        localized("foods_merge_title", en: "Merge foods", de: "Lebensmittel zusammenführen")
+    }
+
+    static func foodsMergeDescription(_ source: String) -> String {
+        localized(
+            "foods_merge_description",
+            en: "Pick the food to merge \"\(source)\" into. The keeper's values are preserved; " +
+                "empty fields are filled from the source. The source food will be deleted and any " +
+                "diary entries or recipes referring to it will be updated.",
+            de: "Wähle das Lebensmittel, in das «\(source)» einfliessen soll. Die Werte des " +
+                "behaltenen Eintrags bleiben bestehen; leere Felder werden aus der Quelle ergänzt. " +
+                "Das Quell-Lebensmittel wird gelöscht und alle Tagebucheinträge oder Rezepte, die " +
+                "darauf verweisen, werden aktualisiert."
+        )
+    }
+
+    static var foodsMergePickKeeper: String {
+        localized("foods_merge_pick_keeper", en: "Choose keeper", de: "Behaltenes Lebensmittel wählen")
+    }
+
+    static var foodsMergeConfirm: String {
+        localized("foods_merge_confirm", en: "Merge", de: "Zusammenführen")
+    }
+
+    static var foodsMergeSuccess: String {
+        localized("foods_merge_success", en: "Foods merged.", de: "Lebensmittel zusammengeführt.")
+    }
+
+    static var foodsMergeFailed: String {
+        localized(
+            "foods_merge_failed",
+            en: "Could not merge foods.",
+            de: "Lebensmittel konnten nicht zusammengeführt werden."
+        )
+    }
+
+    static var foodsDuplicatesTitle: String {
+        localized("foods_duplicates_title", en: "Duplicate foods", de: "Doppelte Lebensmittel")
+    }
+
+    static var foodsDuplicatesViewAll: String {
+        localized("foods_duplicates_view_all", en: "Review all", de: "Alle ansehen")
+    }
+
+    static var foodsDuplicatesDescription: String {
+        localized(
+            "foods_duplicates_description",
+            en: "Foods that look like the same product. Pick one to keep — the others will be merged into it.",
+            de: "Lebensmittel, die wie dasselbe Produkt aussehen. Wähle eines zum Behalten — " +
+                "die anderen werden hineingeführt."
+        )
+    }
+
+    static var foodsDuplicatesEmpty: String {
+        localized(
+            "foods_duplicates_empty",
+            en: "No duplicates detected. Nice and tidy.",
+            de: "Keine Duplikate gefunden. Alles aufgeräumt."
+        )
+    }
+
+    static var foodsDuplicatesReasonBarcode: String {
+        localized("foods_duplicates_reason_barcode", en: "Same barcode", de: "Gleicher Barcode")
+    }
+
+    static var foodsDuplicatesReasonNameBrand: String {
+        localized("foods_duplicates_reason_name_brand", en: "Same name and brand", de: "Gleicher Name und Marke")
+    }
+
+    static var foodsDuplicatesReasonSimilar: String {
+        localized(
+            "foods_duplicates_reason_similar",
+            en: "Similar name and macros",
+            de: "Ähnlicher Name und Nährwerte"
+        )
+    }
+
+    static var foodsDuplicatesResolve: String {
+        localized("foods_duplicates_resolve", en: "Resolve", de: "Zusammenführen")
+    }
+
     // MARK: - Nutrition
 
     static var mainMacros: String {

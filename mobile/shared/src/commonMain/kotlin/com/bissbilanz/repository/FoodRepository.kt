@@ -8,10 +8,12 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
@@ -37,6 +39,17 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
+/**
+ * Thrown by [FoodRepository.fetchDuplicateGroups] and [FoodRepository.mergeFoods] when
+ * attempted offline or in Local mode. Both are inherently server-side computations (a
+ * full-database duplicate scan; a merge that re-points every referencing row) with no
+ * offline equivalent — unlike every other write in this repository there is nothing to
+ * queue for later.
+ */
+class FoodMergeUnavailableException(
+    message: String,
+) : Exception(message)
+
 class FoodRepository(
     private val api: BissbilanzApi,
     private val db: UserDataDatabase,
@@ -46,6 +59,7 @@ class FoodRepository(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
     private val openFoodFactsClient: OpenFoodFactsClient,
+    private val connectivityProvider: ConnectivityProvider,
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     var onFoodChanged: (suspend () -> Unit)? = null
@@ -394,6 +408,63 @@ class FoodRepository(
         }
         onFoodChanged?.invoke()
         imageUrl?.let { onImageOrphaned?.invoke(it) }
+    }
+
+    private fun requireOnline() {
+        if (appModeManager.isLocal) {
+            throw FoodMergeUnavailableException("Not available in Local mode")
+        }
+        if (!connectivityProvider.isOnline.value) {
+            throw FoodMergeUnavailableException("Not available offline")
+        }
+    }
+
+    /**
+     * Candidate duplicate groups across the user's whole food set — an inherently
+     * server-side computation (barcode / normalized name+brand / macro-similarity
+     * matching over every food the user owns), so unlike every other read here there
+     * is no local-cache fallback: it simply isn't available offline or in Local mode.
+     */
+    suspend fun fetchDuplicateGroups(): List<FoodDuplicateGroup> {
+        requireOnline()
+        return api.getFoodDuplicates()
+    }
+
+    /**
+     * Merges [sourceIds] into [keeperId]. The server re-points every food_entries/
+     * recipe_ingredients/supplement_ingredients row referencing a source onto the
+     * keeper (rescaling servings so historical macros stay invariant), unions food
+     * labels onto the keeper, and permanently deletes the source rows.
+     *
+     * Mirrors that locally: the keeper's (possibly now-filled-in) fields are re-cached
+     * via [cacheFood], and each source is evicted from the cache the same way
+     * [deleteFood] evicts a food — its labels, then the row itself — plus any queued-
+     * but-undrained op against it, since the row it targeted no longer exists
+     * server-side. There is no offline queue for this: like [fetchDuplicateGroups] it
+     * requires connectivity and Synced mode.
+     *
+     * Local entries/recipes that still hold a source's id go stale until the next
+     * server refresh — callers should follow a successful merge with a broader
+     * refresh (e.g. `RefreshManager.refreshAll()`), the same way every screen that
+     * pulls-to-refresh already re-syncs entries and recipes after a food-affecting
+     * change.
+     */
+    suspend fun mergeFoods(
+        keeperId: String,
+        sourceIds: List<String>,
+    ): Food {
+        requireOnline()
+        val merged = api.mergeFoods(keeperId, sourceIds)
+        withContext(ioDispatcher) {
+            cacheFood(merged)
+            sourceIds.forEach { id ->
+                db.userDataDatabaseQueries.deleteFoodLabels(id)
+                db.userDataDatabaseQueries.deleteFood(id)
+            }
+        }
+        sourceIds.forEach { syncQueue.removeByAffected("foods", it) }
+        onFoodChanged?.invoke()
+        return merged
     }
 
     /**

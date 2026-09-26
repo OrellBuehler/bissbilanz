@@ -96,7 +96,7 @@ export const foodDuplicateFoodSchema = z
 
 export const foodDuplicateGroupSchema = z
 	.object({
-		reason: z.enum(['barcode', 'name_brand']),
+		reason: z.enum(['barcode', 'name_brand', 'similar']),
 		key: z.string(),
 		foods: z.array(foodDuplicateFoodSchema)
 	})

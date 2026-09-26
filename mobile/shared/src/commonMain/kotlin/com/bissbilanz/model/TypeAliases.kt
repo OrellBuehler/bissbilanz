@@ -19,6 +19,8 @@ import com.bissbilanz.api.generated.model.Food as GeneratedFood
 import com.bissbilanz.api.generated.model.FoodCreate as GeneratedFoodCreate
 import com.bissbilanz.api.generated.model.FoodDiversityEntry as GeneratedFoodDiversityEntry
 import com.bissbilanz.api.generated.model.FoodDiversityResponse as GeneratedFoodDiversityResponse
+import com.bissbilanz.api.generated.model.FoodDuplicateFood as GeneratedFoodDuplicateFood
+import com.bissbilanz.api.generated.model.FoodDuplicateGroup as GeneratedFoodDuplicateGroup
 import com.bissbilanz.api.generated.model.Goals as GeneratedGoals
 import com.bissbilanz.api.generated.model.GoalsSummary as GeneratedGoalsSummary
 import com.bissbilanz.api.generated.model.GoalsUpdate as GeneratedGoalsUpdate
@@ -64,6 +66,8 @@ import com.bissbilanz.api.generated.model.WeightUpdate as GeneratedWeightUpdate
 // Core entity types
 typealias Food = GeneratedFood
 typealias FoodCreate = GeneratedFoodCreate
+typealias FoodDuplicateGroup = GeneratedFoodDuplicateGroup
+typealias FoodDuplicateFood = GeneratedFoodDuplicateFood
 typealias Goals = GeneratedGoals
 typealias GoalsSummary = GeneratedGoalsSummary
 typealias Preferences = GeneratedPreferences
@@ -103,6 +107,7 @@ typealias ReminderUpdate = GeneratedReminderUpdate
 typealias ScheduleType = GeneratedSupplement.ScheduleType
 typealias TimeOfDay = GeneratedSupplement.TimeOfDay
 typealias ReminderKind = GeneratedReminder.Kind
+typealias FoodDuplicateReason = GeneratedFoodDuplicateGroup.Reason
 
 // Stats types
 typealias MacroTotals = MacroSummary

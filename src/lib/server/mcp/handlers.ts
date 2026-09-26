@@ -7,6 +7,8 @@ import {
 	getFood,
 	findFoodByBarcode
 } from '$lib/server/foods';
+import { mergeFoods } from '$lib/server/food-merge';
+import { findDuplicateGroups } from '$lib/server/food-duplicates';
 import {
 	createRecipe,
 	updateRecipe,
@@ -118,6 +120,8 @@ export const {
 	handleUpdateFood,
 	handleDeleteFood,
 	handleListRecentFoods,
+	handleMergeFoods,
+	handleFindDuplicateFoods,
 	handleUpdateRecipe,
 	handleDeleteRecipe,
 	handleCreateSupplement,
@@ -169,6 +173,8 @@ export const {
 	getFood,
 	findFoodByBarcode,
 	listRecentFoods,
+	mergeFoods,
+	findDuplicateGroups,
 	setFoodLabels,
 	listLabelStats,
 	setFoodLabelsBatch,

@@ -36,7 +36,7 @@ data class FoodDuplicateGroup(
     /**
      *
      *
-     * Values: barcode,name_brand
+     * Values: barcode,name_brand,similar
      */
     @Serializable
     enum class Reason(
@@ -47,5 +47,8 @@ data class FoodDuplicateGroup(
 
         @SerialName(value = "name_brand")
         name_brand("name_brand"),
+
+        @SerialName(value = "similar")
+        similar("similar"),
     }
 }

@@ -270,6 +270,9 @@ struct FoodPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     let onPicked: (Food) -> Void
+    /// Food ids to leave out of results — the food-merge flow uses this so a
+    /// food can't be picked as its own merge target.
+    var excludingIds: Set<String> = []
 
     @State private var query = ""
     @State private var results: [Food] = []
@@ -417,7 +420,7 @@ struct FoodPicker: View {
         isSearching = true
         let found = await foodRepository.searchFoods(query: query)
         guard !Task.isCancelled, query == self.query else { return }
-        results = found
+        results = excludingIds.isEmpty ? found : found.filter { !excludingIds.contains($0.id) }
         isSearching = false
         guard found.count < Self.offFallbackThreshold else {
             offResults = []
