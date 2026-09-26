@@ -4,6 +4,8 @@ struct RecipeDetailView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     let recipeId: String
 
@@ -42,6 +44,7 @@ struct RecipeDetailView: View {
                             .frame(width: 56, height: 56)
                     }
                     .circularGlassBackground(tint: Color.accentColor)
+                    .accessibilityLabel(L10n.logRecipe)
                     .padding(20)
                 }
             }
@@ -73,6 +76,7 @@ struct RecipeDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel(L10n.more)
                 }
             }
         }
@@ -129,6 +133,7 @@ struct RecipeDetailView: View {
                         .frame(maxWidth: .infinity)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
                 }
             }
 
@@ -139,13 +144,18 @@ struct RecipeDetailView: View {
                     Text("\(Int(recipe.totalServings))")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
                 if recipe.isFavorite {
                     HStack {
                         Text(L10n.favorites)
                         Spacer()
                         Image(systemName: "star.fill")
                             .foregroundStyle(.yellow)
+                            .accessibilityHidden(true)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(L10n.favorites)
+                    .accessibilityValue(L10n.favorite)
                 }
                 if let cookedWeight = recipe.cookedWeight {
                     HStack {
@@ -159,6 +169,7 @@ struct RecipeDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
 
@@ -168,7 +179,7 @@ struct RecipeDetailView: View {
                         label: L10n.calories,
                         value: cal,
                         unit: "kcal",
-                        color: MacroColors.calories
+                        color: accessibleColor(.calories)
                     )
                 }
                 if let p = recipe.proteinPerServing {
@@ -176,21 +187,21 @@ struct RecipeDetailView: View {
                         label: L10n.protein,
                         value: p,
                         unit: "g",
-                        color: MacroColors.protein
+                        color: accessibleColor(.protein)
                     )
                 }
                 if let c = recipe.carbsPerServing {
-                    NutrientRow(label: L10n.carbs, value: c, unit: "g", color: MacroColors.carbs)
+                    NutrientRow(label: L10n.carbs, value: c, unit: "g", color: accessibleColor(.carbs))
                 }
                 if let f = recipe.fatPerServing {
-                    NutrientRow(label: L10n.fat, value: f, unit: "g", color: MacroColors.fat)
+                    NutrientRow(label: L10n.fat, value: f, unit: "g", color: accessibleColor(.fat))
                 }
                 if let fb = recipe.fiberPerServing {
                     NutrientRow(
                         label: L10n.fiber,
                         value: fb,
                         unit: "g",
-                        color: MacroColors.fiber
+                        color: accessibleColor(.fiber)
                     )
                 }
             }
@@ -206,29 +217,34 @@ struct RecipeDetailView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
 
             Section(L10n.totals) {
                 if let cal = recipe.calories {
-                    NutrientRow(label: L10n.calories, value: cal, unit: "kcal", color: MacroColors.calories)
+                    NutrientRow(label: L10n.calories, value: cal, unit: "kcal", color: accessibleColor(.calories))
                 }
                 if let p = recipe.protein {
-                    NutrientRow(label: L10n.protein, value: p, unit: "g", color: MacroColors.protein)
+                    NutrientRow(label: L10n.protein, value: p, unit: "g", color: accessibleColor(.protein))
                 }
                 if let c = recipe.carbs {
-                    NutrientRow(label: L10n.carbs, value: c, unit: "g", color: MacroColors.carbs)
+                    NutrientRow(label: L10n.carbs, value: c, unit: "g", color: accessibleColor(.carbs))
                 }
                 if let f = recipe.fat {
-                    NutrientRow(label: L10n.fat, value: f, unit: "g", color: MacroColors.fat)
+                    NutrientRow(label: L10n.fat, value: f, unit: "g", color: accessibleColor(.fat))
                 }
                 if let fb = recipe.fiber {
-                    NutrientRow(label: L10n.fiber, value: fb, unit: "g", color: MacroColors.fiber)
+                    NutrientRow(label: L10n.fiber, value: fb, unit: "g", color: accessibleColor(.fiber))
                 }
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
 
     // MARK: - Actions

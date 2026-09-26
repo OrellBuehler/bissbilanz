@@ -434,6 +434,7 @@ struct SettingsView: View {
             HStack {
                 Image(systemName: "iphone")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text(L10n.localModeStatus)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -448,6 +449,7 @@ struct SettingsView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
                     Text(L10n.sessionExpiredMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -465,6 +467,7 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
                         Text(L10n.pendingSyncCount(syncManager.pendingCount))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -475,6 +478,7 @@ struct SettingsView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.red)
+                        .accessibilityHidden(true)
                     Text(syncError)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -588,11 +592,13 @@ struct SettingsView: View {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text(label)
             Spacer()
             Text("\(Int(value)) \(unit)")
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Goals Editor Sheet
@@ -618,6 +624,7 @@ struct SettingsView: View {
                     if hasTargetDate {
                         DatePicker("", selection: $editTargetDate, displayedComponents: .date)
                             .labelsHidden()
+                            .accessibilityLabel(L10n.goalsTargetDateLabel)
                     }
                     if goals.targetWeightKg != nil || goals.targetDate != nil {
                         Button(L10n.goalsTargetClear, role: .destructive) {

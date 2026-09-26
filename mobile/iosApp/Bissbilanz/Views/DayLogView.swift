@@ -5,6 +5,8 @@ struct DayLogView: View {
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     let date: String
 
     @State private var entries: [Entry] = []
@@ -226,13 +228,20 @@ struct DayLogView: View {
         let f = mealEntries.reduce(0.0) { $0 + $1.totalFat }
         return VStack(alignment: .leading, spacing: 6) {
             Text(L10n.mealName(mealType))
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: 6) {
-                MacroPill(value: "\(Int(cal)) cal", color: MacroColors.calories)
-                MacroPill(label: "P", value: "\(Int(p))g", color: MacroColors.protein)
-                MacroPill(label: "C", value: "\(Int(c))g", color: MacroColors.carbs)
-                MacroPill(label: "F", value: "\(Int(f))g", color: MacroColors.fat)
+                MacroPill(value: "\(Int(cal)) cal", color: accessibleColor(.calories))
+                MacroPill(label: "P", value: "\(Int(p))g", color: accessibleColor(.protein))
+                MacroPill(label: "C", value: "\(Int(c))g", color: accessibleColor(.carbs))
+                MacroPill(label: "F", value: "\(Int(f))g", color: accessibleColor(.fat))
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(MacroSpokenSummary.macros(calories: cal, protein: p, carbs: c, fat: f))
         }
+    }
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
 
     private func entryRow(_ entry: Entry) -> some View {
@@ -244,6 +253,7 @@ struct DayLogView: View {
                     FoodImageView(imageUrl: imageUrl)
                         .frame(width: 36, height: 36)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .accessibilityHidden(true)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.displayName)
@@ -272,6 +282,20 @@ struct DayLogView: View {
         // List otherwise tints Button labels with the accent color, overriding
         // the explicit .primary/.secondary colors set above.
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(entryAccessibilityLabel(entry))
+    }
+
+    private func entryAccessibilityLabel(_ entry: Entry) -> String {
+        var parts = [entry.displayName]
+        if let time = entry.loggedTimeString { parts.append(time) }
+        parts.append(MacroSpokenSummary.macros(
+            calories: entry.totalCalories,
+            protein: entry.totalProtein,
+            carbs: entry.totalCarbs,
+            fat: entry.totalFat
+        ))
+        return parts.joined(separator: ", ")
     }
 
     private func imageUrl(for entry: Entry) -> String? {

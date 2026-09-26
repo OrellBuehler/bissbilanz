@@ -83,6 +83,12 @@ struct DashboardView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     /// Widget data
     @State private var supplementChecklist: [SupplementChecklist] = []
@@ -474,6 +480,7 @@ struct DashboardView: View {
         HStack {
             Image(systemName: "fork.knife")
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.fastingDay)
                     .font(.subheadline)
@@ -488,6 +495,8 @@ struct DashboardView: View {
                 set: { _ in Task { await toggleFastingDay() } }
             ))
             .labelsHidden()
+            .accessibilityLabel(L10n.fastingDay)
+            .accessibilityHint(L10n.fastingDayDescription)
         }
         .padding(12)
         .background(.regularMaterial)
@@ -583,6 +592,7 @@ struct DashboardView: View {
                     .font(.title3)
                     .frame(width: 44, height: 44)
             }
+            .accessibilityLabel(L10n.previousDay)
 
             Spacer()
 
@@ -590,6 +600,7 @@ struct DashboardView: View {
                 Text(L10n.dayLabel(selectedDate))
                     .font(.title3)
                     .fontWeight(.semibold)
+                    .accessibilityAddTraits(.isHeader)
                 if !selectedDate.isToday {
                     Button(L10n.goToToday) {
                         goToToday()
@@ -608,6 +619,7 @@ struct DashboardView: View {
                     .frame(width: 44, height: 44)
             }
             .disabled(selectedDate.isToday)
+            .accessibilityLabel(L10n.nextDay)
         }
         .padding(.horizontal)
     }
@@ -620,40 +632,45 @@ struct DashboardView: View {
             HStack(spacing: 16) {
                 MacroRingView(
                     label: "Cal",
+                    accessibilityName: L10n.calories,
                     current: totalCalories,
                     goal: adjustedGoals.calorieGoal,
-                    color: MacroColors.calories,
+                    macro: .calories,
                     showGoal: true
                 )
                 MacroRingView(
                     label: "P",
+                    accessibilityName: L10n.protein,
                     current: totalProtein,
                     goal: adjustedGoals.proteinGoal,
-                    color: MacroColors.protein,
+                    macro: .protein,
                     showGoal: true,
                     animationDelay: 0.05
                 )
                 MacroRingView(
                     label: "C",
+                    accessibilityName: L10n.carbs,
                     current: totalCarbs,
                     goal: adjustedGoals.carbGoal,
-                    color: MacroColors.carbs,
+                    macro: .carbs,
                     showGoal: true,
                     animationDelay: 0.1
                 )
                 MacroRingView(
                     label: "F",
+                    accessibilityName: L10n.fat,
                     current: totalFat,
                     goal: adjustedGoals.fatGoal,
-                    color: MacroColors.fat,
+                    macro: .fat,
                     showGoal: true,
                     animationDelay: 0.15
                 )
                 MacroRingView(
                     label: "Fb",
+                    accessibilityName: L10n.fiber,
                     current: totalFiber,
                     goal: adjustedGoals.fiberGoal,
-                    color: MacroColors.fiber,
+                    macro: .fiber,
                     showGoal: true,
                     animationDelay: 0.2
                 )
@@ -674,6 +691,7 @@ struct DashboardView: View {
             Image(systemName: "flame.fill")
                 .foregroundStyle(.orange)
                 .font(.caption)
+                .accessibilityHidden(true)
             Text(L10n.daySummaryActivity(calories))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -692,6 +710,7 @@ struct DashboardView: View {
             HStack {
                 Image(systemName: "timer")
                     .foregroundStyle(MacroColors.fasting)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.fasting)
                         .font(.caption)
@@ -717,12 +736,14 @@ struct DashboardView: View {
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .padding(12)
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Weight Widget
@@ -734,6 +755,7 @@ struct DashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "scalemass")
                     .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
                 Text(L10n.weight)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -749,6 +771,7 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Sleep Widget
@@ -761,6 +784,7 @@ struct DashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "bed.double")
                     .foregroundStyle(.indigo)
+                    .accessibilityHidden(true)
                 Text(L10n.sleep)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -782,6 +806,7 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Supplements Widget
@@ -791,9 +816,11 @@ struct DashboardView: View {
             HStack {
                 Image(systemName: "pills")
                     .foregroundStyle(.purple)
+                    .accessibilityHidden(true)
                 Text(L10n.supplements)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 let taken = supplementChecklist.count(where: \.taken)
                 Text("\(taken)/\(supplementChecklist.count)")
@@ -810,6 +837,7 @@ struct DashboardView: View {
                             Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
                                 .font(.title3)
                                 .foregroundStyle(item.taken ? .green : .secondary)
+                                .accessibilityHidden(true)
                             Text(item.supplement.name)
                                 .font(.subheadline)
                                 .foregroundStyle(item.taken ? .secondary : .primary)
@@ -819,6 +847,10 @@ struct DashboardView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(item.supplement.name)
+                    .accessibilityValue(item.taken ? L10n.markTaken : L10n.notTakenYet)
+                    .accessibilityAddTraits(item.taken ? .isSelected : [])
                 }
             }
         }
@@ -832,6 +864,18 @@ struct DashboardView: View {
     /// Same line/goal-rule shape as the insights calorie chart, sized for a
     /// dashboard card. Hidden until the window holds at least two logged days —
     /// a single point is not a trend.
+    /// Read before a VoiceOver user swipes through each day's data point.
+    private var calorieTrendAccessibilitySummary: String {
+        let logged = calorieTrend.filter { $0.calories > 0 }
+        guard let first = logged.first, let last = logged.last else { return L10n.noEntries }
+        let average = logged.reduce(0.0) { $0 + $1.calories } / Double(logged.count)
+        var summary = L10n.chartAverageValue(MacroFormat.kcal(average), unit: L10n.calories)
+        if logged.count > 1 {
+            summary += ", " + (last.calories >= first.calories ? L10n.chartTrendingUp : L10n.chartTrendingDown)
+        }
+        return summary
+    }
+
     @ViewBuilder
     private var calorieTrendWidget: some View {
         if calorieTrend.count(where: { $0.calories > 0 }) >= 2 {
@@ -839,9 +883,11 @@ struct DashboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "chart.xyaxis.line")
                         .foregroundStyle(MacroColors.calories)
+                        .accessibilityHidden(true)
                     Text(L10n.caloriesTrend)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(L10n.last7Days)
                         .font(.caption)
@@ -860,6 +906,8 @@ struct DashboardView: View {
                         RuleMark(y: .value("Goal", goals.calorieGoal))
                             .foregroundStyle(.gray.opacity(0.5))
                             .lineStyle(StrokeStyle(dash: [5, 5]))
+                            .accessibilityLabel(L10n.dailyGoals)
+                            .accessibilityValue(MacroFormat.kcal(goals.calorieGoal))
                     }
                 }
                 .frame(height: 120)
@@ -867,6 +915,8 @@ struct DashboardView: View {
                 .chartYAxis {
                     AxisMarks(position: .leading)
                 }
+                .accessibilityLabel(L10n.caloriesTrend)
+                .accessibilityValue(calorieTrendAccessibilitySummary)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -887,9 +937,11 @@ struct DashboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
                     Text(L10n.favorites)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                 }
 
@@ -928,9 +980,11 @@ struct DashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "fork.knife.circle")
                     .foregroundStyle(MacroColors.protein)
+                    .accessibilityHidden(true)
                 Text(L10n.recipeSuggestionsCardTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 NavigationLink {
                     RecipeSuggestionsView()
@@ -978,8 +1032,9 @@ struct DashboardView: View {
             Text("\(MacroFormat.kcal(item.suggestion.calories)) kcal")
                 .font(.caption)
                 .monospacedDigit()
-                .foregroundStyle(MacroColors.calories)
+                .foregroundStyle(accessibleColor(.calories))
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Meal Breakdown Widget
@@ -994,9 +1049,11 @@ struct DashboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "chart.pie")
                         .foregroundStyle(MacroColors.calories)
+                        .accessibilityHidden(true)
                     Text(L10n.mealBreakdown)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                 }
 
@@ -1016,12 +1073,14 @@ struct DashboardView: View {
                             }
                         }
                         .frame(height: 10)
+                        .accessibilityHidden(true)
                         Text("\(MacroFormat.kcal(item.calories)) kcal")
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                             .frame(width: 74, alignment: .trailing)
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
             .padding(12)
@@ -1043,9 +1102,11 @@ struct DashboardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "trophy")
                         .foregroundStyle(MacroColors.fat)
+                        .accessibilityHidden(true)
                     Text(L10n.topFoods)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(L10n.last7Days)
                         .font(.caption)
@@ -1069,8 +1130,9 @@ struct DashboardView: View {
                         Text("\(MacroFormat.kcal(food.calories)) kcal")
                             .font(.caption)
                             .monospacedDigit()
-                            .foregroundStyle(MacroColors.calories)
+                            .foregroundStyle(accessibleColor(.calories))
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
             .padding(12)

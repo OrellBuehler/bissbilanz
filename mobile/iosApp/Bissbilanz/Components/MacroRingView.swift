@@ -1,16 +1,21 @@
 import SwiftUI
 
 struct MacroRingView: View {
+    /// Short abbreviation shown under the ring ("Cal", "P", "C"...).
     let label: String
+    /// Full macro name spoken by VoiceOver instead of the abbreviation.
+    let accessibilityName: String
     let current: Double
     let goal: Double
-    let color: Color
+    let macro: AccessibleMacroColor.Macro
     var showGoal: Bool = false
     /// Staggers the fill animation so a row of rings cascades into place.
     var animationDelay: Double = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     @State private var animatedProgress: Double = 0
 
@@ -21,6 +26,10 @@ struct MacroRingView: View {
 
     private var isOver: Bool {
         goal > 0 && current > goal
+    }
+
+    private var color: Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
 
     private var ringColor: Color {
@@ -46,7 +55,7 @@ struct MacroRingView: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .stroke(color.opacity(colorScheme == .dark ? 0.2 : 0.12), lineWidth: 6)
+                    .stroke(color.opacity(trackOpacity), lineWidth: 6)
 
                 Circle()
                     .trim(from: 0, to: animatedProgress)
@@ -69,6 +78,17 @@ struct MacroRingView: View {
                     }
                 }
                 .animation(reduceMotion ? nil : fillAnimation, value: current)
+
+                // Color alone marks "over goal" (ring/text turn red) — add a
+                // shape-based cue too when Differentiate Without Color is on.
+                if isOver, differentiateWithoutColor {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.red)
+                        .background(Circle().fill(.background))
+                        .offset(x: 20, y: -20)
+                        .accessibilityHidden(true)
+                }
             }
             .frame(width: 56, height: 56)
 
@@ -79,12 +99,21 @@ struct MacroRingView: View {
         .onAppear { syncProgress() }
         .onChange(of: progress) { _, _ in syncProgress() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
+        .accessibilityLabel(accessibilityName)
         .accessibilityValue(accessibilityValueText)
     }
 
+    private var trackOpacity: Double {
+        let base = colorScheme == .dark ? 0.2 : 0.12
+        return colorSchemeContrast == .increased ? base * 2 : base
+    }
+
     private var accessibilityValueText: String {
-        goal > 0 ? "\(MacroFormat.kcal(current)) / \(MacroFormat.kcal(goal))" : MacroFormat.kcal(current)
+        let unit = macro == .calories ? L10n.calories : L10n.gramsUnit
+        let value = goal > 0
+            ? L10n.progressOfGoal(current: MacroFormat.kcal(current), goal: MacroFormat.kcal(goal), unit: unit)
+            : "\(MacroFormat.kcal(current)) \(unit)"
+        return isOver ? "\(value), \(L10n.overGoal)" : value
     }
 
     private func syncProgress() {

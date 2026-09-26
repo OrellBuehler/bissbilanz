@@ -46,6 +46,7 @@ struct DashboardLayoutView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
             Spacer()
             if section.hasVisibilityToggle {
                 Toggle("", isOn: Binding(
@@ -53,6 +54,7 @@ struct DashboardLayoutView: View {
                     set: { newValue in Task { await setEnabled(section, newValue) } }
                 ))
                 .labelsHidden()
+                .accessibilityLabel(title(for: section))
             }
         }
         .moveDisabled(false)

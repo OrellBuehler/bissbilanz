@@ -36,6 +36,7 @@ struct FoodSleepCard: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .combine)
                 }
             } else {
                 InsightEmptyState(message: L10n.insightsNeedsLateFoodNights)

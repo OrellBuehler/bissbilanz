@@ -10,6 +10,12 @@ struct RecipeSuggestionsView: View {
     @Environment(GoalsRepository.self) private var goalsRepository
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     @State private var recipes: [Recipe] = []
     @State private var goals: Goals?
@@ -146,10 +152,10 @@ struct RecipeSuggestionsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack(spacing: 16) {
-                remainingStat(L10n.calories, value: remaining.calories, unit: "kcal", color: MacroColors.calories)
-                remainingStat(L10n.protein, value: remaining.protein, unit: "g", color: MacroColors.protein)
-                remainingStat(L10n.carbs, value: remaining.carbs, unit: "g", color: MacroColors.carbs)
-                remainingStat(L10n.fat, value: remaining.fat, unit: "g", color: MacroColors.fat)
+                remainingStat(L10n.calories, value: remaining.calories, unit: "kcal", color: accessibleColor(.calories))
+                remainingStat(L10n.protein, value: remaining.protein, unit: "g", color: accessibleColor(.protein))
+                remainingStat(L10n.carbs, value: remaining.carbs, unit: "g", color: accessibleColor(.carbs))
+                remainingStat(L10n.fat, value: remaining.fat, unit: "g", color: accessibleColor(.fat))
             }
         }
         .padding(12)
@@ -170,6 +176,9 @@ struct RecipeSuggestionsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(unit == "kcal" ? "\(MacroFormat.kcal(clamped)) kcal" : "\(MacroFormat.nutrient(clamped)) g")
     }
 
     // MARK: - Row
@@ -180,6 +189,7 @@ struct RecipeSuggestionsView: View {
                 FoodImageView(imageUrl: recipe.imageUrl)
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -189,6 +199,7 @@ struct RecipeSuggestionsView: View {
                         Image(systemName: "star.fill")
                             .font(.caption2)
                             .foregroundStyle(.yellow)
+                            .accessibilityHidden(true)
                     }
                     Spacer()
                     Text("\(MacroFormat.servings(suggestion.servings))\u{00D7}")
@@ -198,13 +209,13 @@ struct RecipeSuggestionsView: View {
                 }
                 HStack(spacing: 8) {
                     Text("\(MacroFormat.kcal(suggestion.calories)) kcal")
-                        .foregroundStyle(MacroColors.calories)
+                        .foregroundStyle(accessibleColor(.calories))
                     Text("P \(MacroFormat.nutrient(suggestion.protein))")
-                        .foregroundStyle(MacroColors.protein)
+                        .foregroundStyle(accessibleColor(.protein))
                     Text("C \(MacroFormat.nutrient(suggestion.carbs))")
-                        .foregroundStyle(MacroColors.carbs)
+                        .foregroundStyle(accessibleColor(.carbs))
                     Text("F \(MacroFormat.nutrient(suggestion.fat))")
-                        .foregroundStyle(MacroColors.fat)
+                        .foregroundStyle(accessibleColor(.fat))
                 }
                 .font(.caption)
                 Text(L10n.recipeSuggestionsFitPercent(suggestion.fit))
@@ -213,6 +224,21 @@ struct RecipeSuggestionsView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(suggestionAccessibilityLabel(suggestion, recipe: recipe))
+    }
+
+    private func suggestionAccessibilityLabel(_ suggestion: LocalRecipeSuggestions.Suggestion, recipe: Recipe) -> String {
+        var parts = [recipe.name]
+        if recipe.isFavorite { parts.append(L10n.favorite) }
+        parts.append(MacroSpokenSummary.macros(
+            calories: suggestion.calories,
+            protein: suggestion.protein,
+            carbs: suggestion.carbs,
+            fat: suggestion.fat
+        ))
+        parts.append(L10n.recipeSuggestionsFitPercent(suggestion.fit))
+        return parts.joined(separator: ", ")
     }
 
     // MARK: - Empty States

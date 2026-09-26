@@ -278,6 +278,7 @@ struct AIMealSheet: View {
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .clipped()
+                                .accessibilityHidden(true)
                             Button(role: .destructive) {
                                 attachedImages.remove(at: index)
                             } label: {
@@ -286,6 +287,7 @@ struct AIMealSheet: View {
                             }
                             .buttonStyle(.plain)
                             .padding(4)
+                            .accessibilityLabel(L10n.removePhoto)
                         }
                     }
                 }

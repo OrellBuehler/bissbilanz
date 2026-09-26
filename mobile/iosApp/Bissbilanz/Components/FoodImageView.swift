@@ -165,6 +165,9 @@ struct FoodImageView: View {
         .task(id: imageUrl) {
             image = await loader.image(for: imageUrl)
         }
+        // Always shown beside the food/recipe name it's a photo of — decorative
+        // everywhere it's used.
+        .accessibilityHidden(true)
     }
 }
 
