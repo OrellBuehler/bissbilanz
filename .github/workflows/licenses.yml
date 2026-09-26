@@ -49,6 +49,9 @@ jobs:
           bunx license-checker --production --customPath /tmp/custom-format.json --json > /tmp/licenses.json
           bun scripts/generate-licenses.mjs /tmp/licenses.json
 
+      - name: Format license file
+        run: bunx prettier --write THIRD_PARTY_LICENSES.md
+
       - name: Check for changes
         id: diff
         run: |
@@ -57,10 +60,6 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Format license file
-        if: steps.diff.outputs.changed == 'true'
-        run: bunx prettier --write THIRD_PARTY_LICENSES.md
 
       - name: Commit updated licenses
         if: steps.diff.outputs.changed == 'true'
