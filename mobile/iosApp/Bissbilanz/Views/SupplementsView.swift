@@ -198,32 +198,34 @@ struct SupplementsView: View {
                         }
 
                         Spacer()
-
-                        scheduleLabel(supplement)
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(supplement.name)
-                .accessibilityValue(isTaken ? L10n.markTaken : L10n.notTakenYet)
+                .accessibilityValue(isTaken ? L10n.taken : L10n.notTakenYet)
 
-                if hasIngredients {
-                    Button {
-                        withAnimation {
-                            if isExpanded {
-                                expandedIds.remove(supplement.id)
-                            } else {
-                                expandedIds.insert(supplement.id)
+                VStack(alignment: .trailing, spacing: 4) {
+                    scheduleLabel(supplement)
+
+                    if hasIngredients {
+                        Button {
+                            withAnimation {
+                                if isExpanded {
+                                    expandedIds.remove(supplement.id)
+                                } else {
+                                    expandedIds.insert(supplement.id)
+                                }
                             }
+                        } label: {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .contentTransition(.symbolEffect(.replace))
                         }
-                    } label: {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .contentTransition(.symbolEffect(.replace))
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isExpanded ? L10n.collapse : L10n.expand)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isExpanded ? L10n.collapse : L10n.expand)
                 }
             }
 

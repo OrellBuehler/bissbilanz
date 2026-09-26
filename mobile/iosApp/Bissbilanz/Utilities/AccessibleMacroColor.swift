@@ -4,7 +4,8 @@ import SwiftUI
 /// large fills (rings, bars, chart strokes) and fall short of WCAG AA for
 /// *text* against light backgrounds; they also never react to Increase
 /// Contrast. Views that show a macro color as text or as a small icon read
-/// through here instead, so the color itself stays legible in every mode.
+/// through here instead. The default appearance keeps the base hues; the
+/// darker/brighter variants only apply under Increase Contrast.
 enum AccessibleMacroColor {
     enum Macro: CaseIterable {
         case calories, protein, carbs, fat, fiber, fasting, water, activity
@@ -19,7 +20,7 @@ enum AccessibleMacroColor {
         case (_, .increased):
             lightIncreased(macro)
         default:
-            lightDefault(macro)
+            base(macro)
         }
     }
 
@@ -33,21 +34,6 @@ enum AccessibleMacroColor {
         case .fasting: MacroColors.fasting
         case .water: MacroColors.water
         case .activity: MacroColors.activity
-        }
-    }
-
-    /// AA-safe (>=4.5:1) against light card backgrounds — the base hues above
-    /// mostly fall between 2:1 and 4:1 there.
-    private static func lightDefault(_ macro: Macro) -> Color {
-        switch macro {
-        case .calories: Color(red: 0.192, green: 0.424, blue: 0.800) // #316CCC
-        case .protein: Color(red: 0.788, green: 0.224, blue: 0.224) // #C93939
-        case .carbs: Color(red: 0.702, green: 0.325, blue: 0.063) // #B35310
-        case .fat: Color(red: 0.541, green: 0.416, blue: 0.020) // #8A6A05
-        case .fiber: Color(red: 0.086, green: 0.494, blue: 0.235) // #167E3C
-        case .fasting: Color(red: 0.361, green: 0.373, blue: 0.878) // #5C5FE0
-        case .water: Color(red: 0.016, green: 0.478, blue: 0.557) // #047A8E
-        case .activity: Color(red: 0.490, green: 0.325, blue: 0.867) // #7D53DD
         }
     }
 
