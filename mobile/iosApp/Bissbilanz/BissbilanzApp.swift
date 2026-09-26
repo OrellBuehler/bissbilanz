@@ -78,11 +78,11 @@ struct BissbilanzApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
 
-    /// Set by the Settings "Show tips again" row; read and cleared here on the
-    /// next launch, before `Tips.configure`, so every tip's dismissed/shown
-    /// state resets. Tips only re-appear after a restart because
-    /// `Tips.resetDatastore()` must run before `Tips.configure` — TipKit
-    /// forbids calling it afterwards.
+    /// Set when the Settings "Show tips" switch is turned back on; read and
+    /// cleared here on the next launch, before `Tips.configure`, so every
+    /// tip's dismissed/shown state resets. Tips only re-appear after a
+    /// restart because `Tips.resetDatastore()` must run before
+    /// `Tips.configure` — TipKit forbids calling it afterwards.
     static let resetTipsOnLaunchKey = "resetTipsOnLaunch"
 
     init() {
@@ -94,6 +94,7 @@ struct BissbilanzApp: App {
             UserDefaults.standard.removeObject(forKey: Self.resetTipsOnLaunchKey)
         }
         try? Tips.configure([.displayFrequency(.daily)])
+        TipSettings.isEnabled = UserDefaults.standard.object(forKey: TipSettings.enabledKey) as? Bool ?? true
 
         let auth = AuthManager()
         let api = BissbilanzAPI(authManager: auth)

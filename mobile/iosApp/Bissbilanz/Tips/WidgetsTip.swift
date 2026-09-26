@@ -23,5 +23,6 @@ struct WidgetsTip: Tip {
 
     var rules: [Rule] {
         #Rule(TipEvents.foodLogged) { $0.donations.count >= 10 }
+        #Rule(TipSettings.$isEnabled) { $0 == true }
     }
 }

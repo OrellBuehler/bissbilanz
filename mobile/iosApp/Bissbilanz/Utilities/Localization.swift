@@ -501,6 +501,14 @@ enum L10n {
         localized("nutrition", en: "Nutrition", de: "Nährwerte")
     }
 
+    static func nutritionTotal(_ servings: String) -> String {
+        localized(
+            "nutrition_total",
+            en: "Total (\(servings) servings)",
+            de: "Gesamt (\(servings) Portionen)"
+        )
+    }
+
     static var nutritionPerServing: String {
         localized(
             "nutrition_per_serving",
@@ -3473,15 +3481,23 @@ enum L10n {
         localized("help_and_guides", en: "Help & guides", de: "Hilfe & Anleitungen")
     }
 
-    static var showTipsAgain: String {
-        localized("show_tips_again", en: "Show tips again", de: "Tipps erneut anzeigen")
+    static var showTips: String {
+        localized("show_tips", en: "Show tips", de: "Tipps anzeigen")
     }
 
-    static var showTipsAgainFooter: String {
+    static var showTipsOnFooter: String {
         localized(
-            "show_tips_again_footer",
-            en: "Tips reappear the next time you restart the app.",
-            de: "Tipps erscheinen wieder, sobald du die App neu startest."
+            "show_tips_on_footer",
+            en: "Hints about features appear around the app. Turning this back on also brings back tips you already closed, after the next restart.",
+            de: "Hinweise zu Funktionen erscheinen in der App. Wieder eingeschaltet kommen nach dem nächsten Neustart auch bereits geschlossene Tipps zurück."
+        )
+    }
+
+    static var showTipsOffFooter: String {
+        localized(
+            "show_tips_off_footer",
+            en: "Tips are hidden everywhere in the app.",
+            de: "Tipps sind überall in der App ausgeblendet."
         )
     }
 
