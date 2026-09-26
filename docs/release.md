@@ -155,6 +155,14 @@ promotion step in each console, for the first release and for every one after it
 - **iOS release certificate cap** — signing fails outright once too many distribution
   certs exist. Revoke old ones with `scripts/ios/revoke-ci-certs.mjs` (a human has to run
   it; it touches an Apple credential the CI classifier blocks).
+- **"Verify selected Xcode is the GM, not a beta" fails, or App Store Connect rejects a
+  build with "This build is using a beta version of Xcode"** — the `xcode-27` runner image
+  carries the next Xcode 27.x betas alongside the current GM, and `xcode-version` in
+  `mobile-release.yml`/`mobile-ios.yml` is pinned to an exact GM build for exactly this
+  reason (run 36175108021 shipped a beta archive because `latest-stable` picked one). Once
+  Apple ships a new Xcode 27.x GM and the `xcode-27` image README lists it as the non-beta
+  default, bump the `xcode-version` pin and the `EXPECTED_GM_BUILD`/`KNOWN_BETA_BUILDS` in
+  both workflows' guard step together.
 
 ## Rollback
 
