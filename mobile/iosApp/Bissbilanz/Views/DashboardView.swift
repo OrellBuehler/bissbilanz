@@ -1200,6 +1200,7 @@ struct DashboardView: View {
                 }
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    scanningTip.invalidate(reason: .actionPerformed)
                     showScanner = true
                 } label: {
                     Label(L10n.scanBarcode, systemImage: "barcode.viewfinder")
@@ -1222,6 +1223,7 @@ struct DashboardView: View {
             .accessibilityLabel(L10n.addFood)
             .popoverTip(scanningTip) { action in
                 guard action.id == "learn_more" else { return }
+                scanningTip.invalidate(reason: .actionPerformed)
                 showHelp(for: .scanning)
             }
             .padding()

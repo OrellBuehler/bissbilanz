@@ -151,7 +151,7 @@ struct EntryEditSheet: View {
                 if isQuickEntry {
                     quickNutritionSections
                 } else if let macros = perServingMacros {
-                    Section(L10n.nutrition) {
+                    Section(servings == 1 ? L10n.nutrition : L10n.nutritionTotal(MacroFormat.servings(servings))) {
                         NutrientRow(label: L10n.calories, value: macros.calories * servings, unit: "kcal")
                         NutrientRow(label: L10n.protein, value: macros.protein * servings, unit: "g")
                         NutrientRow(label: L10n.carbs, value: macros.carbs * servings, unit: "g")
@@ -211,6 +211,18 @@ struct EntryEditSheet: View {
             }
         }
 
+        // The fields above are per serving; this shows what the picked
+        // serving count actually adds up to (TestFlight feedback, 1.50.0).
+        if servings != 1, let calories = Double.parseUserInput(calories) {
+            Section(L10n.nutritionTotal(MacroFormat.servings(servings))) {
+                NutrientRow(label: L10n.calories, value: calories * servings, unit: "kcal")
+                NutrientRow(label: L10n.protein, value: quickTotal(protein), unit: "g")
+                NutrientRow(label: L10n.carbs, value: quickTotal(carbs), unit: "g")
+                NutrientRow(label: L10n.fat, value: quickTotal(fat), unit: "g")
+                NutrientRow(label: L10n.fiber, value: quickTotal(fiber), unit: "g")
+            }
+        }
+
         Section(L10n.additionalNutrients) {
             ForEach(NutrientCatalog.added(from: additionalValues)) { spec in
                 NutrientInputField(
@@ -223,6 +235,10 @@ struct EntryEditSheet: View {
 
             AddNutrientMenu(values: $additionalValues, visibleNutrientKeys: visibleNutrientKeys)
         }
+    }
+
+    private func quickTotal(_ text: String) -> Double {
+        (Double.parseUserInput(text) ?? 0) * servings
     }
 
     private func binding(for key: String) -> Binding<String> {

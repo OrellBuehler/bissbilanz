@@ -37,6 +37,7 @@ struct SettingsView: View {
     // Remembers the quick-add Siri Shortcut tip's dismissal across launches —
     // `SiriTipView` doesn't persist that on its own without a binding.
     @AppStorage("show_siri_log_food_tip") private var showSiriLogFoodTip = true
+    @AppStorage(TipSettings.enabledKey) private var tipsEnabled = true
 
     private var selectedTabNames: String {
         selectedTabsRaw.split(separator: ",")
@@ -354,15 +355,20 @@ struct SettingsView: View {
                     } label: {
                         Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
-                    Button {
-                        UserDefaults.standard.set(true, forKey: BissbilanzApp.resetTipsOnLaunchKey)
-                    } label: {
-                        Label(L10n.showTipsAgain, systemImage: "lightbulb")
+                    Toggle(isOn: $tipsEnabled) {
+                        Label(L10n.showTips, systemImage: "lightbulb")
+                    }
+                    .onChange(of: tipsEnabled) { _, enabled in
+                        TipSettings.isEnabled = enabled
+                        // Tips already dismissed only come back through a
+                        // datastore reset, which TipKit allows only before
+                        // `Tips.configure` — so on the next launch.
+                        UserDefaults.standard.set(enabled, forKey: BissbilanzApp.resetTipsOnLaunchKey)
                     }
                 } header: {
                     Text(L10n.settingsSectionHelp)
                 } footer: {
-                    Text(L10n.showTipsAgainFooter)
+                    Text(tipsEnabled ? L10n.showTipsOnFooter : L10n.showTipsOffFooter)
                 }
 
                 // Account actions — signed-in only; sign-in itself sits in the
