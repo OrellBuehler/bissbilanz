@@ -3259,6 +3259,10 @@ enum L10n {
         localized("ai_tasks_unread", en: "New", de: "Neu")
     }
 
+    static func aiTasksPhotoIndex(_ index: Int, _ count: Int) -> String {
+        localized("ai_tasks_photo_index", en: "Photo \(index) of \(count)", de: "Foto \(index) von \(count)")
+    }
+
     static var aiTaskDismissedTitle: String {
         localized("ai_task_dismissed_title", en: "AI task dismissed", de: "KI-Aufgabe verworfen")
     }

@@ -832,14 +832,6 @@ final class BissbilanzAPI {
 
     // MARK: - AI Tasks
 
-    /// Resolves a server-relative upload path (`/uploads/...`) against the API host.
-    /// The photo endpoint is session-authenticated, so `AsyncImage` can load it directly.
-    nonisolated static func absoluteURL(for path: String) -> URL? {
-        guard path.hasPrefix("/") else { return URL(string: path) }
-        return URL(string: "\(defaultBaseURL)\(path)")
-    }
-
-
     func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
         for attempt in 0 ... 3 {
             do {
