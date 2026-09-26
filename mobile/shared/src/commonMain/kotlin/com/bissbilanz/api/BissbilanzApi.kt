@@ -27,14 +27,23 @@ import com.bissbilanz.api.generated.model.FastingSessionResponse
 import com.bissbilanz.api.generated.model.FastingSessionUpsert
 import com.bissbilanz.api.generated.model.FastingSessionsResponse
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodBrandStat
+import com.bissbilanz.api.generated.model.FoodBrandsResponse
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDiversityResponse
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodDuplicatesResponse
+import com.bissbilanz.api.generated.model.FoodLabelStat
+import com.bissbilanz.api.generated.model.FoodLabelStatsResponse
 import com.bissbilanz.api.generated.model.FoodLabelsSet
 import com.bissbilanz.api.generated.model.FoodLabelsSetResponse
 import com.bissbilanz.api.generated.model.FoodMerge
 import com.bissbilanz.api.generated.model.FoodMergeOverrides
+import com.bissbilanz.api.generated.model.FoodPackageImportResult
+import com.bissbilanz.api.generated.model.FoodPackagePreviewResponse
+import com.bissbilanz.api.generated.model.FoodPackageResolutions
+import com.bissbilanz.api.generated.model.FoodPackageSelection
+import com.bissbilanz.api.generated.model.FoodPackageSummaryResponse
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
@@ -1437,6 +1446,101 @@ class BissbilanzApi(
         }
         val body: ImageUploadResponse = response.body()
         return body.imageUrl
+    }
+
+    // Food packages (`src/lib/server/food-package/`): share foods + recipes with
+    // images as one zip; the importer re-uploads the same file with its choices.
+
+    suspend fun getFoodBrands(): List<FoodBrandStat> {
+        val response: FoodBrandsResponse = get("/api/foods/brands")
+        return response.brands
+    }
+
+    suspend fun getFoodLabelStats(kind: String? = "food"): List<FoodLabelStat> {
+        val response: FoodLabelStatsResponse =
+            get("/api/foods/labels") { if (kind != null) parameter("kind", kind) }
+        return response.labels
+    }
+
+    suspend fun summarizeFoodPackage(selection: FoodPackageSelection): FoodPackageSummaryResponse =
+        post("/api/foods/package/summary", selection)
+
+    suspend fun exportFoodPackage(selection: FoodPackageSelection): ByteArray {
+        val response =
+            client.post("/api/foods/package/export") {
+                setBody(selection)
+                // Photos of a whole food database — allow more than the default 30s.
+                timeout { requestTimeoutMillis = 180_000 }
+            }
+        if (!response.status.isSuccess()) {
+            val body = response.bodyAsText()
+            throw ApiException(
+                "POST /api/foods/package/export failed: HTTP ${response.status.value} $body",
+                response.status.value,
+                responseBody = body,
+            )
+        }
+        return response.body()
+    }
+
+    suspend fun previewFoodPackage(
+        fileName: String,
+        bytes: ByteArray,
+    ): FoodPackagePreviewResponse = postFoodPackage("/api/foods/package/preview", fileName, bytes, null)
+
+    /** Throws [ApiException] with status 409 when the preview is stale — re-run the preview. */
+    suspend fun importFoodPackage(
+        fileName: String,
+        bytes: ByteArray,
+        resolutions: FoodPackageResolutions,
+    ): FoodPackageImportResult =
+        postFoodPackage(
+            "/api/foods/package/import",
+            fileName,
+            bytes,
+            json.encodeToString(FoodPackageResolutions.serializer(), resolutions),
+        )
+
+    private suspend inline fun <reified T> postFoodPackage(
+        path: String,
+        fileName: String,
+        bytes: ByteArray,
+        resolutionsJson: String?,
+    ): T {
+        val response =
+            client.submitFormWithBinaryData(
+                url = path,
+                formData =
+                    formData {
+                        append(
+                            "file",
+                            bytes,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, "application/zip")
+                                append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                            },
+                        )
+                        if (resolutionsJson != null) {
+                            append(
+                                "resolutions",
+                                resolutionsJson,
+                                Headers.build { append(HttpHeaders.ContentType, "application/json") },
+                            )
+                        }
+                    },
+            ) {
+                header(HttpHeaders.Origin, baseUrl)
+                timeout { requestTimeoutMillis = 180_000 }
+            }
+        if (!response.status.isSuccess()) {
+            val body = response.bodyAsText()
+            throw ApiException(
+                "POST $path failed: HTTP ${response.status.value} $body",
+                response.status.value,
+                responseBody = body,
+            )
+        }
+        return response.body()
     }
 
     suspend fun downloadBytes(url: String): ByteArray {
