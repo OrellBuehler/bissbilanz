@@ -105,8 +105,8 @@ export const foodPackageSelectionSchema = z
 	.object({
 		/** Every food (kind=food) of the account. */
 		all: z.boolean().optional(),
-		foodIds: z.array(z.string().uuid()).max(MAX_PACKAGE_FOODS).optional(),
-		recipeIds: z.array(z.string().uuid()).max(MAX_PACKAGE_RECIPES).optional(),
+		foodIds: z.array(z.guid()).max(MAX_PACKAGE_FOODS).optional(),
+		recipeIds: z.array(z.guid()).max(MAX_PACKAGE_RECIPES).optional(),
 		/** Case-insensitive brand names; a food matching any brand OR any label is included. */
 		brands: z.array(z.string().trim().min(1).max(200)).max(MAX_FILTER_VALUES).optional(),
 		labels: z.array(z.string().trim().min(1).max(120)).max(MAX_FILTER_VALUES).optional(),
@@ -141,7 +141,7 @@ const resolutionSchema = z
 		ref: z.string().max(10),
 		action: foodPackageActionSchema,
 		/** The existing item the user was shown; a mismatch means the preview is stale. */
-		existingId: z.string().uuid()
+		existingId: z.guid()
 	})
 	.meta({ id: 'FoodPackageResolution' });
 

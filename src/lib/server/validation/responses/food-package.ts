@@ -65,14 +65,14 @@ const foodConflictSchema = z
 		incoming: foodSummarySchema,
 		existing: foodSummarySchema
 			.extend({
-				id: z.string().uuid(),
+				id: z.guid(),
 				entryCount: z.number().int(),
 				recipeCount: z.number().int()
 			})
 			.meta({ id: 'FoodPackageExistingFood' }),
 		alsoMatches: z.array(
 			z
-				.object({ id: z.string().uuid(), name: z.string(), brand: z.string().nullable() })
+				.object({ id: z.guid(), name: z.string(), brand: z.string().nullable() })
 				.meta({ id: 'FoodPackageAlsoMatch' })
 		),
 		allowed: z.array(foodPackageActionSchema),
@@ -86,7 +86,7 @@ const recipeConflictSchema = z
 		ref: z.string(),
 		incoming: recipeSummarySchema,
 		existing: recipeSummarySchema
-			.extend({ id: z.string().uuid(), entryCount: z.number().int() })
+			.extend({ id: z.guid(), entryCount: z.number().int() })
 			.meta({ id: 'FoodPackageExistingRecipe' }),
 		allowed: z.array(foodPackageActionSchema),
 		notes: z.array(conflictNoteSchema)
