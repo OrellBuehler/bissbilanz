@@ -32,6 +32,8 @@ struct FoodSearchView: View {
     @State private var showLogSheet = false
     @State private var showCreateFood = false
     @State private var showCreateRecipe = false
+    @State private var showShareFoods = false
+    @State private var showImportPackage = false
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
@@ -79,6 +81,24 @@ struct FoodSearchView: View {
                             Image(systemName: "doc.on.doc")
                         }
                         .accessibilityLabel(L10n.foodsDuplicatesViewAll)
+
+                        // Food packages are built and read by the server, so
+                        // they share the duplicates finder's account-only gate.
+                        Menu {
+                            Button {
+                                showShareFoods = true
+                            } label: {
+                                Label(L10n.foodPackageShareFoods, systemImage: "square.and.arrow.up")
+                            }
+                            Button {
+                                showImportPackage = true
+                            } label: {
+                                Label(L10n.foodPackageImport, systemImage: "square.and.arrow.down")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                        .accessibilityLabel(L10n.foodPackageShare)
                     }
 
                     // A single + presents a menu: foods and recipes are both
@@ -142,6 +162,12 @@ struct FoodSearchView: View {
                     await loadRecent()
                 }
             }
+        }
+        .sheet(isPresented: $showShareFoods) {
+            FoodPackageExportView()
+        }
+        .navigationDestination(isPresented: $showImportPackage) {
+            FoodPackageImportView()
         }
         .sheet(isPresented: $showCreateRecipe) {
             RecipeEditSheet()

@@ -1079,18 +1079,3 @@ struct VisibleNutrientsView: View {
         isSaving = false
     }
 }
-
-private struct ExportedArchive: Identifiable {
-    let url: URL
-    var id: String { url.path }
-}
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context _: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
-    }
-
-    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
-}

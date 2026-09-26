@@ -4597,6 +4597,256 @@ enum L10n {
         )
     }
 
+    // MARK: - Food packages
+
+    static var foodPackageShare: String {
+        localized("food_package_share", en: "Share", de: "Teilen")
+    }
+
+    static var foodPackageShareFoods: String {
+        localized("food_package_share_foods", en: "Share foods", de: "Lebensmittel teilen")
+    }
+
+    static var foodPackageShareRecipe: String {
+        localized("food_package_share_recipe", en: "Share recipe", de: "Rezept teilen")
+    }
+
+    static var foodPackageImport: String {
+        localized("food_package_import", en: "Import food package", de: "Lebensmittelpaket importieren")
+    }
+
+    static var foodPackageExportTitle: String {
+        localized("food_package_export_title", en: "Share foods", de: "Lebensmittel teilen")
+    }
+
+    static var foodPackageExportDescription: String {
+        localized("food_package_export_description", en: "Export foods and recipes with their photos as one file to send to a friend.", de: "Exportiere Lebensmittel und Rezepte mit Fotos als eine Datei, die du weitergeben kannst.")
+    }
+
+    static var foodPackageMode: String {
+        localized("food_package_mode", en: "What to share", de: "Was teilen")
+    }
+
+    static var foodPackageModeAll: String {
+        localized("food_package_mode_all", en: "All", de: "Alle")
+    }
+
+    static var foodPackageModeFilter: String {
+        localized("food_package_mode_filter", en: "Brand or label", de: "Marke oder Label")
+    }
+
+    static var foodPackageBrands: String {
+        localized("food_package_brands", en: "Brands", de: "Marken")
+    }
+
+    static var foodPackageLabels: String {
+        localized("food_package_labels", en: "Labels", de: "Labels")
+    }
+
+    static var foodPackageFilterEmpty: String {
+        localized("food_package_filter_empty", en: "Nothing to choose from yet", de: "Noch nichts zur Auswahl")
+    }
+
+    static var foodPackageIncludeRecipes: String {
+        localized("food_package_include_recipes", en: "Include recipes", de: "Rezepte einschliessen")
+    }
+
+    static var foodPackageIncludeRelatedRecipes: String {
+        localized("food_package_include_related_recipes", en: "Also include recipes that use these foods", de: "Auch Rezepte mit diesen Lebensmitteln einschliessen")
+    }
+
+    static var foodPackageTooLarge: String {
+        localized("food_package_too_large", en: "Too large to share at once — narrow the selection.", de: "Zu gross für einmal — schränke die Auswahl ein.")
+    }
+
+    static var foodPackageNothingSelected: String {
+        localized("food_package_nothing_selected", en: "Nothing selected yet.", de: "Noch nichts ausgewählt.")
+    }
+
+    static var foodPackageExportFailed: String {
+        localized("food_package_export_failed", en: "Export failed. Please try again.", de: "Export fehlgeschlagen. Bitte versuche es erneut.")
+    }
+
+    static var foodPackageImportTitle: String {
+        localized("food_package_import_title", en: "Import food package", de: "Lebensmittelpaket importieren")
+    }
+
+    static var foodPackageImportDescription: String {
+        localized("food_package_import_description", en: "Add foods and recipes someone shared with you. You decide what happens with items you already have.", de: "Füge Lebensmittel und Rezepte hinzu, die jemand mit dir geteilt hat. Du entscheidest, was mit bereits vorhandenen passiert.")
+    }
+
+    static var foodPackageChooseFile: String {
+        localized("food_package_choose_file", en: "Choose package file", de: "Paketdatei wählen")
+    }
+
+    static var foodPackageFileTooLarge: String {
+        localized("food_package_file_too_large", en: "The file is larger than 50 MB.", de: "Die Datei ist grösser als 50 MB.")
+    }
+
+    static var foodPackageAnalyzing: String {
+        localized("food_package_analyzing", en: "Analyzing package…", de: "Paket wird analysiert…")
+    }
+
+    static var foodPackageNoConflicts: String {
+        localized("food_package_no_conflicts", en: "Nothing conflicts with your database.", de: "Nichts kollidiert mit deiner Datenbank.")
+    }
+
+    static var foodPackageApplyAll: String {
+        localized("food_package_apply_all", en: "For all", de: "Für alle")
+    }
+
+    static var foodPackageSkip: String {
+        localized("food_package_skip", en: "Skip", de: "Überspringen")
+    }
+
+    static var foodPackageReplace: String {
+        localized("food_package_replace", en: "Replace", de: "Ersetzen")
+    }
+
+    static var foodPackageKeepBoth: String {
+        localized("food_package_keep_both", en: "Keep both", de: "Beide behalten")
+    }
+
+    static var foodPackageReasonBarcode: String {
+        localized("food_package_reason_barcode", en: "Same barcode", de: "Gleicher Barcode")
+    }
+
+    static var foodPackageReasonName: String {
+        localized("food_package_reason_name", en: "Same name", de: "Gleicher Name")
+    }
+
+    static var foodPackageReasonBarcodeAndName: String {
+        localized("food_package_reason_barcode_and_name", en: "Same barcode and name", de: "Gleicher Barcode und Name")
+    }
+
+    static var foodPackageIncoming: String {
+        localized("food_package_incoming", en: "From package", de: "Aus dem Paket")
+    }
+
+    static var foodPackageExisting: String {
+        localized("food_package_existing", en: "Yours", de: "Deines")
+    }
+
+    static var foodPackageNoteUnitBlocked: String {
+        localized("food_package_note_unit_blocked", en: "Can't replace: your recipes measure this food in a different unit.", de: "Ersetzen nicht möglich: Deine Rezepte messen dieses Lebensmittel in einer anderen Einheit.")
+    }
+
+    static var foodPackageNoteBarcodeDropped: String {
+        localized("food_package_note_barcode_dropped", en: "Keep both imports the copy without its barcode.", de: "Beim Behalten beider wird die Kopie ohne Barcode importiert.")
+    }
+
+    static var foodPackageNoteSkipCopy: String {
+        localized("food_package_note_skip_copy", en: "If skipped, a copy is still imported for a recipe that needs a different unit.", de: "Beim Überspringen wird trotzdem eine Kopie für ein Rezept mit anderer Einheit importiert.")
+    }
+
+    static var foodPackageNoteSharedTarget: String {
+        localized("food_package_note_shared_target", en: "Several items in the package match this one; only one can replace it.", de: "Mehrere Einträge im Paket passen hierzu; nur einer kann ihn ersetzen.")
+    }
+
+    static var foodPackageImportButton: String {
+        localized("food_package_import_button", en: "Import", de: "Importieren")
+    }
+
+    static var foodPackageImportFailed: String {
+        localized("food_package_import_failed", en: "Import failed. Please try again.", de: "Import fehlgeschlagen. Bitte versuche es erneut.")
+    }
+
+    static var foodPackageStale: String {
+        localized("food_package_stale", en: "Your data changed meanwhile — please review again.", de: "Deine Daten haben sich inzwischen geändert — bitte erneut prüfen.")
+    }
+
+    static var foodPackageResultTitle: String {
+        localized("food_package_result_title", en: "Import complete", de: "Import abgeschlossen")
+    }
+
+    static func foodPackageModeSelected(_ count: Int) -> String {
+        localized("food_package_mode_selected", en: "Selected (\(count))", de: "Ausgewählt (\(count))")
+    }
+
+    static func foodPackageSummary(foods: Int, recipes: Int, images: Int, size: String) -> String {
+        localized(
+            "food_package_summary",
+            en: "\(foods) foods · \(recipes) recipes · \(images) photos · ~\(size)",
+            de: "\(foods) Lebensmittel · \(recipes) Rezepte · \(images) Fotos · ~\(size)"
+        )
+    }
+
+    static func foodPackageIngredientsAdded(_ count: Int) -> String {
+        localized(
+            "food_package_ingredients_added",
+            en: "+\(count) ingredient foods needed by the recipes",
+            de: "+\(count) Zutaten, die von den Rezepten benötigt werden"
+        )
+    }
+
+    static func foodPackageNewCounts(foods: Int, recipes: Int) -> String {
+        localized(
+            "food_package_new_counts",
+            en: "\(foods) new foods · \(recipes) new recipes",
+            de: "\(foods) neue Lebensmittel · \(recipes) neue Rezepte"
+        )
+    }
+
+    static func foodPackageIngredientOnly(_ count: Int) -> String {
+        localized(
+            "food_package_ingredient_only",
+            en: "\(count) of them only as recipe ingredients",
+            de: "davon \(count) nur als Rezeptzutaten"
+        )
+    }
+
+    static func foodPackageConflictCount(_ count: Int) -> String {
+        localized("food_package_conflict_count", en: "\(count) already exist", de: "\(count) bereits vorhanden")
+    }
+
+    static func foodPackageTabFoods(_ count: Int) -> String {
+        localized("food_package_tab_foods", en: "Foods (\(count))", de: "Lebensmittel (\(count))")
+    }
+
+    static func foodPackageTabRecipes(_ count: Int) -> String {
+        localized("food_package_tab_recipes", en: "Recipes (\(count))", de: "Rezepte (\(count))")
+    }
+
+    static func foodPackageAlsoMatches(_ names: String) -> String {
+        localized("food_package_also_matches", en: "Also matches: \(names)", de: "Passt auch zu: \(names)")
+    }
+
+    static func foodPackageNoteHistory(entries: Int, recipes: Int) -> String {
+        localized(
+            "food_package_note_history",
+            en: "Used in \(entries) diary entries and \(recipes) recipes — replacing changes their totals.",
+            de: "In \(entries) Tagebucheinträgen und \(recipes) Rezepten verwendet — Ersetzen ändert deren Werte."
+        )
+    }
+
+    static func foodPackageNoteRecipeHistory(_ entries: Int) -> String {
+        localized(
+            "food_package_note_recipe_history",
+            en: "Logged \(entries) times — replacing changes those totals.",
+            de: "\(entries)-mal erfasst — Ersetzen ändert diese Werte."
+        )
+    }
+
+    static func foodPackageIngredients(_ count: Int) -> String {
+        localized("food_package_ingredients", en: "\(count) ingredients", de: "\(count) Zutaten")
+    }
+
+    static func foodPackageResultFoods(created: Int, replaced: Int, keptBoth: Int, skipped: Int) -> String {
+        localized(
+            "food_package_result_foods",
+            en: "Foods: \(created) new · \(replaced) replaced · \(keptBoth) kept both · \(skipped) skipped",
+            de: "Lebensmittel: \(created) neu · \(replaced) ersetzt · \(keptBoth) beide behalten · \(skipped) übersprungen"
+        )
+    }
+
+    static func foodPackageResultRecipes(created: Int, replaced: Int, keptBoth: Int, skipped: Int) -> String {
+        localized(
+            "food_package_result_recipes",
+            en: "Recipes: \(created) new · \(replaced) replaced · \(keptBoth) kept both · \(skipped) skipped",
+            de: "Rezepte: \(created) neu · \(replaced) ersetzt · \(keptBoth) beide behalten · \(skipped) übersprungen"
+        )
+    }
+
     private static func localized(_ key: String, en: String, de: String) -> String {
         switch currentLocale {
         case .en: en

@@ -4,6 +4,7 @@ struct RecipeDetailView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModeManager.self) private var appMode
 
     let recipeId: String
 
@@ -11,6 +12,7 @@ struct RecipeDetailView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showEditSheet = false
+    @State private var showShareSheet = false
     @State private var showDeleteConfirmation = false
     @State private var showLogSheet = false
     @State private var errorMessage: String?
@@ -65,6 +67,15 @@ struct RecipeDetailView: View {
                         }
                         .disabled(isDuplicating)
 
+                        // Sharing is server-built; not available in local mode.
+                        if !appMode.isLocal {
+                            Button {
+                                showShareSheet = true
+                            } label: {
+                                Label(L10n.foodPackageShareRecipe, systemImage: "square.and.arrow.up")
+                            }
+                        }
+
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
                         } label: {
@@ -75,6 +86,9 @@ struct RecipeDetailView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            FoodPackageExportView(recipeIds: [recipeId])
         }
         .sheet(isPresented: $showEditSheet) {
             if let recipe {
