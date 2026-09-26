@@ -61,7 +61,9 @@ const recipeSummarySchema = z
 const foodConflictSchema = z
 	.object({
 		ref: z.string(),
-		reason: z.enum(['barcode', 'name', 'barcode_and_name']),
+		reason: z
+			.enum(['barcode', 'name_brand', 'barcode_and_name'])
+			.meta({ id: 'FoodPackageConflictReason' }),
 		incoming: foodSummarySchema,
 		existing: foodSummarySchema
 			.extend({
@@ -98,36 +100,44 @@ export const foodPackagePreviewResponseSchema = z
 		packageHash: z.string(),
 		formatVersion: z.number().int(),
 		exportedAt: z.string().nullable(),
-		totals: z.object({
-			foods: z.number().int(),
-			recipes: z.number().int(),
-			images: z.number().int()
-		}),
-		newFoods: z.object({
-			count: z.number().int(),
-			/** New foods that only come along as recipe ingredients. */
-			ingredientOnly: z.number().int(),
-			samples: z.array(
-				z
-					.object({
-						ref: z.string(),
-						name: z.string(),
-						brand: z.string().nullable(),
-						calories: z.number()
-					})
-					.meta({ id: 'FoodPackageNewFood' })
-			)
-		}),
-		newRecipes: z.object({
-			count: z.number().int(),
-			samples: z.array(
-				z.object({ ref: z.string(), name: z.string() }).meta({ id: 'FoodPackageNewRecipe' })
-			)
-		}),
-		conflicts: z.object({
-			foods: z.array(foodConflictSchema),
-			recipes: z.array(recipeConflictSchema)
-		}),
+		totals: z
+			.object({
+				foods: z.number().int(),
+				recipes: z.number().int(),
+				images: z.number().int()
+			})
+			.meta({ id: 'FoodPackageTotals' }),
+		newFoods: z
+			.object({
+				count: z.number().int(),
+				/** New foods that only come along as recipe ingredients. */
+				ingredientOnly: z.number().int(),
+				samples: z.array(
+					z
+						.object({
+							ref: z.string(),
+							name: z.string(),
+							brand: z.string().nullable(),
+							calories: z.number()
+						})
+						.meta({ id: 'FoodPackageNewFood' })
+				)
+			})
+			.meta({ id: 'FoodPackageNewFoods' }),
+		newRecipes: z
+			.object({
+				count: z.number().int(),
+				samples: z.array(
+					z.object({ ref: z.string(), name: z.string() }).meta({ id: 'FoodPackageNewRecipe' })
+				)
+			})
+			.meta({ id: 'FoodPackageNewRecipes' }),
+		conflicts: z
+			.object({
+				foods: z.array(foodConflictSchema),
+				recipes: z.array(recipeConflictSchema)
+			})
+			.meta({ id: 'FoodPackageConflicts' }),
 		issues: z.array(issueSchema)
 	})
 	.meta({ id: 'FoodPackagePreviewResponse' });

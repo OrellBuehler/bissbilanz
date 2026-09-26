@@ -15,6 +15,8 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.FoodPackageFoodConflict
+import com.bissbilanz.api.generated.model.FoodPackageRecipeConflict
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -24,11 +26,9 @@ import kotlinx.serialization.encoding.*
  *
  * @param foods
  * @param recipes
- * @param images
  */
 @Serializable
-data class FoodPackagePreviewResponseTotals(
-    @SerialName(value = "foods") @Required val foods: kotlin.Int,
-    @SerialName(value = "recipes") @Required val recipes: kotlin.Int,
-    @SerialName(value = "images") @Required val images: kotlin.Int,
+data class FoodPackageConflicts(
+    @SerialName(value = "foods") @Required val foods: kotlin.collections.List<FoodPackageFoodConflict>,
+    @SerialName(value = "recipes") @Required val recipes: kotlin.collections.List<FoodPackageRecipeConflict>,
 )

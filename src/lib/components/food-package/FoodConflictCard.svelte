@@ -20,7 +20,7 @@
 	const reasonLabel = $derived(
 		conflict.reason === 'barcode'
 			? m.food_package_reason_barcode()
-			: conflict.reason === 'name'
+			: conflict.reason === 'name_brand'
 				? m.food_package_reason_name()
 				: m.food_package_reason_barcode_and_name()
 	);

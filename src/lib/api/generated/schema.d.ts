@@ -1984,25 +1984,21 @@ export interface components {
 			packageHash: string;
 			formatVersion: number;
 			exportedAt: string | null;
-			totals: {
-				foods: number;
-				recipes: number;
-				images: number;
-			};
-			newFoods: {
-				count: number;
-				ingredientOnly: number;
-				samples: components['schemas']['FoodPackageNewFood'][];
-			};
-			newRecipes: {
-				count: number;
-				samples: components['schemas']['FoodPackageNewRecipe'][];
-			};
-			conflicts: {
-				foods: components['schemas']['FoodPackageFoodConflict'][];
-				recipes: components['schemas']['FoodPackageRecipeConflict'][];
-			};
+			totals: components['schemas']['FoodPackageTotals'];
+			newFoods: components['schemas']['FoodPackageNewFoods'];
+			newRecipes: components['schemas']['FoodPackageNewRecipes'];
+			conflicts: components['schemas']['FoodPackageConflicts'];
 			issues: components['schemas']['FoodPackageIssue'][];
+		};
+		FoodPackageTotals: {
+			foods: number;
+			recipes: number;
+			images: number;
+		};
+		FoodPackageNewFoods: {
+			count: number;
+			ingredientOnly: number;
+			samples: components['schemas']['FoodPackageNewFood'][];
 		};
 		FoodPackageNewFood: {
 			ref: string;
@@ -2010,14 +2006,21 @@ export interface components {
 			brand: string | null;
 			calories: number;
 		};
+		FoodPackageNewRecipes: {
+			count: number;
+			samples: components['schemas']['FoodPackageNewRecipe'][];
+		};
 		FoodPackageNewRecipe: {
 			ref: string;
 			name: string;
 		};
+		FoodPackageConflicts: {
+			foods: components['schemas']['FoodPackageFoodConflict'][];
+			recipes: components['schemas']['FoodPackageRecipeConflict'][];
+		};
 		FoodPackageFoodConflict: {
 			ref: string;
-			/** @enum {string} */
-			reason: 'barcode' | 'name' | 'barcode_and_name';
+			reason: components['schemas']['FoodPackageConflictReason'];
 			incoming: components['schemas']['FoodPackageFoodSummary'];
 			existing: components['schemas']['FoodPackageExistingFood'];
 			alsoMatches: components['schemas']['FoodPackageAlsoMatch'][];
@@ -2025,6 +2028,8 @@ export interface components {
 			notes: components['schemas']['FoodPackageConflictNote'][];
 			targetGroup: string | null;
 		};
+		/** @enum {string} */
+		FoodPackageConflictReason: 'barcode' | 'name_brand' | 'barcode_and_name';
 		FoodPackageFoodSummary: {
 			name: string;
 			brand: string | null;

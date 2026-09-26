@@ -28,7 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param samples
  */
 @Serializable
-data class FoodPackagePreviewResponseNewFoods(
+data class FoodPackageNewFoods(
     @SerialName(value = "count") @Required val count: kotlin.Int,
     @SerialName(value = "ingredientOnly") @Required val ingredientOnly: kotlin.Int,
     @SerialName(value = "samples") @Required val samples: kotlin.collections.List<FoodPackageNewFood>,

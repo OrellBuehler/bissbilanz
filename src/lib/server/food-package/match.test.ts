@@ -89,7 +89,7 @@ describe('matchPackage', () => {
 			[]
 		);
 		expect(result.foodConflicts).toMatchObject([
-			{ ref: 'f1', reason: 'name', existingId: target.id }
+			{ ref: 'f1', reason: 'name_brand', existingId: target.id }
 		]);
 	});
 

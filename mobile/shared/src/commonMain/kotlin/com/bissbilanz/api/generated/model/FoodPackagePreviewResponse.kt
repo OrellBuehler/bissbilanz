@@ -15,11 +15,11 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.FoodPackageConflicts
 import com.bissbilanz.api.generated.model.FoodPackageIssue
-import com.bissbilanz.api.generated.model.FoodPackagePreviewResponseConflicts
-import com.bissbilanz.api.generated.model.FoodPackagePreviewResponseNewFoods
-import com.bissbilanz.api.generated.model.FoodPackagePreviewResponseNewRecipes
-import com.bissbilanz.api.generated.model.FoodPackagePreviewResponseTotals
+import com.bissbilanz.api.generated.model.FoodPackageNewFoods
+import com.bissbilanz.api.generated.model.FoodPackageNewRecipes
+import com.bissbilanz.api.generated.model.FoodPackageTotals
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -40,10 +40,10 @@ import kotlinx.serialization.encoding.*
 data class FoodPackagePreviewResponse(
     @SerialName(value = "packageHash") @Required val packageHash: kotlin.String,
     @SerialName(value = "formatVersion") @Required val formatVersion: kotlin.Int,
-    @SerialName(value = "exportedAt") @Required val exportedAt: kotlin.String,
-    @SerialName(value = "totals") @Required val totals: FoodPackagePreviewResponseTotals,
-    @SerialName(value = "newFoods") @Required val newFoods: FoodPackagePreviewResponseNewFoods,
-    @SerialName(value = "newRecipes") @Required val newRecipes: FoodPackagePreviewResponseNewRecipes,
-    @SerialName(value = "conflicts") @Required val conflicts: FoodPackagePreviewResponseConflicts,
+    @SerialName(value = "exportedAt") @Required val exportedAt: kotlin.String?,
+    @SerialName(value = "totals") @Required val totals: FoodPackageTotals,
+    @SerialName(value = "newFoods") @Required val newFoods: FoodPackageNewFoods,
+    @SerialName(value = "newRecipes") @Required val newRecipes: FoodPackageNewRecipes,
+    @SerialName(value = "conflicts") @Required val conflicts: FoodPackageConflicts,
     @SerialName(value = "issues") @Required val issues: kotlin.collections.List<FoodPackageIssue>,
-) : kotlin.collections.HashMap<String, kotlin.Any>()
+)

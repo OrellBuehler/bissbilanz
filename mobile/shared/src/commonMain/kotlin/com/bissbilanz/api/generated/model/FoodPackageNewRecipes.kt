@@ -15,8 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.FoodPackageFoodConflict
-import com.bissbilanz.api.generated.model.FoodPackageRecipeConflict
+import com.bissbilanz.api.generated.model.FoodPackageNewRecipe
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -24,11 +23,11 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param foods
- * @param recipes
+ * @param count
+ * @param samples
  */
 @Serializable
-data class FoodPackagePreviewResponseConflicts(
-    @SerialName(value = "foods") @Required val foods: kotlin.collections.List<FoodPackageFoodConflict>,
-    @SerialName(value = "recipes") @Required val recipes: kotlin.collections.List<FoodPackageRecipeConflict>,
+data class FoodPackageNewRecipes(
+    @SerialName(value = "count") @Required val count: kotlin.Int,
+    @SerialName(value = "samples") @Required val samples: kotlin.collections.List<FoodPackageNewRecipe>,
 )

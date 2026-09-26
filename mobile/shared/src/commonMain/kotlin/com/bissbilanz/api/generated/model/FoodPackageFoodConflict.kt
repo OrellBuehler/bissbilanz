@@ -18,6 +18,7 @@ package com.bissbilanz.api.generated.model
 import com.bissbilanz.api.generated.model.FoodPackageAction
 import com.bissbilanz.api.generated.model.FoodPackageAlsoMatch
 import com.bissbilanz.api.generated.model.FoodPackageConflictNote
+import com.bissbilanz.api.generated.model.FoodPackageConflictReason
 import com.bissbilanz.api.generated.model.FoodPackageExistingFood
 import com.bissbilanz.api.generated.model.FoodPackageFoodSummary
 import kotlinx.serialization.*
@@ -39,30 +40,11 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class FoodPackageFoodConflict(
     @SerialName(value = "ref") @Required val ref: kotlin.String,
-    @SerialName(value = "reason") @Required val reason: FoodPackageFoodConflict.Reason,
+    @SerialName(value = "reason") @Required val reason: FoodPackageConflictReason,
     @SerialName(value = "incoming") @Required val incoming: FoodPackageFoodSummary,
     @SerialName(value = "existing") @Required val existing: FoodPackageExistingFood,
     @SerialName(value = "alsoMatches") @Required val alsoMatches: kotlin.collections.List<FoodPackageAlsoMatch>,
     @SerialName(value = "allowed") @Required val allowed: kotlin.collections.List<@Contextual FoodPackageAction>,
     @SerialName(value = "notes") @Required val notes: kotlin.collections.List<@Contextual FoodPackageConflictNote>,
     @SerialName(value = "targetGroup") @Required val targetGroup: kotlin.String?,
-) {
-    /**
-     *
-     *
-     * Values: barcode,name,barcode_and_name
-     */
-    @Serializable
-    enum class Reason(
-        val value: kotlin.String,
-    ) {
-        @SerialName(value = "barcode")
-        barcode("barcode"),
-
-        @SerialName(value = "name")
-        name("name"),
-
-        @SerialName(value = "barcode_and_name")
-        barcode_and_name("barcode_and_name"),
-    }
-}
+)

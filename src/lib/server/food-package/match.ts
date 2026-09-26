@@ -29,7 +29,7 @@ export type ExistingRecipe = {
 	entryCount: number;
 };
 
-export type ConflictReason = 'barcode' | 'name' | 'barcode_and_name';
+export type ConflictReason = 'barcode' | 'name_brand' | 'barcode_and_name';
 export type ConflictNote =
 	| 'barcode_dropped_on_keep_both'
 	| 'replace_changes_history'
@@ -171,7 +171,7 @@ export function matchPackage(
 			? nameHitsPrimary
 				? 'barcode_and_name'
 				: 'barcode'
-			: 'name';
+			: 'name_brand';
 		const alsoMatches = nameMatches.filter((row) => row.id !== primary.id).map((row) => row.id);
 
 		const notes: ConflictNote[] = [];
@@ -183,7 +183,7 @@ export function matchPackage(
 		} else if (primary.entryCount > 0 || primary.recipeCount > 0) {
 			notes.push('replace_changes_history');
 		}
-		if (reason !== 'name') notes.push('barcode_dropped_on_keep_both');
+		if (reason !== 'name_brand') notes.push('barcode_dropped_on_keep_both');
 
 		foodConflicts.push({
 			ref: food.ref,
@@ -343,7 +343,7 @@ export function resolveOperations(
 			foods.set(conflict.ref, {
 				kind: 'insert',
 				food,
-				barcode: conflict.reason === 'name' ? barcode : null,
+				barcode: conflict.reason === 'name_brand' ? barcode : null,
 				keptBoth: true
 			});
 		} else {
@@ -397,7 +397,7 @@ export function resolveOperations(
 			foods.set(foodOp.food.ref, {
 				kind: 'insert',
 				food: foodOp.food,
-				barcode: reason === 'name' ? barcode : null,
+				barcode: reason === 'name_brand' ? barcode : null,
 				keptBoth: true
 			});
 		}

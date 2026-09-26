@@ -203,7 +203,7 @@ describe('import', () => {
 			existing: { id: ids.bobOats, entryCount: 1 }
 		});
 		expect(byName.Oats.incoming.imageUrl).toMatch(/^data:image\/webp;base64,/);
-		expect(byName.Milk).toMatchObject({ reason: 'name', existing: { id: ids.bobMilk } });
+		expect(byName.Milk).toMatchObject({ reason: 'name_brand', existing: { id: ids.bobMilk } });
 		expect(preview.newFoods.count).toBe(2);
 		expect(preview.newRecipes.count).toBe(1);
 	});

@@ -15,7 +15,6 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.FoodPackageNewRecipe
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,11 +22,13 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param count
- * @param samples
+ * @param foods
+ * @param recipes
+ * @param images
  */
 @Serializable
-data class FoodPackagePreviewResponseNewRecipes(
-    @SerialName(value = "count") @Required val count: kotlin.Int,
-    @SerialName(value = "samples") @Required val samples: kotlin.collections.List<FoodPackageNewRecipe>,
+data class FoodPackageTotals(
+    @SerialName(value = "foods") @Required val foods: kotlin.Int,
+    @SerialName(value = "recipes") @Required val recipes: kotlin.Int,
+    @SerialName(value = "images") @Required val images: kotlin.Int,
 )
