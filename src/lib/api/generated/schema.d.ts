@@ -91,6 +91,91 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/brands': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Distinct brands of the foods in the personal database (supplements excluded), grouped case-insensitively, with the number of foods per brand, most common first. */
+		get: operations['listFoodBrands'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/package/summary': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Count what a food package export with this selection would contain (foods, recipes, ingredient foods pulled in by recipes, images) and estimate its size. Nothing is built. */
+		post: operations['summarizeFoodPackage'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/package/export': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import. */
+		post: operations['exportFoodPackage'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/package/preview': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it. */
+		post: operations['previewFoodPackageImport'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/package/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one. */
+		post: operations['importFoodPackage'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/duplicates': {
 		parameters: {
 			query?: never;
@@ -1267,6 +1352,31 @@ export interface components {
 		FoodImport: {
 			foods: components['schemas']['FoodCreate'][];
 		};
+		FoodPackageSelection: {
+			all?: boolean;
+			foodIds?: string[];
+			recipeIds?: string[];
+			brands?: string[];
+			labels?: string[];
+			includeRecipes?: components['schemas']['FoodPackageIncludeRecipes'];
+		};
+		/** @enum {string} */
+		FoodPackageIncludeRecipes: 'all' | 'related' | 'none';
+		FoodPackageResolutions: {
+			packageHash: string;
+			/** @default [] */
+			foods: components['schemas']['FoodPackageResolution'][];
+			/** @default [] */
+			recipes: components['schemas']['FoodPackageResolution'][];
+		};
+		FoodPackageResolution: {
+			ref: string;
+			action: components['schemas']['FoodPackageAction'];
+			/** Format: uuid */
+			existingId: string;
+		};
+		/** @enum {string} */
+		FoodPackageAction: 'skip' | 'replace' | 'keep_both';
 		FoodMerge: {
 			/** Format: uuid */
 			keeperId: string;
@@ -1854,6 +1964,161 @@ export interface components {
 			/** @enum {string} */
 			reason: 'duplicate' | 'duplicate_barcode';
 		};
+		FoodBrandsResponse: {
+			brands: components['schemas']['FoodBrandStat'][];
+		};
+		FoodBrandStat: {
+			brand: string;
+			count: number;
+		};
+		FoodPackageSummaryResponse: {
+			foods: number;
+			recipes: number;
+			ingredientFoods: number;
+			images: number;
+			estimatedBytes: number;
+			maxBytes: number;
+			overLimit: boolean;
+		};
+		FoodPackagePreviewResponse: {
+			packageHash: string;
+			formatVersion: number;
+			exportedAt: string | null;
+			totals: {
+				foods: number;
+				recipes: number;
+				images: number;
+			};
+			newFoods: {
+				count: number;
+				ingredientOnly: number;
+				samples: components['schemas']['FoodPackageNewFood'][];
+			};
+			newRecipes: {
+				count: number;
+				samples: components['schemas']['FoodPackageNewRecipe'][];
+			};
+			conflicts: {
+				foods: components['schemas']['FoodPackageFoodConflict'][];
+				recipes: components['schemas']['FoodPackageRecipeConflict'][];
+			};
+			issues: components['schemas']['FoodPackageIssue'][];
+		};
+		FoodPackageNewFood: {
+			ref: string;
+			name: string;
+			brand: string | null;
+			calories: number;
+		};
+		FoodPackageNewRecipe: {
+			ref: string;
+			name: string;
+		};
+		FoodPackageFoodConflict: {
+			ref: string;
+			/** @enum {string} */
+			reason: 'barcode' | 'name' | 'barcode_and_name';
+			incoming: components['schemas']['FoodPackageFoodSummary'];
+			existing: components['schemas']['FoodPackageExistingFood'];
+			alsoMatches: components['schemas']['FoodPackageAlsoMatch'][];
+			allowed: components['schemas']['FoodPackageAction'][];
+			notes: components['schemas']['FoodPackageConflictNote'][];
+			targetGroup: string | null;
+		};
+		FoodPackageFoodSummary: {
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			barcode: string | null;
+			labels: string[];
+			imageUrl: string | null;
+		};
+		FoodPackageExistingFood: {
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			/** @enum {string} */
+			servingUnit: 'g' | 'kg' | 'ml' | 'cl' | 'l' | 'oz' | 'lb' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp';
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			barcode: string | null;
+			labels: string[];
+			imageUrl: string | null;
+			/** Format: uuid */
+			id: string;
+			entryCount: number;
+			recipeCount: number;
+		};
+		FoodPackageAlsoMatch: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			brand: string | null;
+		};
+		/** @enum {string} */
+		FoodPackageConflictNote:
+			| 'barcode_dropped_on_keep_both'
+			| 'replace_changes_history'
+			| 'replace_unit_blocked'
+			| 'skip_may_copy_for_recipe'
+			| 'shared_target';
+		FoodPackageRecipeConflict: {
+			ref: string;
+			incoming: components['schemas']['FoodPackageRecipeSummary'];
+			existing: components['schemas']['FoodPackageExistingRecipe'];
+			allowed: components['schemas']['FoodPackageAction'][];
+			notes: components['schemas']['FoodPackageConflictNote'][];
+		};
+		FoodPackageRecipeSummary: {
+			name: string;
+			totalServings: number;
+			cookedWeight: number | null;
+			ingredients: string[];
+			imageUrl: string | null;
+		};
+		FoodPackageExistingRecipe: {
+			name: string;
+			totalServings: number;
+			cookedWeight: number | null;
+			ingredients: string[];
+			imageUrl: string | null;
+			/** Format: uuid */
+			id: string;
+			entryCount: number;
+		};
+		FoodPackageIssue: {
+			ref: string | null;
+			message: string;
+		};
+		FoodPackageImportResult: {
+			created: components['schemas']['FoodPackageCounts'];
+			replaced: components['schemas']['FoodPackageCounts'];
+			keptBoth: components['schemas']['FoodPackageCounts'];
+			skipped: components['schemas']['FoodPackageCounts'];
+			images: number;
+			issues: components['schemas']['FoodPackageIssue'][];
+		};
+		FoodPackageCounts: {
+			foods: number;
+			recipes: number;
+		};
+		ConflictErrorResponse: {
+			error: string;
+			entryCount?: number;
+			ingredientCount?: number;
+			recipeCount?: number;
+			supplementIngredientCount?: number;
+		};
 		FoodDuplicatesResponse: {
 			groups: components['schemas']['FoodDuplicateGroup'][];
 		};
@@ -1901,13 +2166,6 @@ export interface components {
 		FoodLabelsSetResponse: {
 			labels: string[];
 			dropped: string[];
-		};
-		ConflictErrorResponse: {
-			error: string;
-			entryCount?: number;
-			ingredientCount?: number;
-			recipeCount?: number;
-			supplementIngredientCount?: number;
 		};
 		EntriesListResponse: {
 			entries: components['schemas']['EntryListItem'][];
@@ -2849,15 +3107,6 @@ export interface components {
 				'application/json': components['schemas']['ValidationErrorResponse'];
 			};
 		};
-		/** @description Not found */
-		NotFoundResponse: {
-			headers: {
-				[name: string]: unknown;
-			};
-			content: {
-				'application/json': components['schemas']['ErrorResponse'];
-			};
-		};
 		/** @description Conflict */
 		ConflictResponse: {
 			headers: {
@@ -2865,6 +3114,15 @@ export interface components {
 			};
 			content: {
 				'application/json': components['schemas']['ConflictErrorResponse'];
+			};
+		};
+		/** @description Not found */
+		NotFoundResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
 			};
 		};
 		/** @description Deleted */
@@ -3058,6 +3316,148 @@ export interface operations {
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
+	listFoodBrands: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodBrandsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	summarizeFoodPackage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodPackageSelection'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodPackageSummaryResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	exportFoodPackage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FoodPackageSelection'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/zip': string;
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			/** @description The package would exceed the size or item limit */
+			413: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	previewFoodPackageImport: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					/** Format: binary */
+					file: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodPackagePreviewResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	importFoodPackage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					/** Format: binary */
+					file: string;
+					resolutions: components['schemas']['FoodPackageResolutions'];
+				};
+			};
+		};
+		responses: {
+			/** @description Imported */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodPackageImportResult'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
+		};
+	};
 	listFoodDuplicates: {
 		parameters: {
 			query?: never;
@@ -3107,7 +3507,10 @@ export interface operations {
 	};
 	listFoodLabelStats: {
 		parameters: {
-			query?: never;
+			query?: {
+				/** @description Only count labels on foods of this kind. */
+				kind?: 'food' | 'supplement';
+			};
 			header?: never;
 			path?: never;
 			cookie?: never;

@@ -274,6 +274,204 @@
 				}
 			}
 		},
+		"/api/foods/brands": {
+			"get": {
+				"operationId": "listFoodBrands",
+				"tags": ["Foods"],
+				"description": "Distinct brands of the foods in the personal database (supplements excluded), grouped case-insensitively, with the number of foods per brand, most common first.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodBrandsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/package/summary": {
+			"post": {
+				"operationId": "summarizeFoodPackage",
+				"tags": ["Foods"],
+				"description": "Count what a food package export with this selection would contain (foods, recipes, ingredient foods pulled in by recipes, images) and estimate its size. Nothing is built.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodPackageSelection"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodPackageSummaryResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/package/export": {
+			"post": {
+				"operationId": "exportFoodPackage",
+				"tags": ["Foods"],
+				"description": "Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/FoodPackageSelection"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/zip": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"413": {
+						"description": "The package would exceed the size or item limit",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/foods/package/preview": {
+			"post": {
+				"operationId": "previewFoodPackageImport",
+				"tags": ["Foods"],
+				"description": "Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									}
+								},
+								"required": ["file"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodPackagePreviewResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/package/import": {
+			"post": {
+				"operationId": "importFoodPackage",
+				"tags": ["Foods"],
+				"description": "Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"file": {
+										"type": "string",
+										"format": "binary"
+									},
+									"resolutions": {
+										"$ref": "#/components/schemas/FoodPackageResolutions"
+									}
+								},
+								"required": ["file", "resolutions"]
+							},
+							"encoding": {
+								"resolutions": {
+									"contentType": "application/json"
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Imported",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodPackageImportResult"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
 		"/api/foods/duplicates": {
 			"get": {
 				"operationId": "listFoodDuplicates",
@@ -336,6 +534,18 @@
 				"operationId": "listFoodLabelStats",
 				"tags": ["Foods"],
 				"description": "The user's label vocabulary with the number of foods carrying each label, most common first.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "kind",
+						"schema": {
+							"description": "Only count labels on foods of this kind.",
+							"type": "string",
+							"enum": ["food", "supplement"]
+						},
+						"description": "Only count labels on foods of this kind."
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "Success",
@@ -4436,6 +4646,105 @@
 				},
 				"required": ["foods"]
 			},
+			"FoodPackageSelection": {
+				"type": "object",
+				"properties": {
+					"all": {
+						"type": "boolean"
+					},
+					"foodIds": {
+						"maxItems": 5000,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					},
+					"recipeIds": {
+						"maxItems": 1000,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					},
+					"brands": {
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 200
+						}
+					},
+					"labels": {
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					},
+					"includeRecipes": {
+						"$ref": "#/components/schemas/FoodPackageIncludeRecipes"
+					}
+				}
+			},
+			"FoodPackageIncludeRecipes": {
+				"type": "string",
+				"enum": ["all", "related", "none"]
+			},
+			"FoodPackageResolutions": {
+				"type": "object",
+				"properties": {
+					"packageHash": {
+						"type": "string",
+						"pattern": "^[a-f0-9]{64}$"
+					},
+					"foods": {
+						"default": [],
+						"maxItems": 5000,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageResolution"
+						}
+					},
+					"recipes": {
+						"default": [],
+						"maxItems": 1000,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageResolution"
+						}
+					}
+				},
+				"required": ["packageHash"]
+			},
+			"FoodPackageResolution": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string",
+						"maxLength": 10
+					},
+					"action": {
+						"$ref": "#/components/schemas/FoodPackageAction"
+					},
+					"existingId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					}
+				},
+				"required": ["ref", "action", "existingId"]
+			},
+			"FoodPackageAction": {
+				"type": "string",
+				"enum": ["skip", "replace", "keep_both"]
+			},
 			"FoodMerge": {
 				"type": "object",
 				"properties": {
@@ -7666,6 +7975,623 @@
 				"required": ["index", "name", "reason"],
 				"additionalProperties": false
 			},
+			"FoodBrandsResponse": {
+				"type": "object",
+				"properties": {
+					"brands": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodBrandStat"
+						}
+					}
+				},
+				"required": ["brands"],
+				"additionalProperties": false
+			},
+			"FoodBrandStat": {
+				"type": "object",
+				"properties": {
+					"brand": {
+						"type": "string"
+					},
+					"count": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["brand", "count"],
+				"additionalProperties": false
+			},
+			"FoodPackageSummaryResponse": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"recipes": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"ingredientFoods": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"images": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"estimatedBytes": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"maxBytes": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"overLimit": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"foods",
+					"recipes",
+					"ingredientFoods",
+					"images",
+					"estimatedBytes",
+					"maxBytes",
+					"overLimit"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackagePreviewResponse": {
+				"type": "object",
+				"properties": {
+					"packageHash": {
+						"type": "string"
+					},
+					"formatVersion": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"exportedAt": {
+						"type": ["string", "null"]
+					},
+					"totals": {
+						"type": "object",
+						"properties": {
+							"foods": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							"recipes": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							"images": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							}
+						},
+						"required": ["foods", "recipes", "images"],
+						"additionalProperties": false
+					},
+					"newFoods": {
+						"type": "object",
+						"properties": {
+							"count": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							"ingredientOnly": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							"samples": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/FoodPackageNewFood"
+								}
+							}
+						},
+						"required": ["count", "ingredientOnly", "samples"],
+						"additionalProperties": false
+					},
+					"newRecipes": {
+						"type": "object",
+						"properties": {
+							"count": {
+								"type": "integer",
+								"minimum": -9007199254740991,
+								"maximum": 9007199254740991
+							},
+							"samples": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/FoodPackageNewRecipe"
+								}
+							}
+						},
+						"required": ["count", "samples"],
+						"additionalProperties": false
+					},
+					"conflicts": {
+						"type": "object",
+						"properties": {
+							"foods": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/FoodPackageFoodConflict"
+								}
+							},
+							"recipes": {
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/FoodPackageRecipeConflict"
+								}
+							}
+						},
+						"required": ["foods", "recipes"],
+						"additionalProperties": false
+					},
+					"issues": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageIssue"
+						}
+					}
+				},
+				"required": [
+					"packageHash",
+					"formatVersion",
+					"exportedAt",
+					"totals",
+					"newFoods",
+					"newRecipes",
+					"conflicts",
+					"issues"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageNewFood": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					},
+					"calories": {
+						"type": "number"
+					}
+				},
+				"required": ["ref", "name", "brand", "calories"],
+				"additionalProperties": false
+			},
+			"FoodPackageNewRecipe": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": ["ref", "name"],
+				"additionalProperties": false
+			},
+			"FoodPackageFoodConflict": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"reason": {
+						"type": "string",
+						"enum": ["barcode", "name", "barcode_and_name"]
+					},
+					"incoming": {
+						"$ref": "#/components/schemas/FoodPackageFoodSummary"
+					},
+					"existing": {
+						"$ref": "#/components/schemas/FoodPackageExistingFood"
+					},
+					"alsoMatches": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageAlsoMatch"
+						}
+					},
+					"allowed": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageAction"
+						}
+					},
+					"notes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageConflictNote"
+						}
+					},
+					"targetGroup": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"ref",
+					"reason",
+					"incoming",
+					"existing",
+					"alsoMatches",
+					"allowed",
+					"notes",
+					"targetGroup"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageFoodSummary": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string",
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"barcode": {
+						"type": ["string", "null"]
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"name",
+					"brand",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"barcode",
+					"labels",
+					"imageUrl"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageExistingFood": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string",
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					},
+					"barcode": {
+						"type": ["string", "null"]
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					},
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"entryCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"recipeCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"name",
+					"brand",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"barcode",
+					"labels",
+					"imageUrl",
+					"id",
+					"entryCount",
+					"recipeCount"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageAlsoMatch": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["id", "name", "brand"],
+				"additionalProperties": false
+			},
+			"FoodPackageConflictNote": {
+				"type": "string",
+				"enum": [
+					"barcode_dropped_on_keep_both",
+					"replace_changes_history",
+					"replace_unit_blocked",
+					"skip_may_copy_for_recipe",
+					"shared_target"
+				]
+			},
+			"FoodPackageRecipeConflict": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"incoming": {
+						"$ref": "#/components/schemas/FoodPackageRecipeSummary"
+					},
+					"existing": {
+						"$ref": "#/components/schemas/FoodPackageExistingRecipe"
+					},
+					"allowed": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageAction"
+						}
+					},
+					"notes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageConflictNote"
+						}
+					}
+				},
+				"required": ["ref", "incoming", "existing", "allowed", "notes"],
+				"additionalProperties": false
+			},
+			"FoodPackageRecipeSummary": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"totalServings": {
+						"type": "number"
+					},
+					"cookedWeight": {
+						"type": ["number", "null"]
+					},
+					"ingredients": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["name", "totalServings", "cookedWeight", "ingredients", "imageUrl"],
+				"additionalProperties": false
+			},
+			"FoodPackageExistingRecipe": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"totalServings": {
+						"type": "number"
+					},
+					"cookedWeight": {
+						"type": ["number", "null"]
+					},
+					"ingredients": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					},
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"entryCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"name",
+					"totalServings",
+					"cookedWeight",
+					"ingredients",
+					"imageUrl",
+					"id",
+					"entryCount"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageIssue": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": ["string", "null"]
+					},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": ["ref", "message"],
+				"additionalProperties": false
+			},
+			"FoodPackageImportResult": {
+				"type": "object",
+				"properties": {
+					"created": {
+						"$ref": "#/components/schemas/FoodPackageCounts"
+					},
+					"replaced": {
+						"$ref": "#/components/schemas/FoodPackageCounts"
+					},
+					"keptBoth": {
+						"$ref": "#/components/schemas/FoodPackageCounts"
+					},
+					"skipped": {
+						"$ref": "#/components/schemas/FoodPackageCounts"
+					},
+					"images": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"issues": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageIssue"
+						}
+					}
+				},
+				"required": ["created", "replaced", "keptBoth", "skipped", "images", "issues"],
+				"additionalProperties": false
+			},
+			"FoodPackageCounts": {
+				"type": "object",
+				"properties": {
+					"foods": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"recipes": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["foods", "recipes"],
+				"additionalProperties": false
+			},
+			"ConflictErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string"
+					},
+					"entryCount": {
+						"type": "number"
+					},
+					"ingredientCount": {
+						"type": "number"
+					},
+					"recipeCount": {
+						"type": "number"
+					},
+					"supplementIngredientCount": {
+						"type": "number"
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
 			"FoodDuplicatesResponse": {
 				"type": "object",
 				"properties": {
@@ -7841,28 +8767,6 @@
 					}
 				},
 				"required": ["labels", "dropped"],
-				"additionalProperties": false
-			},
-			"ConflictErrorResponse": {
-				"type": "object",
-				"properties": {
-					"error": {
-						"type": "string"
-					},
-					"entryCount": {
-						"type": "number"
-					},
-					"ingredientCount": {
-						"type": "number"
-					},
-					"recipeCount": {
-						"type": "number"
-					},
-					"supplementIngredientCount": {
-						"type": "number"
-					}
-				},
-				"required": ["error"],
 				"additionalProperties": false
 			},
 			"EntriesListResponse": {
@@ -11607,22 +12511,22 @@
 					}
 				}
 			},
-			"NotFoundResponse": {
-				"description": "Not found",
-				"content": {
-					"application/json": {
-						"schema": {
-							"$ref": "#/components/schemas/ErrorResponse"
-						}
-					}
-				}
-			},
 			"ConflictResponse": {
 				"description": "Conflict",
 				"content": {
 					"application/json": {
 						"schema": {
 							"$ref": "#/components/schemas/ConflictErrorResponse"
+						}
+					}
+				}
+			},
+			"NotFoundResponse": {
+				"description": "Not found",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
 						}
 					}
 				}

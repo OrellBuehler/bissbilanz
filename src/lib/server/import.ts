@@ -14,6 +14,7 @@ import {
 	weightEntries
 } from './schema';
 import { ApiError } from './errors';
+import { collect, inChunks } from './db-chunks';
 import {
 	importArchiveSchema,
 	type ImportArchive,
@@ -50,20 +51,30 @@ export type ParsedImport = {
 	issues: CsvIssue[];
 };
 
-const isZip = (bytes: Uint8Array) =>
+export const isZip = (bytes: Uint8Array) =>
 	bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 0x03 || bytes[2] === 0x05);
+
+const WRONG_FILE_FOOD_PACKAGE = 'This is a food package — import it on the Foods page instead';
 
 function extractArchiveJson(bytes: Uint8Array): string {
 	if (!isZip(bytes)) return strFromU8(bytes);
 	// Only the canonical JSON is inflated, and only below a size cap, so a
 	// 20MB upload can't expand into gigabytes of heap.
+	let foodPackage = false;
 	const files = unzipSync(bytes, {
-		filter: (file) =>
-			file.name.endsWith('bissbilanz.json') && file.originalSize <= MAX_ARCHIVE_JSON_BYTES
+		filter: (file) => {
+			if (file.name.endsWith('bissbilanz-foods.json')) foodPackage = true;
+			return file.name.endsWith('bissbilanz.json') && file.originalSize <= MAX_ARCHIVE_JSON_BYTES;
+		}
 	});
 	const entry = Object.values(files)[0];
 	if (!entry) {
-		throw new ApiError(400, 'The archive does not contain a readable bissbilanz.json');
+		throw new ApiError(
+			400,
+			foodPackage
+				? WRONG_FILE_FOOD_PACKAGE
+				: 'The archive does not contain a readable bissbilanz.json'
+		);
 	}
 	return strFromU8(entry);
 }
@@ -101,6 +112,9 @@ export async function parseImportFile(
 		} catch (error) {
 			if (error instanceof ApiError) throw error;
 			throw new ApiError(400, 'Unrecognized file: expected a Bissbilanz export or a CSV file');
+		}
+		if ((parsed as { format?: unknown } | null)?.format === 'bissbilanz.food-package') {
+			throw new ApiError(400, WRONG_FILE_FOOD_PACKAGE);
 		}
 		const result = importArchiveSchema.safeParse(parsed);
 		if (!result.success) {
@@ -193,27 +207,6 @@ function splitOwnership(userId: string, rows: OwnedRow[]) {
 		else foreign.add(row.id);
 	}
 	return { owned, foreign };
-}
-
-/** Postgres caps a statement at 65535 parameters, and `foods` is ~60 columns wide. */
-const CHUNK_SIZE = 500;
-
-async function inChunks<T>(
-	rows: T[],
-	run: (part: T[]) => Promise<unknown>,
-	size = CHUNK_SIZE
-): Promise<void> {
-	for (let index = 0; index < rows.length; index += size) {
-		await run(rows.slice(index, index + size));
-	}
-}
-
-async function collect<T, R>(values: T[], run: (part: T[]) => Promise<R[]>): Promise<R[]> {
-	const results: R[] = [];
-	for (let index = 0; index < values.length; index += 1000) {
-		results.push(...(await run(values.slice(index, index + 1000))));
-	}
-	return results;
 }
 
 const dedupeBy = <T>(rows: T[], key: (row: T) => string): T[] => {

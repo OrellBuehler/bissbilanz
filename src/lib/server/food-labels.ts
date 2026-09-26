@@ -309,8 +309,20 @@ export type LabelStat = { label: string; count: number };
  * lets a labeller stay consistent ("bread", not "loaf") and is the seed of a
  * labels-as-edges food graph.
  */
-export async function listLabelStats(userId: string): Promise<LabelStat[]> {
+export async function listLabelStats(
+	userId: string,
+	options?: { kind?: 'food' | 'supplement' }
+): Promise<LabelStat[]> {
 	const db = getDB();
+	if (options?.kind) {
+		return db
+			.select({ label: foodLabels.label, count: count() })
+			.from(foodLabels)
+			.innerJoin(foods, eq(foods.id, foodLabels.foodId))
+			.where(and(eq(foodLabels.userId, userId), eq(foods.kind, options.kind)))
+			.groupBy(foodLabels.label)
+			.orderBy(desc(count()), foodLabels.label);
+	}
 	return db
 		.select({ label: foodLabels.label, count: count() })
 		.from(foodLabels)

@@ -19,37 +19,58 @@ export const THUMBNAIL_MAX_DIM = 512;
 /** AI meal photos: kept larger so the model can still read a nutrition label. */
 export const AI_PHOTO_MAX_DIM = 1024;
 
-export const processImage = async (
-	file: File,
-	userId: string,
-	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
-): Promise<string> => {
-	const buffer = Buffer.from(await file.arrayBuffer());
+/** Decoded pixels a single image may expand to; guards against decompression bombs. */
+const MAX_INPUT_PIXELS = 25_000_000;
+
+/**
+ * Resize and re-encode an image as WebP. Every byte stored under UPLOAD_DIR
+ * goes through here, so metadata is stripped and nothing is trusted as-is.
+ */
+export const renderThumbnail = async (
+	buffer: Uint8Array,
+	opts?: { maxDim?: number; fit?: 'cover' | 'inside'; quality?: number }
+): Promise<Buffer> => {
 	const maxDim = opts?.maxDim ?? THUMBNAIL_MAX_DIM;
 	const fit = opts?.fit ?? 'cover';
-
-	let processed: Buffer;
 	try {
-		processed = await sharp(buffer)
+		return await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
 			.resize(maxDim, maxDim, { fit, withoutEnlargement: true })
-			.webp({ quality: 80 })
+			.webp({ quality: opts?.quality ?? 80 })
 			.toBuffer();
 	} catch (err) {
 		Sentry.captureException(err, { level: 'warning' });
 		throw new ApiError(400, 'Invalid or corrupted image file');
 	}
+};
 
+/**
+ * Write already-rendered bytes to UPLOAD_DIR under a fresh name. The caller
+ * owns recording the `uploads` row — alone, or inside its own transaction.
+ */
+export const writeUploadFile = async (bytes: Uint8Array): Promise<string> => {
 	const filename = `${randomUUID()}.webp`;
-	const dir = UPLOAD_DIR;
+	await mkdir(UPLOAD_DIR, { recursive: true });
+	await writeFile(join(UPLOAD_DIR, filename), bytes);
+	return filename;
+};
 
+export const processImage = async (
+	file: File,
+	userId: string,
+	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
+): Promise<string> => {
+	const processed = await renderThumbnail(Buffer.from(await file.arrayBuffer()), opts);
+
+	let filename: string | null = null;
 	try {
-		await mkdir(dir, { recursive: true });
-		await writeFile(join(dir, filename), processed);
+		filename = await writeUploadFile(processed);
 		await getDB().insert(uploads).values({ filename, userId });
 	} catch (err) {
-		await unlink(join(dir, filename)).catch((unlinkErr) => {
-			Sentry.captureException(unlinkErr, { level: 'warning' });
-		});
+		if (filename) {
+			await unlink(join(UPLOAD_DIR, filename)).catch((unlinkErr) => {
+				Sentry.captureException(unlinkErr, { level: 'warning' });
+			});
+		}
 		Sentry.captureException(err);
 		throw new ApiError(500, 'Failed to save image');
 	}

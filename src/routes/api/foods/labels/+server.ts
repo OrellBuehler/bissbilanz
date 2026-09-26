@@ -5,10 +5,14 @@ import { foodLabelsBatchSchema } from '$lib/server/validation/labels';
 import { handleApiError, parseJsonBody, requireAuth, validationError } from '$lib/server/errors';
 
 /** The user's label vocabulary with per-label food counts. */
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const userId = requireAuth(locals);
-		return json({ labels: await listLabelStats(userId) });
+		const kind = url.searchParams.get('kind');
+		if (kind !== null && kind !== 'food' && kind !== 'supplement') {
+			return json({ error: 'kind must be food or supplement' }, { status: 400 });
+		}
+		return json({ labels: await listLabelStats(userId, kind ? { kind } : undefined) });
 	} catch (error) {
 		return handleApiError(error);
 	}

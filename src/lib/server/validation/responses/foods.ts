@@ -195,3 +195,11 @@ export const foodImportResponseSchema = z
 		skipped: z.array(foodImportSkippedSchema)
 	})
 	.meta({ id: 'FoodImportResponse' });
+
+export const foodBrandsResponseSchema = z
+	.object({
+		brands: z.array(
+			z.object({ brand: z.string(), count: z.number().int() }).meta({ id: 'FoodBrandStat' })
+		)
+	})
+	.meta({ id: 'FoodBrandsResponse' });
