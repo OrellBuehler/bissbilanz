@@ -25,3 +25,13 @@ export const conflictErrorResponseSchema = z
 		supplementIngredientCount: z.number().optional()
 	})
 	.meta({ id: 'ConflictErrorResponse' });
+
+// SvelteKit's `error(status, 'message')` helper serializes to `{ message }`,
+// not the `{ error }` shape the rest of the API returns via json({ error }).
+// Routes that throw error() directly (the mobile sign-in endpoints) document
+// their failures with this schema instead of errorResponseSchema.
+export const messageErrorResponseSchema = z
+	.object({
+		message: z.string()
+	})
+	.meta({ id: 'MessageErrorResponse' });

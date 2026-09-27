@@ -1,18 +1,13 @@
 import { json, error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { z } from 'zod';
 import { consumeOneTimeCode, MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
 import { createAccessToken, refreshAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 import { getRequestIp } from '$lib/server/client-ip';
+import { mobileTokenRequestSchema } from '$lib/server/validation/auth';
 
 const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
-
-const tokenRequestSchema = z.union([
-	z.object({ code: z.string().min(1).max(2048) }),
-	z.object({ refresh_token: z.string().min(1).max(2048) })
-]);
 
 export const POST: RequestHandler = async (event) => {
 	const { request } = event;
@@ -31,7 +26,7 @@ export const POST: RequestHandler = async (event) => {
 		throw error(400, 'Invalid JSON body');
 	}
 
-	const parsed = tokenRequestSchema.safeParse(rawBody);
+	const parsed = mobileTokenRequestSchema.safeParse(rawBody);
 	if (!parsed.success) {
 		throw error(400, 'Must provide either code or refresh_token');
 	}

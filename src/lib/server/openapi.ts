@@ -21,10 +21,12 @@ import { fastingSessionUpsertSchema, fastingSessionUpdateSchema } from './valida
 import { preferencesUpdateSchema } from './validation/preferences';
 import { topFoodsSortSchema } from './validation/stats';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from './validation/meal-types';
+import { mobileTokenRequestSchema, appleSignInRequestSchema } from './validation/auth';
 import {
 	errorResponseSchema,
 	validationErrorResponseSchema,
-	conflictErrorResponseSchema
+	conflictErrorResponseSchema,
+	messageErrorResponseSchema
 } from './validation/responses/shared';
 import {
 	foodsListResponseSchema,
@@ -136,6 +138,10 @@ import {
 	aiTaskAcknowledgeResponseSchema
 } from './validation/responses/ai-tasks';
 import { mcpStatusResponseSchema } from './validation/responses/mcp';
+import {
+	authProvidersResponseSchema,
+	mobileTokenResponseSchema
+} from './validation/responses/auth';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -168,7 +174,96 @@ const res404: ZodOpenApiResponseObject = {
 	content: { 'application/json': { schema: errorResponseSchema } }
 };
 
+// The mobile sign-in endpoints throw SvelteKit's error() helper directly
+// rather than using the json({ error }) convention, so their failures come
+// back as { message } (see messageErrorResponseSchema).
+const authRes400: ZodOpenApiResponseObject = {
+	id: 'AuthBadRequestResponse',
+	description: 'Bad request',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes401: ZodOpenApiResponseObject = {
+	id: 'AuthUnauthorizedResponse',
+	description: 'Unauthorized',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes404: ZodOpenApiResponseObject = {
+	id: 'AuthNotFoundResponse',
+	description: 'Not found',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes429: ZodOpenApiResponseObject = {
+	id: 'AuthRateLimitedResponse',
+	description: 'Too many requests',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
 export const apiPaths = {
+	// ── Auth ──────────────────────────────────────────────
+	'/api/auth/providers': {
+		get: {
+			operationId: 'getAuthProviders',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'List the OIDC providers the server has credentials for. Called by the mobile sign-in screens before any session exists, to decide which provider buttons to show.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: authProvidersResponseSchema } }
+				}
+			}
+		}
+	},
+	'/api/auth/mobile/token': {
+		post: {
+			operationId: 'mobileToken',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: mobileTokenRequestSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mobileTokenResponseSchema } }
+				},
+				'400': authRes400,
+				'401': authRes401,
+				'429': authRes429
+			}
+		}
+	},
+	'/api/auth/mobile/apple': {
+		post: {
+			operationId: 'mobileAppleSignIn',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'Native Sign in with Apple on iOS. The device completes the flow itself and hands over an identity token verified against the app bundle id, rather than a code to exchange.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: appleSignInRequestSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mobileTokenResponseSchema } }
+				},
+				'400': authRes400,
+				'401': authRes401,
+				'404': authRes404,
+				'429': authRes429
+			}
+		}
+	},
+
 	// ── Goals ─────────────────────────────────────────────
 	'/api/goals': {
 		get: {
