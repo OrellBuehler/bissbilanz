@@ -54,6 +54,7 @@ import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickAddWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.api.UnauthorizedException
+import com.bissbilanz.api.sanitizeClientVersion
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
@@ -112,6 +113,8 @@ class BissbilanzApplication :
         val androidModule =
             module {
                 single(named("baseUrl")) { BuildConfig.BASE_URL }
+                single(named("clientPlatform")) { "android" }
+                single(named("clientVersion")) { sanitizeClientVersion(BuildConfig.VERSION_NAME) }
                 single { SecureStorage(androidContext()) }
                 single { PlainStorage(androidContext()) }
                 single { DatabaseDriverFactory(androidContext()) }

@@ -16,7 +16,9 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.AppNavigation
 import com.bissbilanz.android.ui.screens.LoginScreen
 import com.bissbilanz.android.ui.screens.MigrationScreen
+import com.bissbilanz.android.ui.screens.UpdateRequiredScreen
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
+import com.bissbilanz.api.UpdateGate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
@@ -66,8 +68,10 @@ fun BissbilanzApp() {
     val authManager: AuthManager = koinInject()
     val appModeManager: AppModeManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val updateGate: UpdateGate = koinInject()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val mode by appModeManager.mode.collectAsStateWithLifecycle()
+    val updateRequired by updateGate.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         authManager.initialize()
@@ -95,42 +99,49 @@ fun BissbilanzApp() {
     val destination = resolveRootDestination(authState, mode)
 
     BissbilanzTheme {
-        when (destination) {
-            RootDestination.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            RootDestination.Login -> {
-                if (authState is AuthState.SessionExpired) {
-                    val context = LocalContext.current
-                    val sessionExpiredMessage = stringResource(R.string.session_expired_message)
-                    LaunchedEffect(Unit) {
-                        Toast.makeText(context, sessionExpiredMessage, Toast.LENGTH_LONG).show()
-                        authManager.clearSessionExpired()
+        val requiredUpdate = updateRequired
+        if (requiredUpdate != null) {
+            // Ahead of auth/navigation: no route stays reachable if it would just
+            // fail against the server again.
+            UpdateRequiredScreen(requiredUpdate)
+        } else {
+            when (destination) {
+                RootDestination.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
                     }
                 }
-                LoginScreen(authManager, appModeManager)
-            }
 
-            RootDestination.App -> {
-                // In Local mode a stale SessionExpired is cleared silently — no toast,
-                // the app works without an account. A Synced session that died must keep
-                // the state, otherwise the Settings prompt to sign in again never renders.
-                if (authState is AuthState.SessionExpired && mode == AppMode.LOCAL) {
-                    LaunchedEffect(Unit) {
-                        authManager.clearSessionExpired()
+                RootDestination.Login -> {
+                    if (authState is AuthState.SessionExpired) {
+                        val context = LocalContext.current
+                        val sessionExpiredMessage = stringResource(R.string.session_expired_message)
+                        LaunchedEffect(Unit) {
+                            Toast.makeText(context, sessionExpiredMessage, Toast.LENGTH_LONG).show()
+                            authManager.clearSessionExpired()
+                        }
                     }
+                    LoginScreen(authManager, appModeManager)
                 }
-                AppNavigation()
-            }
 
-            RootDestination.Migration -> {
-                MigrationScreen()
+                RootDestination.App -> {
+                    // In Local mode a stale SessionExpired is cleared silently — no toast,
+                    // the app works without an account. A Synced session that died must keep
+                    // the state, otherwise the Settings prompt to sign in again never renders.
+                    if (authState is AuthState.SessionExpired && mode == AppMode.LOCAL) {
+                        LaunchedEffect(Unit) {
+                            authManager.clearSessionExpired()
+                        }
+                    }
+                    AppNavigation()
+                }
+
+                RootDestination.Migration -> {
+                    MigrationScreen()
+                }
             }
         }
     }

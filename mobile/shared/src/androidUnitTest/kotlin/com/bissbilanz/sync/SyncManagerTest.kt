@@ -288,6 +288,27 @@ class SyncManagerTest {
         }
 
     @Test
+    fun updateRequiredReleasesOperationsAndStopsSyncingWithoutDroppingThem() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws ApiException("update required", 426)
+
+            val synced = manager.syncPendingQueue()
+
+            // Every request would hit the same 426, so the whole drain pauses on the
+            // first one rather than burning through both items — and unlike a real
+            // failure, this must never dead-letter the item or surface as an error.
+            assertEquals(0, synced)
+            assertEquals(2, syncQueue.pendingCount())
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
+            assertTrue(
+                manager.state.value.errors
+                    .isEmpty(),
+            )
+        }
+
+    @Test
     fun offlineSkipsSyncAndKeepsQueue() =
         runTest {
             isOnline.value = false
