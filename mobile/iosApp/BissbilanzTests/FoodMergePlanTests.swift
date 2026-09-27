@@ -1,0 +1,106 @@
+@testable import Bissbilanz
+import Foundation
+import Testing
+
+/// `FoodMergePlan` previews what `POST /api/foods/merge` will do, so these
+/// mirror the rules in `src/lib/server/food-merge.ts`.
+@Suite("FoodMergePlan")
+struct FoodMergePlanTests {
+    private func makeFood(id: String, _ fields: [String: Any] = [:]) throws -> Food {
+        var base: [String: Any] = [
+            "id": id,
+            "userId": "u1",
+            "name": "Monster Ultra",
+            "servingSize": 100,
+            "servingUnit": "ml",
+            "calories": 2,
+            "protein": 0,
+            "carbs": 0.9,
+            "fat": 0,
+            "fiber": 0,
+            "isFavorite": false,
+        ]
+        base.merge(fields) { _, new in new }
+        return try JSONPatch.decode(Food.self, from: base)
+    }
+
+    private func diff(_ key: String, in diffs: [FoodMergeFieldDiff]) -> FoodMergeFieldDiff? {
+        diffs.first { $0.key == key }
+    }
+
+    @Test("identical foods have no differing fields")
+    func identicalFoods() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b")]
+        let diffs = FoodMergePlan.diffs(foods: foods, keeperId: "a")
+        #expect(diffs.filter(\.differs).isEmpty)
+    }
+
+    @Test("keeper value wins over a source value")
+    func keeperWins() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b", ["calories": 10])]
+        let calories = try #require(diff("calories", in: FoodMergePlan.diffs(foods: foods, keeperId: "a")))
+        #expect(calories.differs)
+        #expect(calories.result == .number(2))
+        #expect(calories.resultFoodId == "a")
+    }
+
+    @Test("an empty keeper field is filled from the source")
+    func backfill() throws {
+        let foods = try [makeFood(id: "a", ["barcode": ""]), makeFood(id: "b", ["barcode": "5060337502238"])]
+        let barcode = try #require(diff("barcode", in: FoodMergePlan.diffs(foods: foods, keeperId: "a")))
+        #expect(barcode.result == .text("5060337502238"))
+        #expect(barcode.resultFoodId == "b")
+        #expect(!barcode.isOverridden)
+    }
+
+    @Test("favorite is kept when any food is a favorite")
+    func favoriteIsOred() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b", ["isFavorite": true])]
+        let favorite = try #require(diff("isFavorite", in: FoodMergePlan.diffs(foods: foods, keeperId: "a")))
+        #expect(favorite.result == .flag(true))
+    }
+
+    @Test("a picked value overrides the automatic result")
+    func override() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b", ["calories": 10, "name": "Monster White"])]
+        let overrides = ["calories": "b", "name": "b"]
+        let diffs = FoodMergePlan.diffs(foods: foods, keeperId: "a", overrides: overrides)
+        #expect(diff("calories", in: diffs)?.result == .number(10))
+        #expect(diff("name", in: diffs)?.isOverridden == true)
+        let body = FoodMergePlan.overrideValues(foods: foods, keeperId: "a", overrides: overrides)
+        #expect(body == ["calories": .number(10), "name": .text("Monster White")])
+    }
+
+    @Test("picking the value the merge keeps anyway sends no override")
+    func redundantOverride() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b", ["calories": 10])]
+        let body = FoodMergePlan.overrideValues(foods: foods, keeperId: "a", overrides: ["calories": "a"])
+        #expect(body.isEmpty)
+    }
+
+    @Test("nutrients can't be taken from a food with a different serving")
+    func servingMismatchBlocksNutrientPick() throws {
+        let foods = try [makeFood(id: "a"), makeFood(id: "b", ["servingSize": 500, "calories": 10, "name": "Can"])]
+        #expect(!FoodMergePlan.canPick(key: "calories", from: "b", foods: foods, keeperId: "a"))
+        #expect(!FoodMergePlan.canPick(key: "servingSize", from: "b", foods: foods, keeperId: "a"))
+        #expect(FoodMergePlan.canPick(key: "name", from: "b", foods: foods, keeperId: "a"))
+        let body = FoodMergePlan.overrideValues(foods: foods, keeperId: "a", overrides: ["calories": "b"])
+        #expect(body.isEmpty)
+    }
+
+    @Test("merge request leaves overrides out when there are none")
+    func requestEncoding() throws {
+        let plain = try JSONPatch.dictionary(of: FoodMergeRequest(keeperId: "a", sourceIds: ["b"]))
+        #expect(plain["overrides"] == nil)
+
+        let withOverrides = try JSONPatch.dictionary(of: FoodMergeRequest(
+            keeperId: "a",
+            sourceIds: ["b"],
+            overrides: ["calories": .number(10), "barcode": .text("123"), "isFavorite": .flag(true)]
+        ))
+        let overrides = try #require(withOverrides["overrides"] as? [String: Any])
+        #expect(overrides["calories"] as? Double == 10)
+        #expect(overrides["barcode"] as? String == "123")
+        #expect(overrides["isFavorite"] as? Bool == true)
+    }
+}

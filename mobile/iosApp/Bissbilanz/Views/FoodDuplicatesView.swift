@@ -3,8 +3,8 @@ import SwiftUI
 /// Server-computed candidate groups for foods that may be the same product —
 /// same barcode, same normalized name+brand, or a similar name with
 /// near-identical per-serving macros (`GET /api/foods/duplicates`). Reached
-/// from the Foods tab; resolving a group picks one of its foods as the
-/// keeper and merges the rest into it. Online-only, like the fetch itself:
+/// from the Foods tab; resolving a group opens `FoodMergeSheet` to pick the
+/// keeper and review what the merge keeps. Online-only, like the fetch itself:
 /// `FoodRepository.fetchDuplicates`/`mergeFoods` both require an account.
 struct FoodDuplicatesView: View {
     @Environment(FoodRepository.self) private var foodRepository
@@ -12,13 +12,10 @@ struct FoodDuplicatesView: View {
     @State private var groups: [FoodDuplicateGroup] = []
     @State private var isLoading = true
     @State private var error: Error?
-    /// The group whose "Resolve" button is currently showing its
-    /// pick-a-keeper action sheet.
-    @State private var resolvingGroup: FoodDuplicateGroup?
-    /// Set once a keeper is picked from `resolvingGroup`, driving the final
-    /// confirmation alert before the merge actually runs.
-    @State private var pendingMerge: (group: FoodDuplicateGroup, keeper: FoodDuplicateFood)?
-    @State private var isMerging = false
+    /// The group being reviewed in `FoodMergeSheet`, with its full foods.
+    @State private var mergeCandidates: FoodMergeCandidates?
+    /// The group whose foods are being fetched before the sheet can open.
+    @State private var loadingGroupId: String?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
 
@@ -53,36 +50,10 @@ struct FoodDuplicatesView: View {
         .refreshable { await loadDuplicates() }
         .task { await loadDuplicates() }
         .toast(message: $toastMessage)
-        .confirmationDialog(
-            L10n.foodsMergePickKeeper,
-            isPresented: .init(get: { resolvingGroup != nil }, set: { if !$0 { resolvingGroup = nil } }),
-            titleVisibility: .visible
-        ) {
-            if let resolvingGroup {
-                ForEach(resolvingGroup.foods) { candidate in
-                    Button(candidate.name) {
-                        let group = resolvingGroup
-                        self.resolvingGroup = nil
-                        pendingMerge = (group, candidate)
-                    }
-                }
-            }
-            Button(L10n.cancel, role: .cancel) { resolvingGroup = nil }
-        }
-        .alert(
-            L10n.foodsMergeTitle,
-            isPresented: .init(get: { pendingMerge != nil }, set: { if !$0 { pendingMerge = nil } })
-        ) {
-            Button(L10n.foodsMergeConfirm, role: .destructive) {
-                if let pendingMerge {
-                    self.pendingMerge = nil
-                    Task { await performMerge(group: pendingMerge.group, keeper: pendingMerge.keeper) }
-                }
-            }
-            Button(L10n.cancel, role: .cancel) { pendingMerge = nil }
-        } message: {
-            if let pendingMerge {
-                Text(L10n.foodsMergeDescription(pendingMerge.keeper.name))
+        .sheet(item: $mergeCandidates) { candidates in
+            FoodMergeSheet(candidates: candidates) { _ in
+                toastMessage = L10n.foodsMergeSuccess
+                Task { await loadDuplicates() }
             }
         }
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -105,11 +76,17 @@ struct FoodDuplicatesView: View {
                 }
             }
             Button {
-                resolvingGroup = group
+                Task { await openMerge(group) }
             } label: {
-                Label(L10n.foodsDuplicatesResolve, systemImage: "arrow.triangle.merge")
+                HStack {
+                    Label(L10n.foodsDuplicatesResolve, systemImage: "arrow.triangle.merge")
+                    if loadingGroupId == group.id {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
             }
-            .disabled(isMerging)
+            .disabled(loadingGroupId != nil)
         }
     }
 
@@ -132,21 +109,32 @@ struct FoodDuplicatesView: View {
         isLoading = false
     }
 
-    /// Merges every other food in `group` into `keeper`.
-    private func performMerge(group: FoodDuplicateGroup, keeper: FoodDuplicateFood) async {
-        guard !isMerging else { return }
-        isMerging = true
-        defer { isMerging = false }
-        let sourceIds = group.foods.map(\.id).filter { $0 != keeper.id }
-        guard !sourceIds.isEmpty else { return }
-        do {
-            try await foodRepository.mergeFoods(keeperId: keeper.id, sourceIds: sourceIds)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            toastMessage = L10n.foodsMergeSuccess
-            await loadDuplicates()
-        } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            errorMessage = L10n.foodsMergeFailed
+    /// Opens the merge review with the group's full foods — the local copy
+    /// when there is one, otherwise fetched from the server first.
+    private func openMerge(_ group: FoodDuplicateGroup) async {
+        guard loadingGroupId == nil else { return }
+        loadingGroupId = group.id
+        defer { loadingGroupId = nil }
+        var foods: [Food] = []
+        for candidate in group.foods {
+            if foodRepository.food(id: candidate.id) == nil {
+                do {
+                    try await foodRepository.refreshFood(id: candidate.id)
+                } catch {
+                    ErrorReporter.captureWarning(
+                        "Duplicate merge candidate fetch failed",
+                        context: ["reason": ErrorReporter.reason(for: error)]
+                    )
+                }
+            }
+            if let food = foodRepository.food(id: candidate.id) {
+                foods.append(food)
+            }
         }
+        guard foods.count == group.foods.count else {
+            errorMessage = L10n.foodMergeLoadFailed
+            return
+        }
+        mergeCandidates = FoodMergeCandidates(foods: foods)
     }
 }
