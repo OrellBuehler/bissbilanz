@@ -10,6 +10,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
 import kotlinx.coroutines.Job
@@ -32,6 +33,7 @@ class InsightsViewModel(
     private val analyticsRepo: AnalyticsRepository,
     appModeManager: AppModeManager,
     private val savedStateHandle: SavedStateHandle,
+    prefsRepo: PreferencesRepository,
 ) : ViewModel() {
     /**
      * True when the app runs in anonymous Local mode. Server-only insights (weekly/monthly
@@ -67,6 +69,11 @@ class InsightsViewModel(
     val goals: StateFlow<Goals?> =
         goalsRepo
             .goals()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val prefs: StateFlow<Preferences?> =
+        prefsRepo
+            .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _snackbarMessage = MutableStateFlow<Int?>(null)

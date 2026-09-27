@@ -7,7 +7,8 @@
 	import {
 		EMPTY_ANALYTICS_BUNDLE,
 		loadAnalyticsSources,
-		type AnalyticsBundle
+		type AnalyticsBundle,
+		type AnalyticsSourceId
 	} from '$lib/insights/sources';
 	import { createPinStore } from '$lib/insights/pin-store.svelte';
 
@@ -19,27 +20,43 @@
 
 	let loading = $state(true);
 	let bundle = $state<AnalyticsBundle>({ ...EMPTY_ANALYTICS_BUNDLE });
+	let failedSources = $state<AnalyticsSourceId[]>([]);
+	let controller: AbortController | null = null;
 
-	onMount(() => {
-		const controller = new AbortController();
+	function load() {
+		controller?.abort();
+		controller = new AbortController();
+		const { signal } = controller;
+		loading = true;
 		(async () => {
 			try {
-				bundle = await loadAnalyticsSources(
+				const result = await loadAnalyticsSources(
 					cards.flatMap((card) => card.sources),
-					controller.signal
+					signal
 				);
+				bundle = result.bundle;
+				failedSources = result.failedSources;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {
-				if (!controller.signal.aborted) loading = false;
+				if (!signal.aborted) loading = false;
 			}
 		})();
-		return () => controller.abort();
+	}
+
+	onMount(() => {
+		load();
+		return () => controller?.abort();
 	});
 
 	const availableDays = $derived(loading ? 0 : meta.days(bundle));
 	const missingDays = $derived(loading ? 0 : Math.max(0, meta.minDays - availableDays));
 	const teaser = $derived(loading ? null : meta.teaser(bundle));
+	const hasError = $derived(!loading && failedSources.length > 0);
+
+	function cardHasError(cardSources: readonly AnalyticsSourceId[]): boolean {
+		return cardSources.some((s) => failedSources.includes(s));
+	}
 </script>
 
 <InsightsSection
@@ -48,6 +65,8 @@
 	{teaser}
 	{missingDays}
 	{loading}
+	error={hasError}
+	onRetry={load}
 	cardCount={cards.length}
 >
 	{#each cards as card (card.id)}
@@ -55,6 +74,7 @@
 			{card}
 			{bundle}
 			{loading}
+			sourceError={cardHasError(card.sources)}
 			pinned={pinStore.isPinned(card.id)}
 			onTogglePin={() => pinStore.toggle(card.id)}
 		/>

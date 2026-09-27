@@ -1,6 +1,6 @@
 <script lang="ts">
 	import InsightCard from './InsightCard.svelte';
-	import { computeAdaptiveTDEE } from '$lib/analytics/tdee';
+	import { computeAdaptiveTDEE, windowInputs } from '$lib/analytics/tdee';
 	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import type { WeightFoodPoint } from './types';
@@ -13,11 +13,39 @@
 		loading: boolean;
 	} = $props();
 
+	const TDEE_WINDOW_DAYS = 14;
+	// Mirrors computeAdaptiveTDEE's own thresholds — kept in sync here so the
+	// "insufficient" message can name which of the two is actually missing.
+	const MIN_WEIGH_INS = 5;
+	const MIN_CALORIE_DAYS = 10;
+
 	const tdee = $derived.by(() => {
 		if (weightFoodData.length === 0) return null;
 		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
 		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
-		return computeAdaptiveTDEE(weightSeries, calorieSeries, 14);
+		return computeAdaptiveTDEE(weightSeries, calorieSeries, TDEE_WINDOW_DAYS);
+	});
+
+	// TDEE needs both weigh-ins *and* logged-calorie days; `sampleSize` alone
+	// (weigh-ins only) can read as "0 more days" while calories are the real gap.
+	const insufficientReason = $derived.by(() => {
+		const t = tdee;
+		if (!t || t.confidence !== 'insufficient') return undefined;
+		const weightSeries = weightFoodData.map((d) => ({ date: d.date, weightKg: d.weightKg }));
+		const calorieSeries = weightFoodData.map((d) => ({ date: d.date, calories: d.calories }));
+		const { weights, calories } = windowInputs(weightSeries, calorieSeries, TDEE_WINDOW_DAYS);
+		const needWeighIns = Math.max(0, MIN_WEIGH_INS - weights.length);
+		const needDays = Math.max(0, MIN_CALORIE_DAYS - calories.length);
+		if (needWeighIns > 0 && needDays > 0) {
+			return m.analytics_tdee_needs_both({
+				weighins: needWeighIns.toString(),
+				days: needDays.toString()
+			});
+		}
+		if (needWeighIns > 0)
+			return m.analytics_tdee_needs_weighins({ count: needWeighIns.toString() });
+		if (needDays > 0) return m.analytics_tdee_needs_days({ count: needDays.toString() });
+		return undefined;
 	});
 
 	const headline = $derived.by(() => {
@@ -55,6 +83,8 @@
 	{headline}
 	confidence={tdee?.confidence ?? 'insufficient'}
 	sampleSize={tdee?.sampleSize ?? 0}
+	sampleUnit="weigh-ins"
+	{insufficientReason}
 	borderColor="border-blue-500"
 >
 	{#snippet children()}

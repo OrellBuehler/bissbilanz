@@ -41,36 +41,6 @@ export function filterDaysWithEntries(data: DayRow[]): DayRow[] {
 	return data.filter((d) => d.calories > 0);
 }
 
-export function strictCount(days: DayRow[], key: MacroKey, goalVal: number): number {
-	if (!goalVal) return 0;
-	return days.filter((d) => d[key] >= goalVal).length;
-}
-
-export function tolerantCount(days: DayRow[], key: MacroKey, goalVal: number): number {
-	if (!goalVal) return 0;
-	return days.filter((d) => d[key] >= goalVal * 0.9 && d[key] <= goalVal * 1.1).length;
-}
-
-export function overallAdherence(
-	days: DayRow[],
-	goals: Goals,
-	countFn: (days: DayRow[], key: MacroKey, goalVal: number) => number
-): number {
-	const active = filterDaysWithEntries(days);
-	const totalDays = active.length;
-	if (totalDays === 0) return 0;
-	let total = 0;
-	let hit = 0;
-	for (const mapping of MACRO_GOAL_MAPPINGS) {
-		const goalVal = goals[mapping.goalKey];
-		if (goalVal) {
-			total += totalDays;
-			hit += countFn(active, mapping.key, goalVal);
-		}
-	}
-	return total > 0 ? Math.round((hit / total) * 100) : 0;
-}
-
 export type HeatmapStatus =
 	'on-target' | 'over' | 'over-high' | 'under' | 'under-high' | 'none' | 'no-goal';
 

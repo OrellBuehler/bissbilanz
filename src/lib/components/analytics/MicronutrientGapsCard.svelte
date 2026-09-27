@@ -5,6 +5,7 @@
 	import { RDA_VALUES } from '$lib/analytics/rda';
 	import { assessAdequacy } from '$lib/analytics/nutrient-reference';
 	import { MIN_NUTRIENT_COVERAGE } from '$lib/analytics/constants.generated';
+	import { DIRECTION_TONE_TEXT_CLASS } from '$lib/analytics/weight-direction';
 	import { shiftDate } from '$lib/utils/dates';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
@@ -151,9 +152,7 @@
 								{nutrient.pct}%
 							</span>
 							<span
-								class="w-12 shrink-0 text-right text-[10px] tabular-nums {nutrient.r < 0
-									? 'text-green-600 dark:text-green-400'
-									: 'text-red-500 dark:text-red-400'}"
+								class="w-12 shrink-0 text-right text-[10px] tabular-nums {DIRECTION_TONE_TEXT_CLASS.neutral}"
 							>
 								r={nutrient.r.toFixed(2)}
 							</span>

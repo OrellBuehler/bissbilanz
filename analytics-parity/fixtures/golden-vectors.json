@@ -7750,6 +7750,126 @@
         "values": []
       },
       "expected": null
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "minimum_exact",
+      "input": {
+        "rule": "minimum",
+        "value": 100,
+        "goal": 100
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "minimum_below",
+      "input": {
+        "rule": "minimum",
+        "value": 99.9,
+        "goal": 100
+      },
+      "expected": "below"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "minimum_above",
+      "input": {
+        "rule": "minimum",
+        "value": 180,
+        "goal": 100
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "maximum_exact",
+      "input": {
+        "rule": "maximum",
+        "value": 60,
+        "goal": 60
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "maximum_above",
+      "input": {
+        "rule": "maximum",
+        "value": 60.1,
+        "goal": 60
+      },
+      "expected": "above"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "maximum_zero_intake",
+      "input": {
+        "rule": "maximum",
+        "value": 0,
+        "goal": 60
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "range_lower_edge",
+      "input": {
+        "rule": "range",
+        "value": 1800,
+        "goal": 2000
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "range_upper_edge",
+      "input": {
+        "rule": "range",
+        "value": 2200,
+        "goal": 2000
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "range_below",
+      "input": {
+        "rule": "range",
+        "value": 1799.9,
+        "goal": 2000
+      },
+      "expected": "below"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "range_above",
+      "input": {
+        "rule": "range",
+        "value": 2200.1,
+        "goal": 2000
+      },
+      "expected": "above"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "range_fractional_goal",
+      "input": {
+        "rule": "range",
+        "value": 1633.5,
+        "goal": 1815
+      },
+      "expected": "met"
+    },
+    {
+      "fn": "classifyGoalOutcome",
+      "name": "no_goal",
+      "input": {
+        "rule": "minimum",
+        "value": 100,
+        "goal": 0
+      },
+      "expected": null
     }
   ]
 }

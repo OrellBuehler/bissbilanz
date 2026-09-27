@@ -971,9 +971,13 @@
     <string name="insights_need_more_evening_data">Es werden mehr Daten mit Abendmahlzeiten benötigt, um Korrelationen anzuzeigen.</string>
     <string name="insights_meal_pct_format">%1$s kcal (%2$s%%)</string>
     <string name="insights_goal_adherence">Zielerreichung</string>
-    <string name="insights_days_within_goal_range">Tage im Zielbereich (%1$d-Tage-Zeitraum)</string>
-    <string name="insights_goal_pct">%1$s%%</string>
-    <string name="insights_goal_pct_strict">%1$s%% strikt</string>
+    <string name="insights_days_with_entries">%1$d Tage mit Einträgen</string>
+    <string name="insights_goal_rule_minimum">mindestens %1$s</string>
+    <string name="insights_goal_rule_maximum">höchstens %1$s</string>
+    <string name="insights_goal_rule_range">innerhalb ±10 %% von %1$s</string>
+    <string name="insights_goal_days_met">%1$d/%2$d Tage</string>
+    <string name="insights_goal_days_below">%1$d darunter</string>
+    <string name="insights_goal_days_above">%1$d darüber</string>
     <string name="insights_sleep_date_label">Datum</string>
     <string name="insights_sleep_pick_date">Datum wählen</string>
     <string name="insights_sleep_duration_label">Dauer</string>
