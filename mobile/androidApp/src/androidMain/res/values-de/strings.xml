@@ -1326,4 +1326,10 @@
     <string name="food_package_result_recipes">Rezepte: %1$d neu · %2$d ersetzt · %3$d beide behalten · %4$d übersprungen</string>
     <string name="food_package_done">Fertig</string>
     <string name="food_package_unavailable_local">Zum Teilen von Lebensmitteln brauchst du ein Konto und eine Internetverbindung.</string>
+
+    <!-- Update required (client version gate) -->
+    <string name="update_required_title">Update erforderlich</string>
+    <string name="update_required_body">Diese Version von Bissbilanz wird nicht mehr unterstützt. Aktualisiere die App, um weiter zu protokollieren.</string>
+    <string name="update_required_body_with_version">Diese Version von Bissbilanz wird nicht mehr unterstützt. Aktualisiere auf Version %1$s oder neuer, um weiter zu protokollieren.</string>
+    <string name="update_required_button">Jetzt aktualisieren</string>
 </resources>

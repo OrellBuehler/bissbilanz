@@ -1328,4 +1328,10 @@
     <string name="food_package_result_recipes">Recipes: %1$d new · %2$d replaced · %3$d kept both · %4$d skipped</string>
     <string name="food_package_done">Done</string>
     <string name="food_package_unavailable_local">Sharing foods requires an account and an internet connection.</string>
+
+    <!-- Update required (client version gate) -->
+    <string name="update_required_title">Update required</string>
+    <string name="update_required_body">This version of Bissbilanz is no longer supported. Update the app to keep logging.</string>
+    <string name="update_required_body_with_version">This version of Bissbilanz is no longer supported. Update to version %1$s or later to keep logging.</string>
+    <string name="update_required_button">Update now</string>
 </resources>

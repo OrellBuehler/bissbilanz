@@ -1,7 +1,11 @@
 package com.bissbilanz.auth
 
+import com.bissbilanz.api.UpdateGate
+import com.bissbilanz.api.applyClientVersionHeaders
+import com.bissbilanz.api.installUpdateGate
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -45,6 +49,9 @@ class AuthManager(
     private val baseUrl: String,
     private val secureStorage: SecureStorage,
     private val json: Json = Json { ignoreUnknownKeys = true },
+    private val clientPlatform: String = "android",
+    private val clientVersion: String? = null,
+    private val updateGate: UpdateGate = UpdateGate(),
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -53,6 +60,10 @@ class AuthManager(
         HttpClient(com.bissbilanz.createHttpEngine()) {
             install(ContentNegotiation) {
                 json(this@AuthManager.json)
+            }
+            installUpdateGate(baseUrl, updateGate)
+            defaultRequest {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
             }
         }
 
