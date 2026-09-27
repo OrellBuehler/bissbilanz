@@ -19,10 +19,12 @@ struct NutrientInputField: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(minWidth: 80)
+                .accessibilityLabel("\(label) (\(unit))")
             Text(unit)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(minWidth: 30, alignment: .leading)
+                .accessibilityHidden(true)
         }
     }
 }

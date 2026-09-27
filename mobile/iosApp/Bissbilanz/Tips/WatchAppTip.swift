@@ -28,5 +28,6 @@ struct WatchAppTip: Tip {
 
     var rules: [Rule] {
         #Rule(Self.$isEligible) { $0 == true }
+        #Rule(TipSettings.$isEnabled) { $0 == true }
     }
 }

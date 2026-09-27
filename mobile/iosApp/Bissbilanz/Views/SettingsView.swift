@@ -37,6 +37,7 @@ struct SettingsView: View {
     // Remembers the quick-add Siri Shortcut tip's dismissal across launches —
     // `SiriTipView` doesn't persist that on its own without a binding.
     @AppStorage("show_siri_log_food_tip") private var showSiriLogFoodTip = true
+    @AppStorage(TipSettings.enabledKey) private var tipsEnabled = true
 
     private var selectedTabNames: String {
         selectedTabsRaw.split(separator: ",")
@@ -354,15 +355,20 @@ struct SettingsView: View {
                     } label: {
                         Label(L10n.helpAndGuides, systemImage: "questionmark.circle")
                     }
-                    Button {
-                        UserDefaults.standard.set(true, forKey: BissbilanzApp.resetTipsOnLaunchKey)
-                    } label: {
-                        Label(L10n.showTipsAgain, systemImage: "lightbulb")
+                    Toggle(isOn: $tipsEnabled) {
+                        Label(L10n.showTips, systemImage: "lightbulb")
+                    }
+                    .onChange(of: tipsEnabled) { _, enabled in
+                        TipSettings.isEnabled = enabled
+                        // Tips already dismissed only come back through a
+                        // datastore reset, which TipKit allows only before
+                        // `Tips.configure` — so on the next launch.
+                        UserDefaults.standard.set(enabled, forKey: BissbilanzApp.resetTipsOnLaunchKey)
                     }
                 } header: {
                     Text(L10n.settingsSectionHelp)
                 } footer: {
-                    Text(L10n.showTipsAgainFooter)
+                    Text(tipsEnabled ? L10n.showTipsOnFooter : L10n.showTipsOffFooter)
                 }
 
                 // Account actions — signed-in only; sign-in itself sits in the
@@ -434,6 +440,7 @@ struct SettingsView: View {
             HStack {
                 Image(systemName: "iphone")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text(L10n.localModeStatus)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -448,6 +455,7 @@ struct SettingsView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
                     Text(L10n.sessionExpiredMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -465,6 +473,7 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
                         Text(L10n.pendingSyncCount(syncManager.pendingCount))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -475,6 +484,7 @@ struct SettingsView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.red)
+                        .accessibilityHidden(true)
                     Text(syncError)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -588,11 +598,13 @@ struct SettingsView: View {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text(label)
             Spacer()
             Text("\(Int(value)) \(unit)")
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Goals Editor Sheet
@@ -618,6 +630,7 @@ struct SettingsView: View {
                     if hasTargetDate {
                         DatePicker("", selection: $editTargetDate, displayedComponents: .date)
                             .labelsHidden()
+                            .accessibilityLabel(L10n.goalsTargetDateLabel)
                     }
                     if goals.targetWeightKg != nil || goals.targetDate != nil {
                         Button(L10n.goalsTargetClear, role: .destructive) {

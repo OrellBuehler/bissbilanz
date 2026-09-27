@@ -119,6 +119,8 @@ struct WeightView: View {
     @State private var projectionDays = 30
     @State private var showTipHelp = false
     private let healthImportTip = HealthImportWeightTip()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     /// X-position the user is touching on the chart, used to surface the nearest
     /// data point (Apple Health-style scrubbing).
     @State private var selectedDate: Date?
@@ -357,6 +359,7 @@ struct WeightView: View {
             HStack {
                 Image(systemName: "target")
                     .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.weightTargetValue(targetWeightText, date: targetDateText))
                         .font(.subheadline)
@@ -368,6 +371,7 @@ struct WeightView: View {
                 }
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
         }
     }
 
@@ -392,6 +396,7 @@ struct WeightView: View {
                 Image(systemName: "scalemass")
                     .font(.caption)
                     .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
                 Text(L10n.latestWeight)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -401,7 +406,7 @@ struct WeightView: View {
                 .fontWeight(.bold)
                 .monospacedDigit()
                 .contentTransition(.numericText(value: entries.first?.weightKg ?? 0))
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.blue.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(latestDateText)
@@ -412,6 +417,9 @@ struct WeightView: View {
         .padding(12)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.latestWeight)
+        .accessibilityValue("\(MacroFormat.kg(entries.first?.weightKg ?? 0)), \(latestDateText)")
     }
 
     private var latestDateText: String {
@@ -424,22 +432,27 @@ struct WeightView: View {
 
     private var trendCard: some View {
         let trend = trend
+        let tint = trend.color.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast)
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.caption)
-                    .foregroundStyle(trend.color)
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
                 Text(L10n.trendWeight)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 6) {
+                // The direction is also carried by a distinct arrow glyph
+                // (up-right/down-right/right) and the text label, not color alone.
                 Image(systemName: trend.icon)
+                    .accessibilityHidden(true)
                 Text(trend.label)
             }
             .font(.title2)
             .fontWeight(.bold)
-            .foregroundStyle(trend.color)
+            .foregroundStyle(tint)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             Text(trend.delta.map { L10n.deltaPerWeek(MacroFormat.kg($0, signed: true)) } ?? "—")
@@ -450,6 +463,11 @@ struct WeightView: View {
         .padding(12)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.trendWeight)
+        .accessibilityValue(
+            "\(trend.label), \(trend.delta.map { L10n.deltaPerWeek(MacroFormat.kg($0, signed: true)) } ?? "—")"
+        )
     }
 
     private func statChip(_ label: String, value: String, color: Color) -> some View {
@@ -461,12 +479,27 @@ struct WeightView: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .monospacedDigit()
-                .foregroundStyle(color)
+                .foregroundStyle(color.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+    }
+
+    /// Read before a VoiceOver user swipes through each weigh-in.
+    private var weightChartAccessibilitySummary: String {
+        guard let first = chartEntries.first?.weightKg, let last = chartEntries.last?.weightKg else {
+            return L10n.noEntries
+        }
+        var summary = MacroFormat.kg(last)
+        if chartEntries.count > 1 {
+            summary += ", " + (last >= first ? L10n.chartTrendingUp : L10n.chartTrendingDown)
+        }
+        return summary
     }
 
     // MARK: - Chart Section
@@ -584,6 +617,8 @@ struct WeightView: View {
                     }
                 }
                 .frame(height: 200)
+                .accessibilityLabel(L10n.trend)
+                .accessibilityValue(weightChartAccessibilitySummary)
 
                 // Projection toggle
                 HStack {
@@ -605,12 +640,14 @@ struct WeightView: View {
                 HStack(spacing: 16) {
                     HStack(spacing: 4) {
                         Circle().fill(.blue).frame(width: 8, height: 8)
+                            .accessibilityHidden(true)
                         Text(L10n.weight).font(.caption2).foregroundStyle(.secondary)
                     }
                     HStack(spacing: 4) {
                         RoundedRectangle(cornerRadius: 1)
                             .fill(.orange)
                             .frame(width: 16, height: 2)
+                            .accessibilityHidden(true)
                         Text(L10n.movingAverage7d).font(.caption2).foregroundStyle(.secondary)
                     }
                     if showProjection {
@@ -618,6 +655,7 @@ struct WeightView: View {
                             RoundedRectangle(cornerRadius: 1)
                                 .fill(.purple)
                                 .frame(width: 16, height: 2)
+                                .accessibilityHidden(true)
                             Text(L10n.projected).font(.caption2).foregroundStyle(.secondary)
                         }
                     }
@@ -725,6 +763,7 @@ struct WeightEntryRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         // Lets Siri resolve "this entry" against the row on screen (iOS 18.4+;
         // a no-op before).
         .siriEntity(WeightEntity.self, id: entry.id)

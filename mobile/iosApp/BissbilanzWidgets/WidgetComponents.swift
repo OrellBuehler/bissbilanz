@@ -63,6 +63,13 @@ struct WidgetMacroRing: View {
                 .minimumScaleFactor(0.7)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(
+            goal > 0
+                ? "\(strings.integer(value)) / \(strings.integer(goal))"
+                : strings.integer(value)
+        )
     }
 }
 
@@ -124,6 +131,13 @@ struct WidgetRingGauge: View {
             }
             .padding(14)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(valueLabel)
+        .accessibilityValue(
+            goal > 0
+                ? "\(strings.integer(value)) / \(strings.integer(goal))"
+                : strings.integer(value)
+        )
     }
 }
 
@@ -148,6 +162,9 @@ struct WidgetMacroValue: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(strings.integer(value))
     }
 }
 
@@ -185,6 +202,7 @@ struct WidgetFoodThumbnail: View {
             .aspectRatio(contentMode: .fill)
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .accessibilityHidden(true)
     }
 }
 

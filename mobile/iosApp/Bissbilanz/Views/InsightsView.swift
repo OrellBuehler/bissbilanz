@@ -30,6 +30,9 @@ struct InsightsView: View {
     @State private var analytics = InsightsAnalyticsModel()
     @State private var macroSources: MacroKind?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
         NavigationStack {
@@ -155,22 +158,35 @@ struct InsightsView: View {
                             x: .value("Date", DateFormatting.date(from: stat.date) ?? Date()),
                             y: .value("Calories", stat.calories)
                         )
-                        .foregroundStyle(MacroColors.calories)
+                        .foregroundStyle(accessibleColor(.calories))
                         .interpolationMethod(.catmullRom)
 
                         if let goal = goals?.calorieGoal {
                             RuleMark(y: .value("Goal", goal))
                                 .foregroundStyle(.gray.opacity(0.5))
                                 .lineStyle(StrokeStyle(dash: [5, 5]))
+                                .accessibilityLabel(L10n.dailyGoals)
+                                .accessibilityValue(MacroFormat.kcal(goal))
                         }
                     }
                     .frame(height: 200)
                     .chartYAxis {
                         AxisMarks(position: .leading)
                     }
+                    .accessibilityLabel(L10n.caloriesTrend)
+                    .accessibilityValue(seriesSummary(dailyStats.map(\.calories), unit: L10n.calories))
                 }
             }
         }
+    }
+
+    /// A compact spoken summary read as a chart's accessibility value —
+    /// Swift Charts already exposes each point to VoiceOver individually, but
+    /// this gives an overview before swiping through every day.
+    private func seriesSummary(_ values: [Double], unit: String) -> String {
+        guard !values.isEmpty else { return L10n.noEntries }
+        let average = values.reduce(0, +) / Double(values.count)
+        return L10n.chartAverageValue(MacroFormat.kcal(average), unit: unit)
     }
 
     // MARK: - Meal Breakdown Pie Chart
@@ -198,6 +214,8 @@ struct InsightsView: View {
                             innerRadius: .ratio(0.5)
                         )
                         .foregroundStyle(mealColor(meal.mealType))
+                        .accessibilityLabel(L10n.mealName(meal.mealType))
+                        .accessibilityValue(MacroFormat.kcal(meal.calories) + " " + L10n.insightsKcalUnit)
                         .annotation(position: .overlay) {
                             Text(L10n.mealName(meal.mealType))
                                 .font(.caption2)
@@ -205,6 +223,7 @@ struct InsightsView: View {
                         }
                     }
                     .frame(height: 200)
+                    .accessibilityLabel(L10n.mealBreakdown)
                 }
             }
         }
@@ -221,8 +240,8 @@ struct InsightsView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     Spacer()
-                    streakStat(streaks.currentStreak, label: L10n.currentStreak, color: MacroColors.calories)
-                    streakStat(streaks.longestStreak, label: L10n.longestStreak, color: MacroColors.fiber)
+                    streakStat(streaks.currentStreak, label: L10n.currentStreak, color: accessibleColor(.calories))
+                    streakStat(streaks.longestStreak, label: L10n.longestStreak, color: accessibleColor(.fiber))
                 }
             }
         }
@@ -239,6 +258,9 @@ struct InsightsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(value)")
     }
 
     // MARK: - Macro Trends
@@ -255,25 +277,25 @@ struct InsightsView: View {
                         L10n.protein,
                         data: dailyStats.map { ($0.date, $0.protein) },
                         unit: "g",
-                        color: MacroColors.protein
+                        color: accessibleColor(.protein)
                     )
                     macroTrendRow(
                         L10n.carbs,
                         data: dailyStats.map { ($0.date, $0.carbs) },
                         unit: "g",
-                        color: MacroColors.carbs
+                        color: accessibleColor(.carbs)
                     )
                     macroTrendRow(
                         L10n.fat,
                         data: dailyStats.map { ($0.date, $0.fat) },
                         unit: "g",
-                        color: MacroColors.fat
+                        color: accessibleColor(.fat)
                     )
                     macroTrendRow(
                         L10n.fiber,
                         data: dailyStats.map { ($0.date, $0.fiber) },
                         unit: "g",
-                        color: MacroColors.fiber
+                        color: accessibleColor(.fiber)
                     )
                 }
             }
@@ -305,7 +327,11 @@ struct InsightsView: View {
             .chartYAxis(.hidden)
             .chartXAxis(.hidden)
             .frame(height: 50)
+            // The average is already spoken via the caption above; this
+            // sparkline is decorative on its own.
+            .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Macro Radar Chart
@@ -319,10 +345,10 @@ struct InsightsView: View {
             let avgFb = dailyStats.map(\.fiber).reduce(0, +) / Double(dailyStats.count)
 
             let axes: [(String, Double, Color)] = [
-                (L10n.protein, goals.proteinGoal > 0 ? avgP / goals.proteinGoal : 0, MacroColors.protein),
-                (L10n.carbs, goals.carbGoal > 0 ? avgC / goals.carbGoal : 0, MacroColors.carbs),
-                (L10n.fat, goals.fatGoal > 0 ? avgF / goals.fatGoal : 0, MacroColors.fat),
-                (L10n.fiber, goals.fiberGoal > 0 ? avgFb / goals.fiberGoal : 0, MacroColors.fiber),
+                (L10n.protein, goals.proteinGoal > 0 ? avgP / goals.proteinGoal : 0, accessibleColor(.protein)),
+                (L10n.carbs, goals.carbGoal > 0 ? avgC / goals.carbGoal : 0, accessibleColor(.carbs)),
+                (L10n.fat, goals.fatGoal > 0 ? avgF / goals.fatGoal : 0, accessibleColor(.fat)),
+                (L10n.fiber, goals.fiberGoal > 0 ? avgFb / goals.fiberGoal : 0, accessibleColor(.fiber)),
             ]
 
             CardView {
@@ -347,11 +373,13 @@ struct InsightsView: View {
                                     Spacer(minLength: 0)
                                     Image(systemName: "chevron.right")
                                         .imageScale(.small)
+                                        .accessibilityHidden(true)
                                 }
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
                             .tint(macro.color)
+                            .accessibilityHint(L10n.macroSourcesHint)
                         }
                     }
                 }
@@ -382,11 +410,11 @@ struct InsightsView: View {
                         .foregroundStyle(.secondary)
 
                     VStack(spacing: 14) {
-                        goalBar(L10n.calories, hit: calHit, total: totalDays, color: MacroColors.calories)
-                        goalBar(L10n.protein, hit: proteinHit, total: totalDays, color: MacroColors.protein)
-                        goalBar(L10n.carbs, hit: carbsHit, total: totalDays, color: MacroColors.carbs)
-                        goalBar(L10n.fat, hit: fatHit, total: totalDays, color: MacroColors.fat)
-                        goalBar(L10n.fiber, hit: fiberHit, total: totalDays, color: MacroColors.fiber)
+                        goalBar(L10n.calories, hit: calHit, total: totalDays, color: accessibleColor(.calories))
+                        goalBar(L10n.protein, hit: proteinHit, total: totalDays, color: accessibleColor(.protein))
+                        goalBar(L10n.carbs, hit: carbsHit, total: totalDays, color: accessibleColor(.carbs))
+                        goalBar(L10n.fat, hit: fatHit, total: totalDays, color: accessibleColor(.fat))
+                        goalBar(L10n.fiber, hit: fiberHit, total: totalDays, color: accessibleColor(.fiber))
                     }
                 }
             }
@@ -413,6 +441,7 @@ struct InsightsView: View {
                 }
             }
             .frame(height: 14)
+            .accessibilityHidden(true)
 
             Text("\(Int(pct * 100))%")
                 .font(.subheadline)
@@ -424,6 +453,7 @@ struct InsightsView: View {
                 .minimumScaleFactor(0.8)
                 .frame(width: 60, alignment: .trailing)
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Calendar Heatmap
@@ -441,6 +471,7 @@ struct InsightsView: View {
                     } label: {
                         Image(systemName: "chevron.left")
                     }
+                    .accessibilityLabel(L10n.previousMonth)
                     Text(DateFormatting.monthYear(from: calendarMonth))
                         .font(.caption)
                         .fontWeight(.medium)
@@ -450,6 +481,7 @@ struct InsightsView: View {
                     } label: {
                         Image(systemName: "chevron.right")
                     }
+                    .accessibilityLabel(L10n.nextMonth)
                 }
 
                 // Headers and day cells share one column set so the weekday
@@ -485,33 +517,62 @@ struct InsightsView: View {
                                         .font(.caption2)
                                         .foregroundStyle(calDay != nil ? .white : .primary)
                                 }
+                                .overlay(alignment: .topTrailing) {
+                                    if differentiateWithoutColor, let calDay, calDay.metGoal {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 7))
+                                            .foregroundStyle(.white)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(heatmapDayLabel(day: day, calendarDay: calDay))
                         }
                     }
                 }
 
                 // Legend
                 HStack(spacing: 16) {
-                    legendItem(color: .green, label: L10n.onTarget)
-                    legendItem(color: MacroColors.calories, label: L10n.hasEntries)
-                    legendItem(color: Color(.systemGray5), label: L10n.noData)
+                    legendItem(color: .green, label: L10n.onTarget, symbol: "checkmark.circle.fill")
+                    legendItem(color: accessibleColor(.calories), label: L10n.hasEntries, symbol: "circle.fill")
+                    legendItem(color: Color(.systemGray5), label: L10n.noData, symbol: nil)
                 }
                 .font(.caption2)
             }
         }
     }
 
+    private func heatmapDayLabel(day: Int, calendarDay: CalendarDay?) -> String {
+        var parts = [String(day)]
+        if let calendarDay, calendarDay.calories > 0 {
+            parts.append(L10n.caloriesAmount(Int(calendarDay.calories)))
+            if calendarDay.metGoal { parts.append(L10n.intentDayGoalMet) }
+        } else {
+            parts.append(L10n.noEntries)
+        }
+        return parts.joined(separator: ", ")
+    }
+
     private func calendarDayColor(_ day: CalendarDay?) -> Color {
         guard let day else { return Color(.systemGray5) }
         if day.metGoal { return .green }
-        if day.calories > 0 { return MacroColors.calories }
+        if day.calories > 0 { return accessibleColor(.calories) }
         return Color(.systemGray5)
     }
 
-    private func legendItem(color: Color, label: String) -> some View {
+    private func legendItem(color: Color, label: String, symbol: String?) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
                 .frame(width: 10, height: 10)
+                .overlay {
+                    if differentiateWithoutColor, let symbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 6))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .accessibilityHidden(true)
             Text(label)
                 .foregroundStyle(.secondary)
         }
@@ -553,29 +614,35 @@ struct InsightsView: View {
                         weekly: weekly.calories,
                         monthly: monthly.calories,
                         unit: "kcal",
-                        color: MacroColors.calories
+                        color: accessibleColor(.calories)
                     )
                     comparisonRow(
                         L10n.protein,
                         weekly: weekly.protein,
                         monthly: monthly.protein,
                         unit: "g",
-                        color: MacroColors.protein
+                        color: accessibleColor(.protein)
                     )
                     comparisonRow(
                         L10n.carbs,
                         weekly: weekly.carbs,
                         monthly: monthly.carbs,
                         unit: "g",
-                        color: MacroColors.carbs
+                        color: accessibleColor(.carbs)
                     )
-                    comparisonRow(L10n.fat, weekly: weekly.fat, monthly: monthly.fat, unit: "g", color: MacroColors.fat)
+                    comparisonRow(
+                        L10n.fat,
+                        weekly: weekly.fat,
+                        monthly: monthly.fat,
+                        unit: "g",
+                        color: accessibleColor(.fat)
+                    )
                     comparisonRow(
                         L10n.fiber,
                         weekly: weekly.fiber,
                         monthly: monthly.fiber,
                         unit: "g",
-                        color: MacroColors.fiber
+                        color: accessibleColor(.fiber)
                     )
                 }
             }
@@ -592,13 +659,14 @@ struct InsightsView: View {
         let diff = weekly - monthly
         let diffPct = monthly > 0 ? (diff / monthly * 100) : 0
         let arrow = diff > 0 ? "\u{2191}" : (diff < 0 ? "\u{2193}" : "\u{2192}")
-        let trendColor: Color = diff > 0 ? MacroColors.fiber : (diff < 0 ? MacroColors.protein : .secondary)
+        let trendColor: Color = diff > 0 ? accessibleColor(.fiber) : (diff < 0 ? accessibleColor(.protein) : .secondary)
 
         return HStack(spacing: 8) {
             HStack(spacing: 6) {
                 Circle()
                     .fill(color)
                     .frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
                 Text(label)
                     .font(.subheadline)
                     .lineLimit(1)
@@ -626,6 +694,7 @@ struct InsightsView: View {
                 .lineLimit(1)
                 .frame(width: 54, alignment: .trailing)
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Top Foods
@@ -652,9 +721,10 @@ struct InsightsView: View {
                                 .foregroundStyle(.secondary)
                             Text("\(Int(food.calories)) cal")
                                 .font(.caption)
-                                .foregroundStyle(MacroColors.calories)
+                                .foregroundStyle(accessibleColor(.calories))
                         }
                         .padding(.vertical, 2)
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
@@ -662,6 +732,12 @@ struct InsightsView: View {
     }
 
     // MARK: - Helpers
+
+    /// Contrast-safe variant of a macro's brand color, for text/lines/bars
+    /// where the base hues in `MacroColors` fall short of WCAG AA.
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
 
     private func mealColor(_ mealType: String) -> Color {
         switch mealType.lowercased() {

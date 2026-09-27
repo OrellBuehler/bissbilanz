@@ -20,6 +20,13 @@ struct AIMealReviewView: View {
     @State private var isLogging = false
     @State private var errorMessage: String?
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
+
     private struct EditableItem: Identifiable {
         let id = UUID()
         var isIncluded: Bool
@@ -93,6 +100,7 @@ struct AIMealReviewView: View {
             HStack(alignment: .top, spacing: 12) {
                 Toggle("", isOn: item.isIncluded)
                     .labelsHidden()
+                    .accessibilityLabel(L10n.aiMealIncludeItem(item.wrappedValue.name))
                 VStack(alignment: .leading, spacing: 2) {
                     TextField(L10n.name, text: item.name)
                         .font(.body)
@@ -114,11 +122,11 @@ struct AIMealReviewView: View {
                     .foregroundStyle(.orange)
             }
 
-            macroField(L10n.calories, text: item.calories, unit: "kcal", color: MacroColors.calories)
-            macroField(L10n.protein, text: item.protein, unit: "g", color: MacroColors.protein)
-            macroField(L10n.carbs, text: item.carbs, unit: "g", color: MacroColors.carbs)
-            macroField(L10n.fat, text: item.fat, unit: "g", color: MacroColors.fat)
-            macroField(L10n.fiber, text: item.fiber, unit: "g", color: MacroColors.fiber)
+            macroField(L10n.calories, text: item.calories, unit: "kcal", color: accessibleColor(.calories))
+            macroField(L10n.protein, text: item.protein, unit: "g", color: accessibleColor(.protein))
+            macroField(L10n.carbs, text: item.carbs, unit: "g", color: accessibleColor(.carbs))
+            macroField(L10n.fat, text: item.fat, unit: "g", color: accessibleColor(.fat))
+            macroField(L10n.fiber, text: item.fiber, unit: "g", color: accessibleColor(.fiber))
         }
         .opacity(item.wrappedValue.isIncluded ? 1 : 0.5)
     }
@@ -132,9 +140,11 @@ struct AIMealReviewView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+                .accessibilityLabel("\(label) (\(unit))")
             Text(unit)
                 .foregroundStyle(.secondary)
                 .frame(width: 30, alignment: .leading)
+                .accessibilityHidden(true)
         }
     }
 

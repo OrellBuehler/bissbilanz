@@ -28,6 +28,7 @@ struct HealthImportWeightTip: Tip {
 
     var rules: [Rule] {
         #Rule(Self.$isImportDisabled) { $0 == true }
+        #Rule(TipSettings.$isEnabled) { $0 == true }
     }
 }
 
@@ -55,5 +56,6 @@ struct HealthImportSleepTip: Tip {
 
     var rules: [Rule] {
         #Rule(Self.$isImportDisabled) { $0 == true }
+        #Rule(TipSettings.$isEnabled) { $0 == true }
     }
 }

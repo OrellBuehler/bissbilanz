@@ -184,6 +184,7 @@ struct BarcodeScannerView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text(L10n.cameraRequired)
                 .font(.headline)
             Text(L10n.enableCameraHint)

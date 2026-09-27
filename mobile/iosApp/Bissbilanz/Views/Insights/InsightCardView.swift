@@ -37,12 +37,14 @@ struct InsightCardView<Content: View>: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(collapsed ? -90 : 0))
+                            .accessibilityHidden(true)
                     }
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(title)
                 .accessibilityHint(collapsed ? L10n.foodDetailExpand : L10n.foodDetailCollapse)
+                .accessibilityAddTraits(.isHeader)
 
                 if !collapsed {
                     content
@@ -74,17 +76,23 @@ struct InsightHeadline: View {
     let caption: String
     var tint: Color = .primary
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.system(.title, design: .rounded, weight: .bold))
                 .monospacedDigit()
-                .foregroundStyle(tint)
+                .foregroundStyle(tint.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
             Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(caption)
+        .accessibilityValue(value)
     }
 }
 
@@ -93,6 +101,9 @@ struct InsightRow: View {
     let label: String
     let value: String
     var tint: Color = .primary
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
         HStack {
@@ -103,8 +114,11 @@ struct InsightRow: View {
             Text(value)
                 .font(.subheadline)
                 .monospacedDigit()
-                .foregroundStyle(tint)
+                .foregroundStyle(tint.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
     }
 }
 
@@ -127,16 +141,22 @@ struct InsightStat: View {
     let caption: String
     var tint: Color = .primary
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.headline)
                 .monospacedDigit()
-                .foregroundStyle(tint)
+                .foregroundStyle(tint.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
             Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(caption)
+        .accessibilityValue(value)
     }
 }

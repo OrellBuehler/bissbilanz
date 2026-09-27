@@ -6,6 +6,8 @@ struct CalendarView: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(GoalsRepository.self) private var goalsRepository
 
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
     @State private var currentMonth = Date()
     @State private var calendarDays: [CalendarDay] = []
     @State private var isLoading = true
@@ -74,10 +76,12 @@ struct CalendarView: View {
                 Image(systemName: "chevron.left")
                     .frame(width: 44, height: 44)
             }
+            .accessibilityLabel(L10n.previousMonth)
             Spacer()
             Text(DateFormatting.monthYear(from: currentMonth))
                 .font(.title3)
                 .fontWeight(.semibold)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Button {
                 currentMonth = currentMonth.adding(months: 1)
@@ -85,6 +89,7 @@ struct CalendarView: View {
                 Image(systemName: "chevron.right")
                     .frame(width: 44, height: 44)
             }
+            .accessibilityLabel(L10n.nextMonth)
         }
     }
 
@@ -153,6 +158,42 @@ struct CalendarView: View {
                     .strokeBorder(.primary, lineWidth: 2)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            dwcBadge(for: calendarDay)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(dayAccessibilityLabel(dayNum: dayNum, calendarDay: calendarDay, isToday: isToday))
+    }
+
+    /// Non-color cue for "met goal" vs "logged" vs "no data" when Differentiate
+    /// Without Color is on — the cells otherwise only differ by tint.
+    @ViewBuilder
+    private func dwcBadge(for day: CalendarDay?) -> some View {
+        if differentiateWithoutColor, let day, day.metGoal {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 8))
+                .foregroundStyle(.primary)
+                .padding(2)
+                .accessibilityHidden(true)
+        } else if differentiateWithoutColor, let day, day.calories > 0 {
+            Image(systemName: "circle.fill")
+                .font(.system(size: 5))
+                .foregroundStyle(.primary)
+                .padding(3)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func dayAccessibilityLabel(dayNum: Int, calendarDay: CalendarDay?, isToday: Bool) -> String {
+        var parts = [String(dayNum)]
+        if isToday { parts.append(L10n.today) }
+        if let day = calendarDay, day.calories > 0 {
+            parts.append(L10n.caloriesAmount(Int(day.calories)))
+            if day.metGoal { parts.append(L10n.intentDayGoalMet) }
+        } else {
+            parts.append(L10n.noEntries)
+        }
+        return parts.joined(separator: ", ")
     }
 
     private func cellColor(_ day: CalendarDay?) -> Color {
@@ -182,22 +223,33 @@ struct CalendarView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
     }
 
     private var legendSection: some View {
         HStack(spacing: 16) {
-            legendItem(color: MacroColors.fiber.opacity(0.3), label: L10n.daysOnTarget)
-            legendItem(color: MacroColors.calories.opacity(0.2), label: L10n.daysLogged)
-            legendItem(color: Color(.systemGray6), label: L10n.noData)
+            legendItem(color: MacroColors.fiber.opacity(0.3), label: L10n.daysOnTarget, symbol: "checkmark.circle.fill")
+            legendItem(color: MacroColors.calories.opacity(0.2), label: L10n.daysLogged, symbol: "circle.fill")
+            legendItem(color: Color(.systemGray6), label: L10n.noData, symbol: nil)
         }
         .font(.caption2)
     }
 
-    private func legendItem(color: Color, label: String) -> some View {
+    private func legendItem(color: Color, label: String, symbol: String?) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(color)
                 .frame(width: 12, height: 12)
+                .overlay {
+                    if differentiateWithoutColor, let symbol {
+                        Image(systemName: symbol)
+                            .font(.system(size: 7))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .accessibilityHidden(true)
             Text(label)
                 .foregroundStyle(.secondary)
         }

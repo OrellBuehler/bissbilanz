@@ -72,6 +72,7 @@ struct DayPropertiesCard: View {
                 HStack(spacing: 6) {
                     Image(systemName: "drop.fill")
                         .foregroundStyle(MacroColors.water)
+                        .accessibilityHidden(true)
                     Text(L10n.dayWaterTitle)
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -82,8 +83,11 @@ struct DayPropertiesCard: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
             ProgressView(value: waterProgress)
                 .tint(MacroColors.water)
+                .accessibilityLabel(L10n.dayWaterTitle)
+                .accessibilityValue(L10n.dayWaterProgress(current: waterMl, goal: waterGoalMl))
 
             adaptiveInputLayout {
                 Button(L10n.dayWaterAdd(250)) { addWater(250) }
@@ -140,6 +144,7 @@ struct DayPropertiesCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "flame.fill")
                     .foregroundStyle(MacroColors.activity)
+                    .accessibilityHidden(true)
                 Text(L10n.dayActivityTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -148,6 +153,7 @@ struct DayPropertiesCard: View {
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
                             .foregroundStyle(.red)
+                            .accessibilityHidden(true)
                         Text(L10n.appleHealth)
                     }
                     .font(.caption2)
@@ -161,6 +167,7 @@ struct DayPropertiesCard: View {
                     .frame(minWidth: 68)
                     .focused($focusedField, equals: .activity)
                     .onSubmit(commitActivity)
+                    .accessibilityLabel(L10n.dayActivityTitle)
                 Text(L10n.insightsKcalUnit)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -221,6 +228,7 @@ struct DayPropertiesCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "note.text")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text(L10n.dayNotesTitle)
                     .font(.subheadline)
                     .fontWeight(.medium)

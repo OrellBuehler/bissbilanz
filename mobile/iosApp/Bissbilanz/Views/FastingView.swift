@@ -148,8 +148,16 @@ struct FastingView: View {
                         }
                     }
                     .padding(24)
+                    .accessibilityHidden(true)
                 }
                 .frame(width: 250, height: 250)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.fasting)
+                .accessibilityValue(
+                    "\(FastingFormatting.duration(timeline.date.timeIntervalSince(session.startedAt))) "
+                        + L10n.fastingOfTargetHours(session.targetHours)
+                        + (progress >= 1 ? ", \(L10n.fastingTargetReached)" : "")
+                )
             }
             .padding(.vertical, 8)
 
@@ -219,6 +227,7 @@ struct FastingView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(MacroColors.fasting)
                 .padding(.top, 8)
+                .accessibilityHidden(true)
 
             Text(L10n.fastingNotRunning)
                 .font(.subheadline)
@@ -403,6 +412,7 @@ struct FastingView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .contextMenu {
             Button {
                 editingSession = session

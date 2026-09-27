@@ -19,6 +19,9 @@ struct FoodQualitySection: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         nutriScoreBadge(nutriScore)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(L10n.nutriScore)
+                            .accessibilityValue(nutriScore.uppercased())
                     }
                     .padding(.vertical, 4)
                 }
@@ -28,6 +31,7 @@ struct FoodQualitySection: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         novaGroupBadge(novaGroup)
+                            .accessibilityElement(children: .combine)
                     }
                     .padding(.vertical, 4)
                 }
@@ -46,6 +50,7 @@ struct FoodQualitySection: View {
                                 .foregroundStyle(.red)
                                 .clipShape(Capsule())
                         }
+                        .accessibilityElement(children: .combine)
                         ForEach(additives, id: \.self) { additive in
                             Text(formatAdditive(additive))
                                 .font(.caption)
@@ -123,20 +128,28 @@ struct FoodQualitySection: View {
     private func ingredientsRow(_ text: String) -> some View {
         let isLong = text.count > 150
         return VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            if isLong {
+                Button {
+                    withAnimation { ingredientsExpanded.toggle() }
+                } label: {
+                    HStack {
+                        Text(L10n.ingredients)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: ingredientsExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.ingredients)
+                .accessibilityValue(ingredientsExpanded ? L10n.collapse : L10n.expand)
+            } else {
                 Text(L10n.ingredients)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Spacer()
-                if isLong {
-                    Image(systemName: ingredientsExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isLong { withAnimation { ingredientsExpanded.toggle() } }
             }
             Text(text)
                 .font(.caption)

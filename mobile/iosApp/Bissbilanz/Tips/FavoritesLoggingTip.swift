@@ -23,5 +23,6 @@ struct FavoritesLoggingTip: Tip {
 
     var rules: [Rule] {
         #Rule(TipEvents.foodLogged) { $0.donations.count >= 5 }
+        #Rule(TipSettings.$isEnabled) { $0 == true }
     }
 }

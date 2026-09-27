@@ -44,6 +44,7 @@ struct SupplementHistoryView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .accessibilityElement(children: .combine)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -54,12 +55,14 @@ struct SupplementHistoryView: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.green)
+                                        .accessibilityHidden(true)
                                     Text(item.supplementName)
                                     Spacer()
                                     Text(item.takenAt)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                                .accessibilityElement(children: .combine)
                             }
                         }
                     }
@@ -75,6 +78,7 @@ struct SupplementHistoryView: View {
                 } label: {
                     Image(systemName: "calendar")
                 }
+                .accessibilityLabel(L10n.dateRange)
             }
         }
         .sheet(isPresented: $showDatePicker) {

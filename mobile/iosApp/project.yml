@@ -26,7 +26,6 @@ settings:
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: 'YES'
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: 'YES'
     INFOPLIST_KEY_UILaunchScreen_Generation: 'YES'
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight'
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: 'UIInterfaceOrientationPortrait'
     INFOPLIST_KEY_CFBundleDisplayName: Bissbilanz
 
@@ -48,6 +47,7 @@ targets:
       - path: PhoneShared
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios
         # Link the KMP shared framework. Gradle builds it and stages it under
         # shared/build/xcode-frameworks/<configuration>/<sdk>/ (see the shared
@@ -145,6 +145,7 @@ targets:
       - path: PhoneShared
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.widgets
         SKIP_INSTALL: 'YES'
     info:
@@ -260,6 +261,7 @@ targets:
       - target: Bissbilanz
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.tests
         # `@testable import Bissbilanz` pulls in the app's own imports, and two
         # app files `import shared` — so the test target has to be able to
@@ -291,4 +293,5 @@ targets:
       - target: Bissbilanz
     settings:
       base:
+        TARGETED_DEVICE_FAMILY: '1'
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios.intentsuitests

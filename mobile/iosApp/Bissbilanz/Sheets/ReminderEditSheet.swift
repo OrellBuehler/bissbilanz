@@ -17,6 +17,8 @@ struct ReminderEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
     private var weekdayLabels: [String] {
         L10n.supplementWeekdays
     }
@@ -81,9 +83,17 @@ struct ReminderEditSheet: View {
                                     .background(weekdays.contains(day) ? Color.accentColor : Color.clear)
                                     .foregroundStyle(weekdays.contains(day) ? .white : .primary)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .overlay {
+                                        // Selection is otherwise shown by fill color alone.
+                                        if differentiateWithoutColor, weekdays.contains(day) {
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .strokeBorder(.primary, lineWidth: 2)
+                                        }
+                                    }
                                     .contentShape(RoundedRectangle(cornerRadius: 6))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityAddTraits(weekdays.contains(day) ? .isSelected : [])
                         }
                     }
                 }

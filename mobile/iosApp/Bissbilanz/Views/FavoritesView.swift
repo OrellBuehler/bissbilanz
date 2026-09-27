@@ -218,6 +218,21 @@ struct FavoriteCard: View {
     let onTap: () -> Void
     var onQuickLog: (() -> Void)?
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
+    }
+
+    private var accessibilityLabelText: String {
+        var parts = [name]
+        if let brand { parts.append(brand) }
+        parts.append(L10n.caloriesAmount(calories))
+        parts.append(MacroSpokenSummary.gramsPart(L10n.protein, Double(protein)))
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button(action: onTap) {
@@ -227,6 +242,7 @@ struct FavoriteCard: View {
                             .frame(height: 56)
                             .frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .accessibilityHidden(true)
                     }
 
                     Text(name)
@@ -249,15 +265,17 @@ struct FavoriteCard: View {
                         Text("\(calories) cal")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundStyle(MacroColors.calories)
+                            .foregroundStyle(accessibleColor(.calories))
                         Spacer()
                         Text("P\(protein)")
                             .font(.caption2)
-                            .foregroundStyle(MacroColors.protein)
+                            .foregroundStyle(accessibleColor(.protein))
                     }
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabelText)
 
             if let onQuickLog {
                 Button(action: onQuickLog) {
@@ -274,6 +292,7 @@ struct FavoriteCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L10n.quickLogFoodAccessibility(name))
             }
         }
         .padding(12)

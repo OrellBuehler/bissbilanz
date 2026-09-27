@@ -501,6 +501,14 @@ enum L10n {
         localized("nutrition", en: "Nutrition", de: "Nährwerte")
     }
 
+    static func nutritionTotal(_ servings: String) -> String {
+        localized(
+            "nutrition_total",
+            en: "Total (\(servings) servings)",
+            de: "Gesamt (\(servings) Portionen)"
+        )
+    }
+
     static var nutritionPerServing: String {
         localized(
             "nutrition_per_serving",
@@ -3473,15 +3481,23 @@ enum L10n {
         localized("help_and_guides", en: "Help & guides", de: "Hilfe & Anleitungen")
     }
 
-    static var showTipsAgain: String {
-        localized("show_tips_again", en: "Show tips again", de: "Tipps erneut anzeigen")
+    static var showTips: String {
+        localized("show_tips", en: "Show tips", de: "Tipps anzeigen")
     }
 
-    static var showTipsAgainFooter: String {
+    static var showTipsOnFooter: String {
         localized(
-            "show_tips_again_footer",
-            en: "Tips reappear the next time you restart the app.",
-            de: "Tipps erscheinen wieder, sobald du die App neu startest."
+            "show_tips_on_footer",
+            en: "Hints about features appear around the app. Turning this back on also brings back tips you already closed, after the next restart.",
+            de: "Hinweise zu Funktionen erscheinen in der App. Wieder eingeschaltet kommen nach dem nächsten Neustart auch bereits geschlossene Tipps zurück."
+        )
+    }
+
+    static var showTipsOffFooter: String {
+        localized(
+            "show_tips_off_footer",
+            en: "Tips are hidden everywhere in the app.",
+            de: "Tipps sind überall in der App ausgeblendet."
         )
     }
 
@@ -4844,6 +4860,80 @@ enum L10n {
             "food_package_result_recipes",
             en: "Recipes: \(created) new · \(replaced) replaced · \(keptBoth) kept both · \(skipped) skipped",
             de: "Rezepte: \(created) neu · \(replaced) ersetzt · \(keptBoth) beide behalten · \(skipped) übersprungen"
+        )
+    }
+
+    // MARK: - Accessibility
+
+    static var previousMonth: String {
+        localized("a11y_previous_month", en: "Previous month", de: "Vorheriger Monat")
+    }
+
+    static var nextMonth: String {
+        localized("a11y_next_month", en: "Next month", de: "Nächster Monat")
+    }
+
+    static var previousDay: String {
+        localized("a11y_previous_day", en: "Previous day", de: "Vorheriger Tag")
+    }
+
+    static var nextDay: String {
+        localized("a11y_next_day", en: "Next day", de: "Nächster Tag")
+    }
+
+    static func caloriesAmount(_ value: Int) -> String {
+        localized("a11y_calories_amount", en: "\(value) calories", de: "\(value) Kalorien")
+    }
+
+    static var overGoal: String {
+        localized("a11y_over_goal", en: "over goal", de: "über dem Ziel")
+    }
+
+    static var gramsUnit: String {
+        localized("a11y_grams_unit", en: "grams", de: "Gramm")
+    }
+
+    static func progressOfGoal(current: String, goal: String, unit: String) -> String {
+        localized(
+            "a11y_progress_of_goal",
+            en: "\(current) of \(goal) \(unit)",
+            de: "\(current) von \(goal) \(unit)"
+        )
+    }
+
+    static var notTakenYet: String {
+        localized("a11y_not_taken_yet", en: "Not taken", de: "Nicht genommen")
+    }
+
+    static func chartAverageValue(_ value: String, unit: String) -> String {
+        localized("a11y_chart_average_value", en: "Average \(value) \(unit)", de: "Durchschnitt \(value) \(unit)")
+    }
+
+    static var chartTrendingUp: String {
+        localized("a11y_chart_trending_up", en: "trending up", de: "steigender Trend")
+    }
+
+    static var chartTrendingDown: String {
+        localized("a11y_chart_trending_down", en: "trending down", de: "fallender Trend")
+    }
+
+    static func quickLogFoodAccessibility(_ name: String) -> String {
+        localized("a11y_quick_log_food", en: "Quick log \(name)", de: "\(name) schnell eintragen")
+    }
+
+    static func aiMealIncludeItem(_ name: String) -> String {
+        localized("a11y_ai_meal_include_item", en: "Include \(name)", de: "\(name) einschließen")
+    }
+
+    static var amount: String {
+        localized("a11y_amount", en: "Amount", de: "Menge")
+    }
+
+    static var macroSourcesHint: String {
+        localized(
+            "a11y_macro_sources_hint",
+            en: "Shows the foods that contributed the most of this macro",
+            de: "Zeigt die Lebensmittel, die am meisten zu diesem Makronährstoff beigetragen haben"
         )
     }
 

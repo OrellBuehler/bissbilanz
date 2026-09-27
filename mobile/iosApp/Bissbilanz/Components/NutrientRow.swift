@@ -15,6 +15,9 @@ struct NutrientRow: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(MacroFormat.nutrient(value)) \(unit)")
     }
 }
 

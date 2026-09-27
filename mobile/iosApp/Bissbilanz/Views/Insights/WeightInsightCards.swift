@@ -194,6 +194,7 @@ struct CaloricLagCard: View {
                                 .foregroundStyle(isBest ? MacroColors.calories : .secondary)
                         }
                         .font(.subheadline.weight(isBest ? .semibold : .regular))
+                        .accessibilityElement(children: .combine)
                     }
                 }
             } else {

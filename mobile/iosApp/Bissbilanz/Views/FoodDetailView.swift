@@ -196,6 +196,7 @@ struct FoodDetailView: View {
                         .frame(maxWidth: .infinity)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
+                        .accessibilityHidden(true)
                 }
             }
 
@@ -207,6 +208,7 @@ struct FoodDetailView: View {
                         Text(brand)
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 HStack {
                     Text(L10n.servingSize)
@@ -214,6 +216,7 @@ struct FoodDetailView: View {
                     Text("\(Int(food.servingSize)) \(food.servingUnit.displayName)")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
                 if let barcode = food.barcode {
                     HStack {
                         Text(L10n.barcode)
@@ -222,6 +225,7 @@ struct FoodDetailView: View {
                             .foregroundStyle(.secondary)
                             .font(.caption)
                     }
+                    .accessibilityElement(children: .combine)
                 }
             }
 

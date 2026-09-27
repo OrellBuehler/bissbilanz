@@ -23,10 +23,14 @@ struct ServingsField: View {
                 .monospacedDigit()
                 .focused($isFocused)
                 .frame(maxWidth: 72)
+                .accessibilityLabel(L10n.servings)
             Text("x")
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Stepper(L10n.servings, value: $servings, in: Self.range, step: 0.25)
                 .labelsHidden()
+                .accessibilityLabel(L10n.servings)
+                .accessibilityValue(MacroFormat.servings(servings))
         }
         .onAppear { text = MacroFormat.servings(servings) }
         .onChange(of: text) { _, newValue in
