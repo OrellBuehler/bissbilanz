@@ -201,6 +201,13 @@
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
     <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
+    <string name="ai_task_edit_title">Edit AI task</string>
+    <string name="ai_task_edit_subtitle">Update the meal before your assistant logs it.</string>
+    <string name="ai_task_meal_none">No specific meal</string>
+    <string name="ai_task_date_label">Date</string>
+    <string name="ai_task_time_hint_edit">Leave empty to log without a specific time.</string>
+    <string name="ai_task_saving">Saving…</string>
+    <string name="ai_task_save_failed">Could not save changes</string>
 
     <!-- AI task list -->
     <string name="ai_tasks_title">AI Tasks</string>
@@ -216,9 +223,11 @@
     <string name="ai_tasks_photo_viewer_close">Close photo viewer</string>
     <string name="ai_tasks_agent_comment">From your assistant</string>
     <string name="ai_tasks_unread">New</string>
+    <string name="ai_tasks_edit">Edit task</string>
     <string name="ai_tasks_delete">Delete task</string>
     <string name="ai_tasks_delete_confirm">Delete this AI task? This cannot be undone.</string>
     <string name="ai_tasks_load_failed">Could not load AI tasks</string>
+    <string name="ai_tasks_updated">AI task updated</string>
     <string name="ai_tasks_notification_channel">AI tasks</string>
     <string name="ai_tasks_notification_channel_desc">Tells you when the assistant could not log a meal you sent.</string>
     <string name="ai_tasks_notification_title">AI task dismissed</string>

@@ -291,6 +291,77 @@ struct APIRequestBuildingTests {
         #expect(json["isFastingDay"] as? Bool == true)
         #expect(json["is_fasting_day"] == nil)
     }
+
+    // description/mealType/eatenAt are double optionals on AiTaskUpdate so a
+    // cleared field reaches the server as an explicit JSON null rather than
+    // being silently dropped by JSONEncoder — see the EntryUpdate/WeightUpdate
+    // rationale.
+
+    @Test("AI task update partial encoding omits untouched fields")
+    func aiTaskUpdatePartialEncoding() throws {
+        var update = AiTaskUpdate()
+        update.date = "2026-06-05"
+        update.photoUrls = ["/uploads/a1.webp", "/uploads/a2.webp"]
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["date"] as? String == "2026-06-05")
+        #expect(json["photoUrls"] as? [String] == ["/uploads/a1.webp", "/uploads/a2.webp"])
+        #expect(json["status"] == nil)
+        #expect(json["description"] == nil)
+        #expect(json["mealType"] == nil)
+        #expect(json["eatenAt"] == nil)
+    }
+
+    @Test("AI task update encodes a changed meal type and eaten time")
+    func aiTaskUpdateSetsMealTypeAndEatenAt() throws {
+        var update = AiTaskUpdate()
+        update.mealType = .some("Dinner")
+        update.eatenAt = .some("2026-06-05T18:30:00Z")
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["mealType"] as? String == "Dinner")
+        #expect(json["eatenAt"] as? String == "2026-06-05T18:30:00Z")
+    }
+
+    @Test("AI task update encodes an explicit null for a cleared meal type")
+    func aiTaskUpdateExplicitNullMealType() throws {
+        var update = AiTaskUpdate()
+        update.mealType = .some(nil)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json.keys.contains("mealType"))
+        #expect(json["mealType"] is NSNull)
+    }
+
+    @Test("AI task update encodes an explicit null for a cleared eaten time")
+    func aiTaskUpdateExplicitNullEatenAt() throws {
+        var update = AiTaskUpdate()
+        update.eatenAt = .some(nil)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json.keys.contains("eatenAt"))
+        #expect(json["eatenAt"] is NSNull)
+    }
+
+    @Test("AI task update encodes an explicit null for a cleared description")
+    func aiTaskUpdateExplicitNullDescription() throws {
+        var update = AiTaskUpdate()
+        update.description = .some(nil)
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json.keys.contains("description"))
+        #expect(json["description"] is NSNull)
+    }
 }
 
 struct APIResponseDecodingTests {

@@ -8,11 +8,12 @@
 
 	type Props = {
 		tasks: AiTask[];
+		onEdit?: (task: AiTask) => void;
 		onDismiss?: (id: string) => void;
 		onDelete: (id: string) => void;
 	};
 
-	let { tasks, onDismiss, onDelete }: Props = $props();
+	let { tasks, onEdit, onDismiss, onDelete }: Props = $props();
 
 	const pending = $derived(tasks.filter((t) => t.status === 'pending'));
 	const dismissed = $derived(tasks.filter((t) => t.status === 'dismissed'));
@@ -47,7 +48,7 @@
 			{:else}
 				<div class="space-y-2">
 					{#each pending as task (task.id)}
-						<AiTaskCard {task} {onDismiss} {onDelete} />
+						<AiTaskCard {task} {onEdit} {onDismiss} {onDelete} />
 					{/each}
 				</div>
 			{/if}

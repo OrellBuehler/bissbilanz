@@ -1,5 +1,6 @@
 package com.bissbilanz.util
 
+import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.test.testJson
@@ -76,5 +77,30 @@ class PartialUpdateTest {
         val keys = listOf(EntryField.QUICK_NAME, EntryField.NOTES, EntryField.NOTES).jsonKeys()
 
         assertEquals(listOf("notes", "quickName"), keys)
+    }
+
+    @Test
+    fun clearingAnAiTaskMealTypeSurvivesEncoding() {
+        // An edited task can be set to have no specific meal at all, which the
+        // generated model cannot tell apart from "leave the meal type alone".
+        val body =
+            testJson.encodePartialUpdate(
+                AiTaskUpdate(description = "Oatmeal"),
+                setOf(AiTaskField.MEAL_TYPE).jsonKeys(),
+            )
+
+        assertEquals(JsonNull, body["mealType"])
+        assertTrue(body.toString().contains("\"description\":\"Oatmeal\""))
+    }
+
+    @Test
+    fun clearingAnAiTasksEatenAtSurvivesEncoding() {
+        val body =
+            testJson.encodePartialUpdate(
+                AiTaskUpdate(eatenAt = null),
+                setOf(AiTaskField.EATEN_AT).jsonKeys(),
+            )
+
+        assertEquals(JsonNull, body["eatenAt"])
     }
 }

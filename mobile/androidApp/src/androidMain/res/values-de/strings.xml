@@ -199,6 +199,13 @@
     <string name="ai_task_photo_hint">Bis zu %1$d Fotos – das Gericht, die Verpackung, eine Nährwerttabelle.</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
     <string name="ai_task_camera_permission_required">Kameraberechtigung erforderlich, um ein Foto aufzunehmen</string>
+    <string name="ai_task_edit_title">KI-Aufgabe bearbeiten</string>
+    <string name="ai_task_edit_subtitle">Aktualisiere die Mahlzeit, bevor dein Assistent sie erfasst.</string>
+    <string name="ai_task_meal_none">Keine bestimmte Mahlzeit</string>
+    <string name="ai_task_date_label">Datum</string>
+    <string name="ai_task_time_hint_edit">Leer lassen, um ohne bestimmte Uhrzeit zu erfassen.</string>
+    <string name="ai_task_saving">Wird gespeichert…</string>
+    <string name="ai_task_save_failed">Änderungen konnten nicht gespeichert werden</string>
 
     <!-- KI-Aufgabenliste -->
     <string name="ai_tasks_title">KI-Aufgaben</string>
@@ -214,9 +221,11 @@
     <string name="ai_tasks_photo_viewer_close">Fotoansicht schließen</string>
     <string name="ai_tasks_agent_comment">Von deinem Assistenten</string>
     <string name="ai_tasks_unread">Neu</string>
+    <string name="ai_tasks_edit">Aufgabe bearbeiten</string>
     <string name="ai_tasks_delete">Aufgabe löschen</string>
     <string name="ai_tasks_delete_confirm">Diese KI-Aufgabe löschen? Das kann nicht rückgängig gemacht werden.</string>
     <string name="ai_tasks_load_failed">KI-Aufgaben konnten nicht geladen werden</string>
+    <string name="ai_tasks_updated">KI-Aufgabe aktualisiert</string>
     <string name="ai_tasks_notification_channel">KI-Aufgaben</string>
     <string name="ai_tasks_notification_channel_desc">Meldet, wenn der Assistent eine gesendete Mahlzeit nicht erfassen konnte.</string>
     <string name="ai_tasks_notification_title">KI-Aufgabe verworfen</string>

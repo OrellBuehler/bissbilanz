@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.mode.AppModeManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,6 +75,24 @@ class AiTaskRepository(
         api.deleteAiTask(id)
         _tasks.value = _tasks.value.filterNot { it.id == id }
     }
+
+    /**
+     * Edits a still-open task. [clearedKeys] names the fields (from [com.bissbilanz.util.AiTaskField])
+     * the caller is deliberately emptying, e.g. removing the meal type — see
+     * [BissbilanzApi.updateAiTask] for why an omitted field cannot do that on its own.
+     */
+    suspend fun update(
+        id: String,
+        update: AiTaskUpdate,
+        clearedKeys: Collection<String> = emptyList(),
+    ): AiTask {
+        val updated = api.updateAiTask(id, update, clearedKeys = clearedKeys)
+        _tasks.value = _tasks.value.map { if (it.id == id) updated else it }
+        return updated
+    }
+
+    /** Uploads new photos for an edit, ahead of [update] — mirrors how a new task's photos go up first. */
+    suspend fun uploadPhotos(photos: List<Pair<String, ByteArray>>): List<String> = api.uploadAiTaskPhotos(photos)
 
     fun unreadCount(): Int = _tasks.value.count { it.isUnreadDismissal() }
 }

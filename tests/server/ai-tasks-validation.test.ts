@@ -253,6 +253,32 @@ describe('aiTaskUpdateSchema', () => {
 		}
 	});
 
+	test('allows replacing photoUrls, including clearing them', () => {
+		expect(
+			aiTaskUpdateSchema.safeParse({
+				photoUrls: ['/uploads/10000000-0000-4000-8000-000000000001.webp']
+			}).success
+		).toBe(true);
+		expect(aiTaskUpdateSchema.safeParse({ photoUrls: [] }).success).toBe(true);
+	});
+
+	test('rejects photoUrls outside uploads or over the photo limit', () => {
+		expect(
+			aiTaskUpdateSchema.safeParse({ photoUrls: ['https://evil.example/x.webp'] }).success
+		).toBe(false);
+		expect(
+			aiTaskUpdateSchema.safeParse({
+				photoUrls: Array.from({ length: 6 }, (_, i) => `/uploads/${i}.webp`)
+			}).success
+		).toBe(false);
+	});
+
+	test('allows clearing mealType', () => {
+		const result = aiTaskUpdateSchema.safeParse({ mealType: null });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.mealType).toBeNull();
+	});
+
 	test('rejects invalid date format in update', () => {
 		const result = aiTaskUpdateSchema.safeParse({ date: 'bad-date' });
 		expect(result.success).toBe(false);
