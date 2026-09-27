@@ -708,6 +708,17 @@ fun SettingsScreen(navController: NavController) {
                             }
                             if (prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value) {
                                 Spacer(modifier = Modifier.height(8.dp))
+                                // The server has no reliable way to tell whether this
+                                // account actually has an iPhone — no APNs/device
+                                // registration exists to check — so the option stays
+                                // selectable unconditionally and this hint carries the
+                                // warning instead of a disabled state.
+                                Text(
+                                    stringResource(R.string.settings_ai_task_processor_device_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 ToggleRow(
                                     label = stringResource(R.string.settings_ai_task_auto_log_label),
                                     supportingText = stringResource(R.string.settings_ai_task_auto_log_hint),

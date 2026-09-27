@@ -203,6 +203,7 @@
     <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
     <string name="ai_task_edit_title">Edit AI task</string>
     <string name="ai_task_edit_subtitle">Update the meal before your assistant logs it.</string>
+    <string name="ai_task_edit_subtitle_device">Update the meal before your iPhone logs it.</string>
     <string name="ai_task_meal_none">No specific meal</string>
     <string name="ai_task_date_label">Date</string>
     <string name="ai_task_time_hint_edit">Leave empty to log without a specific time.</string>
@@ -222,6 +223,9 @@
     <string name="ai_tasks_photo_index">Photo %1$d of %2$d</string>
     <string name="ai_tasks_photo_viewer_close">Close photo viewer</string>
     <string name="ai_tasks_agent_comment">From your assistant</string>
+    <string name="ai_tasks_processed_by_assistant">Processed by your AI assistant</string>
+    <string name="ai_tasks_processed_by_on_device">Processed on your iPhone</string>
+    <string name="ai_tasks_processed_by_private_cloud">Processed via Private Cloud Compute</string>
     <string name="ai_tasks_unread">New</string>
     <string name="ai_tasks_edit">Edit task</string>
     <string name="ai_tasks_delete">Delete task</string>
@@ -1219,6 +1223,7 @@
     <string name="settings_ai_task_processor_desc">Choose who processes the meal-logging tasks you queue.</string>
     <string name="settings_ai_task_processor_assistant">AI assistant (MCP)</string>
     <string name="settings_ai_task_processor_device">My iPhone (on-device / Private Cloud Compute)</string>
+    <string name="settings_ai_task_processor_device_hint">Tasks stay pending until the Bissbilanz iPhone app processes them.</string>
     <string name="settings_ai_task_auto_log_label">Log automatically</string>
     <string name="settings_ai_task_auto_log_hint">When off, estimates wait for your review in the iPhone app.</string>
     <!-- Settings: water goal -->
