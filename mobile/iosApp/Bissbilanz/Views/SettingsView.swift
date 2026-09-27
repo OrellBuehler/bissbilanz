@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(FoodLabeler.self) private var foodLabeler
+    @Environment(MealEstimator.self) private var mealEstimator
 
     @State private var signInSession: ASWebAuthenticationSession?
     @State private var goals: Goals = .defaults
@@ -266,23 +267,95 @@ struct SettingsView: View {
                     }
                 }
 
-                // AI estimation: whether a meal estimate may fall back to
-                // Apple's Private Cloud Compute when on-device estimation isn't
-                // available or good enough (MealEstimatorPrivateCloud.swift).
-                // Device-local like the tab selection/snooze duration, and
-                // shown regardless of AppMode — the fallback is a device/account
-                // capability, not a server feature. Hidden when Apple doesn't
-                // authorize PCC here (e.g. no entitlement), where it would do nothing.
-                if PrivateCloudComputeSettings.isSupported {
+                // Who processes queued AI tasks (the MCP assistant or this
+                // iPhone), auto-log vs review-first, a capability readout, and
+                // — folded in here since it's the same "AI on this device"
+                // territory — whether a meal estimate (here or in
+                // AIMealSheet) may fall back to Apple's Private Cloud Compute
+                // when on-device estimation isn't available or good enough
+                // (MealEstimatorPrivateCloud.swift). The processor picker
+                // itself is server-only (hidden in Local mode, which has no
+                // task queue to route); the PCC toggle stays device-local and
+                // visible regardless of AppMode, like before. Hidden entirely
+                // when neither half has anything to show.
+                if !appModeManager.isLocal || PrivateCloudComputeSettings.isSupported {
                     Section {
-                        Toggle(L10n.aiPrivateCloudToggleLabel, isOn: Binding(
-                            get: { PrivateCloudComputeSettings.isEnabled },
-                            set: { PrivateCloudComputeSettings.isEnabled = $0 }
-                        ))
+                        if !appModeManager.isLocal {
+                            Picker(selection: Binding(
+                                get: { preferences.aiTaskProcessor },
+                                set: { newValue in
+                                    Task {
+                                        var update = PreferencesUpdate()
+                                        update.aiTaskProcessor = newValue
+                                        preferences = await (try? preferencesRepository.update(update))
+                                            ?? (preferencesRepository.preferences() ?? .defaults)
+                                    }
+                                }
+                            )) {
+                                Text(L10n.aiTaskProcessorOptionAssistant).tag(Preferences.aiTaskProcessorAssistant)
+                                Text(L10n.aiTaskProcessorOptionDevice).tag(Preferences.aiTaskProcessorDevice)
+                            } label: {
+                                Label(L10n.aiTaskProcessorPickerLabel, systemImage: "sparkles")
+                            }
+                            .pickerStyle(.menu)
+
+                            if preferences.aiTaskProcessor == Preferences.aiTaskProcessorDevice {
+                                Toggle(L10n.aiTaskProcessorAutoLogToggle, isOn: Binding(
+                                    get: { preferences.aiTaskAutoLog },
+                                    set: { newValue in
+                                        Task {
+                                            var update = PreferencesUpdate()
+                                            update.aiTaskAutoLog = newValue
+                                            preferences = await (try? preferencesRepository.update(update))
+                                                ?? (preferencesRepository.preferences() ?? .defaults)
+                                        }
+                                    }
+                                ))
+
+                                // Still allowed when this device can't currently estimate at
+                                // all — it may simply be waiting on the model to finish
+                                // downloading, or on Apple Intelligence being turned on.
+                                if !mealEstimator.canEstimate {
+                                    Label {
+                                        Text(L10n.aiTaskProcessorDeviceWarning)
+                                    } icon: {
+                                        Image(systemName: "exclamationmark.triangle")
+                                    }
+                                    .font(.footnote)
+                                    .foregroundStyle(.orange)
+                                }
+
+                                capabilityRow(L10n.aiTaskProcessorCapabilityOnDeviceLabel, value: onDeviceCapabilityText)
+                                capabilityRow(
+                                    L10n.aiTaskProcessorCapabilityPhotoLabel,
+                                    value: mealEstimator.supportsPhotoInput
+                                        ? L10n.aiTaskProcessorSupported : L10n.aiTaskProcessorNotSupported
+                                )
+                                capabilityRow(
+                                    L10n.aiTaskProcessorCapabilityPccLabel,
+                                    value: mealEstimator.isPrivateCloudComputeAvailable
+                                        ? L10n.aiTaskProcessorSupported : L10n.aiTaskProcessorNotSupported
+                                )
+                            }
+                        }
+
+                        if PrivateCloudComputeSettings.isSupported {
+                            Toggle(L10n.aiPrivateCloudToggleLabel, isOn: Binding(
+                                get: { PrivateCloudComputeSettings.isEnabled },
+                                set: { PrivateCloudComputeSettings.isEnabled = $0 }
+                            ))
+                        }
                     } header: {
-                        Text(L10n.aiPrivateCloudSectionTitle)
+                        Text(L10n.aiTaskProcessorSectionTitle)
                     } footer: {
-                        Text(L10n.aiPrivateCloudToggleFooter)
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !appModeManager.isLocal, preferences.aiTaskProcessor == Preferences.aiTaskProcessorDevice {
+                                Text(L10n.aiTaskProcessorAutoLogFooter)
+                            }
+                            if PrivateCloudComputeSettings.isSupported {
+                                Text(L10n.aiPrivateCloudToggleFooter)
+                            }
+                        }
                     }
                 }
 
@@ -429,6 +502,27 @@ struct SettingsView: View {
             } message: {
                 if let errorMessage { Text(errorMessage) }
             }
+        }
+    }
+
+    // MARK: - AI task processing
+
+    private func capabilityRow(_ label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+        .font(.footnote)
+    }
+
+    private var onDeviceCapabilityText: String {
+        switch mealEstimator.availability {
+        case .available: L10n.aiTaskProcessorOnDeviceAvailable
+        case .deviceNotEligible: L10n.aiMealDeviceNotEligible
+        case .appleIntelligenceDisabled: L10n.aiMealAppleIntelligenceDisabled
+        case .modelNotReady: L10n.aiMealModelNotReady
+        case .osUnsupported: L10n.aiMealOsUnsupported
         }
     }
 

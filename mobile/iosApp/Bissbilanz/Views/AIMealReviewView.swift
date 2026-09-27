@@ -1,19 +1,37 @@
 import SwiftUI
 
-/// Editable review of an `AIMealSheet` estimate before logging, pushed within
-/// that sheet's stack (Back returns to the form). Matched items log against
-/// the matched food (by servings, falling back to a grams/serving size
-/// conversion); everything else logs as a quick entry with the AI's macro
+/// Where a review was opened from a queued `AiTask` rather than the live
+/// `AIMealSheet` flow — an `AiTaskProcessor` review-first result the user is
+/// confirming from `AiTasksView`'s "Ready to review" row. Carries what
+/// `logAll()` needs to complete the task on confirm: `pendingFoods` resolves
+/// an item's synthetic `matchedFoodId` (see `AiTaskProcessor.pendingFoodKey`)
+/// to the `FoodCreate` to build on confirm, and `source` becomes the
+/// completion's `processedBy`.
+struct AiTaskReviewContext {
+    let taskId: String
+    let pendingFoods: [String: FoodCreate]
+    let source: MealEstimateSource
+}
+
+/// Editable review of an estimate before logging — either a live
+/// `AIMealSheet` estimate (pushed within that sheet's stack, Back returns to
+/// the form) or an `AiTaskProcessor` review-first result opened from
+/// `AiTasksView` (`taskContext` set). Matched items log against the matched
+/// food (by servings, falling back to a grams/serving size conversion); a
+/// `taskContext` item pending its own not-yet-created food is created on
+/// confirm; everything else logs as a quick entry with the AI's macro
 /// estimate. `onLogged` reports how many items were logged so the presenting
-/// screen (Dashboard/DayLog) can show its own toast; the sheet tears itself
-/// down from that callback.
+/// screen can show its own toast and tear this view down.
 struct AIMealReviewView: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(SyncManager.self) private var syncManager
 
     let estimate: MealEstimate
     let date: String
     let mealType: String
+    var eatenAt: String?
+    var taskContext: AiTaskReviewContext?
     var onLogged: (Int) -> Void = { _ in }
 
     @State private var items: [EditableItem] = []
@@ -32,6 +50,10 @@ struct AIMealReviewView: View {
         var isIncluded: Bool
         var name: String
         var matchedFood: Food?
+        /// Set instead of `matchedFood` for a `taskContext` item
+        /// `AiTaskProcessor` identified (a label or link match) but has not
+        /// created yet — created on confirm, in `logItem`.
+        var pendingFoodCreate: FoodCreate?
         let quantityDescription: String
         let grams: Double?
         let servings: Double?
@@ -114,6 +136,10 @@ struct AIMealReviewView: View {
                 Label(L10n.aiMealMatched(matchedFood.name), systemImage: "checkmark.circle.fill")
                     .font(.caption)
                     .foregroundStyle(.green)
+            } else if item.wrappedValue.pendingFoodCreate != nil {
+                Label(L10n.aiTaskProcessorNewFoodBadge, systemImage: "plus.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
             }
 
             if item.wrappedValue.confidence < 0.5 {
@@ -151,10 +177,12 @@ struct AIMealReviewView: View {
     private func populateItemsIfNeeded() {
         guard items.isEmpty else { return }
         items = estimate.items.map { item in
-            EditableItem(
+            let pendingFoodCreate = item.matchedFoodId.flatMap { taskContext?.pendingFoods[$0] }
+            return EditableItem(
                 isIncluded: true,
                 name: item.name,
-                matchedFood: item.matchedFoodId.flatMap { foodRepository.food(id: $0) },
+                matchedFood: pendingFoodCreate == nil ? item.matchedFoodId.flatMap { foodRepository.food(id: $0) } : nil,
+                pendingFoodCreate: pendingFoodCreate,
                 quantityDescription: item.quantityDescription,
                 grams: item.grams,
                 servings: item.servings,
@@ -177,9 +205,12 @@ struct AIMealReviewView: View {
         isLogging = true
         errorMessage = nil
         var loggedCount = 0
+        var localEntryIds: [String] = []
+        var loggedItems: [EditableItem] = []
         for item in items where item.isIncluded {
             do {
-                try await logItem(item)
+                localEntryIds.append(try await logItem(item))
+                loggedItems.append(item)
                 loggedCount += 1
             } catch {
                 // Keep logging the remaining items; surface a single error if
@@ -189,17 +220,35 @@ struct AIMealReviewView: View {
         }
         isLogging = false
         if loggedCount > 0 {
+            if let taskContext {
+                syncManager.enqueue(.completeAiTask(
+                    taskId: taskContext.taskId,
+                    localEntryIds: localEntryIds,
+                    resultSummary: Self.summaryText(for: loggedItems),
+                    processedBy: AiTaskProcessor.processedBy(for: taskContext.source)
+                ))
+            }
             onLogged(loggedCount)
         } else {
             errorMessage = L10n.failedToLog
         }
     }
 
-    private func logItem(_ item: EditableItem) async throws {
+    /// Returns the local id of the entry it created, so `logAll` can complete
+    /// the `taskContext` task once every included item has logged.
+    @discardableResult
+    private func logItem(_ item: EditableItem) async throws -> String {
+        if let pendingFoodCreate = item.pendingFoodCreate {
+            let food = try await foodRepository.createFood(pendingFoodCreate)
+            let entry = EntryCreate(
+                foodId: food.id, mealType: mealType, servings: item.servings ?? 1, date: date, eatenAt: eatenAt
+            )
+            return try await entryRepository.createEntry(entry, food: food).id
+        }
+
         if let food = item.matchedFood, let servings = resolvedServings(for: item, food: food) {
-            let entry = EntryCreate(foodId: food.id, mealType: mealType, servings: servings, date: date)
-            try await entryRepository.createEntry(entry, food: food)
-            return
+            let entry = EntryCreate(foodId: food.id, mealType: mealType, servings: servings, date: date, eatenAt: eatenAt)
+            return try await entryRepository.createEntry(entry, food: food).id
         }
 
         let entry = EntryCreate(
@@ -211,9 +260,20 @@ struct AIMealReviewView: View {
             quickProtein: Double.parseUserInput(item.protein),
             quickCarbs: Double.parseUserInput(item.carbs),
             quickFat: Double.parseUserInput(item.fat),
-            quickFiber: Double.parseUserInput(item.fiber)
+            quickFiber: Double.parseUserInput(item.fiber),
+            eatenAt: eatenAt
         )
-        try await entryRepository.createEntry(entry)
+        return try await entryRepository.createEntry(entry).id
+    }
+
+    /// e.g. "Logged egg, toast (≈420 kcal)" — mirrors
+    /// `AiTaskProcessor.summarize(items:)`, but over the post-edit
+    /// `EditableItem` values the user actually confirmed rather than the raw
+    /// estimate.
+    private static func summaryText(for items: [EditableItem]) -> String {
+        let joined = items.map(\.name).joined(separator: ", ")
+        let totalCalories = items.reduce(0.0) { $0 + (Double.parseUserInput($1.calories) ?? 0) }
+        return L10n.aiTaskProcessorResultSummary(joined, Int(totalCalories.rounded()))
     }
 
     /// Prefers the LLM's own serving count; otherwise converts an estimated

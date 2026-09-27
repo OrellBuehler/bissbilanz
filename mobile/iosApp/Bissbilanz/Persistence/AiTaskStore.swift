@@ -64,6 +64,15 @@ final class AiTaskStore {
     private var expiredInBackground: Set<UUID> = []
     private var restoringUploads = false
 
+    /// Invoked after every successful `refresh()` — set once by the app so
+    /// `AiTaskProcessor` can look for newly-pending tasks without this store
+    /// needing to know that service exists (same escape-hatch shape as
+    /// `SyncManager.onConflictResolved`). This one hook is what makes
+    /// `AiTasksView` opening, the background refresh pull, and the foreground
+    /// activation pull all double as `AiTaskProcessor` triggers — they each
+    /// already call `refresh()` themselves.
+    @ObservationIgnored var onRefreshed: (() async -> Void)?
+
     init(api: BissbilanzAPI, appMode: AppModeManager, uploadRoot: URL = AiTaskUploadDisk.defaultRoot) {
         self.api = api
         self.appMode = appMode
@@ -385,6 +394,7 @@ final class AiTaskStore {
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         tasks = try await api.listAiTasks(limit: 100).tasks
+        await onRefreshed?()
     }
 
     /// Clears the unread badge for every resolved task. Called when the user opens the
@@ -405,17 +415,38 @@ final class AiTaskStore {
         guard !appMode.isLocal else { return }
         try await api.deleteAiTask(id: id)
         tasks.removeAll { $0.id == id }
+        // Nothing left to review once the task itself is gone.
+        AiTaskDraftDisk.remove(taskId: id)
+    }
+
+    /// Optimistically drops a task from the in-memory list right after
+    /// `AiTaskProcessor` resolves it (completed or dismissed) — the server
+    /// update itself may still be queued (a `.completeAiTask` sync op) or in
+    /// flight, so without this a trigger landing before the next `refresh()`
+    /// would see the task as still pending and could double-process it.
+    func markResolvedLocally(id: String) {
+        tasks.removeAll { $0.id == id }
     }
 
     /// Applies an edit-sheet PATCH and updates the in-memory list to match the
     /// server's response — `AiTasksView` is never shown in Local mode, so this
     /// has no local-mode guard.
+    ///
+    /// Also drops any `AiTaskProcessor` review-first draft still on disk for
+    /// this task: it was built from the description/photos as they stood
+    /// before this edit, so confirming it now would log the wrong thing.
+    /// `AiTaskProcessor` itself only ever checks for an existing draft before
+    /// it starts processing a task, so this alone is enough to make the next
+    /// trigger re-process the edited task from scratch instead of reusing a
+    /// stale in-flight result — there is no separate "cancel the run in
+    /// progress" needed for a single-user, single-device queue like this one.
     @discardableResult
     func update(id: String, _ patch: AiTaskUpdate) async throws -> AiTask {
         let updated = try await api.updateAiTask(id: id, patch)
         if let index = tasks.firstIndex(where: { $0.id == id }) {
             tasks[index] = updated
         }
+        AiTaskDraftDisk.remove(taskId: id)
         return updated
     }
 }

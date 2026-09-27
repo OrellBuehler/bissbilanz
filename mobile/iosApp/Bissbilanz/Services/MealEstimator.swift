@@ -47,7 +47,7 @@ enum MealEstimatorError: Error {
 
 /// Plain result types, available on every OS version/compiler this project
 /// builds with — only the code that produces them is gated.
-struct MealEstimate {
+struct MealEstimate: Codable, Equatable {
     var items: [MealEstimateItem]
     /// Which model actually produced this estimate — `.onDevice` unless the
     /// Private Cloud Compute fallback (`MealEstimatorPrivateCloud.swift`) ran
@@ -56,12 +56,14 @@ struct MealEstimate {
     var source: MealEstimateSource = .onDevice
 }
 
-enum MealEstimateSource: Equatable {
+/// `Codable`: `AiTaskProcessor`'s review-first flow persists a `MealEstimate`
+/// to disk as part of `ProcessedAiTaskDraft` until the user confirms it.
+enum MealEstimateSource: String, Equatable, Codable {
     case onDevice
     case privateCloudCompute
 }
 
-struct MealEstimateItem: Identifiable {
+struct MealEstimateItem: Identifiable, Codable, Equatable {
     let id = UUID()
     var name: String
     var matchedFoodId: String?

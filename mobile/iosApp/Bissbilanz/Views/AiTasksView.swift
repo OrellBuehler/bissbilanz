@@ -8,6 +8,12 @@ struct AiTasksView: View {
     @State private var selectedFilter: Filter = .open
     @State private var hasChosenFilter = false
     @State private var errorMessage: String?
+    /// `AiTaskProcessor` review-first results waiting for the user to confirm
+    /// them — reloaded from disk alongside every `store.refresh()`, which by
+    /// the time it returns has already given the processor a chance to run
+    /// (see `AiTaskStore.onRefreshed`).
+    @State private var readyForReviewDrafts: [ProcessedAiTaskDraft] = []
+    @State private var selectedDraftForReview: ProcessedAiTaskDraft?
     @State private var editingTask: AiTask?
 
     private enum Filter: Int, CaseIterable, Identifiable {
@@ -50,6 +56,16 @@ struct AiTasksView: View {
         selectedFilter == .open ? store.pendingUploads : []
     }
 
+    /// Only a draft whose task is still `pending` server-side — a stale draft
+    /// left behind after the task was resolved elsewhere (another device, or
+    /// the MCP assistant, before the user routed tasks to this iPhone) has no
+    /// task left to confirm.
+    private var visibleDrafts: [ProcessedAiTaskDraft] {
+        guard selectedFilter == .open else { return [] }
+        let pendingTaskIds = Set(store.tasks.filter { $0.status == "pending" }.map(\.id))
+        return readyForReviewDrafts.filter { pendingTaskIds.contains($0.taskId) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedFilter) {
@@ -67,7 +83,7 @@ struct AiTasksView: View {
                     LoadingView()
                 } else if let error {
                     ErrorView(error: error) { Task { await load() } }
-                } else if visibleTasks.isEmpty, visibleUploads.isEmpty {
+                } else if visibleTasks.isEmpty, visibleUploads.isEmpty, visibleDrafts.isEmpty {
                     ContentUnavailableView(
                         L10n.aiTasks,
                         systemImage: "sparkles",
@@ -75,6 +91,14 @@ struct AiTasksView: View {
                     )
                 } else {
                     List {
+                        ForEach(visibleDrafts) { draft in
+                            Button {
+                                selectedDraftForReview = draft
+                            } label: {
+                                ReadyForReviewRow(draft: draft)
+                            }
+                            .buttonStyle(.plain)
+                        }
                         ForEach(visibleUploads) { upload in
                             PendingUploadRow(upload: upload)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -111,8 +135,43 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
+        .sheet(item: $selectedDraftForReview) { draft in
+            NavigationStack {
+                AIMealReviewView(
+                    estimate: MealEstimate(items: draft.items, source: draft.source),
+                    date: draft.date,
+                    mealType: draft.mealType ?? MealTiming.mealForCurrentTime(),
+                    eatenAt: draft.eatenAt,
+                    taskContext: AiTaskReviewContext(
+                        taskId: draft.taskId, pendingFoods: draft.pendingFoods, source: draft.source
+                    )
+                ) { _ in
+                    AiTaskDraftDisk.remove(taskId: draft.taskId)
+                    readyForReviewDrafts.removeAll { $0.taskId == draft.taskId }
+                    // Not a `store.refresh()`: the queued `.completeAiTask` op
+                    // this just enqueued may not have uploaded yet, so the
+                    // server would still answer "pending" — which would make
+                    // `AiTaskProcessor` try to process this same task again.
+                    // Dropping it from the in-memory list directly avoids
+                    // that race; a later refresh picks up the real outcome.
+                    store.markResolvedLocally(id: draft.taskId)
+                    selectedDraftForReview = nil
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { selectedDraftForReview = nil }
+                    }
+                }
+            }
+        }
         .sheet(item: $editingTask) { task in
-            AiTaskEditSheet(task: task)
+            AiTaskEditSheet(task: task) { _ in
+                // The edit changed the description/photos/date/meal/time a
+                // review-first draft was built from — `AiTaskStore.update`
+                // already dropped the stale draft from disk, so drop it here
+                // too rather than waiting for the next `load()` to notice.
+                readyForReviewDrafts.removeAll { $0.taskId == task.id }
+            }
         }
         .alert(
             L10n.error,
@@ -145,6 +204,7 @@ struct AiTasksView: View {
         await AiTaskNotifier.requestAuthorizationIfNeeded()
         do {
             try await store.refresh()
+            readyForReviewDrafts = AiTaskDraftDisk.loadAll()
             // Show the tab holding what the user came here for. Arriving from a
             // dismissal notification would otherwise land on Open, which by
             // definition cannot contain the task they just tapped.
@@ -324,5 +384,36 @@ private struct AiTaskRow: View {
                 }
             }
         }
+    }
+}
+
+/// A meal `AiTaskProcessor` (this iPhone, in review-first mode) has already
+/// read but not logged yet — tapping opens `AIMealReviewView` to confirm or
+/// edit it, mirroring `AiTaskRow`'s layout.
+private struct ReadyForReviewRow: View {
+    let draft: ProcessedAiTaskDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.blue)
+                    .accessibilityHidden(true)
+                Text(L10n.aiTaskProcessorReadyForReview)
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            Text(draft.items.map(\.name).joined(separator: ", "))
+                .font(.body)
+                .foregroundStyle(.primary)
+            Text(L10n.aiTaskProcessorReviewHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }

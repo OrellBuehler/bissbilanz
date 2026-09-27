@@ -25,6 +25,12 @@ struct AiTask: Codable, Identifiable, Hashable {
     /// assistant made over MCP arrive unacknowledged — one the user tapped
     /// themselves is already stamped by the server.
     let acknowledgedAt: String?
+    /// Who resolved this task: `"assistant"` (MCP), `"on_device"` or
+    /// `"private_cloud"` (this or another of the user's iPhones, via
+    /// `AiTaskProcessor` — see `MealEstimateSource`). Null on an older
+    /// resolved task from before this field existed, and always null while
+    /// `status` is still `"pending"`.
+    let processedBy: String?
     let createdAt: String?
     let updatedAt: String?
 
@@ -46,12 +52,19 @@ struct AiTaskUpdate: Codable {
     var mealType: String??
     var eatenAt: String??
     var acknowledged: Bool?
+    /// Set by `AiTaskProcessor` alongside a `completed`/`dismissed` status —
+    /// see `AiTask.processedBy`.
+    var processedBy: String?
+    /// Set alongside `status: "completed"`: the server ids of the entries this
+    /// task logged.
+    var createdEntryIds: [String]?
 }
 
 /// Declared in an extension so the memberwise initializer survives.
 extension AiTaskUpdate {
     private enum CodingKeys: String, CodingKey {
         case status, resultSummary, description, photoUrls, date, mealType, eatenAt, acknowledged
+        case processedBy, createdEntryIds
     }
 
     init(from decoder: Decoder) throws {
@@ -64,6 +77,8 @@ extension AiTaskUpdate {
         description = try container.decodeNullable(String.self, forKey: .description)
         mealType = try container.decodeNullable(String.self, forKey: .mealType)
         eatenAt = try container.decodeNullable(String.self, forKey: .eatenAt)
+        processedBy = try container.decodeIfPresent(String.self, forKey: .processedBy)
+        createdEntryIds = try container.decodeIfPresent([String].self, forKey: .createdEntryIds)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -76,6 +91,8 @@ extension AiTaskUpdate {
         try container.encodeNullable(description, forKey: .description)
         try container.encodeNullable(mealType, forKey: .mealType)
         try container.encodeNullable(eatenAt, forKey: .eatenAt)
+        try container.encodeIfPresent(processedBy, forKey: .processedBy)
+        try container.encodeIfPresent(createdEntryIds, forKey: .createdEntryIds)
     }
 }
 

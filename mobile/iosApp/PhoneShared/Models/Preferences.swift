@@ -49,6 +49,20 @@ struct Preferences: Codable, Equatable {
     /// goal when `activityGoalAdjustment` is on. `var` with a default like
     /// `activityGoalAdjustment` above.
     var activityCreditPercent: Int = 100
+    /// Who processes queued `AiTask`s: `aiTaskProcessorAssistant` (the MCP
+    /// assistant, the original and still the server default) or
+    /// `aiTaskProcessorDevice` (this iPhone, via `AiTaskProcessor`). `var`
+    /// with a default like `activityGoalAdjustment` above so a cached row or
+    /// server response from before this field existed still decodes as the
+    /// server's own default.
+    var aiTaskProcessor: String = Preferences.aiTaskProcessorAssistant
+    /// Whether a device-processed task is logged automatically (`true`) or
+    /// held for the user to review first (`false`, the default — matches the
+    /// server default). Meaningless when `aiTaskProcessor` is the assistant.
+    var aiTaskAutoLog: Bool = false
+
+    static let aiTaskProcessorAssistant = "assistant"
+    static let aiTaskProcessorDevice = "device"
 
     static let defaults = Preferences(
         showChartWidget: true,
@@ -71,7 +85,9 @@ struct Preferences: Codable, Equatable {
         timeZone: "UTC",
         waterGoalMl: nil,
         activityGoalAdjustment: false,
-        activityCreditPercent: 100
+        activityCreditPercent: 100,
+        aiTaskProcessor: aiTaskProcessorAssistant,
+        aiTaskAutoLog: false
     )
 }
 
@@ -88,6 +104,7 @@ extension Preferences {
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, waterGoalMl
         case activityGoalAdjustment, activityCreditPercent
+        case aiTaskProcessor, aiTaskAutoLog
     }
 
     init(from decoder: Decoder) throws {
@@ -114,6 +131,9 @@ extension Preferences {
         waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
         activityGoalAdjustment = try container.decodeIfPresent(Bool.self, forKey: .activityGoalAdjustment) ?? false
         activityCreditPercent = try container.decodeIfPresent(Int.self, forKey: .activityCreditPercent) ?? 100
+        aiTaskProcessor = try container.decodeIfPresent(String.self, forKey: .aiTaskProcessor)
+            ?? Preferences.aiTaskProcessorAssistant
+        aiTaskAutoLog = try container.decodeIfPresent(Bool.self, forKey: .aiTaskAutoLog) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -139,6 +159,8 @@ extension Preferences {
         try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
         try container.encode(activityGoalAdjustment, forKey: .activityGoalAdjustment)
         try container.encode(activityCreditPercent, forKey: .activityCreditPercent)
+        try container.encode(aiTaskProcessor, forKey: .aiTaskProcessor)
+        try container.encode(aiTaskAutoLog, forKey: .aiTaskAutoLog)
     }
 }
 
@@ -174,6 +196,8 @@ struct PreferencesUpdate: Codable {
     var waterGoalMl: Int?
     var activityGoalAdjustment: Bool?
     var activityCreditPercent: Int?
+    var aiTaskProcessor: String?
+    var aiTaskAutoLog: Bool?
 }
 
 /// Declared in an extension so the memberwise initializer survives.
@@ -185,6 +209,7 @@ extension PreferencesUpdate {
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes, waterGoalMl
         case activityGoalAdjustment, activityCreditPercent
+        case aiTaskProcessor, aiTaskAutoLog
     }
 
     init(from decoder: Decoder) throws {
@@ -214,6 +239,8 @@ extension PreferencesUpdate {
         waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl)
         activityGoalAdjustment = try container.decodeIfPresent(Bool.self, forKey: .activityGoalAdjustment)
         activityCreditPercent = try container.decodeIfPresent(Int.self, forKey: .activityCreditPercent)
+        aiTaskProcessor = try container.decodeIfPresent(String.self, forKey: .aiTaskProcessor)
+        aiTaskAutoLog = try container.decodeIfPresent(Bool.self, forKey: .aiTaskAutoLog)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -240,6 +267,8 @@ extension PreferencesUpdate {
         try container.encodeIfPresent(waterGoalMl, forKey: .waterGoalMl)
         try container.encodeIfPresent(activityGoalAdjustment, forKey: .activityGoalAdjustment)
         try container.encodeIfPresent(activityCreditPercent, forKey: .activityCreditPercent)
+        try container.encodeIfPresent(aiTaskProcessor, forKey: .aiTaskProcessor)
+        try container.encodeIfPresent(aiTaskAutoLog, forKey: .aiTaskAutoLog)
     }
 }
 

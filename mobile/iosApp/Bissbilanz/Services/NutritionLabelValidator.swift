@@ -129,4 +129,24 @@ enum NutritionLabelValidator {
 
         return result
     }
+
+    /// Whether a scan result is confident enough to treat the photo it came
+    /// from as an actual nutrition-facts panel, rather than an ordinary food
+    /// photo Vision or Foundation Models happened to read a stray number or
+    /// two off of (packaging text, a price tag, a barcode's printed digits).
+    /// Used by `AiTaskProcessor` to decide which of an `AiTask`'s photos to
+    /// treat as a label — `hasCoreMacros` alone (any *one* of calories/
+    /// protein/carbs/fat) is too weak a bar for that unattended decision, so
+    /// this additionally requires energy to roughly agree with the macros
+    /// that were actually read, the same coherence check `merge` applies.
+    /// Deliberately independent of the barcode: a photo can be a valid label
+    /// with no barcode in frame, or carry a barcode with no legible label.
+    static func isValidLabel(_ nutrition: ParsedNutrition) -> Bool {
+        guard nutrition.calories != nil else { return false }
+        let macroCount = [nutrition.protein, nutrition.carbs, nutrition.fat]
+            .filter { $0 != nil }
+            .count
+        guard macroCount >= 2 else { return false }
+        return isEnergyConsistent(nutrition, relaxed: true)
+    }
 }

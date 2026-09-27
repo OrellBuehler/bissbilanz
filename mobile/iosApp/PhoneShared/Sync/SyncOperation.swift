@@ -59,6 +59,14 @@ enum SyncOperation: Codable {
     case upsertFast(id: String, body: FastingSessionUpsert)
     case deleteFast(id: String)
     case updatePreferences(body: PreferencesUpdate)
+    /// Marks an `AiTask` `AiTaskProcessor` resolved as completed, once the
+    /// entries it logged exist server-side. `localEntryIds` starts as the
+    /// `temp_` ids `EntryRepository.createEntry` returned and is rewritten to
+    /// the server ids as each entry's own `createEntry` op drains (see
+    /// `remappingReferences`) — this op waits behind them via
+    /// `SyncManager.unresolvedReference` the same way a `createEntry`
+    /// referencing an unresolved `temp_` foodId does.
+    case completeAiTask(taskId: String, localEntryIds: [String], resultSummary: String, processedBy: String)
 
     /// Stable discriminator stored on the queue row (debugging/inspection).
     var typeName: String {
@@ -97,6 +105,7 @@ enum SyncOperation: Codable {
         case .upsertFast: "upsert_fast"
         case .deleteFast: "delete_fast"
         case .updatePreferences: "update_preferences"
+        case .completeAiTask: "complete_ai_task"
         }
     }
 
@@ -115,6 +124,7 @@ enum SyncOperation: Codable {
         case .setDayProperties, .deleteDayProperties: "day_properties"
         case .upsertFast, .deleteFast: "fasts"
         case .updatePreferences: "preferences"
+        case .completeAiTask: "ai_tasks"
         }
     }
 
@@ -135,6 +145,8 @@ enum SyncOperation: Codable {
              let .updateReminder(id, _), let .deleteReminder(id),
              let .upsertFast(id, _), let .deleteFast(id):
             id
+        case let .completeAiTask(taskId, _, _, _):
+            taskId
         case let .logSupplement(supplementId, _), let .unlogSupplement(supplementId, _):
             supplementId
         case let .setDayProperties(date, _), let .deleteDayProperties(date):
@@ -263,6 +275,13 @@ enum SyncOperation: Codable {
         case let .deleteReminder(id) where id == oldId:
             return .deleteReminder(id: newId)
 
+        case let .completeAiTask(taskId, localEntryIds, resultSummary, processedBy)
+            where localEntryIds.contains(oldId):
+            let rewritten = localEntryIds.map { $0 == oldId ? newId : $0 }
+            return .completeAiTask(
+                taskId: taskId, localEntryIds: rewritten, resultSummary: resultSummary, processedBy: processedBy
+            )
+
         default:
             return nil
         }
@@ -332,6 +351,7 @@ enum SyncOperation: Codable {
         case let .upsertFast(id, _): "upsert fast \(id)"
         case let .deleteFast(id): "delete fast \(id)"
         case .updatePreferences: "update preferences"
+        case let .completeAiTask(taskId, _, _, _): "complete ai task \(taskId)"
         }
     }
 }

@@ -161,7 +161,7 @@ struct Food: Codable, Identifiable, Hashable {
     }
 }
 
-struct FoodCreate: Codable {
+struct FoodCreate: Codable, Equatable {
     let name: String
     var brand: String?
     let servingSize: Double
