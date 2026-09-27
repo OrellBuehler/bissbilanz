@@ -34,6 +34,7 @@ struct FoodSearchView: View {
     @State private var showCreateRecipe = false
     @State private var showShareFoods = false
     @State private var showImportPackage = false
+    @State private var showDuplicates = false
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
@@ -154,6 +155,9 @@ struct FoodSearchView: View {
         .navigationDestination(isPresented: $showImportPackage) {
             FoodPackageImportView()
         }
+        .navigationDestination(isPresented: $showDuplicates) {
+            FoodDuplicatesView()
+        }
         .sheet(isPresented: $showCreateRecipe) {
             RecipeEditSheet()
         }
@@ -179,27 +183,27 @@ struct FoodSearchView: View {
 
     private var toolbarActions: some View {
         HStack(spacing: 12) {
-            // Duplicate detection and merging are server-side — no account,
-            // no server to scan or merge on (mirrors AIMealSheet's
-            // `!appMode.isLocal` gating on other account-only actions).
+            // Duplicate detection, merging and food packages are all
+            // server-side — no account, no server to scan, merge or exchange
+            // packages with (mirrors AIMealSheet's `!appMode.isLocal` gating
+            // on other account-only actions) — so they share one overflow
+            // menu instead of crowding the toolbar with four separate icons.
             if canMerge {
-                Button {
-                    isSelecting = true
-                } label: {
-                    Image(systemName: "checkmark.circle")
-                }
-                .accessibilityLabel(L10n.foodsSelect)
-
-                NavigationLink {
-                    FoodDuplicatesView()
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .accessibilityLabel(L10n.foodsDuplicatesViewAll)
-
-                // Food packages are built and read by the server, so they
-                // share the same account-only gate.
                 Menu {
+                    Button {
+                        isSelecting = true
+                    } label: {
+                        Label(L10n.foodsSelect, systemImage: "checkmark.circle")
+                    }
+
+                    Button {
+                        showDuplicates = true
+                    } label: {
+                        Label(L10n.foodsDuplicatesViewAll, systemImage: "doc.on.doc")
+                    }
+
+                    Divider()
+
                     Button {
                         showShareFoods = true
                     } label: {
@@ -213,7 +217,7 @@ struct FoodSearchView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel(L10n.foodPackageShare)
+                .accessibilityLabel(L10n.more)
             }
 
             // A single + presents a menu: foods and recipes are both
