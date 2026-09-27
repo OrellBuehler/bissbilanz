@@ -132,6 +132,31 @@ export function registerPrompts(server: McpServer) {
 	);
 
 	server.registerPrompt(
+		'process_ai_tasks',
+		{
+			title: 'Process AI tasks',
+			description:
+				'Work through every pending AI task queued from the web, Android or iPhone capture flow: identify the foods in each one, log entries, and close every task out.'
+		},
+		() =>
+			user(
+				[
+					'Process all pending AI tasks in Bissbilanz (meal-logging tasks the user queued).',
+					'',
+					'Steps:',
+					'1. Call list_ai_tasks (status: pending). If there are none, stop and report that there was nothing to process.',
+					'2. For each pending task, call get_ai_task to load its details and all attached photos.',
+					'3. Identify every food and drink in the photos and estimate quantities. Read all photos on a task — they may show parts of the same meal, packaging, or a nutrition label.',
+					'4. Create a food only when the task includes a nutrition-label photo, a specific product description with nutrition facts, or a web link with the facts — always pass barcode when one is visible, and try find_food_by_barcode first. For a plain meal description, log a matched existing foodId or a quick entry, never create a food.',
+					"5. Log entries with log_food using the task's date, mealType and eatenAt. If eatenAt is null, pass an eatenAt on the task's date at a plausible clock time for that meal type — do not let it default to now. Use foodId + servings for matched foods, and quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates. Amounts are in servings of the food's own serving size, not grams.",
+					'6. Close out every task you pick up: call complete_ai_task with the created entry IDs and a short resultSummary addressed to the user naming the foods and amounts logged. If a task cannot be logged, call dismiss_ai_task with a reason addressed to the user saying what would be needed. Never leave a task you opened unresolved and never resolve one silently.',
+					'',
+					'Be conservative with estimates and state assumptions in the summary. Do not modify or delete existing diary entries. Finish with a short report of how many tasks were completed and how many dismissed.'
+				].join('\n')
+			)
+	);
+
+	server.registerPrompt(
 		'weekly_review',
 		{
 			title: 'Weekly review',

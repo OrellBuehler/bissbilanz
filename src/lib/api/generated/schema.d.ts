@@ -1637,6 +1637,9 @@ export interface components {
 			biologicalSex?: ('male' | 'female') | null;
 			activityGoalAdjustment?: boolean;
 			activityCreditPercent?: number;
+			/** @enum {string} */
+			aiTaskProcessor?: 'assistant' | 'device';
+			aiTaskAutoLog?: boolean;
 			timeZone?: string;
 		};
 		FavoriteMealTimeframeInput: {
@@ -1676,6 +1679,8 @@ export interface components {
 			mealType?: string;
 			eatenAt?: string | null;
 			acknowledged?: boolean;
+			/** @enum {string} */
+			processedBy?: 'assistant' | 'on_device' | 'private_cloud';
 		};
 		SleepCreate: {
 			durationMinutes: number;
@@ -2368,6 +2373,9 @@ export interface components {
 			biologicalSex?: ('male' | 'female') | null;
 			activityGoalAdjustment: boolean;
 			activityCreditPercent: number;
+			/** @enum {string} */
+			aiTaskProcessor: 'assistant' | 'device';
+			aiTaskAutoLog: boolean;
 			locale: string | null;
 			timeZone: string;
 			updatedAt?: string;
@@ -2579,6 +2587,7 @@ export interface components {
 			completedAt: string | null;
 			dismissedAt: string | null;
 			acknowledgedAt: string | null;
+			processedBy: ('assistant' | 'on_device' | 'private_cloud') | null;
 			createdAt?: string;
 			updatedAt?: string;
 		};

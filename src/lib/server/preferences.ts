@@ -70,6 +70,8 @@ export const DEFAULT_PREFERENCES = {
 	waterGoalMl: 2000,
 	activityGoalAdjustment: false,
 	activityCreditPercent: 100,
+	aiTaskProcessor: 'assistant' as const,
+	aiTaskAutoLog: false,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

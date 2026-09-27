@@ -182,9 +182,12 @@
     <!-- KI-Mahlzeitenauftrag -->
     <string name="ai_task_title">An Assistenten senden</string>
     <string name="ai_task_subtitle">Diese Mahlzeit für den KI-Assistenten zum Erfassen einreihen.</string>
+    <string name="ai_task_subtitle_device">Diese Mahlzeit einreihen — dein iPhone verarbeitet sie, sobald Bissbilanz das nächste Mal geöffnet wird.</string>
+    <string name="ai_task_mcp_not_connected">Verbinde einen KI-Assistenten in den Einstellungen, um eingereihte Mahlzeiten zu verarbeiten.</string>
     <string name="ai_task_what_did_you_eat">Was hast du gegessen?</string>
     <string name="ai_task_description_placeholder">z. B. eine Schüssel Porridge mit Banane und Honig</string>
     <string name="ai_task_send">Senden</string>
+    <string name="ai_task_send_device">Einreihen</string>
     <string name="ai_task_sending">Wird gesendet…</string>
     <string name="ai_task_send_failed">Senden an den Assistenten fehlgeschlagen</string>
     <string name="ai_task_queued">An den Assistenten gesendet</string>
@@ -1197,6 +1200,12 @@
     <string name="settings_activity_goal_adjustment">Ziele durch Workout-Kalorien erhöhen</string>
     <string name="settings_activity_goal_adjustment_desc">Erhöht das heutige Kalorien- und Makroziel um einen Anteil der für den Tag erfassten Aktivitätskalorien.</string>
     <string name="settings_activity_credit_percent">Anrechnung: %1$d%%</string>
+    <string name="settings_ai_task_processor_title">KI-Aufgabenverarbeitung</string>
+    <string name="settings_ai_task_processor_desc">Wähle, wer die von dir erfassten Mahlzeiten-Aufgaben verarbeitet.</string>
+    <string name="settings_ai_task_processor_assistant">KI-Assistent (MCP)</string>
+    <string name="settings_ai_task_processor_device">Mein iPhone (on-device / Private Cloud Compute)</string>
+    <string name="settings_ai_task_auto_log_label">Automatisch eintragen</string>
+    <string name="settings_ai_task_auto_log_hint">Ist dies deaktiviert, warten Schätzungen in der iPhone-App auf deine Prüfung.</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Tägliches Wasserziel</string>
     <string name="settings_water_goal_desc">Wird als Fortschrittsbalken im Tagesprotokoll angezeigt</string>

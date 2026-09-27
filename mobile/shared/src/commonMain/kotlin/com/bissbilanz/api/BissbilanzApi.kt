@@ -44,6 +44,7 @@ import com.bissbilanz.api.generated.model.GoalsResponse
 import com.bissbilanz.api.generated.model.GoalsSetResponse
 import com.bissbilanz.api.generated.model.ImageUploadResponse
 import com.bissbilanz.api.generated.model.MaintenanceResponse
+import com.bissbilanz.api.generated.model.McpStatusResponse
 import com.bissbilanz.api.generated.model.MealBreakdownResponse
 import com.bissbilanz.api.generated.model.MealTimingResponse
 import com.bissbilanz.api.generated.model.MealType
@@ -1401,6 +1402,17 @@ class BissbilanzApi(
         }
         val body: AiTaskPhotoResponse = response.body()
         return body.photoUrls
+    }
+
+    /**
+     * Whether the signed-in account has at least one MCP client (Claude.ai, Claude
+     * Code, ...) authorized. Queued AI tasks are only ever picked up by such a
+     * client, so this is what gates "send to assistant" when the processor
+     * preference is 'assistant' rather than the user's own iPhone.
+     */
+    suspend fun getMcpStatus(): Boolean {
+        val response: McpStatusResponse = get("/api/mcp/status")
+        return response.connected
     }
 
     // Images

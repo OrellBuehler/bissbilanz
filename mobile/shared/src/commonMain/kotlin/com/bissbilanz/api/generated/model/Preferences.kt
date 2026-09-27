@@ -42,6 +42,8 @@ import kotlinx.serialization.encoding.*
  * @param waterGoalMl
  * @param activityGoalAdjustment
  * @param activityCreditPercent
+ * @param aiTaskProcessor
+ * @param aiTaskAutoLog
  * @param locale
  * @param timeZone
  * @param favoriteMealTimeframes
@@ -71,6 +73,8 @@ data class Preferences(
     @SerialName(value = "waterGoalMl") @Required val waterGoalMl: kotlin.Int,
     @SerialName(value = "activityGoalAdjustment") @Required val activityGoalAdjustment: kotlin.Boolean,
     @SerialName(value = "activityCreditPercent") @Required val activityCreditPercent: kotlin.Int,
+    @SerialName(value = "aiTaskProcessor") @Required val aiTaskProcessor: Preferences.AiTaskProcessor,
+    @SerialName(value = "aiTaskAutoLog") @Required val aiTaskAutoLog: kotlin.Boolean,
     @SerialName(value = "locale") @Required val locale: kotlin.String?,
     @SerialName(value = "timeZone") @Required val timeZone: kotlin.String,
     @SerialName(value = "favoriteMealTimeframes") @Required val favoriteMealTimeframes: kotlin.collections.List<FavoriteMealTimeframe>,
@@ -79,6 +83,22 @@ data class Preferences(
     @SerialName(value = "biologicalSex") val biologicalSex: Preferences.BiologicalSex? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
+    /**
+     *
+     *
+     * Values: assistant,device
+     */
+    @Serializable
+    enum class AiTaskProcessor(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "assistant")
+        assistant("assistant"),
+
+        @SerialName(value = "device")
+        device("device"),
+    }
+
     /**
      *
      *

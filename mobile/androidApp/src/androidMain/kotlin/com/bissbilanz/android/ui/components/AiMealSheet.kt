@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
@@ -41,6 +42,8 @@ import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
+import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -69,9 +72,27 @@ fun AiMealSheet(
     onQueued: () -> Unit,
 ) {
     val errorReporter: ErrorReporter = koinInject()
+    val api: BissbilanzApi = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
+    val processorIsDevice = prefs?.aiTaskProcessor?.value == "device"
+    // Unknown while the check is in flight, or if it fails — fail open rather than
+    // block sending over a transient network hiccup; only a definite "not
+    // connected" answer disables the button.
+    var mcpConnected by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        try {
+            mcpConnected = api.getMcpStatus()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+    val canProcess = processorIsDevice || mcpConnected
 
     var description by remember { mutableStateOf("") }
     var mealType by remember { mutableStateOf(mealTypes.first()) }
@@ -128,7 +149,7 @@ fun AiMealSheet(
             }
         }
 
-    val canSend = description.isNotBlank() || attached.isNotEmpty()
+    val canSend = (description.isNotBlank() || attached.isNotEmpty()) && canProcess
 
     if (showTimePicker) {
         val nowLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -181,10 +202,19 @@ fun AiMealSheet(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                stringResource(R.string.ai_task_subtitle),
+                stringResource(
+                    if (processorIsDevice) R.string.ai_task_subtitle_device else R.string.ai_task_subtitle,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (!processorIsDevice && !mcpConnected) {
+                Text(
+                    stringResource(R.string.ai_task_mcp_not_connected),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
 
             ExposedDropdownMenuBox(
                 expanded = mealMenuOpen,
@@ -390,7 +420,11 @@ fun AiMealSheet(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.ai_task_sending))
                     } else {
-                        Text(stringResource(R.string.ai_task_send))
+                        Text(
+                            stringResource(
+                                if (processorIsDevice) R.string.ai_task_send_device else R.string.ai_task_send,
+                            ),
+                        )
                     }
                 }
             }
