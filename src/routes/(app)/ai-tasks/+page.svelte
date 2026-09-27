@@ -6,13 +6,20 @@
 	import AiTaskList from '$lib/components/ai-tasks/AiTaskList.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Bell from '@lucide/svelte/icons/bell';
-	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
+	import { aiTaskService, type AiTask } from '$lib/services/ai-task-service.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
 
 	let captureOpen = $state(false);
+	let editOpen = $state(false);
+	let editingTask = $state<AiTask | null>(null);
+
+	const editTask = (task: AiTask) => {
+		editingTask = task;
+		editOpen = true;
+	};
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
 
 	const requestNotifications = async () => {
@@ -84,7 +91,13 @@
 		<p class="text-xs text-muted-foreground">{m.ai_tasks_notifications_blocked()}</p>
 	{/if}
 
-	<AiTaskList tasks={aiTaskService.tasks} onDismiss={dismissTask} onDelete={deleteTask} />
+	<AiTaskList
+		tasks={aiTaskService.tasks}
+		onEdit={editTask}
+		onDismiss={dismissTask}
+		onDelete={deleteTask}
+	/>
 </div>
 
 <AiTaskCaptureModal bind:open={captureOpen} onCreated={() => aiTaskService.refresh()} />
+<AiTaskCaptureModal bind:open={editOpen} task={editingTask} />

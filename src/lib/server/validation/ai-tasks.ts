@@ -39,7 +39,7 @@ export const aiTaskUpdateSchema = z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
 			.optional(),
-		mealType: z.string().min(1).max(50).transform(normalizeMealType).optional(),
+		mealType: z.string().min(1).max(50).transform(normalizeMealType).optional().nullable(),
 		eatenAt: z.string().datetime({ offset: true }).optional().nullable(),
 		acknowledged: z.boolean().optional()
 	})

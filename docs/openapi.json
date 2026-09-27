@@ -6939,9 +6939,16 @@
 						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
 					},
 					"mealType": {
-						"type": "string",
-						"minLength": 1,
-						"maxLength": 50
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 50
+							},
+							{
+								"type": "null"
+							}
+						]
 					},
 					"eatenAt": {
 						"anyOf": [

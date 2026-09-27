@@ -273,6 +273,12 @@ describe('aiTaskUpdateSchema', () => {
 		).toBe(false);
 	});
 
+	test('allows clearing mealType', () => {
+		const result = aiTaskUpdateSchema.safeParse({ mealType: null });
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.mealType).toBeNull();
+	});
+
 	test('rejects invalid date format in update', () => {
 		const result = aiTaskUpdateSchema.safeParse({ date: 'bad-date' });
 		expect(result.success).toBe(false);

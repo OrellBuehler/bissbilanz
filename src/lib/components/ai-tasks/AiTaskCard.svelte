@@ -5,6 +5,7 @@
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import X from '@lucide/svelte/icons/x';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import { formatDateLabel, formatTime } from '$lib/utils/dates';
@@ -13,11 +14,12 @@
 
 	type Props = {
 		task: AiTask;
+		onEdit?: (task: AiTask) => void;
 		onDismiss?: (id: string) => void;
 		onDelete: (id: string) => void;
 	};
 
-	let { task, onDismiss, onDelete }: Props = $props();
+	let { task, onEdit, onDismiss, onDelete }: Props = $props();
 
 	const isUnread = $derived(task.status === 'dismissed' && !task.acknowledgedAt);
 
@@ -105,6 +107,17 @@
 		</div>
 
 		<div class="flex shrink-0 flex-col gap-1">
+			{#if task.status === 'pending' && onEdit}
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-8"
+					onclick={() => onEdit(task)}
+					aria-label={m.ai_tasks_edit()}
+				>
+					<Pencil class="size-4" />
+				</Button>
+			{/if}
 			{#if task.status === 'pending' && onDismiss}
 				<Button
 					variant="ghost"

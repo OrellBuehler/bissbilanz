@@ -1674,7 +1674,7 @@ export interface components {
 			description?: string | null;
 			photoUrls?: string[];
 			date?: string;
-			mealType?: string;
+			mealType?: string | null;
 			eatenAt?: string | null;
 			acknowledged?: boolean;
 		};

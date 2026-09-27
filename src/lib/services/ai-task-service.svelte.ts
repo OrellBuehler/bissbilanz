@@ -170,6 +170,46 @@ async function create(input: {
 	return data.task;
 }
 
+async function update(
+	id: string,
+	input: {
+		description?: string;
+		photoUrls: string[];
+		photoFiles?: File[];
+		date: string;
+		mealType?: string;
+		eatenAt?: string;
+	}
+): Promise<AiTask> {
+	if (browser && !navigator.onLine) {
+		throw new Error('offline');
+	}
+
+	const description = input.description?.trim();
+	const files = input.photoFiles ?? [];
+	const photoUrls = [...input.photoUrls, ...(files.length > 0 ? await uploadPhotos(files) : [])];
+
+	if (!description && photoUrls.length === 0) {
+		throw new Error('missing_input');
+	}
+
+	const { data, error } = await api.PATCH('/api/ai-tasks/{id}', {
+		params: { path: { id } },
+		body: {
+			description: description || null,
+			photoUrls,
+			date: input.date,
+			mealType: input.mealType || null,
+			eatenAt: input.eatenAt || null
+		}
+	});
+	if (error || !data) {
+		throw new Error('update_failed');
+	}
+	tasks = tasks.map((t) => (t.id === id ? data.task : t));
+	return data.task;
+}
+
 async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 	const { data, error } = await api.PATCH('/api/ai-tasks/{id}', {
 		params: { path: { id } },
@@ -225,6 +265,7 @@ export const aiTaskService = {
 	isUnread,
 	refresh,
 	create,
+	update,
 	updateStatus,
 	acknowledgeAll,
 	collectNewDismissals,
