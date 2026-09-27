@@ -48,7 +48,7 @@ function stripDiacritics(value: string): string {
  * strip diacritics. Punctuation is preserved — it still carries meaning for
  * distinguishing similar product names.
  */
-function normalize(value: string | null | undefined): string {
+export function normalize(value: string | null | undefined): string {
 	if (!value) return '';
 	return stripDiacritics(value.toLowerCase().trim().replace(/\s+/g, ' '));
 }

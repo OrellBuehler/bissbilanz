@@ -11,6 +11,9 @@
 	import BulkActionBar from '$lib/components/foods/BulkActionBar.svelte';
 	import BulkLabelsDialog from '$lib/components/foods/BulkLabelsDialog.svelte';
 	import FoodImportDialog from '$lib/components/foods/FoodImportDialog.svelte';
+	import FoodPackageExportDialog from '$lib/components/food-package/FoodPackageExportDialog.svelte';
+	import FoodPackageImportDialog from '$lib/components/food-package/FoodPackageImportDialog.svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { BulkLabelMode } from '$lib/components/foods/bulkActions';
@@ -24,6 +27,9 @@
 	import Clock from '@lucide/svelte/icons/clock';
 	import FileUp from '@lucide/svelte/icons/file-up';
 	import ListChecks from '@lucide/svelte/icons/list-checks';
+	import Share2 from '@lucide/svelte/icons/share-2';
+	import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+	import FileArchive from '@lucide/svelte/icons/file-archive';
 	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/generated/schema';
 
@@ -73,6 +79,9 @@
 	let blockedIds = $state<string[]>([]);
 	let importOpen = $state(false);
 	let importing = $state(false);
+	let packageImportOpen = $state(false);
+	let packageExportOpen = $state(false);
+	let packageExportIds = $state<string[]>([]);
 
 	let mergeOpen = $state(false);
 	let mergeCandidates = $state<components['schemas']['Food'][]>([]);
@@ -586,9 +595,37 @@
 			<Clock class="size-4 sm:mr-1" />
 			<span class="hidden sm:inline">{m.foods_recent_link()}</span>
 		</Button>
-		<Button variant="outline" size="sm" onclick={() => (importOpen = true)}>
-			<FileUp class="size-4 sm:mr-1" />
-			<span class="hidden sm:inline">{m.foods_import()}</span>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button {...props} variant="outline" size="sm" aria-label={m.foods_import()}>
+						<FileUp class="size-4 sm:mr-1" />
+						<span class="hidden sm:inline">{m.foods_import()}</span>
+					</Button>
+				{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="start">
+				<DropdownMenu.Item onclick={() => (importOpen = true)}>
+					<FileSpreadsheet class="size-4" />
+					{m.food_package_import_csv()}
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => (packageImportOpen = true)}>
+					<FileArchive class="size-4" />
+					{m.food_package_import()}
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+		<Button
+			variant="outline"
+			size="sm"
+			aria-label={m.food_package_share()}
+			onclick={() => {
+				packageExportIds = [];
+				packageExportOpen = true;
+			}}
+		>
+			<Share2 class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">{m.food_package_share()}</span>
 		</Button>
 		<Button
 			variant={selecting ? 'default' : 'outline'}
@@ -673,6 +710,10 @@
 		onClear={() => (selectedIds = [])}
 		onFavorite={bulkFavorite}
 		onLabels={() => (bulkLabelsOpen = true)}
+		onExport={() => {
+			packageExportIds = [...selectedIds];
+			packageExportOpen = true;
+		}}
 		onDelete={() => (bulkDeleteOpen = true)}
 	/>
 {:else}
@@ -692,6 +733,10 @@
 <BulkLabelsDialog bind:open={bulkLabelsOpen} count={selectedIds.length} onApply={bulkLabels} />
 
 <FoodImportDialog bind:open={importOpen} {importing} onImport={importFoods} />
+
+<FoodPackageImportDialog bind:open={packageImportOpen} onImported={() => refreshDuplicates()} />
+
+<FoodPackageExportDialog bind:open={packageExportOpen} foodIds={packageExportIds} />
 
 <AlertDialog.Root bind:open={bulkDeleteOpen}>
 	<AlertDialog.Content>

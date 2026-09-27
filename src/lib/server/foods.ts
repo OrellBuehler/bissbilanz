@@ -32,7 +32,7 @@ import { unlinkUpload } from '$lib/server/images';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
-function isDuplicateBarcodeError(error: unknown): boolean {
+export function isDuplicateBarcodeError(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
 	const msg = error.message;
 	return msg.includes('unique constraint') && msg.includes('barcode');
@@ -366,4 +366,33 @@ export const listRecentFoods = async (userId: string, limit = 25) => {
 		.orderBy(desc(recentSq.lastUsed))
 		.limit(limit);
 	return roundNutrition(rows);
+};
+
+export type BrandStat = { brand: string; count: number };
+
+/**
+ * Distinct brands of the user's foods with how many foods carry each one.
+ * Spellings are grouped case- and whitespace-insensitively ("Migros" and
+ * "migros " are one brand) and shown in their most common spelling.
+ */
+export const listFoodBrands = async (userId: string): Promise<BrandStat[]> => {
+	const db = getDB();
+	const key = sql`lower(btrim(${foods.brand}))`;
+	const rows = await db
+		.select({
+			brand: sql<string>`mode() WITHIN GROUP (ORDER BY btrim(${foods.brand}))`,
+			count: count()
+		})
+		.from(foods)
+		.where(
+			and(
+				eq(foods.userId, userId),
+				eq(foods.kind, 'food'),
+				isNotNull(foods.brand),
+				sql`btrim(${foods.brand}) <> ''`
+			)
+		)
+		.groupBy(key)
+		.orderBy(desc(count()), key);
+	return rows.map((row) => ({ brand: row.brand, count: Number(row.count) }));
 };

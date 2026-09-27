@@ -36,8 +36,18 @@ import {
 	foodLabelsResponseSchema,
 	foodLabelsSetResponseSchema,
 	foodLabelsBatchResponseSchema,
-	foodLabelStatsResponseSchema
+	foodLabelStatsResponseSchema,
+	foodBrandsResponseSchema
 } from './validation/responses/foods';
+import {
+	foodPackageSelectionSchema,
+	foodPackageResolutionsSchema
+} from './validation/food-package';
+import {
+	foodPackageSummaryResponseSchema,
+	foodPackagePreviewResponseSchema,
+	foodPackageImportResultSchema
+} from './validation/responses/food-package';
 import { foodLabelsSetSchema, foodLabelsBatchSchema } from './validation/labels';
 import {
 	entriesListResponseSchema,
@@ -313,6 +323,128 @@ export function generateSpec() {
 					}
 				}
 			},
+			'/api/foods/brands': {
+				get: {
+					operationId: 'listFoodBrands',
+					tags: ['Foods'],
+					description:
+						'Distinct brands of the foods in the personal database (supplements excluded), grouped case-insensitively, with the number of foods per brand, most common first.',
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodBrandsResponseSchema } }
+						},
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/package/summary': {
+				post: {
+					operationId: 'summarizeFoodPackage',
+					tags: ['Foods'],
+					description:
+						'Count what a food package export with this selection would contain (foods, recipes, ingredient foods pulled in by recipes, images) and estimate its size. Nothing is built.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodPackageSelectionSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodPackageSummaryResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/package/export': {
+				post: {
+					operationId: 'exportFoodPackage',
+					tags: ['Foods'],
+					description:
+						'Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import.',
+					requestBody: {
+						required: true,
+						content: { 'application/json': { schema: foodPackageSelectionSchema } }
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: {
+								'application/zip': {
+									schema: { type: 'string' as const, format: 'binary' }
+								}
+							}
+						},
+						'400': res400,
+						'401': res401,
+						'413': {
+							description: 'The package would exceed the size or item limit',
+							content: { 'application/json': { schema: errorResponseSchema } }
+						}
+					}
+				}
+			},
+			'/api/foods/package/preview': {
+				post: {
+					operationId: 'previewFoodPackageImport',
+					tags: ['Foods'],
+					description:
+						'Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.',
+					requestBody: {
+						required: true,
+						content: {
+							'multipart/form-data': {
+								schema: {
+									type: 'object' as const,
+									properties: {
+										file: { type: 'string' as const, format: 'binary' }
+									},
+									required: ['file']
+								}
+							}
+						}
+					},
+					responses: {
+						'200': {
+							description: 'Success',
+							content: { 'application/json': { schema: foodPackagePreviewResponseSchema } }
+						},
+						'400': res400,
+						'401': res401
+					}
+				}
+			},
+			'/api/foods/package/import': {
+				post: {
+					operationId: 'importFoodPackage',
+					tags: ['Foods'],
+					description:
+						'Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.',
+					requestBody: {
+						required: true,
+						content: {
+							'multipart/form-data': {
+								schema: z.object({
+									file: z.string().meta({ format: 'binary' }),
+									resolutions: foodPackageResolutionsSchema
+								}),
+								encoding: { resolutions: { contentType: 'application/json' } }
+							}
+						}
+					},
+					responses: {
+						'201': {
+							description: 'Imported',
+							content: { 'application/json': { schema: foodPackageImportResultSchema } }
+						},
+						'400': res400,
+						'401': res401,
+						'409': res409
+					}
+				}
+			},
 			'/api/foods/duplicates': {
 				get: {
 					operationId: 'listFoodDuplicates',
@@ -353,6 +485,14 @@ export function generateSpec() {
 					tags: ['Foods'],
 					description:
 						"The user's label vocabulary with the number of foods carrying each label, most common first.",
+					requestParams: {
+						query: z.object({
+							kind: z
+								.enum(['food', 'supplement'])
+								.optional()
+								.describe('Only count labels on foods of this kind.')
+						})
+					},
 					responses: {
 						'200': {
 							description: 'Success',

@@ -3,6 +3,7 @@
 	import Heart from '@lucide/svelte/icons/heart';
 	import HeartOff from '@lucide/svelte/icons/heart-off';
 	import Tag from '@lucide/svelte/icons/tag';
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
 	import X from '@lucide/svelte/icons/x';
@@ -16,6 +17,7 @@
 		onClear: () => void;
 		onFavorite: (favorite: boolean) => void;
 		onLabels: () => void;
+		onExport?: () => void;
 		onDelete: () => void;
 	};
 
@@ -27,6 +29,7 @@
 		onClear,
 		onFavorite,
 		onLabels,
+		onExport,
 		onDelete
 	}: Props = $props();
 </script>
@@ -83,6 +86,17 @@
 		>
 			<Tag class="size-4" />
 		</Button>
+		{#if onExport}
+			<Button
+				variant="outline"
+				size="icon"
+				disabled={busy || count === 0}
+				aria-label={m.food_package_share()}
+				onclick={onExport}
+			>
+				<Share2 class="size-4" />
+			</Button>
+		{/if}
 		<Button
 			variant="destructive"
 			size="icon"

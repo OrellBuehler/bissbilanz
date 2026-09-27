@@ -13,9 +13,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.JoinFull
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
@@ -37,6 +40,7 @@ import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.FoodPackageExportSheet
 import com.bissbilanz.android.ui.components.FoodSearchSkeleton
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
@@ -44,6 +48,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.openFoodFactsSection
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -57,6 +62,9 @@ import kotlin.math.roundToInt
 fun FoodSearchScreen(navController: NavController) {
     val viewModel: FoodSearchViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
+    val packageViewModel: FoodPackageViewModel = koinViewModel()
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val favoriteFoods by viewModel.favoriteFoods.collectAsStateWithLifecycle()
     val allFoods by viewModel.allFoods.collectAsStateWithLifecycle()
@@ -133,6 +141,10 @@ fun FoodSearchScreen(navController: NavController) {
         )
     }
 
+    if (showExportSheet) {
+        FoodPackageExportSheet(viewModel = packageViewModel, onDismiss = { showExportSheet = false })
+    }
+
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
@@ -141,6 +153,33 @@ fun FoodSearchScreen(navController: NavController) {
             AppTopBar(stringResource(R.string.food_search_title), scrollBehavior) {
                 IconButton(onClick = { navController.navigate("food-duplicates") }) {
                     Icon(Icons.Default.JoinFull, stringResource(R.string.food_duplicates_title))
+                }
+                // Sharing goes through the server, so it is hidden in local mode.
+                if (!packageViewModel.isLocalMode) {
+                    Box {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(Icons.Default.MoreVert, stringResource(R.string.food_package_more))
+                        }
+                        DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.food_package_share)) },
+                                leadingIcon = { Icon(Icons.Default.Share, null) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    packageViewModel.startExport()
+                                    showExportSheet = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.food_package_import)) },
+                                leadingIcon = { Icon(Icons.Default.FileOpen, null) },
+                                onClick = {
+                                    showMoreMenu = false
+                                    navController.navigate("food-package-import")
+                                },
+                            )
+                        }
+                    }
                 }
             }
         },

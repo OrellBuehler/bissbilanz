@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +24,14 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.FoodPackageExportSheet
 import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
+import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.DeleteOutcome
@@ -39,6 +42,7 @@ import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.toDisplayString
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +56,8 @@ fun RecipeDetailScreen(
     val foodRepo: FoodRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val packageViewModel: FoodPackageViewModel = koinViewModel()
+    var showShareSheet by remember { mutableStateOf(false) }
     var recipe by remember { mutableStateOf<Recipe?>(null) }
     var foodNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -211,6 +217,10 @@ fun RecipeDetailScreen(
         )
     }
 
+    if (showShareSheet) {
+        FoodPackageExportSheet(viewModel = packageViewModel, onDismiss = { showShareSheet = false })
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -247,6 +257,15 @@ fun RecipeDetailScreen(
                             },
                         ) {
                             Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_detail_duplicate))
+                        }
+                        // Sharing goes through the server; not available in local mode.
+                        if (!packageViewModel.isLocalMode) {
+                            IconButton(onClick = {
+                                packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
+                                showShareSheet = true
+                            }) {
+                                Icon(Icons.Default.Share, stringResource(R.string.food_package_share_recipe))
+                            }
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)

@@ -13,6 +13,10 @@
 	import Star from '@lucide/svelte/icons/star';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 	import Copy from '@lucide/svelte/icons/copy';
+	import Share2 from '@lucide/svelte/icons/share-2';
+	import FileArchive from '@lucide/svelte/icons/file-archive';
+	import FoodPackageExportDialog from '$lib/components/food-package/FoodPackageExportDialog.svelte';
+	import FoodPackageImportDialog from '$lib/components/food-package/FoodPackageImportDialog.svelte';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
@@ -39,6 +43,9 @@
 		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
 	};
 
+	let packageExportOpen = $state(false);
+	let packageExportIds = $state<string[]>([]);
+	let packageImportOpen = $state(false);
 	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
 	let editingRecipe = $state<EditingRecipe | null>(null);
@@ -233,6 +240,26 @@
 		/>
 	{/if}
 
+	<div class="flex flex-wrap items-center gap-2">
+		<Button variant="outline" size="sm" onclick={() => (packageImportOpen = true)}>
+			<FileArchive class="size-4 sm:mr-1" />
+			<span class="hidden sm:inline">{m.food_package_import_recipes()}</span>
+		</Button>
+		{#if recipes.length > 0}
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => {
+					packageExportIds = [];
+					packageExportOpen = true;
+				}}
+			>
+				<Share2 class="size-4 sm:mr-1" />
+				<span class="hidden sm:inline">{m.food_package_share_recipes()}</span>
+			</Button>
+		{/if}
+	</div>
+
 	{#if recipes.length > 0}
 		<div class="flex gap-2">
 			<div class="relative flex-1">
@@ -328,6 +355,19 @@
 							>
 								<Copy class="size-4" />
 							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="hidden sm:inline-flex"
+								aria-label={m.food_package_share_recipe()}
+								onclick={(e) => {
+									e.stopPropagation();
+									packageExportIds = [recipe.id];
+									packageExportOpen = true;
+								}}
+							>
+								<Share2 class="size-4" />
+							</Button>
 							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
 						</div>
 					</Card.Content>
@@ -350,6 +390,10 @@
 >
 	<Plus class="size-6" />
 </Button>
+
+<FoodPackageExportDialog bind:open={packageExportOpen} recipeIds={packageExportIds} recipesOnly />
+
+<FoodPackageImportDialog bind:open={packageImportOpen} />
 
 <ResponsiveModal
 	bind:open={showForm}

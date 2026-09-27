@@ -111,19 +111,8 @@ fun SettingsScreen(navController: NavController) {
     val exportedFile by viewModel.exportedFile.collectAsStateWithLifecycle()
     LaunchedEffect(exportedFile) {
         exportedFile?.let { file ->
-            val uri =
-                androidx.core.content.FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file,
-                )
-            val intent =
-                android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                    type = "application/zip"
-                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-            context.startActivity(android.content.Intent.createChooser(intent, null))
+            com.bissbilanz.android.ui.util
+                .shareFile(context, file, "application/zip")
             viewModel.clearExportedFile()
         }
     }
