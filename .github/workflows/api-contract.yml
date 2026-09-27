@@ -1,0 +1,47 @@
+name: API Contract
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-contract:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Install ktlint (formats the generated Kotlin DTOs)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/ktlint" https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint
+          echo "a16be01dcc480aab2f55f444b620142152f66e31564b3b9376506d624c28a2ad  $RUNNER_TEMP/ktlint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/ktlint"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Generated artifacts, breaking changes, destructive migrations
+        env:
+          ALLOW_BREAKING: ${{ contains(github.event.pull_request.labels.*.name, 'api-breaking-change') && '1' || '' }}
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: scripts/api/verify.sh "origin/$BASE_REF"
