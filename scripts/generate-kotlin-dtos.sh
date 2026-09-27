@@ -55,10 +55,15 @@ find "$OUTPUT_DIR" -name '*.kt' -exec sed -i.bak 's/@Serializable@Serializable/@
 find "$OUTPUT_DIR" -name '*.kt' -exec sed -i.bak '/^import java\./d' {} +
 find "$OUTPUT_DIR" -name '*.bak' -delete
 
-# Format with ktlint (if available)
-if command -v ktlint &> /dev/null; then
-  find "$OUTPUT_DIR" -name '*.kt' -print0 | xargs -0 ktlint -F 2>/dev/null || true
+# Format with ktlint 1.5.0 (the committed models are formatted with it, so CI
+# diffs them byte for byte). ktlint -F exits non-zero on style issues it can't
+# fix, which the generated code always has; only a missing binary is fatal.
+if ! command -v ktlint &> /dev/null; then
+  echo "ERROR: ktlint not found; install ktlint 1.5.0 (https://github.com/pinterest/ktlint/releases/tag/1.5.0)"
+  rm -rf "$TMP_DIR"
+  exit 1
 fi
+find "$OUTPUT_DIR" -name '*.kt' -print0 | xargs -0 ktlint -F 2>/dev/null || true
 
 # Clean up temp directory
 rm -rf "$TMP_DIR"

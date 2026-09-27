@@ -33,6 +33,13 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      - name: Install ktlint (formats the generated Kotlin DTOs)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/ktlint" https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint
+          echo "a16be01dcc480aab2f55f444b620142152f66e31564b3b9376506d624c28a2ad  $RUNNER_TEMP/ktlint" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/ktlint"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
       - name: Generated artifacts, breaking changes, destructive migrations
         env:
           ALLOW_BREAKING: ${{ contains(github.event.pull_request.labels.*.name, 'api-breaking-change') && '1' || '' }}
