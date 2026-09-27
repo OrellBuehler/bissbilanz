@@ -229,6 +229,35 @@ describe('import', () => {
 		expect(after).toHaveLength(before.length);
 	});
 
+	it('rejects a resolution whose conflict target vanished before commit', async () => {
+		const [erin] = await db.insert(users).values({ infomaniakSub: 'package-erin' }).returning();
+		const erinOats = await insertFood(erin.id, { name: 'Oats', barcode: '7610000000001' });
+		const { bytes } = await exporter.buildFoodPackage(alice, { brands: ['Migros'] });
+		const pkg = archive.readFoodPackage(bytes);
+		const { preview } = await plan.planFoodPackageImport(erin.id, pkg);
+		const conflict = preview.conflicts.foods.find((c) => c.incoming.name === 'Oats')!;
+		expect(conflict.existing.id).toBe(erinOats.id);
+
+		// The user picks Skip in the preview, but the conflicting food is deleted
+		// elsewhere before they commit — the re-derived match now sees this food
+		// as new, and the stale Skip resolution must not be silently dropped.
+		await db.delete(foods).where(eq(foods.id, erinOats.id));
+
+		await expect(
+			commit.commitFoodPackageImport(erin.id, pkg, {
+				packageHash: preview.packageHash,
+				foods: [{ ref: conflict.ref, existingId: conflict.existing.id, action: 'skip' }],
+				recipes: []
+			})
+		).rejects.toMatchObject({ status: 409, message: 'stale_preview' });
+
+		const after = await db
+			.select()
+			.from(foods)
+			.where(and(eq(foods.userId, erin.id), eq(foods.name, 'Oats')));
+		expect(after).toHaveLength(0);
+	});
+
 	it('commits: replace keeps the id and entries, skip remaps ingredients', async () => {
 		const pkg = archive.readFoodPackage(packageBytes);
 		const { preview } = await plan.planFoodPackageImport(bob, pkg);
