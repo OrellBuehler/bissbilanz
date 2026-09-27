@@ -3369,6 +3369,22 @@ enum L10n {
         )
     }
 
+    static var aiTaskEditTitle: String {
+        localized("ai_task_edit_title", en: "Edit Task", de: "Aufgabe bearbeiten")
+    }
+
+    static var aiTaskMealNone: String {
+        localized("ai_task_meal_none", en: "No specific meal", de: "Keine bestimmte Mahlzeit")
+    }
+
+    static var aiTaskDescriptionOrPhotoRequired: String {
+        localized(
+            "ai_task_description_or_photo_required",
+            en: "Add a description or at least one photo.",
+            de: "Füge eine Beschreibung oder mindestens ein Foto hinzu."
+        )
+    }
+
     // MARK: - Connect Claude
 
     static var connectClaudeTitle: String {

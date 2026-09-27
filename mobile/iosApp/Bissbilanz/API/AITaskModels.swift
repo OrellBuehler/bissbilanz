@@ -34,15 +34,49 @@ struct AiTask: Codable, Identifiable, Hashable {
 }
 
 /// Matches `aiTaskUpdateSchema`. Every field is optional — a PATCH carries only
-/// what changes.
+/// what changes. `description`, `mealType` and `eatenAt` are double optionals so
+/// clearing one reaches the server as an explicit JSON null instead of being
+/// silently dropped by `JSONEncoder` — see `EntryUpdate`.
 struct AiTaskUpdate: Codable {
     var status: String?
     var resultSummary: String?
-    var description: String?
+    var description: String??
+    var photoUrls: [String]?
     var date: String?
-    var mealType: String?
-    var eatenAt: String?
+    var mealType: String??
+    var eatenAt: String??
     var acknowledged: Bool?
+}
+
+/// Declared in an extension so the memberwise initializer survives.
+extension AiTaskUpdate {
+    private enum CodingKeys: String, CodingKey {
+        case status, resultSummary, description, photoUrls, date, mealType, eatenAt, acknowledged
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        resultSummary = try container.decodeIfPresent(String.self, forKey: .resultSummary)
+        photoUrls = try container.decodeIfPresent([String].self, forKey: .photoUrls)
+        date = try container.decodeIfPresent(String.self, forKey: .date)
+        acknowledged = try container.decodeIfPresent(Bool.self, forKey: .acknowledged)
+        description = try container.decodeNullable(String.self, forKey: .description)
+        mealType = try container.decodeNullable(String.self, forKey: .mealType)
+        eatenAt = try container.decodeNullable(String.self, forKey: .eatenAt)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(status, forKey: .status)
+        try container.encodeIfPresent(resultSummary, forKey: .resultSummary)
+        try container.encodeIfPresent(photoUrls, forKey: .photoUrls)
+        try container.encodeIfPresent(date, forKey: .date)
+        try container.encodeIfPresent(acknowledged, forKey: .acknowledged)
+        try container.encodeNullable(description, forKey: .description)
+        try container.encodeNullable(mealType, forKey: .mealType)
+        try container.encodeNullable(eatenAt, forKey: .eatenAt)
+    }
 }
 
 struct AiTaskAcknowledge: Codable {

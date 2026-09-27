@@ -406,4 +406,16 @@ final class AiTaskStore {
         try await api.deleteAiTask(id: id)
         tasks.removeAll { $0.id == id }
     }
+
+    /// Applies an edit-sheet PATCH and updates the in-memory list to match the
+    /// server's response — `AiTasksView` is never shown in Local mode, so this
+    /// has no local-mode guard.
+    @discardableResult
+    func update(id: String, _ patch: AiTaskUpdate) async throws -> AiTask {
+        let updated = try await api.updateAiTask(id: id, patch)
+        if let index = tasks.firstIndex(where: { $0.id == id }) {
+            tasks[index] = updated
+        }
+        return updated
+    }
 }

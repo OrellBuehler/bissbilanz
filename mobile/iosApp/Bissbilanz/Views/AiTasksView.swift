@@ -8,6 +8,7 @@ struct AiTasksView: View {
     @State private var selectedFilter: Filter = .open
     @State private var hasChosenFilter = false
     @State private var errorMessage: String?
+    @State private var editingTask: AiTask?
 
     private enum Filter: Int, CaseIterable, Identifiable {
         case open
@@ -85,12 +86,20 @@ struct AiTasksView: View {
                                 }
                         }
                         ForEach(visibleTasks) { task in
-                            AiTaskRow(task: task)
+                            AiTaskRow(task: task, onEdit: editHandler(for: task))
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         Task { await delete(task) }
                                     } label: {
                                         Label(L10n.delete, systemImage: "trash")
+                                    }
+                                    if task.status == "pending" {
+                                        Button {
+                                            editingTask = task
+                                        } label: {
+                                            Label(L10n.edit, systemImage: "pencil")
+                                        }
+                                        .tint(.blue)
                                     }
                                 }
                         }
@@ -102,6 +111,9 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
+        .sheet(item: $editingTask) { task in
+            AiTaskEditSheet(task: task)
+        }
         .alert(
             L10n.error,
             isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -110,6 +122,13 @@ struct AiTasksView: View {
         } message: {
             if let errorMessage { Text(errorMessage) }
         }
+    }
+
+    /// Opens the edit sheet for an open task, or nothing for a resolved one —
+    /// completed/dismissed tasks stay read-only.
+    private func editHandler(for task: AiTask) -> (() -> Void)? {
+        guard task.status == "pending" else { return nil }
+        return { editingTask = task }
     }
 
     private func delete(_ task: AiTask) async {
@@ -191,6 +210,9 @@ private struct PendingUploadRow: View {
 
 private struct AiTaskRow: View {
     let task: AiTask
+    /// Opens the edit sheet — `nil` for completed/dismissed tasks, which stay
+    /// read-only.
+    var onEdit: (() -> Void)?
 
     @State private var galleryIndex = 0
     @State private var showGallery = false
@@ -208,7 +230,22 @@ private struct AiTaskRow: View {
             if !task.photoUrls.isEmpty {
                 photoStrip
             }
+            textContent
+        }
+        .padding(.vertical, 4)
+        .fullScreenCover(isPresented: $showGallery) {
+            AiTaskImageViewer(imageUrls: task.photoUrls, initialIndex: galleryIndex) {
+                showGallery = false
+            }
+        }
+    }
 
+    /// Subtitle, description and the assistant's comment — tappable to edit an
+    /// open task. Kept separate from `photoStrip`, which holds its own
+    /// per-photo buttons that a wrapping tap gesture would otherwise shadow.
+    @ViewBuilder
+    private var textContent: some View {
+        let content = VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Text(taskSubtitle)
                     .font(.caption)
@@ -252,11 +289,18 @@ private struct AiTaskRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
-        .padding(.vertical, 4)
-        .fullScreenCover(isPresented: $showGallery) {
-            AiTaskImageViewer(imageUrls: task.photoUrls, initialIndex: galleryIndex) {
-                showGallery = false
-            }
+
+        if let onEdit {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture { onEdit() }
+                // A bare onTapGesture is invisible to VoiceOver — expose it as
+                // a real action instead of relying on the gesture.
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { onEdit() }
+        } else {
+            content
         }
     }
 
