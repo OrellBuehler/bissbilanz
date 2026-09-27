@@ -17,6 +17,12 @@ import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
 import { startReminderScheduler } from '$lib/server/push/scheduler';
 import { acceptsBearerAuth } from '$lib/server/auth-paths';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
+import {
+	readClientInfo,
+	recordClientVersion,
+	requiredMinimum,
+	updateRequiredResponse
+} from '$lib/server/client-version';
 import { env } from '$env/dynamic/public';
 
 // Both must be set: a DSN alone would make any local run of the built server
@@ -237,6 +243,26 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 };
 
 /**
+ * Client version gate. Runs after sessionHandle (so the 426 still gets security
+ * headers) and before idempotencyHandle (so a rejected replay doesn't claim its
+ * key and can run once the app is updated). Requests without version headers
+ * pass untouched.
+ */
+const clientVersionHandle: Handle = async ({ event, resolve }) => {
+	if (!event.url.pathname.startsWith('/api/')) return resolve(event);
+	const client = readClientInfo(event.request);
+	if (!client) return resolve(event);
+
+	Sentry.setTag('client.platform', client.platform);
+	Sentry.setTag('client.version', client.version);
+	if (event.locals.user) recordClientVersion(client);
+
+	const minimum = requiredMinimum(client);
+	if (minimum) return updateRequiredResponse(client.platform, minimum);
+	return resolve(event);
+};
+
+/**
  * Idempotency for offline-queue replays. Runs after sessionHandle so auth has
  * populated locals.user and rate limiting has already applied. Only mutating
  * /api requests that carry an Idempotency-Key are intercepted; everything else
@@ -263,6 +289,7 @@ export const handle = sequence(
 	Sentry.sentryHandle(),
 	paraglideHandle,
 	sessionHandle,
+	clientVersionHandle,
 	idempotencyHandle
 );
 
