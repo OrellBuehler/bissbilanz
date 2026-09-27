@@ -985,6 +985,7 @@
     <string name="insights_need_more_evening_data">Need more data with evening food entries to show correlations.</string>
     <string name="insights_meal_pct_format">%1$s kcal (%2$s%%)</string>
     <string name="insights_goal_adherence">Goal Adherence</string>
+    <string name="insights_goal_checks_met">%1$d of %2$d daily goals met</string>
     <string name="insights_days_with_entries">%1$d days with entries</string>
     <string name="insights_goal_rule_minimum">at least %1$s</string>
     <string name="insights_goal_rule_maximum">at most %1$s</string>

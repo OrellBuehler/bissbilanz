@@ -983,6 +983,7 @@
     <string name="insights_need_more_evening_data">Es werden mehr Daten mit Abendmahlzeiten benötigt, um Korrelationen anzuzeigen.</string>
     <string name="insights_meal_pct_format">%1$s kcal (%2$s%%)</string>
     <string name="insights_goal_adherence">Zielerreichung</string>
+    <string name="insights_goal_checks_met">%1$d von %2$d Tageszielen erreicht</string>
     <string name="insights_days_with_entries">%1$d Tage mit Einträgen</string>
     <string name="insights_goal_rule_minimum">mindestens %1$s</string>
     <string name="insights_goal_rule_maximum">höchstens %1$s</string>
