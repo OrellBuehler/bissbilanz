@@ -764,6 +764,15 @@ final class SyncManager {
 
         case let .updatePreferences(body):
             _ = try await api.updatePreferences(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
+
+        case let .completeAiTask(taskId, localEntryIds, resultSummary, processedBy):
+            let update = AiTaskUpdate(
+                status: "completed",
+                resultSummary: resultSummary,
+                processedBy: processedBy,
+                createdEntryIds: localEntryIds
+            )
+            _ = try await api.updateAiTask(id: taskId, update, idempotencyKey: idempotencyKey)
         }
     }
 
@@ -851,11 +860,12 @@ final class SyncManager {
         }
     }
 
-    /// The first still-`temp_` foodId/recipeId a create's payload references,
-    /// with the queue table it would have been created under, or nil when
-    /// every reference is already a resolved server id (or the op has none).
-    /// Only `create_entry`/`create_recipe`/`create_supplement` carry such a
-    /// reference — the other create ops don't point at another entity.
+    /// The first still-`temp_` foodId/recipeId/entryId a create (or, for
+    /// `completeAiTask`, a completion) references, with the queue table it
+    /// would have been created under, or nil when every reference is already
+    /// a resolved server id (or the op has none). Only
+    /// `create_entry`/`create_recipe`/`create_supplement`/`complete_ai_task`
+    /// carry such a reference — the other ops don't point at another entity.
     private func unresolvedReference(_ operation: SyncOperation) -> (table: String, id: String)? {
         let candidates: [(table: String, id: String)]
         switch operation {
@@ -871,6 +881,8 @@ final class SyncManager {
                 guard let foodId = ingredient.foodId else { return nil }
                 return (table: "foods", id: foodId)
             }
+        case let .completeAiTask(_, localEntryIds, _, _):
+            candidates = localEntryIds.map { (table: "entries", id: $0) }
         default:
             candidates = []
         }
@@ -1025,6 +1037,10 @@ final class SyncManager {
 
         case .updatePreferences:
             break
+
+        case let .completeAiTask(taskId, localEntryIds, _, _):
+            ids["sync.ai_task_id"] = taskId
+            ids["sync.entry_ids"] = localEntryIds
         }
         return ids
     }

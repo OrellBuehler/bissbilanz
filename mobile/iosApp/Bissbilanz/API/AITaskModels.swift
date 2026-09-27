@@ -25,6 +25,12 @@ struct AiTask: Codable, Identifiable, Hashable {
     /// assistant made over MCP arrive unacknowledged — one the user tapped
     /// themselves is already stamped by the server.
     let acknowledgedAt: String?
+    /// Who resolved this task: `"assistant"` (MCP), `"on_device"` or
+    /// `"private_cloud"` (this or another of the user's iPhones, via
+    /// `AiTaskProcessor` — see `MealEstimateSource`). Null on an older
+    /// resolved task from before this field existed, and always null while
+    /// `status` is still `"pending"`.
+    let processedBy: String?
     let createdAt: String?
     let updatedAt: String?
 
@@ -43,6 +49,12 @@ struct AiTaskUpdate: Codable {
     var mealType: String?
     var eatenAt: String?
     var acknowledged: Bool?
+    /// Set by `AiTaskProcessor` alongside a `completed`/`dismissed` status —
+    /// see `AiTask.processedBy`.
+    var processedBy: String?
+    /// Set alongside `status: "completed"`: the server ids of the entries this
+    /// task logged.
+    var createdEntryIds: [String]?
 }
 
 struct AiTaskAcknowledge: Codable {

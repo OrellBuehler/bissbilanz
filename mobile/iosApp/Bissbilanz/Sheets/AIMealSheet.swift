@@ -24,6 +24,7 @@ struct AIMealSheet: View {
     @Environment(AiTaskStore.self) private var aiTaskStore
     @Environment(AppModeManager.self) private var appMode
     @Environment(McpConnectionStatus.self) private var mcpConnectionStatus
+    @Environment(PreferencesRepository.self) private var preferencesRepository
     @Environment(\.dismiss) private var dismiss
 
     let date: String
@@ -242,6 +243,13 @@ struct AIMealSheet: View {
         )
     }
 
+    /// This iPhone processes queued tasks itself instead of the MCP
+    /// assistant — the queue button stays useful (and relabels itself) even
+    /// with no assistant connected at all.
+    private var isDeviceProcessor: Bool {
+        preferencesRepository.preferences()?.aiTaskProcessor == Preferences.aiTaskProcessorDevice
+    }
+
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
     /// distinct concrete types, so the style can't be chosen with a ternary —
     /// branching the whole button through `@ViewBuilder` is the pattern that
@@ -252,11 +260,16 @@ struct AIMealSheet: View {
             sendToAssistant()
         } label: {
             actionLabel(
-                title: isSendingToAssistant ? L10n.aiTaskSending : L10n.aiTaskSendButton,
+                title: isSendingToAssistant
+                    ? L10n.aiTaskSending
+                    : (isDeviceProcessor ? L10n.aiTaskProcessLaterButton : L10n.aiTaskSendButton),
                 showsProgress: isSendingToAssistant
             )
         }
-        .disabled(!canSendToAssistant || isSendingToAssistant || isEstimating || !mcpConnectionStatus.isConnected)
+        .disabled(
+            !canSendToAssistant || isSendingToAssistant || isEstimating
+                || !(isDeviceProcessor || mcpConnectionStatus.isConnected)
+        )
 
         if mealEstimator.canEstimate {
             button.buttonStyle(.bordered)
@@ -339,9 +352,11 @@ struct AIMealSheet: View {
     }
 
     /// Shown next to a disabled "Send to Assistant": the button exists (the
-    /// user is signed in) but nothing would ever pick the task up.
+    /// user is signed in) but nothing would ever pick the task up. Not shown
+    /// when this iPhone is the processor — the task always has someone to
+    /// pick it up in that case.
     private var showsAssistantConnectionHint: Bool {
-        !appMode.isLocal && !mcpConnectionStatus.isConnected
+        !appMode.isLocal && !isDeviceProcessor && !mcpConnectionStatus.isConnected
     }
 
     /// Empty once an estimate can actually be produced (on-device or, absent

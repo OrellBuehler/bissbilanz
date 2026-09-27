@@ -64,6 +64,15 @@ final class AiTaskStore {
     private var expiredInBackground: Set<UUID> = []
     private var restoringUploads = false
 
+    /// Invoked after every successful `refresh()` — set once by the app so
+    /// `AiTaskProcessor` can look for newly-pending tasks without this store
+    /// needing to know that service exists (same escape-hatch shape as
+    /// `SyncManager.onConflictResolved`). This one hook is what makes
+    /// `AiTasksView` opening, the background refresh pull, and the foreground
+    /// activation pull all double as `AiTaskProcessor` triggers — they each
+    /// already call `refresh()` themselves.
+    @ObservationIgnored var onRefreshed: (() async -> Void)?
+
     init(api: BissbilanzAPI, appMode: AppModeManager, uploadRoot: URL = AiTaskUploadDisk.defaultRoot) {
         self.api = api
         self.appMode = appMode
@@ -385,6 +394,7 @@ final class AiTaskStore {
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         tasks = try await api.listAiTasks(limit: 100).tasks
+        await onRefreshed?()
     }
 
     /// Clears the unread badge for every resolved task. Called when the user opens the
@@ -404,6 +414,15 @@ final class AiTaskStore {
     func delete(id: String) async throws {
         guard !appMode.isLocal else { return }
         try await api.deleteAiTask(id: id)
+        tasks.removeAll { $0.id == id }
+    }
+
+    /// Optimistically drops a task from the in-memory list right after
+    /// `AiTaskProcessor` resolves it (completed or dismissed) — the server
+    /// update itself may still be queued (a `.completeAiTask` sync op) or in
+    /// flight, so without this a trigger landing before the next `refresh()`
+    /// would see the task as still pending and could double-process it.
+    func markResolvedLocally(id: String) {
         tasks.removeAll { $0.id == id }
     }
 }

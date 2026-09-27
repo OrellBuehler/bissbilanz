@@ -57,6 +57,7 @@ struct BissbilanzApp: App {
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
     @State private var mcpConnectionStatus: McpConnectionStatus
+    @State private var aiTaskProcessor: AiTaskProcessor
     private let modelContainer: ModelContainer
     /// Read-only day/week totals for the Siri data-query intents and the
     /// Spotlight day index. Not part of the SwiftUI environment — the views
@@ -172,10 +173,12 @@ struct BissbilanzApp: App {
         _supplementRepository = State(wrappedValue: supplementRepo)
         let goalsRepo = GoalsRepository(context: context, api: api, appMode: appMode, syncManager: sync)
         _goalsRepository = State(wrappedValue: goalsRepo)
-        _preferencesRepository = State(wrappedValue: PreferencesRepository(
+        let preferencesRepo = PreferencesRepository(
             context: context, api: api, appMode: appMode, syncManager: sync
-        ))
-        _mealEstimator = State(wrappedValue: MealEstimator(foodRepository: foodRepo))
+        )
+        _preferencesRepository = State(wrappedValue: preferencesRepo)
+        let mealEstimatorInstance = MealEstimator(foodRepository: foodRepo)
+        _mealEstimator = State(wrappedValue: mealEstimatorInstance)
         _foodLabeler = State(wrappedValue: FoodLabeler(foodRepository: foodRepo))
         let imageLoader = FoodImageLoader(api: api)
         _foodImageLoader = State(wrappedValue: imageLoader)
@@ -188,6 +191,24 @@ struct BissbilanzApp: App {
         let aiTasks = AiTaskStore(api: api, appMode: appMode)
         _aiTaskStore = State(wrappedValue: aiTasks)
         _mcpConnectionStatus = State(wrappedValue: McpConnectionStatus(api: api, appMode: appMode))
+        let processor = AiTaskProcessor(
+            api: api,
+            appMode: appMode,
+            preferencesRepository: preferencesRepo,
+            mealEstimator: mealEstimatorInstance,
+            foodRepository: foodRepo,
+            entryRepository: entryRepo,
+            syncManager: sync,
+            aiTaskStore: aiTasks
+        )
+        _aiTaskProcessor = State(wrappedValue: processor)
+        // One hook covers every trigger the plan calls for: app foreground and
+        // the background refresh pull both already call `aiTaskStore.refresh()`
+        // (see BackgroundRefresher.pull and runDeferredActivationWork below),
+        // and so does opening AiTasksView itself.
+        aiTasks.onRefreshed = {
+            await processor.processPendingTasks()
+        }
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -419,6 +440,7 @@ struct BissbilanzApp: App {
             .environment(foodImageLoader)
             .environment(aiTaskStore)
             .environment(mcpConnectionStatus)
+            .environment(aiTaskProcessor)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if let link = DeepLink.parse(url) {
