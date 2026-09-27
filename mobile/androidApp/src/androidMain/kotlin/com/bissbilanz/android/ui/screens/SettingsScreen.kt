@@ -681,6 +681,57 @@ fun SettingsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // AI task processor — who resolves the meal-logging tasks queued from
+                // the AI meal sheet: the MCP assistant, or the user's own iPhone
+                // running Foundation Models on-device (or Private Cloud Compute).
+                if (!isLocalMode) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                stringResource(R.string.settings_ai_task_processor_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.settings_ai_task_processor_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val processorOptions =
+                                listOf(
+                                    stringResource(R.string.settings_ai_task_processor_assistant) to
+                                        GenPreferencesUpdate.AiTaskProcessor.assistant,
+                                    stringResource(R.string.settings_ai_task_processor_device) to
+                                        GenPreferencesUpdate.AiTaskProcessor.device,
+                                )
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                processorOptions.forEachIndexed { index, (label, value) ->
+                                    SegmentedButton(
+                                        shape = SegmentedButtonDefaults.itemShape(index, processorOptions.size),
+                                        onClick = { viewModel.updateAiTaskProcessor(value) },
+                                        selected = prefs?.aiTaskProcessor?.value == value.value,
+                                    ) {
+                                        Text(label)
+                                    }
+                                }
+                            }
+                            if (prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ToggleRow(
+                                    label = stringResource(R.string.settings_ai_task_auto_log_label),
+                                    supportingText = stringResource(R.string.settings_ai_task_auto_log_hint),
+                                    checked = prefs?.aiTaskAutoLog ?: false,
+                                    onCheckedChange = { viewModel.updateAiTaskAutoLog(it) },
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 // Water goal — daily target shown as a progress bar on the day log.
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {

@@ -184,9 +184,12 @@
     <!-- AI meal task -->
     <string name="ai_task_title">Send to assistant</string>
     <string name="ai_task_subtitle">Queue this meal for the AI assistant to log for you.</string>
+    <string name="ai_task_subtitle_device">Queue this meal — your iPhone processes it next time Bissbilanz opens.</string>
+    <string name="ai_task_mcp_not_connected">Connect an AI assistant in Settings to process queued meals.</string>
     <string name="ai_task_what_did_you_eat">What did you eat?</string>
     <string name="ai_task_description_placeholder">e.g. a bowl of porridge with banana and honey</string>
     <string name="ai_task_send">Send</string>
+    <string name="ai_task_send_device">Queue for later</string>
     <string name="ai_task_sending">Sending…</string>
     <string name="ai_task_send_failed">Could not send to the assistant</string>
     <string name="ai_task_queued">Sent to the assistant</string>
@@ -1203,6 +1206,12 @@
     <string name="settings_activity_goal_adjustment">Increase goals by workout calories</string>
     <string name="settings_activity_goal_adjustment_desc">Raises today\'s calorie and macro goals by a share of the activity calories logged for the day.</string>
     <string name="settings_activity_credit_percent">Credit: %1$d%%</string>
+    <string name="settings_ai_task_processor_title">AI task processing</string>
+    <string name="settings_ai_task_processor_desc">Choose who processes the meal-logging tasks you queue.</string>
+    <string name="settings_ai_task_processor_assistant">AI assistant (MCP)</string>
+    <string name="settings_ai_task_processor_device">My iPhone (on-device / Private Cloud Compute)</string>
+    <string name="settings_ai_task_auto_log_label">Log automatically</string>
+    <string name="settings_ai_task_auto_log_hint">When off, estimates wait for your review in the iPhone app.</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Daily water goal</string>
     <string name="settings_water_goal_desc">Shown as a progress bar on the day log</string>

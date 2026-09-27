@@ -28,6 +28,16 @@
 				? m.ai_tasks_status_dismissed()
 				: m.ai_tasks_status_pending()
 	);
+
+	const processedByLabel = $derived(
+		task.processedBy === 'assistant'
+			? m.ai_tasks_processed_by_assistant()
+			: task.processedBy === 'on_device'
+				? m.ai_tasks_processed_by_on_device()
+				: task.processedBy === 'private_cloud'
+					? m.ai_tasks_processed_by_private_cloud()
+					: null
+	);
 </script>
 
 <Card.Root class={isUnread ? 'ring-2 ring-violet-300/80 dark:ring-violet-700/80' : undefined}>
@@ -101,6 +111,10 @@
 				{:else}
 					<p class="line-clamp-2 text-xs text-muted-foreground">{task.resultSummary}</p>
 				{/if}
+			{/if}
+
+			{#if processedByLabel}
+				<p class="text-xs text-muted-foreground">{processedByLabel}</p>
 			{/if}
 		</div>
 

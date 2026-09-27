@@ -1014,6 +1014,8 @@ class LocalDataMigratorTest {
             favoriteMealTimeframes = emptyList(),
             activityGoalAdjustment = false,
             activityCreditPercent = 100,
+            aiTaskProcessor = Preferences.AiTaskProcessor.assistant,
+            aiTaskAutoLog = false,
         )
 
     private fun insertPreferences() {

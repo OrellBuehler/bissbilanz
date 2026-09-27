@@ -47,6 +47,8 @@ import kotlinx.serialization.encoding.*
  * @param biologicalSex
  * @param activityGoalAdjustment
  * @param activityCreditPercent
+ * @param aiTaskProcessor
+ * @param aiTaskAutoLog
  * @param timeZone
  */
 @Serializable
@@ -75,6 +77,8 @@ data class PreferencesUpdate(
     @SerialName(value = "biologicalSex") val biologicalSex: PreferencesUpdate.BiologicalSex? = null,
     @SerialName(value = "activityGoalAdjustment") val activityGoalAdjustment: kotlin.Boolean? = null,
     @SerialName(value = "activityCreditPercent") val activityCreditPercent: kotlin.Int? = null,
+    @SerialName(value = "aiTaskProcessor") val aiTaskProcessor: PreferencesUpdate.AiTaskProcessor? = null,
+    @SerialName(value = "aiTaskAutoLog") val aiTaskAutoLog: kotlin.Boolean? = null,
     @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
 ) {
     /**
@@ -289,5 +293,21 @@ data class PreferencesUpdate(
 
         @SerialName(value = "female")
         female("female"),
+    }
+
+    /**
+     *
+     *
+     * Values: assistant,device
+     */
+    @Serializable
+    enum class AiTaskProcessor(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "assistant")
+        assistant("assistant"),
+
+        @SerialName(value = "device")
+        device("device"),
     }
 }

@@ -30,6 +30,7 @@ import kotlinx.serialization.encoding.*
  * @param mealType
  * @param eatenAt
  * @param acknowledged
+ * @param processedBy
  */
 @Serializable
 data class AiTaskUpdate(
@@ -41,6 +42,7 @@ data class AiTaskUpdate(
     @SerialName(value = "mealType") val mealType: kotlin.String? = null,
     @SerialName(value = "eatenAt") val eatenAt: kotlin.String? = null,
     @SerialName(value = "acknowledged") val acknowledged: kotlin.Boolean? = null,
+    @SerialName(value = "processedBy") val processedBy: AiTaskUpdate.ProcessedBy? = null,
 ) {
     /**
      *
@@ -59,5 +61,24 @@ data class AiTaskUpdate(
 
         @SerialName(value = "dismissed")
         dismissed("dismissed"),
+    }
+
+    /**
+     *
+     *
+     * Values: assistant,on_device,private_cloud
+     */
+    @Serializable
+    enum class ProcessedBy(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "assistant")
+        assistant("assistant"),
+
+        @SerialName(value = "on_device")
+        on_device("on_device"),
+
+        @SerialName(value = "private_cloud")
+        private_cloud("private_cloud"),
     }
 }

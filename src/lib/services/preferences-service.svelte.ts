@@ -45,6 +45,8 @@ async function refresh() {
 				timeZone: p.timeZone,
 				biologicalSex: p.biologicalSex ?? null,
 				waterGoalMl: p.waterGoalMl ?? null,
+				aiTaskProcessor: p.aiTaskProcessor,
+				aiTaskAutoLog: p.aiTaskAutoLog,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({
 					id: t.id,
 					userId: 'me',

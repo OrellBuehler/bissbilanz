@@ -26,6 +26,7 @@
 	import { inputText } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import NutrientSelector from './NutrientSelector.svelte';
+	import AiTaskProcessorSelector from './AiTaskProcessorSelector.svelte';
 	import FavoriteMealTimeframeManager, {
 		type AssignmentMode,
 		type TimeframeDraft
@@ -152,6 +153,13 @@
 
 	const saveVisibleNutrients = async (keys: string[]) => {
 		return preferencesService.update({ visibleNutrients: keys });
+	};
+
+	const saveAiTaskProcessor = async (values: {
+		aiTaskProcessor: 'assistant' | 'device';
+		aiTaskAutoLog: boolean;
+	}) => {
+		return preferencesService.update(values);
 	};
 
 	const saveFavoriteLogging = async (config: {
@@ -386,6 +394,12 @@
 	<NutrientSelector
 		initialVisible={cachedPrefs.value?.visibleNutrients}
 		onSave={saveVisibleNutrients}
+	/>
+
+	<AiTaskProcessorSelector
+		initialProcessor={cachedPrefs.value?.aiTaskProcessor as 'assistant' | 'device' | undefined}
+		initialAutoLog={cachedPrefs.value?.aiTaskAutoLog}
+		onSave={saveAiTaskProcessor}
 	/>
 
 	<!-- About & Start Page — compact, side by side on desktop -->
