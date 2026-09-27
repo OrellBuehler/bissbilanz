@@ -414,7 +414,7 @@ final class AiTaskProcessor {
     /// logged, and the total across every item (matched or quick).
     static func summarize(items: [MealEstimateItem]) -> String {
         let joined = items.map(\.name).joined(separator: ", ")
-        let totalCalories = Int(items.reduce(0.0) { $0 + $1.calories }.rounded())
+        let totalCalories = Int(items.reduce(0.0) { $0 + ($1.calories ?? 0) }.rounded())
         return L10n.aiTaskProcessorResultSummary(joined, totalCalories)
     }
 
