@@ -7,6 +7,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Bell from '@lucide/svelte/icons/bell';
 	import { aiTaskService, type AiTask } from '$lib/services/ai-task-service.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import HintCard from '$lib/components/help/HintCard.svelte';
@@ -21,6 +23,16 @@
 		editOpen = true;
 	};
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
+
+	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
+	const aiTaskProcessor = $derived(
+		cachedPrefs.value?.aiTaskProcessor === 'device' ? 'device' : 'assistant'
+	);
+	const pageDescription = $derived(
+		aiTaskProcessor === 'device'
+			? m.ai_tasks_page_description_device()
+			: m.ai_tasks_page_description()
+	);
 
 	const requestNotifications = async () => {
 		try {
@@ -52,6 +64,7 @@
 	onMount(async () => {
 		notificationPermission =
 			typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+		preferencesService.refresh();
 		await aiTaskService.refresh();
 		// Opening the list is what counts as reading it — posting a notification
 		// does not, so other devices still get to announce the same dismissal.
@@ -70,7 +83,7 @@
 	{/if}
 
 	<div class="flex items-center justify-between gap-2">
-		<p class="text-sm text-muted-foreground">{m.ai_tasks_page_description()}</p>
+		<p class="text-sm text-muted-foreground">{pageDescription}</p>
 		<Button size="sm" onclick={() => (captureOpen = true)}>
 			<Plus class="mr-1.5 size-4" />
 			{m.ai_tasks_capture_button()}
@@ -99,5 +112,9 @@
 	/>
 </div>
 
-<AiTaskCaptureModal bind:open={captureOpen} onCreated={() => aiTaskService.refresh()} />
-<AiTaskCaptureModal bind:open={editOpen} task={editingTask} />
+<AiTaskCaptureModal
+	bind:open={captureOpen}
+	{aiTaskProcessor}
+	onCreated={() => aiTaskService.refresh()}
+/>
+<AiTaskCaptureModal bind:open={editOpen} task={editingTask} {aiTaskProcessor} />

@@ -19,11 +19,14 @@
 	import SleepTabContent from '$lib/components/sleep/SleepTabContent.svelte';
 	import AnalyticsGroupSection from '$lib/components/insights/AnalyticsGroupSection.svelte';
 	import InsightsSummary from '$lib/components/insights/InsightsSummary.svelte';
-	import type { SummaryTile } from '$lib/insights/summary';
+	import { formatPeriod, type SummaryTile } from '$lib/insights/summary';
+	import { filterDaysWithEntries } from '$lib/utils/insights';
+	import { summarizeGoalAdherence } from '$lib/analytics/goal-adherence';
+	import { weeklyWeightChange } from '$lib/analytics/tdee';
 	import Weight from '@lucide/svelte/icons/weight';
 	import History from '@lucide/svelte/icons/history';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
-	import { today, shiftDate, daysAgo } from '$lib/utils/dates';
+	import { today, shiftDate, daysAgo, formatDateLabel } from '$lib/utils/dates';
 	import { statsService } from '$lib/services/stats-service.svelte';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -226,22 +229,31 @@
 
 	// --- Headline tiles (derived from data the page already loaded) ---
 
-	const weekDays = $derived(pageData.dailyStatus.data);
-	const loggedDays = $derived(weekDays.filter((d) => d.calories > 0));
+	const headlineDays = $derived(pageData.headline.days);
+	const daysWithEntries = $derived(filterDaysWithEntries(headlineDays));
 	const avgCalories = $derived(
-		loggedDays.length > 0
-			? loggedDays.reduce((sum, d) => sum + d.calories, 0) / loggedDays.length
+		daysWithEntries.length > 0
+			? daysWithEntries.reduce((sum, d) => sum + d.calories, 0) / daysWithEntries.length
 			: null
 	);
 	const calorieGoal = $derived(pageData.dailyStatus.goals?.calorieGoal ?? null);
-	const adherencePct = $derived.by(() => {
-		const goal = calorieGoal;
-		if (!goal || loggedDays.length === 0) return null;
-		const onTarget = loggedDays.filter(
-			(d) => d.calories >= goal * 0.9 && d.calories <= goal * 1.1
-		).length;
-		return Math.round((onTarget / loggedDays.length) * 100);
+	// Same rule and activity-adjusted daily goals as the adherence card.
+	const calorieAdherence = $derived.by(() => {
+		const goals = pageData.dailyStatus.goals;
+		if (!goals) return null;
+		return (
+			summarizeGoalAdherence(headlineDays, goals, {
+				enabled: pageData.dailyStatus.activityGoalAdjustment,
+				creditPercent: pageData.dailyStatus.activityCreditPercent
+			}).macros.find((row) => row.key === 'calories') ?? null
+		);
 	});
+
+	const nutritionCaption = $derived(
+		m.insights_summary_period_completed({
+			period: formatPeriod(pageData.headline.start, pageData.headline.end)
+		})
+	);
 
 	const nutritionTiles = $derived<SummaryTile[]>([
 		{
@@ -251,12 +263,16 @@
 			accent: 'calories'
 		},
 		{
-			label: m.insights_summary_vs_goal(),
-			value: adherencePct === null ? '—' : `${adherencePct}%`
+			label: m.insights_summary_calories_in_range(),
+			value:
+				calorieAdherence && calorieAdherence.eligible > 0
+					? `${calorieAdherence.met}/${calorieAdherence.eligible}`
+					: '—',
+			hint: calorieAdherence ? m.insights_summary_calories_in_range_hint() : null
 		},
 		{
-			label: m.insights_summary_logged_days(),
-			value: `${loggedDays.length}/${weekDays.length}`
+			label: m.insights_summary_days_with_entries(),
+			value: `${daysWithEntries.length}/${headlineDays.length}`
 		},
 		{
 			label: m.insights_summary_streak(),
@@ -264,35 +280,36 @@
 		}
 	]);
 
-	const weeklyRate = $derived.by(() => {
-		const points = weightChartData.filter(
-			(p): p is ChartPoint & { moving_avg: number } => p.moving_avg != null
-		);
-		if (points.length < 2) return null;
-		const first = points[0];
-		const last = points[points.length - 1];
-		const spanDays =
-			(new Date(`${last.entry_date}T00:00:00Z`).getTime() -
-				new Date(`${first.entry_date}T00:00:00Z`).getTime()) /
-			86_400_000;
-		if (spanDays < 7) return null;
-		return ((last.moving_avg - first.moving_avg) / spanDays) * 7;
-	});
+	// The headline stays on the loader's fixed 30-day window; the chart below
+	// has its own adjustable range.
+	const headlineWeights = $derived(pageData.initialChartData as ChartPoint[]);
+	const weeklyRate = $derived(
+		weeklyWeightChange(headlineWeights.map((p) => ({ date: p.entry_date, weightKg: p.weight_kg })))
+	);
+	const headlineTrend = $derived(
+		[...headlineWeights].reverse().find((point) => point.moving_avg != null)?.moving_avg ?? null
+	);
+	const lastWeighIn = $derived(headlineWeights.at(-1)?.entry_date ?? null);
 
 	const weightTiles = $derived<SummaryTile[]>([
 		{
 			label: m.insights_summary_latest_weight(),
-			value: formatKg(latestEntry?.weightKg ?? null)
+			value: formatKg(latestEntry?.weightKg ?? null),
+			hint: latestEntry ? formatDateLabel(latestEntry.entryDate) : null
 		},
-		{ label: m.insights_summary_weight_trend(), value: formatKg(latestTrend) },
+		{ label: m.insights_summary_weight_trend(), value: formatKg(headlineTrend) },
 		{
 			label: m.insights_summary_weekly_rate(),
 			value:
-				weeklyRate === null ? '—' : `${weeklyRate > 0 ? '+' : ''}${formatKgValue(weeklyRate)} kg`
+				weeklyRate === null ? '—' : `${weeklyRate > 0 ? '+' : ''}${formatKgValue(weeklyRate)} kg`,
+			hint: m.insights_summary_weekly_rate_hint()
 		},
 		{
 			label: m.insights_summary_weight_entries(),
-			value: weightChartData.length.toString()
+			value: headlineWeights.length.toString(),
+			hint: lastWeighIn
+				? m.insights_summary_last_weigh_in({ date: formatDateLabel(lastWeighIn) })
+				: null
 		}
 	]);
 </script>
@@ -320,7 +337,7 @@
 	</div>
 
 	{#if activeTab === 'nutrition'}
-		<InsightsSummary tiles={nutritionTiles} />
+		<InsightsSummary tiles={nutritionTiles} caption={nutritionCaption} />
 
 		<CollapsibleCard title={m.insights_trends()} sectionId="trends">
 			<TrendsChart initialData={pageData.dailyStatus} />
@@ -563,7 +580,7 @@
 		<AnalyticsGroupSection group="nutrition-patterns" />
 	{:else if activeTab === 'weight'}
 		<div class="space-y-6 pb-8">
-			<InsightsSummary tiles={weightTiles} />
+			<InsightsSummary tiles={weightTiles} caption={m.insights_summary_period_last_30()} />
 
 			<Card.Root
 				class="overflow-hidden border-border/60 bg-linear-to-br from-blue-50/80 via-background to-emerald-50/60 dark:from-blue-950/20 dark:via-background dark:to-emerald-950/10"

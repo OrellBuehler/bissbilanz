@@ -23,11 +23,18 @@
 	type Props = {
 		open?: boolean;
 		task?: AiTask | null;
+		aiTaskProcessor?: 'assistant' | 'device';
 		onClose?: () => void;
 		onCreated?: () => void;
 	};
 
-	let { open = $bindable(false), task = null, onClose, onCreated }: Props = $props();
+	let {
+		open = $bindable(false),
+		task = null,
+		aiTaskProcessor = 'assistant',
+		onClose,
+		onCreated
+	}: Props = $props();
 
 	const NO_MEAL = '__none__';
 	const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
@@ -244,7 +251,7 @@
 
 		<p class="flex items-start gap-1.5 text-xs text-muted-foreground">
 			<Sparkles class="mt-0.5 size-3.5 shrink-0" />
-			{m.ai_tasks_capture_hint()}
+			{aiTaskProcessor === 'device' ? m.ai_tasks_capture_hint_device() : m.ai_tasks_capture_hint()}
 		</p>
 
 		<Button class="w-full" disabled={!canSubmit} onclick={submit}>

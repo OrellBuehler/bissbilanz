@@ -54,6 +54,7 @@ import { getConfidenceLevel } from '../src/lib/analytics/correlation';
 import { localMinutesOfDay } from '../src/lib/analytics/local-time';
 import { nullDiv, nullSum } from '../src/lib/analytics/aggregation';
 import { suggestRecipes, type SuggestionCandidate } from '../src/lib/analytics/recipe-suggestions';
+import { classifyGoalOutcome, type GoalRule } from '../src/lib/analytics/goal-adherence';
 
 type Case = { fn: string; name: string; input: Record<string, unknown>; expected: unknown };
 
@@ -1210,6 +1211,28 @@ function round(v: number, dp: number): number {
 	add('nullSum', 'skips_nulls', { values: [1, null, 3, null, 5] }, nullSum([1, null, 3, null, 5]));
 	add('nullSum', 'all_null_is_null', { values: [null, null] }, nullSum([null, null]));
 	add('nullSum', 'empty_is_null', { values: [] }, nullSum([]));
+}
+
+// --- classifyGoalOutcome --------------------------------------------------------
+{
+	// Boundaries of each rule, including the ±10% range edges and a missing goal.
+	const goalCases: [string, GoalRule, number, number][] = [
+		['minimum_exact', 'minimum', 100, 100],
+		['minimum_below', 'minimum', 99.9, 100],
+		['minimum_above', 'minimum', 180, 100],
+		['maximum_exact', 'maximum', 60, 60],
+		['maximum_above', 'maximum', 60.1, 60],
+		['maximum_zero_intake', 'maximum', 0, 60],
+		['range_lower_edge', 'range', 1800, 2000],
+		['range_upper_edge', 'range', 2200, 2000],
+		['range_below', 'range', 1799.9, 2000],
+		['range_above', 'range', 2200.1, 2000],
+		['range_fractional_goal', 'range', 1633.5, 1815],
+		['no_goal', 'minimum', 100, 0]
+	];
+	for (const [name, rule, value, goal] of goalCases) {
+		add('classifyGoalOutcome', name, { rule, value, goal }, classifyGoalOutcome(rule, value, goal));
+	}
 }
 
 const out = {

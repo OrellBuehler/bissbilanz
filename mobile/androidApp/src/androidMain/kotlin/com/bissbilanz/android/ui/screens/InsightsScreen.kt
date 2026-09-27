@@ -27,6 +27,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bissbilanz.analytics.GoalMacro
+import com.bissbilanz.analytics.GoalRule
+import com.bissbilanz.analytics.summarizeGoalAdherence
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
@@ -74,6 +77,7 @@ import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
+import com.bissbilanz.model.Preferences
 import com.bissbilanz.model.SleepEntry
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.formatDecimal1
@@ -94,6 +98,7 @@ fun InsightsScreen(navController: NavController) {
     val dailyStats by viewModel.dailyStats.collectAsStateWithLifecycle()
     val mealBreakdown by viewModel.mealBreakdown.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val selectedRange by viewModel.selectedRange.collectAsStateWithLifecycle()
     val calendarDays by viewModel.calendarDays.collectAsStateWithLifecycle()
     val calendarMonth by viewModel.calendarMonth.collectAsStateWithLifecycle()
@@ -296,7 +301,7 @@ fun InsightsScreen(navController: NavController) {
 
                         // 2. Goal Adherence
                         if (goals != null && dailyStats.isNotEmpty()) {
-                            GoalAdherenceCard(dailyStats, goals!!)
+                            GoalAdherenceCard(dailyStats, goals!!, prefs)
                             Spacer(modifier = Modifier.height(12.dp))
                         }
 
@@ -1001,85 +1006,84 @@ private fun MealBreakdownLegend(
 private fun GoalAdherenceCard(
     dailyStats: List<DailyStatsEntry>,
     goals: Goals,
+    prefs: Preferences?,
 ) {
-    val totalDays = dailyStats.size
-    if (totalDays == 0) return
+    val daysWithEntries = dailyStats.count { it.calories > 0 }
+    if (daysWithEntries == 0) return
 
-    data class GoalStat(
-        val label: String,
-        val strictDays: Int,
-        val tolerantDays: Int,
-        val color: Color,
-    )
-
-    val stats =
-        listOf(
-            GoalStat(
-                stringResource(R.string.macro_calories),
-                strictDays = dailyStats.count { it.calories <= goals.calorieGoal },
-                tolerantDays =
-                    dailyStats.count {
-                        it.calories <= goals.calorieGoal * 1.1 && it.calories >= goals.calorieGoal * 0.9
-                    },
-                CaloriesBlue,
-            ),
-            GoalStat(
-                stringResource(R.string.macro_protein),
-                strictDays = dailyStats.count { it.protein >= goals.proteinGoal },
-                tolerantDays = dailyStats.count { it.protein >= goals.proteinGoal * 0.9 },
-                ProteinRed,
-            ),
-            GoalStat(
-                stringResource(R.string.macro_carbs),
-                strictDays = dailyStats.count { it.carbs <= goals.carbGoal },
-                tolerantDays = dailyStats.count { it.carbs <= goals.carbGoal * 1.1 },
-                CarbsOrange,
-            ),
-            GoalStat(
-                stringResource(R.string.macro_fat),
-                strictDays = dailyStats.count { it.fat <= goals.fatGoal },
-                tolerantDays = dailyStats.count { it.fat <= goals.fatGoal * 1.1 },
-                FatYellow,
-            ),
-            GoalStat(
-                stringResource(R.string.macro_fiber),
-                strictDays = dailyStats.count { it.fiber >= goals.fiberGoal },
-                tolerantDays = dailyStats.count { it.fiber >= goals.fiberGoal * 0.9 },
-                FiberGreen,
-            ),
+    val rows =
+        summarizeGoalAdherence(
+            dailyStats,
+            goals,
+            activityAdjustment = prefs?.activityGoalAdjustment ?: false,
+            activityCreditPercent = prefs?.activityCreditPercent ?: 100,
         )
 
     CollapsibleCard(title = stringResource(R.string.insights_goal_adherence), sectionId = "goals") {
         Text(
-            stringResource(R.string.insights_days_within_goal_range, totalDays),
+            stringResource(R.string.insights_days_with_entries, daysWithEntries),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        stats.forEach { stat ->
-            val tolerantPct = stat.tolerantDays.toFloat() / totalDays
-            val strictPct = stat.strictDays.toFloat() / totalDays
+        rows.forEach { row ->
+            val (label, color) =
+                when (row.macro) {
+                    GoalMacro.CALORIES -> stringResource(R.string.macro_calories) to CaloriesBlue
+                    GoalMacro.PROTEIN -> stringResource(R.string.macro_protein) to ProteinRed
+                    GoalMacro.CARBS -> stringResource(R.string.macro_carbs) to CarbsOrange
+                    GoalMacro.FAT -> stringResource(R.string.macro_fat) to FatYellow
+                    GoalMacro.FIBER -> stringResource(R.string.macro_fiber) to FiberGreen
+                }
+            val goalValue = row.macro.goalOf(goals)
+            val goalText =
+                if (row.macro == GoalMacro.CALORIES) {
+                    "${goalValue.formatAsInt()} kcal"
+                } else {
+                    "${goalValue.formatAsInt()} g"
+                }
+            val ruleText =
+                when (row.macro.rule) {
+                    GoalRule.MINIMUM -> stringResource(R.string.insights_goal_rule_minimum, goalText)
+                    GoalRule.MAXIMUM -> stringResource(R.string.insights_goal_rule_maximum, goalText)
+                    GoalRule.RANGE -> stringResource(R.string.insights_goal_rule_range, goalText)
+                }
+            val metPct = if (row.eligible > 0) row.met.toFloat() / row.eligible else 0f
             val animatedPct by animateFloatAsState(
-                targetValue = tolerantPct.coerceIn(0f, 1f),
+                targetValue = metPct.coerceIn(0f, 1f),
                 animationSpec = GentleSpring,
-                label = "goal-${stat.label}",
+                label = "goal-${row.macro.name}",
             )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stat.label,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = stat.color,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.width(64.dp),
-                )
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = color,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        ruleText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        stringResource(R.string.insights_goal_days_met, row.met, row.eligible),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier =
                         Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -1090,24 +1094,20 @@ private fun GoalAdherenceCard(
                                 .fillMaxHeight()
                                 .fillMaxWidth(animatedPct)
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(stat.color),
+                                .background(color),
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        stringResource(R.string.insights_goal_pct, (tolerantPct * 100).formatAsInt()),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(36.dp),
-                        textAlign = TextAlign.End,
+                val misses =
+                    listOfNotNull(
+                        if (row.below > 0) stringResource(R.string.insights_goal_days_below, row.below) else null,
+                        if (row.above > 0) stringResource(R.string.insights_goal_days_above, row.above) else null,
                     )
+                if (misses.isNotEmpty()) {
                     Text(
-                        stringResource(R.string.insights_goal_pct_strict, (strictPct * 100).formatAsInt()),
+                        misses.joinToString(" · "),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(60.dp),
-                        textAlign = TextAlign.End,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }

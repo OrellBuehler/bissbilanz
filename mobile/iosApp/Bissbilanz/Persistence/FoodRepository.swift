@@ -702,11 +702,15 @@ final class FoodRepository {
     /// Unavailable to an anonymous/local-only account — there is no server to
     /// merge on.
     @discardableResult
-    func mergeFoods(keeperId: String, sourceIds: [String]) async throws -> Food {
+    func mergeFoods(
+        keeperId: String,
+        sourceIds: [String],
+        overrides: [String: FoodMergeValue] = [:]
+    ) async throws -> Food {
         guard !appMode.isLocal else {
             throw APIError.badRequest("Merging foods requires an account")
         }
-        let merged = try await api.mergeFoods(keeperId: keeperId, sourceIds: sourceIds)
+        let merged = try await api.mergeFoods(keeperId: keeperId, sourceIds: sourceIds, overrides: overrides)
         upsert(merged)
         for sourceId in sourceIds {
             LocalImageStore.evict(food(id: sourceId)?.imageUrl)

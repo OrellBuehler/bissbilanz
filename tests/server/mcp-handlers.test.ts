@@ -260,8 +260,13 @@ const mockDeps = {
 		mockUpdateAiTaskCalls.push({ userId, id, payload });
 		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
 	},
-	dismissAiTaskByAgent: async (userId: string, id: string, reason: string) => {
-		mockDismissAiTaskByAgentCalls.push({ userId, id, reason });
+	dismissAiTaskByAgent: async (
+		userId: string,
+		id: string,
+		reason: string,
+		processedBy?: string
+	) => {
+		mockDismissAiTaskByAgentCalls.push({ userId, id, reason, processedBy });
 		return { success: true, data: mockUpdateAiTaskResult ?? undefined };
 	},
 	setFoodLabels: async (userId: string, foodId: string, labels: string[], source: string) => {
@@ -1944,6 +1949,30 @@ describe('MCP handlers', () => {
 			expect(result.tasks).toEqual([]);
 			expect(result.total).toBe(0);
 		});
+
+		test('prepends a device-processor note when pending tasks are routed to the phone', async () => {
+			mockPreferences = { aiTaskProcessor: 'device' };
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.note).toContain('iPhone');
+		});
+
+		test('omits the note when the assistant is the processor', async () => {
+			mockPreferences = { aiTaskProcessor: 'assistant' };
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.note).toBeUndefined();
+		});
+
+		test('omits the note when preferences are unset', async () => {
+			mockPreferences = null;
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.note).toBeUndefined();
+		});
+
+		test('omits the note for a non-pending status even when routed to the phone', async () => {
+			mockPreferences = { aiTaskProcessor: 'device' };
+			const result: any = await handleListAiTasks(TEST_USER.id, { status: 'completed' });
+			expect(result.note).toBeUndefined();
+		});
 	});
 
 	describe('handleGetAiTask', () => {
@@ -2005,7 +2034,8 @@ describe('MCP handlers', () => {
 			expect(mockUpdateAiTaskCalls[0].payload).toEqual({
 				status: 'completed',
 				resultSummary: 'Logged chicken salad',
-				createdEntryIds: ['entry-1', 'entry-2']
+				createdEntryIds: ['entry-1', 'entry-2'],
+				processedBy: 'assistant'
 			});
 		});
 
@@ -2034,7 +2064,12 @@ describe('MCP handlers', () => {
 			expect(result.task.status).toBe('dismissed');
 			expect(result.task.resultSummary).toBe('Duplicate task');
 			expect(mockDismissAiTaskByAgentCalls).toEqual([
-				{ userId: TEST_USER.id, id: TEST_AI_TASK.id, reason: 'Duplicate task' }
+				{
+					userId: TEST_USER.id,
+					id: TEST_AI_TASK.id,
+					reason: 'Duplicate task',
+					processedBy: 'assistant'
+				}
 			]);
 		});
 

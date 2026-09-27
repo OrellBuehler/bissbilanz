@@ -121,7 +121,13 @@ function cutoffFromData(dates: string[], windowDays: number): string {
 	return d.toISOString().slice(0, 10);
 }
 
-function windowInputs(
+/**
+ * Exported so presentation code (AdaptiveTDEECard) can tell *which* of the two
+ * requirements — weigh-ins or logged-calorie days — is actually blocking
+ * `computeAdaptiveTDEE`'s `insufficient` verdict; `TDEEResult` itself only
+ * carries `sampleSize` (weigh-ins), which can't distinguish the two.
+ */
+export function windowInputs(
 	weightSeries: DatedWeight[],
 	calorieSeries: DatedCalories[],
 	windowDays: number
@@ -133,6 +139,17 @@ function windowInputs(
 		.filter((e) => e.date >= cutoff && e.calories !== null)
 		.map((e) => e.calories as number);
 	return { weights, calories };
+}
+
+/**
+ * Weekly weight change (kg/week) as the OLS slope over measured weigh-ins —
+ * the same method computeAdaptiveTDEE uses — so headline rates and the TDEE
+ * card agree. Null with fewer than two weigh-ins or a span under a week.
+ */
+export function weeklyWeightChange(series: DatedWeight[]): number | null {
+	const points = measuredWeights(series);
+	if (points.length < 2 || points[points.length - 1].day - points[0].day < 7) return null;
+	return slopePerDay(points) * 7;
 }
 
 export function computeAdaptiveTDEE(

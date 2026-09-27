@@ -102,6 +102,8 @@ class PreferencesRepository(
                 timeZone = "UTC",
                 activityGoalAdjustment = false,
                 activityCreditPercent = 100,
+                aiTaskProcessor = Preferences.AiTaskProcessor.assistant,
+                aiTaskAutoLog = false,
             )
         val updated = applyUpdate(current, update, cleared)
         withContext(Dispatchers.IO) { cachePreferences(updated) }
@@ -148,6 +150,14 @@ class PreferencesRepository(
             waterGoalMl = update.waterGoalMl ?: current.waterGoalMl,
             activityGoalAdjustment = update.activityGoalAdjustment ?: current.activityGoalAdjustment,
             activityCreditPercent = update.activityCreditPercent ?: current.activityCreditPercent,
+            aiTaskProcessor =
+                update.aiTaskProcessor?.let {
+                    when (it) {
+                        PreferencesUpdate.AiTaskProcessor.assistant -> Preferences.AiTaskProcessor.assistant
+                        PreferencesUpdate.AiTaskProcessor.device -> Preferences.AiTaskProcessor.device
+                    }
+                } ?: current.aiTaskProcessor,
+            aiTaskAutoLog = update.aiTaskAutoLog ?: current.aiTaskAutoLog,
             biologicalSex =
                 if (PreferencesField.BIOLOGICAL_SEX in cleared) {
                     null

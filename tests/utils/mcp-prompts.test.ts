@@ -23,6 +23,7 @@ describe('MCP prompts', () => {
 			'label_foods',
 			'log_meal',
 			'meal_plan',
+			'process_ai_tasks',
 			'weekly_review'
 		]);
 		for (const p of prompts) expect(p.title, `${p.name} title`).toBeTruthy();
@@ -108,6 +109,18 @@ describe('MCP prompts', () => {
 		expect(text).toContain('fewer than 5 labels');
 		expect(text).toContain('minLabels=5 and limit=10');
 		expect(text).toContain('list_labels');
+	});
+
+	test('process_ai_tasks names the tools in order and the create_food rule', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({ name: 'process_ai_tasks', arguments: {} });
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('list_ai_tasks');
+		expect(text).toContain('get_ai_task');
+		expect(text).toContain('complete_ai_task');
+		expect(text).toContain('dismiss_ai_task');
+		expect(text).toContain('never create a food');
+		expect(text).toContain('find_food_by_barcode');
 	});
 
 	test('mealType completes from the default meal types', async () => {

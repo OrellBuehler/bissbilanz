@@ -69,6 +69,7 @@
 	{headline}
 	{confidence}
 	{sampleSize}
+	sampleUnit="nights"
 	borderColor="border-amber-600"
 >
 	{#snippet children()}

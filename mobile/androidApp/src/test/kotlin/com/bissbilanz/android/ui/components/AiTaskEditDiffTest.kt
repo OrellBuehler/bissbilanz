@@ -31,6 +31,7 @@ class AiTaskEditDiffTest {
             completedAt = null,
             dismissedAt = null,
             acknowledgedAt = null,
+            processedBy = null,
         )
 
     private fun diff(

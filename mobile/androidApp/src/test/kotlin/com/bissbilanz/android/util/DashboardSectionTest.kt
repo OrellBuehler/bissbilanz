@@ -42,6 +42,8 @@ class DashboardSectionTest {
         favoriteMealTimeframes = emptyList(),
         activityGoalAdjustment = false,
         activityCreditPercent = 100,
+        aiTaskProcessor = Preferences.AiTaskProcessor.assistant,
+        aiTaskAutoLog = false,
     )
 
     @Test

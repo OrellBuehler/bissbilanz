@@ -296,6 +296,19 @@ describe('aiTaskUpdateSchema', () => {
 		const result = aiTaskUpdateSchema.safeParse({ acknowledged: 'yes' });
 		expect(result.success).toBe(false);
 	});
+
+	test.each(['assistant', 'on_device', 'private_cloud'])(
+		'accepts processedBy %s',
+		(processedBy) => {
+			const result = aiTaskUpdateSchema.safeParse({ processedBy });
+			expect(result.success).toBe(true);
+		}
+	);
+
+	test('rejects an invalid processedBy', () => {
+		const result = aiTaskUpdateSchema.safeParse({ processedBy: 'gemini' });
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('aiTaskAcknowledgeSchema', () => {

@@ -43,6 +43,16 @@ export const reminderKindValues = ['weight', 'meal', 'sleep'] as const;
 export type ReminderKind = (typeof reminderKindValues)[number];
 export const reminderKindEnum = pgEnum('reminder_kind', reminderKindValues);
 
+// Who resolves queued AI tasks: the MCP assistant, or the user's own iPhone
+// running Foundation Models on-device (or falling back to Private Cloud Compute).
+export const aiTaskProcessorValues = ['assistant', 'device'] as const;
+export type AiTaskProcessor = (typeof aiTaskProcessorValues)[number];
+
+// Which processor actually resolved a given task, recorded for display once it
+// is completed or dismissed.
+export const aiTaskProcessedByValues = ['assistant', 'on_device', 'private_cloud'] as const;
+export type AiTaskProcessedBy = (typeof aiTaskProcessedByValues)[number];
+
 // Users (identified via one or more linked OIDC identities)
 export const users = pgTable('users', {
 	id: uuid('id').primaryKey().defaultRandom(),
@@ -405,12 +415,21 @@ export const userPreferences = pgTable(
 		activityGoalAdjustment: boolean('activity_goal_adjustment').notNull().default(false),
 		// Percentage of activityCalories credited back to the goal (0-100).
 		activityCreditPercent: integer('activity_credit_percent').notNull().default(100),
+		// Who resolves queued AI tasks — the MCP assistant or the user's iPhone.
+		aiTaskProcessor: text('ai_task_processor').notNull().default('assistant'),
+		// When the device processor is picked, whether it logs estimates straight
+		// away or leaves them for the user to review first.
+		aiTaskAutoLog: boolean('ai_task_auto_log').notNull().default(false),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
 		check(
 			'user_preferences_activity_credit_percent_range',
 			sql`${table.activityCreditPercent} >= 0 AND ${table.activityCreditPercent} <= 100`
+		),
+		check(
+			'user_preferences_ai_task_processor_valid',
+			sql`${table.aiTaskProcessor} IN ('assistant', 'device')`
 		)
 	]
 );
@@ -754,6 +773,9 @@ export const aiTasks = pgTable(
 		// dismissals leave it null — that is what drives the unread badge and the
 		// local notification each device raises on its next refresh.
 		acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+		// Which processor actually resolved this task. Null until completed or
+		// dismissed.
+		processedBy: text('processed_by'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
@@ -764,6 +786,10 @@ export const aiTasks = pgTable(
 		check(
 			'ai_tasks_has_content',
 			sql`${table.description} IS NOT NULL OR coalesce(array_length(${table.photoUrls}, 1), 0) > 0`
+		),
+		check(
+			'ai_tasks_processed_by_valid',
+			sql`${table.processedBy} IS NULL OR ${table.processedBy} IN ('assistant', 'on_device', 'private_cloud')`
 		)
 	]
 );

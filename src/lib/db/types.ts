@@ -187,6 +187,8 @@ export type DexieUserPreferences = {
 	waterGoalMl?: number | null;
 	activityGoalAdjustment?: boolean;
 	activityCreditPercent?: number;
+	aiTaskProcessor?: string;
+	aiTaskAutoLog?: boolean;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 

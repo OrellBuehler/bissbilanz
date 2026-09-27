@@ -55,6 +55,7 @@
 	{headline}
 	confidence={plateau?.confidence ?? 'insufficient'}
 	sampleSize={plateau?.sampleSize ?? 0}
+	sampleUnit="weigh-ins"
 	borderColor="border-amber-500"
 >
 	{#snippet children()}

@@ -80,6 +80,7 @@ object TestFixtures {
         completedAt = null,
         dismissedAt = null,
         acknowledgedAt = null,
+        processedBy = null,
     )
 
     fun offProduct(

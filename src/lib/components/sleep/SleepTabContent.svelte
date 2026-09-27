@@ -12,34 +12,40 @@
 	import AnalyticsGroupSection from '$lib/components/insights/AnalyticsGroupSection.svelte';
 	import InsightsSummary from '$lib/components/insights/InsightsSummary.svelte';
 	import type { SummaryTile } from '$lib/insights/summary';
+	import { daysAgo } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 
 	const live = useLiveQuery(() => sleepService.entries(), [] as DexieSleepEntry[]);
 	const entries = $derived(live.value);
 
 	const summaryTiles = $derived.by((): SummaryTile[] => {
-		const withDuration = entries.filter((e) => e.durationMinutes != null);
-		const withQuality = entries.filter((e) => e.quality != null);
-		const avgHours =
-			withDuration.length > 0
-				? withDuration.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0) /
-					withDuration.length /
-					60
-				: null;
-		const avgQuality =
-			withQuality.length > 0
-				? withQuality.reduce((sum, e) => sum + (e.quality ?? 0), 0) / withQuality.length
-				: null;
+		const since = daysAgo(30);
+		const recent = entries.filter((e) => e.entryDate >= since);
+		const avg = (values: number[]) =>
+			values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+		const avgHours = avg(recent.map((e) => e.durationMinutes / 60));
+		// Imported nights carry a device-estimated score; keep it out of the
+		// average of the user's own ratings unless there is nothing else.
+		const rated = recent.filter((e) => !e.source || e.source === 'manual');
+		const imported = recent.length - rated.length;
+		const avgQuality = avg((rated.length > 0 ? rated : recent).map((e) => e.quality));
+		const qualityHint =
+			rated.length === 0 && imported > 0
+				? m.insights_summary_sleep_estimated()
+				: imported > 0
+					? m.insights_summary_sleep_imported_excluded({ count: imported.toString() })
+					: null;
 		return [
 			{
 				label: m.insights_summary_avg_sleep(),
-				value: avgHours === null ? '—' : `${(Math.round(avgHours * 10) / 10).toFixed(1)} h`
+				value: avgHours === null ? '—' : `${avgHours.toFixed(1)} h`
 			},
 			{
 				label: m.insights_summary_sleep_quality(),
-				value: avgQuality === null ? '—' : `${(Math.round(avgQuality * 10) / 10).toFixed(1)}/5`
+				value: avgQuality === null ? '—' : `${avgQuality.toFixed(1)}/10`,
+				hint: qualityHint
 			},
-			{ label: m.insights_summary_nights(), value: entries.length.toString() }
+			{ label: m.insights_summary_nights(), value: recent.length.toString() }
 		];
 	});
 
@@ -49,7 +55,7 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 pb-8">
-	<InsightsSummary tiles={summaryTiles} />
+	<InsightsSummary tiles={summaryTiles} caption={m.insights_summary_period_last_30()} />
 
 	<Card.Root>
 		<Card.Header class="pb-3">

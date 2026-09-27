@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
@@ -42,9 +43,11 @@ import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
+import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.repository.AiTaskRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.AiTaskField
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.mealTypes
@@ -85,10 +88,28 @@ fun AiMealSheet(
 ) {
     val errorReporter: ErrorReporter = koinInject()
     val aiTaskRepo: AiTaskRepository = koinInject()
+    val api: BissbilanzApi = koinInject()
+    val prefsRepo: PreferencesRepository = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isEditing = task != null
+
+    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
+    val processorIsDevice = prefs?.aiTaskProcessor?.value == "device"
+    // Unknown while the check is in flight, or if it fails — fail open rather than
+    // block sending over a transient network hiccup; only a definite "not
+    // connected" answer disables the button.
+    var mcpConnected by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        try {
+            mcpConnected = api.getMcpStatus()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+    val canProcess = processorIsDevice || mcpConnected
 
     var description by remember(task?.id) { mutableStateOf(task?.description ?: "") }
     var mealType by remember(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
@@ -158,7 +179,7 @@ fun AiMealSheet(
             }
         }
 
-    val canSend = description.isNotBlank() || totalPhotoCount > 0
+    val canSend = (description.isNotBlank() || totalPhotoCount > 0) && (isEditing || canProcess)
 
     if (showDatePicker) {
         val initialMillis =
@@ -244,14 +265,21 @@ fun AiMealSheet(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                if (isEditing) {
-                    stringResource(R.string.ai_task_edit_subtitle)
-                } else {
-                    stringResource(R.string.ai_task_subtitle)
+                when {
+                    isEditing -> stringResource(R.string.ai_task_edit_subtitle)
+                    processorIsDevice -> stringResource(R.string.ai_task_subtitle_device)
+                    else -> stringResource(R.string.ai_task_subtitle)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (!isEditing && !processorIsDevice && !mcpConnected) {
+                Text(
+                    stringResource(R.string.ai_task_mcp_not_connected),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
 
             val noSpecificMeal = stringResource(R.string.ai_task_meal_none)
             ExposedDropdownMenuBox(
@@ -534,7 +562,15 @@ fun AiMealSheet(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending))
                     } else {
-                        Text(stringResource(if (isEditing) R.string.weight_save else R.string.ai_task_send))
+                        Text(
+                            stringResource(
+                                when {
+                                    isEditing -> R.string.weight_save
+                                    processorIsDevice -> R.string.ai_task_send_device
+                                    else -> R.string.ai_task_send
+                                },
+                            ),
+                        )
                     }
                 }
             }

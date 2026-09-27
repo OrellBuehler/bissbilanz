@@ -1,12 +1,9 @@
 import { describe, expect, test } from 'vitest';
+import { filterDaysWithEntries, type DayRow, type Goals } from '../../src/lib/utils/insights';
 import {
-	strictCount,
-	tolerantCount,
-	overallAdherence,
-	filterDaysWithEntries,
-	type DayRow,
-	type Goals
-} from '../../src/lib/utils/insights';
+	classifyGoalOutcome,
+	summarizeGoalAdherence
+} from '../../src/lib/analytics/goal-adherence';
 
 const makeDay = (overrides: Partial<DayRow> = {}): DayRow => ({
 	date: '2026-03-01',
@@ -26,6 +23,8 @@ const defaultGoals: Goals = {
 	fiberGoal: 30
 };
 
+const noActivity = { enabled: false, creditPercent: 100 };
+
 describe('filterDaysWithEntries', () => {
 	test('excludes days with zero calories', () => {
 		const days = [makeDay(), makeDay({ calories: 0 }), makeDay({ calories: 500 })];
@@ -37,109 +36,66 @@ describe('filterDaysWithEntries', () => {
 	});
 });
 
-describe('strictCount', () => {
-	test('counts days where value >= goal', () => {
-		const days = [makeDay({ protein: 100 }), makeDay({ protein: 110 }), makeDay({ protein: 90 })];
-		expect(strictCount(days, 'protein', 100)).toBe(2);
+describe('classifyGoalOutcome', () => {
+	test('minimum is met at or above the goal', () => {
+		expect(classifyGoalOutcome('minimum', 100, 100)).toBe('met');
+		expect(classifyGoalOutcome('minimum', 150, 100)).toBe('met');
+		expect(classifyGoalOutcome('minimum', 99.9, 100)).toBe('below');
 	});
 
-	test('exactly at goal counts as hit', () => {
-		const days = [makeDay({ calories: 2000 })];
-		expect(strictCount(days, 'calories', 2000)).toBe(1);
+	test('maximum is met at or below the goal', () => {
+		expect(classifyGoalOutcome('maximum', 60, 60)).toBe('met');
+		expect(classifyGoalOutcome('maximum', 10, 60)).toBe('met');
+		expect(classifyGoalOutcome('maximum', 60.1, 60)).toBe('above');
 	});
 
-	test('returns 0 for zero goal', () => {
-		const days = [makeDay({ protein: 100 })];
-		expect(strictCount(days, 'protein', 0)).toBe(0);
+	test('range is met within ±10%', () => {
+		expect(classifyGoalOutcome('range', 1800, 2000)).toBe('met');
+		expect(classifyGoalOutcome('range', 2200, 2000)).toBe('met');
+		expect(classifyGoalOutcome('range', 1799, 2000)).toBe('below');
+		expect(classifyGoalOutcome('range', 2201, 2000)).toBe('above');
 	});
 
-	test('returns 0 for empty array', () => {
-		expect(strictCount([], 'calories', 2000)).toBe(0);
-	});
-});
-
-describe('tolerantCount', () => {
-	test('counts days within ±10% of goal', () => {
-		const days = [
-			makeDay({ protein: 100 }),
-			makeDay({ protein: 90 }),
-			makeDay({ protein: 110 }),
-			makeDay({ protein: 80 }),
-			makeDay({ protein: 120 })
-		];
-		expect(tolerantCount(days, 'protein', 100)).toBe(3);
-	});
-
-	test('exactly at goal counts as in range', () => {
-		const days = [makeDay({ fat: 60 })];
-		expect(tolerantCount(days, 'fat', 60)).toBe(1);
-	});
-
-	test('exactly at -10% boundary is included', () => {
-		const days = [makeDay({ calories: 1800 })];
-		expect(tolerantCount(days, 'calories', 2000)).toBe(1);
-	});
-
-	test('exactly at +10% boundary is included', () => {
-		const days = [makeDay({ calories: 2200 })];
-		expect(tolerantCount(days, 'calories', 2000)).toBe(1);
-	});
-
-	test('just outside -10% is excluded', () => {
-		const days = [makeDay({ calories: 1799 })];
-		expect(tolerantCount(days, 'calories', 2000)).toBe(0);
-	});
-
-	test('just outside +10% is excluded', () => {
-		const days = [makeDay({ calories: 2201 })];
-		expect(tolerantCount(days, 'calories', 2000)).toBe(0);
-	});
-
-	test('returns 0 for zero goal', () => {
-		expect(tolerantCount([makeDay()], 'calories', 0)).toBe(0);
-	});
-
-	test('returns 0 for empty array', () => {
-		expect(tolerantCount([], 'calories', 2000)).toBe(0);
+	test('no goal yields no outcome', () => {
+		expect(classifyGoalOutcome('minimum', 100, 0)).toBeNull();
 	});
 });
 
-describe('overallAdherence', () => {
-	test('returns percentage of macro-day hits across all macros', () => {
-		const days = [makeDay()];
-		const result = overallAdherence(days, defaultGoals, strictCount);
-		expect(result).toBe(100);
+describe('summarizeGoalAdherence', () => {
+	test('applies the rule for each macro', () => {
+		const days = [makeDay({ calories: 2500, protein: 80, carbs: 200, fat: 70, fiber: 35 })];
+		const summary = summarizeGoalAdherence(days, defaultGoals, noActivity);
+		const byKey = Object.fromEntries(summary.macros.map((m) => [m.key, m]));
+		expect(byKey.calories).toMatchObject({ rule: 'range', above: 1, met: 0 });
+		expect(byKey.protein).toMatchObject({ rule: 'minimum', below: 1 });
+		expect(byKey.carbs).toMatchObject({ rule: 'maximum', met: 1 });
+		expect(byKey.fat).toMatchObject({ rule: 'maximum', above: 1 });
+		expect(byKey.fiber).toMatchObject({ rule: 'minimum', met: 1 });
+		expect(summary).toMatchObject({ met: 2, eligible: 5 });
 	});
 
-	test('returns 0 for empty data', () => {
-		expect(overallAdherence([], defaultGoals, strictCount)).toBe(0);
+	test('skips days without entries and macros without a goal', () => {
+		const days = [makeDay(), makeDay({ calories: 0 })];
+		const summary = summarizeGoalAdherence(days, { ...defaultGoals, fiberGoal: 0 }, noActivity);
+		expect(summary.macros.map((m) => m.key)).toEqual(['calories', 'protein', 'carbs', 'fat']);
+		expect(summary.macros.every((m) => m.eligible === 1)).toBe(true);
 	});
 
-	test('returns 0 when all days have zero calories (no entries)', () => {
-		const days = [makeDay({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 })];
-		expect(overallAdherence(days, defaultGoals, strictCount)).toBe(0);
+	test('judges each day against its activity-adjusted goal', () => {
+		const days = [makeDay({ calories: 2400, activityCalories: 400 })];
+		const plain = summarizeGoalAdherence(days, defaultGoals, noActivity);
+		const adjusted = summarizeGoalAdherence(days, defaultGoals, {
+			enabled: true,
+			creditPercent: 100
+		});
+		expect(plain.macros[0]).toMatchObject({ key: 'calories', above: 1 });
+		expect(adjusted.macros[0]).toMatchObject({ key: 'calories', met: 1 });
 	});
 
-	test('handles zero goals gracefully', () => {
-		const zeroGoals: Goals = {
-			calorieGoal: 0,
-			proteinGoal: 0,
-			carbGoal: 0,
-			fatGoal: 0,
-			fiberGoal: 0
-		};
-		expect(overallAdherence([makeDay()], zeroGoals, strictCount)).toBe(0);
-	});
-
-	test('partial adherence gives correct percentage', () => {
-		const days = [makeDay({ calories: 2000, protein: 50, carbs: 250, fat: 60, fiber: 30 })];
-		const result = overallAdherence(days, defaultGoals, strictCount);
-		expect(result).toBe(80);
-	});
-
-	test('tolerant mode counts within ±10%', () => {
-		const days = [makeDay({ calories: 1900, protein: 95, carbs: 240, fat: 55, fiber: 28 })];
-		const result = overallAdherence(days, defaultGoals, tolerantCount);
-		expect(result).toBe(100);
+	test('empty input has nothing eligible', () => {
+		expect(summarizeGoalAdherence([], defaultGoals, noActivity)).toMatchObject({
+			met: 0,
+			eligible: 0
+		});
 	});
 });

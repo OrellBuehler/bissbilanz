@@ -2,7 +2,7 @@ import 'zod-openapi';
 import { z } from 'zod';
 import { normalizeMealType } from '$lib/utils/meals';
 import { paginationSchema } from './pagination';
-import { aiTaskStatusValues } from '$lib/server/schema';
+import { aiTaskStatusValues, aiTaskProcessedByValues } from '$lib/server/schema';
 
 export const aiTaskSourceValues = ['web', 'ios', 'android'] as const;
 
@@ -41,7 +41,8 @@ export const aiTaskUpdateSchema = z
 			.optional(),
 		mealType: z.string().min(1).max(50).transform(normalizeMealType).optional().nullable(),
 		eatenAt: z.string().datetime({ offset: true }).optional().nullable(),
-		acknowledged: z.boolean().optional()
+		acknowledged: z.boolean().optional(),
+		processedBy: z.enum(aiTaskProcessedByValues).optional()
 	})
 	.meta({ id: 'AiTaskUpdate' });
 

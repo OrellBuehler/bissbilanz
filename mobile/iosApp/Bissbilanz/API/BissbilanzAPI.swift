@@ -234,10 +234,20 @@ final class BissbilanzAPI {
     /// keeper (servings rescaled so historical macros stay invariant), food
     /// labels are unioned onto the keeper, and the source food rows are
     /// permanently deleted. Fields the keeper is missing are auto-filled from
-    /// the sources. Returns the merged keeper (the full `Food` shape).
-    func mergeFoods(keeperId: String, sourceIds: [String]) async throws -> Food {
+    /// the sources, and `overrides` wins over both. Returns the merged keeper
+    /// (the full `Food` shape).
+    func mergeFoods(
+        keeperId: String,
+        sourceIds: [String],
+        overrides: [String: FoodMergeValue] = [:]
+    ) async throws -> Food {
         let response: FoodResponse = try await post(
-            "/api/foods/merge", body: FoodMergeRequest(keeperId: keeperId, sourceIds: sourceIds)
+            "/api/foods/merge",
+            body: FoodMergeRequest(
+                keeperId: keeperId,
+                sourceIds: sourceIds,
+                overrides: overrides.isEmpty ? nil : overrides
+            )
         )
         return response.food
     }
