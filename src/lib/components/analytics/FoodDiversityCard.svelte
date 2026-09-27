@@ -53,7 +53,8 @@
 		count: Math.round(result?.avgUniqueFoodsPerWeek ?? 0).toString()
 	})}
 	confidence={result?.confidence ?? 'insufficient'}
-	sampleSize={result?.sampleSize ?? 0}
+	sampleSize={result?.weeklyData.length ?? 0}
+	sampleUnit="weeks"
 	borderColor="border-teal-500"
 >
 	{#snippet children()}

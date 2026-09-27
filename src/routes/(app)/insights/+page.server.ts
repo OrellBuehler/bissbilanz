@@ -19,6 +19,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const endDate = todayInTimeZone(await getUserTimeZone(userId));
 	const start7 = shiftDate(endDate, -6);
+	// The headline covers the 7 completed days before today, so today's
+	// partial log never drags down an average or adherence rate.
+	const headlineStart = shiftDate(endDate, -7);
+	const headlineEnd = shiftDate(endDate, -1);
 	const start28 = shiftDate(endDate, -27);
 	// Calendar month follows the user's local "today" (derived from endDate).
 	const [year, monthNum] = endDate.split('-').map(Number);
@@ -42,7 +46,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		dayProps,
 		preferences
 	] = await Promise.all([
-		getDailyBreakdown(userId, start7, endDate),
+		getDailyBreakdown(userId, headlineStart, endDate),
 		getGoals(userId),
 		getMealBreakdown(userId, endDate, endDate),
 		getTopFoods(userId, 7, 10),
@@ -51,7 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		listEntriesByDateRange(userId, calendarRangeStart, calendarRangeEnd),
 		listFastsTouchingRange(userId, calendarRangeStart, calendarRangeEnd),
 		getUserTimeZone(userId),
-		getDayPropertiesRange(userId, start7, endDate),
+		getDayPropertiesRange(userId, headlineStart, endDate),
 		getPreferences(userId)
 	]);
 
@@ -85,12 +89,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		dailyStatus: {
-			data: dailyDataWithActivity,
+			data: dailyDataWithActivity.filter((day) => day.date >= start7),
 			goals: goalsData,
 			activityGoalAdjustment:
 				preferences?.activityGoalAdjustment ?? DEFAULT_PREFERENCES.activityGoalAdjustment,
 			activityCreditPercent:
 				preferences?.activityCreditPercent ?? DEFAULT_PREFERENCES.activityCreditPercent
+		},
+		headline: {
+			start: headlineStart,
+			end: headlineEnd,
+			days: dailyDataWithActivity.filter((day) => day.date <= headlineEnd)
 		},
 		calendarDays,
 		streakDays,

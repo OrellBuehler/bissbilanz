@@ -9,11 +9,16 @@
 
 	const pinContext = getInsightPinContext();
 
+	/** What `sampleSize` actually counts — cards mislabel this as "days" otherwise. */
+	type SampleUnit = 'days' | 'nights' | 'weeks' | 'weigh-ins' | 'entries';
+
 	let {
 		title,
 		headline,
 		confidence,
 		sampleSize,
+		sampleUnit = 'days',
+		insufficientReason,
 		borderColor = 'border-blue-500',
 		loading = false,
 		skeletonClass = 'h-24',
@@ -23,6 +28,15 @@
 		headline: string;
 		confidence: ConfidenceLevel;
 		sampleSize: number;
+		/** Unit `sampleSize` is counted in. Defaults to 'days'. */
+		sampleUnit?: SampleUnit;
+		/**
+		 * A pre-localized, metric-specific explanation of what's still missing
+		 * (e.g. "2 more weigh-ins needed"). When omitted, falls back to a generic
+		 * `7 - sampleSize` estimate in `sampleUnit` — and never claims "0 more"
+		 * when that estimate isn't positive.
+		 */
+		insufficientReason?: string;
 		borderColor?: string;
 		loading?: boolean;
 		skeletonClass?: string;
@@ -40,6 +54,45 @@
 	});
 
 	const cardBorderClass = $derived.by(() => (confidence === 'low' ? 'border-dashed' : ''));
+
+	const sampleBadge = $derived.by(() => {
+		const count = sampleSize.toString();
+		switch (sampleUnit) {
+			case 'nights':
+				return m.confidence_sample_nights({ count });
+			case 'weeks':
+				return m.confidence_sample_weeks({ count });
+			case 'weigh-ins':
+				return m.confidence_sample_weighins({ count });
+			case 'entries':
+				return m.confidence_sample_entries({ count });
+			default:
+				return m.confidence_sample_days({ count });
+		}
+	});
+
+	// Never claims "0 more days": a card whose real threshold isn't the generic
+	// 7-sample cutoff (TDEE needs both weigh-ins and calorie days, for example)
+	// passes its own `insufficientReason` instead of relying on this estimate.
+	const genericInsufficientMessage = $derived.by(() => {
+		const needed = Math.max(0, 7 - sampleSize);
+		if (needed <= 0) return m.confidence_data_needed_generic();
+		const count = needed.toString();
+		switch (sampleUnit) {
+			case 'nights':
+				return m.confidence_data_needed_nights({ count });
+			case 'weeks':
+				return m.confidence_data_needed_weeks({ count });
+			case 'weigh-ins':
+				return m.confidence_data_needed_weighins({ count });
+			case 'entries':
+				return m.confidence_data_needed_entries({ count });
+			default:
+				return m.confidence_data_needed_days({ count });
+		}
+	});
+
+	const insufficientMessage = $derived(insufficientReason ?? genericInsufficientMessage);
 </script>
 
 {#if loading}
@@ -58,7 +111,7 @@
 					</p>
 					{#if confidence === 'insufficient'}
 						<p class="text-sm font-medium text-muted-foreground">
-							{m.confidence_data_needed({ days: Math.max(0, 7 - sampleSize).toString() })}
+							{insufficientMessage}
 						</p>
 						<p class="text-xs text-muted-foreground mt-1">{m.confidence_keep_logging()}</p>
 					{:else}
@@ -69,7 +122,7 @@
 					{#if confidence !== 'insufficient'}
 						<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {badgeClass}">
 							{#if confidence === 'high' || confidence === 'medium'}
-								{m.confidence_high({ days: sampleSize.toString() })}
+								{sampleBadge}
 							{:else}
 								{m.confidence_low_badge()}
 							{/if}

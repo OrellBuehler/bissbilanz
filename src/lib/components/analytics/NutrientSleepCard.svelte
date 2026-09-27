@@ -86,6 +86,7 @@
 	headline={m.analytics_nutrient_sleep_headline()}
 	{confidence}
 	{sampleSize}
+	sampleUnit="nights"
 	borderColor="border-purple-500"
 >
 	{#snippet children()}

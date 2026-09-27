@@ -8,7 +8,8 @@
 	import {
 		EMPTY_ANALYTICS_BUNDLE,
 		loadAnalyticsSources,
-		type AnalyticsBundle
+		type AnalyticsBundle,
+		type AnalyticsSourceId
 	} from '$lib/insights/sources';
 	import { createPinStore } from '$lib/insights/pin-store.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -18,6 +19,7 @@
 
 	let loading = $state(true);
 	let bundle = $state<AnalyticsBundle>({ ...EMPTY_ANALYTICS_BUNDLE });
+	let failedSources = $state<AnalyticsSourceId[]>([]);
 	let loadedKey = '';
 
 	// Only the sources the pinned cards declare are fetched, so Home never pulls
@@ -29,6 +31,7 @@
 		if (ids.length === 0) {
 			loadedKey = key;
 			bundle = { ...EMPTY_ANALYTICS_BUNDLE };
+			failedSources = [];
 			loading = false;
 			return;
 		}
@@ -37,7 +40,9 @@
 		const controller = new AbortController();
 		(async () => {
 			try {
-				bundle = await loadAnalyticsSources(sourcesForCards(ids), controller.signal);
+				const result = await loadAnalyticsSources(sourcesForCards(ids), controller.signal);
+				bundle = result.bundle;
+				failedSources = result.failedSources;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
 			} finally {
@@ -46,6 +51,10 @@
 		})();
 		return () => controller.abort();
 	});
+
+	function cardHasError(cardSources: readonly AnalyticsSourceId[]): boolean {
+		return cardSources.some((s) => failedSources.includes(s));
+	}
 </script>
 
 {#if cards.length > 0}
@@ -63,6 +72,7 @@
 					{card}
 					{bundle}
 					{loading}
+					sourceError={cardHasError(card.sources)}
 					pinned={true}
 					onTogglePin={() => pinStore.toggle(card.id)}
 				/>
