@@ -1736,6 +1736,26 @@ enum L10n {
         localized("sync_dropped_entry_unknown_food", en: "that food", de: "dieses Lebensmittel")
     }
 
+    // MARK: - Update required
+
+    static var updateRequiredTitle: String {
+        localized("update_required_title", en: "Update required", de: "Update erforderlich")
+    }
+
+    static func updateRequiredMessage(minVersion: String) -> String {
+        localized(
+            "update_required_message",
+            en: "A new version of Bissbilanz (\(minVersion) or later) is required to continue. " +
+                "Update from the App Store to keep using the app and syncing your data.",
+            de: "Eine neue Version von Bissbilanz (\(minVersion) oder höher) wird benötigt, um fortzufahren. " +
+                "Aktualisiere über den App Store, um die App weiter zu nutzen und deine Daten zu synchronisieren."
+        )
+    }
+
+    static var updateRequiredButton: String {
+        localized("update_required_button", en: "Open App Store", de: "App Store öffnen")
+    }
+
     // MARK: - Pending changes (sync queue) screen
 
     static var pendingChanges: String {
