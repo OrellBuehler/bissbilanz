@@ -132,6 +132,7 @@ scripts/api/verify.sh           # Full API stability gate, same as CI (needs Doc
 - **Semantic changes are breaking** even when the shape is identical (units, per-serving vs. total, defaults when a field is omitted). Add a new field instead of changing the meaning of an old one.
 - **Changing a contract:** expand (add new beside old) → migrate clients → deprecate (`deprecated: true` + `x-sunset`) → remove after the support window in a separate PR labelled `api-breaking-change`. Never add that label to get a feature through CI; ask the user first.
 - **Deploy order:** server before the mobile builds that use a new field or endpoint.
+- **Forcing updates:** clients send `X-Client-Platform`/`X-Client-Version`; raising `MIN_CLIENT_VERSIONS` in `src/lib/server/client-version.ts` makes older builds get 426 and an update screen. Check `bun run clients:versions` first, and never make any client treat 426 as a failure that drops queued changes or signs the user out.
 - **Migrations are expand/contract too:** no `DROP`/`RENAME`/type change in the release that stops using the column. A reviewed destructive migration needs a `-- destructive-ok: <reason>` line.
 - Run `scripts/api/verify.sh` before opening a PR that touches routes, validation schemas, MCP tools or migrations.
 
