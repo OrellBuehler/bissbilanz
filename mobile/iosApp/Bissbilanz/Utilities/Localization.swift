@@ -393,23 +393,6 @@ enum L10n {
         localized("foods_merge_title", en: "Merge foods", de: "Lebensmittel zusammenführen")
     }
 
-    static func foodsMergeDescription(_ source: String) -> String {
-        localized(
-            "foods_merge_description",
-            en: "Pick the food to merge \"\(source)\" into. The keeper's values are preserved; " +
-                "empty fields are filled from the source. The source food will be deleted and any " +
-                "diary entries or recipes referring to it will be updated.",
-            de: "Wähle das Lebensmittel, in das «\(source)» einfliessen soll. Die Werte des " +
-                "behaltenen Eintrags bleiben bestehen; leere Felder werden aus der Quelle ergänzt. " +
-                "Das Quell-Lebensmittel wird gelöscht und alle Tagebucheinträge oder Rezepte, die " +
-                "darauf verweisen, werden aktualisiert."
-        )
-    }
-
-    static var foodsMergePickKeeper: String {
-        localized("foods_merge_pick_keeper", en: "Choose keeper", de: "Behaltenes Lebensmittel wählen")
-    }
-
     static var foodsMergeConfirm: String {
         localized("foods_merge_confirm", en: "Merge", de: "Zusammenführen")
     }
