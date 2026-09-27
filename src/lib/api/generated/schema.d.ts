@@ -1672,6 +1672,7 @@ export interface components {
 			resultSummary?: string | null;
 			createdEntryIds?: string[] | null;
 			description?: string | null;
+			photoUrls?: string[];
 			date?: string;
 			mealType?: string;
 			eatenAt?: string | null;

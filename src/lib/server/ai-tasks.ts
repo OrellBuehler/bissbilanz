@@ -162,6 +162,8 @@ export const updateAiTask = async (
 
 	try {
 		const db = getDB();
+		const previousPhotoUrls =
+			columns.photoUrls === undefined ? [] : ((await getAiTask(userId, id))?.photoUrls ?? []);
 		const [updated] = await db
 			.update(aiTasks)
 			.set({
@@ -187,6 +189,13 @@ export const updateAiTask = async (
 				)
 			)
 			.returning();
+		if (updated && columns.photoUrls) {
+			const kept = new Set(updated.photoUrls ?? []);
+			await unlinkUploads(
+				previousPhotoUrls.filter((url) => !kept.has(url)),
+				userId
+			);
+		}
 		return { success: true, data: updated };
 	} catch (error) {
 		return { success: false, error: error as Error };

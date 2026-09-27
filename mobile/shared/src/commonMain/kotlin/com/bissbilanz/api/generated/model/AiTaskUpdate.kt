@@ -26,6 +26,7 @@ import kotlinx.serialization.encoding.*
  * @param resultSummary
  * @param createdEntryIds
  * @param description
+ * @param photoUrls
  * @param date
  * @param mealType
  * @param eatenAt
@@ -37,6 +38,7 @@ data class AiTaskUpdate(
     @SerialName(value = "resultSummary") val resultSummary: kotlin.String? = null,
     @SerialName(value = "createdEntryIds") val createdEntryIds: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "description") val description: kotlin.String? = null,
+    @SerialName(value = "photoUrls") val photoUrls: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "date") val date: kotlin.String? = null,
     @SerialName(value = "mealType") val mealType: kotlin.String? = null,
     @SerialName(value = "eatenAt") val eatenAt: kotlin.String? = null,
