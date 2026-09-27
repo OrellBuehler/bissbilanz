@@ -10,10 +10,11 @@
 	import X from '@lucide/svelte/icons/x';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Send from '@lucide/svelte/icons/send';
-	import { today, timeToIsoString } from '$lib/utils/dates';
+	import Save from '@lucide/svelte/icons/save';
+	import { today, timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
-	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
+	import { aiTaskService, type AiTask } from '$lib/services/ai-task-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieCustomMealType } from '$lib/db/types';
 	import { toast } from 'svelte-sonner';
@@ -21,6 +22,7 @@
 
 	type Props = {
 		open?: boolean;
+		task?: AiTask | null;
 		aiTaskProcessor?: 'assistant' | 'device';
 		onClose?: () => void;
 		onCreated?: () => void;
@@ -28,6 +30,7 @@
 
 	let {
 		open = $bindable(false),
+		task = null,
 		aiTaskProcessor = 'assistant',
 		onClose,
 		onCreated
@@ -53,7 +56,8 @@
 	// back-dated task without a time leaves the clock time to the assistant.
 	let time = $state('');
 	let mealType = $state(NO_MEAL);
-	type Photo = { file: File; previewUrl: string };
+	// An existing task's photos are already uploaded and carry no file.
+	type Photo = { file?: File; previewUrl: string };
 	let photos: Photo[] = $state([]);
 	let saving = $state(false);
 	let fileInputEl: HTMLInputElement | null = $state(null);
@@ -62,22 +66,23 @@
 
 	const removePhoto = (index: number) => {
 		const removed = photos[index];
-		if (removed) URL.revokeObjectURL(removed.previewUrl);
+		if (removed?.file) URL.revokeObjectURL(removed.previewUrl);
 		photos = photos.filter((_, i) => i !== index);
 	};
 
 	const clearPhotos = () => {
-		for (const photo of photos) URL.revokeObjectURL(photo.previewUrl);
+		for (const photo of photos) if (photo.file) URL.revokeObjectURL(photo.previewUrl);
 		photos = [];
 		if (fileInputEl) fileInputEl.value = '';
 	};
 
 	const reset = () => {
-		description = '';
-		date = today();
-		time = '';
-		mealType = NO_MEAL;
 		clearPhotos();
+		description = task?.description ?? '';
+		date = task?.date ?? today();
+		time = formatTime24h(task?.eatenAt);
+		mealType = task?.mealType ?? NO_MEAL;
+		photos = (task?.photoUrls ?? []).map((url) => ({ previewUrl: url }));
 	};
 
 	let wasOpen = $state(false);
@@ -122,15 +127,24 @@
 	const submit = async () => {
 		if (!canSubmit) return;
 		saving = true;
+		const input = {
+			description,
+			photoFiles: photos.flatMap((p) => (p.file ? [p.file] : [])),
+			date,
+			mealType: mealType === NO_MEAL ? undefined : mealType,
+			eatenAt: timeToIsoString(time, date) ?? undefined
+		};
 		try {
-			await aiTaskService.create({
-				description,
-				photoFiles: photos.map((p) => p.file),
-				date,
-				mealType: mealType === NO_MEAL ? undefined : mealType,
-				eatenAt: timeToIsoString(time, date) ?? undefined
-			});
-			toast.success(m.ai_tasks_capture_success());
+			if (task) {
+				await aiTaskService.update(task.id, {
+					...input,
+					photoUrls: photos.flatMap((p) => (p.file ? [] : [p.previewUrl]))
+				});
+				toast.success(m.ai_tasks_edit_success());
+			} else {
+				await aiTaskService.create(input);
+				toast.success(m.ai_tasks_capture_success());
+			}
 			open = false;
 			onCreated?.();
 		} catch (err) {
@@ -148,7 +162,11 @@
 	};
 </script>
 
-<ResponsiveModal bind:open title={m.ai_tasks_capture_title()} openFull>
+<ResponsiveModal
+	bind:open
+	title={task ? m.ai_tasks_edit_title() : m.ai_tasks_capture_title()}
+	openFull
+>
 	<div class="grid gap-4">
 		<div class="grid gap-1.5">
 			<Label for="ai-task-description">{m.ai_tasks_capture_description_label()}</Label>
@@ -239,10 +257,16 @@
 		<Button class="w-full" disabled={!canSubmit} onclick={submit}>
 			{#if saving}
 				<Spinner class="mr-1 size-4" />
+			{:else if task}
+				<Save class="mr-1 size-4" />
 			{:else}
 				<Send class="mr-1 size-4" />
 			{/if}
-			{saving ? m.ai_tasks_capture_saving() : m.ai_tasks_capture_submit()}
+			{#if task}
+				{saving ? m.ai_tasks_edit_saving() : m.ai_tasks_edit_submit()}
+			{:else}
+				{saving ? m.ai_tasks_capture_saving() : m.ai_tasks_capture_submit()}
+			{/if}
 		</Button>
 	</div>
 </ResponsiveModal>

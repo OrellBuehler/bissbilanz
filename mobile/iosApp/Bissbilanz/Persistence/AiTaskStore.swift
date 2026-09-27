@@ -415,6 +415,8 @@ final class AiTaskStore {
         guard !appMode.isLocal else { return }
         try await api.deleteAiTask(id: id)
         tasks.removeAll { $0.id == id }
+        // Nothing left to review once the task itself is gone.
+        AiTaskDraftDisk.remove(taskId: id)
     }
 
     /// Optimistically drops a task from the in-memory list right after
@@ -424,5 +426,27 @@ final class AiTaskStore {
     /// would see the task as still pending and could double-process it.
     func markResolvedLocally(id: String) {
         tasks.removeAll { $0.id == id }
+    }
+
+    /// Applies an edit-sheet PATCH and updates the in-memory list to match the
+    /// server's response — `AiTasksView` is never shown in Local mode, so this
+    /// has no local-mode guard.
+    ///
+    /// Also drops any `AiTaskProcessor` review-first draft still on disk for
+    /// this task: it was built from the description/photos as they stood
+    /// before this edit, so confirming it now would log the wrong thing.
+    /// `AiTaskProcessor` itself only ever checks for an existing draft before
+    /// it starts processing a task, so this alone is enough to make the next
+    /// trigger re-process the edited task from scratch instead of reusing a
+    /// stale in-flight result — there is no separate "cancel the run in
+    /// progress" needed for a single-user, single-device queue like this one.
+    @discardableResult
+    func update(id: String, _ patch: AiTaskUpdate) async throws -> AiTask {
+        let updated = try await api.updateAiTask(id: id, patch)
+        if let index = tasks.firstIndex(where: { $0.id == id }) {
+            tasks[index] = updated
+        }
+        AiTaskDraftDisk.remove(taskId: id)
+        return updated
     }
 }

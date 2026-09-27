@@ -62,6 +62,21 @@ enum class RecipeField(
     COOKED_WEIGHT("cookedWeight"),
 }
 
+/**
+ * Clearable fields of `AiTaskUpdate`. `description`, `mealType` and `eatenAt` are all
+ * optional-and-nullable in `aiTaskUpdateSchema`, so editing a task can remove its meal
+ * type or eaten time (and empty its description, as long as a photo remains) rather
+ * than only ever replacing them. `date` and `photoUrls` cannot be cleared — a task
+ * always needs a date, and an emptied photo set is sent as `[]`, not `null`.
+ */
+enum class AiTaskField(
+    override val jsonKey: String,
+) : ClearableField {
+    DESCRIPTION("description"),
+    MEAL_TYPE("mealType"),
+    EATEN_AT("eatenAt"),
+}
+
 /** Clearable fields of the `DayPropertiesSet` body the day-properties PUT sends. */
 enum class DayPropertiesField(
     override val jsonKey: String,

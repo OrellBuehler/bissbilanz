@@ -184,6 +184,22 @@ final class AiTaskProcessor {
                 pendingFoods[key] = pendingFoodCreate
             }
 
+            // The user may have edited the task (AiTaskEditSheet) while this
+            // whole pipeline — photo downloads, on-device model calls — was
+            // running. That edit already dropped any stale draft on disk
+            // (AiTaskStore.update); discard this run's result rather than
+            // dismissing or completing the task on the strength of its
+            // pre-edit description/photos. Checked before the "nothing
+            // loggable" branch below too — an edit can be exactly what turns
+            // an empty result non-empty (or vice versa).
+            guard isStillCurrent(task) else {
+                ErrorReporter.addBreadcrumb(
+                    "AiTaskProcessor: task changed during processing, discarding result",
+                    category: "ai_task"
+                )
+                return
+            }
+
             guard !items.isEmpty else {
                 await dismiss(task, reason: L10n.aiTaskProcessorNothingFoundReason, source: estimate.source)
                 return
@@ -214,6 +230,20 @@ final class AiTaskProcessor {
                 "reason": ErrorReporter.reason(for: error),
             ])
         }
+    }
+
+    /// Whether `task`'s content still matches what `aiTaskStore` currently
+    /// knows about it — false once `AiTaskEditSheet` (or anything else) has
+    /// changed the description/photos/date/meal/time since this run started.
+    /// A task no longer in the list at all (deleted, or resolved elsewhere in
+    /// the meantime) is likewise treated as no longer current.
+    private func isStillCurrent(_ task: AiTask) -> Bool {
+        guard let current = aiTaskStore.tasks.first(where: { $0.id == task.id }) else { return false }
+        return current.description == task.description
+            && current.photoUrls == task.photoUrls
+            && current.date == task.date
+            && current.mealType == task.mealType
+            && current.eatenAt == task.eatenAt
     }
 
     private func resolveBarcode(_ barcode: String) async throws -> Food? {

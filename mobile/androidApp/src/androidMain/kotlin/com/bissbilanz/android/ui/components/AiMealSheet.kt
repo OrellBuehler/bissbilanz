@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -43,16 +44,24 @@ import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.toJpegBytes
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskUpdate
+import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.util.AiTaskField
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.mealTypes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /** Mirrors MAX_AI_TASK_PHOTOS on the server. */
 private const val MAX_AI_TASK_PHOTOS = 5
@@ -63,20 +72,28 @@ private const val MAX_AI_TASK_PHOTOS = 5
  * "send to assistant" half of the iOS AIMealSheet; iOS additionally estimates
  * on-device via Apple's Foundation Models, which has no Android counterpart
  * that ships on the same devices.
+ *
+ * Passing [task] switches the sheet to edit mode for that still-open task instead:
+ * the same fields, prefilled, PATCHing the task on save rather than queuing a new
+ * one. [date] is only used to seed a new task and is ignored once [task] is set.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiMealSheet(
     date: String,
+    task: AiTask? = null,
     onDismiss: () -> Unit,
-    onQueued: () -> Unit,
+    onQueued: () -> Unit = {},
+    onSaved: () -> Unit = {},
 ) {
     val errorReporter: ErrorReporter = koinInject()
+    val aiTaskRepo: AiTaskRepository = koinInject()
     val api: BissbilanzApi = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isEditing = task != null
 
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
     val processorIsDevice = prefs?.aiTaskProcessor?.value == "device"
@@ -94,21 +111,34 @@ fun AiMealSheet(
     }
     val canProcess = processorIsDevice || mcpConnected
 
-    var description by remember { mutableStateOf("") }
-    var mealType by remember { mutableStateOf(mealTypes.first()) }
+    var description by remember(task?.id) { mutableStateOf(task?.description ?: "") }
+    var mealType by remember(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
     var mealMenuOpen by remember { mutableStateOf(false) }
-    // Unset means "when I sent it": the server stamps its own clock on a task
-    // for today and leaves a back-dated one to the assistant.
-    var eatenHour by remember { mutableStateOf<Int?>(null) }
-    var eatenMinute by remember { mutableStateOf<Int?>(null) }
+    var selectedDate by remember(task?.id) { mutableStateOf(task?.date ?: date) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val initialEatenLocal =
+        remember(task?.id) {
+            task?.eatenAt?.let {
+                runCatching { Instant.parse(it).toLocalDateTime(TimeZone.currentSystemDefault()) }.getOrNull()
+            }
+        }
+    // Unset means "when I sent it" on creation, or "no specific time" on an edit: the
+    // server stamps its own clock on a task for today and leaves a back-dated one to
+    // the assistant.
+    var eatenHour by remember(task?.id) { mutableStateOf(initialEatenLocal?.hour) }
+    var eatenMinute by remember(task?.id) { mutableStateOf(initialEatenLocal?.minute) }
     var showTimePicker by remember { mutableStateOf(false) }
-    val attached = remember { mutableStateListOf<Bitmap>() }
+    val existingPhotoUrls =
+        remember(task?.id) { mutableStateListOf<String>().apply { task?.photoUrls?.let(::addAll) } }
+    val attached = remember(task?.id) { mutableStateListOf<Bitmap>() }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cameraPermanentlyDenied by remember { mutableStateOf(false) }
 
     val sendFailed = stringResource(R.string.ai_task_send_failed)
+    val saveFailed = stringResource(R.string.ai_task_save_failed)
+    val totalPhotoCount = existingPhotoUrls.size + attached.size
 
     val pickMedia =
         rememberLauncherForActivityResult(
@@ -116,7 +146,7 @@ fun AiMealSheet(
         ) { uris ->
             if (uris.isNotEmpty()) {
                 scope.launch {
-                    val room = MAX_AI_TASK_PHOTOS - attached.size
+                    val room = MAX_AI_TASK_PHOTOS - totalPhotoCount
                     val decoded =
                         withContext(Dispatchers.IO) {
                             uris.take(room).mapNotNull { decodeUprightBitmap(context, it) }
@@ -140,7 +170,7 @@ fun AiMealSheet(
                 cameraPermanentlyDenied = false
                 scope.launch {
                     val decoded = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) }
-                    if (decoded != null && attached.size < MAX_AI_TASK_PHOTOS) attached.add(decoded)
+                    if (decoded != null && totalPhotoCount < MAX_AI_TASK_PHOTOS) attached.add(decoded)
                 }
             } else {
                 cameraPermanentlyDenied =
@@ -149,7 +179,40 @@ fun AiMealSheet(
             }
         }
 
-    val canSend = (description.isNotBlank() || attached.isNotEmpty()) && canProcess
+    val canSend = (description.isNotBlank() || totalPhotoCount > 0) && (isEditing || canProcess)
+
+    if (showDatePicker) {
+        val initialMillis =
+            runCatching { LocalDate.parse(selectedDate).toEpochDays().toLong() * 86_400_000L }
+                .getOrDefault(
+                    Clock.System
+                        .todayIn(TimeZone.currentSystemDefault())
+                        .toEpochDays()
+                        .toLong() * 86_400_000L,
+                )
+        val dateState = rememberDatePickerState(initialSelectedDateMillis = initialMillis, yearRange = 1900..2100)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        dateState.selectedDateMillis?.let { millis ->
+                            selectedDate =
+                                Instant
+                                    .fromEpochMilliseconds(millis)
+                                    .toLocalDateTime(TimeZone.UTC)
+                                    .date
+                                    .toString()
+                        }
+                        showDatePicker = false
+                    },
+                ) { Text(stringResource(R.string.dialog_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        ) { DatePicker(state = dateState) }
+    }
 
     if (showTimePicker) {
         val nowLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -197,18 +260,20 @@ fun AiMealSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                stringResource(R.string.ai_task_title),
+                if (isEditing) stringResource(R.string.ai_task_edit_title) else stringResource(R.string.ai_task_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                stringResource(
-                    if (processorIsDevice) R.string.ai_task_subtitle_device else R.string.ai_task_subtitle,
-                ),
+                when {
+                    isEditing -> stringResource(R.string.ai_task_edit_subtitle)
+                    processorIsDevice -> stringResource(R.string.ai_task_subtitle_device)
+                    else -> stringResource(R.string.ai_task_subtitle)
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (!processorIsDevice && !mcpConnected) {
+            if (!isEditing && !processorIsDevice && !mcpConnected) {
                 Text(
                     stringResource(R.string.ai_task_mcp_not_connected),
                     style = MaterialTheme.typography.bodySmall,
@@ -216,12 +281,13 @@ fun AiMealSheet(
                 )
             }
 
+            val noSpecificMeal = stringResource(R.string.ai_task_meal_none)
             ExposedDropdownMenuBox(
                 expanded = mealMenuOpen,
                 onExpandedChange = { mealMenuOpen = it },
             ) {
                 OutlinedTextField(
-                    value = mealTypeDisplayName(mealType),
+                    value = mealType?.let { mealTypeDisplayName(it) } ?: noSpecificMeal,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.meal_picker_meal_label)) },
@@ -229,6 +295,17 @@ fun AiMealSheet(
                     modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = mealMenuOpen, onDismissRequest = { mealMenuOpen = false }) {
+                    // Only an existing task can be edited into having no meal type; a new
+                    // task always gets one of the four defaults, same as before.
+                    if (isEditing) {
+                        DropdownMenuItem(
+                            text = { Text(noSpecificMeal) },
+                            onClick = {
+                                mealType = null
+                                mealMenuOpen = false
+                            },
+                        )
+                    }
                     mealTypes.forEach { meal ->
                         DropdownMenuItem(
                             text = { Text(mealTypeDisplayName(meal)) },
@@ -241,10 +318,24 @@ fun AiMealSheet(
                 }
             }
 
+            if (isEditing) {
+                Text(stringResource(R.string.ai_task_date_label), style = MaterialTheme.typography.labelLarge)
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        runCatching { LocalDate.parse(selectedDate) }.getOrNull()?.let { dayLabel(it) } ?: selectedDate,
+                    )
+                }
+            }
+
             // The picker only shows a clock, and the sheet can be open for
             // yesterday's day card after midnight — name the day the time lands on.
-            val parsedDate = remember(date) { runCatching { LocalDate.parse(date) }.getOrNull() }
-            val dayName = parsedDate?.let { dayLabel(it) } ?: date
+            val parsedDate = remember(selectedDate) { runCatching { LocalDate.parse(selectedDate) }.getOrNull() }
+            val dayName = parsedDate?.let { dayLabel(it) } ?: selectedDate
             Text(
                 stringResource(
                     R.string.ai_task_time_day_label,
@@ -276,6 +367,8 @@ fun AiMealSheet(
             Text(
                 if (eatenHour != null) {
                     stringResource(R.string.ai_task_time_on_day_hint, dayName)
+                } else if (isEditing) {
+                    stringResource(R.string.ai_task_time_hint_edit)
                 } else {
                     stringResource(R.string.ai_task_time_hint)
                 },
@@ -292,6 +385,31 @@ fun AiMealSheet(
                 minLines = 3,
                 maxLines = 8,
             )
+
+            if (existingPhotoUrls.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(existingPhotoUrls.toList()) { url ->
+                        Box {
+                            FoodImage(
+                                imageUrl = url,
+                                contentDescription = null,
+                                modifier = Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                            FilledTonalIconButton(
+                                onClick = { existingPhotoUrls.remove(url) },
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    stringResource(R.string.ai_task_remove_photo),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             if (attached.isNotEmpty()) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -321,7 +439,7 @@ fun AiMealSheet(
                 }
             }
 
-            if (attached.size < MAX_AI_TASK_PHOTOS) {
+            if (totalPhotoCount < MAX_AI_TASK_PHOTOS) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = {
@@ -388,27 +506,51 @@ fun AiMealSheet(
                         errorMessage = null
                         scope.launch {
                             try {
-                                // Only the encoding happens here; the upload itself is
-                                // WorkManager's, so closing the sheet or the app does
-                                // not lose the meal.
-                                withContext(Dispatchers.IO) {
-                                    val bytes = attached.map { it.toJpegBytes() }
-                                    AiTaskUploadWorker.enqueue(
-                                        context = context,
-                                        date = date,
-                                        description = description.trim().ifBlank { null },
-                                        mealType = mealType,
-                                        eatenAt = buildEatenAt(date, eatenHour, eatenMinute),
-                                        photos = bytes,
-                                    )
+                                if (isEditing) {
+                                    val currentTask = requireNotNull(task)
+                                    // Uploaded first, same as a new task's photos — the PATCH
+                                    // that follows carries only the final URLs.
+                                    val newPhotos =
+                                        withContext(Dispatchers.IO) {
+                                            attached.mapIndexed { index, bitmap -> "meal_$index.jpg" to bitmap.toJpegBytes() }
+                                        }
+                                    val uploadedUrls =
+                                        if (newPhotos.isNotEmpty()) aiTaskRepo.uploadPhotos(newPhotos) else emptyList()
+                                    val diff =
+                                        buildAiTaskUpdate(
+                                            original = currentTask,
+                                            description = description.trim().ifBlank { null },
+                                            mealType = mealType,
+                                            date = selectedDate,
+                                            eatenAt = buildEatenAt(selectedDate, eatenHour, eatenMinute),
+                                            photoUrls = existingPhotoUrls.toList() + uploadedUrls,
+                                        )
+                                    aiTaskRepo.update(currentTask.id, diff.update, diff.clearedKeys.jsonKeys())
+                                    isSending = false
+                                    onSaved()
+                                } else {
+                                    // Only the encoding happens here; the upload itself is
+                                    // WorkManager's, so closing the sheet or the app does
+                                    // not lose the meal.
+                                    withContext(Dispatchers.IO) {
+                                        val bytes = attached.map { it.toJpegBytes() }
+                                        AiTaskUploadWorker.enqueue(
+                                            context = context,
+                                            date = date,
+                                            description = description.trim().ifBlank { null },
+                                            mealType = mealType,
+                                            eatenAt = buildEatenAt(date, eatenHour, eatenMinute),
+                                            photos = bytes,
+                                        )
+                                    }
+                                    isSending = false
+                                    onQueued()
                                 }
-                                isSending = false
-                                onQueued()
                             } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
+                                if (e is CancellationException) throw e
                                 errorReporter.captureException(e)
                                 isSending = false
-                                errorMessage = sendFailed
+                                errorMessage = if (isEditing) saveFailed else sendFailed
                             }
                         }
                     },
@@ -418,11 +560,15 @@ fun AiMealSheet(
                     if (isSending) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.ai_task_sending))
+                        Text(stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending))
                     } else {
                         Text(
                             stringResource(
-                                if (processorIsDevice) R.string.ai_task_send_device else R.string.ai_task_send,
+                                when {
+                                    isEditing -> R.string.weight_save
+                                    processorIsDevice -> R.string.ai_task_send_device
+                                    else -> R.string.ai_task_send
+                                },
                             ),
                         )
                     }
@@ -430,4 +576,51 @@ fun AiMealSheet(
             }
         }
     }
+}
+
+/** What [buildAiTaskUpdate] computed: the PATCH body plus the fields it deliberately clears. */
+internal data class AiTaskEditDiff(
+    val update: AiTaskUpdate,
+    val clearedKeys: Set<AiTaskField>,
+)
+
+/**
+ * Diffs the edited fields against [original] so the PATCH sent to the server carries
+ * only what actually changed. A field the user cleared — no meal type, no eaten time,
+ * or (with a photo left to satisfy the task) no description — has to travel as an
+ * explicit JSON `null` rather than being merely absent, which [AiTaskField] and
+ * [com.bissbilanz.util.encodePartialUpdate] read as "leave it alone". `photoUrls` is
+ * always the full replacement list, never a clear, since the server does not accept a
+ * null there.
+ */
+internal fun buildAiTaskUpdate(
+    original: AiTask,
+    description: String?,
+    mealType: String?,
+    date: String,
+    eatenAt: String?,
+    photoUrls: List<String>,
+): AiTaskEditDiff {
+    val descriptionChanged = description != original.description
+    val mealTypeChanged = mealType != original.mealType
+    val dateChanged = date != original.date
+    val eatenAtChanged = eatenAt != original.eatenAt
+    val photoUrlsChanged = photoUrls != original.photoUrls
+
+    val clearedKeys =
+        buildSet {
+            if (descriptionChanged && description == null) add(AiTaskField.DESCRIPTION)
+            if (mealTypeChanged && mealType == null) add(AiTaskField.MEAL_TYPE)
+            if (eatenAtChanged && eatenAt == null) add(AiTaskField.EATEN_AT)
+        }
+
+    val update =
+        AiTaskUpdate(
+            description = description.takeIf { descriptionChanged },
+            photoUrls = photoUrls.takeIf { photoUrlsChanged },
+            date = date.takeIf { dateChanged },
+            mealType = mealType.takeIf { mealTypeChanged },
+            eatenAt = eatenAt.takeIf { eatenAtChanged },
+        )
+    return AiTaskEditDiff(update, clearedKeys)
 }

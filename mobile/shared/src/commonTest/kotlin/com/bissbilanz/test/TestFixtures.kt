@@ -1,5 +1,6 @@
 package com.bissbilanz.test
 
+import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.Entry
@@ -54,6 +55,33 @@ object TestFixtures {
             fatGoal = 65.0,
             fiberGoal = 30.0,
         )
+
+    fun aiTask(
+        id: String = "task-1",
+        status: AiTask.Status = AiTask.Status.pending,
+        description: String? = "Oatmeal with banana",
+        photoUrls: List<String> = emptyList(),
+        date: String = "2024-01-15",
+        mealType: String? = "Breakfast",
+        eatenAt: String? = null,
+    ) = AiTask(
+        id = id,
+        userId = "user-1",
+        status = status,
+        description = description,
+        photoUrl = null,
+        photoUrls = photoUrls,
+        date = date,
+        mealType = mealType,
+        eatenAt = eatenAt,
+        source = "android",
+        resultSummary = null,
+        createdEntryIds = null,
+        completedAt = null,
+        dismissedAt = null,
+        acknowledgedAt = null,
+        processedBy = null,
+    )
 
     fun offProduct(
         barcode: String = "4000000000001",
