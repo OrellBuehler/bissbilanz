@@ -166,6 +166,7 @@ enum ErrorReporter {
         case let .serverError(code, _): return "server_error_\(code)"
         case let .networkError(underlying): return reason(for: underlying)
         case let .decodingError(_, statusCode, _): return "decoding_error_\(statusCode)"
+        case let .updateRequired(minVersion): return "update_required_\(minVersion)"
         case nil: return "other: \(error.localizedDescription)"
         }
     }
@@ -224,6 +225,10 @@ enum ErrorReporter {
         case .conflict:
             // Last-write-wins resolved an offline edit — an expected sync outcome
             // surfaced to the user, not worth a Sentry report.
+            return true
+        case .updateRequired:
+            // Expected once the version gate trips — the blocking screen is the
+            // real signal, not a defect worth a Sentry issue per old-version user.
             return true
         case .badRequest, .serverError, .decodingError, nil:
             return false
