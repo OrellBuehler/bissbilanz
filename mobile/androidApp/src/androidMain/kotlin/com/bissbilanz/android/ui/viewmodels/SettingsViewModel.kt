@@ -185,6 +185,30 @@ class SettingsViewModel(
         }
     }
 
+    fun updateAiTaskProcessor(value: GenPreferencesUpdate.AiTaskProcessor) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(aiTaskProcessor = value))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
+    fun updateAiTaskAutoLog(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                prefsRepo.updatePreferences(PreferencesUpdate(aiTaskAutoLog = enabled))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+            }
+        }
+    }
+
     fun updateVisibleNutrients(nutrients: List<String>) {
         viewModelScope.launch {
             try {

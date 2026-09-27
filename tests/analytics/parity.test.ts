@@ -37,6 +37,7 @@ import { detectFoodSleepPatterns } from '../../src/lib/analytics/food-sleep';
 import { getConfidenceLevel } from '../../src/lib/analytics/correlation';
 import { localMinutesOfDay } from '../../src/lib/analytics/local-time';
 import { nullDiv, nullSum } from '../../src/lib/analytics/aggregation';
+import { classifyGoalOutcome } from '../../src/lib/analytics/goal-adherence';
 
 /**
  * Cross-language golden-vector parity. The same frozen fixtures are asserted by
@@ -132,6 +133,8 @@ function runFn(fn: string, input: any): unknown {
 			return localMinutesOfDay(input.isoString, input.timeZone);
 		case 'nullDiv':
 			return nullDiv(input.a, input.b);
+		case 'classifyGoalOutcome':
+			return classifyGoalOutcome(input.rule, input.value, input.goal);
 		case 'nullSum':
 			return nullSum(input.values);
 		default:

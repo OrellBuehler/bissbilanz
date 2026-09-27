@@ -7039,6 +7039,13 @@
 						"minimum": 0,
 						"maximum": 100
 					},
+					"aiTaskProcessor": {
+						"type": "string",
+						"enum": ["assistant", "device"]
+					},
+					"aiTaskAutoLog": {
+						"type": "boolean"
+					},
 					"timeZone": {
 						"type": "string",
 						"maxLength": 64
@@ -7258,6 +7265,10 @@
 					},
 					"acknowledged": {
 						"type": "boolean"
+					},
+					"processedBy": {
+						"type": "string",
+						"enum": ["assistant", "on_device", "private_cloud"]
 					}
 				}
 			},
@@ -10656,6 +10667,13 @@
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
 					},
+					"aiTaskProcessor": {
+						"type": "string",
+						"enum": ["assistant", "device"]
+					},
+					"aiTaskAutoLog": {
+						"type": "boolean"
+					},
 					"locale": {
 						"type": ["string", "null"]
 					},
@@ -10692,6 +10710,8 @@
 					"waterGoalMl",
 					"activityGoalAdjustment",
 					"activityCreditPercent",
+					"aiTaskProcessor",
+					"aiTaskAutoLog",
 					"locale",
 					"timeZone",
 					"favoriteMealTimeframes"
@@ -11476,6 +11496,17 @@
 					"acknowledgedAt": {
 						"type": ["string", "null"]
 					},
+					"processedBy": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["assistant", "on_device", "private_cloud"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -11498,7 +11529,8 @@
 					"createdEntryIds",
 					"completedAt",
 					"dismissedAt",
-					"acknowledgedAt"
+					"acknowledgedAt",
+					"processedBy"
 				],
 				"additionalProperties": false
 			},

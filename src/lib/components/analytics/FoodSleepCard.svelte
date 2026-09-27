@@ -77,6 +77,7 @@
 	headline={m.analytics_food_sleep_headline()}
 	{confidence}
 	{sampleSize}
+	sampleUnit="nights"
 	borderColor="border-purple-500"
 >
 	{#snippet children()}

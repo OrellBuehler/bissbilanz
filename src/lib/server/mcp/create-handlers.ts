@@ -1573,20 +1573,37 @@ export function createHandlers(d: HandlerDeps) {
 		createdEntryIds: task.createdEntryIds,
 		createdAt: task.createdAt,
 		completedAt: task.completedAt,
-		dismissedAt: task.dismissedAt
+		dismissedAt: task.dismissedAt,
+		processedBy: task.processedBy
 	});
+
+	// Shown once, above the task list, when the user has routed queued tasks to
+	// their iPhone — so an assistant that gets asked to "check my tasks" doesn't
+	// silently double-log meals the phone is already handling on its own.
+	const DEVICE_PROCESSOR_NOTE =
+		"The user has routed queued tasks to their iPhone's on-device model, so do not process them unless the user explicitly asks in this conversation.";
 
 	const handleListAiTasks = async (
 		userId: string,
 		args: { status?: AiTaskStatus; limit?: number; offset?: number }
 	) => {
 		try {
+			const status = args.status ?? 'pending';
 			const { tasks, total } = await d.listAiTasks(userId, {
-				status: args.status ?? 'pending',
+				status,
 				limit: args.limit,
 				offset: args.offset
 			});
-			return { tasks: tasks.map(serializeAiTask), total };
+
+			let note: string | undefined;
+			if (status === 'pending') {
+				const preferences = await d.getPreferences(userId);
+				if (preferences?.aiTaskProcessor === 'device') {
+					note = DEVICE_PROCESSOR_NOTE;
+				}
+			}
+
+			return { ...(note ? { note } : {}), tasks: tasks.map(serializeAiTask), total };
 		} catch (e) {
 			wrapError('list ai tasks', e);
 		}
@@ -1640,7 +1657,8 @@ export function createHandlers(d: HandlerDeps) {
 			const result = await d.updateAiTask(userId, args.id, {
 				status: 'completed',
 				resultSummary: args.resultSummary,
-				createdEntryIds: args.entryIds
+				createdEntryIds: args.entryIds,
+				processedBy: 'assistant'
 			});
 			if (!result.success) return errorPayload(result.error);
 			if (!result.data) return { error: 'AI task not found' };
@@ -1654,7 +1672,7 @@ export function createHandlers(d: HandlerDeps) {
 		try {
 			// Not updateAiTask: an agent dismissal must stay unacknowledged so the user
 			// gets told about it, whereas a dismissal they tapped themselves does not.
-			const result = await d.dismissAiTaskByAgent(userId, args.id, args.reason);
+			const result = await d.dismissAiTaskByAgent(userId, args.id, args.reason, 'assistant');
 			if (!result.success) return errorPayload(result.error);
 			if (!result.data) return { error: 'AI task not found' };
 			return { success: true, task: serializeAiTask(result.data) };

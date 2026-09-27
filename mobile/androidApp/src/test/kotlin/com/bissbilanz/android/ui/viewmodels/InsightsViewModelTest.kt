@@ -12,6 +12,7 @@ import com.bissbilanz.model.SleepEntry
 import com.bissbilanz.model.SleepFoodCorrelationEntry
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.repository.GoalsRepository
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
 import com.bissbilanz.storage.KeyValueStore
@@ -93,7 +94,18 @@ class InsightsViewModelTest {
     }
 
     private fun createViewModel() =
-        InsightsViewModel(statsRepo, goalsRepo, sleepRepo, errorReporter, analyticsRepo, appModeManager, SavedStateHandle())
+        InsightsViewModel(
+            statsRepo,
+            goalsRepo,
+            sleepRepo,
+            errorReporter,
+            analyticsRepo,
+            appModeManager,
+            SavedStateHandle(),
+            mockk<PreferencesRepository>(relaxed = true) {
+                every { preferences() } returns MutableStateFlow(null)
+            },
+        )
 
     @Test
     fun loadSleepDataCallsRefreshOnRepository() =

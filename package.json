@@ -21,7 +21,7 @@
 		"test:watch": "bun run paraglide:compile && bun --bun vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"store:screenshots": "bun store/promo/render.ts",
-		"test:integration-db": "bun --bun vitest run --config vitest.integration.config.ts",
+		"test:integration-db": "bun run paraglide:compile && bun --bun vitest run --config vitest.integration.config.ts",
 		"security": "./scripts/security/scan-all.sh",
 		"api:spec": "bun run scripts/generate-openapi.ts",
 		"api:client:ts": "bunx openapi-typescript docs/openapi.json -o src/lib/api/generated/schema.d.ts",

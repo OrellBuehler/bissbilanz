@@ -37,6 +37,11 @@ struct FoodSearchView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
+    /// Multi-select for merging: checkmarks on the left of every list, and a
+    /// merge button pinned to the bottom once two or more are picked.
+    @State private var isSelecting = false
+    @State private var selectedIds: Set<String> = []
+    @State private var mergeCandidates: FoodMergeCandidates?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -66,65 +71,39 @@ struct FoodSearchView: View {
                     .tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .environment(\.editMode, .constant(isSelecting ? .active : .inactive))
+        }
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting {
+                mergeSelectionButton
+            }
         }
         .navigationTitle(L10n.foods)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                if date != nil {
+                if isSelecting {
+                    Button(L10n.cancel) { endSelection() }
+                } else if date != nil {
                     Button(L10n.close) { dismiss() }
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 12) {
-                    // Duplicate detection is a server-side computation — no
-                    // account, no server to scan (mirrors AIMealSheet's
-                    // `!appMode.isLocal` gating on other account-only actions).
-                    if date == nil, !appMode.isLocal {
-                        NavigationLink {
-                            FoodDuplicatesView()
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                        }
-                        .accessibilityLabel(L10n.foodsDuplicatesViewAll)
-
-                        // Food packages are built and read by the server, so
-                        // they share the duplicates finder's account-only gate.
-                        Menu {
-                            Button {
-                                showShareFoods = true
-                            } label: {
-                                Label(L10n.foodPackageShareFoods, systemImage: "square.and.arrow.up")
-                            }
-                            Button {
-                                showImportPackage = true
-                            } label: {
-                                Label(L10n.foodPackageImport, systemImage: "square.and.arrow.down")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                        .accessibilityLabel(L10n.foodPackageShare)
-                    }
-
-                    // A single + presents a menu: foods and recipes are both
-                    // created from here, so the Settings "quick actions" duplicates
-                    // are gone and the Foods tab is the one place to add either.
-                    Menu {
-                        Button {
-                            showCreateFood = true
-                        } label: {
-                            Label(L10n.createFood, systemImage: "fork.knife")
-                        }
-                        Button {
-                            showCreateRecipe = true
-                        } label: {
-                            Label(L10n.createRecipe, systemImage: "book")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(L10n.create)
+                if !isSelecting {
+                    toolbarActions
+                }
+            }
+        }
+        .sheet(item: $mergeCandidates) { candidates in
+            FoodMergeSheet(candidates: candidates) { merged in
+                endSelection()
+                toastMessage = L10n.foodsMergeSuccess
+                foodUpdated(merged)
+                Task {
+                    await loadAll()
+                    await loadRecent()
+                    await loadFavorites()
+                    await search(query)
                 }
             }
         }
@@ -188,6 +167,114 @@ struct FoodSearchView: View {
         }
     }
 
+    /// Rows are logging buttons outside select mode, so the lists only take
+    /// selection writes while it is on.
+    private var selection: Binding<Set<String>> {
+        Binding(get: { selectedIds }, set: { if isSelecting { selectedIds = $0 } })
+    }
+
+    private var canMerge: Bool {
+        date == nil && !appMode.isLocal
+    }
+
+    private var toolbarActions: some View {
+        HStack(spacing: 12) {
+            // Duplicate detection and merging are server-side — no account,
+            // no server to scan or merge on (mirrors AIMealSheet's
+            // `!appMode.isLocal` gating on other account-only actions).
+            if canMerge {
+                Button {
+                    isSelecting = true
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                }
+                .accessibilityLabel(L10n.foodsSelect)
+
+                NavigationLink {
+                    FoodDuplicatesView()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .accessibilityLabel(L10n.foodsDuplicatesViewAll)
+
+                // Food packages are built and read by the server, so they
+                // share the same account-only gate.
+                Menu {
+                    Button {
+                        showShareFoods = true
+                    } label: {
+                        Label(L10n.foodPackageShareFoods, systemImage: "square.and.arrow.up")
+                    }
+                    Button {
+                        showImportPackage = true
+                    } label: {
+                        Label(L10n.foodPackageImport, systemImage: "square.and.arrow.down")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel(L10n.foodPackageShare)
+            }
+
+            // A single + presents a menu: foods and recipes are both
+            // created from here, so the Settings "quick actions" duplicates
+            // are gone and the Foods tab is the one place to add either.
+            Menu {
+                Button {
+                    showCreateFood = true
+                } label: {
+                    Label(L10n.createFood, systemImage: "fork.knife")
+                }
+                Button {
+                    showCreateRecipe = true
+                } label: {
+                    Label(L10n.createRecipe, systemImage: "book")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
+            .accessibilityLabel(L10n.create)
+        }
+    }
+
+    /// The server merges up to 20 sources into one keeper.
+    private static let maxMergeSelection = 21
+
+    private var mergeSelectionButton: some View {
+        let count = selectedIds.count
+        return Button {
+            openMergeForSelection()
+        } label: {
+            Label(
+                count >= 2 ? L10n.foodsMergeSelected(count) : L10n.foodsSelectToMerge,
+                systemImage: "arrow.triangle.merge"
+            )
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .disabled(count < 2 || count > Self.maxMergeSelection)
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+
+    private func endSelection() {
+        isSelecting = false
+        selectedIds = []
+    }
+
+    /// Resolves the selected ids from whichever lists loaded them (the local
+    /// store as a fallback for rows paged out since) and opens the review.
+    private func openMergeForSelection() {
+        let loaded = allFoods + searchResults + recentFoods + favoriteFoods
+        let byId = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let foods = selectedIds
+            .compactMap { byId[$0] ?? foodRepository.food(id: $0) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        guard foods.count >= 2 else { return }
+        mergeCandidates = FoodMergeCandidates(foods: foods)
+    }
+
     /// The catalog, alphabetical and paged in as the user scrolls, until two
     /// characters are typed — then the server search (with its Open Food
     /// Facts fallback) takes over, so this one tab covers both browsing and
@@ -210,7 +297,7 @@ struct FoodSearchView: View {
                         )
                     }
                 } else {
-                    List {
+                    List(selection: selection) {
                         ForEach(items) { food in
                             foodRow(food)
                                 .onAppear {
@@ -236,11 +323,13 @@ struct FoodSearchView: View {
                     description: Text("\(L10n.noResults): \"\(query)\"")
                 )
             } else {
-                List {
+                List(selection: selection) {
                     ForEach(searchResults) { food in
                         foodRow(food)
                     }
-                    if isSearchingOff || !offResults.isEmpty {
+                    // Open Food Facts hits aren't in the user's database yet,
+                    // so there is nothing to merge them with.
+                    if !isSelecting, isSearchingOff || !offResults.isEmpty {
                         Section(L10n.openFoodFacts) {
                             if isSearchingOff {
                                 HStack {
@@ -350,8 +439,10 @@ struct FoodSearchView: View {
                     )
                 }
             } else {
-                List(items) { food in
-                    foodRow(food)
+                List(selection: selection) {
+                    ForEach(items) { food in
+                        foodRow(food)
+                    }
                 }
                 .listStyle(.plain)
             }
@@ -376,57 +467,77 @@ struct FoodSearchView: View {
                     )
                 }
             } else {
-                List(items) { food in
-                    foodRow(food)
+                List(selection: selection) {
+                    ForEach(items) { food in
+                        foodRow(food)
+                    }
                 }
                 .listStyle(.plain)
             }
         }
     }
 
+    /// While selecting, a row is just its content: the list's own selection
+    /// handles taps, and the log button and context menu would compete with it.
+    @ViewBuilder
     private func foodRow(_ food: Food) -> some View {
+        if isSelecting {
+            foodRowContent(food)
+                .contentShape(Rectangle())
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(foodAccessibilityLabel(food))
+        } else {
+            actionableFoodRow(food)
+        }
+    }
+
+    private func foodRowContent(_ food: Food) -> some View {
+        HStack {
+            if food.imageUrl != nil {
+                FoodImageView(imageUrl: food.imageUrl)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(food.name)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    Text("\(Int(food.calories)) cal")
+                        .foregroundStyle(accessibleColor(.calories))
+                    Text("\u{00B7}")
+                        .foregroundStyle(.secondary)
+                    Text("P\(Int(food.protein))")
+                        .foregroundStyle(accessibleColor(.protein))
+                    Text("C\(Int(food.carbs))")
+                        .foregroundStyle(accessibleColor(.carbs))
+                    Text("F\(Int(food.fat))")
+                        .foregroundStyle(accessibleColor(.fat))
+                }
+                .font(.caption)
+            }
+            Spacer()
+            if let brand = food.brand {
+                Text(brand)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            if food.isFavorite {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func actionableFoodRow(_ food: Food) -> some View {
         HStack {
             Button {
                 selectedFood = food
             } label: {
-                HStack {
-                    if food.imageUrl != nil {
-                        FoodImageView(imageUrl: food.imageUrl)
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .accessibilityHidden(true)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(food.name)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                        HStack(spacing: 4) {
-                            Text("\(Int(food.calories)) cal")
-                                .foregroundStyle(accessibleColor(.calories))
-                            Text("\u{00B7}")
-                                .foregroundStyle(.secondary)
-                            Text("P\(Int(food.protein))")
-                                .foregroundStyle(accessibleColor(.protein))
-                            Text("C\(Int(food.carbs))")
-                                .foregroundStyle(accessibleColor(.carbs))
-                            Text("F\(Int(food.fat))")
-                                .foregroundStyle(accessibleColor(.fat))
-                        }
-                        .font(.caption)
-                    }
-                    Spacer()
-                    if let brand = food.brand {
-                        Text(brand)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    if food.isFavorite {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                            .accessibilityHidden(true)
-                    }
-                }
+                foodRowContent(food)
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
@@ -465,6 +576,14 @@ struct FoodSearchView: View {
                     food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites,
                     systemImage: food.isFavorite ? "star.slash" : "star"
                 )
+            }
+            if canMerge {
+                Button {
+                    selectedIds = [food.id]
+                    isSelecting = true
+                } label: {
+                    Label(L10n.foodsSelect, systemImage: "checkmark.circle")
+                }
             }
         }
     }

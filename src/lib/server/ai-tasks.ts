@@ -1,5 +1,5 @@
 import { getDB } from '$lib/server/db';
-import { aiTasks, aiTaskStatusValues } from '$lib/server/schema';
+import { aiTasks, aiTaskStatusValues, type AiTaskProcessedBy } from '$lib/server/schema';
 import { MAX_AI_TASK_PHOTOS, aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
@@ -173,8 +173,11 @@ export const updateAiTask = async (
 				// A dismissal arriving here came from the user's own tap in the web or
 				// mobile UI, so there is nothing to tell them about. Only the MCP path
 				// (dismissAiTaskByAgent) leaves acknowledgedAt null.
+				// A device processor dismissing through this same PATCH path (it carries
+				// processedBy) behaves like dismissAiTaskByAgent below: the user has not
+				// seen the outcome yet, so acknowledgedAt stays null.
 				...(columns.status === 'dismissed'
-					? { dismissedAt: new Date(), acknowledgedAt: new Date() }
+					? { dismissedAt: new Date(), acknowledgedAt: columns.processedBy ? null : new Date() }
 					: {}),
 				...(acknowledged === undefined ? {} : { acknowledgedAt: acknowledged ? new Date() : null }),
 				updatedAt: lwwStamp(clientEditedAt)
@@ -201,7 +204,8 @@ export const updateAiTask = async (
 export const dismissAiTaskByAgent = async (
 	userId: string,
 	id: string,
-	reason: string
+	reason: string,
+	processedBy: AiTaskProcessedBy = 'assistant'
 ): Promise<Result<typeof aiTasks.$inferSelect | undefined>> => {
 	try {
 		const db = getDB();
@@ -213,6 +217,7 @@ export const dismissAiTaskByAgent = async (
 				resultSummary: reason,
 				dismissedAt: now,
 				acknowledgedAt: null,
+				processedBy,
 				updatedAt: now
 			})
 			.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
