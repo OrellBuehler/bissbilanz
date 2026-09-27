@@ -23,6 +23,8 @@ bunx prettier --write docs/openapi.json docs/mcp-tools.json src/lib/api/generate
 
 if [ -n "$(git status --porcelain -- "${GENERATED[@]}")" ]; then
 	git status --short -- "${GENERATED[@]}"
+	git diff --stat -- "${GENERATED[@]}" | tail -3
+	git diff -- "${GENERATED[@]}" | head -60
 	echo "::error::Generated API artifacts are stale. Run scripts/api/verify.sh locally and commit the result."
 	exit 1
 fi

@@ -36,4 +36,5 @@ jobs:
       - name: Generated artifacts, breaking changes, destructive migrations
         env:
           ALLOW_BREAKING: ${{ contains(github.event.pull_request.labels.*.name, 'api-breaking-change') && '1' || '' }}
-        run: scripts/api/verify.sh "origin/${{ github.base_ref || 'main' }}"
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: scripts/api/verify.sh "origin/$BASE_REF"
