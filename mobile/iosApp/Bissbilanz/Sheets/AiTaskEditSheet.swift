@@ -102,8 +102,10 @@ struct AiTaskEditSheet: View {
                         .lineLimit(4 ... 8)
                 }
 
-                Section(L10n.aiTaskPhotoSectionTitle) {
+                Section {
                     photoAttachmentRow
+                } header: {
+                    Text(L10n.aiTaskPhotoSectionTitle)
                 } footer: {
                     if !canSave {
                         Text(L10n.aiTaskDescriptionOrPhotoRequired)
