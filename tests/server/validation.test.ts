@@ -143,6 +143,24 @@ describe('validation schemas', () => {
 		expect(result.success).toBe(true);
 	});
 
+	test.each(['assistant', 'device'])('preferencesUpdateSchema accepts aiTaskProcessor %s', (v) => {
+		const result = preferencesUpdateSchema.safeParse({ aiTaskProcessor: v });
+		expect(result.success).toBe(true);
+	});
+
+	test('preferencesUpdateSchema rejects an invalid aiTaskProcessor', () => {
+		const result = preferencesUpdateSchema.safeParse({ aiTaskProcessor: 'gemini' });
+		expect(result.success).toBe(false);
+	});
+
+	test('preferencesUpdateSchema accepts aiTaskAutoLog', () => {
+		const result = preferencesUpdateSchema.safeParse({ aiTaskAutoLog: true });
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.aiTaskAutoLog).toBe(true);
+		}
+	});
+
 	test('preferencesUpdateSchema rejects unknown keys', () => {
 		const result = preferencesUpdateSchema.safeParse({ unknownField: true });
 		expect(result.success).toBe(false);

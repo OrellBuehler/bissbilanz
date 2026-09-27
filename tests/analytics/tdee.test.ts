@@ -1,5 +1,10 @@
 import { describe, test, expect } from 'vitest';
-import { computeAdaptiveTDEE, detectPlateau, projectWeight } from '$lib/analytics/tdee';
+import {
+	computeAdaptiveTDEE,
+	detectPlateau,
+	projectWeight,
+	weeklyWeightChange
+} from '$lib/analytics/tdee';
 
 function makeWeightSeries(days: number, startKg: number, dailyChange: number) {
 	const today = new Date();
@@ -225,5 +230,23 @@ describe('projectWeight', () => {
 		const result = projectWeight(weights, -0.5);
 
 		expect(result.confidence).toBe('low');
+	});
+});
+
+describe('weeklyWeightChange', () => {
+	test('returns the regression slope per week', () => {
+		expect(weeklyWeightChange(makeWeightSeries(15, 80, -0.1))).toBeCloseTo(-0.7, 9);
+	});
+
+	test('ignores missing weigh-ins', () => {
+		const series = makeWeightSeries(15, 80, 0.05).map((p, i) =>
+			i % 3 === 1 ? { ...p, weightKg: null } : p
+		);
+		expect(weeklyWeightChange(series)).toBeCloseTo(0.35, 9);
+	});
+
+	test('needs at least a week between weigh-ins', () => {
+		expect(weeklyWeightChange(makeWeightSeries(7, 80, 0.1))).toBeNull();
+		expect(weeklyWeightChange([{ date: '2026-01-01', weightKg: 80 }])).toBeNull();
 	});
 });

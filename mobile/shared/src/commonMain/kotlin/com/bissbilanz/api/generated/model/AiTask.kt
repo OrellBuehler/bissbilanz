@@ -37,6 +37,7 @@ import kotlinx.serialization.encoding.*
  * @param completedAt
  * @param dismissedAt
  * @param acknowledgedAt
+ * @param processedBy
  * @param createdAt
  * @param updatedAt
  */
@@ -57,6 +58,7 @@ data class AiTask(
     @SerialName(value = "completedAt") @Required val completedAt: kotlin.String?,
     @SerialName(value = "dismissedAt") @Required val dismissedAt: kotlin.String?,
     @SerialName(value = "acknowledgedAt") @Required val acknowledgedAt: kotlin.String?,
+    @SerialName(value = "processedBy") @Required val processedBy: AiTask.ProcessedBy?,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
@@ -77,5 +79,24 @@ data class AiTask(
 
         @SerialName(value = "dismissed")
         dismissed("dismissed"),
+    }
+
+    /**
+     *
+     *
+     * Values: assistant,on_device,private_cloud
+     */
+    @Serializable
+    enum class ProcessedBy(
+        val value: kotlin.String,
+    ) {
+        @SerialName(value = "assistant")
+        assistant("assistant"),
+
+        @SerialName(value = "on_device")
+        on_device("on_device"),
+
+        @SerialName(value = "private_cloud")
+        private_cloud("private_cloud"),
     }
 }

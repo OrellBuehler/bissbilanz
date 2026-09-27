@@ -95,6 +95,7 @@
 	{headline}
 	{confidence}
 	{sampleSize}
+	sampleUnit="nights"
 	borderColor="border-purple-500"
 	skeletonClass="h-16"
 >

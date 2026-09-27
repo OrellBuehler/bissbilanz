@@ -366,6 +366,14 @@ class AnalyticsParityTest {
                 nullDiv(input.dbl("a"), input.dbl("b"))?.let(::JsonPrimitive) ?: JsonNull
             }
 
+            "classifyGoalOutcome" -> {
+                classifyGoalOutcome(
+                    GoalRule.entries.first { it.wire == input.str("rule") },
+                    input.dbl("value"),
+                    input.dbl("goal"),
+                )?.let { JsonPrimitive(it.wire) } ?: JsonNull
+            }
+
             "nullSum" -> {
                 nullSum(nullableDoublesFrom(input.getValue("values")))?.let(::JsonPrimitive) ?: JsonNull
             }

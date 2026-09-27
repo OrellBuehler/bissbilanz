@@ -276,13 +276,55 @@ struct FoodLabelsSetBody: Encodable {
     let mode: String?
 }
 
-/// Body of `POST /api/foods/merge`. `overrides` is intentionally omitted —
-/// callers always want the keeper's own values preserved and its missing
-/// fields auto-filled from the sources, the server's default behavior when
-/// no overrides are sent.
+/// Body of `POST /api/foods/merge`. Without `overrides` the server keeps the
+/// keeper's values and fills its empty fields from the sources; `overrides`
+/// carries the per-field picks from the merge review's diff view and is left
+/// out of the JSON entirely when nil.
 struct FoodMergeRequest: Encodable {
     let keeperId: String
     let sourceIds: [String]
+    var overrides: [String: FoodMergeValue]?
+}
+
+/// One field's value in a merge preview, normalized from the food's JSON form
+/// so every mergeable field compares the same way. `empty` covers null, blank
+/// strings and empty lists — exactly what `isEmpty` in the server's
+/// `food-merge.ts` treats as eligible for backfill.
+enum FoodMergeValue: Hashable, Encodable {
+    case empty
+    case number(Double)
+    case text(String)
+    case flag(Bool)
+    case list([String])
+
+    init(json: Any?, isFlag: Bool) {
+        switch json {
+        case let number as NSNumber where isFlag:
+            self = .flag(number.boolValue)
+        case let number as NSNumber:
+            self = .number(number.doubleValue)
+        case let string as String:
+            self = string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .empty : .text(string)
+        case let array as [Any]:
+            let strings = array.compactMap { $0 as? String }
+            self = strings.isEmpty ? .empty : .list(strings)
+        default:
+            self = .empty
+        }
+    }
+
+    var isEmpty: Bool { self == .empty }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .empty: try container.encodeNil()
+        case let .number(value): try container.encode(value)
+        case let .text(value): try container.encode(value)
+        case let .flag(value): try container.encode(value)
+        case let .list(value): try container.encode(value)
+        }
+    }
 }
 
 /// Why `GET /api/foods/duplicates` flagged a group: same barcode, same

@@ -25,8 +25,10 @@ struct FoodDetailView: View {
     private let favoritesLoggingTip = FavoritesLoggingTip()
     @State private var deleteConflict: DeleteConflict?
     @State private var showMergePicker = false
+    /// Picked in the merge picker; turned into `mergeCandidates` once that
+    /// sheet is gone, since two sheets can't be up at once.
     @State private var mergeTarget: Food?
-    @State private var isMerging = false
+    @State private var mergeCandidates: FoodMergeCandidates?
 
     var body: some View {
         Group {
@@ -101,7 +103,6 @@ struct FoodDetailView: View {
                             } label: {
                                 Label(L10n.foodsMerge, systemImage: "arrow.triangle.merge")
                             }
-                            .disabled(isMerging)
                         }
 
                         Divider()
@@ -130,7 +131,12 @@ struct FoodDetailView: View {
                 LogFoodSheet(food: food, date: DateFormatting.today, onLogged: onLogged)
             }
         }
-        .sheet(isPresented: $showMergePicker) {
+        .sheet(isPresented: $showMergePicker, onDismiss: {
+            if let target = mergeTarget, let food {
+                mergeCandidates = FoodMergeCandidates(foods: [target, food], keeperId: target.id)
+            }
+            mergeTarget = nil
+        }) {
             NavigationStack {
                 FoodPicker(onPicked: { picked in mergeTarget = picked }, excludingIds: [foodId])
                 .toolbar {
@@ -146,20 +152,16 @@ struct FoodDetailView: View {
             }
             Button(L10n.cancel, role: .cancel) {}
         }
-        .alert(
-            L10n.foodsMergeTitle,
-            isPresented: .init(get: { mergeTarget != nil }, set: { if !$0 { mergeTarget = nil } })
-        ) {
-            Button(L10n.foodsMergeConfirm, role: .destructive) {
-                if let target = mergeTarget {
-                    mergeTarget = nil
-                    Task { await performMerge(into: target) }
+        .sheet(item: $mergeCandidates) { candidates in
+            FoodMergeSheet(candidates: candidates) { merged in
+                // Kept this food: stay and show the merged values. Merged it
+                // away: it no longer exists, so go back to the list.
+                if merged.id == foodId {
+                    food = merged
+                    toastMessage = L10n.foodsMergeSuccess
+                } else {
+                    dismiss()
                 }
-            }
-            Button(L10n.cancel, role: .cancel) { mergeTarget = nil }
-        } message: {
-            if let food {
-                Text(L10n.foodsMergeDescription(food.name))
             }
         }
         .sheet(isPresented: $showTipHelp) {
@@ -276,24 +278,6 @@ struct FoodDetailView: View {
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             toastMessage = L10n.enrichFailed
-        }
-    }
-
-    /// Merges this food into `target`: `target` keeps its id and absorbs
-    /// everything (entries, recipe/supplement ingredients, labels) that
-    /// referenced this food, which is then permanently deleted. Dismisses
-    /// back to the food list on success, since this food no longer exists.
-    private func performMerge(into target: Food) async {
-        guard !isMerging else { return }
-        isMerging = true
-        defer { isMerging = false }
-        do {
-            try await foodRepository.mergeFoods(keeperId: target.id, sourceIds: [foodId])
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            dismiss()
-        } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            errorMessage = L10n.foodsMergeFailed
         }
     }
 

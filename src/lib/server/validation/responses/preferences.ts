@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { aiTaskProcessorValues } from '$lib/server/schema';
 
 const favoriteMealTimeframeSchema = z
 	.object({
@@ -38,6 +39,8 @@ const preferencesSchema = z
 		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
 		activityGoalAdjustment: z.boolean(),
 		activityCreditPercent: z.number().int(),
+		aiTaskProcessor: z.enum(aiTaskProcessorValues),
+		aiTaskAutoLog: z.boolean(),
 		locale: z.string().nullable(),
 		timeZone: z.string(),
 		updatedAt: z.string().optional(),
