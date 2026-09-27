@@ -327,20 +327,27 @@ final class AiTaskProcessor {
     }
 
     // MARK: - Building foods/items (pure — see AiTaskProcessorTests)
+    //
+    // `nonisolated`: plain functions of their arguments with no access to
+    // `AiTaskProcessor`'s own state — without this they inherit the class's
+    // `@MainActor` isolation like every other member here, which is correct
+    // for the instance members but makes these uncallable from a plain
+    // synchronous context, including the unit tests. Same rationale as
+    // `MealEstimatorPrivateCloud.isWeakEstimate`.
 
     /// A trimmed slice of the task's own description, since that is almost
     /// always the product's name written by the person photographing it
     /// (e.g. "the yogurt I had"); falls back to a generic name the user can
     /// rename later, on the food itself (auto-log) or before confirming
     /// (review-first).
-    static func productName(fromDescription description: String?) -> String {
+    nonisolated static func productName(fromDescription description: String?) -> String {
         guard let description else { return L10n.aiTaskProcessorScannedProductName }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return L10n.aiTaskProcessorScannedProductName }
         return String(trimmed.prefix(60))
     }
 
-    static func foodCreate(from nutrition: ParsedNutrition, name: String, barcode: String? = nil) -> FoodCreate {
+    nonisolated static func foodCreate(from nutrition: ParsedNutrition, name: String, barcode: String? = nil) -> FoodCreate {
         FoodCreate(
             name: name,
             servingSize: 100,
@@ -358,7 +365,7 @@ final class AiTaskProcessor {
         )
     }
 
-    private static func item(for food: Food) -> MealEstimateItem {
+    private nonisolated static func item(for food: Food) -> MealEstimateItem {
         MealEstimateItem(
             name: food.name,
             matchedFoodId: food.id,
@@ -374,7 +381,7 @@ final class AiTaskProcessor {
         )
     }
 
-    private static func item(forDraftKey key: String, create: FoodCreate) -> MealEstimateItem {
+    private nonisolated static func item(forDraftKey key: String, create: FoodCreate) -> MealEstimateItem {
         MealEstimateItem(
             name: create.name,
             matchedFoodId: key,
@@ -393,17 +400,17 @@ final class AiTaskProcessor {
     /// Marks an item's `matchedFoodId` as a draft food awaiting confirmation
     /// rather than a real id — see `ProcessedAiTaskDraft` and
     /// `AIMealReviewView`'s handling of `pendingFoods`.
-    static let pendingFoodKeyPrefix = "ai_task_pending:"
+    nonisolated static let pendingFoodKeyPrefix = "ai_task_pending:"
 
-    static func pendingFoodKey() -> String {
+    nonisolated static func pendingFoodKey() -> String {
         pendingFoodKeyPrefix + UUID().uuidString
     }
 
-    static func isPendingFoodKey(_ matchedFoodId: String?) -> Bool {
+    nonisolated static func isPendingFoodKey(_ matchedFoodId: String?) -> Bool {
         matchedFoodId?.hasPrefix(pendingFoodKeyPrefix) == true
     }
 
-    static func processedBy(for source: MealEstimateSource) -> String {
+    nonisolated static func processedBy(for source: MealEstimateSource) -> String {
         switch source {
         case .onDevice: "on_device"
         case .privateCloudCompute: "private_cloud"
@@ -412,7 +419,7 @@ final class AiTaskProcessor {
 
     /// e.g. "Logged egg, toast (≈420 kcal)" — names in the order they were
     /// logged, and the total across every item (matched or quick).
-    static func summarize(items: [MealEstimateItem]) -> String {
+    nonisolated static func summarize(items: [MealEstimateItem]) -> String {
         let joined = items.map(\.name).joined(separator: ", ")
         let totalCalories = Int(items.reduce(0.0) { $0 + ($1.calories ?? 0) }.rounded())
         return L10n.aiTaskProcessorResultSummary(joined, totalCalories)
