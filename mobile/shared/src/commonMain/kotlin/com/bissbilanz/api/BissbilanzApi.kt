@@ -1330,16 +1330,24 @@ class BissbilanzApi(
             offset?.let { parameter("offset", it) }
         }
 
+    /** See [updateEntry] for what [clearedKeys] does. */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun updateAiTask(
         id: String,
         update: AiTaskUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): AiTask {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: AiTaskResponse = patch("/api/ai-tasks/$id", update, key, editedAt)
+        val response: AiTaskResponse =
+            patchRawJson(
+                "/api/ai-tasks/$id",
+                json.encodePartialUpdate(update, clearedKeys).toString(),
+                key,
+                editedAt,
+            )
         return response.task
     }
 

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskUploadStatus
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
+import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodImage
@@ -43,6 +45,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.api.generated.model.AiTask
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
@@ -59,9 +62,12 @@ fun AiTasksScreen(navController: NavController) {
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
+    val taskUpdatedMessage = stringResource(R.string.ai_tasks_updated)
     var taskToDelete by remember { mutableStateOf<AiTask?>(null) }
+    var taskToEdit by remember { mutableStateOf<AiTask?>(null) }
 
     val filters =
         listOf(
@@ -164,6 +170,7 @@ fun AiTasksScreen(navController: NavController) {
                                 AiTaskListItem(
                                     task = task,
                                     onDelete = { taskToDelete = task },
+                                    onEdit = { taskToEdit = task },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -172,6 +179,18 @@ fun AiTasksScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    taskToEdit?.let { task ->
+        AiMealSheet(
+            date = task.date,
+            task = task,
+            onDismiss = { taskToEdit = null },
+            onSaved = {
+                taskToEdit = null
+                scope.launch { snackbarHostState.showSnackbar(taskUpdatedMessage) }
+            },
+        )
     }
 }
 
@@ -264,6 +283,7 @@ private fun QueuedUploadCard(
 private fun AiTaskListItem(
     task: AiTask,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isUnread = task.status == AiTask.Status.dismissed && task.acknowledgedAt == null
@@ -336,6 +356,17 @@ private fun AiTaskListItem(
                 if (isUnread) {
                     Badge { Text(stringResource(R.string.ai_tasks_unread)) }
                     Spacer(modifier = Modifier.width(4.dp))
+                }
+                // Only a task still awaiting the assistant can be edited — one it has
+                // already resolved is a record of what happened, not a draft.
+                if (task.status == AiTask.Status.pending) {
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            Icons.Default.Edit,
+                            stringResource(R.string.ai_tasks_edit),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
