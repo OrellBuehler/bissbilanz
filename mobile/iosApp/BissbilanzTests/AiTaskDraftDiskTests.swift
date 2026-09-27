@@ -49,12 +49,25 @@ struct AiTaskDraftDiskTests {
         let all = AiTaskDraftDisk.loadAll(root: root)
         #expect(all.map(\.taskId) == ["task-older", "task-newer"])
 
-        let loaded = AiTaskDraftDisk.load(taskId: "task-older", root: root)
-        #expect(loaded == older)
-        #expect(loaded?.items.count == 2)
-        #expect(loaded?.pendingFoods.count == 1)
+        // `MealEstimateItem.id` is a `let id = UUID()` generated fresh on every
+        // decode (Swift never round-trips a `let` with a default initializer —
+        // see the "will not be decoded" compiler warning on that property), so
+        // comparing the whole draft with `==` would fail on `items[n].id` alone
+        // even though every field that matters round-tripped correctly.
+        let loaded = try #require(AiTaskDraftDisk.load(taskId: "task-older", root: root))
+        #expect(loaded.taskId == older.taskId)
+        #expect(loaded.date == older.date)
+        #expect(loaded.mealType == older.mealType)
+        #expect(loaded.eatenAt == older.eatenAt)
+        #expect(loaded.source == older.source)
+        #expect(loaded.queuedAt == older.queuedAt)
+        #expect(loaded.items.map(\.name) == older.items.map(\.name))
+        #expect(loaded.items.map(\.matchedFoodId) == older.items.map(\.matchedFoodId))
+        #expect(loaded.items.map(\.calories) == older.items.map(\.calories))
+        #expect(loaded.pendingFoods.count == 1)
         let pendingKey = older.items[1].matchedFoodId!
-        #expect(loaded?.pendingFoods[pendingKey]?.barcode == "4006381333931")
+        #expect(loaded.pendingFoods[pendingKey]?.barcode == "4006381333931")
+        #expect(loaded.pendingFoods[pendingKey] == older.pendingFoods[pendingKey])
 
         AiTaskDraftDisk.remove(taskId: "task-older", root: root)
         #expect(AiTaskDraftDisk.loadAll(root: root).map(\.taskId) == ["task-newer"])
