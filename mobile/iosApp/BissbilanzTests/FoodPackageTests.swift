@@ -151,4 +151,14 @@ struct FoodPackageResolutionTests {
         let other = APIError.badRequest(#"{"error":"Invalid food package: foods.0.name — Too small"}"#)
         #expect(FoodPackageErrorText.message(for: other, fallback: nil) == "Invalid food package: foods.0.name — Too small")
     }
+
+    @Test("A picked-foods selection encodes foodIds and skips unset fields")
+    func foodIdsSelection() throws {
+        let selection = FoodPackageSelection(foodIds: ["a", "b"], includeRecipes: "related")
+        let encoded = try #require(String(data: JSONEncoder().encode(selection), encoding: .utf8))
+        #expect(encoded.contains("\"foodIds\":[\"a\",\"b\"]"))
+        #expect(encoded.contains("\"includeRecipes\":\"related\""))
+        #expect(!encoded.contains("recipeIds"))
+        #expect(!encoded.contains("\"all\""))
+    }
 }
