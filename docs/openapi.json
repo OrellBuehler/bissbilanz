@@ -878,7 +878,7 @@
 			"delete": {
 				"operationId": "deleteFood",
 				"tags": ["Foods"],
-				"description": "Delete a food. Pass force=true to delete even if diary entries reference it.",
+				"description": "Delete a food. Pass force=true to delete even if diary entries or recipes reference it. Refused with 409 even with force when the food is the only ingredient of a recipe (see lastIngredientRecipes) or is a supplement ingredient.",
 				"parameters": [
 					{
 						"in": "path",
@@ -907,6 +907,43 @@
 					},
 					"409": {
 						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/{id}/usage": {
+			"get": {
+				"operationId": "getFoodUsage",
+				"tags": ["Foods"],
+				"description": "Where a food is used: the diary entries logging it (newest first, at most 200, with the total count), and the recipes and supplements that use it as an ingredient.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodUsageResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -1314,7 +1351,7 @@
 			"delete": {
 				"operationId": "deleteRecipe",
 				"tags": ["Recipes"],
-				"description": "Delete a recipe. Pass force=true to delete even if diary entries reference it.",
+				"description": "Delete a recipe. Fails with 409 while diary entries log it; list them with GET /api/recipes/{id}/usage, remove or change them, then delete the recipe. The force parameter is deprecated and only kept for shipped app builds.",
 				"parameters": [
 					{
 						"in": "path",
@@ -1330,8 +1367,12 @@
 						"in": "query",
 						"name": "force",
 						"schema": {
+							"deprecated": true,
+							"description": "Deprecated: deletes the diary entries that log the recipe along with it. Clients no longer offer this; remove the entries explicitly instead.",
+							"x-sunset": "2027-03-31",
 							"type": "boolean"
-						}
+						},
+						"description": "Deprecated: deletes the diary entries that log the recipe along with it. Clients no longer offer this; remove the entries explicitly instead."
 					}
 				],
 				"responses": {
@@ -1343,6 +1384,43 @@
 					},
 					"409": {
 						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
+		"/api/recipes/{id}/usage": {
+			"get": {
+				"operationId": "getRecipeUsage",
+				"tags": ["Recipes"],
+				"description": "Where a recipe is logged: the diary entries referencing it, newest first (at most 200, with the total count).",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeUsageResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -8908,9 +8986,30 @@
 					},
 					"supplementIngredientCount": {
 						"type": "number"
+					},
+					"lastIngredientRecipes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/LastIngredientRecipe"
+						}
 					}
 				},
 				"required": ["error"],
+				"additionalProperties": false
+			},
+			"LastIngredientRecipe": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "name"],
 				"additionalProperties": false
 			},
 			"FoodDuplicatesResponse": {
@@ -9088,6 +9187,93 @@
 					}
 				},
 				"required": ["labels", "dropped"],
+				"additionalProperties": false
+			},
+			"FoodUsageResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/UsageEntry"
+						}
+					},
+					"totalEntries": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"recipes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodUsageRecipe"
+						}
+					},
+					"supplements": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodUsageSupplement"
+						}
+					}
+				},
+				"required": ["entries", "totalEntries", "recipes", "supplements"],
+				"additionalProperties": false
+			},
+			"UsageEntry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"date": {
+						"type": "string"
+					},
+					"mealType": {
+						"type": "string"
+					},
+					"servings": {
+						"type": "number"
+					},
+					"eatenAt": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "date", "mealType", "servings", "eatenAt"],
+				"additionalProperties": false
+			},
+			"FoodUsageRecipe": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"isLastIngredient": {
+						"type": "boolean"
+					}
+				},
+				"required": ["id", "name", "isLastIngredient"],
+				"additionalProperties": false
+			},
+			"FoodUsageSupplement": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "name"],
 				"additionalProperties": false
 			},
 			"EntriesListResponse": {
@@ -9926,6 +10112,24 @@
 					"water",
 					"salt"
 				],
+				"additionalProperties": false
+			},
+			"RecipeUsageResponse": {
+				"type": "object",
+				"properties": {
+					"entries": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/UsageEntry"
+						}
+					},
+					"totalEntries": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["entries", "totalEntries"],
 				"additionalProperties": false
 			},
 			"SupplementsListResponse": {

@@ -38,6 +38,8 @@ const recipe = (ref: string, overrides: Partial<PackageRecipe> = {}): PackageRec
 	...overrides
 });
 
+const oats = { food: 'f1', quantity: 100, servingUnit: 'g' as const };
+
 const manifest = (foods: PackageFood[], recipes: PackageRecipe[] = []): FoodPackageManifest => ({
 	format: 'bissbilanz.food-package',
 	formatVersion: 1,
@@ -216,10 +218,21 @@ describe('matchPackage', () => {
 		expect(result.newRecipeRefs).toEqual(['r3']);
 	});
 
+	it('rejects recipes without ingredients', () => {
+		const result = matchPackage(
+			manifest([food('f1')], [recipe('r1', { ingredients: [] })]),
+			[],
+			[]
+		);
+		expect([...result.invalidRecipeRefs]).toEqual(['r1']);
+		expect(result.newRecipeRefs).toEqual([]);
+		expect(result.issues[0].message).toContain('no ingredients');
+	});
+
 	it('matches recipes by normalized name', () => {
 		const target = existingRecipe({ name: 'Overnight Oats' });
 		const result = matchPackage(
-			manifest([], [recipe('r1', { name: 'overnight  oats' })]),
+			manifest([food('f1')], [recipe('r1', { name: 'overnight  oats', ingredients: [oats] })]),
 			[],
 			[target]
 		);
@@ -308,7 +321,7 @@ describe('resolveOperations', () => {
 
 	it('throws stale_preview when a recipe resolution targets a ref that is no longer a conflict', () => {
 		const target = existingRecipe({ name: 'Porridge' });
-		const m = manifest([], [recipe('r1', { name: 'Porridge' })]);
+		const m = manifest([food('f1')], [recipe('r1', { name: 'Porridge', ingredients: [oats] })]);
 		expect(matchPackage(m, [], [target]).recipeConflicts).toHaveLength(1);
 		// Commit time: `target` was deleted elsewhere, so r1 is now "new".
 		const commitMatch = matchPackage(m, [], []);
