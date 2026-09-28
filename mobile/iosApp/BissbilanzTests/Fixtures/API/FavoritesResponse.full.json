@@ -78,6 +78,7 @@
 			"fiber": 8,
 			"id": "428b763e-055c-4c9f-836c-e1ecdaba49b5",
 			"imageUrl": "sample-imageUrl",
+			"isFavorite": true,
 			"logCount": 2,
 			"name": "sample-name",
 			"protein": 30,

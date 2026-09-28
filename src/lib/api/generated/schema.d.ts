@@ -2209,7 +2209,7 @@ export interface components {
 			eatenAt: string;
 			createdAt?: string;
 			servingSize: number | null;
-			servingUnit: string | null;
+			servingUnit: components['schemas']['ServingUnit'] | null;
 		};
 		EntryResponse: {
 			entry: components['schemas']['Entry'];
@@ -2266,7 +2266,7 @@ export interface components {
 				[key: string]: number;
 			} | null;
 			servingSize: number | null;
-			servingUnit: string | null;
+			servingUnit: components['schemas']['ServingUnit'] | null;
 			foodName: string | null;
 			calories: number;
 			protein: number;
@@ -2761,6 +2761,7 @@ export interface components {
 			fiber: number;
 			logCount: number;
 			totalServings: number;
+			isFavorite: boolean;
 			/** @constant */
 			type: 'recipe';
 		};
