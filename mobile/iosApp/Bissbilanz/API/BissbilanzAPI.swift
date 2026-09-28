@@ -387,7 +387,7 @@ final class BissbilanzAPI {
     }
 
     func getLatestWeight() async throws -> WeightEntry? {
-        let response: WeightEntryResponse? = try? await get("/api/weight/latest")
+        let response: WeightLatestResponse? = try? await get("/api/weight/latest")
         return response?.entry
     }
 
@@ -849,7 +849,7 @@ final class BissbilanzAPI {
         var id: String { barcode }
     }
 
-    private struct OpenFoodFactsSearchResponse: Decodable {
+    struct OpenFoodFactsSearchResponse: Decodable {
         let results: [OpenFoodFactsSearchHit]
     }
 
@@ -1178,15 +1178,13 @@ final class BissbilanzAPI {
 
     /// Brands of the user's foods with per-brand counts — the export filter's options.
     func getFoodBrands() async throws -> [FoodBrandStat] {
-        struct Response: Decodable { let brands: [FoodBrandStat] }
-        let response: Response = try await get("/api/foods/brands")
+        let response: FoodBrandsResponse = try await get("/api/foods/brands")
         return response.brands
     }
 
     /// Labels on the user's foods (supplements excluded) with per-label counts.
     func getFoodLabelStats() async throws -> [FoodLabelStat] {
-        struct Response: Decodable { let labels: [FoodLabelStat] }
-        let response: Response = try await get("/api/foods/labels", params: ["kind": "food"])
+        let response: FoodLabelStatsResponse = try await get("/api/foods/labels", params: ["kind": "food"])
         return response.labels
     }
 

@@ -721,8 +721,8 @@ struct APIResponseDecodingTests {
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(FavoritesResponse.self, from: json)
-        #expect(response.foods.count == 1)
-        #expect(response.foods[0].name == "Greek Yogurt")
+        #expect(response.foods?.count == 1)
+        #expect(response.foods?[0].name == "Greek Yogurt")
         #expect(response.recipes?.count == 1)
         #expect(response.recipes?[0].name == "Smoothie")
     }
