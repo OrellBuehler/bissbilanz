@@ -189,11 +189,11 @@ struct DashboardSectionTests {
 
     @Test("recipeSuggestions toggle gates its section")
     func recipeSuggestionsToggleGatesItsSection() {
-        let hidden = makePreferences(showRecipeSuggestionsWidget: false)
+        let hidden = makePreferences(showRecipeSuggestionsWidget: false, hidingDayCards: true)
         let order = ["recipe-suggestions", "daylog"]
         #expect(DashboardSection.resolve(order: order, preferences: hidden) == [.daylog])
 
-        let shown = makePreferences()
+        let shown = makePreferences(hidingDayCards: true)
         #expect(DashboardSection.resolve(order: order, preferences: shown) == [.recipeSuggestions, .daylog])
     }
 
