@@ -20,6 +20,10 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
+let mockBrandsResult: any[] = [];
+let mockDuplicateGroupsResult: any[] = [];
+let mockMergeResult: any = null;
+
 vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
 	listFoods: async (userId: string, options: any) => {
@@ -35,7 +39,19 @@ vi.mock('$lib/server/foods', () => ({
 	updateFood: async () => ({ success: true, data: undefined }),
 	deleteFood: async () => ({ blocked: false }),
 	toFoodInsert: () => ({}),
-	toFoodUpdate: () => ({})
+	toFoodUpdate: () => ({}),
+	listFoodBrands: async () => mockBrandsResult
+}));
+
+vi.mock('$lib/server/food-duplicates', () => ({
+	findDuplicateGroups: async () => mockDuplicateGroupsResult
+}));
+
+vi.mock('$lib/server/food-merge', () => ({
+	mergeFoods: async () =>
+		mockMergeResult
+			? { success: true, data: mockMergeResult }
+			: { success: false, error: mockValidationError }
 }));
 
 // Mock validation — must include ALL exports to avoid polluting other test files
@@ -44,6 +60,9 @@ vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const { GET, POST } = await import('../../src/routes/api/foods/+server');
+const { GET: BRANDS_GET } = await import('../../src/routes/api/foods/brands/+server');
+const { GET: DUPLICATES_GET } = await import('../../src/routes/api/foods/duplicates/+server');
+const { POST: MERGE_POST } = await import('../../src/routes/api/foods/merge/+server');
 
 describe('api/foods', () => {
 	beforeEach(() => {
@@ -293,5 +312,67 @@ describe('GET /api/foods label filters', () => {
 		);
 		await expectResponseContract('GET', '/api/foods', tooHigh);
 		expect(tooHigh.status).toBe(400);
+	});
+});
+
+describe('GET /api/foods/brands', () => {
+	test('returns 401 when not authenticated', async () => {
+		const response = await BRANDS_GET(createMockEvent({ user: null }));
+		await expectResponseContract('GET', '/api/foods/brands', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('lists brands with counts', async () => {
+		mockBrandsResult = [{ brand: 'Migros', count: 3 }];
+		const response = await BRANDS_GET(createMockEvent({ user: TEST_USER }));
+		await expectResponseContract('GET', '/api/foods/brands', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).brands).toHaveLength(1);
+	});
+});
+
+describe('GET /api/foods/duplicates', () => {
+	test('returns 401 when not authenticated', async () => {
+		const response = await DUPLICATES_GET(createMockEvent({ user: null }));
+		await expectResponseContract('GET', '/api/foods/duplicates', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('returns no groups when nothing is duplicated', async () => {
+		mockDuplicateGroupsResult = [];
+		const response = await DUPLICATES_GET(createMockEvent({ user: TEST_USER }));
+		await expectResponseContract('GET', '/api/foods/duplicates', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).groups).toEqual([]);
+	});
+});
+
+describe('POST /api/foods/merge', () => {
+	const MERGE_PAYLOAD = {
+		keeperId: TEST_FOOD.id,
+		sourceIds: ['10000000-0000-4000-8000-000000000011']
+	};
+
+	test('returns 401 when not authenticated', async () => {
+		const response = await MERGE_POST(createMockEvent({ user: null, body: MERGE_PAYLOAD }));
+		await expectResponseContract('POST', '/api/foods/merge', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('merges into the keeper food', async () => {
+		mockMergeResult = TEST_FOOD;
+		const response = await MERGE_POST(createMockEvent({ user: TEST_USER, body: MERGE_PAYLOAD }));
+		await expectResponseContract('POST', '/api/foods/merge', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).food.id).toBe(TEST_FOOD.id);
+	});
+
+	test('returns 400 for an invalid payload', async () => {
+		mockMergeResult = null;
+		const response = await MERGE_POST(
+			createMockEvent({ user: TEST_USER, body: { keeperId: 'not-a-uuid', sourceIds: [] } })
+		);
+		await expectResponseContract('POST', '/api/foods/merge', response);
+		expect(response.status).toBe(400);
 	});
 });

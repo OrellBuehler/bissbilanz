@@ -1915,9 +1915,7 @@ export interface components {
 		};
 		ValidationErrorResponse: {
 			error: string;
-			details?: {
-				[key: string]: string[];
-			};
+			details?: unknown;
 		};
 		FoodsListResponse: {
 			foods: components['schemas']['Food'][];
@@ -3259,6 +3257,15 @@ export interface components {
 			};
 			content?: never;
 		};
+		/** @description Too many requests */
+		RateLimitedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
 	};
 	parameters: never;
 	requestBodies: never;
@@ -3416,6 +3423,7 @@ export interface operations {
 					'application/json': components['schemas']['FoodsListResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -3777,6 +3785,7 @@ export interface operations {
 					'application/json': components['schemas']['FoodLabelsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
 		};
@@ -3832,6 +3841,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteFood: {
@@ -3878,6 +3888,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listEntries: {
@@ -3900,6 +3911,7 @@ export interface operations {
 					'application/json': components['schemas']['EntriesListResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -3975,6 +3987,7 @@ export interface operations {
 					'application/json': components['schemas']['EntriesRangeResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4019,6 +4032,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listRecipes: {
@@ -4092,6 +4106,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteRecipe: {
@@ -4138,6 +4153,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listSupplements: {
@@ -4231,6 +4247,7 @@ export interface operations {
 					'application/json': components['schemas']['SupplementHistoryResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4255,6 +4272,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteSupplement: {
@@ -4298,6 +4316,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	logSupplement: {
@@ -4325,6 +4344,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	unlogSupplementForDate: {
@@ -4569,6 +4589,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	updateWeightEntry: {
@@ -4597,6 +4618,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listFastingSessions: {
@@ -4719,6 +4741,7 @@ export interface operations {
 					'application/json': components['schemas']['DailyStatsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4786,6 +4809,7 @@ export interface operations {
 					'application/json': components['schemas']['MealBreakdownResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4855,6 +4879,7 @@ export interface operations {
 					'application/json': components['schemas']['CalendarResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4882,6 +4907,7 @@ export interface operations {
 						| components['schemas']['DayPropertiesRangeResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4923,6 +4949,7 @@ export interface operations {
 		requestBody?: never;
 		responses: {
 			204: components['responses']['DeletedResponse'];
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			409: components['responses']['ConflictResponse'];
 		};
@@ -5034,6 +5061,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	updateMealType: {
@@ -5062,6 +5090,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listFavorites: {
@@ -5253,6 +5282,7 @@ export interface operations {
 					'application/json': components['schemas']['AiTasksResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -5378,6 +5408,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 			409: components['responses']['ConflictResponse'];
 		};
 	};
@@ -5423,6 +5454,7 @@ export interface operations {
 					'application/json': components['schemas']['SleepEntriesResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -5465,6 +5497,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	updateSleepEntry: {
@@ -5493,6 +5526,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	getFoodDiversity: {
@@ -5787,6 +5821,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	lookupOpenFoodFacts: {
@@ -5809,7 +5844,9 @@ export interface operations {
 					'application/json': components['schemas']['OpenFoodFactsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	saveOpenFoodFactsProduct: {

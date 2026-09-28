@@ -614,6 +614,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: foodLabelsResponseSchema } }
 				},
+				'400': res400,
 				'401': res401,
 				'404': res404
 			}
@@ -760,6 +761,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: entriesRangeResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		}
@@ -780,7 +782,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: entryResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -841,7 +844,8 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: recipeResponseSchema } }
 				},
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		patch: {
@@ -859,7 +863,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: recipeResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -943,6 +948,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: supplementHistoryResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		}
@@ -958,7 +964,8 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: supplementResponseSchema } }
 				},
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		patch: {
@@ -976,7 +983,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: supplementResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -1005,7 +1013,8 @@ export const apiPaths = {
 					description: 'Created',
 					content: { 'application/json': { schema: supplementLogResponseSchema } }
 				},
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		}
 	},
@@ -1194,7 +1203,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: weightEntryResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -1204,7 +1214,8 @@ export const apiPaths = {
 			requestParams: { path: uuidPathId },
 			responses: {
 				'204': res204,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		}
 	},
@@ -1551,7 +1562,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: mealTypeResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -1738,6 +1750,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: aiTasksResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		},
@@ -1826,6 +1839,7 @@ export const apiPaths = {
 				},
 				'400': res400,
 				'401': res401,
+				'404': res404,
 				'409': res409
 			}
 		},
@@ -1875,6 +1889,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: sleepEntriesResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		},
@@ -1912,7 +1927,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: sleepEntryResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -1922,7 +1938,8 @@ export const apiPaths = {
 			requestParams: { path: uuidPathId },
 			responses: {
 				'204': res204,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		}
 	},

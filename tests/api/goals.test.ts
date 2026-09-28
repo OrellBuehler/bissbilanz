@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_GOALS, VALID_GOALS_PAYLOAD } from '../helpers/fixtures';
 
 // Mock the goals module
@@ -40,6 +41,7 @@ describe('api/goals', () => {
 			const event = createMockEvent({ user: null });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -51,6 +53,7 @@ describe('api/goals', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -64,6 +67,7 @@ describe('api/goals', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -79,6 +83,7 @@ describe('api/goals', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -93,6 +98,7 @@ describe('api/goals', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -113,6 +119,7 @@ describe('api/goals', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -120,12 +127,14 @@ describe('api/goals', () => {
 		});
 
 		test('accepts null values for optional nutrients', async () => {
+			// fiberGoal is required (DB column is NOT NULL, unlike sodium/sugar) —
+			// only the genuinely optional advanced nutrient goals are nullable.
 			const goalsWithNulls = {
 				calorieGoal: 2000,
 				proteinGoal: 150,
 				carbGoal: 200,
 				fatGoal: 67,
-				fiberGoal: null,
+				fiberGoal: 25,
 				sodiumGoal: null,
 				sugarGoal: null
 			};
@@ -137,6 +146,7 @@ describe('api/goals', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/goals', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -155,6 +165,7 @@ describe('api/goals', () => {
 
 				mockUpsertResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/goals', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -172,6 +183,7 @@ describe('api/goals', () => {
 
 				mockUpsertResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/goals', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -187,6 +199,7 @@ describe('api/goals', () => {
 
 				mockUpsertResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/goals', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -204,6 +217,7 @@ describe('api/goals', () => {
 
 				mockUpsertResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/goals', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -216,6 +230,7 @@ describe('api/goals', () => {
 
 				mockUpsertResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/goals', response);
 				const data = await response.json();
 
 				expect(response.status).toBe(400);

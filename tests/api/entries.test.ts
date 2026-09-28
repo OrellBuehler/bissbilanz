@@ -19,8 +19,17 @@ const TEST_ENTRY_LIST_ITEM = {
 	servingUnit: TEST_FOOD.servingUnit
 };
 
+// listEntriesByDateRangeDetailed() shape: same joined macros as the list item
+// plus supplementId, without imageUrl.
+const TEST_ENTRY_RANGE_ITEM = {
+	...TEST_ENTRY_LIST_ITEM,
+	supplementId: null
+};
+
 let mockListResult: any = [];
 let mockCreateResult: any = null;
+let mockRangeResult: any = [];
+let mockCopyResult: any = [];
 
 // Mock ZodError for validation failures
 const mockValidationError = new ZodError([
@@ -41,7 +50,8 @@ vi.mock('$lib/server/entries', () => ({
 	updateEntry: async () => ({ success: true, data: null }),
 	deleteEntry: async () => {},
 	listEntriesByDateRange: async () => [],
-	copyEntries: async () => 0,
+	listEntriesByDateRangeDetailed: async () => mockRangeResult,
+	copyEntries: async () => mockCopyResult,
 	toEntryUpdate: () => ({})
 }));
 
@@ -49,11 +59,15 @@ import { allValidationSchemas } from '../helpers/mock-validation';
 vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 const { GET, POST } = await import('../../src/routes/api/entries/+server');
+const { GET: RANGE_GET } = await import('../../src/routes/api/entries/range/+server');
+const { POST: COPY_POST } = await import('../../src/routes/api/entries/copy/+server');
 
 describe('api/entries', () => {
 	beforeEach(() => {
 		mockListResult = [];
 		mockCreateResult = null;
+		mockRangeResult = [];
+		mockCopyResult = [];
 	});
 
 	describe('GET /api/entries', () => {
@@ -217,6 +231,73 @@ describe('api/entries', () => {
 				expect(response.status).toBe(400);
 				expect(data.error).toBe('Validation failed');
 			});
+		});
+	});
+
+	describe('GET /api/entries/range', () => {
+		test('returns 401 when not authenticated', async () => {
+			const event = createMockEvent({
+				user: null,
+				searchParams: { startDate: '2026-02-01', endDate: '2026-02-10' }
+			});
+			const response = await RANGE_GET(event);
+			await expectResponseContract('GET', '/api/entries/range', response);
+			expect(response.status).toBe(401);
+		});
+
+		test('returns entries for the range', async () => {
+			mockRangeResult = [TEST_ENTRY_RANGE_ITEM];
+			const event = createMockEvent({
+				user: TEST_USER,
+				searchParams: { startDate: '2026-02-01', endDate: '2026-02-10' }
+			});
+			const response = await RANGE_GET(event);
+			await expectResponseContract('GET', '/api/entries/range', response);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.entries).toHaveLength(1);
+		});
+
+		test('returns 400 when parameters are missing', async () => {
+			const event = createMockEvent({ user: TEST_USER });
+			const response = await RANGE_GET(event);
+			await expectResponseContract('GET', '/api/entries/range', response);
+			expect(response.status).toBe(400);
+		});
+	});
+
+	describe('POST /api/entries/copy', () => {
+		test('returns 401 when not authenticated', async () => {
+			const event = createMockEvent({
+				user: null,
+				url: 'http://localhost/api/entries/copy?fromDate=2026-02-01&toDate=2026-02-02'
+			});
+			const response = await COPY_POST(event);
+			await expectResponseContract('POST', '/api/entries/copy', response);
+			expect(response.status).toBe(401);
+		});
+
+		test('copies entries from one date to another', async () => {
+			mockCopyResult = [TEST_ENTRY];
+			const event = createMockEvent({
+				user: TEST_USER,
+				url: 'http://localhost/api/entries/copy?fromDate=2026-02-01&toDate=2026-02-02'
+			});
+			const response = await COPY_POST(event);
+			await expectResponseContract('POST', '/api/entries/copy', response);
+			const data = await response.json();
+			expect(response.status).toBe(200);
+			expect(data.count).toBe(1);
+		});
+
+		test('returns 400 when a date parameter is missing', async () => {
+			const event = createMockEvent({
+				user: TEST_USER,
+				url: 'http://localhost/api/entries/copy?fromDate=2026-02-01'
+			});
+			const response = await COPY_POST(event);
+			await expectResponseContract('POST', '/api/entries/copy', response);
+			expect(response.status).toBe(400);
 		});
 	});
 });

@@ -28,5 +28,5 @@ import kotlinx.serialization.encoding.*
 @Serializable
 data class ValidationErrorResponse(
     @SerialName(value = "error") @Required val error: kotlin.String,
-    @SerialName(value = "details") val details: kotlin.collections.Map<kotlin.String, kotlin.collections.List<kotlin.String>>? = null,
+    @SerialName(value = "details") val details: kotlin.Any? = null,
 )

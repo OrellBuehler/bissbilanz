@@ -244,6 +244,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -725,6 +728,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
@@ -815,6 +821,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -860,6 +869,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -926,6 +938,9 @@
 								}
 							}
 						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -1051,6 +1066,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -1100,6 +1118,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1236,6 +1257,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1281,6 +1305,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1442,6 +1469,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -1478,6 +1508,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1523,6 +1556,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1592,6 +1628,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -1985,6 +2024,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -2010,6 +2052,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -2223,6 +2268,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2317,6 +2365,9 @@
 								}
 							}
 						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -2422,6 +2473,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2480,6 +2534,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2537,6 +2594,9 @@
 				"responses": {
 					"204": {
 						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -2700,6 +2760,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -2725,6 +2788,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
@@ -3018,6 +3084,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -3178,6 +3247,9 @@
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
 					"409": {
 						"$ref": "#/components/responses/ConflictResponse"
 					}
@@ -3267,6 +3339,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -3349,6 +3424,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -3374,6 +3452,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -3918,6 +3999,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
 					}
 				}
 			}
@@ -3948,8 +4032,14 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -7703,18 +7793,7 @@
 					"error": {
 						"type": "string"
 					},
-					"details": {
-						"type": "object",
-						"propertyNames": {
-							"type": "string"
-						},
-						"additionalProperties": {
-							"type": "array",
-							"items": {
-								"type": "string"
-							}
-						}
-					}
+					"details": {}
 				},
 				"required": ["error"],
 				"additionalProperties": false
@@ -12825,6 +12904,16 @@
 			},
 			"DeletedResponse": {
 				"description": "Deleted"
+			},
+			"RateLimitedResponse": {
+				"description": "Too many requests",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
 			}
 		},
 		"securitySchemes": {

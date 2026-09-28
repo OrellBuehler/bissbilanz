@@ -13,8 +13,11 @@ export const validationErrorResponseSchema = z
 		// validationError() sends ZodError#format(): a recursive tree with an
 		// `_errors: string[]` at the root and at each invalid field, so this
 		// can't be a flat Record<string, string[]> — describe it loosely
-		// instead of mis-describing its shape.
-		details: z.record(z.string(), z.unknown()).optional()
+		// instead of mis-describing its shape. A plain `unknown` (rather than
+		// a nested record) keeps the Kotlin codegen from treating the whole
+		// response as a free-form map (see the catalog models for the same
+		// failure mode with an actual additionalProperties schema).
+		details: z.unknown().optional()
 	})
 	.meta({ id: 'ValidationErrorResponse' });
 

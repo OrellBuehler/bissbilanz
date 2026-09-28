@@ -1,10 +1,32 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
-import { TEST_USER, TEST_RECIPE, VALID_RECIPE_PAYLOAD } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
+import {
+	TEST_USER,
+	TEST_RECIPE,
+	TEST_RECIPE_INGREDIENT,
+	VALID_RECIPE_PAYLOAD
+} from '../helpers/fixtures';
+
+// listRecipes/getRecipe compute macro totals via a join and getRecipe also
+// attaches `ingredients` — the bare TEST_RECIPE fixture models the raw table
+// row createRecipe() inserts, so build the enriched detail shape locally
+// rather than editing the shared fixture (favorites.test.ts relies on the
+// bare shape).
+const TEST_RECIPE_DETAIL = {
+	...TEST_RECIPE,
+	calories: 320,
+	protein: 12,
+	carbs: 45,
+	fat: 8,
+	fiber: 6,
+	ingredients: [TEST_RECIPE_INGREDIENT]
+};
 
 let mockListResult: any = [];
 let mockCreateResult: any = null;
+let mockGetResult: any = null;
 
 // Mock ZodError for validation failures
 const mockValidationError = new ZodError([
@@ -25,7 +47,7 @@ vi.mock('$lib/server/recipes', () => ({
 		mockCreateResult
 			? { success: true, data: mockCreateResult }
 			: { success: false, error: mockValidationError },
-	getRecipe: async () => null,
+	getRecipe: async () => mockGetResult,
 	updateRecipe: async () => ({ success: true, data: null }),
 	deleteRecipe: async () => ({ blocked: false }),
 	toRecipeInsert: () => ({})
@@ -37,21 +59,24 @@ describe('api/recipes', () => {
 	beforeEach(() => {
 		mockListResult = [];
 		mockCreateResult = null;
+		mockGetResult = null;
 	});
 
 	describe('GET /api/recipes', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/recipes', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns recipes list', async () => {
-			mockListResult = [TEST_RECIPE];
+			mockListResult = [TEST_RECIPE_DETAIL];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/recipes', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.recipes).toHaveLength(1);
@@ -65,6 +90,7 @@ describe('api/recipes', () => {
 				body: VALID_RECIPE_PAYLOAD
 			});
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/recipes', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -72,11 +98,13 @@ describe('api/recipes', () => {
 
 		test('creates recipe with valid payload', async () => {
 			mockCreateResult = TEST_RECIPE;
+			mockGetResult = TEST_RECIPE_DETAIL;
 			const event = createMockEvent({
 				user: TEST_USER,
 				body: VALID_RECIPE_PAYLOAD
 			});
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/recipes', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.recipe).toBeTruthy();
@@ -96,6 +124,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -112,6 +141,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -127,6 +157,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -145,6 +176,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -163,6 +195,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -175,6 +208,7 @@ describe('api/recipes', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/recipes', response);
 				const data = await response.json();
 
 				expect(response.status).toBe(400);
