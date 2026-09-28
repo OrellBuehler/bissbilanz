@@ -1,0 +1,25 @@
+{
+	"entries": [
+		{
+			"date": "sample-date",
+			"eatenAt": "sample-eatenAt",
+			"id": "875f01fb-d930-4218-87da-e4719a33e256",
+			"mealType": "sample-mealType",
+			"servings": 12.5
+		}
+	],
+	"recipes": [
+		{
+			"id": "428b763e-055c-4c9f-836c-e1ecdaba49b5",
+			"isLastIngredient": true,
+			"name": "sample-name"
+		}
+	],
+	"supplements": [
+		{
+			"id": "dc584cd3-b733-4010-85d0-87094ce46d0e",
+			"name": "sample-name"
+		}
+	],
+	"totalEntries": 3
+}

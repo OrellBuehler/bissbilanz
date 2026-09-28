@@ -87,7 +87,9 @@ const SCHEMA_NAMES: string[] = [
 	'AiTaskAcknowledgeResponse',
 	'AiTaskPhotoResponse',
 	'McpStatusResponse',
-	'OpenFoodFactsSearchResponse'
+	'OpenFoodFactsSearchResponse',
+	'FoodUsageResponse',
+	'RecipeUsageResponse'
 ];
 
 const REPO_ROOT = join(import.meta.dir, '..', '..');

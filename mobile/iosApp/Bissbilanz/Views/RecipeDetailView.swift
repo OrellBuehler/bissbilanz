@@ -19,6 +19,7 @@ struct RecipeDetailView: View {
     @State private var showLogSheet = false
     @State private var errorMessage: String?
     @State private var deleteConflict: DeleteConflict?
+    @State private var showUsage = false
     @State private var duplicatedRecipe: Recipe?
     @State private var isDuplicating = false
     // The server's recipe response has no embedded `food` on ingredients — resolved
@@ -124,16 +125,21 @@ struct RecipeDetailView: View {
             if let errorMessage { Text(errorMessage) }
         }
         .alert(
-            L10n.stillInUse,
+            L10n.recipeDeleteBlockedTitle,
             isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
         ) {
-            Button(L10n.deleteAnyway, role: .destructive) {
+            Button(L10n.whereItsLogged) {
                 deleteConflict = nil
-                Task { await forceDeleteRecipe() }
+                showUsage = true
             }
-            Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+            Button(L10n.ok, role: .cancel) { deleteConflict = nil }
         } message: {
-            if let deleteConflict { Text(deleteConflict.message) }
+            if let deleteConflict { Text(L10n.recipeDeleteBlockedMessage(deleteConflict.entryCount)) }
+        }
+        .sheet(isPresented: $showUsage) {
+            WhereUsedSheet(title: L10n.whereItsLogged, name: recipe?.name ?? "") {
+                try await recipeRepository.whereUsed(id: recipeId)
+            }
         }
     }
 
@@ -300,15 +306,6 @@ struct RecipeDetailView: View {
             case let .blocked(conflict):
                 deleteConflict = conflict
             }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func forceDeleteRecipe() async {
-        do {
-            try await recipeRepository.forceDeleteRecipe(id: recipeId)
-            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }

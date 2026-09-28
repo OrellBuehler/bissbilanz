@@ -353,6 +353,18 @@
 				}
 			]
 		},
+		"FoodUsageResponse": {
+			"enumVariants": [],
+			"full": "FoodUsageResponse.full.json",
+			"minimal": "FoodUsageResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getFoodUsage",
+					"path": "/api/foods/{id}/usage"
+				}
+			]
+		},
 		"FoodsListResponse": {
 			"enumVariants": [
 				"FoodsListResponse.full.enum-foods-0-servingUnit-kg.json",
@@ -545,6 +557,18 @@
 					"method": "PATCH",
 					"operationId": "updateRecipe",
 					"path": "/api/recipes/{id}"
+				}
+			]
+		},
+		"RecipeUsageResponse": {
+			"enumVariants": [],
+			"full": "RecipeUsageResponse.full.json",
+			"minimal": "RecipeUsageResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getRecipeUsage",
+					"path": "/api/recipes/{id}/usage"
 				}
 			]
 		},

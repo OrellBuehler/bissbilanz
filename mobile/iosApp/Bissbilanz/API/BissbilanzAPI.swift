@@ -62,11 +62,28 @@ struct DeleteConflict: Decodable {
     let entryCount: Int
     let ingredientCount: Int?
     let recipeCount: Int?
+    /// Foods only: supplements still use the food, which `force` cannot override.
+    var supplementIngredientCount: Int?
+    /// Foods only: recipes the food is the sole ingredient of. `force` cannot
+    /// override this either — a recipe must keep at least one ingredient.
+    var lastIngredientRecipes: [WhereUsedRef]?
+
+    /// Forcing cannot delete this food, so the prompt must not offer it.
+    var forceUnavailable: Bool {
+        !(lastIngredientRecipes ?? []).isEmpty || (supplementIngredientCount ?? 0) > 0
+    }
 
     /// Mirrors the web's ForceDeleteDialog copy — the message varies by which
     /// counts are actually present.
     var message: String {
         let recipeCount = recipeCount ?? 0
+        if forceUnavailable {
+            return L10n.deleteConflictSummary(
+                entries: entryCount,
+                recipes: recipeCount,
+                supplements: supplementIngredientCount ?? 0
+            )
+        }
         if entryCount > 0, recipeCount > 0 {
             return L10n.deleteConflictEntriesAndRecipes(entries: entryCount, recipes: recipeCount)
         }
@@ -74,6 +91,18 @@ struct DeleteConflict: Decodable {
             return L10n.deleteConflictRecipes(recipeCount)
         }
         return L10n.deleteConflictEntries(entryCount)
+    }
+
+    /// Why "Delete anyway" is not offered, when it is not.
+    var forceUnavailableReason: String? {
+        if let recipes = lastIngredientRecipes, !recipes.isEmpty {
+            let names = recipes.map { "\"\($0.name)\"" }.joined(separator: ", ")
+            return L10n.deleteConflictLastIngredient(recipes: names)
+        }
+        if let count = supplementIngredientCount, count > 0 {
+            return L10n.deleteConflictSupplements(count)
+        }
+        return nil
     }
 }
 
@@ -153,6 +182,10 @@ final class BissbilanzAPI {
     func getFood(id: String) async throws -> Food {
         let response: FoodResponse = try await get("/api/foods/\(id)")
         return response.food
+    }
+
+    func getFoodUsage(id: String) async throws -> WhereUsed {
+        try await get("/api/foods/\(id)/usage")
     }
 
     func createFood(
@@ -333,6 +366,10 @@ final class BissbilanzAPI {
     func getRecipe(id: String) async throws -> Recipe {
         let response: RecipeResponse = try await get("/api/recipes/\(id)")
         return response.recipe
+    }
+
+    func getRecipeUsage(id: String) async throws -> WhereUsed {
+        try await get("/api/recipes/\(id)/usage")
     }
 
     func createRecipe(
