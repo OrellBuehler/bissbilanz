@@ -29,7 +29,7 @@ bun run analytics:check       # analytics golden vectors up to date (also gated 
 bun run test                  # unit tests
 bun run test:integration-db   # Testcontainers, needs Docker
 bun run security              # Semgrep + bun audit + Trivy — fix CRITICAL/HIGH
-bun run api:check             # fails if the OpenAPI spec/clients are stale
+scripts/api/verify.sh         # generated API artifacts current, no breaking changes (Docker)
 ```
 
 ```bash

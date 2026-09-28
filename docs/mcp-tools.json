@@ -1,0 +1,4485 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Bissbilanz MCP surface",
+		"version": "1.0.0",
+		"description": "Generated snapshot of the MCP tools and prompts, one POST per tool, for breaking-change detection. Not a real HTTP API."
+	},
+	"paths": {
+		"/tools/complete_ai_task": {
+			"post": {
+				"operationId": "complete_ai_task",
+				"description": "Mark an AI task as completed after logging its food entries with log_food. Pass the created entry IDs so the task's history links back to the diary.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the AI task to complete"
+									},
+									"resultSummary": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Short summary of what you logged, written for the user to read. Shown to them verbatim in their AI Tasks list, so address them directly and name the foods and amounts you entered."
+									},
+									"entryIds": {
+										"description": "IDs of the food entries created for this task",
+										"type": "array",
+										"items": { "type": "string" }
+									}
+								},
+								"required": ["id", "resultSummary"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/copy_entries": {
+			"post": {
+				"operationId": "copy_entries",
+				"description": "Copy all food entries from one date to another. Useful for repeating a day's meals.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"fromDate": {
+										"type": "string",
+										"description": "Source date in YYYY-MM-DD format"
+									},
+									"toDate": {
+										"description": "Target date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									}
+								},
+								"required": ["fromDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/create_food": {
+			"post": {
+				"operationId": "create_food",
+				"description": "Create a new food item in the user's food database with nutritional information per serving. Supports extended nutrients (vitamins, minerals, etc.).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200,
+										"description": "Food name"
+									},
+									"brand": {
+										"anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "null" }],
+										"description": "Brand name"
+									},
+									"servingSize": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"description": "Serving size amount"
+									},
+									"servingUnit": {
+										"description": "Serving unit (e.g., \"g\", \"ml\", \"oz\")",
+										"allOf": [
+											{
+												"type": "string",
+												"enum": [
+													"g",
+													"kg",
+													"ml",
+													"cl",
+													"l",
+													"oz",
+													"lb",
+													"fl_oz",
+													"cup",
+													"tbsp",
+													"tsp"
+												]
+											}
+										]
+									},
+									"calories": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Calories per serving"
+									},
+									"protein": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Protein in grams per serving"
+									},
+									"carbs": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Carbohydrates in grams per serving"
+									},
+									"fat": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Fat in grams per serving"
+									},
+									"fiber": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Fiber in grams per serving"
+									},
+									"saturatedFat": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "saturatedFat in g per serving"
+									},
+									"monounsaturatedFat": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "monounsaturatedFat in g per serving"
+									},
+									"polyunsaturatedFat": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "polyunsaturatedFat in g per serving"
+									},
+									"transFat": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "transFat in g per serving"
+									},
+									"cholesterol": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "cholesterol in mg per serving"
+									},
+									"omega3": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "omega3 in g per serving"
+									},
+									"omega6": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "omega6 in g per serving"
+									},
+									"sugar": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "sugar in g per serving"
+									},
+									"addedSugars": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "addedSugars in g per serving"
+									},
+									"sugarAlcohols": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "sugarAlcohols in g per serving"
+									},
+									"starch": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "starch in g per serving"
+									},
+									"sodium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "sodium in mg per serving"
+									},
+									"potassium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "potassium in mg per serving"
+									},
+									"calcium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "calcium in mg per serving"
+									},
+									"iron": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "iron in mg per serving"
+									},
+									"magnesium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "magnesium in mg per serving"
+									},
+									"phosphorus": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "phosphorus in mg per serving"
+									},
+									"zinc": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "zinc in mg per serving"
+									},
+									"copper": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "copper in mg per serving"
+									},
+									"manganese": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "manganese in mg per serving"
+									},
+									"selenium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "selenium in µg per serving"
+									},
+									"iodine": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "iodine in µg per serving"
+									},
+									"fluoride": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "fluoride in mg per serving"
+									},
+									"chromium": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "chromium in µg per serving"
+									},
+									"molybdenum": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "molybdenum in µg per serving"
+									},
+									"chloride": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "chloride in mg per serving"
+									},
+									"vitaminA": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminA in µg per serving"
+									},
+									"vitaminC": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminC in mg per serving"
+									},
+									"vitaminD": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminD in µg per serving"
+									},
+									"vitaminE": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminE in mg per serving"
+									},
+									"vitaminK": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminK in µg per serving"
+									},
+									"vitaminB1": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB1 in mg per serving"
+									},
+									"vitaminB2": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB2 in mg per serving"
+									},
+									"vitaminB3": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB3 in mg per serving"
+									},
+									"vitaminB5": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB5 in mg per serving"
+									},
+									"vitaminB6": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB6 in mg per serving"
+									},
+									"vitaminB7": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB7 in µg per serving"
+									},
+									"vitaminB9": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB9 in µg per serving"
+									},
+									"vitaminB12": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "vitaminB12 in µg per serving"
+									},
+									"caffeine": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "caffeine in mg per serving"
+									},
+									"alcohol": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "alcohol in g per serving"
+									},
+									"water": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "water in g per serving"
+									},
+									"salt": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "salt in g per serving"
+									},
+									"barcode": {
+										"anyOf": [{ "type": "string", "maxLength": 64 }, { "type": "null" }],
+										"description": "Barcode number"
+									},
+									"isFavorite": { "description": "Mark as favorite", "type": "boolean" },
+									"nutriScore": {
+										"anyOf": [
+											{ "type": "string", "enum": ["a", "b", "c", "d", "e"] },
+											{ "type": "null" }
+										],
+										"description": "Nutri-Score grade (null to clear)"
+									},
+									"novaGroup": {
+										"anyOf": [
+											{ "type": "integer", "minimum": 1, "maximum": 4 },
+											{ "type": "null" }
+										],
+										"description": "NOVA food processing group 1-4 (null to clear)"
+									},
+									"additives": {
+										"anyOf": [
+											{
+												"maxItems": 100,
+												"type": "array",
+												"items": { "type": "string", "maxLength": 100 }
+											},
+											{ "type": "null" }
+										],
+										"description": "List of additives (null to clear)"
+									},
+									"ingredientsText": {
+										"anyOf": [{ "type": "string", "maxLength": 10000 }, { "type": "null" }],
+										"description": "Full ingredients text (null to clear)"
+									},
+									"imageUrl": {
+										"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }],
+										"description": "Image URL or relative path (null to clear)"
+									},
+									"categoriesTags": {
+										"description": "Raw Open Food Facts categories_tags as returned by find_food_by_barcode or search_openfoodfacts; pass them through verbatim and the server seeds the food's labels from them. Not stored on the food.",
+										"maxItems": 100,
+										"type": "array",
+										"items": { "type": "string", "maxLength": 200 }
+									}
+								},
+								"required": [
+									"name",
+									"servingSize",
+									"servingUnit",
+									"calories",
+									"protein",
+									"carbs",
+									"fat",
+									"fiber"
+								]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/create_recipe": {
+			"post": {
+				"operationId": "create_recipe",
+				"description": "Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200,
+										"description": "Recipe name"
+									},
+									"totalServings": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"description": "Number of servings the recipe makes"
+									},
+									"ingredients": {
+										"minItems": 1,
+										"maxItems": 100,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"quantity": { "type": "number", "exclusiveMinimum": 0 },
+												"servingUnit": {
+													"type": "string",
+													"enum": [
+														"g",
+														"kg",
+														"ml",
+														"cl",
+														"l",
+														"oz",
+														"lb",
+														"fl_oz",
+														"cup",
+														"tbsp",
+														"tsp"
+													]
+												}
+											},
+											"required": ["foodId", "quantity", "servingUnit"]
+										},
+										"description": "List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. servingUnit must be the same kind of measurement as the food's own unit (mass with mass, volume with volume) — a mismatch is rejected with a 400 error."
+									},
+									"isFavorite": { "description": "Mark as favorite", "type": "boolean" },
+									"imageUrl": {
+										"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }],
+										"description": "Image URL or relative path (null to clear)"
+									},
+									"cookedWeight": {
+										"anyOf": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "null" }],
+										"description": "Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings)."
+									}
+								},
+								"required": ["name", "totalServings", "ingredients"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/create_supplement": {
+			"post": {
+				"operationId": "create_supplement",
+				"description": "Create a new supplement with schedule and ingredients. Each ingredient needs a backing food (kind='supplement') that carries its nutrient data. Pass `foodId` to reuse an existing backing food, or `food: { name, nutrients... }` to create one inline.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": { "type": "string", "description": "Supplement name" },
+									"scheduleType": {
+										"type": "string",
+										"enum": ["daily", "every_other_day", "weekly", "specific_days"],
+										"description": "Schedule type"
+									},
+									"scheduleDays": {
+										"description": "Days of week (0=Sun..6=Sat) for weekly/specific_days",
+										"type": "array",
+										"items": { "type": "integer", "minimum": 0, "maximum": 6 }
+									},
+									"scheduleStartDate": {
+										"description": "Start date in YYYY-MM-DD format",
+										"type": "string"
+									},
+									"timeOfDay": {
+										"description": "Preferred time of day",
+										"type": "string",
+										"enum": ["morning", "noon", "evening"]
+									},
+									"reminderTimes": {
+										"description": "Local wall-clock reminder times as HH:MM (24h), e.g. [\"08:00\", \"20:00\"]. Max 6. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it.",
+										"maxItems": 6,
+										"type": "array",
+										"items": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+									},
+									"ingredients": {
+										"minItems": 1,
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"description": "ID of an existing food (usually kind=supplement) to back this ingredient",
+													"type": "string"
+												},
+												"food": {
+													"description": "Inline backing food to create on the fly. Provide either foodId OR food, not both.",
+													"type": "object",
+													"properties": {
+														"name": {
+															"type": "string",
+															"description": "Ingredient name (e.g. \"Vitamin D3\")"
+														},
+														"ingredientsText": {
+															"description": "Human-readable dosage label, e.g. \"5000 IU\" or \"200 mg\"",
+															"type": "string"
+														},
+														"saturatedFat": {
+															"description": "saturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"monounsaturatedFat": {
+															"description": "monounsaturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"polyunsaturatedFat": {
+															"description": "polyunsaturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"transFat": {
+															"description": "transFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"cholesterol": {
+															"description": "cholesterol in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"omega3": {
+															"description": "omega3 in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"omega6": {
+															"description": "omega6 in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sugar": {
+															"description": "sugar in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"addedSugars": {
+															"description": "addedSugars in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sugarAlcohols": {
+															"description": "sugarAlcohols in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"starch": {
+															"description": "starch in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sodium": {
+															"description": "sodium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"potassium": {
+															"description": "potassium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"calcium": {
+															"description": "calcium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"iron": {
+															"description": "iron in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"magnesium": {
+															"description": "magnesium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"phosphorus": {
+															"description": "phosphorus in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"zinc": {
+															"description": "zinc in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"copper": {
+															"description": "copper in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"manganese": {
+															"description": "manganese in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"selenium": {
+															"description": "selenium in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"iodine": {
+															"description": "iodine in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"fluoride": {
+															"description": "fluoride in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"chromium": {
+															"description": "chromium in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"molybdenum": {
+															"description": "molybdenum in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"chloride": {
+															"description": "chloride in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminA": {
+															"description": "vitaminA in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminC": {
+															"description": "vitaminC in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminD": {
+															"description": "vitaminD in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminE": {
+															"description": "vitaminE in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminK": {
+															"description": "vitaminK in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB1": {
+															"description": "vitaminB1 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB2": {
+															"description": "vitaminB2 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB3": {
+															"description": "vitaminB3 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB5": {
+															"description": "vitaminB5 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB6": {
+															"description": "vitaminB6 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB7": {
+															"description": "vitaminB7 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB9": {
+															"description": "vitaminB9 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB12": {
+															"description": "vitaminB12 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"caffeine": {
+															"description": "caffeine in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"alcohol": {
+															"description": "alcohol in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"water": {
+															"description": "water in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"salt": {
+															"description": "salt in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														}
+													},
+													"required": ["name"]
+												},
+												"servings": {
+													"description": "Servings of the backing food per dose. Defaults to 1.",
+													"type": "number"
+												}
+											}
+										},
+										"description": "At least one ingredient"
+									},
+									"isActive": {
+										"description": "Whether the supplement is active. Defaults to true.",
+										"type": "boolean"
+									}
+								},
+								"required": ["name", "scheduleType", "ingredients"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_day_properties": {
+			"post": {
+				"operationId": "delete_day_properties",
+				"description": "Remove all properties for a specific day (resets fasting status, note, water and activity).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["date"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_entry": {
+			"post": {
+				"operationId": "delete_entry",
+				"description": "Delete a food entry from the diary. Returns the updated daily nutrition status.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"entryId": { "type": "string", "description": "ID of the entry to delete" },
+									"date": {
+										"description": "Date of the entry in YYYY-MM-DD format. Used to return updated daily status. Defaults to today.",
+										"type": "string"
+									}
+								},
+								"required": ["entryId"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"success": { "type": "boolean", "const": true },
+										"dailyStatus": {
+											"type": "object",
+											"properties": {
+												"totals": {
+													"type": "object",
+													"properties": {
+														"calories": { "type": "number" },
+														"protein": { "type": "number" },
+														"carbs": { "type": "number" },
+														"fat": { "type": "number" },
+														"fiber": { "type": "number" }
+													},
+													"required": ["calories", "protein", "carbs", "fat", "fiber"],
+													"additionalProperties": false
+												},
+												"goals": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calorieGoal": { "type": "number" },
+																"proteinGoal": { "type": "number" },
+																"carbGoal": { "type": "number" },
+																"fatGoal": { "type": "number" },
+																"fiberGoal": { "type": "number" },
+																"targetWeightKg": { "type": ["number", "null"] },
+																"targetDate": { "type": ["string", "null"] }
+															},
+															"required": [
+																"calorieGoal",
+																"proteinGoal",
+																"carbGoal",
+																"fatGoal",
+																"fiberGoal"
+															],
+															"additionalProperties": {}
+														},
+														{ "type": "null" }
+													]
+												},
+												"progress": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calories": { "type": "number" },
+																"protein": { "type": "number" },
+																"carbs": { "type": "number" },
+																"fat": { "type": "number" },
+																"fiber": { "type": "number" }
+															},
+															"required": ["calories", "protein", "carbs", "fat", "fiber"],
+															"additionalProperties": false
+														},
+														{ "type": "null" }
+													]
+												},
+												"entryCount": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"byMeal": {
+													"type": "object",
+													"propertyNames": { "type": "string" },
+													"additionalProperties": {
+														"type": "object",
+														"properties": {
+															"calories": { "type": "number" },
+															"protein": { "type": "number" },
+															"carbs": { "type": "number" },
+															"fat": { "type": "number" },
+															"fiber": { "type": "number" }
+														},
+														"required": ["calories", "protein", "carbs", "fat", "fiber"],
+														"additionalProperties": false
+													}
+												},
+												"waterMl": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"activityCalories": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"activityNote": { "type": "string" },
+												"isFastingDay": { "type": "boolean" },
+												"baseGoals": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calorieGoal": { "type": "number" },
+																"proteinGoal": { "type": "number" },
+																"carbGoal": { "type": "number" },
+																"fatGoal": { "type": "number" },
+																"fiberGoal": { "type": "number" },
+																"targetWeightKg": { "type": ["number", "null"] },
+																"targetDate": { "type": ["string", "null"] }
+															},
+															"required": [
+																"calorieGoal",
+																"proteinGoal",
+																"carbGoal",
+																"fatGoal",
+																"fiberGoal"
+															],
+															"additionalProperties": {}
+														},
+														{ "type": "null" }
+													]
+												},
+												"activityBonus": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												}
+											},
+											"required": ["totals", "goals", "progress", "entryCount", "byMeal"],
+											"additionalProperties": false
+										}
+									},
+									"required": ["success", "dailyStatus"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/delete_food": {
+			"post": {
+				"operationId": "delete_food",
+				"description": "Delete a food from the database. If the food has diary entries, returns blocked status unless force=true.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": { "type": "string", "description": "The food ID to delete" },
+									"force": {
+										"description": "Force delete even if food has diary entries",
+										"type": "boolean"
+									}
+								},
+								"required": ["foodId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_recipe": {
+			"post": {
+				"operationId": "delete_recipe",
+				"description": "Delete a recipe. If the recipe has diary entries, returns blocked status unless force=true.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recipeId": { "type": "string", "description": "The recipe ID to delete" },
+									"force": {
+										"description": "Force delete even if recipe has diary entries",
+										"type": "boolean"
+									}
+								},
+								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_sleep": {
+			"post": {
+				"operationId": "delete_sleep",
+				"description": "Delete a sleep entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "Sleep entry ID to delete"
+									}
+								},
+								"required": ["id"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_supplement": {
+			"post": {
+				"operationId": "delete_supplement",
+				"description": "Delete a supplement.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"supplementId": { "type": "string", "description": "The supplement ID to delete" }
+								},
+								"required": ["supplementId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_weight": {
+			"post": {
+				"operationId": "delete_weight",
+				"description": "Delete a weight entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"weightId": { "type": "string", "description": "The weight entry ID to delete" }
+								},
+								"required": ["weightId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/dismiss_ai_task": {
+			"post": {
+				"operationId": "dismiss_ai_task",
+				"description": "Dismiss an AI task without logging any entries, e.g. if it is a duplicate or not actionable. The user is notified of every dismissal, so a reason is required.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the AI task to dismiss"
+									},
+									"reason": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Why you could not log this task, written for the user to read. They are notified with this text and it stays on the task in their AI Tasks list, so address them directly and say what you would need in order to log it."
+									}
+								},
+								"required": ["id", "reason"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/find_duplicate_foods": {
+			"post": {
+				"operationId": "find_duplicate_foods",
+				"description": "Scan the user's food database for likely duplicates: foods sharing a barcode, foods with the exact same name and brand, and foods with a very similar name and near-identical macros per serving. Returns groups of candidate foods to review and merge with merge_foods.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/find_food_by_barcode": {
+			"post": {
+				"operationId": "find_food_by_barcode",
+				"description": "Look up a food in the user's database by barcode number. Falls back to Open Food Facts if not found locally.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"barcode": { "type": "string", "description": "Barcode number to search for" }
+								},
+								"required": ["barcode"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/find_nutrient_sources": {
+			"post": {
+				"operationId": "find_nutrient_sources",
+				"description": "Rank the user’s foods and recipes by how much of a daily nutrient shortfall one serving would close. Score is 0.6 x gap closure (capped at one whole gap) + 0.4 x nutrient density per 100 kcal, judged against the user’s own average intake, then multiplied by a familiarity bonus (favourite, recently logged, often logged; at most 1.35) and 0.9 for catalog results, so a food they already eat wins a close call. Every candidate carries its own numbers — amount per serving, percent of the gap, servings and calories to close it, and a `practical` flag — so explain a pick from those rather than from the score. Deficits default to a fresh 30-day gap report. Set `catalogQuery` to also search the base food catalog by name; those results are not in the user’s database yet and need create_food first.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"nutrients": {
+										"minItems": 1,
+										"maxItems": 6,
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "Nutrient keys to close, e.g. [\"iron\", \"vitaminD\"]. Use the keys from get_nutrient_gaps."
+									},
+									"deficits": {
+										"description": "Explicit daily shortfall per nutrient, overriding the computed one.",
+										"type": "object",
+										"propertyNames": { "type": "string" },
+										"additionalProperties": { "type": "number" }
+									},
+									"includeFoods": {
+										"description": "Include the user’s own foods. Defaults to true.",
+										"type": "boolean"
+									},
+									"includeRecipes": {
+										"description": "Include the user’s recipes. Defaults to true.",
+										"type": "boolean"
+									},
+									"catalogQuery": {
+										"description": "Name search against the base food catalog. Required to include catalog results.",
+										"type": "string"
+									},
+									"limit": {
+										"description": "How many candidates to return. Defaults to 10.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 30
+									}
+								},
+								"required": ["nutrients"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"nutrients": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"avgCalories": { "type": "number" },
+										"candidates": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"notes": { "type": "array", "items": { "type": "string" } }
+									},
+									"required": ["nutrients", "avgCalories", "candidates", "notes"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_ai_task": {
+			"post": {
+				"operationId": "get_ai_task",
+				"description": "Get full details for a specific AI task, including every attached meal photo as an image. A task can carry several photos — parts of the same meal, packaging, or a nutrition label — so read all of them before logging.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": { "id": { "type": "string", "description": "ID of the AI task" } },
+								"required": ["id"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_calendar_stats": {
+			"post": {
+				"operationId": "get_calendar_stats",
+				"description": "Get per-day entry presence for a month. Shows which days have food entries logged, useful for adherence tracking.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"month": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}$",
+										"description": "Month in YYYY-MM format (e.g., \"2026-03\")"
+									}
+								},
+								"required": ["month"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_daily_breakdown": {
+			"post": {
+				"operationId": "get_daily_breakdown",
+				"description": "Get daily nutrition totals for a date range, with one row per day. Rows also carry water intake, activity calories and the activity note on days where those were recorded.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_daily_nutrients": {
+			"post": {
+				"operationId": "get_daily_nutrients",
+				"description": "Get daily totals for all nutrients (core macros and extended) over a date range, with one row per day.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_daily_status": {
+			"post": {
+				"operationId": "get_daily_status",
+				"description": "Get today's nutrition status including total calories, protein, carbs, fat, fiber consumed, daily goals, progress percentages, and per-meal breakdown. Also reports the day's water intake, activity calories and activity note when recorded. Activity calories are never subtracted from intake — but if the user has enabled goal adjustment in their preferences, they raise that day's goals; `goals`/`progress` then reflect the raised goals, and `baseGoals`/`activityBonus` are included to show the unadjusted goal and how much was added.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									},
+									"includeEntries": {
+										"description": "Include individual food entries in the response.",
+										"type": "boolean"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"totals": {
+											"type": "object",
+											"properties": {
+												"calories": { "type": "number" },
+												"protein": { "type": "number" },
+												"carbs": { "type": "number" },
+												"fat": { "type": "number" },
+												"fiber": { "type": "number" }
+											},
+											"required": ["calories", "protein", "carbs", "fat", "fiber"],
+											"additionalProperties": false
+										},
+										"goals": {
+											"anyOf": [
+												{
+													"type": "object",
+													"properties": {
+														"calorieGoal": { "type": "number" },
+														"proteinGoal": { "type": "number" },
+														"carbGoal": { "type": "number" },
+														"fatGoal": { "type": "number" },
+														"fiberGoal": { "type": "number" },
+														"targetWeightKg": { "type": ["number", "null"] },
+														"targetDate": { "type": ["string", "null"] }
+													},
+													"required": [
+														"calorieGoal",
+														"proteinGoal",
+														"carbGoal",
+														"fatGoal",
+														"fiberGoal"
+													],
+													"additionalProperties": {}
+												},
+												{ "type": "null" }
+											]
+										},
+										"progress": {
+											"anyOf": [
+												{
+													"type": "object",
+													"properties": {
+														"calories": { "type": "number" },
+														"protein": { "type": "number" },
+														"carbs": { "type": "number" },
+														"fat": { "type": "number" },
+														"fiber": { "type": "number" }
+													},
+													"required": ["calories", "protein", "carbs", "fat", "fiber"],
+													"additionalProperties": false
+												},
+												{ "type": "null" }
+											]
+										},
+										"entryCount": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"byMeal": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {
+												"type": "object",
+												"properties": {
+													"calories": { "type": "number" },
+													"protein": { "type": "number" },
+													"carbs": { "type": "number" },
+													"fat": { "type": "number" },
+													"fiber": { "type": "number" }
+												},
+												"required": ["calories", "protein", "carbs", "fat", "fiber"],
+												"additionalProperties": false
+											}
+										},
+										"waterMl": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"activityCalories": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"activityNote": { "type": "string" },
+										"isFastingDay": { "type": "boolean" },
+										"baseGoals": {
+											"anyOf": [
+												{
+													"type": "object",
+													"properties": {
+														"calorieGoal": { "type": "number" },
+														"proteinGoal": { "type": "number" },
+														"carbGoal": { "type": "number" },
+														"fatGoal": { "type": "number" },
+														"fiberGoal": { "type": "number" },
+														"targetWeightKg": { "type": ["number", "null"] },
+														"targetDate": { "type": ["string", "null"] }
+													},
+													"required": [
+														"calorieGoal",
+														"proteinGoal",
+														"carbGoal",
+														"fatGoal",
+														"fiberGoal"
+													],
+													"additionalProperties": {}
+												},
+												{ "type": "null" }
+											]
+										},
+										"activityBonus": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"date": { "type": "string" },
+										"entries": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										}
+									},
+									"required": ["totals", "goals", "progress", "entryCount", "byMeal", "date"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_day_properties": {
+			"post": {
+				"operationId": "get_day_properties",
+				"description": "Get properties for a specific day: fasting-day flag, free-text note, water intake in ml, and activity calories burned with an optional note.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["date"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_eating_patterns": {
+			"post": {
+				"operationId": "get_eating_patterns",
+				"description": "How the user actually eats: meal timing and eating window, meal regularity, calorie front-loading and day-to-day cycling, weekday versus weekend, protein distribution across meals, food variety, and a per-meal-slot breakdown of calories, protein and typical clock time. Use it to fit a plan to existing habits rather than inventing a schedule. Per-day series are omitted to keep the payload small.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"description": "Start of the window. Defaults to 89 days before endDate.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"endDate": {
+										"description": "End of the window. Defaults to today in the user timezone.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"startDate": { "type": "string" },
+										"endDate": { "type": "string" },
+										"timeZone": { "type": "string" },
+										"mealTiming": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"mealRegularity": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"calorieFrontLoading": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"calorieCycling": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"weekdayWeekend": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"proteinDistribution": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"proteinThresholdG": { "type": "number" },
+										"mealSlots": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"foodDiversity": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										}
+									},
+									"required": [
+										"startDate",
+										"endDate",
+										"timeZone",
+										"mealTiming",
+										"mealRegularity",
+										"calorieFrontLoading",
+										"calorieCycling",
+										"weekdayWeekend",
+										"proteinDistribution",
+										"proteinThresholdG",
+										"mealSlots",
+										"foodDiversity"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_extended_nutrients": {
+			"post": {
+				"operationId": "get_extended_nutrients",
+				"description": "Get detailed extended nutrient data (vitamins, minerals, etc.) for food entries over a date range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_food": {
+			"post": {
+				"operationId": "get_food",
+				"description": "Get full nutritional details for a specific food by ID.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": { "foodId": { "type": "string", "description": "ID of the food" } },
+								"required": ["foodId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_food_diversity": {
+			"post": {
+				"operationId": "get_food_diversity",
+				"description": "Analyze dietary variety over a date range. Shows unique foods consumed, diversity score, and most/least eaten foods.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_goals": {
+			"post": {
+				"operationId": "get_goals",
+				"description": "Get the user's daily nutrition goals for calories, protein, carbs, fat, and fiber, plus the optional body weight target and target date.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"goals": {
+											"anyOf": [
+												{
+													"type": "object",
+													"properties": {
+														"calorieGoal": { "type": "number" },
+														"proteinGoal": { "type": "number" },
+														"carbGoal": { "type": "number" },
+														"fatGoal": { "type": "number" },
+														"fiberGoal": { "type": "number" },
+														"targetWeightKg": { "type": ["number", "null"] },
+														"targetDate": { "type": ["string", "null"] }
+													},
+													"required": [
+														"calorieGoal",
+														"proteinGoal",
+														"carbGoal",
+														"fatGoal",
+														"fiberGoal"
+													],
+													"additionalProperties": {}
+												},
+												{ "type": "null" }
+											]
+										}
+									},
+									"required": ["goals"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_maintenance_calories": {
+			"post": {
+				"operationId": "get_maintenance_calories",
+				"description": "Estimate maintenance calories (TDEE) from the weight trend and logged intake over a date range. Needs at least two weight entries and some food entries in the range; 4+ weeks of consistent logging gives a usable estimate. Defaults to the last 28 days.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"description": "Start date in YYYY-MM-DD format. Defaults to 27 days before endDate.",
+										"type": "string"
+									},
+									"endDate": {
+										"description": "End date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									},
+									"muscleRatio": {
+										"description": "Share of the weight change assumed to be lean mass (0-1). Defaults to the app-wide assumption.",
+										"type": "number",
+										"minimum": 0,
+										"maximum": 1
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"result": {
+											"type": "object",
+											"properties": {
+												"maintenanceCalories": { "type": "number" },
+												"dailyDeficit": { "type": "number" },
+												"totalEnergyBalance": { "type": "number" },
+												"fatMassKg": { "type": "number" },
+												"muscleMassKg": { "type": "number" },
+												"fatCalories": { "type": "number" },
+												"muscleCalories": { "type": "number" },
+												"avgDailyCalories": { "type": "number" },
+												"weightChangeKg": { "type": "number" },
+												"days": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"muscleRatio": { "type": "number" }
+											},
+											"required": [
+												"maintenanceCalories",
+												"dailyDeficit",
+												"totalEnergyBalance",
+												"fatMassKg",
+												"muscleMassKg",
+												"fatCalories",
+												"muscleCalories",
+												"avgDailyCalories",
+												"weightChangeKg",
+												"days",
+												"muscleRatio"
+											],
+											"additionalProperties": false
+										},
+										"meta": {
+											"type": "object",
+											"properties": {
+												"weightEntries": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"foodEntryDays": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"totalDays": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"coverage": { "type": "number" },
+												"firstWeight": { "type": "number" },
+												"lastWeight": { "type": "number" },
+												"startDate": { "type": "string" },
+												"endDate": { "type": "string" }
+											},
+											"required": [
+												"weightEntries",
+												"foodEntryDays",
+												"totalDays",
+												"coverage",
+												"firstWeight",
+												"lastWeight",
+												"startDate",
+												"endDate"
+											],
+											"additionalProperties": false
+										}
+									},
+									"required": ["result", "meta"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_meal_breakdown": {
+			"post": {
+				"operationId": "get_meal_breakdown",
+				"description": "Get nutrition totals broken down by meal type for a date range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_meal_plan_context": {
+			"post": {
+				"operationId": "get_meal_plan_context",
+				"description": "Everything needed to build a meal plan in one call: goals, maintenance calories, latest weight, the priority nutrient gaps, eating-pattern summary, per-meal-slot calorie split, favourites, most-logged foods, recipes with per-serving macros, and the available meal types. Start here before planning, then use find_nutrient_sources for the specific gaps worth closing. Capped for context size: recipes carry per-serving macros only and there are no per-day series.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"planDays": {
+										"description": "How many days the plan will cover. Defaults to 7.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 31
+									},
+									"analysisDays": {
+										"description": "How many days of history to summarise. Defaults to 30.",
+										"type": "integer",
+										"minimum": 7,
+										"maximum": 366
+									},
+									"maxFoods": {
+										"description": "Cap on most-logged foods. Defaults to 40.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 100
+									},
+									"maxRecipes": {
+										"description": "Cap on recipes. Defaults to 20.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 50
+									},
+									"maxGapNutrients": {
+										"description": "Cap on priority gap nutrients. Defaults to 8.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 31
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"today": { "type": "string" },
+										"timeZone": { "type": "string" },
+										"planDays": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"goals": {
+											"anyOf": [
+												{
+													"type": "object",
+													"properties": {
+														"calorieGoal": { "type": "number" },
+														"proteinGoal": { "type": "number" },
+														"carbGoal": { "type": "number" },
+														"fatGoal": { "type": "number" },
+														"fiberGoal": { "type": "number" },
+														"targetWeightKg": { "type": ["number", "null"] },
+														"targetDate": { "type": ["string", "null"] }
+													},
+													"required": [
+														"calorieGoal",
+														"proteinGoal",
+														"carbGoal",
+														"fatGoal",
+														"fiberGoal"
+													],
+													"additionalProperties": {}
+												},
+												{ "type": "null" }
+											]
+										},
+										"maintenance": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"latestWeightKg": { "type": ["number", "null"] },
+										"biologicalSex": { "type": ["string", "null"] },
+										"gaps": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"patterns": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"mealSlots": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"favorites": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": {}
+										},
+										"topFoods": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"recipes": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"mealTypes": { "type": "array", "items": {} },
+										"notes": { "type": "array", "items": { "type": "string" } }
+									},
+									"required": [
+										"today",
+										"timeZone",
+										"planDays",
+										"goals",
+										"maintenance",
+										"latestWeightKg",
+										"biologicalSex",
+										"gaps",
+										"patterns",
+										"mealSlots",
+										"favorites",
+										"topFoods",
+										"recipes",
+										"mealTypes",
+										"notes"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_meal_timing": {
+			"post": {
+				"operationId": "get_meal_timing",
+				"description": "Analyze meal timing patterns over a date range. Shows when meals are typically eaten and calorie distribution by time of day.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_monthly_stats": {
+			"post": {
+				"operationId": "get_monthly_stats",
+				"description": "Get average daily nutrition over 30 days. Defaults to the past 30 days. Use startDate and endDate for a custom range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"description": "Custom start date in YYYY-MM-DD format. Omit for past 30 days.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"endDate": {
+										"description": "Custom end date in YYYY-MM-DD format. Omit for today.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"calories": { "type": "number" },
+										"protein": { "type": "number" },
+										"carbs": { "type": "number" },
+										"fat": { "type": "number" },
+										"fiber": { "type": "number" }
+									},
+									"required": ["calories", "protein", "carbs", "fat", "fiber"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_nutrient_gaps": {
+			"post": {
+				"operationId": "get_nutrient_gaps",
+				"description": "Compare average intake against reference values for all 31 nutrients that have one, worst first. Verdicts follow the EAR cut-point method, so there is no traffic light at the RDA for an individual: \"likely_adequate\" at or above the RDA, \"uncertain\" between EAR and RDA, \"likely_inadequate\" below the EAR, \"no_conclusion\" below an Adequate Intake, \"above_limit\" over the sodium ceiling, and \"depends_on_sex\" when the male and female references disagree and the user has not set one. IMPORTANT: nutrients in `unmeasured` are NOT adequate — nothing the user logged carried a value for them (\"no_data\") or too little of the day did (\"low_coverage\"). Never report those as fine. A day whose coverage falls below the threshold is dropped rather than counted as a zero. `fiberGoal` and `sodiumGoal` from the user’s goals override the reference where set.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"description": "Start of the window. Defaults to 29 days before endDate.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"endDate": {
+										"description": "End of the window. Defaults to today in the user timezone.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"biologicalSex": {
+										"description": "Overrides the stored preference for this call. Without either, nutrients whose references differ by sex report \"depends_on_sex\".",
+										"type": "string",
+										"enum": ["male", "female"]
+									},
+									"minCoverage": {
+										"description": "Minimum share of a day’s calories that must carry a nutrient for the day to count. Defaults to 0.7.",
+										"type": "number",
+										"minimum": 0,
+										"maximum": 1
+									},
+									"includeAdequate": {
+										"description": "Set false to return only nutrients that are not likely adequate. Defaults to true.",
+										"type": "boolean"
+									},
+									"topContributors": {
+										"description": "How many top contributing foods to list per nutrient. Defaults to 3, 0 to omit.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 10
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"startDate": { "type": "string" },
+										"endDate": { "type": "string" },
+										"days": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"daysLogged": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"avgCalories": { "type": "number" },
+										"minCoverage": { "type": "number" },
+										"biologicalSex": { "type": ["string", "null"] },
+										"biologicalSexSource": { "type": "string" },
+										"nutrients": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"unmeasured": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										},
+										"summary": {
+											"type": "object",
+											"propertyNames": { "type": "string" },
+											"additionalProperties": { "type": "number" }
+										}
+									},
+									"required": [
+										"startDate",
+										"endDate",
+										"days",
+										"daysLogged",
+										"avgCalories",
+										"minCoverage",
+										"biologicalSex",
+										"biologicalSexSource",
+										"nutrients",
+										"unmeasured",
+										"summary"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_recipe": {
+			"post": {
+				"operationId": "get_recipe",
+				"description": "Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts). cookedWeight (grams of the finished dish, if set) lets grams eaten be converted to servings: grams / (cookedWeight / totalServings).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recipeId": { "type": "string", "description": "ID of the recipe" }
+								},
+								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_sleep": {
+			"post": {
+				"operationId": "get_sleep",
+				"description": "Get the latest sleep entry, or sleep entries over a date range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"from": {
+										"description": "Start date in YYYY-MM-DD format",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"to": {
+										"description": "End date in YYYY-MM-DD format",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"limit": {
+										"description": "Max entries to return when using date range. Defaults to 100.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 365
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_sleep_food_correlation": {
+			"post": {
+				"operationId": "get_sleep_food_correlation",
+				"description": "Analyze correlations between sleep quality/duration and daily nutrition. Shows how calorie and macro intake relates to sleep patterns.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_streaks": {
+			"post": {
+				"operationId": "get_streaks",
+				"description": "Get current and longest logging streaks (consecutive days with entries).",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"currentStreak": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"longestStreak": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										}
+									},
+									"required": ["currentStreak", "longestStreak"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_supplement_history": {
+			"post": {
+				"operationId": "get_supplement_history",
+				"description": "Get supplement intake history over a date range. Shows which supplements were taken on which days.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"from": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"to": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["from", "to"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_supplement_status": {
+			"post": {
+				"operationId": "get_supplement_status",
+				"description": "Get a supplement checklist showing which supplements are due and whether they've been taken.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"date": { "type": "string" },
+										"total": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"taken": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"pending": {
+											"type": "integer",
+											"minimum": -9007199254740991,
+											"maximum": 9007199254740991
+										},
+										"supplements": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										}
+									},
+									"required": ["date", "total", "taken", "pending", "supplements"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_top_foods": {
+			"post": {
+				"operationId": "get_top_foods",
+				"description": "Get the most frequently logged foods over a period, or with sort set to a macro, the foods that contributed the most of it in total (e.g. what drives fat intake). Macros are per logged entry on average; multiply by count for the total.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"days": {
+										"description": "Number of days to look back. Defaults to 7.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 365
+									},
+									"limit": {
+										"description": "Max number of foods to return. Defaults to 10.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 100
+									},
+									"sort": {
+										"description": "Rank by log count (default) or by total contribution to a macro.",
+										"type": "string",
+										"enum": ["count", "calories", "protein", "carbs", "fat", "fiber"]
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_weekly_stats": {
+			"post": {
+				"operationId": "get_weekly_stats",
+				"description": "Get average daily nutrition over 7 days. Defaults to the past 7 days. Use startDate and endDate for a custom range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"description": "Custom start date in YYYY-MM-DD format. Omit for past 7 days.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"endDate": {
+										"description": "Custom end date in YYYY-MM-DD format. Omit for today.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"calories": { "type": "number" },
+										"protein": { "type": "number" },
+										"carbs": { "type": "number" },
+										"fat": { "type": "number" },
+										"fiber": { "type": "number" }
+									},
+									"required": ["calories", "protein", "carbs", "fat", "fiber"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/get_weight": {
+			"post": {
+				"operationId": "get_weight",
+				"description": "Get the latest weight entry, or weight trend over a date range.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"from": {
+										"description": "Start date in YYYY-MM-DD format (for trend)",
+										"type": "string"
+									},
+									"to": {
+										"description": "End date in YYYY-MM-DD format (for trend)",
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_weight_food_series": {
+			"post": {
+				"operationId": "get_weight_food_series",
+				"description": "Get weight and daily calorie data over a date range for trend analysis. Shows how calorie intake correlates with weight changes.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Start date in YYYY-MM-DD format"
+									},
+									"endDate": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "End date in YYYY-MM-DD format"
+									}
+								},
+								"required": ["startDate", "endDate"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_ai_tasks": {
+			"post": {
+				"operationId": "list_ai_tasks",
+				"description": "Meal-logging tasks the user queued for you to process. If a pending list carries a leading note that the user has routed tasks to their iPhone, leave them alone unless the user explicitly asks you to process them in this conversation. Workflow for each pending task you do process: call get_ai_task (includes every meal photo the user attached) → identify each food/drink and estimate quantities → use search_foods to match items against the user's food database → log entries with log_food using the task's date, mealType and eatenAt — when eatenAt is null the user back-dated the task without a time, so pass an eatenAt on the task's date at a plausible clock time for its meal type instead of letting it default to now (foodId + servings for matched foods; quickName/quickCalories/quickProtein/quickCarbs/quickFat/quickFiber for unmatched estimates). Create a food only when the task carries a nutrition-label photo, a specific product description with nutrition facts, or a web link with the facts — try find_food_by_barcode first and always pass barcode when one is visible; for a plain meal description, log a matched existing foodId or a quick entry, never create a food. Finish with complete_ai_task, passing the created entry IDs and a short summary. Always close out every task you pick up: if you cannot log one, call dismiss_ai_task with a reason. Both outcomes show your text to the user in their AI Tasks list, and a dismissal also raises a notification, so never resolve a task silently.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"status": {
+										"description": "Filter by status. Defaults to pending.",
+										"type": "string",
+										"enum": ["pending", "completed", "dismissed"]
+									},
+									"limit": {
+										"description": "Max results to return. Defaults to 100.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 200
+									},
+									"offset": {
+										"description": "Number of results to skip for pagination.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_entries": {
+			"post": {
+				"operationId": "list_entries",
+				"description": "List all food entries for a given date with food names, meal types, servings, and macros.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"date": { "type": "string" },
+										"entries": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										}
+									},
+									"required": ["date", "entries"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/list_favorites": {
+			"post": {
+				"operationId": "list_favorites",
+				"description": "List the user's favorite foods and recipes, sorted by most frequently logged.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_labels": {
+			"post": {
+				"operationId": "list_labels",
+				"description": "The user's label vocabulary: every label in use with how many foods carry it, most common first. Check it before a labelling sweep so you reuse the nouns already in play (\"bread\", not \"loaf\") and search_foods keeps matching consistently.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_meal_types": {
+			"post": {
+				"operationId": "list_meal_types",
+				"description": "List all meal types available to the user, including default types (Breakfast, Lunch, Dinner, Snacks) and any custom meal types they've created.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"mealTypes": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": {}
+											}
+										}
+									},
+									"required": ["mealTypes"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/list_recent_foods": {
+			"post": {
+				"operationId": "list_recent_foods",
+				"description": "List recently logged foods, ordered by most recent.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"limit": {
+										"description": "Max number of foods to return. Defaults to 25.",
+										"type": "number"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_recipes": {
+			"post": {
+				"operationId": "list_recipes",
+				"description": "List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_supplements": {
+			"post": {
+				"operationId": "list_supplements",
+				"description": "List the user's supplements.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"activeOnly": {
+										"description": "Only show active supplements. Defaults to true.",
+										"type": "boolean"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_unlabeled_foods": {
+			"post": {
+				"operationId": "list_unlabeled_foods",
+				"description": "List foods in the user's database that carry fewer than minLabels labels (default 1, i.e. no labels at all), so a labelling sweep can find its work. Returns the name, brand, a snippet of the ingredient list and the labels the food already has — you cannot see the food, so label from those, and extend rather than repeat what is already there.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"minLabels": {
+										"description": "Return foods carrying fewer than this many labels. 1 (default) means unlabelled only; 5 also surfaces thinly labelled foods worth extending.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 20
+									},
+									"limit": {
+										"description": "Maximum number of foods to return. Defaults to 50.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 200
+									},
+									"offset": {
+										"description": "Number of foods to skip for pagination.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/log_food": {
+			"post": {
+				"operationId": "log_food",
+				"description": "Log a food entry to the user's daily diary. Specify either a foodId, recipeId, or quickCalories for a quick log (e.g., eating out). The amount is always in servings, not grams — for a recipe with a cookedWeight, convert grams eaten via get_recipe's cookedWeight/totalServings first. Quick logs can also carry extended nutrients via quickNutrients. If no date is provided, the entry is logged for today. Returns the updated daily nutrition status.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"description": "Food ID to log",
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"recipeId": {
+										"description": "Recipe ID to log",
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"mealType": {
+										"description": "Meal type. Default values: \"Breakfast\", \"Lunch\", \"Dinner\", \"Snacks\". Custom meal types are also supported if configured by the user.",
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"servings": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"description": "Number of servings. For a recipe logged by weight, convert grams eaten to servings first: call get_recipe to read cookedWeight and totalServings, then servings = grams / (cookedWeight / totalServings)."
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "Optional notes for the entry"
+									},
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string",
+										"format": "date",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+									},
+									"quickName": {
+										"anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "null" }],
+										"description": "Label for quick log entry (e.g., \"Restaurant lunch\")"
+									},
+									"quickCalories": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Calories for quick log (use instead of foodId/recipeId)"
+									},
+									"quickProtein": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Protein in grams for quick log"
+									},
+									"quickCarbs": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Carbs in grams for quick log"
+									},
+									"quickFat": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Fat in grams for quick log"
+									},
+									"quickFiber": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Fiber in grams for quick log"
+									},
+									"quickNutrients": {
+										"anyOf": [
+											{
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": { "type": "number", "minimum": 0 }
+											},
+											{ "type": "null" }
+										],
+										"description": "Extended nutrients for a quick log, as an object mapping nutrient key to amount per serving. Valid keys: saturatedFat (g), monounsaturatedFat (g), polyunsaturatedFat (g), transFat (g), cholesterol (mg), omega3 (g), omega6 (g), sugar (g), addedSugars (g), sugarAlcohols (g), starch (g), sodium (mg), potassium (mg), calcium (mg), iron (mg), magnesium (mg), phosphorus (mg), zinc (mg), copper (mg), manganese (mg), selenium (µg), iodine (µg), fluoride (mg), chromium (µg), molybdenum (µg), chloride (mg), vitaminA (µg), vitaminC (mg), vitaminD (µg), vitaminE (mg), vitaminK (µg), vitaminB1 (mg), vitaminB2 (mg), vitaminB3 (mg), vitaminB5 (mg), vitaminB6 (mg), vitaminB7 (µg), vitaminB9 (µg), vitaminB12 (µg), caffeine (mg), alcohol (g), water (g), salt (g)."
+									},
+									"eatenAt": {
+										"description": "When the food was eaten, as ISO 8601 datetime with timezone (e.g., \"2025-01-15T12:30:00+01:00\"). Defaults to current time if not provided.",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									}
+								},
+								"required": ["mealType", "servings"]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "structuredContent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"entryId": { "type": "string" },
+										"success": { "type": "boolean", "const": true },
+										"dailyStatus": {
+											"type": "object",
+											"properties": {
+												"totals": {
+													"type": "object",
+													"properties": {
+														"calories": { "type": "number" },
+														"protein": { "type": "number" },
+														"carbs": { "type": "number" },
+														"fat": { "type": "number" },
+														"fiber": { "type": "number" }
+													},
+													"required": ["calories", "protein", "carbs", "fat", "fiber"],
+													"additionalProperties": false
+												},
+												"goals": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calorieGoal": { "type": "number" },
+																"proteinGoal": { "type": "number" },
+																"carbGoal": { "type": "number" },
+																"fatGoal": { "type": "number" },
+																"fiberGoal": { "type": "number" },
+																"targetWeightKg": { "type": ["number", "null"] },
+																"targetDate": { "type": ["string", "null"] }
+															},
+															"required": [
+																"calorieGoal",
+																"proteinGoal",
+																"carbGoal",
+																"fatGoal",
+																"fiberGoal"
+															],
+															"additionalProperties": {}
+														},
+														{ "type": "null" }
+													]
+												},
+												"progress": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calories": { "type": "number" },
+																"protein": { "type": "number" },
+																"carbs": { "type": "number" },
+																"fat": { "type": "number" },
+																"fiber": { "type": "number" }
+															},
+															"required": ["calories", "protein", "carbs", "fat", "fiber"],
+															"additionalProperties": false
+														},
+														{ "type": "null" }
+													]
+												},
+												"entryCount": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"byMeal": {
+													"type": "object",
+													"propertyNames": { "type": "string" },
+													"additionalProperties": {
+														"type": "object",
+														"properties": {
+															"calories": { "type": "number" },
+															"protein": { "type": "number" },
+															"carbs": { "type": "number" },
+															"fat": { "type": "number" },
+															"fiber": { "type": "number" }
+														},
+														"required": ["calories", "protein", "carbs", "fat", "fiber"],
+														"additionalProperties": false
+													}
+												},
+												"waterMl": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"activityCalories": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"activityNote": { "type": "string" },
+												"isFastingDay": { "type": "boolean" },
+												"baseGoals": {
+													"anyOf": [
+														{
+															"type": "object",
+															"properties": {
+																"calorieGoal": { "type": "number" },
+																"proteinGoal": { "type": "number" },
+																"carbGoal": { "type": "number" },
+																"fatGoal": { "type": "number" },
+																"fiberGoal": { "type": "number" },
+																"targetWeightKg": { "type": ["number", "null"] },
+																"targetDate": { "type": ["string", "null"] }
+															},
+															"required": [
+																"calorieGoal",
+																"proteinGoal",
+																"carbGoal",
+																"fatGoal",
+																"fiberGoal"
+															],
+															"additionalProperties": {}
+														},
+														{ "type": "null" }
+													]
+												},
+												"activityBonus": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												}
+											},
+											"required": ["totals", "goals", "progress", "entryCount", "byMeal"],
+											"additionalProperties": false
+										}
+									},
+									"required": ["entryId", "success", "dailyStatus"],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tools/log_sleep": {
+			"post": {
+				"operationId": "log_sleep",
+				"description": "Log a sleep entry. Records duration and quality for a given date.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"durationMinutes": {
+										"type": "integer",
+										"exclusiveMinimum": 0,
+										"maximum": 1440,
+										"description": "Total sleep duration in minutes"
+									},
+									"quality": {
+										"type": "number",
+										"minimum": 1,
+										"maximum": 10,
+										"description": "Sleep quality rating from 1 (poor) to 10 (great)"
+									},
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"bedtime": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{ "type": "null" }
+										],
+										"description": "Bedtime as ISO datetime string"
+									},
+									"wakeTime": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{ "type": "null" }
+										],
+										"description": "Wake time as ISO datetime string"
+									},
+									"wakeUps": {
+										"anyOf": [
+											{ "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+											{ "type": "null" }
+										],
+										"description": "Number of times woken up during the night"
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "Optional notes"
+									}
+								},
+								"required": ["durationMinutes", "quality"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/log_supplement": {
+			"post": {
+				"operationId": "log_supplement",
+				"description": "Mark a supplement as taken. Search by name or provide a specific supplement ID.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"description": "Supplement name to search for (fuzzy match)",
+										"type": "string"
+									},
+									"supplementId": { "description": "Exact supplement ID", "type": "string" },
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/log_weight": {
+			"post": {
+				"operationId": "log_weight",
+				"description": "Log a body weight measurement.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"weightKg": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"maximum": 500,
+										"description": "Weight in kilograms"
+									},
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "Optional notes"
+									}
+								},
+								"required": ["weightKg"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/merge_foods": {
+			"post": {
+				"operationId": "merge_foods",
+				"description": "Merge one or more duplicate foods into a keeper food. Re-points every diary entry, recipe ingredient, and supplement ingredient referencing a source food to the keeper (rescaling servings so historical macros stay the same), unions food labels onto the keeper, and deletes the source foods. Fields the keeper is missing are backfilled from the sources; use overrides to force a specific value. Irreversible.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"keeperId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "The food ID to keep — every source is merged into this one."
+									},
+									"sourceIds": {
+										"minItems": 1,
+										"maxItems": 20,
+										"type": "array",
+										"items": {
+											"type": "string",
+											"format": "uuid",
+											"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+										},
+										"description": "Food IDs to merge into the keeper and delete. Cannot include keeperId."
+									},
+									"overrides": {
+										"description": "Optional field values to force on the merged result, overriding both the keeper and the auto-filled source values, e.g. {\"name\": \"Greek Yogurt\", \"brand\": \"FAGE\"}.",
+										"type": "object",
+										"propertyNames": { "type": "string" },
+										"additionalProperties": {}
+									}
+								},
+								"required": ["keeperId", "sourceIds"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/search_foods": {
+			"post": {
+				"operationId": "search_foods",
+				"description": "Search the user's food database. A query matches the food's name first, then its English labels (so \"bread\" finds a food named \"Vollkornbrot\" once it is labelled), then the brand, then similar-looking names for typos; results are ranked in that order, with recently used foods first. If a name in the user's language finds nothing, retry with the plain English noun for what the food is. Each result carries its labels.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"query": {
+										"type": "string",
+										"description": "Search text: part of a name, a brand, or a general English noun such as \"bread\" or \"cheese\"."
+									},
+									"limit": {
+										"description": "Max results to return. Defaults to 50.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 100
+									},
+									"offset": {
+										"description": "Number of results to skip for pagination.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": ["query"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/search_openfoodfacts": {
+			"post": {
+				"operationId": "search_openfoodfacts",
+				"description": "Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"query": { "type": "string", "description": "Search query for product name" },
+									"limit": {
+										"description": "Max results to return. Defaults to 5.",
+										"type": "number"
+									}
+								},
+								"required": ["query"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/set_day_properties": {
+			"post": {
+				"operationId": "set_day_properties",
+				"description": "Set properties for a specific day. Omitted fields keep their stored value; pass null to clear one. Activity calories are never subtracted from logged intake, but raise that day's goals in get_daily_status/get_daily_breakdown when the user has enabled activity goal adjustment in their preferences. Setting activityCalories through this tool always records it as a manual entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+										"description": "Date in YYYY-MM-DD format"
+									},
+									"isFastingDay": {
+										"description": "Whether the day is a fasting day",
+										"type": "boolean"
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "Free-text note for the day"
+									},
+									"waterMl": {
+										"anyOf": [
+											{ "type": "integer", "minimum": 0, "maximum": 20000 },
+											{ "type": "null" }
+										],
+										"description": "Water drunk on the day, in millilitres"
+									},
+									"activityCalories": {
+										"anyOf": [
+											{ "type": "integer", "minimum": 0, "maximum": 20000 },
+											{ "type": "null" }
+										],
+										"description": "Calories burned through activity or exercise on the day"
+									},
+									"activityNote": {
+										"anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "null" }],
+										"description": "Short description of the activity (e.g. \"45 min run\")"
+									}
+								},
+								"required": ["date"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/set_food_labels": {
+			"post": {
+				"operationId": "set_food_labels",
+				"description": "Replace the labels you previously wrote for one food. Return 3-8 general English (en_US) nouns describing what the food physically IS or visibly contains, as a camera would see it. Use singular, lowercase, everyday terms - banana, bread, cheese, bottle, salad. Do NOT use brand names, product names, nutrition terms, cuisines, or adjectives. Prefer the concrete object over the category, but include one broader term where it is natural (banana, fruit). Always English, whatever language the food is named in: a food called \"Banane\" is still labelled \"banana\". Labels are normalized server-side (lowercased, singularized), and your write never touches labels the user set by hand. Prefer set_food_labels_batch when labelling more than one food.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the food to label"
+									},
+									"labels": {
+										"maxItems": 20,
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "General en_US nouns for what the food is. Pass an empty array to clear."
+									}
+								},
+								"required": ["foodId", "labels"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/set_food_labels_batch": {
+			"post": {
+				"operationId": "set_food_labels_batch",
+				"description": "Label many foods in one call — the normal way to run a labelling sweep. Return 3-8 general English (en_US) nouns describing what the food physically IS or visibly contains, as a camera would see it. Use singular, lowercase, everyday terms - banana, bread, cheese, bottle, salad. Do NOT use brand names, product names, nutrition terms, cuisines, or adjectives. Prefer the concrete object over the category, but include one broader term where it is natural (banana, fruit). Always English, whatever language the food is named in: a food called \"Banane\" is still labelled \"banana\". By default (mode \"extend\") your labels are added to what the food already carries; mode \"replace\" swaps out the labels you wrote before. Either way labels the user set by hand are never touched, and the cap of 20 per food is hard: labels that do not fit come back per item as \"dropped\". Results are per-item, so one unknown id does not fail the batch.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"mode": {
+										"description": "\"extend\" (default) adds to existing labels; \"replace\" swaps out your earlier ones.",
+										"type": "string",
+										"enum": ["replace", "extend"]
+									},
+									"items": {
+										"minItems": 1,
+										"maxItems": 100,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+													"description": "ID of the food to label"
+												},
+												"labels": { "maxItems": 20, "type": "array", "items": { "type": "string" } }
+											},
+											"required": ["foodId", "labels"]
+										},
+										"description": "Up to 100 foods with their labels."
+									}
+								},
+								"required": ["items"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/unlog_supplement": {
+			"post": {
+				"operationId": "unlog_supplement",
+				"description": "Remove a supplement log entry (mark as not taken).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"supplementId": { "type": "string", "description": "The supplement ID to unlog" },
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string"
+									}
+								},
+								"required": ["supplementId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_entry": {
+			"post": {
+				"operationId": "update_entry",
+				"description": "Update an existing food entry. Can change servings, meal type, notes, date, food/recipe reference, or quick log fields.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"entryId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the entry to update"
+									},
+									"foodId": {
+										"description": "Food ID to log",
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"recipeId": {
+										"description": "Recipe ID to log",
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+									},
+									"mealType": {
+										"description": "Meal type. Default values: \"Breakfast\", \"Lunch\", \"Dinner\", \"Snacks\". Custom meal types are also supported if configured by the user.",
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"servings": {
+										"description": "Number of servings. For a recipe logged by weight, convert grams eaten to servings first: call get_recipe to read cookedWeight and totalServings, then servings = grams / (cookedWeight / totalServings).",
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"notes": {
+										"description": "Optional notes for the entry",
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }]
+									},
+									"date": {
+										"description": "Date in YYYY-MM-DD format. Defaults to today.",
+										"type": "string",
+										"format": "date",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+									},
+									"quickName": {
+										"description": "Label for quick log entry (e.g., \"Restaurant lunch\")",
+										"anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "null" }]
+									},
+									"quickCalories": {
+										"description": "Calories for quick log (use instead of foodId/recipeId)",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"quickProtein": {
+										"description": "Protein in grams for quick log",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"quickCarbs": {
+										"description": "Carbs in grams for quick log",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"quickFat": {
+										"description": "Fat in grams for quick log",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"quickFiber": {
+										"description": "Fiber in grams for quick log",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"quickNutrients": {
+										"description": "Extended nutrients for a quick log, as an object mapping nutrient key to amount per serving. Valid keys: saturatedFat (g), monounsaturatedFat (g), polyunsaturatedFat (g), transFat (g), cholesterol (mg), omega3 (g), omega6 (g), sugar (g), addedSugars (g), sugarAlcohols (g), starch (g), sodium (mg), potassium (mg), calcium (mg), iron (mg), magnesium (mg), phosphorus (mg), zinc (mg), copper (mg), manganese (mg), selenium (µg), iodine (µg), fluoride (mg), chromium (µg), molybdenum (µg), chloride (mg), vitaminA (µg), vitaminC (mg), vitaminD (µg), vitaminE (mg), vitaminK (µg), vitaminB1 (mg), vitaminB2 (mg), vitaminB3 (mg), vitaminB5 (mg), vitaminB6 (mg), vitaminB7 (µg), vitaminB9 (µg), vitaminB12 (µg), caffeine (mg), alcohol (g), water (g), salt (g).",
+										"anyOf": [
+											{
+												"type": "object",
+												"propertyNames": { "type": "string" },
+												"additionalProperties": { "type": "number", "minimum": 0 }
+											},
+											{ "type": "null" }
+										]
+									},
+									"eatenAt": {
+										"description": "When the food was eaten, as ISO 8601 datetime with timezone (e.g., \"2025-01-15T12:30:00+01:00\"). Defaults to current time if not provided.",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									}
+								},
+								"required": ["entryId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_food": {
+			"post": {
+				"operationId": "update_food",
+				"description": "Update an existing food item in the database. Supports extended nutrients (vitamins, minerals, etc.).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "The food ID to update"
+									},
+									"name": {
+										"description": "Food name",
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200
+									},
+									"brand": {
+										"description": "Brand name",
+										"anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "null" }]
+									},
+									"servingSize": {
+										"description": "Serving size amount",
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"servingUnit": {
+										"description": "Serving unit (e.g., \"g\", \"ml\", \"oz\")",
+										"allOf": [
+											{
+												"type": "string",
+												"enum": [
+													"g",
+													"kg",
+													"ml",
+													"cl",
+													"l",
+													"oz",
+													"lb",
+													"fl_oz",
+													"cup",
+													"tbsp",
+													"tsp"
+												]
+											}
+										]
+									},
+									"calories": {
+										"description": "Calories per serving",
+										"type": "number",
+										"minimum": 0
+									},
+									"protein": {
+										"description": "Protein in grams per serving",
+										"type": "number",
+										"minimum": 0
+									},
+									"carbs": {
+										"description": "Carbohydrates in grams per serving",
+										"type": "number",
+										"minimum": 0
+									},
+									"fat": {
+										"description": "Fat in grams per serving",
+										"type": "number",
+										"minimum": 0
+									},
+									"fiber": {
+										"description": "Fiber in grams per serving",
+										"type": "number",
+										"minimum": 0
+									},
+									"saturatedFat": {
+										"description": "saturatedFat in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"monounsaturatedFat": {
+										"description": "monounsaturatedFat in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"polyunsaturatedFat": {
+										"description": "polyunsaturatedFat in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"transFat": {
+										"description": "transFat in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"cholesterol": {
+										"description": "cholesterol in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"omega3": {
+										"description": "omega3 in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"omega6": {
+										"description": "omega6 in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"sugar": {
+										"description": "sugar in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"addedSugars": {
+										"description": "addedSugars in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"sugarAlcohols": {
+										"description": "sugarAlcohols in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"starch": {
+										"description": "starch in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"sodium": {
+										"description": "sodium in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"potassium": {
+										"description": "potassium in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"calcium": {
+										"description": "calcium in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"iron": {
+										"description": "iron in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"magnesium": {
+										"description": "magnesium in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"phosphorus": {
+										"description": "phosphorus in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"zinc": {
+										"description": "zinc in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"copper": {
+										"description": "copper in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"manganese": {
+										"description": "manganese in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"selenium": {
+										"description": "selenium in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"iodine": {
+										"description": "iodine in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"fluoride": {
+										"description": "fluoride in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"chromium": {
+										"description": "chromium in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"molybdenum": {
+										"description": "molybdenum in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"chloride": {
+										"description": "chloride in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminA": {
+										"description": "vitaminA in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminC": {
+										"description": "vitaminC in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminD": {
+										"description": "vitaminD in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminE": {
+										"description": "vitaminE in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminK": {
+										"description": "vitaminK in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB1": {
+										"description": "vitaminB1 in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB2": {
+										"description": "vitaminB2 in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB3": {
+										"description": "vitaminB3 in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB5": {
+										"description": "vitaminB5 in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB6": {
+										"description": "vitaminB6 in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB7": {
+										"description": "vitaminB7 in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB9": {
+										"description": "vitaminB9 in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"vitaminB12": {
+										"description": "vitaminB12 in µg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"caffeine": {
+										"description": "caffeine in mg per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"alcohol": {
+										"description": "alcohol in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"water": {
+										"description": "water in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"salt": {
+										"description": "salt in g per serving",
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+									},
+									"barcode": {
+										"description": "Barcode number",
+										"anyOf": [{ "type": "string", "maxLength": 64 }, { "type": "null" }]
+									},
+									"isFavorite": { "description": "Mark as favorite", "type": "boolean" },
+									"nutriScore": {
+										"description": "Nutri-Score grade (null to clear)",
+										"anyOf": [
+											{ "type": "string", "enum": ["a", "b", "c", "d", "e"] },
+											{ "type": "null" }
+										]
+									},
+									"novaGroup": {
+										"description": "NOVA food processing group 1-4 (null to clear)",
+										"anyOf": [{ "type": "integer", "minimum": 1, "maximum": 4 }, { "type": "null" }]
+									},
+									"additives": {
+										"description": "List of additives (null to clear)",
+										"anyOf": [
+											{
+												"maxItems": 100,
+												"type": "array",
+												"items": { "type": "string", "maxLength": 100 }
+											},
+											{ "type": "null" }
+										]
+									},
+									"ingredientsText": {
+										"description": "Full ingredients text (null to clear)",
+										"anyOf": [{ "type": "string", "maxLength": 10000 }, { "type": "null" }]
+									},
+									"imageUrl": {
+										"description": "Image URL or relative path (null to clear)",
+										"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }]
+									},
+									"categoriesTags": {
+										"description": "Raw Open Food Facts categories_tags as returned by find_food_by_barcode or search_openfoodfacts; pass them through verbatim and the server seeds the food's labels from them. Not stored on the food.",
+										"maxItems": 100,
+										"type": "array",
+										"items": { "type": "string", "maxLength": 200 }
+									}
+								},
+								"required": ["foodId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_goals": {
+			"post": {
+				"operationId": "update_goals",
+				"description": "Set or update daily nutrition goals, and optionally the body weight target (targetWeightKg) and the date it should be reached by (targetDate). All macro goals must be sent on every call.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"calorieGoal": {
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"description": "Daily calorie goal"
+									},
+									"proteinGoal": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Daily protein goal in grams"
+									},
+									"carbGoal": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Daily carbohydrate goal in grams"
+									},
+									"fatGoal": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Daily fat goal in grams"
+									},
+									"fiberGoal": {
+										"type": "number",
+										"minimum": 0,
+										"description": "Daily fiber goal in grams"
+									},
+									"sodiumGoal": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Daily sodium goal in mg (null to clear)"
+									},
+									"sugarGoal": {
+										"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }],
+										"description": "Daily sugar goal in grams (null to clear)"
+									},
+									"targetWeightKg": {
+										"anyOf": [
+											{ "type": "number", "exclusiveMinimum": 0, "maximum": 500 },
+											{ "type": "null" }
+										],
+										"description": "Body weight target in kg (null to clear)"
+									},
+									"targetDate": {
+										"anyOf": [
+											{ "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+											{ "type": "null" }
+										],
+										"description": "Target date for the body weight target as YYYY-MM-DD (null to clear)"
+									}
+								},
+								"required": ["calorieGoal", "proteinGoal", "carbGoal", "fatGoal", "fiberGoal"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_recipe": {
+			"post": {
+				"operationId": "update_recipe",
+				"description": "Update an existing recipe. Can change name, servings, or replace all ingredients.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recipeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "The recipe ID to update"
+									},
+									"name": {
+										"description": "Recipe name",
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200
+									},
+									"totalServings": {
+										"description": "Number of servings the recipe makes",
+										"type": "number",
+										"exclusiveMinimum": 0
+									},
+									"ingredients": {
+										"description": "List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. servingUnit must be the same kind of measurement as the food's own unit (mass with mass, volume with volume) — a mismatch is rejected with a 400 error.",
+										"minItems": 1,
+										"maxItems": 100,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"quantity": { "type": "number", "exclusiveMinimum": 0 },
+												"servingUnit": {
+													"type": "string",
+													"enum": [
+														"g",
+														"kg",
+														"ml",
+														"cl",
+														"l",
+														"oz",
+														"lb",
+														"fl_oz",
+														"cup",
+														"tbsp",
+														"tsp"
+													]
+												}
+											},
+											"required": ["foodId", "quantity", "servingUnit"]
+										}
+									},
+									"isFavorite": { "description": "Mark as favorite", "type": "boolean" },
+									"imageUrl": {
+										"description": "Image URL or relative path (null to clear)",
+										"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }]
+									},
+									"cookedWeight": {
+										"description": "Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings).",
+										"anyOf": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "null" }]
+									}
+								},
+								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_sleep": {
+			"post": {
+				"operationId": "update_sleep",
+				"description": "Update an existing sleep entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "Sleep entry ID to update"
+									},
+									"durationMinutes": {
+										"description": "New total sleep duration in minutes",
+										"type": "integer",
+										"exclusiveMinimum": 0,
+										"maximum": 1440
+									},
+									"quality": {
+										"description": "New sleep quality rating from 1 (poor) to 10 (great)",
+										"type": "number",
+										"minimum": 1,
+										"maximum": 10
+									},
+									"entryDate": {
+										"description": "New date in YYYY-MM-DD format",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"bedtime": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{ "type": "null" }
+										],
+										"description": "New bedtime as ISO datetime string (null to clear)"
+									},
+									"wakeTime": {
+										"anyOf": [
+											{
+												"type": "string",
+												"format": "date-time",
+												"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+											},
+											{ "type": "null" }
+										],
+										"description": "New wake time as ISO datetime string (null to clear)"
+									},
+									"wakeUps": {
+										"anyOf": [
+											{ "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+											{ "type": "null" }
+										],
+										"description": "New number of wake-ups (null to clear)"
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "New notes (null to clear)"
+									}
+								},
+								"required": ["id"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_supplement": {
+			"post": {
+				"operationId": "update_supplement",
+				"description": "Update an existing supplement.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"supplementId": {
+										"type": "string",
+										"description": "The supplement ID to update"
+									},
+									"name": { "description": "New name", "type": "string" },
+									"scheduleType": {
+										"description": "New schedule type",
+										"type": "string",
+										"enum": ["daily", "every_other_day", "weekly", "specific_days"]
+									},
+									"scheduleDays": {
+										"description": "New days of week",
+										"type": "array",
+										"items": { "type": "integer", "minimum": 0, "maximum": 6 }
+									},
+									"scheduleStartDate": { "description": "New start date", "type": "string" },
+									"timeOfDay": {
+										"anyOf": [
+											{ "type": "string", "enum": ["morning", "noon", "evening"] },
+											{ "type": "null" }
+										],
+										"description": "New time of day"
+									},
+									"reminderTimes": {
+										"anyOf": [
+											{
+												"maxItems": 6,
+												"type": "array",
+												"items": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+											},
+											{ "type": "null" }
+										],
+										"description": "New local wall-clock reminder times as HH:MM (24h), e.g. [\"08:00\", \"20:00\"]. Max 6. Replaces all existing times. The mobile apps schedule local notifications from these, and the server sends a Web Push notification for the web app if the user has enabled it."
+									},
+									"isActive": { "description": "Active status", "type": "boolean" },
+									"ingredients": {
+										"description": "New ingredients (replaces all; must have at least one)",
+										"minItems": 1,
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"foodId": {
+													"description": "ID of an existing food (usually kind=supplement) to back this ingredient",
+													"type": "string"
+												},
+												"food": {
+													"description": "Inline backing food to create on the fly. Provide either foodId OR food, not both.",
+													"type": "object",
+													"properties": {
+														"name": {
+															"type": "string",
+															"description": "Ingredient name (e.g. \"Vitamin D3\")"
+														},
+														"ingredientsText": {
+															"description": "Human-readable dosage label, e.g. \"5000 IU\" or \"200 mg\"",
+															"type": "string"
+														},
+														"saturatedFat": {
+															"description": "saturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"monounsaturatedFat": {
+															"description": "monounsaturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"polyunsaturatedFat": {
+															"description": "polyunsaturatedFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"transFat": {
+															"description": "transFat in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"cholesterol": {
+															"description": "cholesterol in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"omega3": {
+															"description": "omega3 in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"omega6": {
+															"description": "omega6 in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sugar": {
+															"description": "sugar in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"addedSugars": {
+															"description": "addedSugars in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sugarAlcohols": {
+															"description": "sugarAlcohols in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"starch": {
+															"description": "starch in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"sodium": {
+															"description": "sodium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"potassium": {
+															"description": "potassium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"calcium": {
+															"description": "calcium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"iron": {
+															"description": "iron in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"magnesium": {
+															"description": "magnesium in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"phosphorus": {
+															"description": "phosphorus in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"zinc": {
+															"description": "zinc in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"copper": {
+															"description": "copper in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"manganese": {
+															"description": "manganese in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"selenium": {
+															"description": "selenium in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"iodine": {
+															"description": "iodine in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"fluoride": {
+															"description": "fluoride in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"chromium": {
+															"description": "chromium in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"molybdenum": {
+															"description": "molybdenum in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"chloride": {
+															"description": "chloride in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminA": {
+															"description": "vitaminA in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminC": {
+															"description": "vitaminC in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminD": {
+															"description": "vitaminD in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminE": {
+															"description": "vitaminE in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminK": {
+															"description": "vitaminK in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB1": {
+															"description": "vitaminB1 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB2": {
+															"description": "vitaminB2 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB3": {
+															"description": "vitaminB3 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB5": {
+															"description": "vitaminB5 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB6": {
+															"description": "vitaminB6 in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB7": {
+															"description": "vitaminB7 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB9": {
+															"description": "vitaminB9 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"vitaminB12": {
+															"description": "vitaminB12 in µg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"caffeine": {
+															"description": "caffeine in mg per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"alcohol": {
+															"description": "alcohol in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"water": {
+															"description": "water in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														},
+														"salt": {
+															"description": "salt in g per serving",
+															"anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+														}
+													},
+													"required": ["name"]
+												},
+												"servings": {
+													"description": "Servings of the backing food per dose. Defaults to 1.",
+													"type": "number"
+												}
+											}
+										}
+									}
+								},
+								"required": ["supplementId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_weight": {
+			"post": {
+				"operationId": "update_weight",
+				"description": "Update an existing weight entry.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"weightId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "The weight entry ID to update"
+									},
+									"weightKg": {
+										"description": "New weight in kilograms",
+										"type": "number",
+										"exclusiveMinimum": 0,
+										"maximum": 500
+									},
+									"entryDate": {
+										"description": "New date in YYYY-MM-DD format",
+										"type": "string",
+										"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+									},
+									"notes": {
+										"anyOf": [{ "type": "string", "maxLength": 2000 }, { "type": "null" }],
+										"description": "New notes"
+									}
+								},
+								"required": ["weightId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/prompts/daily_review": {
+			"post": {
+				"operationId": "prompt_daily_review",
+				"description": "Compare a day against goals, flag gaps, and suggest how to close them.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"date": {
+										"type": "string",
+										"description": "Date in YYYY-MM-DD format. Defaults to today."
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		},
+		"/prompts/label_foods": {
+			"post": {
+				"operationId": "prompt_label_foods",
+				"description": "Sweep the food database and give every unlabelled (or thinly labelled) food general en_US nouns, so searching \"bread\" or pointing a camera at a banana finds it.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"limit": {
+										"type": "string",
+										"description": "How many foods to label. Leave empty to label everything."
+									},
+									"minLabels": {
+										"type": "string",
+										"description": "Also extend foods carrying fewer than this many labels. Leave empty to label only foods with none."
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		},
+		"/prompts/log_meal": {
+			"post": {
+				"operationId": "prompt_log_meal",
+				"description": "Turn a free-text description of what was eaten into diary entries: search, create where needed, log, summarise.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"description": {
+										"type": "string",
+										"description": "What was eaten, in your own words"
+									},
+									"mealType": { "type": "string" },
+									"date": {
+										"type": "string",
+										"description": "Date in YYYY-MM-DD format. Defaults to today."
+									}
+								},
+								"required": ["description"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		},
+		"/prompts/meal_plan": {
+			"post": {
+				"operationId": "prompt_meal_plan",
+				"description": "Build a multi-day meal plan that fits existing habits and closes the biggest nutrient shortfalls.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startDate": {
+										"type": "string",
+										"description": "First day of the plan, YYYY-MM-DD. Defaults to tomorrow."
+									},
+									"days": {
+										"type": "string",
+										"description": "How many days to plan. Defaults to 7."
+									},
+									"focus": {
+										"type": "string",
+										"description": "What to optimise for, e.g. \"iron and vitamin D\" or \"more protein at breakfast\""
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		},
+		"/prompts/process_ai_tasks": {
+			"post": {
+				"operationId": "prompt_process_ai_tasks",
+				"description": "Work through every pending AI task queued from the web, Android or iPhone capture flow: identify the foods in each one, log entries, and close every task out.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": { "schema": { "type": "object", "properties": {}, "required": [] } }
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		},
+		"/prompts/weekly_review": {
+			"post": {
+				"operationId": "prompt_weekly_review",
+				"description": "Seven-day summary: averages vs goals, consistency, weight trend, top foods, one change for next week.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"endDate": {
+										"type": "string",
+										"description": "Last day of the week to review, YYYY-MM-DD. Defaults to today."
+									}
+								},
+								"required": []
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "prompt messages" } }
+			}
+		}
+	}
+}
