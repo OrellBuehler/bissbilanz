@@ -2,16 +2,20 @@ package com.bissbilanz.android
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.health.HealthImporter
+import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.navigation.PendingNavigation
+import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.reminders.RescheduleGeneralRemindersWorker
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.ui.AppLanguage
@@ -41,7 +45,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleIntent(intent)
+        // A restored activity (rotation, process death) gets its launch intent again; a shared file
+        // it carried has been handled once already and its read grant may be gone.
+        handleIntent(intent, isFreshLaunch = savedInstanceState == null)
         setContent {
             BissbilanzApp()
         }
@@ -65,10 +71,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        handleIntent(intent, isFreshLaunch = true)
     }
 
-    private fun handleIntent(intent: Intent) {
+    private fun handleIntent(
+        intent: Intent,
+        isFreshLaunch: Boolean,
+    ) {
         val navigateTo = intent.getStringExtra(EXTRA_NAVIGATE_TO)
         if (navigateTo != null) {
             intent.removeExtra(EXTRA_NAVIGATE_TO)
@@ -87,6 +96,16 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        val sharedFile = foodPackageUri(intent)
+        if (sharedFile != null) {
+            // Consumed now, so a recreated activity does not open the same file again.
+            intent.data = null
+            intent.removeExtra(Intent.EXTRA_STREAM)
+            intent.clipData = null
+            if (isFreshLaunch) openFoodPackage(sharedFile)
+            return
+        }
+
         val uri = intent.data ?: return
         if (uri.scheme == "bissbilanz" && uri.host == "oauth" && uri.path == "/callback") {
             val state = uri.getQueryParameter("state")
@@ -97,6 +116,41 @@ class MainActivity : ComponentActivity() {
             val code = uri.getQueryParameter("code") ?: return
             lifecycleScope.launch(Dispatchers.IO) {
                 authManager.handleCallback(code)
+            }
+        }
+    }
+
+    /**
+     * A `.bissbilanz` file tapped in another app arrives as ACTION_VIEW (with the file as data) or,
+     * when shared to Bissbilanz, as ACTION_SEND (with it as EXTRA_STREAM). Whether it really is a
+     * food package is decided by its content, not by the name or type the sender reports.
+     */
+    private fun foodPackageUri(intent: Intent): Uri? =
+        when (intent.action) {
+            Intent.ACTION_SEND ->
+                IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                    ?: intent.clipData
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                        ?.uri
+            Intent.ACTION_VIEW -> intent.data?.takeIf { it.scheme == "content" || it.scheme == "file" }
+            else -> null
+        }
+
+    /**
+     * Copies the file into the app cache and holds it for the import screen. Navigation waits until
+     * the app is past sign-in / onboarding, so this only records the request.
+     */
+    private fun openFoodPackage(uri: Uri) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                PendingPackageImport.request(IncomingPackageFiles.copyToCache(this@MainActivity, uri))
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                errorReporter.captureException(e)
+                PendingPackageImport.request(
+                    PendingPackageImport.Request(IncomingPackageFiles.DEFAULT_NAME, null, PendingPackageImport.Problem.UNREADABLE),
+                )
             }
         }
     }

@@ -88,6 +88,58 @@
                     android:host="oauth"
                     android:path="/callback" />
             </intent-filter>
+            <!-- Food packages (.bissbilanz, a zip): tapped in a messenger, the Files app or a mail
+                 client. Senders usually report a generic zip or binary type, and a content:// URI
+                 rarely keeps its extension, so the type filters cannot tell a package from any other
+                 zip; the app opens the file and tells the user if it is not a food package.
+                 The path patterns below catch senders that do keep the name (they need one variant
+                 per extra dot in the file name, as pathPattern has no real wildcard). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/vnd.bissbilanz.food-package" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\..*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.bissbilanz" />
+            </intent-filter>
+            <!-- The same, for a sender that gives no type at all. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\..*\\.bissbilanz" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.bissbilanz" />
+            </intent-filter>
+            <!-- "Share to Bissbilanz" from the share sheet. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/vnd.bissbilanz.food-package" />
+            </intent-filter>
         </activity>
         <receiver
             android:name=".widget.MacroWidgetReceiver"
