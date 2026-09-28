@@ -1196,7 +1196,7 @@
 			"post": {
 				"operationId": "createRecipe",
 				"tags": ["Recipes"],
-				"description": "Create a new recipe.",
+				"description": "Create a new recipe. Optional `steps` are ordered cooking instructions ({ text, imageUrl? }, up to 50).",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -1231,7 +1231,7 @@
 			"get": {
 				"operationId": "getRecipe",
 				"tags": ["Recipes"],
-				"description": "Get a single recipe by ID.",
+				"description": "Get a single recipe by ID, including its ingredients and its ordered cooking steps (an empty array when it has none).",
 				"parameters": [
 					{
 						"in": "path",
@@ -1266,7 +1266,7 @@
 			"patch": {
 				"operationId": "updateRecipe",
 				"tags": ["Recipes"],
-				"description": "Update a recipe.",
+				"description": "Update a recipe. `ingredients` and `steps` each replace the whole list when present (an empty `steps` list clears them) and leave it unchanged when omitted.",
 				"parameters": [
 					{
 						"in": "path",
@@ -2993,7 +2993,7 @@
 			"post": {
 				"operationId": "uploadImage",
 				"tags": ["Images"],
-				"description": "Upload an image file.",
+				"description": "Upload an image file. Images are re-encoded as WebP; the default is a 512px square thumbnail. Pass purpose=recipe_step for a recipe step photo (aspect ratio kept, up to 1280px), then set the returned imageUrl on a step.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -3004,6 +3004,10 @@
 									"image": {
 										"type": "string",
 										"format": "binary"
+									},
+									"purpose": {
+										"type": "string",
+										"enum": ["thumbnail", "recipe_step"]
 									}
 								},
 								"required": ["image"]
@@ -6599,6 +6603,13 @@
 								"type": "null"
 							}
 						]
+					},
+					"steps": {
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeStepInput"
+						}
 					}
 				},
 				"required": ["name", "totalServings", "ingredients"]
@@ -6620,6 +6631,28 @@
 					}
 				},
 				"required": ["foodId", "quantity", "servingUnit"]
+			},
+			"RecipeStepInput": {
+				"type": "object",
+				"properties": {
+					"text": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 2000
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2048
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["text"]
 			},
 			"RecipeUpdate": {
 				"type": "object",
@@ -6665,6 +6698,13 @@
 								"type": "null"
 							}
 						]
+					},
+					"steps": {
+						"maxItems": 50,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeStepInput"
+						}
 					}
 				}
 			},
@@ -9613,6 +9653,11 @@
 					},
 					"fiber": {
 						"type": "number"
+					},
+					"stepCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": [
@@ -9694,6 +9739,12 @@
 							"$ref": "#/components/schemas/RecipeIngredient"
 						}
 					},
+					"steps": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeStep"
+						}
+					},
 					"extendedNutrientsPerServing": {
 						"$ref": "#/components/schemas/RecipeExtendedNutrients"
 					}
@@ -9746,6 +9797,29 @@
 					}
 				},
 				"required": ["foodId", "quantity", "servingUnit", "sortOrder"],
+				"additionalProperties": false
+			},
+			"RecipeStep": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"sortOrder": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"text": {
+						"type": "string"
+					},
+					"imageUrl": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": ["id", "sortOrder", "text", "imageUrl"],
 				"additionalProperties": false
 			},
 			"RecipeExtendedNutrients": {

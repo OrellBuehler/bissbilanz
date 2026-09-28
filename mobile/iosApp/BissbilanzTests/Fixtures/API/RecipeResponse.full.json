@@ -66,6 +66,14 @@
 		"isFavorite": true,
 		"name": "sample-name",
 		"protein": 30,
+		"steps": [
+			{
+				"id": "d25778d8-8520-4431-811e-97169d133897",
+				"imageUrl": "sample-imageUrl",
+				"sortOrder": 0,
+				"text": "sample-text"
+			}
+		],
 		"totalServings": 4,
 		"updatedAt": "sample-updatedAt",
 		"userId": "55ef59e6-7231-4b27-8ea8-51d414919f7d"

@@ -21,6 +21,12 @@ struct Recipe: Codable, Identifiable, Hashable {
     let createdAt: String?
     let updatedAt: String?
     let ingredients: [RecipeIngredient]?
+    // Optional cooking instructions: the detail endpoint always sends `steps`
+    // (empty when there are none), the list endpoint only `stepCount`. `var` with
+    // a nil default keeps the memberwise initializer and decodes older cached
+    // copies that have neither.
+    var steps: [RecipeStep]? = nil
+    var stepCount: Int? = nil
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -61,6 +67,13 @@ struct RecipeIngredient: Codable, Identifiable {
     let servingUnit: ServingUnit
     let sortOrder: Int
     let food: Food?
+}
+
+struct RecipeStep: Codable, Identifiable, Hashable {
+    let id: String
+    let sortOrder: Int
+    let text: String
+    let imageUrl: String?
 }
 
 struct RecipeCreate: Codable {
