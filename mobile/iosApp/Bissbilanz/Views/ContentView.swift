@@ -58,6 +58,7 @@ struct ContentView: View {
     @Environment(AppModeManager.self) private var appModeManager
     @Environment(AuthManager.self) private var authManager
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
+    @Environment(FoodPackageInbox.self) private var foodPackageInbox
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
     @State private var showSessionExpiredPrompt = false
     @State private var reauthSession: ASWebAuthenticationSession?
@@ -68,6 +69,7 @@ struct ContentView: View {
 
     var body: some View {
         @Bindable var deepLinkRouter = deepLinkRouter
+        @Bindable var foodPackageInbox = foodPackageInbox
         TabView {
             Tab(L10n.home, systemImage: "house") {
                 DashboardView()
@@ -130,6 +132,19 @@ struct ContentView: View {
                 NavigationStack {
                     FoodSearchView(date: DateFormatting.today, initialQuery: query)
                 }
+            }
+        }
+        // A food package opened from another app (Files, Mail, WhatsApp, …). It
+        // waits in the inbox until this view exists, i.e. until sign-in or the
+        // local-mode choice, and any data migration, are done.
+        .sheet(item: $foodPackageInbox.pending, onDismiss: { foodPackageInbox.sheetDismissed() }) { pending in
+            NavigationStack {
+                FoodPackageImportView(fileURL: pending.url, initialError: pending.error)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L10n.close) { foodPackageInbox.pending = nil }
+                        }
+                    }
             }
         }
         // Only users who signed in initially are prompted — Local mode is

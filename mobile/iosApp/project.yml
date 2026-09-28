@@ -88,6 +88,27 @@ targets:
         # Timers are date-relative and advance on-device, so frequent-updates
         # (NSSupportsLiveActivitiesFrequentUpdates) is not needed.
         NSSupportsLiveActivities: true
+        # Food packages (`*.bissbilanz`, a zip) offer to open in this app from Files,
+        # Mail, WhatsApp, … `LSSupportsOpeningDocumentsInPlace: false` makes iOS hand
+        # over a copy, so the import never touches the sender's file.
+        LSSupportsOpeningDocumentsInPlace: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Bissbilanz food package
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - com.bissbilanz.food-package
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.bissbilanz.food-package
+            UTTypeDescription: Bissbilanz food package
+            UTTypeConformsTo:
+              - public.zip-archive
+              - public.data
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - bissbilanz
+              public.mime-type:
+                - application/zip
     # properties must be declared here: xcodegen regenerates the entitlements
     # file on every `xcodegen generate` and would otherwise write it empty
     entitlements:
@@ -264,6 +285,8 @@ targets:
       # embedded in GeneratedAPIFixtures.swift instead, so the test target
       # doesn't depend on Xcode's bundle-resource copy behavior), but XcodeGen
       # still bundles them as resources like any other non-source file here.
+      # The same goes for the binary food package fixtures under
+      # Fixtures/FoodPackage/, which the tests read back from the test bundle.
       - path: BissbilanzTests
     dependencies:
       - target: Bissbilanz
