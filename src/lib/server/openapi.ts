@@ -163,6 +163,12 @@ const res409: ZodOpenApiResponseObject = {
 	content: { 'application/json': { schema: conflictErrorResponseSchema } }
 };
 
+const res429: ZodOpenApiResponseObject = {
+	id: 'RateLimitedResponse',
+	description: 'Too many requests',
+	content: { 'application/json': { schema: errorResponseSchema } }
+};
+
 const res204: ZodOpenApiResponseObject = {
 	id: 'DeletedResponse',
 	description: 'Deleted'
@@ -324,6 +330,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: foodsListResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		},
@@ -644,7 +651,8 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: foodResponseSchema } }
 				},
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		patch: {
@@ -662,7 +670,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: foodResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'404': res404
 			}
 		},
 		delete: {
@@ -695,6 +704,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: entriesListResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		},
@@ -1290,6 +1300,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: dailyStatsResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		}
@@ -1339,6 +1350,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: mealBreakdownResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		}
@@ -1392,6 +1404,7 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: calendarResponseSchema } }
 				},
+				'400': res400,
 				'401': res401
 			}
 		}
@@ -1420,6 +1433,7 @@ export const apiPaths = {
 						}
 					}
 				},
+				'400': res400,
 				'401': res401
 			}
 		},
@@ -1449,6 +1463,7 @@ export const apiPaths = {
 			},
 			responses: {
 				'204': res204,
+				'400': res400,
 				'401': res401,
 				'409': res409
 			}
@@ -1546,7 +1561,8 @@ export const apiPaths = {
 			requestParams: { path: uuidPathId },
 			responses: {
 				'204': res204,
-				'401': res401
+				'401': res401,
+				'409': res409
 			}
 		}
 	},
@@ -2127,7 +2143,8 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: openfoodfactsSearchResponseSchema } }
 				},
-				'401': res401
+				'401': res401,
+				'429': res429
 			}
 		}
 	},
@@ -2144,7 +2161,9 @@ export const apiPaths = {
 					description: 'Success',
 					content: { 'application/json': { schema: openfoodfactsResponseSchema } }
 				},
-				'401': res401
+				'400': res400,
+				'401': res401,
+				'404': res404
 			}
 		}
 	},

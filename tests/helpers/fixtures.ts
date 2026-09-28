@@ -126,6 +126,14 @@ export const TEST_ENTRY = {
 	recipeId: null,
 	servings: 1.5,
 	notes: null,
+	quickName: null,
+	quickCalories: null,
+	quickProtein: null,
+	quickCarbs: null,
+	quickFat: null,
+	quickFiber: null,
+	quickNutrients: null,
+	eatenAt: new Date('2026-02-10T08:00:00Z'),
 	createdAt: new Date('2026-02-10T08:00:00Z'),
 	updatedAt: new Date('2026-02-10T08:00:00Z')
 };

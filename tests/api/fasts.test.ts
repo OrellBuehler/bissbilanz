@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 const FAST_ID = '10000000-0000-4000-8000-0000000000f1';
@@ -56,12 +57,14 @@ describe('api/fasts', () => {
 	describe('GET /api/fasts', () => {
 		test('returns 401 when not authenticated', async () => {
 			const response = await fastsModule.GET(createMockEvent({ user: null }));
+			await expectResponseContract('GET', '/api/fasts', response);
 			expect(response.status).toBe(401);
 		});
 
 		test('returns sessions for user', async () => {
 			mockListResult = [TEST_FAST];
 			const response = await fastsModule.GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/fasts', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.sessions).toHaveLength(1);
@@ -74,6 +77,7 @@ describe('api/fasts', () => {
 			const response = await fastsModule.POST(
 				createMockEvent({ user: null, body: { startedAt: '', endedAt: '', targetHours: 16 } })
 			);
+			await expectResponseContract('POST', '/api/fasts', response);
 			expect(response.status).toBe(401);
 		});
 
@@ -90,6 +94,7 @@ describe('api/fasts', () => {
 					}
 				})
 			);
+			await expectResponseContract('POST', '/api/fasts', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.session.id).toBe(FAST_ID);
@@ -100,6 +105,7 @@ describe('api/fasts', () => {
 			const response = await fastsModule.POST(
 				createMockEvent({ user: TEST_USER, body: { targetHours: 16 } })
 			);
+			await expectResponseContract('POST', '/api/fasts', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -117,6 +123,7 @@ describe('api/fasts', () => {
 					}
 				})
 			);
+			await expectResponseContract('POST', '/api/fasts', response);
 			expect(response.status).toBe(409);
 		});
 	});
@@ -132,6 +139,7 @@ describe('api/fasts', () => {
 					body: { targetHours: 18 }
 				})
 			);
+			await expectResponseContract('PATCH', '/api/fasts/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.session.targetHours).toBe(18);
@@ -147,6 +155,7 @@ describe('api/fasts', () => {
 					body: { targetHours: 18 }
 				})
 			);
+			await expectResponseContract('PATCH', '/api/fasts/{id}', response);
 			expect(response.status).toBe(404);
 		});
 
@@ -159,6 +168,7 @@ describe('api/fasts', () => {
 					body: { targetHours: 18 }
 				})
 			);
+			await expectResponseContract('PATCH', '/api/fasts/{id}', response);
 			expect(response.status).toBe(400);
 		});
 	});
@@ -169,6 +179,7 @@ describe('api/fasts', () => {
 			const response = await fastsIdModule.DELETE(
 				createMockEvent({ user: TEST_USER, params: { id: FAST_ID }, method: 'DELETE' })
 			);
+			await expectResponseContract('DELETE', '/api/fasts/{id}', response);
 			expect(response.status).toBe(204);
 		});
 
@@ -176,6 +187,7 @@ describe('api/fasts', () => {
 			const response = await fastsIdModule.DELETE(
 				createMockEvent({ user: TEST_USER, params: { id: FAST_ID }, method: 'DELETE' })
 			);
+			await expectResponseContract('DELETE', '/api/fasts/{id}', response);
 			expect(response.status).toBe(404);
 		});
 
@@ -189,6 +201,7 @@ describe('api/fasts', () => {
 					headers: { 'X-Client-Edited-At': '2026-09-01T00:00:00Z' }
 				})
 			);
+			await expectResponseContract('DELETE', '/api/fasts/{id}', response);
 			expect(response.status).toBe(409);
 		});
 	});

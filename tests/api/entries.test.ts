@@ -1,7 +1,23 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
-import { TEST_USER, TEST_ENTRY, VALID_ENTRY_PAYLOAD } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
+import { TEST_USER, TEST_FOOD, TEST_ENTRY, VALID_ENTRY_PAYLOAD } from '../helpers/fixtures';
+
+// listEntriesByDate (unlike createEntry) returns a food/recipe-joined shape
+// with computed macro totals, not the raw food_entries row TEST_ENTRY models.
+const TEST_ENTRY_LIST_ITEM = {
+	...TEST_ENTRY,
+	foodName: TEST_FOOD.name,
+	calories: 583,
+	protein: 19.8,
+	carbs: 99.45,
+	fat: 10.35,
+	fiber: 15.9,
+	imageUrl: null,
+	servingSize: TEST_FOOD.servingSize,
+	servingUnit: TEST_FOOD.servingUnit
+};
 
 let mockListResult: any = [];
 let mockCreateResult: any = null;
@@ -44,6 +60,7 @@ describe('api/entries', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/entries', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -52,18 +69,20 @@ describe('api/entries', () => {
 		test('returns 400 when date missing', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/entries', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Missing date parameter');
 		});
 
 		test('returns entries for date', async () => {
-			mockListResult = [TEST_ENTRY];
+			mockListResult = [TEST_ENTRY_LIST_ITEM];
 			const event = createMockEvent({
 				user: TEST_USER,
 				url: 'http://localhost/api/entries?date=2026-02-10'
 			});
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/entries', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toHaveLength(1);
@@ -77,6 +96,7 @@ describe('api/entries', () => {
 				body: VALID_ENTRY_PAYLOAD
 			});
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/entries', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -89,6 +109,7 @@ describe('api/entries', () => {
 				body: VALID_ENTRY_PAYLOAD
 			});
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/entries', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.entry).toBeTruthy();
@@ -107,6 +128,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -124,6 +146,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -140,6 +163,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -156,6 +180,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -173,6 +198,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 
 				expect(response.status).toBe(400);
 			});
@@ -185,6 +211,7 @@ describe('api/entries', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				await expectResponseContract('POST', '/api/entries', response);
 				const data = await response.json();
 
 				expect(response.status).toBe(400);

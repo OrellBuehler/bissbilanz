@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
 
 let mockWeightFoodResult: any = [];
 let mockNutrientsDailyResult: any = [];
@@ -33,15 +34,19 @@ describe('api/analytics', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: VALID_DATE_PARAMS });
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns data for valid date range', async () => {
-			mockWeightFoodResult = [{ date: '2026-01-01', calories: 2000, weightKg: 75.5 }];
+			mockWeightFoodResult = [
+				{ date: '2026-01-01', calories: 2000, weightKg: 75.5, movingAvg: 75.5 }
+			];
 			const event = createMockEvent({ user: TEST_USER, searchParams: VALID_DATE_PARAMS });
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toHaveLength(1);
@@ -53,6 +58,7 @@ describe('api/analytics', () => {
 				searchParams: { endDate: '2026-03-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -62,6 +68,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-01-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -71,6 +78,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: 'Jan 1 2026', endDate: '2026-03-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -80,6 +88,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-03-01', endDate: '2026-01-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -89,6 +98,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2025-01-01', endDate: '2026-03-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -99,6 +109,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2025-01-01', endDate: '2026-01-02' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(200);
 		});
 
@@ -109,6 +120,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-01-01', endDate: '2026-01-01' }
 			});
 			const response = await weightFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/weight-food', response);
 			expect(response.status).toBe(200);
 		});
 	});
@@ -117,15 +129,19 @@ describe('api/analytics', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: VALID_DATE_PARAMS });
 			const response = await nutrientsDailyModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/nutrients-daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns data for valid date range', async () => {
-			mockNutrientsDailyResult = [{ date: '2026-01-01', nutrients: { protein: 120 } }];
+			mockNutrientsDailyResult = [
+				{ date: '2026-01-01', calories: 2000, protein: 120, carbs: 200, fat: 60, fiber: 25 }
+			];
 			const event = createMockEvent({ user: TEST_USER, searchParams: VALID_DATE_PARAMS });
 			const response = await nutrientsDailyModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/nutrients-daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toHaveLength(1);
@@ -137,6 +153,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026/01/01', endDate: '2026-03-01' }
 			});
 			const response = await nutrientsDailyModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/nutrients-daily', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -146,6 +163,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-03-01', endDate: '2026-01-01' }
 			});
 			const response = await nutrientsDailyModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/nutrients-daily', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -155,6 +173,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2024-01-01', endDate: '2026-01-01' }
 			});
 			const response = await nutrientsDailyModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/nutrients-daily', response);
 			expect(response.status).toBe(400);
 		});
 	});
@@ -163,20 +182,27 @@ describe('api/analytics', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: VALID_DATE_PARAMS });
 			const response = await mealTimingModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/meal-timing', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns data for valid date range', async () => {
-			mockMealTimingResult = {
-				dailyWindows: [],
-				avgWindowMinutes: 0,
-				lateNightFrequency: 0,
-				hourlyDistribution: new Array(24).fill(0)
-			};
+			mockMealTimingResult = [
+				{
+					date: '2026-01-01',
+					mealType: 'Breakfast',
+					eatenAt: '2026-01-01T08:00:00.000Z',
+					foodId: null,
+					recipeId: null,
+					calories: 300,
+					foodName: 'Oats'
+				}
+			];
 			const event = createMockEvent({ user: TEST_USER, searchParams: VALID_DATE_PARAMS });
 			const response = await mealTimingModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/meal-timing', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toBeDefined();
@@ -188,6 +214,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: 'bad-date', endDate: '2026-03-01' }
 			});
 			const response = await mealTimingModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/meal-timing', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -197,6 +224,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-03-01', endDate: '2026-01-01' }
 			});
 			const response = await mealTimingModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/meal-timing', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -206,6 +234,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2024-01-01', endDate: '2026-01-01' }
 			});
 			const response = await mealTimingModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/meal-timing', response);
 			expect(response.status).toBe(400);
 		});
 	});
@@ -214,15 +243,19 @@ describe('api/analytics', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: VALID_DATE_PARAMS });
 			const response = await sleepFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/sleep-food', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns data for valid date range', async () => {
-			mockSleepFoodResult = { foodImpacts: [], overallAvgQuality: 7 };
+			mockSleepFoodResult = [
+				{ date: '2026-01-01', eveningCalories: 500, sleepDurationMinutes: 420, sleepQuality: 7 }
+			];
 			const event = createMockEvent({ user: TEST_USER, searchParams: VALID_DATE_PARAMS });
 			const response = await sleepFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/sleep-food', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toBeDefined();
@@ -234,6 +267,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-01-01', endDate: 'march-2026' }
 			});
 			const response = await sleepFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/sleep-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -243,6 +277,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2026-03-01', endDate: '2026-01-01' }
 			});
 			const response = await sleepFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/sleep-food', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -252,6 +287,7 @@ describe('api/analytics', () => {
 				searchParams: { startDate: '2024-01-01', endDate: '2026-01-01' }
 			});
 			const response = await sleepFoodModule.GET(event);
+			await expectResponseContract('GET', '/api/analytics/sleep-food', response);
 			expect(response.status).toBe(400);
 		});
 	});

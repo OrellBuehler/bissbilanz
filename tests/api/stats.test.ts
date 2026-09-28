@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
 
 const mockStats = {
 	calories: 2000,
@@ -37,6 +38,7 @@ describe('api/stats routes', () => {
 			mockWeeklyResult = mockStats;
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await weeklyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/weekly', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.stats.calories).toBe(2000);
@@ -48,6 +50,7 @@ describe('api/stats routes', () => {
 			mockMonthlyResult = mockStats;
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await monthlyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/monthly', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.stats.calories).toBe(2000);

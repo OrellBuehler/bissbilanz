@@ -10,7 +10,11 @@ export const errorResponseSchema = z
 export const validationErrorResponseSchema = z
 	.object({
 		error: z.string(),
-		details: z.record(z.string(), z.array(z.string())).optional()
+		// validationError() sends ZodError#format(): a recursive tree with an
+		// `_errors: string[]` at the root and at each invalid field, so this
+		// can't be a flat Record<string, string[]> — describe it loosely
+		// instead of mis-describing its shape.
+		details: z.record(z.string(), z.unknown()).optional()
 	})
 	.meta({ id: 'ValidationErrorResponse' });
 
