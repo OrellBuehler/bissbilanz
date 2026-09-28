@@ -125,7 +125,7 @@ export const foodPackagePreviewResponseSchema = z
 				/**
 				 * Every food that would be created, in package order, with its role and the
 				 * package's recipes that use it. Ingredient-only foods no recipe uses are left
-				 * out. Capped at 500; `count` is the full number.
+				 * out.
 				 */
 				items: z.array(
 					z

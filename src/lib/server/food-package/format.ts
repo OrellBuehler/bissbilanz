@@ -21,8 +21,6 @@ export const MAX_ZIP_ENTRIES = MAX_PACKAGE_FOODS + MAX_PACKAGE_RECIPES + 16;
 export const MAX_PREVIEW_THUMBNAILS = 300;
 export const MAX_PREVIEW_SAMPLES = 50;
 export const MAX_ISSUES = 100;
-/** New foods listed one by one in the preview; `count` always holds the full number. */
-export const MAX_PREVIEW_NEW_FOODS = 500;
 
 /** Identity used for "same food": name + brand, case/accent/whitespace-insensitive. */
 export const foodKey = (name: string, brand: string | null | undefined): string =>

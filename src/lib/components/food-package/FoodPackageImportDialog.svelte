@@ -13,16 +13,22 @@
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import FoodConflictCard from './FoodConflictCard.svelte';
 	import RecipeConflictCard from './RecipeConflictCard.svelte';
+	import NewFoodsList from './NewFoodsList.svelte';
 	import ResolutionToggle from './ResolutionToggle.svelte';
 	import {
 		applyToAll,
 		buildResolutions,
+		clearMapping,
 		commonAction,
+		foodsToCreate,
+		groupNewFoods,
 		initialResolutions,
 		responseError,
+		setMapping,
 		setResolution,
 		type FoodPackageImportResult,
 		type FoodPackagePreview,
+		type MappingState,
 		type PackageAction,
 		type ResolutionState
 	} from './foodPackage';
@@ -43,6 +49,7 @@
 	let importing = $state(false);
 	let foodState = $state<ResolutionState>({});
 	let recipeState = $state<ResolutionState>({});
+	let mappings = $state<MappingState>({});
 	let foodLimit = $state(PAGE);
 	let recipeLimit = $state(PAGE);
 	let tab = $state<'foods' | 'recipes'>('foods');
@@ -60,7 +67,16 @@
 	const foodConflicts = $derived(preview?.conflicts.foods ?? []);
 	const recipeConflicts = $derived(preview?.conflicts.recipes ?? []);
 	const conflictCount = $derived(foodConflicts.length + recipeConflicts.length);
-
+	const newItems = $derived(preview?.newFoods.items ?? []);
+	const createdItems = $derived(foodsToCreate(newItems, mappings, recipeState));
+	// Mapped foods stay listed so the choice can be undone; foods no imported recipe needs drop out.
+	const listedItems = $derived.by(() => {
+		const created = new Set(createdItems.map((item) => item.ref));
+		const groups = groupNewFoods(
+			newItems.filter((item) => created.has(item.ref) || mappings[item.ref])
+		);
+		return [...groups.selected, ...groups.ingredients];
+	});
 	async function analyze(selected: File) {
 		analyzing = true;
 		try {
@@ -76,6 +92,7 @@
 			preview = data;
 			foodState = initialResolutions(data.conflicts.foods);
 			recipeState = initialResolutions(data.conflicts.recipes);
+			mappings = {};
 			foodLimit = PAGE;
 			recipeLimit = PAGE;
 			tab =
@@ -109,7 +126,7 @@
 			body.append('file', file);
 			body.append(
 				'resolutions',
-				new Blob([JSON.stringify(buildResolutions(preview, foodState, recipeState))], {
+				new Blob([JSON.stringify(buildResolutions(preview, foodState, recipeState, mappings))], {
 					type: 'application/json'
 				})
 			);
@@ -199,7 +216,7 @@
 		{:else}
 			<Input
 				type="file"
-				accept=".zip,application/zip,application/x-zip-compressed,.json,application/json"
+				accept=".bissbilanz,.zip,application/zip,application/x-zip-compressed,.json,application/json"
 				aria-label={m.food_package_choose_file()}
 				disabled={analyzing || importing}
 				onchange={onFileChange}
@@ -242,6 +259,16 @@
 						</details>
 					{/if}
 				</div>
+
+				{#if listedItems.length > 0}
+					<NewFoodsList
+						items={listedItems}
+						count={createdItems.length}
+						{mappings}
+						onMap={(ref, food) => (mappings = setMapping(mappings, ref, food))}
+						onUnmap={(ref) => (mappings = clearMapping(mappings, ref))}
+					/>
+				{/if}
 
 				{#if conflictCount > 0}
 					<Tabs.Root value={tab} onValueChange={(value) => (tab = value as 'foods' | 'recipes')}>

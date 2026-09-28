@@ -18,12 +18,7 @@ import {
 	type MatchResult,
 	type PackageIssue
 } from './match';
-import {
-	MAX_ISSUES,
-	MAX_PREVIEW_NEW_FOODS,
-	MAX_PREVIEW_SAMPLES,
-	MAX_PREVIEW_THUMBNAILS
-} from './format';
+import { MAX_ISSUES, MAX_PREVIEW_SAMPLES, MAX_PREVIEW_THUMBNAILS } from './format';
 import type { FoodPackageAction } from '$lib/server/validation/food-package';
 
 export type ImportContext = { foods: ExistingFood[]; recipes: ExistingRecipe[] };
@@ -142,7 +137,7 @@ export type FoodPackagePreview = {
 		count: number;
 		ingredientOnly: number;
 		samples: { ref: string; name: string; brand: string | null; calories: number }[];
-		/** What would be created, with role and using recipes; capped at MAX_PREVIEW_NEW_FOODS. */
+		/** Every food that would be created, with its role and the recipes using it. */
 		items: NewFoodItem[];
 	};
 	newRecipes: { count: number; samples: { ref: string; name: string }[] };
@@ -322,7 +317,6 @@ export async function planFoodPackageImport(
 	// An ingredient-only food no importable recipe uses is never created.
 	const newFoodItems: NewFoodItem[] = newFoods
 		.filter((food) => food.role === 'selected' || recipesByFood.has(food.ref))
-		.slice(0, MAX_PREVIEW_NEW_FOODS)
 		.map((food) => ({
 			ref: food.ref,
 			role: food.role,
