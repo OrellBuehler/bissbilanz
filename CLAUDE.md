@@ -180,6 +180,7 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 - Use SQLDelight for local database on Android/shared; the iOS app uses SwiftData for its local store instead (with CloudKit mirroring in anonymous/local mode)
 - Kotlin formatting enforced by ktlint via pre-commit hook
 - Swift formatting enforced by swiftformat (macOS only)
+- iOS's hand-written Swift `Codable` models are checked against `docs/openapi.json` in CI: `bun run api:fixtures:ios` (chained into `bun run api:generate`, and diffed for staleness by `bun run api:check`) generates minimal/full example payloads per response schema under `mobile/iosApp/BissbilanzTests/Fixtures/API/`, and `mobile/iosApp/BissbilanzTests/APIContractDecodingTests.swift` decodes each one with the same `JSONDecoder` `BissbilanzAPI` uses. After changing an API route or validation schema, run `bun run api:generate` and, if you touched a decoded response shape, update the matching Swift model and the schema → Swift type table in that test file.
 
 ### iOS Builds
 
