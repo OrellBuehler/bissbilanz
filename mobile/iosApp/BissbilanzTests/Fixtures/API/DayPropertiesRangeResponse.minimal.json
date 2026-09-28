@@ -1,0 +1,13 @@
+{
+	"data": [
+		{
+			"activityCalories": null,
+			"activityCaloriesSource": null,
+			"activityNote": null,
+			"date": "sample-date",
+			"isFastingDay": true,
+			"notes": null,
+			"waterMl": null
+		}
+	]
+}

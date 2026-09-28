@@ -17,7 +17,8 @@ vi.mock('$lib/server/db', () => ({
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-const { mergeFoods, computeMergedFood, applyOverrides } = await import('$lib/server/food-merge');
+const { mergeFoods, computeMergedFood, applyOverrides, servingsRescaleFactor, rescaleIngredient } =
+	await import('$lib/server/food-merge');
 
 describe('computeMergedFood', () => {
 	test('keeper wins when both have a value', () => {
@@ -163,5 +164,66 @@ describe('mergeFoods (validation)', () => {
 		if (!result.success) {
 			expect((result.error as { status?: number }).status).toBe(404);
 		}
+	});
+});
+
+describe('servingsRescaleFactor', () => {
+	const serving = (servingSize: number, servingUnit: Food['servingUnit']) => ({
+		servingSize,
+		servingUnit
+	});
+
+	test('same unit uses the plain size ratio', () => {
+		expect(servingsRescaleFactor(serving(50, 'g'), serving(100, 'g'))).toBeCloseTo(0.5, 10);
+		expect(servingsRescaleFactor(serving(330, 'ml'), serving(330, 'ml'))).toBe(1);
+	});
+
+	test('converts mass units (1 kg into 100 g)', () => {
+		expect(servingsRescaleFactor(serving(1, 'kg'), serving(100, 'g'))).toBeCloseTo(10, 10);
+		expect(servingsRescaleFactor(serving(100, 'g'), serving(1, 'kg'))).toBeCloseTo(0.1, 10);
+	});
+
+	test('converts volume units (1 l into 330 ml)', () => {
+		expect(servingsRescaleFactor(serving(1, 'l'), serving(330, 'ml'))).toBeCloseTo(1000 / 330, 10);
+		expect(servingsRescaleFactor(serving(33, 'cl'), serving(330, 'ml'))).toBeCloseTo(1, 10);
+	});
+
+	test('falls back to the size ratio across mass and volume', () => {
+		expect(servingsRescaleFactor(serving(200, 'ml'), serving(100, 'g'))).toBeCloseTo(2, 10);
+	});
+
+	test('returns 1 when the keeper serving size is not positive', () => {
+		expect(servingsRescaleFactor(serving(100, 'g'), serving(0, 'g'))).toBe(1);
+	});
+});
+
+describe('rescaleIngredient', () => {
+	test('keeps quantity and unit when the ingredient matches the keeper dimension', () => {
+		expect(
+			rescaleIngredient(
+				{ quantity: 200, servingUnit: 'g' },
+				{ servingSize: 1, servingUnit: 'kg' },
+				{ servingSize: 100, servingUnit: 'g' }
+			)
+		).toEqual({ quantity: 200, servingUnit: 'g' });
+	});
+
+	test('re-expresses the amount in the keeper unit across mass and volume', () => {
+		// 500 ml of a 250 ml food = 2 servings; keeper serving is 100 g → 200 g.
+		expect(
+			rescaleIngredient(
+				{ quantity: 500, servingUnit: 'ml' },
+				{ servingSize: 250, servingUnit: 'ml' },
+				{ servingSize: 100, servingUnit: 'g' }
+			)
+		).toEqual({ quantity: 200, servingUnit: 'g' });
+		// 1 l of a 250 ml food = 4 servings; keeper serving is 50 g → 200 g.
+		expect(
+			rescaleIngredient(
+				{ quantity: 1, servingUnit: 'l' },
+				{ servingSize: 250, servingUnit: 'ml' },
+				{ servingSize: 50, servingUnit: 'g' }
+			)
+		).toEqual({ quantity: 200, servingUnit: 'g' });
 	});
 });

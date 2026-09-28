@@ -1,0 +1,15 @@
+{
+	"reminders": [
+		{
+			"createdAt": "sample-createdAt",
+			"enabled": true,
+			"id": "5d91c5f6-d3a6-4df7-8768-44648593c6cd",
+			"kind": "meal",
+			"mealType": "sample-mealType",
+			"time": "sample-time",
+			"updatedAt": "sample-updatedAt",
+			"userId": "4f8b7dc3-2688-4640-891f-f9793d3646be",
+			"weekdays": [3]
+		}
+	]
+}

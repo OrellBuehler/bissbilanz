@@ -1,0 +1,17 @@
+{
+	"goals": {
+		"calorieGoal": 12.5,
+		"carbGoal": 12.5,
+		"createdAt": "sample-createdAt",
+		"fatGoal": 12.5,
+		"fiberGoal": 12.5,
+		"id": "acacf413-d1b3-4650-8ba5-a0496dd1ad4e",
+		"proteinGoal": 12.5,
+		"sodiumGoal": 12.5,
+		"sugarGoal": 12.5,
+		"targetDate": "sample-targetDate",
+		"targetWeightKg": 12.5,
+		"updatedAt": "sample-updatedAt",
+		"userId": "a3574556-99cc-49d7-8ec9-42c415a155ad"
+	}
+}

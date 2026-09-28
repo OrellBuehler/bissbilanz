@@ -1,0 +1,11 @@
+{
+	"dataRange": {
+		"earliest": "sample-earliest",
+		"latest": "sample-latest"
+	},
+	"user": {
+		"createdAt": "sample-createdAt",
+		"email": "sample-email",
+		"name": "sample-name"
+	}
+}

@@ -22,6 +22,7 @@ const favoriteRecipeSchema = z
 		fiber: z.number(),
 		logCount: z.number().int(),
 		totalServings: z.number(),
+		isFavorite: z.boolean(),
 		type: z.literal('recipe')
 	})
 	.meta({ id: 'FavoriteRecipe' });

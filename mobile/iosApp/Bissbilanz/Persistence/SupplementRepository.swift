@@ -29,7 +29,7 @@ final class SupplementRepository {
     // MARK: - Reads (local)
 
     func supplements() -> [Supplement] {
-        let descriptor = FetchDescriptor<LocalSupplement>(sortBy: [SortDescriptor(\.sortOrder)])
+        let descriptor = FetchDescriptor<LocalSupplement>(sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
         return rows.compactMap { $0.toSupplement() }
     }
