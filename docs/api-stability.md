@@ -77,11 +77,33 @@ The **API Contract** workflow runs `scripts/api/verify.sh origin/main` on every 
    fails on any error-level change; the job summary shows the full changelog.
 3. **No unacknowledged destructive migrations.**
 
-Two unit tests in `tests/contract/` (Quality workflow) back it up:
+Several unit tests in `tests/contract/` (Quality workflow) back it up:
 
 - `openapi-coverage.test.ts` fails when an `/api` handler is missing from the spec, unless it
   is in the `UNDOCUMENTED` list with a reason. Undocumented routes are not protected.
 - `mcp-surface.test.ts` fails when `docs/mcp-tools.json` is stale (`bun run mcp:generate`).
+- `response-contract-coverage.test.ts` statically scans `tests/**/*.test.ts` for
+  `expectResponseContract(...)` calls and fails when a documented operation with a 2xx JSON
+  response has none, unless it is in the `EXEMPT` list with a reason.
+
+Documenting a response shape is only half the guarantee — nothing checked that handlers
+actually returned it until `tests/helpers/contract.ts`'s `expectResponseContract(method, path,
+response)` closed that gap:
+
+```ts
+const response = await GET(event);
+await expectResponseContract('GET', '/api/foods/{id}', response);
+const data = await response.json();
+```
+
+It looks up the Zod schema `src/lib/server/openapi.ts` documents for that operation and status
+code (`apiPaths`, exported for this purpose) and parses the real `Response` body against it —
+clone the response before this call disturbs it, so call it before any `.json()`/`.text()` read.
+It fails with the operation, status and Zod issues when the shape doesn't match, fails if the
+status isn't documented for that operation at all, and for a status with no documented content
+(e.g. 204) checks the body is empty instead. Every API route test in `tests/api/*.test.ts` calls
+it for each documented response its test cases exercise, success and error alike; new or changed
+routes should do the same — see "API Routes" in `CLAUDE.md`.
 
 ### Shipping an intentional break
 
@@ -103,10 +125,5 @@ In rough priority order:
    `{ error, minVersion }` below a per-platform minimum, which clients turn into an update
    prompt. Clients must ship the 426 handling **before** it is ever needed; builds without it
    can never be forced to update, so this belongs in the first non-beta release.
-2. **Response contract tests.** The spec documents response schemas, but nothing checks that
-   handlers return that shape. Validate responses against the response Zod schemas in the API
-   tests (or in dev via `hooks.server.ts`).
-3. **Mobile sign-in routes in the spec.** `/api/auth/providers`, `/api/auth/mobile/token` and
-   `/api/auth/mobile/apple` are used by shipped apps but exempt from the check.
-4. **iOS decode fixtures.** Generate example payloads from the spec and decode them in the iOS
+2. **iOS decode fixtures.** Generate example payloads from the spec and decode them in the iOS
    unit tests, so a server change that breaks Swift decoding fails CI.
