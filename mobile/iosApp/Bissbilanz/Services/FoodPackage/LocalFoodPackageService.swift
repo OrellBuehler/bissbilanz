@@ -53,31 +53,39 @@ final class LocalFoodPackageService {
         for recipe in recipes {
             for ingredient in recipe.ingredients ?? [] { recipeCounts[ingredient.foodId, default: 0] += 1 }
         }
+        var existingFoods: [ExistingFood] = []
+        var foodsById: [String: Food] = [:]
+        for food in foods {
+            foodsById[food.id] = foodsById[food.id] ?? food
+            existingFoods.append(ExistingFood(
+                id: food.id,
+                name: food.name,
+                brand: food.brand,
+                barcode: food.barcode,
+                servingUnit: food.servingUnit,
+                updatedAt: milliseconds(food.updatedAt, food.createdAt),
+                entryCount: entryCounts[food.id] ?? 0,
+                recipeCount: recipeCounts[food.id] ?? 0
+            ))
+        }
+        var existingRecipes: [ExistingRecipe] = []
+        var recipesById: [String: Recipe] = [:]
+        for recipe in recipes {
+            recipesById[recipe.id] = recipesById[recipe.id] ?? recipe
+            existingRecipes.append(ExistingRecipe(
+                id: recipe.id,
+                name: recipe.name,
+                updatedAt: milliseconds(recipe.updatedAt, recipe.createdAt),
+                entryCount: recipeEntryCounts[recipe.id] ?? 0
+            ))
+        }
         return Snapshot(
             foods: foods,
             recipes: recipes,
-            existingFoods: foods.map { food in
-                ExistingFood(
-                    id: food.id,
-                    name: food.name,
-                    brand: food.brand,
-                    barcode: food.barcode,
-                    servingUnit: food.servingUnit,
-                    updatedAt: milliseconds(food.updatedAt, food.createdAt),
-                    entryCount: entryCounts[food.id] ?? 0,
-                    recipeCount: recipeCounts[food.id] ?? 0
-                )
-            },
-            existingRecipes: recipes.map { recipe in
-                ExistingRecipe(
-                    id: recipe.id,
-                    name: recipe.name,
-                    updatedAt: milliseconds(recipe.updatedAt, recipe.createdAt),
-                    entryCount: recipeEntryCounts[recipe.id] ?? 0
-                )
-            },
-            foodsById: Dictionary(foods.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
-            recipesById: Dictionary(recipes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            existingFoods: existingFoods,
+            existingRecipes: existingRecipes,
+            foodsById: foodsById,
+            recipesById: recipesById
         )
     }
 
@@ -91,16 +99,23 @@ final class LocalFoodPackageService {
             guard !value.isEmpty else { continue }
             byKey[value.lowercased(), default: [:]][value, default: 0] += 1
         }
-        return byKey.map { key, variants in
-            let display = variants.max { lhs, rhs in
-                lhs.value != rhs.value ? lhs.value < rhs.value : lhs.key > rhs.key
-            }?.key ?? key
-            return (key: key, stat: FoodBrandStat(brand: display, count: variants.values.reduce(0, +)))
+        var groups: [(key: String, stat: FoodBrandStat)] = []
+        for (key, variants) in byKey {
+            // The spelling most foods use; the smallest one on a tie.
+            var display = key
+            var best = 0
+            for (spelling, count) in variants where count > best || (count == best && spelling < display) {
+                display = spelling
+                best = count
+            }
+            let total = variants.values.reduce(0, +)
+            groups.append((key: key, stat: FoodBrandStat(brand: display, count: total)))
         }
-        .sorted { lhs, rhs in
-            lhs.stat.count != rhs.stat.count ? lhs.stat.count > rhs.stat.count : lhs.key < rhs.key
+        groups.sort { lhs, rhs in
+            if lhs.stat.count != rhs.stat.count { return lhs.stat.count > rhs.stat.count }
+            return lhs.key < rhs.key
         }
-        .map(\.stat)
+        return groups.map(\.stat)
     }
 
     func labelStats() -> [FoodLabelStat] {
@@ -175,9 +190,9 @@ final class LocalFoodPackageService {
         }
         let closure = missing.compactMap { foodsById[$0] }
 
-        let all: [(food: Food, role: PackageFood.Role)] =
-            chosen.map { (food: $0, role: PackageFood.Role.selected) }
-            + closure.map { (food: $0, role: PackageFood.Role.ingredient) }
+        var all: [(food: Food, role: PackageFood.Role)] = []
+        for food in chosen { all.append((food: food, role: .selected)) }
+        for food in closure { all.append((food: food, role: .ingredient)) }
         guard all.count <= FoodPackageFormat.maxFoods else { throw FoodPackageError.tooManyFoods }
         return Selected(foods: all, recipes: recipes)
     }
@@ -338,15 +353,15 @@ final class LocalFoodPackageService {
             store.existingRecipes.map { ($0.id, $0.entryCount) }, uniquingKeysWith: { first, _ in first }
         )
 
-        let thumbnailPaths = (
-            match.foodConflicts.compactMap { foodsByRef[$0.ref]?.image }
-                + match.recipeConflicts.compactMap { recipesByRef[$0.ref]?.image }
-        )
-        var seenPaths = Set<String>()
-        let wanted = thumbnailPaths.filter { seenPaths.insert($0).inserted }
-            .prefix(FoodPackageFormat.maxPreviewThumbnails)
+        var wanted: [String] = []
+        for conflict in match.foodConflicts {
+            if let path = foodsByRef[conflict.ref]?.image, !wanted.contains(path) { wanted.append(path) }
+        }
+        for conflict in match.recipeConflicts {
+            if let path = recipesByRef[conflict.ref]?.image, !wanted.contains(path) { wanted.append(path) }
+        }
         var thumbnails: [String: String] = [:]
-        for (path, bytes) in file.readImages(Array(wanted)) {
+        for (path, bytes) in file.readImages(Array(wanted.prefix(FoodPackageFormat.maxPreviewThumbnails))) {
             if let url = PackageImageCodec.thumbnailDataURL(from: bytes) { thumbnails[path] = url }
         }
 

@@ -141,15 +141,20 @@ enum FoodPackageFilename {
         "lpt0", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
     ]
 
+    /// Control and format characters and line or paragraph separators (`\p{Cc}\p{Cf}\p{Zl}\p{Zp}`).
+    private static func isInvisible(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .control, .format, .lineSeparator, .paragraphSeparator: true
+        default: false
+        }
+    }
+
     /// Makes a food or recipe name safe as a file name on every OS; empty if nothing is left.
     static func sanitizeBase(_ name: String) -> String {
         var cleaned = String.UnicodeScalarView()
         var pendingSpace = false
         for scalar in name.unicodeScalars {
-            let category = scalar.properties.generalCategory
-            let blank = category == .control || category == .format
-                || category == .lineSeparator || category == .paragraphSeparator
-                || forbidden.contains(scalar) || FoodPackageText.isWhitespace(scalar)
+            let blank = isInvisible(scalar) || forbidden.contains(scalar) || FoodPackageText.isWhitespace(scalar)
             if blank {
                 pendingSpace = true
             } else {
@@ -223,13 +228,7 @@ enum FoodPackageFilename {
         let component = name.replacingOccurrences(of: "\\", with: "/")
             .split(separator: "/", omittingEmptySubsequences: true).last.map(String.init) ?? ""
         var cleaned = String.UnicodeScalarView()
-        for scalar in component.unicodeScalars {
-            let category = scalar.properties.generalCategory
-            if category == .control || category == .format
-                || category == .lineSeparator || category == .paragraphSeparator
-            {
-                continue
-            }
+        for scalar in component.unicodeScalars where !isInvisible(scalar) {
             cleaned.append(scalar)
         }
         let result = FoodPackageText.trimmed(String(cleaned))
@@ -459,55 +458,56 @@ enum PackageManifestCoding {
     static func encode(_ manifest: PackageManifest) throws -> Data {
         var foods: [[String: Any]] = []
         for food in manifest.foods {
-            var entry: [String: Any] = [
-                "ref": food.ref,
-                "role": food.role.rawValue,
-                "name": food.name,
-                "brand": nullable(food.brand),
-                "servingSize": food.servingSize,
-                "servingUnit": food.servingUnit.rawValue,
-                "calories": food.calories,
-                "protein": food.protein,
-                "carbs": food.carbs,
-                "fat": food.fat,
-                "fiber": food.fiber,
-                "barcode": nullable(food.barcode),
-                "nutriScore": nullable(food.nutriScore),
-                "novaGroup": nullable(food.novaGroup),
-                "additives": nullable(food.additives),
-                "ingredientsText": nullable(food.ingredientsText),
-                "labels": food.labels,
-                "image": nullable(food.image),
-                "imageUrl": nullable(food.imageUrl),
-            ]
+            var entry: [String: Any] = [:]
+            entry["ref"] = food.ref
+            entry["role"] = food.role.rawValue
+            entry["name"] = food.name
+            entry["brand"] = nullable(food.brand)
+            entry["servingSize"] = food.servingSize
+            entry["servingUnit"] = food.servingUnit.rawValue
+            entry["calories"] = food.calories
+            entry["protein"] = food.protein
+            entry["carbs"] = food.carbs
+            entry["fat"] = food.fat
+            entry["fiber"] = food.fiber
             for key in FoodPackageFormat.nutrientKeys {
                 entry[key] = nullable(food.nutrients[key])
             }
+            entry["barcode"] = nullable(food.barcode)
+            entry["nutriScore"] = nullable(food.nutriScore)
+            entry["novaGroup"] = nullable(food.novaGroup)
+            entry["additives"] = nullable(food.additives)
+            entry["ingredientsText"] = nullable(food.ingredientsText)
+            entry["labels"] = food.labels
+            entry["image"] = nullable(food.image)
+            entry["imageUrl"] = nullable(food.imageUrl)
             foods.append(entry)
         }
-        let recipes: [[String: Any]] = manifest.recipes.map { recipe in
-            [
-                "ref": recipe.ref,
-                "name": recipe.name,
-                "totalServings": recipe.totalServings,
-                "cookedWeight": nullable(recipe.cookedWeight),
-                "image": nullable(recipe.image),
-                "ingredients": recipe.ingredients.map { ingredient in
-                    [
-                        "food": ingredient.food,
-                        "quantity": ingredient.quantity,
-                        "servingUnit": ingredient.servingUnit.rawValue,
-                    ] as [String: Any]
-                },
-            ]
+        var recipes: [[String: Any]] = []
+        for recipe in manifest.recipes {
+            var ingredients: [[String: Any]] = []
+            for ingredient in recipe.ingredients {
+                var item: [String: Any] = [:]
+                item["food"] = ingredient.food
+                item["quantity"] = ingredient.quantity
+                item["servingUnit"] = ingredient.servingUnit.rawValue
+                ingredients.append(item)
+            }
+            var entry: [String: Any] = [:]
+            entry["ref"] = recipe.ref
+            entry["name"] = recipe.name
+            entry["totalServings"] = recipe.totalServings
+            entry["cookedWeight"] = nullable(recipe.cookedWeight)
+            entry["image"] = nullable(recipe.image)
+            entry["ingredients"] = ingredients
+            recipes.append(entry)
         }
-        let root: [String: Any] = [
-            "format": FoodPackageFormat.format,
-            "formatVersion": manifest.formatVersion,
-            "exportedAt": nullable(manifest.exportedAt),
-            "foods": foods,
-            "recipes": recipes,
-        ]
+        var root: [String: Any] = [:]
+        root["format"] = FoodPackageFormat.format
+        root["formatVersion"] = manifest.formatVersion
+        root["exportedAt"] = nullable(manifest.exportedAt)
+        root["foods"] = foods
+        root["recipes"] = recipes
         return try JSONSerialization.data(
             withJSONObject: root, options: [.sortedKeys, .withoutEscapingSlashes, .prettyPrinted]
         )

@@ -13,6 +13,13 @@ struct ZipArchiveTests {
         try ZipReader(data: data, maxEntries: maxEntries)
     }
 
+    /// 0, 1, 2, ... wrapping at 256 — bytes that do not compress.
+    private static func counting(_ count: Int) -> [UInt8] {
+        var bytes: [UInt8] = []
+        for index in 0 ..< count { bytes.append(UInt8(truncatingIfNeeded: index)) }
+        return bytes
+    }
+
     private func repetitive(_ text: String, times: Int) -> Data {
         Data(String(repeating: text, count: times).utf8)
     }
@@ -37,7 +44,7 @@ struct ZipArchiveTests {
         let hello = try zip.contents(of: #require(zip.entry(named: "hello.txt")), limit: 1024)
         #expect(hello == repetitive("Hello Bissbilanz! ", times: 20))
         let raw = try zip.contents(of: #require(zip.entry(named: "data/raw.bin")), limit: 1024)
-        #expect(raw == Data(0 ..< 64))
+        #expect(raw == Data(Self.counting(64)))
         let empty = try zip.contents(of: #require(zip.entry(named: "empty.txt")), limit: 1024)
         #expect(empty.isEmpty)
     }
@@ -47,7 +54,7 @@ struct ZipArchiveTests {
     @Test("A written archive reads back: deflated, stored, empty and non-ASCII names")
     func roundTrip() throws {
         let text = repetitive("Haferflocken 100 g\n", times: 200)
-        let noise = Data((0 ..< 300).map { UInt8(truncatingIfNeeded: $0 &* 73 &+ 11) })
+        let noise = Data(Self.counting(300))
         var writer = ZipWriter(date: Date(timeIntervalSince1970: 1_790_000_000))
         try writer.add(name: "bissbilanz-foods.json", data: text, compress: true)
         try writer.add(name: "images/f1.webp", data: noise, compress: false)

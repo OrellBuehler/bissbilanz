@@ -234,9 +234,10 @@ enum FoodPackageMatcher {
 
         // Skipping a food maps the package's recipes onto the existing one, which
         // only works if the recipe's quantities are in the same dimension.
-        let conflictIndex = Dictionary(
-            result.foodConflicts.enumerated().map { ($1.ref, $0) }, uniquingKeysWith: { first, _ in first }
-        )
+        var conflictIndex: [String: Int] = [:]
+        for (index, conflict) in result.foodConflicts.enumerated() where conflictIndex[conflict.ref] == nil {
+            conflictIndex[conflict.ref] = index
+        }
         for recipe in manifest.recipes where !result.invalidRecipeRefs.contains(recipe.ref) {
             for ingredient in recipe.ingredients {
                 guard let index = conflictIndex[ingredient.food],
