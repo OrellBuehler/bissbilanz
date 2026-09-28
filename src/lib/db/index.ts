@@ -5,6 +5,7 @@ import type {
 	DexieFoodEntry,
 	DexieRecipe,
 	DexieRecipeIngredient,
+	DexieRecipeStep,
 	DexieUserGoals,
 	DexieUserPreferences,
 	DexieCustomMealType,
@@ -24,6 +25,7 @@ type BissbilanzDB = Dexie & {
 	foodEntries: EntityTable<DexieFoodEntry, 'id'>;
 	recipes: EntityTable<DexieRecipe, 'id'>;
 	recipeIngredients: EntityTable<DexieRecipeIngredient, 'id'>;
+	recipeSteps: EntityTable<DexieRecipeStep, 'id'>;
 	userGoals: EntityTable<DexieUserGoals, 'userId'>;
 	userPreferences: EntityTable<DexieUserPreferences, 'userId'>;
 	customMealTypes: EntityTable<DexieCustomMealType, 'id'>;
@@ -128,6 +130,11 @@ db.version(8).stores({
 // v9: general logging reminders (weight/meal/sleep), synced across devices.
 db.version(9).stores({
 	reminders: 'id, kind, enabled'
+});
+
+// v10: recipe cooking steps mirror (ordered by sortOrder, keyed to their recipe).
+db.version(10).stores({
+	recipeSteps: 'id, recipeId'
 });
 
 export { db };
