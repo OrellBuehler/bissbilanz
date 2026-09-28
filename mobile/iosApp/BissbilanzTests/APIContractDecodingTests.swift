@@ -158,8 +158,7 @@ struct APIContractDecodingTests {
         for (schema, decode) in Self.mapping {
             guard let manifestEntry = manifest.schemas[schema] else {
                 Issue.record(
-                    "'\(schema)' is listed in the Swift mapping table but has no fixture in " +
-                        "manifest.json — remove the row, or run `bun run api:fixtures:ios` to regenerate"
+                    "'\(schema)' is listed in the Swift mapping table but has no fixture in manifest.json — remove the row, or run `bun run api:fixtures:ios` to regenerate"
                 )
                 continue
             }
@@ -194,8 +193,7 @@ struct APIContractDecodingTests {
         let mappedSchemas = Set(Self.mapping.map(\.schema))
         for schema in manifest.schemas.keys.sorted() where !mappedSchemas.contains(schema) {
             Issue.record(
-                "'\(schema)' has generated fixtures but no entry in the Swift mapping table above — " +
-                    "a server response this app decodes is going untested"
+                "'\(schema)' has generated fixtures but no entry in the Swift mapping table above — a server response this app decodes is going untested"
             )
         }
     }
