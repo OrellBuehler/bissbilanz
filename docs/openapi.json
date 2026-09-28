@@ -16,6 +16,107 @@
 		}
 	],
 	"paths": {
+		"/api/auth/providers": {
+			"get": {
+				"operationId": "getAuthProviders",
+				"tags": ["Auth"],
+				"security": [],
+				"description": "List the OIDC providers the server has credentials for. Called by the mobile sign-in screens before any session exists, to decide which provider buttons to show.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AuthProvidersResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/auth/mobile/token": {
+			"post": {
+				"operationId": "mobileToken",
+				"tags": ["Auth"],
+				"security": [],
+				"description": "Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/MobileTokenRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MobileTokenResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/AuthBadRequestResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/AuthUnauthorizedResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/AuthRateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/auth/mobile/apple": {
+			"post": {
+				"operationId": "mobileAppleSignIn",
+				"tags": ["Auth"],
+				"security": [],
+				"description": "Native Sign in with Apple on iOS. The device completes the flow itself and hands over an identity token verified against the app bundle id, rather than a code to exchange.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AppleSignInRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MobileTokenResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/AuthBadRequestResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/AuthUnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/AuthNotFoundResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/AuthRateLimitedResponse"
+					}
+				}
+			}
+		},
 		"/api/goals": {
 			"get": {
 				"operationId": "getGoals",
@@ -142,6 +243,9 @@
 								}
 							}
 						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -624,6 +728,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
@@ -714,6 +821,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -759,6 +869,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -825,6 +938,9 @@
 								}
 							}
 						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -950,6 +1066,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -999,6 +1118,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1135,6 +1257,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1180,6 +1305,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1341,6 +1469,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -1377,6 +1508,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1422,6 +1556,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1491,6 +1628,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -1884,6 +2024,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -1909,6 +2052,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -2122,6 +2268,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2216,6 +2365,9 @@
 								}
 							}
 						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -2321,6 +2473,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2379,6 +2534,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -2436,6 +2594,9 @@
 				"responses": {
 					"204": {
 						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
@@ -2599,6 +2760,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -2624,6 +2788,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
 					}
 				}
 			}
@@ -2917,6 +3084,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -3077,6 +3247,9 @@
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
 					"409": {
 						"$ref": "#/components/responses/ConflictResponse"
 					}
@@ -3166,6 +3339,9 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
 					}
@@ -3248,6 +3424,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			},
@@ -3273,6 +3452,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -3817,6 +3999,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
 					}
 				}
 			}
@@ -3847,8 +4032,14 @@
 							}
 						}
 					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
 			}
@@ -3904,6 +4095,52 @@
 	},
 	"components": {
 		"schemas": {
+			"MobileTokenRequest": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"code": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 2048
+							}
+						},
+						"required": ["code"]
+					},
+					{
+						"type": "object",
+						"properties": {
+							"refresh_token": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 2048
+							}
+						},
+						"required": ["refresh_token"]
+					}
+				]
+			},
+			"AppleSignInRequest": {
+				"type": "object",
+				"properties": {
+					"identity_token": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 8192
+					},
+					"nonce": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 256
+					},
+					"name": {
+						"type": "string",
+						"maxLength": 256
+					}
+				},
+				"required": ["identity_token", "nonce"]
+			},
 			"GoalsUpdate": {
 				"type": "object",
 				"properties": {
@@ -7419,6 +7656,49 @@
 						]
 					}
 				}
+			},
+			"AuthProvidersResponse": {
+				"type": "object",
+				"properties": {
+					"providers": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				},
+				"required": ["providers"],
+				"additionalProperties": false
+			},
+			"MobileTokenResponse": {
+				"type": "object",
+				"properties": {
+					"access_token": {
+						"type": "string"
+					},
+					"refresh_token": {
+						"type": "string"
+					},
+					"token_type": {
+						"type": "string",
+						"const": "Bearer"
+					},
+					"expires_in": {
+						"type": "number"
+					}
+				},
+				"required": ["access_token", "refresh_token", "token_type", "expires_in"],
+				"additionalProperties": false
+			},
+			"MessageErrorResponse": {
+				"type": "object",
+				"properties": {
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": ["message"],
+				"additionalProperties": false
 			},
 			"GoalsResponse": {
 				"type": "object",
@@ -12553,6 +12833,46 @@
 			}
 		},
 		"responses": {
+			"AuthBadRequestResponse": {
+				"description": "Bad request",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/MessageErrorResponse"
+						}
+					}
+				}
+			},
+			"AuthUnauthorizedResponse": {
+				"description": "Unauthorized",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/MessageErrorResponse"
+						}
+					}
+				}
+			},
+			"AuthRateLimitedResponse": {
+				"description": "Too many requests",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/MessageErrorResponse"
+						}
+					}
+				}
+			},
+			"AuthNotFoundResponse": {
+				"description": "Not found",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/MessageErrorResponse"
+						}
+					}
+				}
+			},
 			"UnauthorizedResponse": {
 				"description": "Unauthorized",
 				"content": {
@@ -12595,6 +12915,16 @@
 			},
 			"DeletedResponse": {
 				"description": "Deleted"
+			},
+			"RateLimitedResponse": {
+				"description": "Too many requests",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
 			}
 		},
 		"securitySchemes": {

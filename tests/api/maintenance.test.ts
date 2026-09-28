@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 vi.mock('$lib/paraglide/messages', () => ({ default: {} }));
@@ -62,6 +63,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(401);
@@ -75,6 +77,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -88,6 +91,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -101,6 +105,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -114,6 +119,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -127,6 +133,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -140,6 +147,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(200);
@@ -158,6 +166,7 @@ describe('api/maintenance', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/maintenance', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(200);

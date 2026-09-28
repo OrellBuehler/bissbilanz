@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 
 // Mock the foods module
@@ -19,6 +20,10 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
+let mockBrandsResult: any[] = [];
+let mockDuplicateGroupsResult: any[] = [];
+let mockMergeResult: any = null;
+
 vi.mock('$lib/server/foods', () => ({
 	getFood: async () => null,
 	listFoods: async (userId: string, options: any) => {
@@ -34,7 +39,19 @@ vi.mock('$lib/server/foods', () => ({
 	updateFood: async () => ({ success: true, data: undefined }),
 	deleteFood: async () => ({ blocked: false }),
 	toFoodInsert: () => ({}),
-	toFoodUpdate: () => ({})
+	toFoodUpdate: () => ({}),
+	listFoodBrands: async () => mockBrandsResult
+}));
+
+vi.mock('$lib/server/food-duplicates', () => ({
+	findDuplicateGroups: async () => mockDuplicateGroupsResult
+}));
+
+vi.mock('$lib/server/food-merge', () => ({
+	mergeFoods: async () =>
+		mockMergeResult
+			? { success: true, data: mockMergeResult }
+			: { success: false, error: mockValidationError }
 }));
 
 // Mock validation — must include ALL exports to avoid polluting other test files
@@ -43,6 +60,9 @@ vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 // Import route handlers after mocking
 const { GET, POST } = await import('../../src/routes/api/foods/+server');
+const { GET: BRANDS_GET } = await import('../../src/routes/api/foods/brands/+server');
+const { GET: DUPLICATES_GET } = await import('../../src/routes/api/foods/duplicates/+server');
+const { POST: MERGE_POST } = await import('../../src/routes/api/foods/merge/+server');
 
 describe('api/foods', () => {
 	beforeEach(() => {
@@ -56,6 +76,7 @@ describe('api/foods', () => {
 			const event = createMockEvent({ user: null });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -67,6 +88,7 @@ describe('api/foods', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -81,6 +103,7 @@ describe('api/foods', () => {
 			});
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -96,6 +119,7 @@ describe('api/foods', () => {
 			});
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -110,6 +134,7 @@ describe('api/foods', () => {
 			});
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -125,6 +150,7 @@ describe('api/foods', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -139,6 +165,7 @@ describe('api/foods', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/foods', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(201);
@@ -162,6 +189,7 @@ describe('api/foods', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -182,6 +210,7 @@ describe('api/foods', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -203,6 +232,7 @@ describe('api/foods', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -224,6 +254,7 @@ describe('api/foods', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -236,6 +267,7 @@ describe('api/foods', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 				const data = await response.json();
 
 				expect(response.status).toBe(400);
@@ -255,31 +287,92 @@ describe('GET /api/foods label filters', () => {
 		const response = await GET(
 			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=3' })
 		);
+		await expectResponseContract('GET', '/api/foods', response);
 		expect(response.status).toBe(200);
 		expect(mockListArgs).toMatchObject({ minLabels: 3 });
 	});
 
 	test('unlabeled=true still means minLabels=1', async () => {
-		await GET(
+		const response = await GET(
 			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?unlabeled=true' })
 		);
+		await expectResponseContract('GET', '/api/foods', response);
 		expect(mockListArgs).toMatchObject({ minLabels: 1 });
 	});
 
 	test('rejects minLabels outside 1..20', async () => {
-		expect(
-			(
-				await GET(
-					createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=0' })
-				)
-			).status
-		).toBe(400);
-		expect(
-			(
-				await GET(
-					createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=21' })
-				)
-			).status
-		).toBe(400);
+		const tooLow = await GET(
+			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=0' })
+		);
+		await expectResponseContract('GET', '/api/foods', tooLow);
+		expect(tooLow.status).toBe(400);
+
+		const tooHigh = await GET(
+			createMockEvent({ user: TEST_USER, url: 'http://localhost/api/foods?minLabels=21' })
+		);
+		await expectResponseContract('GET', '/api/foods', tooHigh);
+		expect(tooHigh.status).toBe(400);
+	});
+});
+
+describe('GET /api/foods/brands', () => {
+	test('returns 401 when not authenticated', async () => {
+		const response = await BRANDS_GET(createMockEvent({ user: null }));
+		await expectResponseContract('GET', '/api/foods/brands', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('lists brands with counts', async () => {
+		mockBrandsResult = [{ brand: 'Migros', count: 3 }];
+		const response = await BRANDS_GET(createMockEvent({ user: TEST_USER }));
+		await expectResponseContract('GET', '/api/foods/brands', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).brands).toHaveLength(1);
+	});
+});
+
+describe('GET /api/foods/duplicates', () => {
+	test('returns 401 when not authenticated', async () => {
+		const response = await DUPLICATES_GET(createMockEvent({ user: null }));
+		await expectResponseContract('GET', '/api/foods/duplicates', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('returns no groups when nothing is duplicated', async () => {
+		mockDuplicateGroupsResult = [];
+		const response = await DUPLICATES_GET(createMockEvent({ user: TEST_USER }));
+		await expectResponseContract('GET', '/api/foods/duplicates', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).groups).toEqual([]);
+	});
+});
+
+describe('POST /api/foods/merge', () => {
+	const MERGE_PAYLOAD = {
+		keeperId: TEST_FOOD.id,
+		sourceIds: ['10000000-0000-4000-8000-000000000011']
+	};
+
+	test('returns 401 when not authenticated', async () => {
+		const response = await MERGE_POST(createMockEvent({ user: null, body: MERGE_PAYLOAD }));
+		await expectResponseContract('POST', '/api/foods/merge', response);
+		expect(response.status).toBe(401);
+	});
+
+	test('merges into the keeper food', async () => {
+		mockMergeResult = TEST_FOOD;
+		const response = await MERGE_POST(createMockEvent({ user: TEST_USER, body: MERGE_PAYLOAD }));
+		await expectResponseContract('POST', '/api/foods/merge', response);
+		expect(response.status).toBe(200);
+		expect((await response.json()).food.id).toBe(TEST_FOOD.id);
+	});
+
+	test('returns 400 for an invalid payload', async () => {
+		mockMergeResult = null;
+		const response = await MERGE_POST(
+			createMockEvent({ user: TEST_USER, body: { keeperId: 'not-a-uuid', sourceIds: [] } })
+		);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 	});
 });

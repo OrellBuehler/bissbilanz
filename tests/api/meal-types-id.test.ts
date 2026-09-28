@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ApiError } from '../../src/lib/server/errors';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_MEAL_TYPE, TEST_USER } from '../helpers/fixtures';
 
 let deleteError: Error | null = null;
@@ -26,6 +27,7 @@ describe('api/meal-types/[id]', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, params: { id: TEST_MEAL_TYPE.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/meal-types/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -35,6 +37,7 @@ describe('api/meal-types/[id]', () => {
 		test('returns 204 on successful delete', async () => {
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_MEAL_TYPE.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/meal-types/{id}', response);
 
 			expect(response.status).toBe(204);
 		});
@@ -47,6 +50,7 @@ describe('api/meal-types/[id]', () => {
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_MEAL_TYPE.id } });
 
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/meal-types/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(409);

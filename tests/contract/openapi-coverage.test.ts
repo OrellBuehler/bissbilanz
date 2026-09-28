@@ -36,15 +36,11 @@ const UNDOCUMENTED: Record<string, string> = {
 	'PUT /api/day-properties/{}': 'not used by any client yet',
 	'DELETE /api/day-properties/{}': 'not used by any client yet',
 
-	// Mobile sign-in. Used by shipped apps, so changes here are breaking even
-	// though no tool catches them — TODO: move into the spec.
-	'GET /api/auth/providers': 'mobile sign-in — TODO document',
+	// Mobile sign-in redirects. Browser-based, not called by JS clients.
 	'GET /api/auth/mobile/login': 'mobile sign-in redirect',
 	'GET /api/auth/mobile/callback': 'mobile sign-in redirect',
 	'GET /api/auth/mobile/callback/{}': 'mobile sign-in redirect',
-	'POST /api/auth/mobile/callback/{}': 'mobile sign-in form_post (Apple)',
-	'POST /api/auth/mobile/token': 'mobile sign-in — TODO document',
-	'POST /api/auth/mobile/apple': 'native Sign in with Apple — TODO document'
+	'POST /api/auth/mobile/callback/{}': 'mobile sign-in form_post (Apple)'
 };
 
 const ROUTES_DIR = 'src/routes/api';

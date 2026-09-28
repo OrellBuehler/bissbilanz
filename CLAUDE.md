@@ -122,6 +122,7 @@ scripts/api/verify.sh           # Full API stability gate, same as CI (needs Doc
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
 - The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (the API Contract workflow fails otherwise)
 - Every new route goes into `src/lib/server/openapi.ts`; `tests/contract/openapi-coverage.test.ts` fails otherwise
+- Every new or changed endpoint needs an `expectResponseContract(method, path, response)` assertion (`tests/helpers/contract.ts`) in its `tests/api/*.test.ts` test, for each documented status it exercises — `tests/contract/response-contract-coverage.test.ts` fails on a documented 2xx JSON operation with none
 
 ### API Stability (CRITICAL)
 
