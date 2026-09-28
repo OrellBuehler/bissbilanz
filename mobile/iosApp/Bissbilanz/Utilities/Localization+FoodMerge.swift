@@ -148,11 +148,11 @@ extension L10n {
         )
     }
 
-    static var foodsSelectToMerge: String {
+    static var foodsSelectHint: String {
         localized(
-            "foods_select_to_merge",
-            en: "Select two or more foods to merge",
-            de: "Wähle zwei oder mehr Lebensmittel zum Zusammenführen"
+            "foods_select_hint",
+            en: "Select foods to share, or two or more to merge",
+            de: "Wähle Lebensmittel zum Teilen oder zwei oder mehr zum Zusammenführen"
         )
     }
 

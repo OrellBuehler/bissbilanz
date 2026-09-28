@@ -33,13 +33,15 @@ struct FoodSearchView: View {
     @State private var showCreateFood = false
     @State private var showCreateRecipe = false
     @State private var showShareFoods = false
+    @State private var shareSelectedFoodIds: [String] = []
+    @State private var showShareSelected = false
     @State private var showImportPackage = false
     @State private var showDuplicates = false
     @State private var searchTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var toastMessage: String?
-    /// Multi-select for merging: checkmarks on the left of every list, and a
-    /// merge button pinned to the bottom once two or more are picked.
+    /// Multi-select for merging or sharing: checkmarks on the left of every
+    /// list, and share / merge buttons pinned to the bottom.
     @State private var isSelecting = false
     @State private var selectedIds: Set<String> = []
     @State private var mergeCandidates: FoodMergeCandidates?
@@ -76,7 +78,7 @@ struct FoodSearchView: View {
         }
         .safeAreaInset(edge: .bottom) {
             if isSelecting {
-                mergeSelectionButton
+                selectionActions
             }
         }
         .navigationTitle(L10n.foods)
@@ -151,6 +153,9 @@ struct FoodSearchView: View {
         }
         .sheet(isPresented: $showShareFoods) {
             FoodPackageExportView()
+        }
+        .sheet(isPresented: $showShareSelected) {
+            FoodPackageExportView(foodIds: shareSelectedFoodIds)
         }
         .navigationDestination(isPresented: $showImportPackage) {
             FoodPackageImportView()
@@ -244,20 +249,41 @@ struct FoodSearchView: View {
     /// The server merges up to 20 sources into one keeper.
     private static let maxMergeSelection = 21
 
-    private var mergeSelectionButton: some View {
+    private var selectionActions: some View {
         let count = selectedIds.count
-        return Button {
-            openMergeForSelection()
-        } label: {
-            Label(
-                count >= 2 ? L10n.foodsMergeSelected(count) : L10n.foodsSelectToMerge,
-                systemImage: "arrow.triangle.merge"
-            )
-            .frame(maxWidth: .infinity)
+        return VStack(spacing: 8) {
+            if count < 2 {
+                Text(L10n.foodsSelectHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            HStack(spacing: 12) {
+                Button {
+                    shareSelectedFoodIds = selectedIds.sorted()
+                    showShareSelected = true
+                } label: {
+                    Label(L10n.foodPackageShare, systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
+                .disabled(count < 1)
+
+                Button {
+                    openMergeForSelection()
+                } label: {
+                    Label(
+                        count >= 2 ? L10n.foodsMergeSelected(count) : L10n.foodsMergeConfirm,
+                        systemImage: "arrow.triangle.merge"
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(count < 2 || count > Self.maxMergeSelection)
+            }
+            .controlSize(.large)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(count < 2 || count > Self.maxMergeSelection)
         .padding(.horizontal)
         .padding(.bottom, 8)
     }
