@@ -333,6 +333,12 @@ final class AiTaskStore {
             false
         case let .serverError(code, _):
             code < 400 || code >= 500 || code == 408 || code == 429
+        case .updateRequired:
+            // Not this payload's fault — the same bytes succeed once the app
+            // is updated. The photos and draft already stay on disk either
+            // way (`AiTaskUploadDisk`), but marking this retryable is what
+            // gets a "Retry" affordance instead of "discard" wording.
+            true
         default:
             true
         }

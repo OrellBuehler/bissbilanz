@@ -3,6 +3,7 @@ package com.bissbilanz.sync
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.HTTP_STATUS_UPDATE_REQUIRED
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.*
 import com.bissbilanz.mode.AppModeManager
@@ -299,6 +300,17 @@ class SyncManager(
                             syncQueue.remove(req.id)
                             synced++
                             addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
+                        }
+
+                        // 426: this build is too old for the server. Every other request
+                        // would hit the same wall, so pause the whole drain — never
+                        // dead-letter or count it as a failed attempt — and retry once
+                        // the app updates (BissbilanzApi/AuthManager flip UpdateGate for
+                        // the blocking screen; the queue just waits it out).
+                        e.statusCode == HTTP_STATUS_UPDATE_REQUIRED -> {
+                            syncQueue.releaseForRetry(req.id)
+                            stoppedEarly = true
+                            break
                         }
 
                         // Other 4xx client errors → dead-letter

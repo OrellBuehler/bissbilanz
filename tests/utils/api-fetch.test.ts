@@ -317,7 +317,36 @@ describe('apiFetch', () => {
 			const response = await apiFetch('/api/foods');
 
 			expect(response.status).toBe(200);
-			expect(fetchSpy).toHaveBeenCalledWith('/api/foods', {});
+			expect(fetchSpy).toHaveBeenCalledWith('/api/foods', { headers: expect.any(Headers) });
+		});
+
+		test('sends the web client version headers on release builds', async () => {
+			setOnline(true);
+			vi.stubEnv('VITE_APP_VERSION', 'v1.52.0');
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+			await apiFetch('/api/foods');
+
+			const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Headers;
+			expect(headers.get('x-client-platform')).toBe('web');
+			expect(headers.get('x-client-version')).toBe('v1.52.0');
+			vi.unstubAllEnvs();
+		});
+
+		test('omits version headers on dev builds without a release version', async () => {
+			setOnline(true);
+			vi.stubEnv('VITE_APP_VERSION', 'dev');
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+			await apiFetch('/api/foods');
+
+			const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Headers;
+			expect(headers.has('x-client-platform')).toBe(false);
+			vi.unstubAllEnvs();
 		});
 
 		test('passes options through to fetch', async () => {

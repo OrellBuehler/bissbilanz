@@ -35,6 +35,7 @@ func resolveRootDestination(authState: AuthState, mode: AppMode?) -> RootDestina
 @main
 struct BissbilanzApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @State private var updateGate: UpdateRequiredGate
     @State private var authManager: AuthManager
     @State private var api: BissbilanzAPI
     @State private var appModeManager: AppModeManager
@@ -97,8 +98,13 @@ struct BissbilanzApp: App {
         try? Tips.configure([.displayFrequency(.daily)])
         TipSettings.isEnabled = UserDefaults.standard.object(forKey: TipSettings.enabledKey) as? Bool ?? true
 
-        let auth = AuthManager()
-        let api = BissbilanzAPI(authManager: auth)
+        // One instance shared by `AuthManager` and `BissbilanzAPI` — both build
+        // requests to the server directly, so either can trip this and the
+        // blocking screen below reacts the same way regardless of which one
+        // caught the 426 first.
+        let gate = UpdateRequiredGate()
+        let auth = AuthManager(updateGate: gate)
+        let api = BissbilanzAPI(authManager: auth, updateGate: gate)
         let appMode = AppModeManager()
         let connectivity = ConnectivityMonitor()
         connectivity.start()
@@ -135,6 +141,7 @@ struct BissbilanzApp: App {
 
         let sync = SyncManager(context: context, api: api, appMode: appMode, connectivity: connectivity)
 
+        _updateGate = State(wrappedValue: gate)
         _authManager = State(wrappedValue: auth)
         _api = State(wrappedValue: api)
         _appModeManager = State(wrappedValue: appMode)
@@ -409,15 +416,23 @@ struct BissbilanzApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                switch resolveRootDestination(authState: authManager.authState, mode: appModeManager.mode) {
-                case .login:
-                    LoginView()
-                case .app:
-                    ContentView()
-                case .migration:
-                    MigrationView()
+                if let minVersion = updateGate.minVersion {
+                    // Ahead of the normal routing below and independent of auth
+                    // state — an old build isn't safe to use against the server
+                    // at all, whether or not the user is signed in.
+                    UpdateRequiredView(minVersion: minVersion)
+                } else {
+                    switch resolveRootDestination(authState: authManager.authState, mode: appModeManager.mode) {
+                    case .login:
+                        LoginView()
+                    case .app:
+                        ContentView()
+                    case .migration:
+                        MigrationView()
+                    }
                 }
             }
+            .environment(updateGate)
             .environment(authManager)
             .environment(api)
             .environment(appModeManager)

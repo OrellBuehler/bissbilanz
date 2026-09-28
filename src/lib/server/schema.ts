@@ -1104,3 +1104,17 @@ export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
 export type NewIdempotencyKey = typeof idempotencyKeys.$inferInsert;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+// Which app builds still talk to the server, so an old API shape is only
+// removed once nothing depends on it (docs/api-stability.md). Aggregate per
+// platform + version; deliberately not linked to users.
+export const clientVersions = pgTable(
+	'client_versions',
+	{
+		platform: text('platform').notNull(),
+		version: text('version').notNull(),
+		firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+		lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [primaryKey({ columns: [table.platform, table.version] })]
+);

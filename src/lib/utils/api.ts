@@ -1,6 +1,11 @@
 import { browser } from '$app/environment';
 import { enqueue } from '$lib/stores/offline-queue';
 import { IDEMPOTENCY_KEY_HEADER, CLIENT_EDITED_AT_HEADER } from '$lib/sync/contract';
+import {
+	applyClientVersionHeaders,
+	isUpdateRequired,
+	reloadForUpdate
+} from '$lib/utils/client-version';
 
 /**
  * Stamp idempotency + edit-time headers on online writes so they get the same
@@ -19,10 +24,10 @@ function applySyncHeaders(headers: Headers, isWrite: boolean): Headers {
 }
 
 export async function apiFetch(input: Request | string, init?: RequestInit): Promise<Response> {
-	if (input instanceof Request) {
-		return apiFetchRequest(input);
-	}
-	return apiFetchString(input, init);
+	const response =
+		input instanceof Request ? await apiFetchRequest(input) : await apiFetchString(input, init);
+	if (browser && isUpdateRequired(response)) await reloadForUpdate();
+	return response;
 }
 
 async function apiFetchRequest(request: Request): Promise<Response> {
@@ -45,8 +50,11 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 		});
 	}
 
-	if (browser && isWrite) {
-		const headers = applySyncHeaders(new Headers(request.headers), isWrite);
+	if (browser) {
+		const headers = applySyncHeaders(
+			applyClientVersionHeaders(new Headers(request.headers)),
+			isWrite
+		);
 		return fetch(new Request(request, { headers }), { duplex: 'half' } as RequestInit);
 	}
 
@@ -72,8 +80,11 @@ async function apiFetchString(url: string, options: RequestInit = {}): Promise<R
 		});
 	}
 
-	if (browser && isWrite) {
-		const headers = applySyncHeaders(new Headers(options.headers), isWrite);
+	if (browser) {
+		const headers = applySyncHeaders(
+			applyClientVersionHeaders(new Headers(options.headers)),
+			isWrite
+		);
 		return fetch(url, { ...options, headers });
 	}
 

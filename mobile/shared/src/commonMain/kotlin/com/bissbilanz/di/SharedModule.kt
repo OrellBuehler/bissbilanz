@@ -2,6 +2,7 @@ package com.bissbilanz.di
 
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
+import com.bissbilanz.api.UpdateGate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.cache.DatabaseDriverFactory
@@ -19,8 +20,27 @@ import org.koin.dsl.module
 
 val sharedModule =
     module {
-        single { AuthManager(get<String>(named("baseUrl")), get(), get()) }
-        single { BissbilanzApi(get<String>(named("baseUrl")), get(), get()) }
+        single { UpdateGate() }
+        single {
+            AuthManager(
+                baseUrl = get(named("baseUrl")),
+                secureStorage = get(),
+                json = get(),
+                clientPlatform = get(named("clientPlatform")),
+                clientVersion = getOrNull(named("clientVersion")),
+                updateGate = get(),
+            )
+        }
+        single {
+            BissbilanzApi(
+                baseUrl = get(named("baseUrl")),
+                authManager = get(),
+                json = get(),
+                clientPlatform = get(named("clientPlatform")),
+                clientVersion = getOrNull(named("clientVersion")),
+                updateGate = get(),
+            )
+        }
         single { OpenFoodFactsClient(json = get()) }
         single { AppModeManager(get<PlainStorage>()) }
         // Two database files: bissbilanz.db (sync queue + server cache, excluded from

@@ -25,6 +25,7 @@ final class StubURLProtocol: URLProtocol {
     private nonisolated(unsafe) static var stubQueues: [String: [Stub]] = [:]
     private nonisolated(unsafe) static var recorded: [String] = []
     private nonisolated(unsafe) static var bodies: [String: [Data]] = [:]
+    private nonisolated(unsafe) static var headers: [String: [[String: String]]] = [:]
     private static let lock = NSLock()
 
     static func stub(
@@ -66,6 +67,14 @@ final class StubURLProtocol: URLProtocol {
         return bodies["\(method) \(url)"] ?? []
     }
 
+    /// `allHTTPHeaderFields` of every request sent to "METHOD url", in arrival
+    /// order — e.g. asserting `X-Client-Platform`/`X-Client-Version` were set.
+    static func recordedHeaders(_ method: String, _ url: String) -> [[String: String]] {
+        lock.lock()
+        defer { lock.unlock() }
+        return headers["\(method) \(url)"] ?? []
+    }
+
     /// Requests seen for `baseURL`, as "METHOD /path" in arrival order.
     static func recordedRequests(baseURL: String) -> [String] {
         lock.lock()
@@ -95,6 +104,7 @@ final class StubURLProtocol: URLProtocol {
         if let body {
             Self.bodies[key, default: []].append(body)
         }
+        Self.headers[key, default: []].append(request.allHTTPHeaderFields ?? [:])
         let stub: Stub?
         if var queued = Self.stubQueues[key], !queued.isEmpty {
             stub = queued.removeFirst()
@@ -228,6 +238,10 @@ struct RepositoryHarness {
 
     func recordedBodies(_ method: String, _ path: String) -> [Data] {
         StubURLProtocol.recordedBodies(method, "\(baseURL)\(path)")
+    }
+
+    func recordedHeaders(_ method: String, _ path: String) -> [[String: String]] {
+        StubURLProtocol.recordedHeaders(method, "\(baseURL)\(path)")
     }
 
     // MARK: Repositories

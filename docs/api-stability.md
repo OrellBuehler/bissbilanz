@@ -56,6 +56,35 @@ fallback case before adding values.
 
 **Support window:** an old shape stays until the oldest mobile build still in use has moved
 off it, and never less than 90 days after the replacement shipped to both stores.
+`bun run clients:versions` (against the production `DATABASE_URL`) lists when each app
+version was last seen.
+
+## Client versions and forced updates
+
+Every first-party client sends two headers on each `/api` request:
+
+- `X-Client-Platform`: `web`, `android`, `wearos`, `ios` or `watchos`
+- `X-Client-Version`: the marketing version, `MAJOR.MINOR.PATCH` (web: the release tag)
+
+The server tags Sentry events with them and records the first/last time each platform +
+version was seen (`client_versions`, aggregate, not linked to users). Requests without the
+headers (old builds, MCP, scripts) are never blocked.
+
+`MIN_CLIENT_VERSIONS` in `src/lib/server/client-version.ts` sets a minimum per platform.
+Below it, every `/api` request gets:
+
+```
+HTTP 426  X-Client-Min-Version: 1.53.0
+{ "error": "Update required", "code": "client_update_required", "platform": "ios", "minVersion": "1.53.0" }
+```
+
+The apps show a blocking update screen that links to the store; web reloads onto the new
+bundle. Offline queues keep their pending changes and replay them after the update, and a 426
+never signs the user out. This is the tool for the contract step: once `clients:versions`
+shows no traffic below the version that adopted the replacement, raise the minimum, and
+remove the old shape afterwards.
+
+Raise a minimum only in a reviewed PR, and only to a version that is live in both stores.
 
 ## Database migrations follow the same pattern
 
@@ -118,12 +147,5 @@ Only for the contract step above, or for a security fix with no additive alterna
 
 In rough priority order:
 
-1. **Client version header + minimum supported version.** No client says which build it is,
-   so we cannot tell when an old shape is safe to remove, and we cannot ask users to update.
-   Add `X-Client-Version: <platform>/<version> (<build>)` to web, Android, Wear, iOS and watchOS
-   requests, record it (Sentry tag + last-seen per user), and let the server answer `426` with
-   `{ error, minVersion }` below a per-platform minimum, which clients turn into an update
-   prompt. Clients must ship the 426 handling **before** it is ever needed; builds without it
-   can never be forced to update, so this belongs in the first non-beta release.
-2. **iOS decode fixtures.** Generate example payloads from the spec and decode them in the iOS
+1. **iOS decode fixtures.** Generate example payloads from the spec and decode them in the iOS
    unit tests, so a server change that breaks Swift decoding fails CI.

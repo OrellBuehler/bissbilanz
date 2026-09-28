@@ -32,6 +32,11 @@ import SwiftData
 /// - 5xx / network errors → retryCount increments, exponential backoff via
 ///   `nextAttemptAt`; after `maxRetries` failed attempts the row is dropped with
 ///   an error.
+/// - 426 → this build is older than the server's minimum version
+///   (`UpdateRequiredGate` is already flagged by `BissbilanzAPI` by the time
+///   this is seen); draining stops, the row and its retryCount are untouched —
+///   never retried, dead-lettered, or counted against `maxRetries` — so it
+///   uploads unchanged once the app is updated.
 @MainActor
 @Observable
 final class SyncManager {
@@ -399,6 +404,19 @@ final class SyncManager {
                     )
 
                 case .offline:
+                    break drain
+
+                case .updateRequired:
+                    // Neither retried nor dropped: the row, its retryCount and
+                    // its idempotency key are left exactly as they are, so the
+                    // same op uploads unchanged once the app is updated. Every
+                    // other queued op is left untouched too — this ends the
+                    // drain the same way `.offline`/`.serverUnavailable` do.
+                    ErrorReporter.addBreadcrumb(
+                        "drain paused: client update required",
+                        category: "sync",
+                        data: ["sync.op": operation.typeName]
+                    )
                     break drain
 
                 case .retryableOperation, .serverUnavailable:
@@ -821,6 +839,12 @@ final class SyncManager {
         /// The server or the transport is failing, so every queued operation would
         /// fail the same way.
         case serverUnavailable
+        /// HTTP 426 — this build is older than the server's minimum supported
+        /// version. Neither of the above: the operation isn't at fault (it will
+        /// succeed unchanged once the app is updated) and the server isn't down
+        /// either, so this gets its own drain outcome — pause, don't retry or
+        /// drop (see the `.updateRequired` case in `drainPendingQueue`).
+        case updateRequired
     }
 
     private static func classify(_ error: Error, isOnline: Bool) -> FailureKind {
@@ -849,6 +873,8 @@ final class SyncManager {
             // A response this build cannot read is a contract mismatch on one endpoint,
             // not an outage — the ops queued behind it may well upload fine.
             return .retryableOperation
+        case .updateRequired:
+            return .updateRequired
         }
     }
 
