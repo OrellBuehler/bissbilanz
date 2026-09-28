@@ -87,12 +87,16 @@ final class RecipeRepository {
         return temp
     }
 
-    /// Copies a recipe (ingredients, servings, cooked weight) under a new name,
-    /// not favorited, without its image — two recipes must never share one
-    /// `imageUrl`, since the server's upload cleanup has no reference count and
-    /// would delete the file out from under whichever recipe keeps it once the
-    /// other's image changes or is deleted. Goes through `createRecipe` so it
-    /// works offline the same way.
+    /// Copies a recipe (ingredients, servings, cooked weight, steps) under a new
+    /// name, not favorited, without its cover image — two recipes must never
+    /// share one `imageUrl`, since the server's upload cleanup has no reference
+    /// count for covers and would delete the file out from under whichever
+    /// recipe keeps it once the other's image changes or is deleted. Step photos
+    /// are different: the server counts references to them before unlinking, so
+    /// a server-hosted step photo is shared as is, while a Local-mode `file://`
+    /// photo (the only copy there is, and evicted with its step) is copied to a
+    /// file of its own. Goes through `createRecipe` so it works offline the same
+    /// way.
     @discardableResult
     func duplicateRecipe(id: String, name: String) async throws -> Recipe {
         guard let source = recipe(id: id) else { throw APIError.notFound }
@@ -103,13 +107,17 @@ final class RecipeRepository {
                 servingUnit: ingredient.servingUnit
             )
         }
+        let steps = source.orderedSteps.map { step in
+            RecipeStepInput(text: step.text, imageUrl: Self.duplicatedStepPhoto(step.imageUrl))
+        }
         let create = RecipeCreate(
             name: name,
             totalServings: source.totalServings,
             ingredients: inputs,
             isFavorite: false,
             imageUrl: nil,
-            cookedWeight: source.cookedWeight
+            cookedWeight: source.cookedWeight,
+            steps: steps.isEmpty ? nil : steps
         )
         return try await createRecipe(create)
     }
@@ -128,6 +136,9 @@ final class RecipeRepository {
         let fullPatch = (try? JSONPatch.dictionary(of: update)) ?? [:]
         var patch = fullPatch
         patch.removeValue(forKey: "ingredients")
+        // The body's steps are `{text, imageUrl}` inputs, not `RecipeStep`s (no
+        // id / sortOrder), so they can't be merged into the cached recipe as is.
+        patch.removeValue(forKey: "steps")
         var updated = (try? JSONPatch.merged(Recipe.self, base: existing, patch: patch)) ?? existing
         // Ingredient edits apply to the local row in BOTH modes (in Local
         // mode there is no server to reconcile from; in Synced mode the
@@ -136,6 +147,13 @@ final class RecipeRepository {
         if let inputs = update.ingredients {
             let ingredients = resolvedIngredients(inputs, recipeId: id)
             updated = Self.applying(ingredients: ingredients, to: updated)
+        }
+        // A present list replaces every step, exactly like the server does;
+        // nil keeps the cached ones.
+        if let inputs = update.steps {
+            Self.evictLocalPhotos(of: existing.orderedSteps, keeping: inputs)
+            updated.steps = Self.localSteps(from: inputs)
+            updated.stepCount = inputs.count
         }
         row.update(from: updated)
         save()
@@ -184,7 +202,9 @@ final class RecipeRepository {
     }
 
     func deleteRecipe(id: String) async throws {
-        LocalImageStore.evict(recipe(id: id)?.imageUrl)
+        let doomed = recipe(id: id)
+        LocalImageStore.evict(doomed?.imageUrl)
+        Self.evictLocalPhotos(of: doomed?.orderedSteps ?? [], keeping: [])
         deleteRow(id: id)
         save()
         if LocalStore.isTempId(id) {
@@ -212,7 +232,9 @@ final class RecipeRepository {
         }
         do {
             try await api.deleteRecipe(id: id)
-            LocalImageStore.evict(recipe(id: id)?.imageUrl)
+            let doomed = recipe(id: id)
+            LocalImageStore.evict(doomed?.imageUrl)
+            Self.evictLocalPhotos(of: doomed?.orderedSteps ?? [], keeping: [])
             deleteRow(id: id)
             save()
             syncManager.removeQueued(table: "recipes", affectedId: id)
@@ -235,7 +257,9 @@ final class RecipeRepository {
             try await deleteRecipe(id: id)
             return
         }
-        let imageUrl = recipe(id: id)?.imageUrl
+        let doomed = recipe(id: id)
+        let imageUrl = doomed?.imageUrl
+        Self.evictLocalPhotos(of: doomed?.orderedSteps ?? [], keeping: [])
         deleteRow(id: id)
         save()
         do {
@@ -267,6 +291,9 @@ final class RecipeRepository {
     private func makeRecipe(from create: RecipeCreate, id: String) -> Recipe {
         let ingredients = resolvedIngredients(create.ingredients, recipeId: id)
         let macros = Self.recipeMacros(of: ingredients)
+        // Always a list (never nil) so a fresh recipe reads as "steps known":
+        // the editor only offers to change steps it has actually seen.
+        let steps = Self.localSteps(from: create.steps ?? [])
         return Recipe(
             id: id,
             userId: "",
@@ -282,8 +309,53 @@ final class RecipeRepository {
             cookedWeight: create.cookedWeight,
             createdAt: DateFormatting.isoDateTimeString(from: Date()),
             updatedAt: nil,
-            ingredients: ingredients
+            ingredients: ingredients,
+            steps: steps,
+            stepCount: steps.count
         )
+    }
+
+    /// Local rows for a steps list: array order becomes `sortOrder`, ids are
+    /// temp ones (the server assigns real ids on the next detail refresh).
+    static func localSteps(from inputs: [RecipeStepInput]) -> [RecipeStep] {
+        inputs.enumerated().map { index, input in
+            RecipeStep(id: LocalStore.makeTempId(), sortOrder: index, text: input.text, imageUrl: input.imageUrl)
+        }
+    }
+
+    /// Removes the Local-mode `file://` photos of `steps` that `kept` no longer
+    /// references. Server-hosted photos stay in the cache: the server decides
+    /// when an upload is unreferenced, and the file may still serve another
+    /// recipe's copy of the step.
+    private static func evictLocalPhotos(of steps: [RecipeStep], keeping kept: [RecipeStepInput]) {
+        let keptUrls = Set(kept.compactMap(\.imageUrl))
+        for step in steps {
+            guard let url = step.imageUrl, url.hasPrefix("file://"), !keptUrls.contains(url) else { continue }
+            LocalImageStore.evict(url)
+        }
+    }
+
+    private static func duplicatedStepPhoto(_ imageUrl: String?) -> String? {
+        guard let imageUrl, imageUrl.hasPrefix("file://") else { return imageUrl }
+        guard let photo = LocalImageStore.localPhoto(for: imageUrl) else { return nil }
+        return LocalImageStore.writeLocalPhoto(photo.data)
+    }
+
+    /// A list-endpoint copy (`steps` nil, only `stepCount`) must not wipe the
+    /// steps a detail fetch cached: the list refresh runs on every launch and
+    /// the detail may be opened offline afterwards. Kept only while the count
+    /// still matches — a different count means the steps changed elsewhere and
+    /// the cached ones are stale, so they go until the next detail refresh. A
+    /// count of zero is itself an answer: no steps.
+    static func preservingSteps(_ incoming: Recipe, existing: Recipe?) -> Recipe {
+        guard incoming.steps == nil else { return incoming }
+        var merged = incoming
+        if incoming.stepCount == 0 {
+            merged.steps = []
+        } else if let kept = existing?.steps, kept.count == incoming.stepCount {
+            merged.steps = kept
+        }
+        return merged
     }
 
     /// Ingredient inputs resolved against the local food store.
@@ -332,7 +404,7 @@ final class RecipeRepository {
     /// Copy of `recipe` with `ingredients` swapped in and macros recomputed.
     private static func applying(ingredients: [RecipeIngredient], to recipe: Recipe) -> Recipe {
         let macros = recipeMacros(of: ingredients)
-        return Recipe(
+        var result = Recipe(
             id: recipe.id,
             userId: recipe.userId,
             name: recipe.name,
@@ -349,6 +421,9 @@ final class RecipeRepository {
             updatedAt: recipe.updatedAt,
             ingredients: ingredients
         )
+        result.steps = recipe.steps
+        result.stepCount = recipe.stepCount
+        return result
     }
 
     // MARK: - Store helpers
@@ -361,7 +436,7 @@ final class RecipeRepository {
 
     private func upsert(_ recipe: Recipe) {
         if let row = fetchRow(id: recipe.id) {
-            row.update(from: recipe)
+            row.update(from: Self.preservingSteps(recipe, existing: row.toRecipe()))
         } else {
             context.insert(LocalRecipe(recipe: recipe))
         }

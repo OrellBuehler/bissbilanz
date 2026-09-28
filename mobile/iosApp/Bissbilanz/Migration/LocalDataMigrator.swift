@@ -309,13 +309,13 @@ final class LocalDataMigrator {
     /// `file://` URL, and sending one back is a 400 no retry can clear, which
     /// would strand the migration forever. Re-upload the local file instead,
     /// and drop the reference if that is impossible.
-    private func uploadableImageUrl(_ imageUrl: String?) async -> String? {
+    private func uploadableImageUrl(_ imageUrl: String?, purpose: String? = nil) async -> String? {
         guard let imageUrl else { return nil }
         if imageUrl.hasPrefix("http://") || imageUrl.hasPrefix("https://") { return imageUrl }
         if imageUrl.hasPrefix("/"), !imageUrl.hasPrefix("//") { return imageUrl }
         guard let photo = LocalImageStore.localPhoto(for: imageUrl) else { return nil }
         // The photo is a nice-to-have; the food/recipe row is not.
-        return try? await api.uploadImage(photo.data, filename: photo.filename)
+        return try? await api.uploadImage(photo.data, filename: photo.filename, purpose: purpose)
     }
 
     private func uploadFoods(done startDone: Int, total: Int) async throws -> Int {
@@ -346,6 +346,16 @@ final class LocalDataMigrator {
             guard let recipe = row.toRecipe() else {
                 throw MigrationError.unreadableRow("recipe \"\(row.name)\"")
             }
+            // A step's photo keeps its aspect ratio server-side, which is what
+            // the `recipe_step` purpose asks for.
+            var steps: [RecipeStepInput] = []
+            for step in recipe.orderedSteps {
+                steps.append(RecipeStepInput(
+                    text: step.text,
+                    imageUrl: await uploadableImageUrl(step.imageUrl, purpose: "recipe_step")
+                ))
+            }
+            steps = RecipeStepInput.sanitized(steps)
             let create = RecipeCreate(
                 name: recipe.name,
                 totalServings: recipe.totalServings,
@@ -356,7 +366,8 @@ final class LocalDataMigrator {
                     },
                 isFavorite: recipe.isFavorite,
                 imageUrl: await uploadableImageUrl(recipe.imageUrl),
-                cookedWeight: recipe.cookedWeight
+                cookedWeight: recipe.cookedWeight,
+                steps: steps.isEmpty ? nil : steps
             )
             let server = try await api.createRecipe(
                 create,
