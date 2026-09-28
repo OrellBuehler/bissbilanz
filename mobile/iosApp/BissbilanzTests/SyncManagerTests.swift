@@ -494,4 +494,114 @@ struct SyncManagerTests {
         #expect(second.pendingCount == 2)
         #expect(second.queuedRows().map(\.type) == ["delete_food", "delete_entry"])
     }
+
+    // MARK: - completeAiTask
+
+    @Test("A successful completeAiTask uploads the resolved entry ids and clears the queue")
+    func completeAiTaskUploadsSuccessfully() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("PATCH", "/api/ai-tasks/task-1", json: """
+        {"task": {"id": "task-1", "userId": "u1", "status": "completed", "photoUrls": [], "date": "2026-06-01"}}
+        """)
+
+        harness.syncManager.enqueue(.completeAiTask(
+            taskId: "task-1", localEntryIds: ["e1", "e2"], resultSummary: "Logged egg, toast",
+            processedBy: "on_device", clientEditedAt: "2026-06-01T08:00:00Z"
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.conflictNotices.isEmpty)
+        let body = try #require(harness.recordedBodies("PATCH", "/api/ai-tasks/task-1").first)
+        let update = try JSONDecoder().decode(AiTaskUpdate.self, from: body)
+        #expect(update.status == "completed")
+        #expect(update.createdEntryIds == ["e1", "e2"])
+    }
+
+    @Test("A completeAiTask conflict is forced through unconditionally instead of dropped")
+    func completeAiTaskConflictForcesThroughOnRetry() async throws {
+        let harness = try RepositoryHarness()
+        // The task was edited on another device between the caller's last
+        // freshness check and this upload landing — the first (guarded)
+        // attempt loses the LWW race; the forced retry it triggers has no
+        // guard to lose.
+        harness.stubSequence("PATCH", "/api/ai-tasks/task-1", [
+            (status: 409, json: #"{"error": "conflict_server_newer"}"#, headers: ["X-Sync-Conflict": "server-newer"]),
+            (
+                status: 200,
+                json: #"{"task": {"id": "task-1", "userId": "u1", "status": "completed", "photoUrls": [], "date": "2026-06-01"}}"#,
+                headers: [:]
+            ),
+        ])
+
+        harness.syncManager.enqueue(.completeAiTask(
+            taskId: "task-1", localEntryIds: ["e1"], resultSummary: "Logged egg",
+            processedBy: "on_device", clientEditedAt: "2026-06-01T08:00:00Z"
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests == ["PATCH /api/ai-tasks/task-1", "PATCH /api/ai-tasks/task-1"])
+        #expect(harness.syncManager.errors.isEmpty)
+        // Forced through silently — this is a resolution, not a lost edit the
+        // user needs to be told about.
+        #expect(harness.syncManager.conflictNotices.isEmpty)
+    }
+
+    @Test("A persistently conflicting completeAiTask is still dropped, not stuck forever")
+    func completeAiTaskPersistentConflictStillDrops() async throws {
+        let harness = try RepositoryHarness()
+        // Every attempt — guarded or forced — hits the same conflict, as it
+        // would if the task were, say, deleted on another device instead.
+        harness.stub(
+            "PATCH", "/api/ai-tasks/task-1",
+            status: 409, json: #"{"error": "conflict_server_newer"}"#,
+            headers: ["X-Sync-Conflict": "server-newer"]
+        )
+
+        harness.syncManager.enqueue(.completeAiTask(
+            taskId: "task-1", localEntryIds: ["e1"], resultSummary: "Logged egg",
+            processedBy: "on_device", clientEditedAt: "2026-06-01T08:00:00Z"
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests == ["PATCH /api/ai-tasks/task-1", "PATCH /api/ai-tasks/task-1"])
+        #expect(harness.syncManager.conflictNotices.count == 1)
+    }
+
+    @Test("A completeAiTask without a clientEditedAt snapshot never retries unconditionally")
+    func completeAiTaskWithoutClientEditedAtDoesNotForceRetry() async throws {
+        let harness = try RepositoryHarness()
+        // Contrived: with no clientEditedAt sent, the server's own LWW guard
+        // never applies and a real backend could not actually answer this —
+        // this only pins down the client-side guard clause (`snapshotClientEditedAt
+        // != nil`) in isolation from `serverNewer`, which the other two tests
+        // above already cover.
+        harness.stub(
+            "PATCH", "/api/ai-tasks/task-1",
+            status: 409, json: #"{"error": "conflict_server_newer"}"#,
+            headers: ["X-Sync-Conflict": "server-newer"]
+        )
+
+        harness.syncManager.enqueue(.completeAiTask(
+            taskId: "task-1", localEntryIds: ["e1"], resultSummary: "Logged egg",
+            processedBy: "on_device", clientEditedAt: nil
+        ))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        // Falls back to the generic conflict handling — dropped + noted —
+        // exactly like any other op's LWW loss, in a single request.
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.recordedRequests == ["PATCH /api/ai-tasks/task-1"])
+        #expect(harness.syncManager.conflictNotices.count == 1)
+    }
 }

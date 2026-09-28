@@ -399,6 +399,22 @@ private fun AiTaskListItem(
                     }
                 }
             }
+
+            // Who resolved this — only ever set once the task leaves pending,
+            // so this line appears alongside the assistant's comment above,
+            // never before it. Mirrors the web AiTaskCard's own label.
+            task.processedBy?.let { processedBy ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    when (processedBy) {
+                        AiTask.ProcessedBy.assistant -> stringResource(R.string.ai_tasks_processed_by_assistant)
+                        AiTask.ProcessedBy.on_device -> stringResource(R.string.ai_tasks_processed_by_on_device)
+                        AiTask.ProcessedBy.private_cloud -> stringResource(R.string.ai_tasks_processed_by_private_cloud)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 

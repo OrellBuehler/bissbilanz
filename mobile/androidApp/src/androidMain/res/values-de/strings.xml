@@ -201,6 +201,7 @@
     <string name="ai_task_camera_permission_required">Kameraberechtigung erforderlich, um ein Foto aufzunehmen</string>
     <string name="ai_task_edit_title">KI-Aufgabe bearbeiten</string>
     <string name="ai_task_edit_subtitle">Aktualisiere die Mahlzeit, bevor dein Assistent sie erfasst.</string>
+    <string name="ai_task_edit_subtitle_device">Aktualisiere die Mahlzeit, bevor dein iPhone sie erfasst.</string>
     <string name="ai_task_meal_none">Keine bestimmte Mahlzeit</string>
     <string name="ai_task_date_label">Datum</string>
     <string name="ai_task_time_hint_edit">Leer lassen, um ohne bestimmte Uhrzeit zu erfassen.</string>
@@ -220,6 +221,9 @@
     <string name="ai_tasks_photo_index">Foto %1$d von %2$d</string>
     <string name="ai_tasks_photo_viewer_close">Fotoansicht schließen</string>
     <string name="ai_tasks_agent_comment">Von deinem Assistenten</string>
+    <string name="ai_tasks_processed_by_assistant">Verarbeitet von deinem KI-Assistenten</string>
+    <string name="ai_tasks_processed_by_on_device">Auf deinem iPhone verarbeitet</string>
+    <string name="ai_tasks_processed_by_private_cloud">Über Private Cloud Compute verarbeitet</string>
     <string name="ai_tasks_unread">Neu</string>
     <string name="ai_tasks_edit">Aufgabe bearbeiten</string>
     <string name="ai_tasks_delete">Aufgabe löschen</string>
@@ -1218,6 +1222,7 @@
     <string name="settings_ai_task_processor_desc">Wähle, wer die von dir erfassten Mahlzeiten-Aufgaben verarbeitet.</string>
     <string name="settings_ai_task_processor_assistant">KI-Assistent (MCP)</string>
     <string name="settings_ai_task_processor_device">Mein iPhone (on-device / Private Cloud Compute)</string>
+    <string name="settings_ai_task_processor_device_hint">Aufgaben bleiben ausstehend, bis die Bissbilanz-iPhone-App sie verarbeitet.</string>
     <string name="settings_ai_task_auto_log_label">Automatisch eintragen</string>
     <string name="settings_ai_task_auto_log_hint">Ist dies deaktiviert, warten Schätzungen in der iPhone-App auf deine Prüfung.</string>
     <!-- Settings: water goal -->

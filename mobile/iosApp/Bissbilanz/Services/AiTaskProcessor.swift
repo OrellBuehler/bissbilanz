@@ -206,7 +206,26 @@ final class AiTaskProcessor {
             }
 
             if autoLog {
-                await completeAutomatically(task, items: items, source: estimate.source)
+                // `isStillCurrent` above only ever sees an edit made on this
+                // same device (`AiTaskEditSheet` updates `aiTaskStore.tasks`
+                // locally) — a concurrent edit from web/Android made any
+                // time during this pipeline's run (photo downloads, the
+                // on-device model call) is invisible to it. This is the last
+                // checkpoint before anything is logged, so re-confirm against
+                // the server itself and carry its `updatedAt` as the
+                // completion's last-write-wins guard: even the small gap
+                // left between this check and the upload landing is then
+                // caught server-side rather than silently completed over.
+                guard let freshTask = await currentServerTaskIfUnchanged(task) else {
+                    ErrorReporter.addBreadcrumb(
+                        "AiTaskProcessor: task no longer confirmed unchanged server-side, discarding result",
+                        category: "ai_task"
+                    )
+                    return
+                }
+                await completeAutomatically(
+                    task, items: items, source: estimate.source, clientEditedAt: freshTask.updatedAt
+                )
             } else {
                 let draft = ProcessedAiTaskDraft(
                     taskId: task.id,
@@ -239,11 +258,34 @@ final class AiTaskProcessor {
     /// the meantime) is likewise treated as no longer current.
     private func isStillCurrent(_ task: AiTask) -> Bool {
         guard let current = aiTaskStore.tasks.first(where: { $0.id == task.id }) else { return false }
-        return current.description == task.description
-            && current.photoUrls == task.photoUrls
-            && current.date == task.date
-            && current.mealType == task.mealType
-            && current.eatenAt == task.eatenAt
+        return Self.matches(current, task)
+    }
+
+    /// The server's own current copy of `task`, but only when it is still
+    /// pending there and its content matches what this run just processed —
+    /// nil otherwise (deleted, resolved elsewhere, edited on another device,
+    /// or the check itself failed, e.g. offline). A network failure here is
+    /// treated the same as "changed": the caller leaves the task pending for
+    /// the next trigger rather than logging against a copy it could not
+    /// confirm, mirroring `process`'s own fallback for any other thrown error.
+    private func currentServerTaskIfUnchanged(_ task: AiTask) async -> AiTask? {
+        guard let fresh = try? await api.listAiTasks(status: "pending", limit: 100).tasks
+            .first(where: { $0.id == task.id })
+        else { return nil }
+        return Self.matches(fresh, task) ? fresh : nil
+    }
+
+    /// Whether two `AiTask` snapshots carry the same loggable content —
+    /// everything `AiTaskProcessor` bases its estimate on. Deliberately
+    /// excludes `status`/`resultSummary`/etc: a task otherwise unedited but
+    /// resolved elsewhere is caught separately (it drops out of the
+    /// `status: "pending"` fetch `currentServerTaskIfUnchanged` filters on).
+    nonisolated static func matches(_ a: AiTask, _ b: AiTask) -> Bool {
+        a.description == b.description
+            && a.photoUrls == b.photoUrls
+            && a.date == b.date
+            && a.mealType == b.mealType
+            && a.eatenAt == b.eatenAt
     }
 
     private func resolveBarcode(_ barcode: String) async throws -> Food? {
@@ -257,7 +299,9 @@ final class AiTaskProcessor {
     /// a real id, quick log otherwise), then queues `.completeAiTask` with
     /// whichever local entry ids actually made it — mirroring
     /// `AIMealReviewView.logAll`, one item's failure doesn't stop the rest.
-    private func completeAutomatically(_ task: AiTask, items: [MealEstimateItem], source: MealEstimateSource) async {
+    private func completeAutomatically(
+        _ task: AiTask, items: [MealEstimateItem], source: MealEstimateSource, clientEditedAt: String?
+    ) async {
         var localEntryIds: [String] = []
         for item in items {
             do {
@@ -280,7 +324,8 @@ final class AiTaskProcessor {
             taskId: task.id,
             localEntryIds: localEntryIds,
             resultSummary: Self.summarize(items: items),
-            processedBy: Self.processedBy(for: source)
+            processedBy: Self.processedBy(for: source),
+            clientEditedAt: clientEditedAt
         ))
         aiTaskStore.markResolvedLocally(id: task.id)
     }

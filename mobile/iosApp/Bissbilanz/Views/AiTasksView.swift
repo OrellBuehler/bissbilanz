@@ -143,7 +143,10 @@ struct AiTasksView: View {
                     mealType: draft.mealType ?? MealTiming.mealForCurrentTime(),
                     eatenAt: draft.eatenAt,
                     taskContext: AiTaskReviewContext(
-                        taskId: draft.taskId, pendingFoods: draft.pendingFoods, source: draft.source
+                        taskId: draft.taskId,
+                        pendingFoods: draft.pendingFoods,
+                        source: draft.source,
+                        clientEditedAt: store.tasks.first(where: { $0.id == draft.taskId })?.updatedAt
                     )
                 ) { _ in
                     AiTaskDraftDisk.remove(taskId: draft.taskId)
@@ -347,6 +350,14 @@ private struct AiTaskRow: View {
                 .padding(10)
                 .background(Color.secondary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            // Who resolved this — only ever set once the task leaves pending,
+            // mirroring the web `AiTaskCard`'s own label.
+            if let processedBy = task.processedBy, let label = L10n.aiTasksProcessedBy(processedBy) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
 
