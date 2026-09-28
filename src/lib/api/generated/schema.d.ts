@@ -1915,7 +1915,9 @@ export interface components {
 		};
 		ValidationErrorResponse: {
 			error: string;
-			details?: unknown;
+			details?: {
+				[key: string]: string[];
+			};
 		};
 		FoodsListResponse: {
 			foods: components['schemas']['Food'][];

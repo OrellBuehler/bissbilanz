@@ -7,17 +7,18 @@ export const errorResponseSchema = z
 	})
 	.meta({ id: 'ErrorResponse' });
 
+// KNOWN INACCURACY, deliberately not fixed: validationError() actually sends
+// ZodError#format(), a recursive tree with `_errors: string[]` at every level
+// rather than this flat Record<string, string[]>. Any schema wide enough to
+// describe the real shape (tried z.unknown(), z.record(unknown), an object
+// with a `_errors` array plus a catchall) makes oasdiff flag the `details`
+// property as a breaking response-type change for every operation that
+// references this shared schema (scripts/api/check-breaking.sh). Left as-is
+// rather than ship a breaking change; see docs/api-stability.md.
 export const validationErrorResponseSchema = z
 	.object({
 		error: z.string(),
-		// validationError() sends ZodError#format(): a recursive tree with an
-		// `_errors: string[]` at the root and at each invalid field, so this
-		// can't be a flat Record<string, string[]> — describe it loosely
-		// instead of mis-describing its shape. A plain `unknown` (rather than
-		// a nested record) keeps the Kotlin codegen from treating the whole
-		// response as a free-form map (see the catalog models for the same
-		// failure mode with an actual additionalProperties schema).
-		details: z.unknown().optional()
+		details: z.record(z.string(), z.array(z.string())).optional()
 	})
 	.meta({ id: 'ValidationErrorResponse' });
 

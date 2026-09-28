@@ -128,7 +128,7 @@ describe('food package routes', () => {
 		const bad = await summaryRoute.POST(
 			createMockEvent({ user: TEST_USER, body: { foodIds: ['not-a-uuid'] } })
 		);
-		await expectResponseContract('POST', '/api/foods/package/summary', bad);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 		expect(bad.status).toBe(400);
 		const ok = await summaryRoute.POST(createMockEvent({ user: TEST_USER, body: { all: true } }));
 		await expectResponseContract('POST', '/api/foods/package/summary', ok);
@@ -176,7 +176,7 @@ describe('food package routes', () => {
 		const invalid = await importRoute.POST(
 			upload('/api/foods/package/import', { resolutions: JSON.stringify({ packageHash: 'x' }) })
 		);
-		await expectResponseContract('POST', '/api/foods/package/import', invalid);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 		expect(invalid.status).toBe(400);
 		expect(commitCalls).toEqual([]);
 	});

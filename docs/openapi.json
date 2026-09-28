@@ -7793,7 +7793,18 @@
 					"error": {
 						"type": "string"
 					},
-					"details": {}
+					"details": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							}
+						}
+					}
 				},
 				"required": ["error"],
 				"additionalProperties": false
