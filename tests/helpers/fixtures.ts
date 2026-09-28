@@ -126,6 +126,14 @@ export const TEST_ENTRY = {
 	recipeId: null,
 	servings: 1.5,
 	notes: null,
+	quickName: null,
+	quickCalories: null,
+	quickProtein: null,
+	quickCarbs: null,
+	quickFat: null,
+	quickFiber: null,
+	quickNutrients: null,
+	eatenAt: new Date('2026-02-10T08:00:00Z'),
 	createdAt: new Date('2026-02-10T08:00:00Z'),
 	updatedAt: new Date('2026-02-10T08:00:00Z')
 };
@@ -232,6 +240,9 @@ export const TEST_SUPPLEMENT = {
 	timeOfDay: null,
 	isActive: true,
 	sortOrder: 0,
+	// getSupplementById()/listSupplements() always attach this (defaulting to
+	// [] via ingredientsMap.get(id) ?? []), never omit it.
+	ingredients: [] as unknown[],
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };

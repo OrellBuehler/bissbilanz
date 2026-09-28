@@ -3352,6 +3352,33 @@ enum L10n {
         localized("ai_tasks_agent_comment", en: "From your assistant", de: "Von deinem Assistenten")
     }
 
+    /// Who resolved a completed/dismissed task — mirrors the web `AiTaskCard`
+    /// and Android `AiTasksScreen`'s own label, same wording across all three.
+    static func aiTasksProcessedBy(_ processedBy: String) -> String? {
+        switch processedBy {
+        case "assistant":
+            localized(
+                "ai_tasks_processed_by_assistant",
+                en: "Processed by your AI assistant",
+                de: "Verarbeitet von deinem KI-Assistenten"
+            )
+        case "on_device":
+            localized(
+                "ai_tasks_processed_by_on_device",
+                en: "Processed on your iPhone",
+                de: "Auf deinem iPhone verarbeitet"
+            )
+        case "private_cloud":
+            localized(
+                "ai_tasks_processed_by_private_cloud",
+                en: "Processed via Private Cloud Compute",
+                de: "Über Private Cloud Compute verarbeitet"
+            )
+        default:
+            nil
+        }
+    }
+
     static var aiTasksUnread: String {
         localized("ai_tasks_unread", en: "New", de: "Neu")
     }

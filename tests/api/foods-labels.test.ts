@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
 
 type SetCall = {
@@ -69,17 +70,23 @@ beforeEach(() => {
 describe('GET /api/foods/[id]/labels', () => {
 	test('returns 401 when not authenticated', async () => {
 		const event = createMockEvent({ user: null, params: { id: TEST_FOOD.id } });
-		expect((await GET(event)).status).toBe(401);
+		const response = await GET(event);
+		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		expect(response.status).toBe(401);
 	});
 
 	test('returns 400 for a non-uuid id', async () => {
 		const event = createMockEvent({ user: TEST_USER, params: { id: 'not-a-uuid' } });
-		expect((await GET(event)).status).toBe(400);
+		const response = await GET(event);
+		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		expect(response.status).toBe(400);
 	});
 
 	test('exposes source and confidence, with dates as ISO strings', async () => {
 		const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
-		const data = await (await GET(event)).json();
+		const response = await GET(event);
+		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		const data = await response.json();
 		expect(data.labels).toEqual([
 			{
 				label: 'banana',
@@ -97,11 +104,14 @@ describe('PUT /api/foods/[id]/labels', () => {
 		PUT(createMockEvent({ user, params: { id }, body: body as any, method: 'PUT' }));
 
 	test('returns 401 when not authenticated', async () => {
-		expect((await put({ labels: ['banana'] }, TEST_FOOD.id, null as any)).status).toBe(401);
+		const response = await put({ labels: ['banana'] }, TEST_FOOD.id, null as any);
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		expect(response.status).toBe(401);
 	});
 
 	test('defaults the source to user', async () => {
 		const response = await put({ labels: ['Banana'] });
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ labels: ['banana'], dropped: [] });
 		expect(setCalls[0].source).toBe('user');
@@ -117,6 +127,7 @@ describe('PUT /api/foods/[id]/labels', () => {
 				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
 			})
 		);
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(setCalls[0]).toMatchObject({
 			mode: 'extend',
@@ -125,7 +136,9 @@ describe('PUT /api/foods/[id]/labels', () => {
 	});
 
 	test('rejects an unknown mode', async () => {
-		expect((await put({ labels: ['banana'], mode: 'merge' })).status).toBe(400);
+		const response = await put({ labels: ['banana'], mode: 'merge' });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 	});
 
 	test('answers 409 when a newer edit already won last-write-wins', async () => {
@@ -139,50 +152,64 @@ describe('PUT /api/foods/[id]/labels', () => {
 				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
 			})
 		);
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(response.status).toBe(409);
 		expect(await response.json()).toEqual({ error: 'conflict_server_newer' });
 	});
 
 	test('honours an explicit source', async () => {
-		await put({ labels: ['banana'], source: 'external' });
+		const response = await put({ labels: ['banana'], source: 'external' });
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(setCalls[0].source).toBe('external');
 	});
 
 	test('rejects an unknown source', async () => {
 		const response = await put({ labels: ['banana'], source: 'wishful' });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 		expect(response.status).toBe(400);
 		expect(setCalls).toHaveLength(0);
 	});
 
 	test('rejects more than 20 labels', async () => {
 		const response = await put({ labels: Array.from({ length: 21 }, (_, i) => `l${i}`) });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 		expect(response.status).toBe(400);
 	});
 
 	test('rejects a confidence outside 0..1', async () => {
-		expect((await put({ labels: ['banana'], confidence: 1.5 })).status).toBe(400);
-		expect((await put({ labels: ['banana'], confidence: -0.1 })).status).toBe(400);
+		const tooHigh = await put({ labels: ['banana'], confidence: 1.5 });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(tooHigh.status).toBe(400);
+
+		const tooLow = await put({ labels: ['banana'], confidence: -0.1 });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(tooLow.status).toBe(400);
 	});
 
 	test('accepts an empty array as "clear my labels"', async () => {
 		const response = await put({ labels: [] });
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ labels: [], dropped: [] });
 	});
 
 	test('returns 404 for a food the caller does not own', async () => {
 		const response = await put({ labels: ['banana'] }, OTHER_ID);
+		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
 		expect(response.status).toBe(404);
 	});
 });
 
 describe('GET /api/foods/labels', () => {
 	test('returns 401 when not authenticated', async () => {
-		expect((await LABELS_GET(createMockEvent({ user: null }))).status).toBe(401);
+		const response = await LABELS_GET(createMockEvent({ user: null }));
+		await expectResponseContract('GET', '/api/foods/labels', response);
+		expect(response.status).toBe(401);
 	});
 
 	test('lists the label vocabulary with counts', async () => {
 		const response = await LABELS_GET(createMockEvent({ user: TEST_USER }));
+		await expectResponseContract('GET', '/api/foods/labels', response);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({
 			labels: [
@@ -202,14 +229,15 @@ describe('POST /api/foods/labels', () => {
 			mode: 'extend',
 			items: [{ foodId: TEST_FOOD.id, labels: ['banana'] }]
 		});
+		await expectResponseContract('POST', '/api/foods/labels', response);
 		expect(response.status).toBe(200);
 		expect(setCalls[0].mode).toBe('extend');
 	});
 
 	test('returns 401 when not authenticated', async () => {
-		expect(
-			(await post({ items: [{ foodId: TEST_FOOD.id, labels: ['x'] }] }, null as any)).status
-		).toBe(401);
+		const response = await post({ items: [{ foodId: TEST_FOOD.id, labels: ['x'] }] }, null as any);
+		await expectResponseContract('POST', '/api/foods/labels', response);
+		expect(response.status).toBe(401);
 	});
 
 	test('reports per-item results so one bad id does not fail the sweep', async () => {
@@ -220,6 +248,7 @@ describe('POST /api/foods/labels', () => {
 				{ foodId: OTHER_ID, labels: ['ghost'] }
 			]
 		});
+		await expectResponseContract('POST', '/api/foods/labels', response);
 		expect(response.status).toBe(200);
 		const data = await response.json();
 		expect(data.results).toEqual([
@@ -234,14 +263,20 @@ describe('POST /api/foods/labels', () => {
 			foodId: TEST_FOOD.id,
 			labels: ['banana']
 		}));
-		expect((await post({ items })).status).toBe(400);
+		const response = await post({ items });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 	});
 
 	test('rejects an empty batch', async () => {
-		expect((await post({ items: [] })).status).toBe(400);
+		const response = await post({ items: [] });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 	});
 
 	test('rejects a non-uuid foodId', async () => {
-		expect((await post({ items: [{ foodId: 'nope', labels: ['banana'] }] })).status).toBe(400);
+		const response = await post({ items: [{ foodId: 'nope', labels: ['banana'] }] });
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 	});
 });

@@ -19,6 +19,10 @@ final class StubURLProtocol: URLProtocol {
     }
 
     private nonisolated(unsafe) static var stubs: [String: Stub] = [:]
+    /// A one-shot response queue per key, drained before falling back to
+    /// `stubs` — lets a test answer the same endpoint differently across
+    /// successive requests (e.g. a conflict retried into a success).
+    private nonisolated(unsafe) static var stubQueues: [String: [Stub]] = [:]
     private nonisolated(unsafe) static var recorded: [String] = []
     private nonisolated(unsafe) static var bodies: [String: [Data]] = [:]
     private nonisolated(unsafe) static var headers: [String: [[String: String]]] = [:]
@@ -33,6 +37,20 @@ final class StubURLProtocol: URLProtocol {
         lock.lock()
         defer { lock.unlock() }
         stubs["\(method) \(url)"] = Stub(status: status, body: Data(json.utf8), delayMs: delayMs, headers: headers)
+    }
+
+    /// Queues successive one-shot responses for "METHOD url", consumed in
+    /// order as requests arrive; once exhausted, `stub`'s (or the default 404)
+    /// response applies again.
+    static func stubSequence(
+        _ method: String, _ url: String,
+        _ responses: [(status: Int, json: String, headers: [String: String])]
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        stubQueues["\(method) \(url)"] = responses.map {
+            Stub(status: $0.status, body: Data($0.json.utf8), headers: $0.headers)
+        }
     }
 
     /// Makes "METHOD url" fail with a transport-level URLError.
@@ -87,7 +105,13 @@ final class StubURLProtocol: URLProtocol {
             Self.bodies[key, default: []].append(body)
         }
         Self.headers[key, default: []].append(request.allHTTPHeaderFields ?? [:])
-        let stub = Self.stubs[key]
+        let stub: Stub?
+        if var queued = Self.stubQueues[key], !queued.isEmpty {
+            stub = queued.removeFirst()
+            Self.stubQueues[key] = queued
+        } else {
+            stub = Self.stubs[key]
+        }
         Self.lock.unlock()
 
         if let stub, stub.delayMs > 0 {
@@ -199,6 +223,13 @@ struct RepositoryHarness {
 
     func stubError(_ method: String, _ path: String, code: URLError.Code) {
         StubURLProtocol.stubError(method, "\(baseURL)\(path)", code: code)
+    }
+
+    func stubSequence(
+        _ method: String, _ path: String,
+        _ responses: [(status: Int, json: String, headers: [String: String])]
+    ) {
+        StubURLProtocol.stubSequence(method, "\(baseURL)\(path)", responses)
     }
 
     var recordedRequests: [String] {

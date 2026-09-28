@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createRecipe, listRecipes } from '$lib/server/recipes';
+import { createRecipe, getRecipe, listRecipes } from '$lib/server/recipes';
 import { paginationSchema } from '$lib/server/validation';
 import {
 	handleApiError,
@@ -38,7 +38,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const userId = requireAuth(locals);
 		const body = await parseJsonBody(request);
 
-		const recipe = unwrapResult(await createRecipe(userId, body, readClientEditedAt(request)));
+		const created = unwrapResult(await createRecipe(userId, body, readClientEditedAt(request)));
+		// createRecipe() returns the bare inserted row: macros and ingredients
+		// are computed via joins, so re-read the full detail shape (same as the
+		// PATCH handler does after an update) instead of an incomplete recipe.
+		const recipe = await getRecipe(userId, created.id);
 		return json({ recipe }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);

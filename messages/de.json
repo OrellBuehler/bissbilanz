@@ -1295,6 +1295,7 @@
 	"settings_ai_task_processor_label": "Verarbeitung",
 	"settings_ai_task_processor_assistant": "KI-Assistent (MCP)",
 	"settings_ai_task_processor_device": "Mein iPhone (on-device / Private Cloud Compute)",
+	"settings_ai_task_processor_device_hint": "Aufgaben bleiben ausstehend, bis die Bissbilanz-iPhone-App sie verarbeitet.",
 	"settings_ai_task_auto_log_label": "Automatisch eintragen",
 	"settings_ai_task_auto_log_hint": "Ist dies deaktiviert, warten Schätzungen in der iPhone-App auf deine Prüfung.",
 	"command_open": "Suchen",

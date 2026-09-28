@@ -21,10 +21,12 @@ import { fastingSessionUpsertSchema, fastingSessionUpdateSchema } from './valida
 import { preferencesUpdateSchema } from './validation/preferences';
 import { topFoodsSortSchema } from './validation/stats';
 import { mealTypeCreateSchema, mealTypeUpdateSchema } from './validation/meal-types';
+import { mobileTokenRequestSchema, appleSignInRequestSchema } from './validation/auth';
 import {
 	errorResponseSchema,
 	validationErrorResponseSchema,
-	conflictErrorResponseSchema
+	conflictErrorResponseSchema,
+	messageErrorResponseSchema
 } from './validation/responses/shared';
 import {
 	foodsListResponseSchema,
@@ -136,6 +138,10 @@ import {
 	aiTaskAcknowledgeResponseSchema
 } from './validation/responses/ai-tasks';
 import { mcpStatusResponseSchema } from './validation/responses/mcp';
+import {
+	authProvidersResponseSchema,
+	mobileTokenResponseSchema
+} from './validation/responses/auth';
 
 const uuidPathId = z.object({ id: z.string().uuid() });
 
@@ -157,6 +163,12 @@ const res409: ZodOpenApiResponseObject = {
 	content: { 'application/json': { schema: conflictErrorResponseSchema } }
 };
 
+const res429: ZodOpenApiResponseObject = {
+	id: 'RateLimitedResponse',
+	description: 'Too many requests',
+	content: { 'application/json': { schema: errorResponseSchema } }
+};
+
 const res204: ZodOpenApiResponseObject = {
 	id: 'DeletedResponse',
 	description: 'Deleted'
@@ -166,6 +178,2034 @@ const res404: ZodOpenApiResponseObject = {
 	id: 'NotFoundResponse',
 	description: 'Not found',
 	content: { 'application/json': { schema: errorResponseSchema } }
+};
+
+// The mobile sign-in endpoints throw SvelteKit's error() helper directly
+// rather than using the json({ error }) convention, so their failures come
+// back as { message } (see messageErrorResponseSchema).
+const authRes400: ZodOpenApiResponseObject = {
+	id: 'AuthBadRequestResponse',
+	description: 'Bad request',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes401: ZodOpenApiResponseObject = {
+	id: 'AuthUnauthorizedResponse',
+	description: 'Unauthorized',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes404: ZodOpenApiResponseObject = {
+	id: 'AuthNotFoundResponse',
+	description: 'Not found',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+const authRes429: ZodOpenApiResponseObject = {
+	id: 'AuthRateLimitedResponse',
+	description: 'Too many requests',
+	content: { 'application/json': { schema: messageErrorResponseSchema } }
+};
+
+export const apiPaths = {
+	// ── Auth ──────────────────────────────────────────────
+	'/api/auth/providers': {
+		get: {
+			operationId: 'getAuthProviders',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'List the OIDC providers the server has credentials for. Called by the mobile sign-in screens before any session exists, to decide which provider buttons to show.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: authProvidersResponseSchema } }
+				}
+			}
+		}
+	},
+	'/api/auth/mobile/token': {
+		post: {
+			operationId: 'mobileToken',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: mobileTokenRequestSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mobileTokenResponseSchema } }
+				},
+				'400': authRes400,
+				'401': authRes401,
+				'429': authRes429
+			}
+		}
+	},
+	'/api/auth/mobile/apple': {
+		post: {
+			operationId: 'mobileAppleSignIn',
+			tags: ['Auth'],
+			security: [],
+			description:
+				'Native Sign in with Apple on iOS. The device completes the flow itself and hands over an identity token verified against the app bundle id, rather than a code to exchange.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: appleSignInRequestSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mobileTokenResponseSchema } }
+				},
+				'400': authRes400,
+				'401': authRes401,
+				'404': authRes404,
+				'429': authRes429
+			}
+		}
+	},
+
+	// ── Goals ─────────────────────────────────────────────
+	'/api/goals': {
+		get: {
+			operationId: 'getGoals',
+			tags: ['Goals'],
+			description: 'Get daily nutrition goals.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: goalsResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'setGoals',
+			tags: ['Goals'],
+			description: 'Set daily nutrition goals.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: goalsSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: goalsSetResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Foods ─────────────────────────────────────────────
+	'/api/foods': {
+		get: {
+			operationId: 'listFoods',
+			tags: ['Foods'],
+			description:
+				'Search or list foods in the personal database. A query matches the name, then the English labels (so "bread" finds "Vollkornbrot"), then the brand, then trigram-similar names; results come back in that order.',
+			requestParams: {
+				query: z.object({
+					q: z.string().optional(),
+					barcode: z.string().optional(),
+					minLabels: z
+						.number()
+						.int()
+						.min(1)
+						.max(20)
+						.optional()
+						.describe('Only foods carrying fewer than this many labels.'),
+					unlabeled: z.boolean().optional().describe('Deprecated: same as minLabels=1.'),
+					...paginationSchema.shape
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodsListResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createFood',
+			tags: ['Foods'],
+			description: 'Create a new food in the personal database.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/recent': {
+		get: {
+			operationId: 'listRecentFoods',
+			tags: ['Foods'],
+			description: 'List recently logged foods.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodsRecentResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/batch': {
+		post: {
+			operationId: 'batchFoods',
+			tags: ['Foods'],
+			description:
+				'Apply one action (delete, favorite, unfavorite, set/add/remove labels) to up to 200 foods in a single request. Ownership is checked per id and results are per id, so an unknown food — or one still referenced by diary entries — does not fail the rest. `delete` follows the single-delete rules: a food with entries comes back as `has_entries` unless `payload.force` is set.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodBatchSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodBatchResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/import': {
+		post: {
+			operationId: 'importFoods',
+			tags: ['Foods'],
+			description:
+				'Create up to 500 foods in one transaction. Rows whose name + brand + serving already exist, or whose barcode is taken, are skipped and reported instead of failing the import.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodImportSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: foodImportResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/brands': {
+		get: {
+			operationId: 'listFoodBrands',
+			tags: ['Foods'],
+			description:
+				'Distinct brands of the foods in the personal database (supplements excluded), grouped case-insensitively, with the number of foods per brand, most common first.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodBrandsResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/package/summary': {
+		post: {
+			operationId: 'summarizeFoodPackage',
+			tags: ['Foods'],
+			description:
+				'Count what a food package export with this selection would contain (foods, recipes, ingredient foods pulled in by recipes, images) and estimate its size. Nothing is built.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodPackageSelectionSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodPackageSummaryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/package/export': {
+		post: {
+			operationId: 'exportFoodPackage',
+			tags: ['Foods'],
+			description:
+				'Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodPackageSelectionSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: {
+						'application/zip': {
+							schema: { type: 'string' as const, format: 'binary' }
+						}
+					}
+				},
+				'400': res400,
+				'401': res401,
+				'413': {
+					description: 'The package would exceed the size or item limit',
+					content: { 'application/json': { schema: errorResponseSchema } }
+				}
+			}
+		}
+	},
+	'/api/foods/package/preview': {
+		post: {
+			operationId: 'previewFoodPackageImport',
+			tags: ['Foods'],
+			description:
+				'Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.',
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object' as const,
+							properties: {
+								file: { type: 'string' as const, format: 'binary' }
+							},
+							required: ['file']
+						}
+					}
+				}
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodPackagePreviewResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/package/import': {
+		post: {
+			operationId: 'importFoodPackage',
+			tags: ['Foods'],
+			description:
+				'Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.',
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: z.object({
+							file: z.string().meta({ format: 'binary' }),
+							resolutions: foodPackageResolutionsSchema
+						}),
+						encoding: { resolutions: { contentType: 'application/json' } }
+					}
+				}
+			},
+			responses: {
+				'201': {
+					description: 'Imported',
+					content: { 'application/json': { schema: foodPackageImportResultSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+	'/api/foods/duplicates': {
+		get: {
+			operationId: 'listFoodDuplicates',
+			tags: ['Foods'],
+			description: 'Detect duplicate foods (shared barcode or matching name+brand).',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodDuplicatesResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/merge': {
+		post: {
+			operationId: 'mergeFoods',
+			tags: ['Foods'],
+			description:
+				'Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodMergeSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/labels': {
+		get: {
+			operationId: 'listFoodLabelStats',
+			tags: ['Foods'],
+			description:
+				"The user's label vocabulary with the number of foods carrying each label, most common first.",
+			requestParams: {
+				query: z.object({
+					kind: z
+						.enum(['food', 'supplement'])
+						.optional()
+						.describe('Only count labels on foods of this kind.')
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodLabelStatsResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'setFoodLabelsBatch',
+			tags: ['Foods'],
+			description:
+				'Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodLabelsBatchSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodLabelsBatchResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/{id}/labels': {
+		get: {
+			operationId: 'getFoodLabels',
+			tags: ['Foods'],
+			description: "List a food's labels with their source and confidence.",
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodLabelsResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		put: {
+			operationId: 'setFoodLabels',
+			tags: ['Foods'],
+			description:
+				"Replace (or with `mode=extend`, add to) a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. A `user` write moves the food's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodLabelsSetSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodLabelsSetResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		}
+	},
+	'/api/foods/{id}': {
+		get: {
+			operationId: 'getFood',
+			tags: ['Foods'],
+			description: 'Get a single food by ID.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
+			}
+		},
+		patch: {
+			operationId: 'updateFood',
+			tags: ['Foods'],
+			description: 'Update a food in the personal database.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: foodUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteFood',
+			tags: ['Foods'],
+			description: 'Delete a food. Pass force=true to delete even if diary entries reference it.',
+			requestParams: {
+				path: uuidPathId,
+				query: z.object({ force: z.boolean().optional() })
+			},
+			responses: {
+				'204': res204,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Entries ───────────────────────────────────────────
+	'/api/entries': {
+		get: {
+			operationId: 'listEntries',
+			tags: ['Entries'],
+			description: 'List diary entries for a given date.',
+			requestParams: {
+				query: z.object({ date: z.string().date() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: entriesListResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createEntry',
+			tags: ['Entries'],
+			description: 'Log a food entry.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: entryCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: entryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/entries/copy': {
+		post: {
+			operationId: 'copyEntries',
+			tags: ['Entries'],
+			description: 'Copy all diary entries from one date to another.',
+			requestParams: {
+				query: z.object({
+					fromDate: z.string().date(),
+					toDate: z.string().date()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: entriesCopyResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/entries/range': {
+		get: {
+			operationId: 'getEntriesRange',
+			tags: ['Entries'],
+			description: 'Get diary entries for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: entriesRangeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/entries/{id}': {
+		patch: {
+			operationId: 'updateEntry',
+			tags: ['Entries'],
+			description: 'Update a diary entry.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: entryUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: entryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteEntry',
+			tags: ['Entries'],
+			description: 'Delete a diary entry.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Recipes ───────────────────────────────────────────
+	'/api/recipes': {
+		get: {
+			operationId: 'listRecipes',
+			tags: ['Recipes'],
+			description: 'List recipes.',
+			requestParams: {
+				query: paginationSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipesListResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createRecipe',
+			tags: ['Recipes'],
+			description: 'Create a new recipe.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: recipeCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: recipeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/recipes/{id}': {
+		get: {
+			operationId: 'getRecipe',
+			tags: ['Recipes'],
+			description: 'Get a single recipe by ID.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
+			}
+		},
+		patch: {
+			operationId: 'updateRecipe',
+			tags: ['Recipes'],
+			description: 'Update a recipe.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: recipeUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteRecipe',
+			tags: ['Recipes'],
+			description: 'Delete a recipe. Pass force=true to delete even if diary entries reference it.',
+			requestParams: {
+				path: uuidPathId,
+				query: z.object({ force: z.boolean().optional() })
+			},
+			responses: {
+				'204': res204,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Supplements ───────────────────────────────────────
+	'/api/supplements': {
+		get: {
+			operationId: 'listSupplements',
+			tags: ['Supplements'],
+			description: 'List supplements. Pass all=true to include inactive ones.',
+			requestParams: {
+				query: z.object({ all: z.boolean().optional() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementsListResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createSupplement',
+			tags: ['Supplements'],
+			description: 'Create a new supplement.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: supplementCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: supplementResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/supplements/today': {
+		get: {
+			operationId: 'getTodaySupplementChecklist',
+			tags: ['Supplements'],
+			description: "Get today's supplement checklist.",
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementChecklistResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/supplements/history': {
+		get: {
+			operationId: 'getSupplementHistory',
+			tags: ['Supplements'],
+			description: 'Get supplement log history.',
+			requestParams: {
+				query: z.object({
+					from: z.string().date().optional(),
+					to: z.string().date().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementHistoryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/supplements/{id}': {
+		get: {
+			operationId: 'getSupplement',
+			tags: ['Supplements'],
+			description: 'Get a single supplement by ID.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
+			}
+		},
+		patch: {
+			operationId: 'updateSupplement',
+			tags: ['Supplements'],
+			description: 'Update a supplement.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: supplementUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteSupplement',
+			tags: ['Supplements'],
+			description: 'Delete a supplement.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401
+			}
+		}
+	},
+	'/api/supplements/{id}/log': {
+		post: {
+			operationId: 'logSupplement',
+			tags: ['Supplements'],
+			description: 'Log a supplement as taken today.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: supplementLogSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: supplementLogResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
+			}
+		}
+	},
+	'/api/supplements/{id}/log/{date}': {
+		delete: {
+			operationId: 'unlogSupplementForDate',
+			tags: ['Supplements'],
+			description: 'Remove a supplement log entry for a specific date.',
+			requestParams: {
+				path: z.object({ id: z.string().uuid(), date: z.string().date() })
+			},
+			responses: {
+				'204': res204,
+				'401': res401
+			}
+		}
+	},
+	'/api/supplements/{date}/checklist': {
+		get: {
+			operationId: 'getSupplementChecklist',
+			tags: ['Supplements'],
+			description: 'Get supplement checklist for a specific date.',
+			requestParams: {
+				path: z.object({ date: z.string().date() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: supplementChecklistResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+
+	// ── Reminders ─────────────────────────────────────────
+	'/api/reminders': {
+		get: {
+			operationId: 'listReminders',
+			tags: ['Reminders'],
+			description: 'List logging reminders (weight, meal, sleep).',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: remindersListResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createReminder',
+			tags: ['Reminders'],
+			description: 'Create a new logging reminder.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: reminderCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: reminderResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/reminders/{id}': {
+		get: {
+			operationId: 'getReminder',
+			tags: ['Reminders'],
+			description: 'Get a single reminder by ID.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: reminderResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
+			}
+		},
+		patch: {
+			operationId: 'updateReminder',
+			tags: ['Reminders'],
+			description: 'Update a logging reminder.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: reminderUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: reminderResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		},
+		delete: {
+			operationId: 'deleteReminder',
+			tags: ['Reminders'],
+			description: 'Delete a logging reminder.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Weight ────────────────────────────────────────────
+	'/api/weight': {
+		get: {
+			operationId: 'listWeightEntries',
+			tags: ['Weight'],
+			description:
+				'Returns weight entries. When from/to query params are provided, returns trend data instead.',
+			requestParams: {
+				query: z.object({
+					from: z.string().date().optional(),
+					to: z.string().date().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Weight entries or trend data',
+					content: {
+						'application/json': {
+							schema: z.union([weightEntriesResponseSchema, weightTrendResponseSchema])
+						}
+					}
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createWeightEntry',
+			tags: ['Weight'],
+			description: 'Log a new weight measurement.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: weightCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: weightEntryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/weight/latest': {
+		get: {
+			operationId: 'getLatestWeight',
+			tags: ['Weight'],
+			description: 'Get the most recent weight entry.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: weightLatestResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/weight/{id}': {
+		patch: {
+			operationId: 'updateWeightEntry',
+			tags: ['Weight'],
+			description: 'Update a weight entry.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: weightUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: weightEntryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteWeightEntry',
+			tags: ['Weight'],
+			description: 'Delete a weight entry.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401,
+				'404': res404
+			}
+		}
+	},
+
+	// ── Fasting ───────────────────────────────────────────
+	'/api/fasts': {
+		get: {
+			operationId: 'listFastingSessions',
+			tags: ['Fasting'],
+			description:
+				'Returns completed fasting sessions, newest first. from/to filter on the start instant.',
+			requestParams: {
+				query: z.object({
+					from: z.string().datetime({ offset: true }).optional(),
+					to: z.string().datetime({ offset: true }).optional(),
+					limit: z.coerce.number().int().min(1).max(500).optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Fasting sessions',
+					content: { 'application/json': { schema: fastingSessionsResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'upsertFastingSession',
+			tags: ['Fasting'],
+			description:
+				'Create or replace a completed fasting session. The client may supply the id so retries and pre-upload edits land on the same row.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: fastingSessionUpsertSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created or replaced',
+					content: { 'application/json': { schema: fastingSessionResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+	'/api/fasts/{id}': {
+		patch: {
+			operationId: 'updateFastingSession',
+			tags: ['Fasting'],
+			description: 'Update a completed fasting session.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: fastingSessionUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: fastingSessionResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		},
+		delete: {
+			operationId: 'deleteFastingSession',
+			tags: ['Fasting'],
+			description: 'Delete a completed fasting session.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Stats ─────────────────────────────────────────────
+	'/api/stats/daily': {
+		get: {
+			operationId: 'getDailyStats',
+			tags: ['Stats'],
+			description: 'Get daily nutrition totals for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: dailyStatsResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/weekly': {
+		get: {
+			operationId: 'getWeeklyStats',
+			tags: ['Stats'],
+			description: 'Get average daily nutrition over the past 7 days.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: weeklyStatsResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/monthly': {
+		get: {
+			operationId: 'getMonthlyStats',
+			tags: ['Stats'],
+			description: 'Get average daily nutrition over the past 30 days.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: monthlyStatsResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/meal-breakdown': {
+		get: {
+			operationId: 'getMealBreakdown',
+			tags: ['Stats'],
+			description: 'Get nutrition totals broken down by meal type.',
+			requestParams: {
+				query: z.object({
+					date: z.string().date().optional(),
+					startDate: z.string().date().optional(),
+					endDate: z.string().date().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mealBreakdownResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/top-foods': {
+		get: {
+			operationId: 'getTopFoods',
+			tags: ['Stats'],
+			description:
+				'Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average.',
+			requestParams: {
+				query: z.object({
+					days: z.number().int().optional(),
+					limit: z.number().int().optional(),
+					sort: topFoodsSortSchema.optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: topFoodsResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/streaks': {
+		get: {
+			operationId: 'getStreaks',
+			tags: ['Stats'],
+			description: 'Get current and longest logging streaks.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: streaksResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/stats/calendar': {
+		get: {
+			operationId: 'getCalendar',
+			tags: ['Stats'],
+			description: 'Get calendar view of logged days for a month.',
+			requestParams: {
+				query: z.object({ month: z.string() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: calendarResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Day Properties ────────────────────────────────────
+	'/api/day-properties': {
+		get: {
+			operationId: 'getDayProperties',
+			tags: ['DayProperties'],
+			description:
+				'Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range.',
+			requestParams: {
+				query: z.object({
+					date: z.string().date().optional(),
+					startDate: z.string().date().optional(),
+					endDate: z.string().date().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Day properties or range of day properties',
+					content: {
+						'application/json': {
+							schema: z.union([dayPropertiesResponseSchema, dayPropertiesRangeResponseSchema])
+						}
+					}
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		put: {
+			operationId: 'setDayProperties',
+			tags: ['DayProperties'],
+			description: 'Set day properties (e.g. mark as fasting day).',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: dayPropertiesSetSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: dayPropertiesResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		delete: {
+			operationId: 'deleteDayProperties',
+			tags: ['DayProperties'],
+			description: 'Delete day properties for a specific date.',
+			requestParams: {
+				query: z.object({ date: z.string().date() })
+			},
+			responses: {
+				'204': res204,
+				'400': res400,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Preferences ───────────────────────────────────────
+	'/api/preferences': {
+		get: {
+			operationId: 'getPreferences',
+			tags: ['Preferences'],
+			description: 'Get user preferences.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: preferencesResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		patch: {
+			operationId: 'updatePreferences',
+			tags: ['Preferences'],
+			description: 'Update user preferences.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: preferencesUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: preferencesResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Meal Types ────────────────────────────────────────
+	'/api/meal-types': {
+		get: {
+			operationId: 'listMealTypes',
+			tags: ['MealTypes'],
+			description: 'List meal types.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mealTypesListResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createMealType',
+			tags: ['MealTypes'],
+			description: 'Create a new meal type.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: mealTypeCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: mealTypeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/meal-types/{id}': {
+		patch: {
+			operationId: 'updateMealType',
+			tags: ['MealTypes'],
+			description: 'Update a meal type.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: mealTypeUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mealTypeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteMealType',
+			tags: ['MealTypes'],
+			description: 'Delete a meal type.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Favorites ─────────────────────────────────────────
+	'/api/favorites': {
+		get: {
+			operationId: 'listFavorites',
+			tags: ['Favorites'],
+			description: 'List favorite foods and recipes.',
+			requestParams: {
+				query: z.object({
+					type: z.enum(['foods', 'recipes']).optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: favoritesResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+
+	// ── Maintenance ───────────────────────────────────────
+	'/api/maintenance': {
+		get: {
+			operationId: 'getMaintenance',
+			tags: ['Maintenance'],
+			description: 'Calculate maintenance calories for a date range.',
+			requestParams: {
+				query: z.object({
+					...dateRangeShape,
+					muscleRatio: z.number().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: maintenanceResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Account ───────────────────────────────────────────
+	'/api/account': {
+		get: {
+			operationId: 'getAccount',
+			tags: ['Account'],
+			description: 'Get the authenticated account profile (email, name, creation date).',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: accountResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		delete: {
+			operationId: 'deleteAccount',
+			tags: ['Account'],
+			description:
+				'Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible.',
+			responses: {
+				'204': res204,
+				'401': res401
+			}
+		}
+	},
+
+	'/api/account/export': {
+		get: {
+			operationId: 'exportAccountData',
+			tags: ['Account'],
+			description:
+				'Download a ZIP archive of all data belonging to the authenticated account: a canonical JSON export, spreadsheet-friendly CSV files, and uploaded images.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: {
+						'application/zip': {
+							schema: { type: 'string' as const, format: 'binary' }
+						}
+					}
+				},
+				'401': res401
+			}
+		}
+	},
+
+	'/api/account/import': {
+		post: {
+			operationId: 'importAccountData',
+			tags: ['Account'],
+			description:
+				'Import data into the authenticated account from a Bissbilanz export archive (.zip or bissbilanz.json) or a weight/sleep CSV file. With mode=preview nothing is written and the response describes what would be imported; mode=commit applies the import in a single transaction, skipping rows that already exist.',
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object' as const,
+							properties: {
+								file: { type: 'string' as const, format: 'binary' },
+								mode: { type: 'string' as const, enum: ['preview', 'commit'] },
+								format: {
+									type: 'string' as const,
+									enum: ['archive', 'weight-csv', 'sleep-csv']
+								}
+							},
+							required: ['file']
+						}
+					}
+				}
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: importSummaryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Images ────────────────────────────────────────────
+	'/api/images/upload': {
+		post: {
+			operationId: 'uploadImage',
+			tags: ['Images'],
+			description: 'Upload an image file.',
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object' as const,
+							properties: {
+								image: { type: 'string' as const, format: 'binary' }
+							},
+							required: ['image']
+						}
+					}
+				}
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: imageUploadResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── AI Tasks ──────────────────────────────────────────
+	'/api/ai-tasks': {
+		get: {
+			operationId: 'listAiTasks',
+			tags: ['AiTasks'],
+			description: 'List AI task queue entries, optionally filtered by status and unread state.',
+			requestParams: {
+				query: aiTaskListQuerySchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: aiTasksResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createAiTask',
+			tags: ['AiTasks'],
+			description: 'Capture a new AI task (description and/or photo) for later processing.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: aiTaskCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: aiTaskResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/ai-tasks/acknowledge': {
+		post: {
+			operationId: 'acknowledgeAiTasks',
+			tags: ['AiTasks'],
+			description:
+				'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.',
+			requestBody: {
+				required: false,
+				content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: aiTaskAcknowledgeResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/ai-tasks/photo': {
+		post: {
+			operationId: 'uploadAiTaskPhoto',
+			tags: ['AiTasks'],
+			description: 'Upload a photo for an AI task.',
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: {
+							type: 'object' as const,
+							properties: {
+								photo: { type: 'string' as const, format: 'binary' }
+							},
+							required: ['photo']
+						}
+					}
+				}
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: aiTaskPhotoResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/ai-tasks/{id}': {
+		patch: {
+			operationId: 'updateAiTask',
+			tags: ['AiTasks'],
+			description:
+				'Update an AI task (status, result, description, date, meal type, or seen state).',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: aiTaskUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: aiTaskResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		},
+		delete: {
+			operationId: 'deleteAiTask',
+			tags: ['AiTasks'],
+			description: 'Delete an AI task.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401
+			}
+		}
+	},
+
+	// ── MCP ───────────────────────────────────────────────
+	'/api/mcp/status': {
+		get: {
+			operationId: 'getMcpStatus',
+			tags: ['Mcp'],
+			description:
+				'Whether the user has at least one MCP client (e.g. Claude.ai, Claude Code) authorized against their account.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mcpStatusResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+
+	// ── Sleep ─────────────────────────────────────────────
+	'/api/sleep': {
+		get: {
+			operationId: 'listSleepEntries',
+			tags: ['Sleep'],
+			description: 'List sleep entries, optionally filtered by date range.',
+			requestParams: {
+				query: z.object({
+					from: z.string().date().optional(),
+					to: z.string().date().optional()
+				})
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: sleepEntriesResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'createSleepEntry',
+			tags: ['Sleep'],
+			description: 'Create a new sleep entry.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: sleepCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: sleepEntryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/sleep/{id}': {
+		patch: {
+			operationId: 'updateSleepEntry',
+			tags: ['Sleep'],
+			description: 'Update a sleep entry.',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: sleepUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: sleepEntryResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		delete: {
+			operationId: 'deleteSleepEntry',
+			tags: ['Sleep'],
+			description: 'Delete a sleep entry.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'204': res204,
+				'401': res401,
+				'404': res404
+			}
+		}
+	},
+
+	// ── Analytics ─────────────────────────────────────────
+	'/api/analytics/food-diversity': {
+		get: {
+			operationId: 'getFoodDiversity',
+			tags: ['Analytics'],
+			description: 'Get food diversity data for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodDiversityResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/analytics/meal-timing': {
+		get: {
+			operationId: 'getMealTiming',
+			tags: ['Analytics'],
+			description: 'Get meal timing data for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: mealTimingResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/analytics/nutrients-daily': {
+		get: {
+			operationId: 'getNutrientsDaily',
+			tags: ['Analytics'],
+			description: 'Get daily nutrient totals for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: nutrientsDailyResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/analytics/nutrients-extended': {
+		get: {
+			operationId: 'getNutrientsExtended',
+			tags: ['Analytics'],
+			description: 'Get extended nutrient entries for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: nutrientsExtendedResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/analytics/weight-food': {
+		get: {
+			operationId: 'getWeightFood',
+			tags: ['Analytics'],
+			description: 'Get weight and food data correlation for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: weightFoodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/analytics/sleep-food': {
+		get: {
+			operationId: 'getSleepFoodCorrelation',
+			tags: ['Analytics'],
+			description: 'Get sleep-food correlation data for a date range.',
+			requestParams: {
+				query: analyticsDateRangeSchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: sleepFoodCorrelationResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	'/api/analytics/nutrient-gaps': {
+		get: {
+			operationId: 'getNutrientGaps',
+			tags: ['Analytics'],
+			description:
+				'Compare average intake against reference values for every nutrient that has one. Defaults to the last 30 days. Nutrients listed under `unmeasured` have no usable data and are not adequate.',
+			requestParams: {
+				query: nutrientGapsQuerySchema
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: nutrientGapsResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+
+	// ── Catalog ───────────────────────────────────────────
+	'/api/catalog/search': {
+		get: {
+			operationId: 'catalogSearch',
+			tags: ['Catalog'],
+			description: "Online catalog search across the requesting user's granted datasets.",
+			requestParams: {
+				query: z.object({ q: z.string(), limit: z.number().int().optional() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: {
+						'application/json': {
+							schema: z.object({
+								results: z.array(z.record(z.string(), z.unknown()))
+							})
+						}
+					}
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/catalog/barcode/{code}': {
+		get: {
+			operationId: 'catalogByBarcode',
+			tags: ['Catalog'],
+			description: 'Barcode lookup across granted catalog datasets (priority tie-break).',
+			requestParams: { path: z.object({ code: z.string() }) },
+			responses: {
+				'200': {
+					description: 'Found',
+					content: {
+						'application/json': {
+							schema: z.object({
+								found: z.boolean(),
+								result: z.record(z.string(), z.unknown()).optional()
+							})
+						}
+					}
+				},
+				'400': res400,
+				'401': res401,
+				'404': {
+					description: 'Not found',
+					content: {
+						'application/json': { schema: z.object({ found: z.boolean() }) }
+					}
+				}
+			}
+		}
+	},
+	'/api/catalog/{id}/save': {
+		post: {
+			operationId: 'saveCatalogFood',
+			tags: ['Catalog'],
+			description: 'Instantiate a personal food from a catalog row (copy-on-use).',
+			requestParams: { path: z.object({ id: z.string().uuid() }) },
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'401': res401,
+				'404': res404,
+				'409': res409
+			}
+		}
+	},
+
+	// ── Open Food Facts ───────────────────────────────────
+	'/api/openfoodfacts/search': {
+		get: {
+			operationId: 'searchOpenFoodFacts',
+			tags: ['OpenFoodFacts'],
+			description:
+				'Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse.',
+			requestParams: {
+				query: z.object({ q: z.string(), limit: z.number().int().optional() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: openfoodfactsSearchResponseSchema } }
+				},
+				'401': res401,
+				'429': res429
+			}
+		}
+	},
+	'/api/openfoodfacts/{barcode}': {
+		get: {
+			operationId: 'lookupOpenFoodFacts',
+			tags: ['OpenFoodFacts'],
+			description: 'Look up a product by barcode in Open Food Facts.',
+			requestParams: {
+				path: z.object({ barcode: z.string() })
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: openfoodfactsResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		}
+	},
+	'/api/openfoodfacts/{barcode}/save': {
+		post: {
+			operationId: 'saveOpenFoodFactsProduct',
+			tags: ['OpenFoodFacts'],
+			description:
+				'Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved.',
+			requestParams: { path: z.object({ barcode: z.string() }) },
+			responses: {
+				'200': {
+					description: 'Existing food returned',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		}
+	}
 };
 
 export function generateSpec() {
@@ -187,1916 +2227,6 @@ export function generateSpec() {
 			}
 		},
 		security: [{ bearerAuth: [] }],
-		paths: {
-			// ── Goals ─────────────────────────────────────────────
-			'/api/goals': {
-				get: {
-					operationId: 'getGoals',
-					tags: ['Goals'],
-					description: 'Get daily nutrition goals.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: goalsResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'setGoals',
-					tags: ['Goals'],
-					description: 'Set daily nutrition goals.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: goalsSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: goalsSetResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Foods ─────────────────────────────────────────────
-			'/api/foods': {
-				get: {
-					operationId: 'listFoods',
-					tags: ['Foods'],
-					description:
-						'Search or list foods in the personal database. A query matches the name, then the English labels (so "bread" finds "Vollkornbrot"), then the brand, then trigram-similar names; results come back in that order.',
-					requestParams: {
-						query: z.object({
-							q: z.string().optional(),
-							barcode: z.string().optional(),
-							minLabels: z
-								.number()
-								.int()
-								.min(1)
-								.max(20)
-								.optional()
-								.describe('Only foods carrying fewer than this many labels.'),
-							unlabeled: z.boolean().optional().describe('Deprecated: same as minLabels=1.'),
-							...paginationSchema.shape
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodsListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createFood',
-					tags: ['Foods'],
-					description: 'Create a new food in the personal database.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/recent': {
-				get: {
-					operationId: 'listRecentFoods',
-					tags: ['Foods'],
-					description: 'List recently logged foods.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodsRecentResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/batch': {
-				post: {
-					operationId: 'batchFoods',
-					tags: ['Foods'],
-					description:
-						'Apply one action (delete, favorite, unfavorite, set/add/remove labels) to up to 200 foods in a single request. Ownership is checked per id and results are per id, so an unknown food — or one still referenced by diary entries — does not fail the rest. `delete` follows the single-delete rules: a food with entries comes back as `has_entries` unless `payload.force` is set.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodBatchSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodBatchResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/import': {
-				post: {
-					operationId: 'importFoods',
-					tags: ['Foods'],
-					description:
-						'Create up to 500 foods in one transaction. Rows whose name + brand + serving already exist, or whose barcode is taken, are skipped and reported instead of failing the import.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodImportSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: foodImportResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/brands': {
-				get: {
-					operationId: 'listFoodBrands',
-					tags: ['Foods'],
-					description:
-						'Distinct brands of the foods in the personal database (supplements excluded), grouped case-insensitively, with the number of foods per brand, most common first.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodBrandsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/package/summary': {
-				post: {
-					operationId: 'summarizeFoodPackage',
-					tags: ['Foods'],
-					description:
-						'Count what a food package export with this selection would contain (foods, recipes, ingredient foods pulled in by recipes, images) and estimate its size. Nothing is built.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodPackageSelectionSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodPackageSummaryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/package/export': {
-				post: {
-					operationId: 'exportFoodPackage',
-					tags: ['Foods'],
-					description:
-						'Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodPackageSelectionSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: {
-								'application/zip': {
-									schema: { type: 'string' as const, format: 'binary' }
-								}
-							}
-						},
-						'400': res400,
-						'401': res401,
-						'413': {
-							description: 'The package would exceed the size or item limit',
-							content: { 'application/json': { schema: errorResponseSchema } }
-						}
-					}
-				}
-			},
-			'/api/foods/package/preview': {
-				post: {
-					operationId: 'previewFoodPackageImport',
-					tags: ['Foods'],
-					description:
-						'Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.',
-					requestBody: {
-						required: true,
-						content: {
-							'multipart/form-data': {
-								schema: {
-									type: 'object' as const,
-									properties: {
-										file: { type: 'string' as const, format: 'binary' }
-									},
-									required: ['file']
-								}
-							}
-						}
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodPackagePreviewResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/package/import': {
-				post: {
-					operationId: 'importFoodPackage',
-					tags: ['Foods'],
-					description:
-						'Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.',
-					requestBody: {
-						required: true,
-						content: {
-							'multipart/form-data': {
-								schema: z.object({
-									file: z.string().meta({ format: 'binary' }),
-									resolutions: foodPackageResolutionsSchema
-								}),
-								encoding: { resolutions: { contentType: 'application/json' } }
-							}
-						}
-					},
-					responses: {
-						'201': {
-							description: 'Imported',
-							content: { 'application/json': { schema: foodPackageImportResultSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-			'/api/foods/duplicates': {
-				get: {
-					operationId: 'listFoodDuplicates',
-					tags: ['Foods'],
-					description: 'Detect duplicate foods (shared barcode or matching name+brand).',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodDuplicatesResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/merge': {
-				post: {
-					operationId: 'mergeFoods',
-					tags: ['Foods'],
-					description:
-						'Merge one or more source foods into a keeper food. Re-points diary entries and recipe ingredients, then deletes the sources. Keeper field values are preserved; source values fill any empty keeper fields. Overrides win over both.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodMergeSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/labels': {
-				get: {
-					operationId: 'listFoodLabelStats',
-					tags: ['Foods'],
-					description:
-						"The user's label vocabulary with the number of foods carrying each label, most common first.",
-					requestParams: {
-						query: z.object({
-							kind: z
-								.enum(['food', 'supplement'])
-								.optional()
-								.describe('Only count labels on foods of this kind.')
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodLabelStatsResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'setFoodLabelsBatch',
-					tags: ['Foods'],
-					description:
-						'Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodLabelsBatchSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodLabelsBatchResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/foods/{id}/labels': {
-				get: {
-					operationId: 'getFoodLabels',
-					tags: ['Foods'],
-					description: "List a food's labels with their source and confidence.",
-					requestParams: { path: uuidPathId },
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodLabelsResponseSchema } }
-						},
-						'401': res401,
-						'404': res404
-					}
-				},
-				put: {
-					operationId: 'setFoodLabels',
-					tags: ['Foods'],
-					description:
-						"Replace (or with `mode=extend`, add to) a food's labels for one source (default `user`). Labels are normalized server-side and must be general en_US nouns describing what the food physically is. A `user` write moves the food's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodLabelsSetSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodLabelsSetResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'404': res404,
-						'409': res409
-					}
-				}
-			},
-			'/api/foods/{id}': {
-				get: {
-					operationId: 'getFood',
-					tags: ['Foods'],
-					description: 'Get a single food by ID.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				patch: {
-					operationId: 'updateFood',
-					tags: ['Foods'],
-					description: 'Update a food in the personal database.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: foodUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteFood',
-					tags: ['Foods'],
-					description:
-						'Delete a food. Pass force=true to delete even if diary entries reference it.',
-					requestParams: {
-						path: uuidPathId,
-						query: z.object({ force: z.boolean().optional() })
-					},
-					responses: {
-						'204': res204,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Entries ───────────────────────────────────────────
-			'/api/entries': {
-				get: {
-					operationId: 'listEntries',
-					tags: ['Entries'],
-					description: 'List diary entries for a given date.',
-					requestParams: {
-						query: z.object({ date: z.string().date() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: entriesListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createEntry',
-					tags: ['Entries'],
-					description: 'Log a food entry.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: entryCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: entryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/entries/copy': {
-				post: {
-					operationId: 'copyEntries',
-					tags: ['Entries'],
-					description: 'Copy all diary entries from one date to another.',
-					requestParams: {
-						query: z.object({
-							fromDate: z.string().date(),
-							toDate: z.string().date()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: entriesCopyResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/entries/range': {
-				get: {
-					operationId: 'getEntriesRange',
-					tags: ['Entries'],
-					description: 'Get diary entries for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: entriesRangeResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/entries/{id}': {
-				patch: {
-					operationId: 'updateEntry',
-					tags: ['Entries'],
-					description: 'Update a diary entry.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: entryUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: entryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteEntry',
-					tags: ['Entries'],
-					description: 'Delete a diary entry.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Recipes ───────────────────────────────────────────
-			'/api/recipes': {
-				get: {
-					operationId: 'listRecipes',
-					tags: ['Recipes'],
-					description: 'List recipes.',
-					requestParams: {
-						query: paginationSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: recipesListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createRecipe',
-					tags: ['Recipes'],
-					description: 'Create a new recipe.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: recipeCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: recipeResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/recipes/{id}': {
-				get: {
-					operationId: 'getRecipe',
-					tags: ['Recipes'],
-					description: 'Get a single recipe by ID.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: recipeResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				patch: {
-					operationId: 'updateRecipe',
-					tags: ['Recipes'],
-					description: 'Update a recipe.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: recipeUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: recipeResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteRecipe',
-					tags: ['Recipes'],
-					description:
-						'Delete a recipe. Pass force=true to delete even if diary entries reference it.',
-					requestParams: {
-						path: uuidPathId,
-						query: z.object({ force: z.boolean().optional() })
-					},
-					responses: {
-						'204': res204,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Supplements ───────────────────────────────────────
-			'/api/supplements': {
-				get: {
-					operationId: 'listSupplements',
-					tags: ['Supplements'],
-					description: 'List supplements. Pass all=true to include inactive ones.',
-					requestParams: {
-						query: z.object({ all: z.boolean().optional() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementsListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createSupplement',
-					tags: ['Supplements'],
-					description: 'Create a new supplement.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: supplementCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: supplementResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/today': {
-				get: {
-					operationId: 'getTodaySupplementChecklist',
-					tags: ['Supplements'],
-					description: "Get today's supplement checklist.",
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementChecklistResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/history': {
-				get: {
-					operationId: 'getSupplementHistory',
-					tags: ['Supplements'],
-					description: 'Get supplement log history.',
-					requestParams: {
-						query: z.object({
-							from: z.string().date().optional(),
-							to: z.string().date().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementHistoryResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/{id}': {
-				get: {
-					operationId: 'getSupplement',
-					tags: ['Supplements'],
-					description: 'Get a single supplement by ID.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				patch: {
-					operationId: 'updateSupplement',
-					tags: ['Supplements'],
-					description: 'Update a supplement.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: supplementUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteSupplement',
-					tags: ['Supplements'],
-					description: 'Delete a supplement.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/{id}/log': {
-				post: {
-					operationId: 'logSupplement',
-					tags: ['Supplements'],
-					description: 'Log a supplement as taken today.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: supplementLogSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: supplementLogResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/{id}/log/{date}': {
-				delete: {
-					operationId: 'unlogSupplementForDate',
-					tags: ['Supplements'],
-					description: 'Remove a supplement log entry for a specific date.',
-					requestParams: {
-						path: z.object({ id: z.string().uuid(), date: z.string().date() })
-					},
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-			'/api/supplements/{date}/checklist': {
-				get: {
-					operationId: 'getSupplementChecklist',
-					tags: ['Supplements'],
-					description: 'Get supplement checklist for a specific date.',
-					requestParams: {
-						path: z.object({ date: z.string().date() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: supplementChecklistResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-
-			// ── Reminders ─────────────────────────────────────────
-			'/api/reminders': {
-				get: {
-					operationId: 'listReminders',
-					tags: ['Reminders'],
-					description: 'List logging reminders (weight, meal, sleep).',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: remindersListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createReminder',
-					tags: ['Reminders'],
-					description: 'Create a new logging reminder.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: reminderCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: reminderResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/reminders/{id}': {
-				get: {
-					operationId: 'getReminder',
-					tags: ['Reminders'],
-					description: 'Get a single reminder by ID.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: reminderResponseSchema } }
-						},
-						'401': res401,
-						'404': res404
-					}
-				},
-				patch: {
-					operationId: 'updateReminder',
-					tags: ['Reminders'],
-					description: 'Update a logging reminder.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: reminderUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: reminderResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'404': res404,
-						'409': res409
-					}
-				},
-				delete: {
-					operationId: 'deleteReminder',
-					tags: ['Reminders'],
-					description: 'Delete a logging reminder.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Weight ────────────────────────────────────────────
-			'/api/weight': {
-				get: {
-					operationId: 'listWeightEntries',
-					tags: ['Weight'],
-					description:
-						'Returns weight entries. When from/to query params are provided, returns trend data instead.',
-					requestParams: {
-						query: z.object({
-							from: z.string().date().optional(),
-							to: z.string().date().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Weight entries or trend data',
-							content: {
-								'application/json': {
-									schema: z.union([weightEntriesResponseSchema, weightTrendResponseSchema])
-								}
-							}
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createWeightEntry',
-					tags: ['Weight'],
-					description: 'Log a new weight measurement.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: weightCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: weightEntryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/weight/latest': {
-				get: {
-					operationId: 'getLatestWeight',
-					tags: ['Weight'],
-					description: 'Get the most recent weight entry.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: weightLatestResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/weight/{id}': {
-				patch: {
-					operationId: 'updateWeightEntry',
-					tags: ['Weight'],
-					description: 'Update a weight entry.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: weightUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: weightEntryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteWeightEntry',
-					tags: ['Weight'],
-					description: 'Delete a weight entry.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Fasting ───────────────────────────────────────────
-			'/api/fasts': {
-				get: {
-					operationId: 'listFastingSessions',
-					tags: ['Fasting'],
-					description:
-						'Returns completed fasting sessions, newest first. from/to filter on the start instant.',
-					requestParams: {
-						query: z.object({
-							from: z.string().datetime({ offset: true }).optional(),
-							to: z.string().datetime({ offset: true }).optional(),
-							limit: z.coerce.number().int().min(1).max(500).optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Fasting sessions',
-							content: { 'application/json': { schema: fastingSessionsResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'upsertFastingSession',
-					tags: ['Fasting'],
-					description:
-						'Create or replace a completed fasting session. The client may supply the id so retries and pre-upload edits land on the same row.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: fastingSessionUpsertSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created or replaced',
-							content: { 'application/json': { schema: fastingSessionResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-			'/api/fasts/{id}': {
-				patch: {
-					operationId: 'updateFastingSession',
-					tags: ['Fasting'],
-					description: 'Update a completed fasting session.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: fastingSessionUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: fastingSessionResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'404': res404,
-						'409': res409
-					}
-				},
-				delete: {
-					operationId: 'deleteFastingSession',
-					tags: ['Fasting'],
-					description: 'Delete a completed fasting session.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401,
-						'404': res404,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Stats ─────────────────────────────────────────────
-			'/api/stats/daily': {
-				get: {
-					operationId: 'getDailyStats',
-					tags: ['Stats'],
-					description: 'Get daily nutrition totals for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: dailyStatsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/weekly': {
-				get: {
-					operationId: 'getWeeklyStats',
-					tags: ['Stats'],
-					description: 'Get average daily nutrition over the past 7 days.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: weeklyStatsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/monthly': {
-				get: {
-					operationId: 'getMonthlyStats',
-					tags: ['Stats'],
-					description: 'Get average daily nutrition over the past 30 days.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: monthlyStatsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/meal-breakdown': {
-				get: {
-					operationId: 'getMealBreakdown',
-					tags: ['Stats'],
-					description: 'Get nutrition totals broken down by meal type.',
-					requestParams: {
-						query: z.object({
-							date: z.string().date().optional(),
-							startDate: z.string().date().optional(),
-							endDate: z.string().date().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: mealBreakdownResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/top-foods': {
-				get: {
-					operationId: 'getTopFoods',
-					tags: ['Stats'],
-					description:
-						'Get most frequently logged foods, or with sort set to a macro, the foods contributing the most of it in total. Macros are per logged entry on average.',
-					requestParams: {
-						query: z.object({
-							days: z.number().int().optional(),
-							limit: z.number().int().optional(),
-							sort: topFoodsSortSchema.optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: topFoodsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/streaks': {
-				get: {
-					operationId: 'getStreaks',
-					tags: ['Stats'],
-					description: 'Get current and longest logging streaks.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: streaksResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/stats/calendar': {
-				get: {
-					operationId: 'getCalendar',
-					tags: ['Stats'],
-					description: 'Get calendar view of logged days for a month.',
-					requestParams: {
-						query: z.object({ month: z.string() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: calendarResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-
-			// ── Day Properties ────────────────────────────────────
-			'/api/day-properties': {
-				get: {
-					operationId: 'getDayProperties',
-					tags: ['DayProperties'],
-					description:
-						'Get day properties for a single date or a date range. Use date for single day, startDate/endDate for range.',
-					requestParams: {
-						query: z.object({
-							date: z.string().date().optional(),
-							startDate: z.string().date().optional(),
-							endDate: z.string().date().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Day properties or range of day properties',
-							content: {
-								'application/json': {
-									schema: z.union([dayPropertiesResponseSchema, dayPropertiesRangeResponseSchema])
-								}
-							}
-						},
-						'401': res401
-					}
-				},
-				put: {
-					operationId: 'setDayProperties',
-					tags: ['DayProperties'],
-					description: 'Set day properties (e.g. mark as fasting day).',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: dayPropertiesSetSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: dayPropertiesResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteDayProperties',
-					tags: ['DayProperties'],
-					description: 'Delete day properties for a specific date.',
-					requestParams: {
-						query: z.object({ date: z.string().date() })
-					},
-					responses: {
-						'204': res204,
-						'401': res401,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Preferences ───────────────────────────────────────
-			'/api/preferences': {
-				get: {
-					operationId: 'getPreferences',
-					tags: ['Preferences'],
-					description: 'Get user preferences.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: preferencesResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				patch: {
-					operationId: 'updatePreferences',
-					tags: ['Preferences'],
-					description: 'Update user preferences.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: preferencesUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: preferencesResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Meal Types ────────────────────────────────────────
-			'/api/meal-types': {
-				get: {
-					operationId: 'listMealTypes',
-					tags: ['MealTypes'],
-					description: 'List meal types.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: mealTypesListResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createMealType',
-					tags: ['MealTypes'],
-					description: 'Create a new meal type.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: mealTypeCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: mealTypeResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/meal-types/{id}': {
-				patch: {
-					operationId: 'updateMealType',
-					tags: ['MealTypes'],
-					description: 'Update a meal type.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: mealTypeUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: mealTypeResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteMealType',
-					tags: ['MealTypes'],
-					description: 'Delete a meal type.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Favorites ─────────────────────────────────────────
-			'/api/favorites': {
-				get: {
-					operationId: 'listFavorites',
-					tags: ['Favorites'],
-					description: 'List favorite foods and recipes.',
-					requestParams: {
-						query: z.object({
-							type: z.enum(['foods', 'recipes']).optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: favoritesResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-
-			// ── Maintenance ───────────────────────────────────────
-			'/api/maintenance': {
-				get: {
-					operationId: 'getMaintenance',
-					tags: ['Maintenance'],
-					description: 'Calculate maintenance calories for a date range.',
-					requestParams: {
-						query: z.object({
-							...dateRangeShape,
-							muscleRatio: z.number().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: maintenanceResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Account ───────────────────────────────────────────
-			'/api/account': {
-				get: {
-					operationId: 'getAccount',
-					tags: ['Account'],
-					description: 'Get the authenticated account profile (email, name, creation date).',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: accountResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteAccount',
-					tags: ['Account'],
-					description:
-						'Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible.',
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			'/api/account/export': {
-				get: {
-					operationId: 'exportAccountData',
-					tags: ['Account'],
-					description:
-						'Download a ZIP archive of all data belonging to the authenticated account: a canonical JSON export, spreadsheet-friendly CSV files, and uploaded images.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: {
-								'application/zip': {
-									schema: { type: 'string' as const, format: 'binary' }
-								}
-							}
-						},
-						'401': res401
-					}
-				}
-			},
-
-			'/api/account/import': {
-				post: {
-					operationId: 'importAccountData',
-					tags: ['Account'],
-					description:
-						'Import data into the authenticated account from a Bissbilanz export archive (.zip or bissbilanz.json) or a weight/sleep CSV file. With mode=preview nothing is written and the response describes what would be imported; mode=commit applies the import in a single transaction, skipping rows that already exist.',
-					requestBody: {
-						required: true,
-						content: {
-							'multipart/form-data': {
-								schema: {
-									type: 'object' as const,
-									properties: {
-										file: { type: 'string' as const, format: 'binary' },
-										mode: { type: 'string' as const, enum: ['preview', 'commit'] },
-										format: {
-											type: 'string' as const,
-											enum: ['archive', 'weight-csv', 'sleep-csv']
-										}
-									},
-									required: ['file']
-								}
-							}
-						}
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: importSummaryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Images ────────────────────────────────────────────
-			'/api/images/upload': {
-				post: {
-					operationId: 'uploadImage',
-					tags: ['Images'],
-					description: 'Upload an image file.',
-					requestBody: {
-						required: true,
-						content: {
-							'multipart/form-data': {
-								schema: {
-									type: 'object' as const,
-									properties: {
-										image: { type: 'string' as const, format: 'binary' }
-									},
-									required: ['image']
-								}
-							}
-						}
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: imageUploadResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── AI Tasks ──────────────────────────────────────────
-			'/api/ai-tasks': {
-				get: {
-					operationId: 'listAiTasks',
-					tags: ['AiTasks'],
-					description:
-						'List AI task queue entries, optionally filtered by status and unread state.',
-					requestParams: {
-						query: aiTaskListQuerySchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: aiTasksResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createAiTask',
-					tags: ['AiTasks'],
-					description: 'Capture a new AI task (description and/or photo) for later processing.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: aiTaskCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: aiTaskResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/ai-tasks/acknowledge': {
-				post: {
-					operationId: 'acknowledgeAiTasks',
-					tags: ['AiTasks'],
-					description:
-						'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.',
-					requestBody: {
-						required: false,
-						content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: aiTaskAcknowledgeResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/ai-tasks/photo': {
-				post: {
-					operationId: 'uploadAiTaskPhoto',
-					tags: ['AiTasks'],
-					description: 'Upload a photo for an AI task.',
-					requestBody: {
-						required: true,
-						content: {
-							'multipart/form-data': {
-								schema: {
-									type: 'object' as const,
-									properties: {
-										photo: { type: 'string' as const, format: 'binary' }
-									},
-									required: ['photo']
-								}
-							}
-						}
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: aiTaskPhotoResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/ai-tasks/{id}': {
-				patch: {
-					operationId: 'updateAiTask',
-					tags: ['AiTasks'],
-					description:
-						'Update an AI task (status, result, description, date, meal type, or seen state).',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: aiTaskUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: aiTaskResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'409': res409
-					}
-				},
-				delete: {
-					operationId: 'deleteAiTask',
-					tags: ['AiTasks'],
-					description: 'Delete an AI task.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			// ── MCP ───────────────────────────────────────────────
-			'/api/mcp/status': {
-				get: {
-					operationId: 'getMcpStatus',
-					tags: ['Mcp'],
-					description:
-						'Whether the user has at least one MCP client (e.g. Claude.ai, Claude Code) authorized against their account.',
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: mcpStatusResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-
-			// ── Sleep ─────────────────────────────────────────────
-			'/api/sleep': {
-				get: {
-					operationId: 'listSleepEntries',
-					tags: ['Sleep'],
-					description: 'List sleep entries, optionally filtered by date range.',
-					requestParams: {
-						query: z.object({
-							from: z.string().date().optional(),
-							to: z.string().date().optional()
-						})
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: sleepEntriesResponseSchema } }
-						},
-						'401': res401
-					}
-				},
-				post: {
-					operationId: 'createSleepEntry',
-					tags: ['Sleep'],
-					description: 'Create a new sleep entry.',
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: sleepCreateSchema } }
-					},
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: sleepEntryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/sleep/{id}': {
-				patch: {
-					operationId: 'updateSleepEntry',
-					tags: ['Sleep'],
-					description: 'Update a sleep entry.',
-					requestParams: { path: uuidPathId },
-					requestBody: {
-						required: true,
-						content: { 'application/json': { schema: sleepUpdateSchema } }
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: sleepEntryResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				},
-				delete: {
-					operationId: 'deleteSleepEntry',
-					tags: ['Sleep'],
-					description: 'Delete a sleep entry.',
-					requestParams: { path: uuidPathId },
-					responses: {
-						'204': res204,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Analytics ─────────────────────────────────────────
-			'/api/analytics/food-diversity': {
-				get: {
-					operationId: 'getFoodDiversity',
-					tags: ['Analytics'],
-					description: 'Get food diversity data for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: foodDiversityResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/analytics/meal-timing': {
-				get: {
-					operationId: 'getMealTiming',
-					tags: ['Analytics'],
-					description: 'Get meal timing data for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: mealTimingResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/analytics/nutrients-daily': {
-				get: {
-					operationId: 'getNutrientsDaily',
-					tags: ['Analytics'],
-					description: 'Get daily nutrient totals for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: nutrientsDailyResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/analytics/nutrients-extended': {
-				get: {
-					operationId: 'getNutrientsExtended',
-					tags: ['Analytics'],
-					description: 'Get extended nutrient entries for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: nutrientsExtendedResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/analytics/weight-food': {
-				get: {
-					operationId: 'getWeightFood',
-					tags: ['Analytics'],
-					description: 'Get weight and food data correlation for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: weightFoodResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-			'/api/analytics/sleep-food': {
-				get: {
-					operationId: 'getSleepFoodCorrelation',
-					tags: ['Analytics'],
-					description: 'Get sleep-food correlation data for a date range.',
-					requestParams: {
-						query: analyticsDateRangeSchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: sleepFoodCorrelationResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			'/api/analytics/nutrient-gaps': {
-				get: {
-					operationId: 'getNutrientGaps',
-					tags: ['Analytics'],
-					description:
-						'Compare average intake against reference values for every nutrient that has one. Defaults to the last 30 days. Nutrients listed under `unmeasured` have no usable data and are not adequate.',
-					requestParams: {
-						query: nutrientGapsQuerySchema
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: nutrientGapsResponseSchema } }
-						},
-						'400': res400,
-						'401': res401
-					}
-				}
-			},
-
-			// ── Catalog ───────────────────────────────────────────
-			'/api/catalog/search': {
-				get: {
-					operationId: 'catalogSearch',
-					tags: ['Catalog'],
-					description: "Online catalog search across the requesting user's granted datasets.",
-					requestParams: {
-						query: z.object({ q: z.string(), limit: z.number().int().optional() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: {
-								'application/json': {
-									schema: z.object({
-										results: z.array(z.record(z.string(), z.unknown()))
-									})
-								}
-							}
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/catalog/barcode/{code}': {
-				get: {
-					operationId: 'catalogByBarcode',
-					tags: ['Catalog'],
-					description: 'Barcode lookup across granted catalog datasets (priority tie-break).',
-					requestParams: { path: z.object({ code: z.string() }) },
-					responses: {
-						'200': {
-							description: 'Found',
-							content: {
-								'application/json': {
-									schema: z.object({
-										found: z.boolean(),
-										result: z.record(z.string(), z.unknown()).optional()
-									})
-								}
-							}
-						},
-						'400': res400,
-						'401': res401,
-						'404': {
-							description: 'Not found',
-							content: {
-								'application/json': { schema: z.object({ found: z.boolean() }) }
-							}
-						}
-					}
-				}
-			},
-			'/api/catalog/{id}/save': {
-				post: {
-					operationId: 'saveCatalogFood',
-					tags: ['Catalog'],
-					description: 'Instantiate a personal food from a catalog row (copy-on-use).',
-					requestParams: { path: z.object({ id: z.string().uuid() }) },
-					responses: {
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'401': res401,
-						'404': res404,
-						'409': res409
-					}
-				}
-			},
-
-			// ── Open Food Facts ───────────────────────────────────
-			'/api/openfoodfacts/search': {
-				get: {
-					operationId: 'searchOpenFoodFacts',
-					tags: ['OpenFoodFacts'],
-					description:
-						'Text search Open Food Facts products. Online fallback used by the food picker when local + catalog results are sparse.',
-					requestParams: {
-						query: z.object({ q: z.string(), limit: z.number().int().optional() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: openfoodfactsSearchResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/openfoodfacts/{barcode}': {
-				get: {
-					operationId: 'lookupOpenFoodFacts',
-					tags: ['OpenFoodFacts'],
-					description: 'Look up a product by barcode in Open Food Facts.',
-					requestParams: {
-						path: z.object({ barcode: z.string() })
-					},
-					responses: {
-						'200': {
-							description: 'Success',
-							content: { 'application/json': { schema: openfoodfactsResponseSchema } }
-						},
-						'401': res401
-					}
-				}
-			},
-			'/api/openfoodfacts/{barcode}/save': {
-				post: {
-					operationId: 'saveOpenFoodFactsProduct',
-					tags: ['OpenFoodFacts'],
-					description:
-						'Instantiate a personal food from an Open Food Facts product by barcode (copy-on-use). Idempotent: returns the existing food if already saved.',
-					requestParams: { path: z.object({ barcode: z.string() }) },
-					responses: {
-						'200': {
-							description: 'Existing food returned',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'201': {
-							description: 'Created',
-							content: { 'application/json': { schema: foodResponseSchema } }
-						},
-						'400': res400,
-						'401': res401,
-						'404': res404
-					}
-				}
-			}
-		}
+		paths: apiPaths
 	});
 }

@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_USER_2, TEST_FOOD, TEST_ENTRY, TEST_RECIPE } from '../helpers/fixtures';
 
 /**
@@ -120,6 +121,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await foodsRoute.PATCH(event);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			// Should return 404 (not 401) to avoid leaking existence
@@ -134,6 +136,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await foodsRoute.DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
 
 			// DELETE returns 204 even if nothing deleted (doesn't leak existence)
 			expect(response.status).toBe(204);
@@ -153,6 +156,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await entriesRoute.PATCH(event);
+			await expectResponseContract('PATCH', '/api/entries/{id}', response);
 			const data = await response.json();
 
 			// Should return 404 (not 401) to avoid leaking existence
@@ -167,6 +171,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await entriesRoute.DELETE(event);
+			await expectResponseContract('DELETE', '/api/entries/{id}', response);
 
 			// DELETE returns 204 even if nothing deleted (doesn't leak existence)
 			expect(response.status).toBe(204);
@@ -185,6 +190,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await recipesRoute.GET(event);
+			await expectResponseContract('GET', '/api/recipes/{id}', response);
 			const data = await response.json();
 
 			// Should return 404 (not 401) to avoid leaking existence
@@ -204,6 +210,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await recipesRoute.PATCH(event);
+			await expectResponseContract('PATCH', '/api/recipes/{id}', response);
 			const data = await response.json();
 
 			// Should return 404 (not 401) to avoid leaking existence
@@ -218,6 +225,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await recipesRoute.DELETE(event);
+			await expectResponseContract('DELETE', '/api/recipes/{id}', response);
 
 			// DELETE returns 204 even if nothing deleted (doesn't leak existence)
 			expect(response.status).toBe(204);
@@ -242,6 +250,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await mealTypesRoute.PATCH(event);
+			await expectResponseContract('PATCH', '/api/meal-types/{id}', response);
 			const data = await response.json();
 
 			// Should return 404 (not 401) to avoid leaking existence
@@ -256,6 +265,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response = await mealTypesRoute.DELETE(event);
+			await expectResponseContract('DELETE', '/api/meal-types/{id}', response);
 
 			// DELETE returns 204 even if nothing deleted (doesn't leak existence)
 			expect(response.status).toBe(204);
@@ -272,6 +282,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response1 = await foodsRoute.PATCH(nonExistentEvent);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response1);
 			const data1 = await response1.json();
 
 			// Setup: Resource exists but belongs to User A
@@ -284,6 +295,7 @@ describe('Cross-user access prevention', () => {
 			});
 
 			const response2 = await foodsRoute.PATCH(unauthorizedEvent);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response2);
 			const data2 = await response2.json();
 
 			// Both should return identical 404 responses

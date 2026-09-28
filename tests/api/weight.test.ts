@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 const TEST_WEIGHT_ENTRY = {
@@ -10,7 +11,8 @@ const TEST_WEIGHT_ENTRY = {
 	entryDate: '2026-02-10',
 	loggedAt: new Date('2026-02-10T08:00:00Z'),
 	notes: null,
-	updatedAt: null
+	createdAt: new Date('2026-02-10T08:00:00Z'),
+	updatedAt: new Date('2026-02-10T08:00:00Z')
 };
 
 let mockGetEntriesResult: any = [];
@@ -73,6 +75,7 @@ describe('api/weight', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await weightModule.GET(event);
+			await expectResponseContract('GET', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -82,6 +85,7 @@ describe('api/weight', () => {
 			mockGetEntriesResult = [TEST_WEIGHT_ENTRY];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await weightModule.GET(event);
+			await expectResponseContract('GET', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toHaveLength(1);
@@ -92,6 +96,7 @@ describe('api/weight', () => {
 			mockGetEntriesResult = [];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await weightModule.GET(event);
+			await expectResponseContract('GET', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toEqual([]);
@@ -107,6 +112,7 @@ describe('api/weight', () => {
 				searchParams: { from: '2026-02-01', to: '2026-02-10' }
 			});
 			const response = await weightModule.GET(event);
+			await expectResponseContract('GET', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toHaveLength(2);
@@ -120,6 +126,7 @@ describe('api/weight', () => {
 				body: { weightKg: 75.5, entryDate: '2026-02-10' }
 			});
 			const response = await weightModule.POST(event);
+			await expectResponseContract('POST', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -132,6 +139,7 @@ describe('api/weight', () => {
 				body: { weightKg: 75.5, entryDate: '2026-02-10' }
 			});
 			const response = await weightModule.POST(event);
+			await expectResponseContract('POST', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.entry.weightKg).toBe(75.5);
@@ -144,6 +152,7 @@ describe('api/weight', () => {
 				body: { weightKg: -5, entryDate: '2026-02-10' }
 			});
 			const response = await weightModule.POST(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 			expect(response.status).toBe(400);
 		});
 
@@ -154,6 +163,7 @@ describe('api/weight', () => {
 				body: { weightKg: 75.5, entryDate: '2026-02-10', notes: 'Before breakfast' }
 			});
 			const response = await weightModule.POST(event);
+			await expectResponseContract('POST', '/api/weight', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.entry.notes).toBe('Before breakfast');
@@ -168,6 +178,7 @@ describe('api/weight', () => {
 				body: { weightKg: 76.0 }
 			});
 			const response = await weightIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/weight/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -181,6 +192,7 @@ describe('api/weight', () => {
 				body: { weightKg: 76.0 }
 			});
 			const response = await weightIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/weight/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entry.weightKg).toBe(76.0);
@@ -194,6 +206,7 @@ describe('api/weight', () => {
 				body: { weightKg: 76.0 }
 			});
 			const response = await weightIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/weight/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toBe('Weight entry not found');
@@ -207,6 +220,7 @@ describe('api/weight', () => {
 				params: { id: TEST_WEIGHT_ENTRY.id }
 			});
 			const response = await weightIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/weight/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -219,6 +233,7 @@ describe('api/weight', () => {
 				params: { id: TEST_WEIGHT_ENTRY.id }
 			});
 			const response = await weightIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/weight/{id}', response);
 			expect(response.status).toBe(204);
 		});
 
@@ -229,6 +244,7 @@ describe('api/weight', () => {
 				params: { id: '00000000-0000-0000-0000-000000000000' }
 			});
 			const response = await weightIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/weight/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toBe('Weight entry not found');
@@ -239,6 +255,7 @@ describe('api/weight', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await weightLatestModule.GET(event);
+			await expectResponseContract('GET', '/api/weight/latest', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -248,6 +265,7 @@ describe('api/weight', () => {
 			mockLatestResult = TEST_WEIGHT_ENTRY;
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await weightLatestModule.GET(event);
+			await expectResponseContract('GET', '/api/weight/latest', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entry.weightKg).toBe(75.5);
@@ -257,6 +275,7 @@ describe('api/weight', () => {
 			mockLatestResult = null;
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await weightLatestModule.GET(event);
+			await expectResponseContract('GET', '/api/weight/latest', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entry).toBeNull();

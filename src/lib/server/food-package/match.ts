@@ -324,10 +324,12 @@ export function resolveOperations(
 
 	const conflictReason = new Map<string, ConflictReason>();
 	const replacedTargets = new Set<string>();
+	const resolvedFoodRefs = new Set<string>();
 	for (const conflict of match.foodConflicts) {
 		const food = foodsByRef.get(conflict.ref)!;
 		conflictReason.set(conflict.ref, conflict.reason);
 		let action = takeResolution(foodResolutions, conflict);
+		resolvedFoodRefs.add(conflict.ref);
 		if (action === 'replace' && replacedTargets.has(conflict.existingId)) {
 			issues.push({
 				ref: conflict.ref,
@@ -350,6 +352,12 @@ export function resolveOperations(
 			foods.set(conflict.ref, { kind: 'skip', food, id: conflict.existingId });
 		}
 	}
+	// A resolution the client submitted for a ref that isn't a conflict anymore
+	// (e.g. the target it was resolved against was deleted, so the ref is now
+	// "new") would otherwise be silently ignored — treat it as stale instead.
+	if (resolvedFoodRefs.size !== foodResolutions.size) {
+		throw new ApiError(409, STALE_PREVIEW);
+	}
 
 	const recipes = new Map<string, RecipeOp>();
 	const recipesByRef = new Map(manifest.recipes.map((recipe) => [recipe.ref, recipe]));
@@ -357,9 +365,11 @@ export function resolveOperations(
 		recipes.set(ref, { kind: 'insert', recipe: recipesByRef.get(ref)!, keptBoth: false });
 	}
 	const replacedRecipes = new Set<string>();
+	const resolvedRecipeRefs = new Set<string>();
 	for (const conflict of match.recipeConflicts) {
 		const recipe = recipesByRef.get(conflict.ref)!;
 		let action = takeResolution(recipeResolutions, conflict);
+		resolvedRecipeRefs.add(conflict.ref);
 		if (action === 'replace' && replacedRecipes.has(conflict.existingId)) {
 			issues.push({
 				ref: conflict.ref,
@@ -375,6 +385,9 @@ export function resolveOperations(
 		} else {
 			recipes.set(conflict.ref, { kind: 'skip', recipe, id: conflict.existingId });
 		}
+	}
+	if (resolvedRecipeRefs.size !== recipeResolutions.size) {
+		throw new ApiError(409, STALE_PREVIEW);
 	}
 
 	// A skipped food stands in for the incoming one inside imported recipes; if

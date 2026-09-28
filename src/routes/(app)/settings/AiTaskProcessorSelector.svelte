@@ -76,6 +76,9 @@
 		</div>
 
 		{#if processor === 'device'}
+			<p class="text-muted-foreground text-xs">
+				{m.settings_ai_task_processor_device_hint()}
+			</p>
 			<div class="flex items-center justify-between gap-3 rounded-md border p-3">
 				<div class="space-y-0.5">
 					<Label for="ai-task-auto-log">{m.settings_ai_task_auto_log_label()}</Label>

@@ -11,6 +11,13 @@ struct AiTaskReviewContext {
     let taskId: String
     let pendingFoods: [String: FoodCreate]
     let source: MealEstimateSource
+    /// The task's server `updatedAt` as last known (see `AiTasksView`, which
+    /// only offers a draft for review while its task is still confirmed
+    /// pending) — carried as the completion's last-write-wins guard, so a
+    /// task edited elsewhere while the user was reviewing this draft loses
+    /// the race instead of being silently completed over. See
+    /// `SyncManager.execute` for what happens when that guard fires.
+    let clientEditedAt: String?
 }
 
 /// Editable review of an estimate before logging — either a live
@@ -225,7 +232,8 @@ struct AIMealReviewView: View {
                     taskId: taskContext.taskId,
                     localEntryIds: localEntryIds,
                     resultSummary: Self.summaryText(for: loggedItems),
-                    processedBy: AiTaskProcessor.processedBy(for: taskContext.source)
+                    processedBy: AiTaskProcessor.processedBy(for: taskContext.source),
+                    clientEditedAt: taskContext.clientEditedAt
                 ))
             }
             onLogged(loggedCount)

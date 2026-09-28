@@ -13,6 +13,9 @@ import SwiftData
 ///   the server record (shared `LocalRemap` helpers, same code the migrator uses).
 /// - HTTP 409 + `X-Sync-Conflict: server-newer` → LWW lost; row removed, a
 ///   conflict notice is surfaced via `conflictNotices`, refresh triggered.
+///   Exception: `completeAiTask` forces itself through unconditionally on this
+///   response instead — see `execute` — since the entries it logged already
+///   exist and dropping it would leave the task pending forever.
 /// - HTTP 409 without header → real validation conflict; dead-letter (drop + error).
 /// - HTTP 404/410 on DELETE → idempotent; treat as success, remove silently.
 /// - HTTP 404/410 on a create (create_entry/create_recipe/create_supplement) →
@@ -783,14 +786,42 @@ final class SyncManager {
         case let .updatePreferences(body):
             _ = try await api.updatePreferences(body, idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt)
 
-        case let .completeAiTask(taskId, localEntryIds, resultSummary, processedBy):
+        // Ignores the row's own `clientEditedAt` (enqueue time, i.e. when this
+        // completion was queued) — see `SyncOperation.completeAiTask` for why
+        // that would be too late to catch an edit made *during* processing.
+        // Carries its own guard timestamp instead: the task's server
+        // `updatedAt` as last confirmed before anything was logged.
+        case let .completeAiTask(taskId, localEntryIds, resultSummary, processedBy, snapshotClientEditedAt):
             let update = AiTaskUpdate(
                 status: "completed",
                 resultSummary: resultSummary,
                 processedBy: processedBy,
                 createdEntryIds: localEntryIds
             )
-            _ = try await api.updateAiTask(id: taskId, update, idempotencyKey: idempotencyKey)
+            do {
+                _ = try await api.updateAiTask(
+                    id: taskId, update, idempotencyKey: idempotencyKey, clientEditedAt: snapshotClientEditedAt
+                )
+            } catch let error as APIError {
+                guard case let .conflict(serverNewer, _) = error, serverNewer, snapshotClientEditedAt != nil else {
+                    throw error
+                }
+                // The guard fired: the task changed on another device in the
+                // narrow window between the caller's last freshness check and
+                // this upload landing. The entries it logged are real food
+                // that was actually eaten and already exist regardless of
+                // this call's outcome — dropping the completion here (the
+                // generic conflict handling below) would leave the task
+                // "pending" forever and get it reprocessed into duplicate
+                // entries on the next refresh. Force it through
+                // unconditionally instead: the completion payload never
+                // touches the task's editable content (description/photos/
+                // date/mealType/eatenAt — see `AiTaskUpdate`), so the only
+                // thing this can ever overwrite is another status change
+                // racing the exact same task, which is strictly better than
+                // one stuck pending or logged twice.
+                _ = try await api.updateAiTask(id: taskId, update, idempotencyKey: idempotencyKey)
+            }
         }
     }
 
@@ -907,7 +938,7 @@ final class SyncManager {
                 guard let foodId = ingredient.foodId else { return nil }
                 return (table: "foods", id: foodId)
             }
-        case let .completeAiTask(_, localEntryIds, _, _):
+        case let .completeAiTask(_, localEntryIds, _, _, _):
             candidates = localEntryIds.map { (table: "entries", id: $0) }
         default:
             candidates = []
@@ -1064,7 +1095,7 @@ final class SyncManager {
         case .updatePreferences:
             break
 
-        case let .completeAiTask(taskId, localEntryIds, _, _):
+        case let .completeAiTask(taskId, localEntryIds, _, _, _):
             ids["sync.ai_task_id"] = taskId
             ids["sync.entry_ids"] = localEntryIds
         }

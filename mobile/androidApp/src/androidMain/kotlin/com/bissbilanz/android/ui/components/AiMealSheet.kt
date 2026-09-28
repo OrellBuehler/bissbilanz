@@ -266,6 +266,7 @@ fun AiMealSheet(
             )
             Text(
                 when {
+                    isEditing && processorIsDevice -> stringResource(R.string.ai_task_edit_subtitle_device)
                     isEditing -> stringResource(R.string.ai_task_edit_subtitle)
                     processorIsDevice -> stringResource(R.string.ai_task_subtitle_device)
                     else -> stringResource(R.string.ai_task_subtitle)

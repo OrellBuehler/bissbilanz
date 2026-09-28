@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
-import { TEST_USER } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
+import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
 
 const ID = '10000000-0000-4000-8000-000000000010';
 const ID_2 = '10000000-0000-4000-8000-000000000011';
@@ -54,6 +55,7 @@ describe('POST /api/foods/batch', () => {
 		});
 
 		const response = await BATCH(event);
+		await expectResponseContract('POST', '/api/foods/batch', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(200);
@@ -71,7 +73,8 @@ describe('POST /api/foods/batch', () => {
 			body: { ids: [ID], action: 'add_labels', payload: { labels: ['bread'] } }
 		});
 
-		await BATCH(event);
+		const response = await BATCH(event);
+		await expectResponseContract('POST', '/api/foods/batch', response);
 
 		expect(batchCalls[0].input.payload).toEqual({ labels: ['bread'] });
 	});
@@ -80,6 +83,7 @@ describe('POST /api/foods/batch', () => {
 		const event = createMockEvent({ user: TEST_USER, body: { ids: [], action: 'favorite' } });
 
 		const response = await BATCH(event);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 		expect(response.status).toBe(400);
 		expect(batchCalls).toHaveLength(0);
@@ -88,27 +92,35 @@ describe('POST /api/foods/batch', () => {
 	test('rejects a label action with no labels', async () => {
 		const event = createMockEvent({ user: TEST_USER, body: { ids: [ID], action: 'set_labels' } });
 
-		expect((await BATCH(event)).status).toBe(400);
+		const response = await BATCH(event);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 		expect(batchCalls).toHaveLength(0);
 	});
 
 	test('requires authentication', async () => {
 		const event = createMockEvent({ user: null, body: { ids: [ID], action: 'favorite' } });
 
-		expect((await BATCH(event)).status).toBe(401);
+		const response = await BATCH(event);
+		await expectResponseContract('POST', '/api/foods/batch', response);
+		expect(response.status).toBe(401);
 		expect(batchCalls).toHaveLength(0);
 	});
 });
 
 describe('POST /api/foods/import', () => {
 	test('creates the rows and reports what was skipped', async () => {
+		// importFoods() always returns full food rows (foodColumnsWithLabels),
+		// not a partial projection — mirror that so the response validates
+		// against the real Food shape.
 		importOutcome = {
-			foods: [{ id: ID, name: 'Oats' }],
+			foods: [{ ...TEST_FOOD, id: ID }],
 			skipped: [{ index: 1, name: 'Oats', reason: 'duplicate' }]
 		};
 		const event = createMockEvent({ user: TEST_USER, body: { foods: [validFood, validFood] } });
 
 		const response = await IMPORT(event);
+		await expectResponseContract('POST', '/api/foods/import', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(201);
@@ -124,14 +136,18 @@ describe('POST /api/foods/import', () => {
 			body: { foods: [{ ...validFood, servingUnit: 'stone' }] }
 		});
 
-		expect((await IMPORT(event)).status).toBe(400);
+		const response = await IMPORT(event);
+		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+		expect(response.status).toBe(400);
 		expect(importCalls).toHaveLength(0);
 	});
 
 	test('requires authentication', async () => {
 		const event = createMockEvent({ user: null, body: { foods: [validFood] } });
 
-		expect((await IMPORT(event)).status).toBe(401);
+		const response = await IMPORT(event);
+		await expectResponseContract('POST', '/api/foods/import', response);
+		expect(response.status).toBe(401);
 		expect(importCalls).toHaveLength(0);
 	});
 });

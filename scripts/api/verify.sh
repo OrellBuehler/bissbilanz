@@ -12,6 +12,7 @@ GENERATED=(
 	docs/mcp-tools.json
 	src/lib/api/generated
 	mobile/shared/src/commonMain/kotlin/com/bissbilanz/api/generated
+	mobile/iosApp/BissbilanzTests/Fixtures
 )
 
 cd "$(git rev-parse --show-toplevel)"
