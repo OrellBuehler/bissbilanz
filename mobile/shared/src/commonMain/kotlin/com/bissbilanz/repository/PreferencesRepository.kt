@@ -11,7 +11,7 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.PreferencesField
-import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.decodePreferencesOrNull
 import com.bissbilanz.util.jsonKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -37,7 +37,7 @@ class PreferencesRepository(
             .mapToOneOrNull(Dispatchers.IO)
             .map { cached ->
                 cached?.let {
-                    json.decodeOrNull<Preferences>(it.jsonData) ?: run {
+                    json.decodePreferencesOrNull(it.jsonData) ?: run {
                         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deletePreferences() }
                         null
                     }
@@ -75,7 +75,7 @@ class PreferencesRepository(
         val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
         val current =
             cached?.let {
-                json.decodeOrNull<Preferences>(it.jsonData) ?: run {
+                json.decodePreferencesOrNull(it.jsonData) ?: run {
                     withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deletePreferences() }
                     null
                 }
@@ -89,6 +89,9 @@ class PreferencesRepository(
                 showSleepWidget = true,
                 showFastingWidget = true,
                 showDayPropertiesWidget = true,
+                showWaterWidget = true,
+                showActivityWidget = true,
+                showNotesWidget = true,
                 showRecipeSuggestionsWidget = true,
                 widgetOrder = emptyList(),
                 mealOrder = emptyList(),
@@ -137,6 +140,9 @@ class PreferencesRepository(
             showSleepWidget = update.showSleepWidget ?: current.showSleepWidget,
             showFastingWidget = update.showFastingWidget ?: current.showFastingWidget,
             showDayPropertiesWidget = update.showDayPropertiesWidget ?: current.showDayPropertiesWidget,
+            showWaterWidget = update.showWaterWidget ?: update.showDayPropertiesWidget ?: current.showWaterWidget,
+            showActivityWidget = update.showActivityWidget ?: update.showDayPropertiesWidget ?: current.showActivityWidget,
+            showNotesWidget = update.showNotesWidget ?: update.showDayPropertiesWidget ?: current.showNotesWidget,
             showRecipeSuggestionsWidget = update.showRecipeSuggestionsWidget ?: current.showRecipeSuggestionsWidget,
             widgetOrder = update.widgetOrder?.map { it.value } ?: current.widgetOrder,
             mealOrder = update.mealOrder ?: current.mealOrder,

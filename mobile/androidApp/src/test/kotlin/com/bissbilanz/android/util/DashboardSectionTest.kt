@@ -11,6 +11,9 @@ class DashboardSectionTest {
         widgetOrder: List<String> = DEFAULT_DASHBOARD_WIDGET_ORDER,
         showFastingWidget: Boolean = true,
         showDayPropertiesWidget: Boolean = true,
+        showWaterWidget: Boolean = true,
+        showActivityWidget: Boolean = true,
+        showNotesWidget: Boolean = true,
         showChartWidget: Boolean = true,
         showFavoritesWidget: Boolean = true,
         showRecipeSuggestionsWidget: Boolean = true,
@@ -30,6 +33,9 @@ class DashboardSectionTest {
         showSleepWidget = showSleepWidget,
         showFastingWidget = showFastingWidget,
         showDayPropertiesWidget = showDayPropertiesWidget,
+        showWaterWidget = showWaterWidget,
+        showActivityWidget = showActivityWidget,
+        showNotesWidget = showNotesWidget,
         widgetOrder = widgetOrder,
         mealOrder = emptyList(),
         startPage = "dashboard",
@@ -72,7 +78,10 @@ class DashboardSectionTest {
                         "supplements",
                         "favorites",
                         "recipe-suggestions",
+                        "water",
                         "day-properties",
+                        "activity",
+                        "notes",
                     ),
                 showFastingWidget = false,
                 showSleepWidget = false,
@@ -88,7 +97,9 @@ class DashboardSectionTest {
                 DashboardSection.SUPPLEMENTS,
                 DashboardSection.FAVORITES,
                 DashboardSection.RECIPE_SUGGESTIONS,
-                DashboardSection.DAY_PROPERTIES,
+                DashboardSection.WATER,
+                DashboardSection.ACTIVITY,
+                DashboardSection.NOTES,
             ),
             resolveDashboardSections(prefs.widgetOrder, prefs),
         )
@@ -113,7 +124,9 @@ class DashboardSectionTest {
         val expected =
             listOf(
                 DashboardSection.FASTING,
-                DashboardSection.DAY_PROPERTIES,
+                DashboardSection.WATER,
+                DashboardSection.ACTIVITY,
+                DashboardSection.NOTES,
                 DashboardSection.CHART,
                 DashboardSection.FAVORITES,
                 DashboardSection.RECIPE_SUGGESTIONS,
@@ -130,6 +143,85 @@ class DashboardSectionTest {
     }
 
     @Test
+    fun dashboardSectionOrderInsertsMissingSplitSectionsAtTheDayPropertiesPosition() {
+        val order = dashboardSectionOrder(listOf("fasting", "day-properties", "chart", "summary", "daylog"))
+
+        assertEquals(
+            listOf(
+                DashboardSection.FASTING,
+                DashboardSection.WATER,
+                DashboardSection.ACTIVITY,
+                DashboardSection.NOTES,
+                DashboardSection.CHART,
+                DashboardSection.DAYLOG,
+            ),
+            order.take(6),
+        )
+        assertEquals(DashboardSection.entries.size, order.size)
+    }
+
+    @Test
+    fun dashboardSectionOrderOnlyInsertsTheSplitSectionsThatAreMissing() {
+        val order = dashboardSectionOrder(listOf("chart", "notes", "day-properties", "daylog"))
+
+        assertEquals(
+            listOf(
+                DashboardSection.CHART,
+                DashboardSection.NOTES,
+                DashboardSection.WATER,
+                DashboardSection.ACTIVITY,
+                DashboardSection.DAYLOG,
+            ),
+            order.take(5),
+        )
+    }
+
+    @Test
+    fun applyDashboardReorderPreservesTheDayPropertiesPlaceholder() {
+        val original = listOf("fasting", "water", "activity", "notes", "day-properties", "chart", "daylog")
+        val newVisibleOrder =
+            listOf(
+                DashboardSection.NOTES,
+                DashboardSection.CHART,
+                DashboardSection.ACTIVITY,
+                DashboardSection.WATER,
+                DashboardSection.FASTING,
+                DashboardSection.DAYLOG,
+            )
+
+        val result = applyDashboardReorder(original, newVisibleOrder)
+
+        assertEquals(
+            listOf(
+                PreferencesUpdate.WidgetOrder.notes,
+                PreferencesUpdate.WidgetOrder.chart,
+                PreferencesUpdate.WidgetOrder.activity,
+                PreferencesUpdate.WidgetOrder.water,
+                PreferencesUpdate.WidgetOrder.dayMinusProperties,
+                PreferencesUpdate.WidgetOrder.fasting,
+                PreferencesUpdate.WidgetOrder.daylog,
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun visibilityUpdateSetsTheSplitFieldsIndependently() {
+        assertEquals(PreferencesUpdate(showWaterWidget = false), DashboardSection.WATER.visibilityUpdate(false))
+        assertEquals(PreferencesUpdate(showActivityWidget = true), DashboardSection.ACTIVITY.visibilityUpdate(true))
+        assertEquals(PreferencesUpdate(showNotesWidget = false), DashboardSection.NOTES.visibilityUpdate(false))
+    }
+
+    @Test
+    fun visibilityFollowsTheSplitFlagsNotTheLegacyOne() {
+        val prefs = preferences(showDayPropertiesWidget = true, showWaterWidget = false, showNotesWidget = false)
+
+        assertEquals(false, DashboardSection.WATER.isVisible(prefs))
+        assertEquals(true, DashboardSection.ACTIVITY.isVisible(prefs))
+        assertEquals(false, DashboardSection.NOTES.isVisible(prefs))
+    }
+
+    @Test
     fun visibilityUpdateIsNullForDaylogAndSetsTheRightFieldOtherwise() {
         assertNull(DashboardSection.DAYLOG.visibilityUpdate(true))
         assertEquals(PreferencesUpdate(showSleepWidget = false), DashboardSection.SLEEP.visibilityUpdate(false))
@@ -142,12 +234,12 @@ class DashboardSectionTest {
 
     @Test
     fun applyDashboardReorderKeepsHiddenKeysInPlace() {
-        val original = listOf("fasting", "day-properties", "chart", "summary", "sleep", "daylog")
+        val original = listOf("fasting", "water", "day-properties", "chart", "summary", "sleep", "daylog")
         val newVisibleOrder =
             listOf(
                 DashboardSection.SLEEP,
                 DashboardSection.FASTING,
-                DashboardSection.DAY_PROPERTIES,
+                DashboardSection.WATER,
                 DashboardSection.CHART,
                 DashboardSection.DAYLOG,
             )
@@ -159,6 +251,7 @@ class DashboardSectionTest {
                 PreferencesUpdate.WidgetOrder.sleep,
                 PreferencesUpdate.WidgetOrder.fasting,
                 PreferencesUpdate.WidgetOrder.dayMinusProperties,
+                PreferencesUpdate.WidgetOrder.water,
                 PreferencesUpdate.WidgetOrder.summary,
                 PreferencesUpdate.WidgetOrder.chart,
                 PreferencesUpdate.WidgetOrder.daylog,

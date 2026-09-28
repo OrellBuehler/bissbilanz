@@ -25,46 +25,55 @@ import com.bissbilanz.api.generated.model.DayProperties
 import kotlinx.coroutines.delay
 
 /**
- * Three stacked cards — water tracking, an informational activity-calorie entry, and an
- * autosaving notes field for the day — the mobile counterpart of the web
- * `DayPropertiesCard`. They share one dashboard slot and visibility toggle. Always
- * visible on the day log, independent of the fasting-day toggle card.
+ * The day-properties cards — water tracking, an informational activity-calorie entry,
+ * and an autosaving notes field for the day — the mobile counterpart of the web
+ * `DayPropertiesCard`. Each is its own dashboard section with its own visibility toggle.
+ * Always visible on the day log, independent of the fasting-day toggle card.
  *
  * Activity calories are informational only: they are never subtracted from the
  * calorie goal and never feed maintenance/TDEE calculations, matching the web.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayPropertiesCard(
-    notes: String,
+fun WaterCard(
     waterMl: Int?,
     waterGoalMl: Int,
-    activityCalories: Int?,
-    activityCaloriesSource: DayProperties.ActivityCaloriesSource?,
-    activityNote: String?,
     onAddWater: (Int) -> Unit,
     onSetWater: (Int?) -> Unit,
     onClearWater: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            WaterSection(waterMl, waterGoalMl, onAddWater, onSetWater, onClearWater)
+        }
+    }
+}
+
+@Composable
+fun ActivityCard(
+    activityCalories: Int?,
+    activityCaloriesSource: DayProperties.ActivityCaloriesSource?,
+    activityNote: String?,
     onSetActivity: (Int?, String?) -> Unit,
     onClearActivity: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            ActivitySection(activityCalories, activityCaloriesSource, activityNote, onSetActivity, onClearActivity)
+        }
+    }
+}
+
+@Composable
+fun NotesCard(
+    notes: String,
     onNotesChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                WaterSection(waterMl, waterGoalMl, onAddWater, onSetWater, onClearWater)
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                ActivitySection(activityCalories, activityCaloriesSource, activityNote, onSetActivity, onClearActivity)
-            }
-        }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                NotesSection(notes, onNotesChanged)
-            }
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            NotesSection(notes, onNotesChanged)
         }
     }
 }

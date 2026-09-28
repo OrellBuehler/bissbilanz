@@ -55,7 +55,9 @@
 	const widgetOrderKeys = $derived(
 		cachedPrefs.value?.widgetOrder ?? [
 			'fasting',
-			'day-properties',
+			'water',
+			'activity',
+			'notes',
 			'chart',
 			'favorites',
 			'recipe-suggestions',
@@ -78,7 +80,9 @@
 			topFoods: p?.showTopFoodsWidget ?? true,
 			sleep: p?.showSleepWidget ?? true,
 			fasting: p?.showFastingWidget ?? true,
-			dayProperties: p?.showDayPropertiesWidget ?? true
+			water: p?.showWaterWidget ?? true,
+			activity: p?.showActivityWidget ?? true,
+			notes: p?.showNotesWidget ?? true
 		};
 	});
 

@@ -18,12 +18,16 @@
 	import MealBreakdownWidget from '$lib/components/dashboard/MealBreakdownWidget.svelte';
 	import TopFoodsWidget from '$lib/components/dashboard/TopFoodsWidget.svelte';
 	import SleepWidget from '$lib/components/dashboard/SleepWidget.svelte';
+	import DayWaterCard from '$lib/components/entries/DayWaterCard.svelte';
+	import DayActivityCard from '$lib/components/entries/DayActivityCard.svelte';
+	import DayNotesCard from '$lib/components/entries/DayNotesCard.svelte';
 	import PinnedInsights from '$lib/components/dashboard/PinnedInsights.svelte';
 	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
 	import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
@@ -56,7 +60,8 @@
 	let isLg = $state(false);
 	let mqlCleanup: (() => void) | undefined;
 	let daylogTotals: MacroTotals = $state({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-	let daylogActivityCalories: number | null = $state(null);
+	const dayPropsQuery = useLiveQuery(() => dayPropertiesService.watch(activeDate), undefined);
+	const daylogActivityCalories = $derived(dayPropsQuery.value?.activityCalories ?? null);
 	const effectiveGoals = $derived(
 		adjustGoalsForActivity(userGoals, daylogActivityCalories, {
 			enabled: userPrefs?.activityGoalAdjustment ?? false,
@@ -73,7 +78,9 @@
 	const order = $derived(
 		userPrefs?.widgetOrder ?? [
 			'fasting',
-			'day-properties',
+			'water',
+			'activity',
+			'notes',
 			'chart',
 			'streaks',
 			'favorites',
@@ -210,6 +217,12 @@
 		<MealBreakdownWidget date={activeDate} />
 	{:else if sectionKey === 'top-foods' && isToday && userPrefs?.showTopFoodsWidget}
 		<TopFoodsWidget />
+	{:else if sectionKey === 'water' && (userPrefs?.showWaterWidget ?? true)}
+		<DayWaterCard date={activeDate} />
+	{:else if sectionKey === 'activity' && (userPrefs?.showActivityWidget ?? true)}
+		<DayActivityCard date={activeDate} />
+	{:else if sectionKey === 'notes' && (userPrefs?.showNotesWidget ?? true)}
+		<DayNotesCard date={activeDate} />
 	{:else if sectionKey === 'sleep' && (userPrefs?.showSleepWidget ?? true)}
 		<SleepWidget date={activeDate} />
 	{:else if sectionKey === 'summary'}
@@ -223,9 +236,8 @@
 			date={activeDate}
 			dashboardStyle={true}
 			onTotalsChange={(t) => (daylogTotals = t)}
-			onActivityChange={(kcal) => (daylogActivityCalories = kcal)}
 			showFasting={userPrefs?.showFastingWidget ?? true}
-			showDayProperties={userPrefs?.showDayPropertiesWidget ?? true}
+			showDayProperties={false}
 			bind:scanModalOpen
 			bind:addModalOpen
 			bind:initialFoodId={addFoodId}

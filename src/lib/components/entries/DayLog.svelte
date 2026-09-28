@@ -34,7 +34,6 @@
 		addModalOpen?: boolean;
 		initialFoodId?: string | null;
 		initialRecipeId?: string | null;
-		onActivityChange?: (activityCalories: number | null) => void;
 		showFasting?: boolean;
 		showDayProperties?: boolean;
 	};
@@ -47,7 +46,6 @@
 		addModalOpen = $bindable(false),
 		initialFoodId = $bindable(null),
 		initialRecipeId = $bindable(null),
-		onActivityChange,
 		showFasting = true,
 		showDayProperties = true
 	}: Props = $props();
@@ -283,7 +281,7 @@
 	{/if}
 
 	{#if showDayProperties}
-		<DayPropertiesCard {date} {onActivityChange} />
+		<DayPropertiesCard {date} />
 	{/if}
 
 	<div class="grid gap-4">

@@ -12,7 +12,9 @@ enum class DashboardSection(
     val key: String,
 ) {
     FASTING("fasting"),
-    DAY_PROPERTIES("day-properties"),
+    WATER("water"),
+    ACTIVITY("activity"),
+    NOTES("notes"),
     CHART("chart"),
     FAVORITES("favorites"),
     RECIPE_SUGGESTIONS("recipe-suggestions"),
@@ -33,6 +35,9 @@ enum class DashboardSection(
 val DEFAULT_DASHBOARD_WIDGET_ORDER =
     listOf(
         "fasting",
+        "water",
+        "activity",
+        "notes",
         "day-properties",
         "chart",
         "favorites",
@@ -48,15 +53,31 @@ val DEFAULT_DASHBOARD_WIDGET_ORDER =
 
 private fun effectiveRawOrder(order: List<String>?): List<String> = order?.takeIf { it.isNotEmpty() } ?: DEFAULT_DASHBOARD_WIDGET_ORDER
 
+/** Legacy combined key, kept in `widgetOrder` for older builds; not a section here. */
+private const val LEGACY_DAY_PROPERTIES_KEY = "day-properties"
+
+private val splitDayPropertySections = listOf(DashboardSection.WATER, DashboardSection.ACTIVITY, DashboardSection.NOTES)
+
 /**
  * All reorderable sections in order, for the layout editor. Any section missing from a
  * stale stored order (e.g. one predating a newly added key) is appended at the end, so
- * the editor never hides a section the user would otherwise have no way to reach.
+ * the editor never hides a section the user would otherwise have no way to reach. The
+ * water/activity/notes trio instead lands where the legacy `day-properties` key sits.
  */
 fun dashboardSectionOrder(order: List<String>?): List<DashboardSection> {
-    val present = effectiveRawOrder(order).mapNotNull(DashboardSection::fromKey)
-    val missing = DashboardSection.entries.filter { it !in present }
-    return present + missing
+    val raw = effectiveRawOrder(order)
+    val present = raw.mapNotNull(DashboardSection::fromKey)
+    val legacyIndex = raw.indexOf(LEGACY_DAY_PROPERTIES_KEY)
+    val inserted = if (legacyIndex >= 0) splitDayPropertySections.filter { it !in present } else emptyList()
+    val anchored =
+        if (inserted.isEmpty()) {
+            present
+        } else {
+            val before = raw.take(legacyIndex).mapNotNull(DashboardSection::fromKey)
+            before + inserted + present.drop(before.size)
+        }
+    val missing = DashboardSection.entries.filter { it !in anchored }
+    return anchored + missing
 }
 
 /** Sections to actually render on the dashboard, in order, filtered by visibility. */
@@ -69,7 +90,9 @@ fun resolveDashboardSections(
 fun DashboardSection.isVisible(prefs: Preferences?): Boolean =
     when (this) {
         DashboardSection.FASTING -> prefs?.showFastingWidget == true
-        DashboardSection.DAY_PROPERTIES -> prefs?.showDayPropertiesWidget == true
+        DashboardSection.WATER -> prefs?.showWaterWidget == true
+        DashboardSection.ACTIVITY -> prefs?.showActivityWidget == true
+        DashboardSection.NOTES -> prefs?.showNotesWidget == true
         DashboardSection.CHART -> prefs?.showChartWidget == true
         DashboardSection.FAVORITES -> prefs?.showFavoritesWidget == true
         DashboardSection.RECIPE_SUGGESTIONS -> prefs?.showRecipeSuggestionsWidget == true
@@ -85,7 +108,9 @@ fun DashboardSection.isVisible(prefs: Preferences?): Boolean =
 fun DashboardSection.visibilityUpdate(value: Boolean): PreferencesUpdate? =
     when (this) {
         DashboardSection.FASTING -> PreferencesUpdate(showFastingWidget = value)
-        DashboardSection.DAY_PROPERTIES -> PreferencesUpdate(showDayPropertiesWidget = value)
+        DashboardSection.WATER -> PreferencesUpdate(showWaterWidget = value)
+        DashboardSection.ACTIVITY -> PreferencesUpdate(showActivityWidget = value)
+        DashboardSection.NOTES -> PreferencesUpdate(showNotesWidget = value)
         DashboardSection.CHART -> PreferencesUpdate(showChartWidget = value)
         DashboardSection.FAVORITES -> PreferencesUpdate(showFavoritesWidget = value)
         DashboardSection.RECIPE_SUGGESTIONS -> PreferencesUpdate(showRecipeSuggestionsWidget = value)

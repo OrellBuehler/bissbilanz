@@ -42,11 +42,11 @@ import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
 import com.bissbilanz.android.tips.rememberActiveTipId
+import com.bissbilanz.android.ui.components.ActivityCard
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.CalorieTrendWidget
 import com.bissbilanz.android.ui.components.DashboardSkeleton
-import com.bissbilanz.android.ui.components.DayPropertiesCard
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FastingCard
 import com.bissbilanz.android.ui.components.FavoritesQuickLogWidget
@@ -54,11 +54,13 @@ import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.MacroRing
 import com.bissbilanz.android.ui.components.MealBreakdownWidget
 import com.bissbilanz.android.ui.components.MealCard
+import com.bissbilanz.android.ui.components.NotesCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeSuggestionsWidget
 import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.TopFoodsWidget
+import com.bissbilanz.android.ui.components.WaterCard
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
@@ -535,20 +537,32 @@ fun DashboardScreen(navController: NavController) {
                                             }
                                         }
 
-                                        DashboardSection.DAY_PROPERTIES -> {
+                                        DashboardSection.WATER -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            DayPropertiesCard(
-                                                notes = notes,
+                                            WaterCard(
                                                 waterMl = waterMl,
                                                 waterGoalMl = waterGoalMl,
-                                                activityCalories = activityCalories,
-                                                activityCaloriesSource = activityCaloriesSource,
-                                                activityNote = activityNote,
                                                 onAddWater = { viewModel.addWater(it) },
                                                 onSetWater = { viewModel.setWater(it) },
                                                 onClearWater = { viewModel.clearWater() },
+                                            )
+                                        }
+
+                                        DashboardSection.ACTIVITY -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            ActivityCard(
+                                                activityCalories = activityCalories,
+                                                activityCaloriesSource = activityCaloriesSource,
+                                                activityNote = activityNote,
                                                 onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
                                                 onClearActivity = { viewModel.clearActivity() },
+                                            )
+                                        }
+
+                                        DashboardSection.NOTES -> {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            NotesCard(
+                                                notes = notes,
                                                 onNotesChanged = { viewModel.setNotes(it) },
                                             )
                                         }

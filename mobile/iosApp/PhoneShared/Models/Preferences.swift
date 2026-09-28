@@ -19,7 +19,16 @@ struct Preferences: Codable, Equatable {
     /// lacks the keys entirely, and the custom decode in the extension below
     /// falls back to `true` rather than failing the whole object.
     var showFastingWidget: Bool = true
+    /// Legacy toggle, kept in sync server-side as the OR of the three below;
+    /// display decisions use `showWaterWidget`/`showActivityWidget`/
+    /// `showNotesWidget`.
     var showDayPropertiesWidget: Bool = true
+    /// The three day-properties cards, split out of `showDayPropertiesWidget`.
+    /// A cached row or local-mode JSON that predates them decodes each from
+    /// the legacy toggle (then `true`), see the custom decode below.
+    var showWaterWidget: Bool = true
+    var showActivityWidget: Bool = true
+    var showNotesWidget: Bool = true
     /// Same "cached row predates this widget" fallback as the two above.
     var showRecipeSuggestionsWidget: Bool = true
     let widgetOrder: [String]
@@ -74,6 +83,9 @@ struct Preferences: Codable, Equatable {
         showSleepWidget: true,
         showFastingWidget: true,
         showDayPropertiesWidget: true,
+        showWaterWidget: true,
+        showActivityWidget: true,
+        showNotesWidget: true,
         showRecipeSuggestionsWidget: true,
         widgetOrder: [],
         startPage: "dashboard",
@@ -101,6 +113,7 @@ extension Preferences {
         case showChartWidget, showFavoritesWidget, showSupplementsWidget, showWeightWidget
         case showMealBreakdownWidget, showTopFoodsWidget, showSleepWidget
         case showFastingWidget, showDayPropertiesWidget, showRecipeSuggestionsWidget
+        case showWaterWidget, showActivityWidget, showNotesWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, waterGoalMl
         case activityGoalAdjustment, activityCreditPercent
@@ -118,6 +131,12 @@ extension Preferences {
         showSleepWidget = try container.decode(Bool.self, forKey: .showSleepWidget)
         showFastingWidget = try container.decodeIfPresent(Bool.self, forKey: .showFastingWidget) ?? true
         showDayPropertiesWidget = try container.decodeIfPresent(Bool.self, forKey: .showDayPropertiesWidget) ?? true
+        showWaterWidget = try container.decodeIfPresent(Bool.self, forKey: .showWaterWidget)
+            ?? showDayPropertiesWidget
+        showActivityWidget = try container.decodeIfPresent(Bool.self, forKey: .showActivityWidget)
+            ?? showDayPropertiesWidget
+        showNotesWidget = try container.decodeIfPresent(Bool.self, forKey: .showNotesWidget)
+            ?? showDayPropertiesWidget
         showRecipeSuggestionsWidget =
             try container.decodeIfPresent(Bool.self, forKey: .showRecipeSuggestionsWidget) ?? true
         widgetOrder = try container.decode([String].self, forKey: .widgetOrder)
@@ -147,6 +166,9 @@ extension Preferences {
         try container.encode(showSleepWidget, forKey: .showSleepWidget)
         try container.encode(showFastingWidget, forKey: .showFastingWidget)
         try container.encode(showDayPropertiesWidget, forKey: .showDayPropertiesWidget)
+        try container.encode(showWaterWidget, forKey: .showWaterWidget)
+        try container.encode(showActivityWidget, forKey: .showActivityWidget)
+        try container.encode(showNotesWidget, forKey: .showNotesWidget)
         try container.encode(showRecipeSuggestionsWidget, forKey: .showRecipeSuggestionsWidget)
         try container.encode(widgetOrder, forKey: .widgetOrder)
         try container.encode(startPage, forKey: .startPage)
@@ -180,6 +202,9 @@ struct PreferencesUpdate: Codable {
     var showSleepWidget: Bool?
     var showFastingWidget: Bool?
     var showDayPropertiesWidget: Bool?
+    var showWaterWidget: Bool?
+    var showActivityWidget: Bool?
+    var showNotesWidget: Bool?
     var showRecipeSuggestionsWidget: Bool?
     var widgetOrder: [String]?
     var startPage: String?
@@ -206,6 +231,7 @@ extension PreferencesUpdate {
         case showChartWidget, showFavoritesWidget, showSupplementsWidget, showWeightWidget
         case showMealBreakdownWidget, showTopFoodsWidget, showSleepWidget
         case showFastingWidget, showDayPropertiesWidget, showRecipeSuggestionsWidget
+        case showWaterWidget, showActivityWidget, showNotesWidget
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, favoriteMealTimeframes, waterGoalMl
         case activityGoalAdjustment, activityCreditPercent
@@ -223,6 +249,9 @@ extension PreferencesUpdate {
         showSleepWidget = try container.decodeIfPresent(Bool.self, forKey: .showSleepWidget)
         showFastingWidget = try container.decodeIfPresent(Bool.self, forKey: .showFastingWidget)
         showDayPropertiesWidget = try container.decodeIfPresent(Bool.self, forKey: .showDayPropertiesWidget)
+        showWaterWidget = try container.decodeIfPresent(Bool.self, forKey: .showWaterWidget)
+        showActivityWidget = try container.decodeIfPresent(Bool.self, forKey: .showActivityWidget)
+        showNotesWidget = try container.decodeIfPresent(Bool.self, forKey: .showNotesWidget)
         showRecipeSuggestionsWidget = try container.decodeIfPresent(Bool.self, forKey: .showRecipeSuggestionsWidget)
         widgetOrder = try container.decodeIfPresent([String].self, forKey: .widgetOrder)
         startPage = try container.decodeIfPresent(String.self, forKey: .startPage)
@@ -254,6 +283,9 @@ extension PreferencesUpdate {
         try container.encodeIfPresent(showSleepWidget, forKey: .showSleepWidget)
         try container.encodeIfPresent(showFastingWidget, forKey: .showFastingWidget)
         try container.encodeIfPresent(showDayPropertiesWidget, forKey: .showDayPropertiesWidget)
+        try container.encodeIfPresent(showWaterWidget, forKey: .showWaterWidget)
+        try container.encodeIfPresent(showActivityWidget, forKey: .showActivityWidget)
+        try container.encodeIfPresent(showNotesWidget, forKey: .showNotesWidget)
         try container.encodeIfPresent(showRecipeSuggestionsWidget, forKey: .showRecipeSuggestionsWidget)
         try container.encodeIfPresent(widgetOrder, forKey: .widgetOrder)
         try container.encodeIfPresent(startPage, forKey: .startPage)

@@ -32,6 +32,9 @@ import kotlinx.serialization.encoding.*
  * @param showSleepWidget
  * @param showFastingWidget
  * @param showDayPropertiesWidget
+ * @param showWaterWidget
+ * @param showActivityWidget
+ * @param showNotesWidget
  * @param showRecipeSuggestionsWidget
  * @param widgetOrder
  * @param startPage
@@ -62,6 +65,9 @@ data class PreferencesUpdate(
     @SerialName(value = "showSleepWidget") val showSleepWidget: kotlin.Boolean? = null,
     @SerialName(value = "showFastingWidget") val showFastingWidget: kotlin.Boolean? = null,
     @SerialName(value = "showDayPropertiesWidget") val showDayPropertiesWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showWaterWidget") val showWaterWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showActivityWidget") val showActivityWidget: kotlin.Boolean? = null,
+    @SerialName(value = "showNotesWidget") val showNotesWidget: kotlin.Boolean? = null,
     @SerialName(value = "showRecipeSuggestionsWidget") val showRecipeSuggestionsWidget: kotlin.Boolean? = null,
     @SerialName(value = "widgetOrder") val widgetOrder: kotlin.collections.List<PreferencesUpdate.WidgetOrder>? = null,
     @SerialName(value = "startPage") val startPage: PreferencesUpdate.StartPage? = null,
@@ -84,7 +90,7 @@ data class PreferencesUpdate(
     /**
      *
      *
-     * Values: fasting,dayMinusProperties,chart,streaks,favorites,recipeMinusSuggestions,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
+     * Values: fasting,water,activity,notes,dayMinusProperties,chart,streaks,favorites,recipeMinusSuggestions,supplements,weight,mealMinusBreakdown,topMinusFoods,sleep,summary,daylog
      */
     @Serializable
     enum class WidgetOrder(
@@ -92,6 +98,15 @@ data class PreferencesUpdate(
     ) {
         @SerialName(value = "fasting")
         fasting("fasting"),
+
+        @SerialName(value = "water")
+        water("water"),
+
+        @SerialName(value = "activity")
+        activity("activity"),
+
+        @SerialName(value = "notes")
+        notes("notes"),
 
         @SerialName(value = "day-properties")
         dayMinusProperties("day-properties"),

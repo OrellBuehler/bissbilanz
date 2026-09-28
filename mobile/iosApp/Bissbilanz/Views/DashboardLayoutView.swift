@@ -5,7 +5,8 @@ import SwiftUI
 /// on the trailing edge come for free from `.onMove`, plus a `Toggle` per row
 /// for visibility. `DashboardSection.isDashboardCard` is the single source of
 /// truth for which keys get a row here and on the dashboard itself — `summary`
-/// (the macro header) and `streaks` (no dashboard card exists) never do.
+/// (the macro header), `streaks` (no dashboard card exists) and the
+/// `day-properties` placeholder (kept for older builds) never do.
 struct DashboardLayoutView: View {
     @Environment(PreferencesRepository.self) private var preferencesRepository
 
@@ -68,13 +69,14 @@ struct DashboardLayoutView: View {
 
     private func load() {
         preferences = preferencesRepository.preferences() ?? .defaults
-        order = preferences.widgetOrder.isEmpty ? DashboardSection.defaultOrder : preferences.widgetOrder
+        order = DashboardSection.normalizedOrder(preferences.widgetOrder)
     }
 
     /// `onMove` reports indices into `rows` (the sections that actually get a
     /// row), so the move is applied to that same filtered view of `order`
-    /// first. Keys without a row — `summary`, `streaks`, and any future
-    /// server key this build doesn't recognize yet — are then reinserted at
+    /// first. Keys without a row — `summary`, `streaks`, the `day-properties`
+    /// placeholder, and any future server key this build doesn't recognize
+    /// yet — are then reinserted at
     /// the absolute index they held before the move: their own position
     /// doesn't affect rendering, so keeping them roughly where they were is
     /// enough, and nothing is ever dropped from the round-trip.
@@ -95,7 +97,7 @@ struct DashboardLayoutView: View {
         update.widgetOrder = order
         do {
             preferences = try await preferencesRepository.update(update)
-            order = preferences.widgetOrder
+            order = DashboardSection.normalizedOrder(preferences.widgetOrder)
         } catch {
             ErrorReporter.captureWarning(
                 "Dashboard layout reorder failed",
@@ -104,7 +106,7 @@ struct DashboardLayoutView: View {
             errorMessage = L10n.error
             let restored = preferencesRepository.preferences() ?? preferences
             preferences = restored
-            order = restored.widgetOrder.isEmpty ? DashboardSection.defaultOrder : restored.widgetOrder
+            order = DashboardSection.normalizedOrder(restored.widgetOrder)
         }
     }
 
@@ -128,7 +130,9 @@ struct DashboardLayoutView: View {
     private func title(for section: DashboardSection) -> String {
         switch section {
         case .fasting: L10n.fasting
-        case .dayProperties: L10n.dashboardSectionDayDetailsTitle
+        case .water: L10n.dayWaterTitle
+        case .activity: L10n.dayActivityTitle
+        case .notes: L10n.dayNotesTitle
         case .chart: L10n.caloriesTrend
         case .favorites: L10n.favorites
         case .recipeSuggestions: L10n.recipeSuggestions
@@ -138,14 +142,16 @@ struct DashboardLayoutView: View {
         case .topFoods: L10n.topFoods
         case .sleep: L10n.sleep
         case .daylog: L10n.dashboardSectionDayLogTitle
-        case .streaks, .summary: ""
+        case .streaks, .summary, .dayProperties: ""
         }
     }
 
     private func description(for section: DashboardSection) -> String {
         switch section {
         case .fasting: L10n.dashboardSectionFastingDescription
-        case .dayProperties: L10n.dashboardSectionDayDetailsDescription
+        case .water: L10n.dashboardSectionWaterDescription
+        case .activity: L10n.dashboardSectionActivityDescription
+        case .notes: L10n.dashboardSectionNotesDescription
         case .chart: L10n.dashboardSectionChartDescription
         case .favorites: L10n.dashboardSectionFavoritesDescription
         case .recipeSuggestions: L10n.dashboardSectionRecipeSuggestionsDescription
@@ -155,7 +161,7 @@ struct DashboardLayoutView: View {
         case .topFoods: L10n.dashboardSectionTopFoodsDescription
         case .sleep: L10n.dashboardSectionSleepDescription
         case .daylog: L10n.dashboardSectionDayLogDescription
-        case .streaks, .summary: ""
+        case .streaks, .summary, .dayProperties: ""
         }
     }
 }

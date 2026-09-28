@@ -7137,6 +7137,15 @@
 					"showDayPropertiesWidget": {
 						"type": "boolean"
 					},
+					"showWaterWidget": {
+						"type": "boolean"
+					},
+					"showActivityWidget": {
+						"type": "boolean"
+					},
+					"showNotesWidget": {
+						"type": "boolean"
+					},
 					"showRecipeSuggestionsWidget": {
 						"type": "boolean"
 					},
@@ -7146,6 +7155,9 @@
 							"type": "string",
 							"enum": [
 								"fasting",
+								"water",
+								"activity",
+								"notes",
 								"day-properties",
 								"chart",
 								"streaks",
@@ -10904,6 +10916,15 @@
 					"showDayPropertiesWidget": {
 						"type": "boolean"
 					},
+					"showWaterWidget": {
+						"type": "boolean"
+					},
+					"showActivityWidget": {
+						"type": "boolean"
+					},
+					"showNotesWidget": {
+						"type": "boolean"
+					},
 					"showRecipeSuggestionsWidget": {
 						"type": "boolean"
 					},
@@ -11009,6 +11030,9 @@
 					"showSleepWidget",
 					"showFastingWidget",
 					"showDayPropertiesWidget",
+					"showWaterWidget",
+					"showActivityWidget",
+					"showNotesWidget",
 					"showRecipeSuggestionsWidget",
 					"widgetOrder",
 					"mealOrder",

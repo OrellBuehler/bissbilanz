@@ -47,8 +47,17 @@ final class PreferencesRepository {
     @discardableResult
     func update(_ update: PreferencesUpdate) async throws -> Preferences {
         let current = preferences() ?? .defaults
-        let patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
-        let merged = (try? JSONPatch.merged(Preferences.self, base: current, patch: patch)) ?? current
+        var patch = (try? JSONPatch.dictionary(of: update)) ?? [:]
+        // The server fans the legacy toggle out to the three split ones; do the
+        // same for the local copy so an older caller still takes effect.
+        if let legacy = patch["showDayPropertiesWidget"],
+           patch["showWaterWidget"] == nil, patch["showActivityWidget"] == nil, patch["showNotesWidget"] == nil {
+            patch["showWaterWidget"] = legacy
+            patch["showActivityWidget"] = legacy
+            patch["showNotesWidget"] = legacy
+        }
+        var merged = (try? JSONPatch.merged(Preferences.self, base: current, patch: patch)) ?? current
+        merged.showDayPropertiesWidget = merged.showWaterWidget || merged.showActivityWidget || merged.showNotesWidget
         upsert(merged)
         save()
         syncManager.enqueue(.updatePreferences(body: update))

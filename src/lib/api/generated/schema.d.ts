@@ -1751,9 +1751,15 @@ export interface components {
 			showSleepWidget?: boolean;
 			showFastingWidget?: boolean;
 			showDayPropertiesWidget?: boolean;
+			showWaterWidget?: boolean;
+			showActivityWidget?: boolean;
+			showNotesWidget?: boolean;
 			showRecipeSuggestionsWidget?: boolean;
 			widgetOrder?: (
 				| 'fasting'
+				| 'water'
+				| 'activity'
+				| 'notes'
 				| 'day-properties'
 				| 'chart'
 				| 'streaks'
@@ -2700,6 +2706,9 @@ export interface components {
 			showSleepWidget: boolean;
 			showFastingWidget: boolean;
 			showDayPropertiesWidget: boolean;
+			showWaterWidget: boolean;
+			showActivityWidget: boolean;
+			showNotesWidget: boolean;
 			showRecipeSuggestionsWidget: boolean;
 			widgetOrder: string[];
 			mealOrder: string[];

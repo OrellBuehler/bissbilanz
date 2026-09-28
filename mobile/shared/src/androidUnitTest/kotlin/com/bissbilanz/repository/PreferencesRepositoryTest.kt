@@ -15,6 +15,8 @@ import com.bissbilanz.util.decodeOrNull
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -79,5 +81,48 @@ class PreferencesRepositoryTest {
             assertEquals(Preferences.BiologicalSex.female, updated.biologicalSex)
             assertEquals("Europe/Zurich", updated.timeZone)
             assertEquals(Preferences.BiologicalSex.female, cached()?.biologicalSex)
+        }
+
+    @Test
+    fun anUpdateOfTheLegacyDayPropertiesFlagAppliesToAllThreeSplitFlags() =
+        runTest {
+            val updated = repository.updatePreferences(PreferencesUpdate(showDayPropertiesWidget = false))
+
+            assertEquals(false, updated.showWaterWidget)
+            assertEquals(false, updated.showActivityWidget)
+            assertEquals(false, updated.showNotesWidget)
+        }
+
+    @Test
+    fun aSplitFlagUpdateLeavesTheOtherTwoAlone() =
+        runTest {
+            val updated = repository.updatePreferences(PreferencesUpdate(showWaterWidget = false))
+
+            assertEquals(false, updated.showWaterWidget)
+            assertEquals(true, updated.showActivityWidget)
+            assertEquals(true, updated.showNotesWidget)
+        }
+
+    @Test
+    fun aCachedRowPredatingTheSplitFlagsInheritsTheLegacyFlagInsteadOfBeingDropped() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(showDayPropertiesWidget = false))
+            val legacy =
+                Json
+                    .parseToJsonElement(
+                        db.userDataDatabaseQueries
+                            .selectPreferences()
+                            .executeAsOne()
+                            .jsonData,
+                    ).jsonObject
+                    .filterKeys { it !in setOf("showWaterWidget", "showActivityWidget", "showNotesWidget") }
+            db.userDataDatabaseQueries.insertPreferences(JsonObject(legacy).toString())
+
+            val updated = repository.updatePreferences(PreferencesUpdate(timeZone = "Europe/Zurich"))
+
+            assertEquals("Europe/Zurich", updated.timeZone)
+            assertEquals(false, updated.showWaterWidget)
+            assertEquals(false, updated.showActivityWidget)
+            assertEquals(false, updated.showNotesWidget)
         }
 }

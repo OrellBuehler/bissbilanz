@@ -881,8 +881,9 @@
     <string name="dashboard_layout_row_daylog_desc">Meals and their entries</string>
     <string name="dashboard_calorie_trend_desc">Calories logged over the last 7 days</string>
     <string name="settings_widget_fasting_desc">Fasting day toggle and the running fast</string>
-    <string name="settings_widget_day_properties">Day details</string>
-    <string name="settings_widget_day_properties_desc">Water, activity and notes for the day</string>
+    <string name="settings_widget_water_desc">Track your water intake against your goal</string>
+    <string name="settings_widget_activity_desc">Log calories burned in workouts and activity</string>
+    <string name="settings_widget_notes_desc">Free-form notes for the day</string>
     <string name="settings_widget_favorites_desc">Shows your top 5 favorite foods</string>
     <string name="settings_widget_recipe_suggestions_desc">Recipes that fit what\'s left of today\'s goal</string>
     <string name="settings_widget_supplements_desc">Shows today\'s supplement checklist</string>
