@@ -495,6 +495,7 @@ final class LocalFoodPackageService {
     /// Applies a package with the user's conflict choices, all-or-nothing. The plan is
     /// re-derived from the store rather than trusted from the preview: if anything a
     /// choice was made against changed, nothing is written (`stalePreview`).
+    @discardableResult
     func importPackage(_ data: Data, resolutions: FoodPackageResolutions) throws -> FoodPackageImportResult {
         let file = try FoodPackageReader.read(data)
         guard resolutions.packageHash == file.packageHash else { throw FoodPackageError.packageChanged }
