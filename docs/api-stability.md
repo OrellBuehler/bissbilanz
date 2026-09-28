@@ -143,9 +143,8 @@ Only for the contract step above, or for a security fix with no additive alterna
 2. Add the `api-breaking-change` label. The workflow re-runs and passes, still listing the
    breaking changes in its summary.
 
-## Not yet in place
+## iOS decode fixtures
 
-In rough priority order:
-
-1. **iOS decode fixtures.** Generate example payloads from the spec and decode them in the iOS
-   unit tests, so a server change that breaks Swift decoding fails CI.
+`bun run api:fixtures:ios` (part of `api:generate`) builds a full and a minimal example payload
+for every response schema the iOS app decodes into `mobile/iosApp/BissbilanzTests/Fixtures/`, and
+the iOS unit tests decode each one. A server change that breaks Swift decoding fails CI.
