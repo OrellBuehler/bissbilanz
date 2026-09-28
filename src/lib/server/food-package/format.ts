@@ -3,6 +3,8 @@ import { normalize } from '$lib/server/food-duplicates';
 export const FOOD_PACKAGE_FORMAT = 'bissbilanz.food-package';
 export const FOOD_PACKAGE_VERSION = 1;
 export const MANIFEST_NAME = 'bissbilanz-foods.json';
+/** Same zip content as ever; only the name says "open me in Bissbilanz". */
+export const FOOD_PACKAGE_EXTENSION = '.bissbilanz';
 
 /** An export larger than this is refused, so every package we produce can be imported. */
 export const MAX_PACKAGE_BYTES = 50 * 1024 * 1024;
@@ -19,6 +21,8 @@ export const MAX_ZIP_ENTRIES = MAX_PACKAGE_FOODS + MAX_PACKAGE_RECIPES + 16;
 export const MAX_PREVIEW_THUMBNAILS = 300;
 export const MAX_PREVIEW_SAMPLES = 50;
 export const MAX_ISSUES = 100;
+/** New foods listed one by one in the preview; `count` always holds the full number. */
+export const MAX_PREVIEW_NEW_FOODS = 500;
 
 /** Identity used for "same food": name + brand, case/accent/whitespace-insensitive. */
 export const foodKey = (name: string, brand: string | null | undefined): string =>

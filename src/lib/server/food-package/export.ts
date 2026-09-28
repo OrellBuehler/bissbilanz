@@ -13,6 +13,7 @@ import {
 	MANIFEST_NAME,
 	MAX_PACKAGE_BYTES
 } from './format';
+import { packageFilename } from './filename';
 import { resolvePackageSelection, type PackageSelection, type SelectedFood } from './selection';
 
 /** Rough JSON size of one item; only feeds the size estimate shown before download. */
@@ -114,7 +115,13 @@ bissbilanz-foods.json   Foods, recipes and their ingredients.
 images/                 Photos of the foods and recipes.
 `;
 
-export type BuiltFoodPackage = { bytes: Uint8Array<ArrayBuffer>; foods: number; recipes: number };
+export type BuiltFoodPackage = {
+	bytes: Uint8Array<ArrayBuffer>;
+	foods: number;
+	recipes: number;
+	/** Download name, e.g. `Lasagne.bissbilanz`. */
+	filename: string;
+};
 
 export async function buildFoodPackage(
 	userId: string,
@@ -194,5 +201,13 @@ export async function buildFoodPackage(
 			`The package is larger than ${MAX_PACKAGE_BYTES / 1024 / 1024}MB — export fewer foods at once`
 		);
 	}
-	return { bytes, foods: manifestFoods.length, recipes: manifestRecipes.length };
+	return {
+		bytes,
+		foods: manifestFoods.length,
+		recipes: manifestRecipes.length,
+		filename: packageFilename({
+			recipes: selection.recipes.map((recipe) => recipe.name),
+			foods: selection.foods.filter((food) => food.role === 'selected').map((food) => food.name)
+		})
+	};
 }
