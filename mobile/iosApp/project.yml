@@ -256,6 +256,14 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
+      # XcodeGen recurses this path, so APIContractDecodingTests.swift and
+      # Fixtures/GeneratedAPIFixtures.swift (both under BissbilanzTests/) are
+      # picked up automatically — no separate entry needed. The generator also
+      # writes plain JSON under Fixtures/API/ for human review and `git diff`
+      # staleness checks; those aren't read at runtime (the fixture content is
+      # embedded in GeneratedAPIFixtures.swift instead, so the test target
+      # doesn't depend on Xcode's bundle-resource copy behavior), but XcodeGen
+      # still bundles them as resources like any other non-source file here.
       - path: BissbilanzTests
     dependencies:
       - target: Bissbilanz

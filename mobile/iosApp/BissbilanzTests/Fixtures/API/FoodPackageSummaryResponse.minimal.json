@@ -1,0 +1,9 @@
+{
+	"estimatedBytes": 1000,
+	"foods": 3,
+	"images": 1,
+	"ingredientFoods": 3,
+	"maxBytes": 5000000,
+	"overLimit": true,
+	"recipes": 3
+}

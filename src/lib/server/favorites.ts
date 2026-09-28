@@ -73,6 +73,7 @@ export const listFavoriteRecipes = async (userId: string, limit = 50) => {
 			carbs: Number(r.carbs),
 			fat: Number(r.fat),
 			fiber: Number(r.fiber),
+			isFavorite: true,
 			type: 'recipe' as const,
 			logCount: Number(r.logCount)
 		}))

@@ -605,7 +605,7 @@ class BissbilanzApi(
                 fiber = item.fiber,
                 imageUrl = item.imageUrl,
                 servingSize = item.servingSize,
-                servingUnit = item.servingUnit,
+                servingUnit = item.servingUnit?.value,
             )
         }
     }

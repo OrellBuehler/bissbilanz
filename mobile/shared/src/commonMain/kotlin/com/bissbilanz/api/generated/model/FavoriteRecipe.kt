@@ -32,6 +32,7 @@ import kotlinx.serialization.encoding.*
  * @param fiber
  * @param logCount
  * @param totalServings
+ * @param isFavorite
  * @param type
  * @param cookedWeight
  */
@@ -47,6 +48,7 @@ data class FavoriteRecipe(
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
     @SerialName(value = "logCount") @Required val logCount: kotlin.Int,
     @SerialName(value = "totalServings") @Required val totalServings: kotlin.Double,
+    @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean,
     @SerialName(value = "type") @Required val type: FavoriteRecipe.Type,
     @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
 ) {

@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { servingUnitSchema } from '$lib/units';
 
 const entryListItemSchema = z
 	.object({
@@ -26,7 +27,7 @@ const entryListItemSchema = z
 		eatenAt: z.string(),
 		createdAt: z.string().optional(),
 		servingSize: z.number().nullable(),
-		servingUnit: z.string().nullable()
+		servingUnit: servingUnitSchema.nullable()
 	})
 	.meta({ id: 'EntryListItem' });
 
@@ -72,7 +73,7 @@ const entryRangeSchema = z
 		quickFiber: z.number().nullable(),
 		quickNutrients: z.record(z.string(), z.number()).nullable(),
 		servingSize: z.number().nullable(),
-		servingUnit: z.string().nullable(),
+		servingUnit: servingUnitSchema.nullable(),
 		foodName: z.string().nullable(),
 		calories: z.number(),
 		protein: z.number(),

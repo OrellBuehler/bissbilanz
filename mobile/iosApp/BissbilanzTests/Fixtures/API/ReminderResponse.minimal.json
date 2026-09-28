@@ -1,0 +1,11 @@
+{
+	"reminder": {
+		"enabled": true,
+		"id": "74c90d5b-6b0e-49f8-85f1-4ed1e4686d36",
+		"kind": "weight",
+		"mealType": null,
+		"time": "sample-time",
+		"userId": "1be9087e-7243-41df-8148-5e2caa89b0f5",
+		"weekdays": [3]
+	}
+}

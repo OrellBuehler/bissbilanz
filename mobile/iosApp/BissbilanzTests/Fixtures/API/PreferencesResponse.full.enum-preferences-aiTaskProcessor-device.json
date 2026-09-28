@@ -1,0 +1,43 @@
+{
+	"preferences": {
+		"activityCreditPercent": 100,
+		"activityGoalAdjustment": true,
+		"aiTaskAutoLog": true,
+		"aiTaskProcessor": "device",
+		"biologicalSex": "male",
+		"caloricLagDaysOverride": 3,
+		"favoriteMealAssignmentMode": "sample-favoriteMealAssignmentMode",
+		"favoriteMealTimeframes": [
+			{
+				"customMealTypeId": "4c76cf21-5638-4f46-8e12-e5079a3dd634",
+				"endMinute": 3,
+				"endTime": "sample-endTime",
+				"id": "8a182be5-41c8-46ba-8317-d96bf9285cc8",
+				"mealType": "sample-mealType",
+				"sortOrder": 0,
+				"startMinute": 3,
+				"startTime": "sample-startTime"
+			}
+		],
+		"favoriteTapAction": "sample-favoriteTapAction",
+		"locale": "sample-locale",
+		"mealOrder": ["sample-mealOrder"],
+		"pinnedInsights": ["sample-pinnedInsights"],
+		"showChartWidget": true,
+		"showDayPropertiesWidget": true,
+		"showFastingWidget": true,
+		"showFavoritesWidget": true,
+		"showMealBreakdownWidget": true,
+		"showRecipeSuggestionsWidget": true,
+		"showSleepWidget": true,
+		"showSupplementsWidget": true,
+		"showTopFoodsWidget": true,
+		"showWeightWidget": true,
+		"startPage": "sample-startPage",
+		"timeZone": "sample-timeZone",
+		"updatedAt": "sample-updatedAt",
+		"visibleNutrients": ["sample-visibleNutrients"],
+		"waterGoalMl": 3,
+		"widgetOrder": ["sample-widgetOrder"]
+	}
+}

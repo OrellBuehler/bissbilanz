@@ -1,0 +1,20 @@
+{
+	"entry": {
+		"date": "sample-date",
+		"eatenAt": "sample-eatenAt",
+		"foodId": null,
+		"id": "fe07676f-9985-4c7c-8b5c-4905b368cd5a",
+		"mealType": "sample-mealType",
+		"notes": null,
+		"quickCalories": null,
+		"quickCarbs": null,
+		"quickFat": null,
+		"quickFiber": null,
+		"quickName": null,
+		"quickNutrients": null,
+		"quickProtein": null,
+		"recipeId": null,
+		"servings": 12.5,
+		"userId": "b9351d52-89f8-4823-802c-7120ec241ad9"
+	}
+}

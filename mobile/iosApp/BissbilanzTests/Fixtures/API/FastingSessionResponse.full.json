@@ -1,0 +1,11 @@
+{
+	"session": {
+		"createdAt": "sample-createdAt",
+		"endedAt": "sample-endedAt",
+		"id": "9bb9bd5b-7529-49f8-8889-7ed11dd4dd36",
+		"startedAt": "sample-startedAt",
+		"targetHours": 16,
+		"updatedAt": "sample-updatedAt",
+		"userId": "2d34b87e-ff1d-41df-8133-8e2c6a4d20f5"
+	}
+}

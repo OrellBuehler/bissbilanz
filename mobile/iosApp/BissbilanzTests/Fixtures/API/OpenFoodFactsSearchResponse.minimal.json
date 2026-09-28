@@ -1,0 +1,22 @@
+{
+	"results": [
+		{
+			"additives": null,
+			"barcode": "sample-barcode",
+			"brand": null,
+			"calories": 450,
+			"carbs": 50,
+			"fat": 15,
+			"fiber": 8,
+			"id": "sample-id",
+			"imageUrl": null,
+			"ingredientsText": null,
+			"name": "sample-name",
+			"novaGroup": null,
+			"nutriScore": null,
+			"protein": 30,
+			"servingSize": null,
+			"servingUnit": null
+		}
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"data": [
+		{
+			"calories": 450,
+			"carbs": 50,
+			"fat": 15,
+			"fiber": 8,
+			"mealType": "sample-mealType",
+			"protein": 30
+		}
+	]
+}
