@@ -1,0 +1,23 @@
+{
+	"foods": [
+		{
+			"barcode": null,
+			"brand": null,
+			"calories": 450,
+			"carbs": 50,
+			"fat": 15,
+			"fiber": 8,
+			"id": "2a5a7450-ddd4-4649-878d-eb4ed173246f",
+			"imageUrl": null,
+			"isFavorite": true,
+			"lastServings": 1,
+			"lastUsedAt": null,
+			"logCount": 2,
+			"name": "sample-name",
+			"protein": 30,
+			"servingSize": 100,
+			"servingUnit": "g",
+			"userId": "670f3fbd-d017-49b2-850e-ed0356e40480"
+		}
+	]
+}

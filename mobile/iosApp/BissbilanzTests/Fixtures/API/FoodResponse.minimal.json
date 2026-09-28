@@ -1,0 +1,22 @@
+{
+	"food": {
+		"additives": null,
+		"barcode": null,
+		"brand": null,
+		"calories": 450,
+		"carbs": 50,
+		"fat": 15,
+		"fiber": 8,
+		"id": "4d38e4dd-56e2-4852-87b8-e72348394420",
+		"imageUrl": null,
+		"ingredientsText": null,
+		"isFavorite": true,
+		"name": "sample-name",
+		"novaGroup": null,
+		"nutriScore": null,
+		"protein": 30,
+		"servingSize": 100,
+		"servingUnit": "g",
+		"userId": "17839150-cd2b-4f49-82dc-d04ed9d0a56f"
+	}
+}

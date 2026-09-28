@@ -1,0 +1,109 @@
+{
+	"conflicts": {
+		"foods": [
+			{
+				"allowed": ["replace"],
+				"alsoMatches": [
+					{
+						"brand": "sample-brand",
+						"id": "f6f01d71-c39b-4756-8190-23d77494f4c4",
+						"name": "sample-name"
+					}
+				],
+				"existing": {
+					"barcode": "sample-barcode",
+					"brand": "sample-brand",
+					"calories": 450,
+					"carbs": 50,
+					"entryCount": 1,
+					"fat": 15,
+					"fiber": 8,
+					"id": "514537da-3e19-440b-88cd-22e8376abd01",
+					"imageUrl": "sample-imageUrl",
+					"labels": ["sample-labels"],
+					"name": "sample-name",
+					"protein": 30,
+					"recipeCount": 0,
+					"servingSize": 100,
+					"servingUnit": "g"
+				},
+				"incoming": {
+					"barcode": "sample-barcode",
+					"brand": "sample-brand",
+					"calories": 450,
+					"carbs": 50,
+					"fat": 15,
+					"fiber": 8,
+					"imageUrl": "sample-imageUrl",
+					"labels": ["sample-labels"],
+					"name": "sample-name",
+					"protein": 30,
+					"servingSize": 100,
+					"servingUnit": "g"
+				},
+				"notes": ["barcode_dropped_on_keep_both"],
+				"reason": "barcode",
+				"ref": "sample-ref",
+				"targetGroup": "sample-targetGroup"
+			}
+		],
+		"recipes": [
+			{
+				"allowed": ["skip"],
+				"existing": {
+					"cookedWeight": 12.5,
+					"entryCount": 1,
+					"id": "94a3b99c-56eb-4fa5-8563-0f7a9c40f32b",
+					"imageUrl": "sample-imageUrl",
+					"ingredients": ["sample-ingredients"],
+					"name": "sample-name",
+					"totalServings": 4
+				},
+				"incoming": {
+					"cookedWeight": 12.5,
+					"imageUrl": "sample-imageUrl",
+					"ingredients": ["sample-ingredients"],
+					"name": "sample-name",
+					"totalServings": 4
+				},
+				"notes": ["barcode_dropped_on_keep_both"],
+				"ref": "sample-ref"
+			}
+		]
+	},
+	"exportedAt": "sample-exportedAt",
+	"formatVersion": 1,
+	"issues": [
+		{
+			"message": "sample-message",
+			"ref": "sample-ref"
+		}
+	],
+	"newFoods": {
+		"count": 3,
+		"ingredientOnly": 3,
+		"samples": [
+			{
+				"brand": "sample-brand",
+				"calories": 450,
+				"name": "sample-name",
+				"ref": "sample-ref"
+			}
+		]
+	},
+	"newRecipes": {
+		"count": 3,
+		"samples": [
+			{
+				"name": "sample-name",
+				"ref": "sample-ref"
+			}
+		]
+	},
+	"packageHash": "sample-packageHash",
+	"totals": {
+		"foods": 3,
+		"images": 1,
+		"recipes": 3
+	}
+}

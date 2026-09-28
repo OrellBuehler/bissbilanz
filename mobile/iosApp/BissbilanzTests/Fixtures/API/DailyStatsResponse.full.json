@@ -1,0 +1,22 @@
+{
+	"activityCreditPercent": 100,
+	"activityGoalAdjustment": true,
+	"data": [
+		{
+			"activityCalories": 250,
+			"calories": 450,
+			"carbs": 50,
+			"date": "sample-date",
+			"fat": 15,
+			"fiber": 8,
+			"protein": 30
+		}
+	],
+	"goals": {
+		"calorieGoal": 12.5,
+		"carbGoal": 12.5,
+		"fatGoal": 12.5,
+		"fiberGoal": 12.5,
+		"proteinGoal": 12.5
+	}
+}

@@ -1,0 +1,11 @@
+{
+	"mealTypes": [
+		{
+			"createdAt": "sample-createdAt",
+			"id": "ab862f1b-345e-48b8-8b51-a691f7aa49f6",
+			"name": "sample-name",
+			"sortOrder": 0,
+			"userId": "0517863e-e7df-4c9f-807f-71ec138199b5"
+		}
+	]
+}

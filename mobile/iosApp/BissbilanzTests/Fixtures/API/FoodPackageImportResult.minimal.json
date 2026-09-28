@@ -1,0 +1,25 @@
+{
+	"created": {
+		"foods": 3,
+		"recipes": 3
+	},
+	"images": 1,
+	"issues": [
+		{
+			"message": "sample-message",
+			"ref": null
+		}
+	],
+	"keptBoth": {
+		"foods": 3,
+		"recipes": 3
+	},
+	"replaced": {
+		"foods": 3,
+		"recipes": 3
+	},
+	"skipped": {
+		"foods": 3,
+		"recipes": 3
+	}
+}

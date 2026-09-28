@@ -1,0 +1,24 @@
+{
+	"entry": {
+		"createdAt": "sample-createdAt",
+		"date": "sample-date",
+		"eatenAt": "sample-eatenAt",
+		"foodId": "d64c01a7-1507-4654-8bb5-39fd4a82f6f2",
+		"id": "fe07676f-9985-4c7c-8b5c-4905b368cd5a",
+		"mealType": "sample-mealType",
+		"notes": "sample-notes",
+		"quickCalories": 12.5,
+		"quickCarbs": 12.5,
+		"quickFat": 12.5,
+		"quickFiber": 12.5,
+		"quickName": "sample-quickName",
+		"quickNutrients": {
+			"sample": 12.5
+		},
+		"quickProtein": 12.5,
+		"recipeId": "6958dee1-71c5-4406-8bc4-dac7ba63f8f4",
+		"servings": 12.5,
+		"updatedAt": "sample-updatedAt",
+		"userId": "b9351d52-89f8-4823-802c-7120ec241ad9"
+	}
+}

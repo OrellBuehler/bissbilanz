@@ -1,0 +1,32 @@
+{
+	"entries": [
+		{
+			"calories": 450,
+			"carbs": 50,
+			"date": "sample-date",
+			"eatenAt": "sample-eatenAt",
+			"fat": 15,
+			"fiber": 8,
+			"foodId": "94cdf7c3-4102-4840-82c8-037998ce88be",
+			"foodName": "sample-foodName",
+			"id": "875f01fb-d930-4218-87da-e4719a33e256",
+			"mealType": "sample-mealType",
+			"notes": "sample-notes",
+			"protein": 30,
+			"quickCalories": 12.5,
+			"quickCarbs": 12.5,
+			"quickFat": 12.5,
+			"quickFiber": 12.5,
+			"quickName": "sample-quickName",
+			"quickNutrients": {
+				"sample": 12.5
+			},
+			"quickProtein": 12.5,
+			"recipeId": "7201ef0d-52b6-4ec2-80ae-f4d3e748b810",
+			"servingSize": 100,
+			"servingUnit": "sample-servingUnit",
+			"servings": 12.5,
+			"supplementId": "2ba9ae16-854e-4397-8519-b9842292656d"
+		}
+	]
+}

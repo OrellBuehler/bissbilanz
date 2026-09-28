@@ -1,0 +1,12 @@
+{
+	"entry": {
+		"createdAt": "sample-createdAt",
+		"entryDate": "sample-entryDate",
+		"id": "fe07676f-9985-4c7c-8b5c-4905b368cd5a",
+		"loggedAt": "sample-loggedAt",
+		"notes": "sample-notes",
+		"updatedAt": "sample-updatedAt",
+		"userId": "b9351d52-89f8-4823-802c-7120ec241ad9",
+		"weightKg": 70
+	}
+}
