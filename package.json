@@ -36,6 +36,7 @@
 		"constants:generate": "bun run analytics-parity/generate-constants.ts",
 		"constants:check": "bun run analytics-parity/generate-constants.ts --check",
 		"test:seed": "bun run scripts/test-seed.ts",
+		"clients:versions": "bun run scripts/client-versions.ts",
 		"catalog:import": "bun run scripts/catalog.ts import",
 		"catalog:grant": "bun run scripts/catalog.ts grant",
 		"catalog:revoke": "bun run scripts/catalog.ts revoke",

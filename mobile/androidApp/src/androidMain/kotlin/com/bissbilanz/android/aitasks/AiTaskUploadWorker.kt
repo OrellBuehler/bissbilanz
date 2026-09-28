@@ -14,6 +14,7 @@ import androidx.work.workDataOf
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.HTTP_STATUS_UPDATE_REQUIRED
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.repository.AiTaskRepository
 import kotlinx.coroutines.CancellationException
@@ -74,12 +75,17 @@ class AiTaskUploadWorker(
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            // 426: this build is too old for the server (see UpdateGate). Not a real
+            // failure — retry quietly and indefinitely rather than dead-lettering the
+            // meal or alarming the user with an "upload failed" notification; the
+            // blocking update screen is what tells them what's actually going on.
+            if (isUpdateRequired(e)) return Result.retry()
             runCatching { koin.get<ErrorReporter>().captureException(e) }
             val retryable = isRetryable(e)
             if (retryable && runAttemptCount < MAX_ATTEMPTS - 1) {
                 Result.retry()
             } else {
-                queue.markFailed(item.id, e.message, retryable = false)
+                queue.markFailed(item.id, e.message, retryable = retryable)
                 AiTaskNotifier.showUploadFailed(applicationContext, item.description)
                 Result.failure()
             }
@@ -120,6 +126,7 @@ class AiTaskUploadWorker(
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
+            if (isUpdateRequired(e)) return Result.retry()
             runCatching { koin.get<ErrorReporter>().captureException(e) }
             if (runAttemptCount < MAX_ATTEMPTS - 1) {
                 Result.retry()
@@ -153,8 +160,11 @@ class AiTaskUploadWorker(
          */
         fun isRetryable(e: Throwable): Boolean {
             val code = (e as? ApiException)?.statusCode ?: return true
-            return code < 400 || code >= 500 || code == 408 || code == 429
+            return code < 400 || code >= 500 || code == 408 || code == 429 || code == HTTP_STATUS_UPDATE_REQUIRED
         }
+
+        /** Whether [e] is the server telling this build it's too old (see UpdateGate). */
+        fun isUpdateRequired(e: Throwable): Boolean = (e as? ApiException)?.statusCode == HTTP_STATUS_UPDATE_REQUIRED
 
         /**
          * Queues the meal on disk and schedules the upload. Returns once both are

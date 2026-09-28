@@ -33,6 +33,13 @@ enum APIError: Error, LocalizedError {
     /// parse — an envelope/key/field mismatch otherwise surfaces as a bare
     /// decode error with no status or body.
     case decodingError(Error, statusCode: Int, body: String?)
+    /// HTTP 426 — this build is older than `X-Client-Min-Version`. Thrown from
+    /// `executeRequestData` for every request the moment it's detected, which
+    /// is also where `UpdateRequiredGate` is flagged — so this case reaching a
+    /// caller and the app-wide blocking screen appearing happen together.
+    /// `SyncManager` pauses draining rather than treating it as a per-operation
+    /// failure (see its `FailureKind.updateRequired`).
+    case updateRequired(minVersion: String)
 
     var errorDescription: String? {
         switch self {
@@ -44,6 +51,7 @@ enum APIError: Error, LocalizedError {
         case let .serverError(code, msg): msg ?? "Server error (\(code))"
         case let .networkError(err): err.localizedDescription
         case let .decodingError(err, _, _): "Failed to parse response: \(err.localizedDescription)"
+        case let .updateRequired(minVersion): "Update required (minimum version \(minVersion))"
         }
     }
 }
@@ -99,17 +107,21 @@ final class BissbilanzAPI {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    /// Shared with `AuthManager` — see `ClientVersionHeader`/`UpdateRequiredGate`.
+    let updateGate: UpdateRequiredGate
 
     nonisolated static let defaultBaseURL = "https://bissbilanz.orellbuehler.ch"
 
     init(
         baseURL: String = BissbilanzAPI.defaultBaseURL,
         authManager: AuthManager,
-        session: URLSession = .shared
+        session: URLSession = .shared,
+        updateGate: UpdateRequiredGate = UpdateRequiredGate()
     ) {
         self.baseURL = baseURL
         self.authManager = authManager
         self.session = session
+        self.updateGate = updateGate
         decoder = JSONDecoder()
         encoder = JSONEncoder()
     }
@@ -1340,6 +1352,9 @@ final class BissbilanzAPI {
             if let body {
                 context["response_body"] = String(body.prefix(500))
             }
+        case let .updateRequired(minVersion):
+            context["status_code"] = 426
+            context["min_version"] = minVersion
         case .networkError, .notFound, .gone, .conflict, .unauthorized, .none:
             break
         }
@@ -1364,6 +1379,7 @@ final class BissbilanzAPI {
             _ = await authManager.refreshAccessToken()
         }
         var req = request
+        ClientVersionHeader.apply(to: &req)
         if let token = authManager.accessToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -1380,9 +1396,15 @@ final class BissbilanzAPI {
             throw APIError.networkError(URLError(.badServerResponse))
         }
 
+        // Checked before the 401 handling below: an old build gets 426, never
+        // 401, so this can never be confused with (or masked by) the
+        // session-refresh path.
+        try checkUpdateRequired(data, httpResponse)
+
         if httpResponse.statusCode == 401 {
             if await authManager.refreshAccessToken() {
                 var retryReq = request
+                ClientVersionHeader.apply(to: &retryReq)
                 if let token = authManager.accessToken {
                     retryReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 }
@@ -1401,6 +1423,7 @@ final class BissbilanzAPI {
                 guard let retryHTTP = retryResponse as? HTTPURLResponse else {
                     throw APIError.networkError(URLError(.badServerResponse))
                 }
+                try checkUpdateRequired(retryData, retryHTTP)
                 if retryHTTP.statusCode == 401 {
                     throw APIError.unauthorized
                 }
@@ -1417,6 +1440,20 @@ final class BissbilanzAPI {
         }
 
         return (data, httpResponse)
+    }
+
+    /// Flags `updateGate` and throws `.updateRequired` on a 426 — called at
+    /// every point `executeRequestData` obtains a fresh `HTTPURLResponse`
+    /// (first attempt and the post-401-refresh retry alike), so every caller
+    /// of every request-building method above (`get`/`post`/`patch`/`put`/
+    /// `deleteRequest`/`postMultipart`/`postPackage`/`downloadImage`/
+    /// `exportAccountData`/`exportFoodPackage`/`lookupBarcode`) gets this for
+    /// free without needing its own 426 handling.
+    private func checkUpdateRequired(_ data: Data, _ httpResponse: HTTPURLResponse) throws {
+        guard httpResponse.statusCode == 426 else { return }
+        let minVersion = ClientVersionHeader.minVersion(from: httpResponse, data: data)
+        updateGate.flag(minVersion: minVersion)
+        throw APIError.updateRequired(minVersion: minVersion)
     }
 
     /// Classifies a response's status code into the right `APIError`

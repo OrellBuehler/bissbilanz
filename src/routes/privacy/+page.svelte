@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'September 24, 2026' })}
+		{m.privacy_effective_date({ date: 'September 28, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -238,6 +238,12 @@
 		sites. The aggregate data (page views, browser type, country) stays on the developer's own server
 		and is used only to understand how the app is used. The Android and iOS apps contain no analytics
 		— crash reporting via Sentry is the only diagnostic data they send.
+	</p>
+	<p class="mb-6">
+		The web, Android and iOS apps tell the server which platform and app version they are, with
+		every request. The server keeps a list of app versions and when each was last seen, not linked
+		to you or your account, so the developer knows when an old version is no longer in use and can
+		ask you to update. The version is also attached to error reports sent to Sentry.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">Data retention and deletion</h2>

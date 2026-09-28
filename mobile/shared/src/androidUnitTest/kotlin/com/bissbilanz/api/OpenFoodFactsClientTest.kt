@@ -144,6 +144,21 @@ class OpenFoodFactsClientTest {
         }
 
     @Test
+    fun fetchProductNeverSendsTheBissbilanzClientVersionHeaders() =
+        runBlocking {
+            var headers: Headers? = null
+            val client = clientRespondingWith(fixture) { request -> headers = request.headers }
+
+            client.fetchProduct("7622210449283")
+
+            // OFF is a third-party host: BissbilanzApi's X-Client-Platform/X-Client-Version
+            // headers must never reach it (OpenFoodFactsClient uses its own separate
+            // HttpClient entirely, so there's nothing to leak them from).
+            assertNull(headers?.get("X-Client-Platform"))
+            assertNull(headers?.get("X-Client-Version"))
+        }
+
+    @Test
     fun fetchProductDefaultsMissingNameAndMacrosLikeTheProxy() =
         runBlocking {
             val sparse = """{"status":1,"product":{"nutriments":{}}}"""

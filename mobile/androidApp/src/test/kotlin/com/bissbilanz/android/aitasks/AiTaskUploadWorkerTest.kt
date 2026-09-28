@@ -21,9 +21,17 @@ class AiTaskUploadWorkerTest {
     }
 
     @Test
-    fun `408 and 429 are retryable despite being 4xx`() {
+    fun `408, 429 and 426 are retryable despite being 4xx`() {
         assertTrue(AiTaskUploadWorker.isRetryable(ApiException("timeout", 408)))
         assertTrue(AiTaskUploadWorker.isRetryable(ApiException("rate limited", 429)))
+        assertTrue(AiTaskUploadWorker.isRetryable(ApiException("update required", 426)))
+    }
+
+    @Test
+    fun `only 426 is flagged as update-required`() {
+        assertTrue(AiTaskUploadWorker.isUpdateRequired(ApiException("update required", 426)))
+        assertFalse(AiTaskUploadWorker.isUpdateRequired(ApiException("bad request", 400)))
+        assertFalse(AiTaskUploadWorker.isUpdateRequired(java.io.IOException("no connection")))
     }
 
     @Test

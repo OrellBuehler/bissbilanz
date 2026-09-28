@@ -31,6 +31,11 @@ import {
 	SYNC_CONFLICT_SERVER_NEWER
 } from '$lib/sync/contract';
 import * as m from '$lib/paraglide/messages';
+import {
+	applyClientVersionHeaders,
+	isUpdateRequired,
+	reloadForUpdate
+} from '$lib/utils/client-version';
 import { foodService } from '$lib/services/food-service.svelte';
 import { recipeService } from '$lib/services/recipe-service.svelte';
 import { goalsService } from '$lib/services/goals-service.svelte';
@@ -91,9 +96,11 @@ export async function syncQueue(): Promise<number> {
 				// from queuing — see apiFetch), so application/json is always correct.
 				// The idempotency key + edit time make the replay safe to dedupe on the
 				// server and to resolve conflicts via last-write-wins.
-				const headers: Record<string, string> = { 'content-type': 'application/json' };
-				if (req.idempotencyKey) headers[IDEMPOTENCY_KEY_HEADER] = req.idempotencyKey;
-				if (req.clientEditedAt) headers[CLIENT_EDITED_AT_HEADER] = req.clientEditedAt;
+				const headers = applyClientVersionHeaders(
+					new Headers({ 'content-type': 'application/json' })
+				);
+				if (req.idempotencyKey) headers.set(IDEMPOTENCY_KEY_HEADER, req.idempotencyKey);
+				if (req.clientEditedAt) headers.set(CLIENT_EDITED_AT_HEADER, req.clientEditedAt);
 				const response = await fetch(req.url, {
 					method: req.method,
 					headers,
@@ -127,6 +134,11 @@ export async function syncQueue(): Promise<number> {
 						addSyncConflict(m.sync_conflict_deleted());
 					}
 					synced++;
+				} else if (isUpdateRequired(response)) {
+					// This build is below the server's minimum version. Keep the queue
+					// intact so it replays from the updated bundle.
+					await reloadForUpdate();
+					break;
 				} else if (response.status === 401 || response.status === 403) {
 					// Auth expired — stop syncing; user needs to re-authenticate.
 					// Don't remove items from queue so they can be retried after re-login.

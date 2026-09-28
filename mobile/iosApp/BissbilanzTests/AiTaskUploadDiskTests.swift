@@ -155,6 +155,7 @@ struct AiTaskUploadDiskTests {
         #expect(AiTaskStore.isRetryable(APIError.serverError(503, nil)))
         #expect(AiTaskStore.isRetryable(APIError.networkError(URLError(.timedOut))))
         #expect(AiTaskStore.isRetryable(APIError.unauthorized))
+        #expect(AiTaskStore.isRetryable(APIError.updateRequired(minVersion: "1.53.0")))
         #expect(AiTaskStore.isRetryable(CancellationError()))
     }
 }

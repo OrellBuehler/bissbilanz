@@ -19,11 +19,16 @@ final class AuthManager {
     var authState: AuthState = .unauthenticated
 
     private let baseURL: String
+    private let session: URLSession
     private var pendingState: String?
     /// In-flight refresh, shared by concurrent callers. Refresh tokens rotate
     /// on use, so two parallel refreshes would invalidate each other and kill
     /// the session.
     private var refreshTask: Task<Bool, Never>?
+    /// Shared with `BissbilanzAPI` — see `ClientVersionHeader`/`UpdateRequiredGate`.
+    /// This type builds its own requests below (there is no `BissbilanzAPI`
+    /// instance yet before sign-in) rather than routing through it.
+    private let updateGate: UpdateRequiredGate
 
     private static let accessTokenKey = "bissbilanz_access_token"
     private static let refreshTokenKey = "bissbilanz_refresh_token"
@@ -32,11 +37,29 @@ final class AuthManager {
         authState == .authenticated
     }
 
-    init(baseURL: String = "https://bissbilanz.orellbuehler.ch") {
+    init(
+        baseURL: String = "https://bissbilanz.orellbuehler.ch",
+        session: URLSession = .shared,
+        updateGate: UpdateRequiredGate = UpdateRequiredGate()
+    ) {
         self.baseURL = baseURL
+        self.session = session
+        self.updateGate = updateGate
         if KeychainHelper.load(key: Self.accessTokenKey) != nil {
             authState = .authenticated
         }
+    }
+
+    /// Flags `updateGate` and returns true when `response` is a 426 — every
+    /// call site here treats that the same as any other failure (return
+    /// false/nil without touching `authState` the way a real auth rejection
+    /// would), but the flag is what puts up the app-wide blocking screen.
+    private func flagIfUpdateRequired(_ response: URLResponse, data: Data) -> Bool {
+        guard let http = response as? HTTPURLResponse, http.statusCode == 426 else { return false }
+        let minVersion = ClientVersionHeader.minVersion(from: http, data: data)
+        ErrorReporter.addBreadcrumb("426 update required (auth)", category: "auth", data: ["min_version": minVersion])
+        updateGate.flag(minVersion: minVersion)
+        return true
     }
 
     /// In-memory copy of the keychain value. `SecItemCopyMatching` is a
@@ -118,8 +141,11 @@ final class AuthManager {
     /// Which sign-in providers the server has configured, or nil when the request fails.
     func fetchLoginProviders() async -> [String]? {
         guard let url = URL(string: "\(baseURL)/api/auth/providers") else { return nil }
+        var request = URLRequest(url: url)
+        ClientVersionHeader.apply(to: &request)
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await session.data(for: request)
+            guard !flagIfUpdateRequired(response, data: data) else { return nil }
             return try JSONDecoder().decode(LoginProvidersResponse.self, from: data).providers
         } catch {
             ErrorReporter.captureWarning("Failed to fetch login providers", context: ["reason": ErrorReporter.reason(for: error)])
@@ -149,12 +175,14 @@ final class AuthManager {
         var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        ClientVersionHeader.apply(to: &request)
 
         let body = ["code": code]
         request.httpBody = try? JSONEncoder().encode(body)
 
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
+            guard !flagIfUpdateRequired(response, data: data) else { return false }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
             storeAccessToken(tokenResponse.accessToken)
             if let refresh = tokenResponse.refreshToken {
@@ -178,13 +206,15 @@ final class AuthManager {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        ClientVersionHeader.apply(to: &request)
 
         var body = ["identity_token": identityToken, "nonce": nonce]
         if let name, !name.isEmpty { body["name"] = name }
         request.httpBody = try? JSONEncoder().encode(body)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
+            guard !flagIfUpdateRequired(response, data: data) else { return false }
             guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? -1
                 ErrorReporter.captureWarning("Sign in with Apple rejected by server", context: ["status": String(status)])
@@ -234,12 +264,20 @@ final class AuthManager {
         var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        ClientVersionHeader.apply(to: &request)
 
         let body = ["refresh_token": refreshToken]
         request.httpBody = try? JSONEncoder().encode(body)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
+            // The refresh token itself may still be perfectly valid — only the
+            // client build is too old — so this must never fall into the
+            // `.expired` branch below and sign the user out over it.
+            guard !flagIfUpdateRequired(response, data: data) else {
+                authState = .authenticated
+                return false
+            }
             guard let http = response as? HTTPURLResponse else {
                 authState = .authenticated
                 return false

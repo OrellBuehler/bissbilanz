@@ -115,6 +115,7 @@ import com.bissbilanz.model.Entry
 import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
@@ -147,9 +148,13 @@ class BissbilanzApi(
             encodeDefaults = false
             isLenient = true
         },
+    private val clientPlatform: String = "android",
+    private val clientVersion: String? = null,
+    private val updateGate: UpdateGate = UpdateGate(),
+    engine: HttpClientEngine = createHttpEngine(),
 ) {
     private val client =
-        HttpClient(createHttpEngine()) {
+        HttpClient(engine) {
             install(ContentNegotiation) {
                 json(this@BissbilanzApi.json)
             }
@@ -157,6 +162,7 @@ class BissbilanzApi(
                 requestTimeoutMillis = 30_000
                 connectTimeoutMillis = 10_000
             }
+            installUpdateGate(baseUrl, updateGate)
             install(Auth) {
                 bearer {
                     loadTokens {
@@ -181,9 +187,13 @@ class BissbilanzApi(
 
     private suspend inline fun <reified T> get(
         path: String,
-        block: HttpRequestBuilder.() -> Unit = {},
+        crossinline block: HttpRequestBuilder.() -> Unit = {},
     ): T {
-        val response = client.get(path, block)
+        val response =
+            client.get(path) {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
+                block()
+            }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "GET $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
@@ -198,6 +208,7 @@ class BissbilanzApi(
         idempotencyKey: String?,
         clientEditedAt: String?,
     ) {
+        applyClientVersionHeaders(clientPlatform, clientVersion)
         if (idempotencyKey != null) header("Idempotency-Key", idempotencyKey)
         if (clientEditedAt != null) header("X-Client-Edited-At", clientEditedAt)
     }
@@ -1407,6 +1418,7 @@ class BissbilanzApi(
                         }
                     },
             ) {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
                 header(HttpHeaders.Origin, baseUrl)
                 // Several photos over a weak cellular uplink outlast the default 30s.
                 timeout { requestTimeoutMillis = 120_000 }
@@ -1457,7 +1469,10 @@ class BissbilanzApi(
                             },
                         )
                     },
-            ) { header(HttpHeaders.Origin, baseUrl) }
+            ) {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
+                header(HttpHeaders.Origin, baseUrl)
+            }
         if (!response.status.isSuccess()) {
             throw ApiException(
                 "POST /api/images/upload failed: HTTP ${response.status.value} ${response.bodyAsText()}",
@@ -1488,6 +1503,7 @@ class BissbilanzApi(
     suspend fun exportFoodPackage(selection: FoodPackageSelection): ByteArray {
         val response =
             client.post("/api/foods/package/export") {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
                 setBody(selection)
                 // Photos of a whole food database — allow more than the default 30s.
                 timeout { requestTimeoutMillis = 180_000 }
@@ -1549,6 +1565,7 @@ class BissbilanzApi(
                         }
                     },
             ) {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
                 header(HttpHeaders.Origin, baseUrl)
                 timeout { requestTimeoutMillis = 180_000 }
             }
@@ -1563,8 +1580,16 @@ class BissbilanzApi(
         return response.body()
     }
 
+    /**
+     * [url] may be a third-party host (e.g. an Open Food Facts product image) rather
+     * than [baseUrl], so the client version headers are only attached when it matches —
+     * never send them anywhere but the Bissbilanz API.
+     */
     suspend fun downloadBytes(url: String): ByteArray {
-        val response = client.get(url)
+        val response =
+            client.get(url) {
+                if (Url(url).host == Url(baseUrl).host) applyClientVersionHeaders(clientPlatform, clientVersion)
+            }
         if (!response.status.isSuccess()) {
             throw ApiException("GET $url failed: HTTP ${response.status.value}", response.status.value)
         }
