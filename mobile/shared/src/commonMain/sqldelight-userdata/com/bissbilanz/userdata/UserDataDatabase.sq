@@ -145,6 +145,13 @@ SELECT * FROM CachedEntry WHERE foodId = ?;
 selectEntriesByRecipeId:
 SELECT * FROM CachedEntry WHERE recipeId = ?;
 
+-- Diary usage per food / recipe, for the food-package import preview.
+countEntriesPerFood:
+SELECT foodId, COUNT(*) AS entryCount FROM CachedEntry WHERE foodId IS NOT NULL GROUP BY foodId;
+
+countEntriesPerRecipe:
+SELECT recipeId, COUNT(*) AS entryCount FROM CachedEntry WHERE recipeId IS NOT NULL GROUP BY recipeId;
+
 selectEntriesByDate:
 SELECT * FROM CachedEntry WHERE date = ?;
 
