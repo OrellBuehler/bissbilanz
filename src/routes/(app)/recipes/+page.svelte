@@ -8,12 +8,14 @@
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import Star from '@lucide/svelte/icons/star';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Share2 from '@lucide/svelte/icons/share-2';
+	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import FileArchive from '@lucide/svelte/icons/file-archive';
 	import FoodPackageExportDialog from '$lib/components/food-package/FoodPackageExportDialog.svelte';
 	import FoodPackageImportDialog from '$lib/components/food-package/FoodPackageImportDialog.svelte';
@@ -347,6 +349,7 @@
 							<Button
 								variant="ghost"
 								size="icon"
+								class="hidden sm:inline-flex"
 								aria-label={m.recipes_duplicate()}
 								onclick={(e) => {
 									e.stopPropagation();
@@ -368,6 +371,38 @@
 							>
 								<Share2 class="size-4" />
 							</Button>
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<div role="presentation" class="sm:hidden" onclick={(e) => e.stopPropagation()}>
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										{#snippet child({ props })}
+											<Button
+												{...props}
+												variant="ghost"
+												size="icon"
+												aria-label={m.common_actions()}
+											>
+												<MoreVertical class="size-4" />
+											</Button>
+										{/snippet}
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item onclick={() => duplicateRecipe(recipe)}>
+											<Copy class="mr-2 size-4" />
+											{m.recipes_duplicate()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											onclick={() => {
+												packageExportIds = [recipe.id];
+												packageExportOpen = true;
+											}}
+										>
+											<Share2 class="mr-2 size-4" />
+											{m.food_package_share_recipe()}
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</div>
 							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
 						</div>
 					</Card.Content>

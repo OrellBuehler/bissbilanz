@@ -85,6 +85,7 @@ import com.bissbilanz.util.formatNutrient
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1018,8 +1019,25 @@ private fun GoalAdherenceCard(
             activityAdjustment = prefs?.activityGoalAdjustment ?: false,
             activityCreditPercent = prefs?.activityCreditPercent ?: 100,
         )
+    val metTotal = rows.sumOf { it.met }
+    val eligibleTotal = rows.sumOf { it.eligible }
+    val overallPct = if (eligibleTotal > 0) (metTotal * 100f / eligibleTotal).roundToInt() else 0
 
     CollapsibleCard(title = stringResource(R.string.insights_goal_adherence), sectionId = "goals") {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                "$overallPct%",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                stringResource(R.string.insights_goal_checks_met, metTotal, eligibleTotal),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             stringResource(R.string.insights_days_with_entries, daysWithEntries),
             style = MaterialTheme.typography.labelSmall,
