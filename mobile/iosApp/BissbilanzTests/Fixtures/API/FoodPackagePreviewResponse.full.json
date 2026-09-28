@@ -82,6 +82,23 @@
 	"newFoods": {
 		"count": 3,
 		"ingredientOnly": 3,
+		"items": [
+			{
+				"brand": "sample-brand",
+				"calories": 450,
+				"name": "sample-name",
+				"recipes": [
+					{
+						"name": "sample-name",
+						"ref": "sample-ref"
+					}
+				],
+				"ref": "sample-ref",
+				"role": "selected",
+				"servingSize": 100,
+				"servingUnit": "g"
+			}
+		],
 		"samples": [
 			{
 				"brand": "sample-brand",
