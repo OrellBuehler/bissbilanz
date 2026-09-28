@@ -1,0 +1,23 @@
+{
+	"tasks": [
+		{
+			"acknowledgedAt": null,
+			"completedAt": null,
+			"createdEntryIds": null,
+			"date": "sample-date",
+			"description": null,
+			"dismissedAt": null,
+			"eatenAt": null,
+			"id": "fc46d075-ed28-480a-8a57-f87b4f4c7698",
+			"mealType": null,
+			"photoUrl": null,
+			"photoUrls": ["sample-photoUrls"],
+			"processedBy": null,
+			"resultSummary": null,
+			"source": null,
+			"status": "pending",
+			"userId": "6bc6f048-a09a-4ee1-828f-f4064648eac7"
+		}
+	],
+	"total": 3
+}

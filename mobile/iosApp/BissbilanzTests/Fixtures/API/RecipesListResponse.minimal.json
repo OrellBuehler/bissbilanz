@@ -1,0 +1,17 @@
+{
+	"recipes": [
+		{
+			"calories": 450,
+			"carbs": 50,
+			"fat": 15,
+			"fiber": 8,
+			"id": "428b763e-055c-4c9f-836c-e1ecdaba49b5",
+			"imageUrl": null,
+			"isFavorite": true,
+			"name": "sample-name",
+			"protein": 30,
+			"totalServings": 4
+		}
+	],
+	"total": 3
+}

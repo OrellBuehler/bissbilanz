@@ -1,0 +1,9 @@
+{
+	"days": {
+		"sample": {
+			"calories": 450,
+			"hasEntries": true
+		}
+	},
+	"notedDates": ["sample-notedDates"]
+}

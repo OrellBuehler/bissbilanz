@@ -1,0 +1,25 @@
+{
+	"foods": [
+		{
+			"barcode": "sample-barcode",
+			"brand": "sample-brand",
+			"calories": 450,
+			"carbs": 50,
+			"createdAt": "sample-createdAt",
+			"fat": 15,
+			"fiber": 8,
+			"id": "2a5a7450-ddd4-4649-878d-eb4ed173246f",
+			"imageUrl": "sample-imageUrl",
+			"isFavorite": true,
+			"lastServings": 1,
+			"lastUsedAt": "sample-lastUsedAt",
+			"logCount": 2,
+			"name": "sample-name",
+			"protein": 30,
+			"servingSize": 100,
+			"servingUnit": "g",
+			"updatedAt": "sample-updatedAt",
+			"userId": "670f3fbd-d017-49b2-850e-ed0356e40480"
+		}
+	]
+}

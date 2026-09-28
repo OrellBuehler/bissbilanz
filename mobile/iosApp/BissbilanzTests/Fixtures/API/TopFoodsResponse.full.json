@@ -1,0 +1,15 @@
+{
+	"data": [
+		{
+			"calories": 450,
+			"carbs": 50,
+			"count": 3,
+			"fat": 15,
+			"fiber": 8,
+			"foodId": "3e216329-bb23-46ae-8726-6c4f04765fdc",
+			"foodName": "sample-foodName",
+			"protein": 30,
+			"recipeId": "059fb4c7-66fe-4af4-890a-f21daedc1c92"
+		}
+	]
+}

@@ -1,0 +1,21 @@
+{
+	"entry": {
+		"bedtime": "sample-bedtime",
+		"createdAt": "sample-createdAt",
+		"deepSleepMinutes": 3,
+		"durationMinutes": 420,
+		"entryDate": "sample-entryDate",
+		"id": "fe07676f-9985-4c7c-8b5c-4905b368cd5a",
+		"lightSleepMinutes": 3,
+		"loggedAt": "sample-loggedAt",
+		"notes": "sample-notes",
+		"quality": 4,
+		"remSleepMinutes": 3,
+		"sleepLatencyMinutes": 3,
+		"source": "sample-source",
+		"updatedAt": "sample-updatedAt",
+		"userId": "b9351d52-89f8-4823-802c-7120ec241ad9",
+		"wakeTime": "sample-wakeTime",
+		"wakeUps": 3
+	}
+}

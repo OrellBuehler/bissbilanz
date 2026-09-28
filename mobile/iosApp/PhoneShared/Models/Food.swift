@@ -253,8 +253,12 @@ struct FoodResponse: Codable {
     let food: Food
 }
 
+/// The server's `favoritesResponseSchema` marks both fields `.optional()` —
+/// the same route answers `?type=foods` and `?type=recipes` with only the
+/// matching key present, even though the default (no `type`) call this app
+/// makes always sends both.
 struct FavoritesResponse: Codable {
-    let foods: [Food]
+    let foods: [Food]?
     let recipes: [Recipe]?
 }
 

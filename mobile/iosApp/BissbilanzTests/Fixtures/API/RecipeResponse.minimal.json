@@ -1,0 +1,23 @@
+{
+	"recipe": {
+		"calories": 450,
+		"carbs": 50,
+		"fat": 15,
+		"fiber": 8,
+		"id": "c7684e83-aba7-4800-81c5-18391362de7e",
+		"imageUrl": null,
+		"ingredients": [
+			{
+				"foodId": "2b53b301-a6f3-45a6-8b81-1be7a8237394",
+				"quantity": 1,
+				"servingUnit": "g",
+				"sortOrder": 0
+			}
+		],
+		"isFavorite": true,
+		"name": "sample-name",
+		"protein": 30,
+		"totalServings": 4,
+		"userId": "55ef59e6-7231-4b27-8ea8-51d414919f7d"
+	}
+}

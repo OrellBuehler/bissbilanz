@@ -58,6 +58,13 @@ struct WeightEntryResponse: Codable {
     let entry: WeightEntry
 }
 
+/// `GET /api/weight/latest`'s own response shape — unlike `WeightEntryResponse`,
+/// `entry` is nullable (no weight logged yet), so it needs its own type rather
+/// than reusing `WeightEntryResponse`, whose `entry` is never null.
+struct WeightLatestResponse: Codable {
+    let entry: WeightEntry?
+}
+
 /// Weight projections computed on-device — there is no server stats endpoint.
 /// Mirrors the web chart's projection: a least-squares regression over the
 /// last 90 days of entries (at least 3 points), extrapolated from the newest

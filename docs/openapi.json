@@ -9304,7 +9304,14 @@
 						"type": ["number", "null"]
 					},
 					"servingUnit": {
-						"type": ["string", "null"]
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/ServingUnit"
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
 				"required": [
@@ -9585,7 +9592,14 @@
 						"type": ["number", "null"]
 					},
 					"servingUnit": {
-						"type": ["string", "null"]
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/ServingUnit"
+							},
+							{
+								"type": "null"
+							}
+						]
 					},
 					"foodName": {
 						"type": ["string", "null"]
@@ -11532,6 +11546,9 @@
 					"totalServings": {
 						"type": "number"
 					},
+					"isFavorite": {
+						"type": "boolean"
+					},
 					"type": {
 						"type": "string",
 						"const": "recipe"
@@ -11548,6 +11565,7 @@
 					"fiber",
 					"logCount",
 					"totalServings",
+					"isFavorite",
 					"type"
 				],
 				"additionalProperties": false

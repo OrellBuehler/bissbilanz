@@ -186,9 +186,17 @@ struct FoodBrandStat: Decodable, Equatable {
     let count: Int
 }
 
+struct FoodBrandsResponse: Decodable {
+    let brands: [FoodBrandStat]
+}
+
 struct FoodLabelStat: Decodable, Equatable {
     let label: String
     let count: Int
+}
+
+struct FoodLabelStatsResponse: Decodable {
+    let labels: [FoodLabelStat]
 }
 
 /// The user's choice per conflict while reviewing an import. Mirrors the web's

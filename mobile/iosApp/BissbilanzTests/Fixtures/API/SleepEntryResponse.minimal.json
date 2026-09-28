@@ -1,0 +1,18 @@
+{
+	"entry": {
+		"bedtime": null,
+		"deepSleepMinutes": null,
+		"durationMinutes": 420,
+		"entryDate": "sample-entryDate",
+		"id": "fe07676f-9985-4c7c-8b5c-4905b368cd5a",
+		"lightSleepMinutes": null,
+		"notes": null,
+		"quality": 4,
+		"remSleepMinutes": null,
+		"sleepLatencyMinutes": null,
+		"source": null,
+		"userId": "b9351d52-89f8-4823-802c-7120ec241ad9",
+		"wakeTime": null,
+		"wakeUps": null
+	}
+}

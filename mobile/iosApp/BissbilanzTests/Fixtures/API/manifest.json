@@ -1,0 +1,789 @@
+{
+	"schemas": {
+		"AccountResponse": {
+			"enumVariants": [],
+			"full": "AccountResponse.full.json",
+			"minimal": "AccountResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getAccount",
+					"path": "/api/account"
+				}
+			]
+		},
+		"AiTaskAcknowledgeResponse": {
+			"enumVariants": [],
+			"full": "AiTaskAcknowledgeResponse.full.json",
+			"minimal": "AiTaskAcknowledgeResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "acknowledgeAiTasks",
+					"path": "/api/ai-tasks/acknowledge"
+				}
+			]
+		},
+		"AiTaskPhotoResponse": {
+			"enumVariants": [],
+			"full": "AiTaskPhotoResponse.full.json",
+			"minimal": "AiTaskPhotoResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "uploadAiTaskPhoto",
+					"path": "/api/ai-tasks/photo"
+				}
+			]
+		},
+		"AiTaskResponse": {
+			"enumVariants": [],
+			"full": "AiTaskResponse.full.json",
+			"minimal": "AiTaskResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createAiTask",
+					"path": "/api/ai-tasks"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateAiTask",
+					"path": "/api/ai-tasks/{id}"
+				}
+			]
+		},
+		"AiTasksResponse": {
+			"enumVariants": [
+				"AiTasksResponse.full.enum-tasks-0-status-completed.json",
+				"AiTasksResponse.full.enum-tasks-0-status-dismissed.json",
+				"AiTasksResponse.full.enum-tasks-0-processedBy-on-device.json",
+				"AiTasksResponse.full.enum-tasks-0-processedBy-private-cloud.json"
+			],
+			"full": "AiTasksResponse.full.json",
+			"minimal": "AiTasksResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listAiTasks",
+					"path": "/api/ai-tasks"
+				}
+			]
+		},
+		"CalendarResponse": {
+			"enumVariants": [],
+			"full": "CalendarResponse.full.json",
+			"minimal": "CalendarResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getCalendar",
+					"path": "/api/stats/calendar"
+				}
+			]
+		},
+		"DailyStatsResponse": {
+			"enumVariants": [],
+			"full": "DailyStatsResponse.full.json",
+			"minimal": "DailyStatsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getDailyStats",
+					"path": "/api/stats/daily"
+				}
+			]
+		},
+		"DayPropertiesRangeResponse": {
+			"enumVariants": [],
+			"full": "DayPropertiesRangeResponse.full.json",
+			"minimal": "DayPropertiesRangeResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getDayProperties",
+					"path": "/api/day-properties"
+				}
+			]
+		},
+		"DayPropertiesResponse": {
+			"enumVariants": [
+				"DayPropertiesResponse.full.enum-properties-activityCaloriesSource-apple-health.json",
+				"DayPropertiesResponse.full.enum-properties-activityCaloriesSource-health-connect.json"
+			],
+			"full": "DayPropertiesResponse.full.json",
+			"minimal": "DayPropertiesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getDayProperties",
+					"path": "/api/day-properties"
+				},
+				{
+					"method": "PUT",
+					"operationId": "setDayProperties",
+					"path": "/api/day-properties"
+				}
+			]
+		},
+		"EntriesCopyResponse": {
+			"enumVariants": [],
+			"full": "EntriesCopyResponse.full.json",
+			"minimal": "EntriesCopyResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "copyEntries",
+					"path": "/api/entries/copy"
+				}
+			]
+		},
+		"EntriesListResponse": {
+			"enumVariants": [],
+			"full": "EntriesListResponse.full.json",
+			"minimal": "EntriesListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listEntries",
+					"path": "/api/entries"
+				}
+			]
+		},
+		"EntriesRangeResponse": {
+			"enumVariants": [],
+			"full": "EntriesRangeResponse.full.json",
+			"minimal": "EntriesRangeResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getEntriesRange",
+					"path": "/api/entries/range"
+				}
+			]
+		},
+		"EntryResponse": {
+			"enumVariants": [],
+			"full": "EntryResponse.full.json",
+			"minimal": "EntryResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createEntry",
+					"path": "/api/entries"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateEntry",
+					"path": "/api/entries/{id}"
+				}
+			]
+		},
+		"FastingSessionResponse": {
+			"enumVariants": [],
+			"full": "FastingSessionResponse.full.json",
+			"minimal": "FastingSessionResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "upsertFastingSession",
+					"path": "/api/fasts"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateFastingSession",
+					"path": "/api/fasts/{id}"
+				}
+			]
+		},
+		"FastingSessionsResponse": {
+			"enumVariants": [],
+			"full": "FastingSessionsResponse.full.json",
+			"minimal": "FastingSessionsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFastingSessions",
+					"path": "/api/fasts"
+				}
+			]
+		},
+		"FavoritesResponse": {
+			"enumVariants": [],
+			"full": "FavoritesResponse.full.json",
+			"minimal": "FavoritesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFavorites",
+					"path": "/api/favorites"
+				}
+			]
+		},
+		"FoodBrandsResponse": {
+			"enumVariants": [],
+			"full": "FoodBrandsResponse.full.json",
+			"minimal": "FoodBrandsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFoodBrands",
+					"path": "/api/foods/brands"
+				}
+			]
+		},
+		"FoodDuplicatesResponse": {
+			"enumVariants": [
+				"FoodDuplicatesResponse.full.enum-groups-0-reason-name-brand.json",
+				"FoodDuplicatesResponse.full.enum-groups-0-reason-similar.json"
+			],
+			"full": "FoodDuplicatesResponse.full.json",
+			"minimal": "FoodDuplicatesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFoodDuplicates",
+					"path": "/api/foods/duplicates"
+				}
+			]
+		},
+		"FoodLabelStatsResponse": {
+			"enumVariants": [],
+			"full": "FoodLabelStatsResponse.full.json",
+			"minimal": "FoodLabelStatsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFoodLabelStats",
+					"path": "/api/foods/labels"
+				}
+			]
+		},
+		"FoodLabelsSetResponse": {
+			"enumVariants": [],
+			"full": "FoodLabelsSetResponse.full.json",
+			"minimal": "FoodLabelsSetResponse.minimal.json",
+			"operations": [
+				{
+					"method": "PUT",
+					"operationId": "setFoodLabels",
+					"path": "/api/foods/{id}/labels"
+				}
+			]
+		},
+		"FoodPackageImportResult": {
+			"enumVariants": [],
+			"full": "FoodPackageImportResult.full.json",
+			"minimal": "FoodPackageImportResult.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "importFoodPackage",
+					"path": "/api/foods/package/import"
+				}
+			]
+		},
+		"FoodPackagePreviewResponse": {
+			"enumVariants": [
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-reason-name-brand.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-reason-barcode-and-name.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-allowed-0-replace.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-allowed-0-keep-both.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-notes-0-replace-changes-history.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-notes-0-replace-unit-blocked.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-notes-0-skip-may-copy-for-recipe.json",
+				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-notes-0-shared-target.json"
+			],
+			"full": "FoodPackagePreviewResponse.full.json",
+			"minimal": "FoodPackagePreviewResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "previewFoodPackageImport",
+					"path": "/api/foods/package/preview"
+				}
+			]
+		},
+		"FoodPackageSummaryResponse": {
+			"enumVariants": [],
+			"full": "FoodPackageSummaryResponse.full.json",
+			"minimal": "FoodPackageSummaryResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "summarizeFoodPackage",
+					"path": "/api/foods/package/summary"
+				}
+			]
+		},
+		"FoodResponse": {
+			"enumVariants": [],
+			"full": "FoodResponse.full.json",
+			"minimal": "FoodResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createFood",
+					"path": "/api/foods"
+				},
+				{
+					"method": "POST",
+					"operationId": "mergeFoods",
+					"path": "/api/foods/merge"
+				},
+				{
+					"method": "GET",
+					"operationId": "getFood",
+					"path": "/api/foods/{id}"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateFood",
+					"path": "/api/foods/{id}"
+				},
+				{
+					"method": "POST",
+					"operationId": "saveCatalogFood",
+					"path": "/api/catalog/{id}/save"
+				},
+				{
+					"method": "POST",
+					"operationId": "saveOpenFoodFactsProduct",
+					"path": "/api/openfoodfacts/{barcode}/save"
+				}
+			]
+		},
+		"FoodsListResponse": {
+			"enumVariants": [
+				"FoodsListResponse.full.enum-foods-0-servingUnit-kg.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-ml.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-cl.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-l.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-oz.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-lb.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-fl-oz.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-cup.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-tbsp.json",
+				"FoodsListResponse.full.enum-foods-0-servingUnit-tsp.json"
+			],
+			"full": "FoodsListResponse.full.json",
+			"minimal": "FoodsListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listFoods",
+					"path": "/api/foods"
+				}
+			]
+		},
+		"FoodsRecentResponse": {
+			"enumVariants": [],
+			"full": "FoodsRecentResponse.full.json",
+			"minimal": "FoodsRecentResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listRecentFoods",
+					"path": "/api/foods/recent"
+				}
+			]
+		},
+		"GoalsResponse": {
+			"enumVariants": [],
+			"full": "GoalsResponse.full.json",
+			"minimal": "GoalsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getGoals",
+					"path": "/api/goals"
+				}
+			]
+		},
+		"GoalsSetResponse": {
+			"enumVariants": [],
+			"full": "GoalsSetResponse.full.json",
+			"minimal": "GoalsSetResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "setGoals",
+					"path": "/api/goals"
+				}
+			]
+		},
+		"ImageUploadResponse": {
+			"enumVariants": [],
+			"full": "ImageUploadResponse.full.json",
+			"minimal": "ImageUploadResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "uploadImage",
+					"path": "/api/images/upload"
+				}
+			]
+		},
+		"McpStatusResponse": {
+			"enumVariants": [],
+			"full": "McpStatusResponse.full.json",
+			"minimal": "McpStatusResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getMcpStatus",
+					"path": "/api/mcp/status"
+				}
+			]
+		},
+		"MealBreakdownResponse": {
+			"enumVariants": [],
+			"full": "MealBreakdownResponse.full.json",
+			"minimal": "MealBreakdownResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getMealBreakdown",
+					"path": "/api/stats/meal-breakdown"
+				}
+			]
+		},
+		"MealTypeResponse": {
+			"enumVariants": [],
+			"full": "MealTypeResponse.full.json",
+			"minimal": "MealTypeResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createMealType",
+					"path": "/api/meal-types"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateMealType",
+					"path": "/api/meal-types/{id}"
+				}
+			]
+		},
+		"MealTypesListResponse": {
+			"enumVariants": [],
+			"full": "MealTypesListResponse.full.json",
+			"minimal": "MealTypesListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listMealTypes",
+					"path": "/api/meal-types"
+				}
+			]
+		},
+		"MonthlyStatsResponse": {
+			"enumVariants": [],
+			"full": "MonthlyStatsResponse.full.json",
+			"minimal": "MonthlyStatsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getMonthlyStats",
+					"path": "/api/stats/monthly"
+				}
+			]
+		},
+		"OpenFoodFactsSearchResponse": {
+			"enumVariants": [
+				"OpenFoodFactsSearchResponse.full.enum-results-0-nutriScore-b.json",
+				"OpenFoodFactsSearchResponse.full.enum-results-0-nutriScore-c.json",
+				"OpenFoodFactsSearchResponse.full.enum-results-0-nutriScore-d.json",
+				"OpenFoodFactsSearchResponse.full.enum-results-0-nutriScore-e.json"
+			],
+			"full": "OpenFoodFactsSearchResponse.full.json",
+			"minimal": "OpenFoodFactsSearchResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "searchOpenFoodFacts",
+					"path": "/api/openfoodfacts/search"
+				}
+			]
+		},
+		"PreferencesResponse": {
+			"enumVariants": [
+				"PreferencesResponse.full.enum-preferences-biologicalSex-female.json",
+				"PreferencesResponse.full.enum-preferences-aiTaskProcessor-device.json"
+			],
+			"full": "PreferencesResponse.full.json",
+			"minimal": "PreferencesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getPreferences",
+					"path": "/api/preferences"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updatePreferences",
+					"path": "/api/preferences"
+				}
+			]
+		},
+		"RecipeResponse": {
+			"enumVariants": [],
+			"full": "RecipeResponse.full.json",
+			"minimal": "RecipeResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createRecipe",
+					"path": "/api/recipes"
+				},
+				{
+					"method": "GET",
+					"operationId": "getRecipe",
+					"path": "/api/recipes/{id}"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateRecipe",
+					"path": "/api/recipes/{id}"
+				}
+			]
+		},
+		"RecipesListResponse": {
+			"enumVariants": [],
+			"full": "RecipesListResponse.full.json",
+			"minimal": "RecipesListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listRecipes",
+					"path": "/api/recipes"
+				}
+			]
+		},
+		"ReminderResponse": {
+			"enumVariants": [],
+			"full": "ReminderResponse.full.json",
+			"minimal": "ReminderResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createReminder",
+					"path": "/api/reminders"
+				},
+				{
+					"method": "GET",
+					"operationId": "getReminder",
+					"path": "/api/reminders/{id}"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateReminder",
+					"path": "/api/reminders/{id}"
+				}
+			]
+		},
+		"RemindersListResponse": {
+			"enumVariants": [
+				"RemindersListResponse.full.enum-reminders-0-kind-meal.json",
+				"RemindersListResponse.full.enum-reminders-0-kind-sleep.json"
+			],
+			"full": "RemindersListResponse.full.json",
+			"minimal": "RemindersListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listReminders",
+					"path": "/api/reminders"
+				}
+			]
+		},
+		"SleepEntriesResponse": {
+			"enumVariants": [],
+			"full": "SleepEntriesResponse.full.json",
+			"minimal": "SleepEntriesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listSleepEntries",
+					"path": "/api/sleep"
+				}
+			]
+		},
+		"SleepEntryResponse": {
+			"enumVariants": [],
+			"full": "SleepEntryResponse.full.json",
+			"minimal": "SleepEntryResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createSleepEntry",
+					"path": "/api/sleep"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateSleepEntry",
+					"path": "/api/sleep/{id}"
+				}
+			]
+		},
+		"StreaksResponse": {
+			"enumVariants": [],
+			"full": "StreaksResponse.full.json",
+			"minimal": "StreaksResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getStreaks",
+					"path": "/api/stats/streaks"
+				}
+			]
+		},
+		"SupplementChecklistResponse": {
+			"enumVariants": [],
+			"full": "SupplementChecklistResponse.full.json",
+			"minimal": "SupplementChecklistResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getTodaySupplementChecklist",
+					"path": "/api/supplements/today"
+				},
+				{
+					"method": "GET",
+					"operationId": "getSupplementChecklist",
+					"path": "/api/supplements/{date}/checklist"
+				}
+			]
+		},
+		"SupplementHistoryResponse": {
+			"enumVariants": [],
+			"full": "SupplementHistoryResponse.full.json",
+			"minimal": "SupplementHistoryResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getSupplementHistory",
+					"path": "/api/supplements/history"
+				}
+			]
+		},
+		"SupplementLogResponse": {
+			"enumVariants": [],
+			"full": "SupplementLogResponse.full.json",
+			"minimal": "SupplementLogResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "logSupplement",
+					"path": "/api/supplements/{id}/log"
+				}
+			]
+		},
+		"SupplementResponse": {
+			"enumVariants": [],
+			"full": "SupplementResponse.full.json",
+			"minimal": "SupplementResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createSupplement",
+					"path": "/api/supplements"
+				},
+				{
+					"method": "GET",
+					"operationId": "getSupplement",
+					"path": "/api/supplements/{id}"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateSupplement",
+					"path": "/api/supplements/{id}"
+				}
+			]
+		},
+		"SupplementsListResponse": {
+			"enumVariants": [
+				"SupplementsListResponse.full.enum-supplements-0-scheduleType-every-other-day.json",
+				"SupplementsListResponse.full.enum-supplements-0-scheduleType-weekly.json",
+				"SupplementsListResponse.full.enum-supplements-0-scheduleType-specific-days.json",
+				"SupplementsListResponse.full.enum-supplements-0-timeOfDay-noon.json",
+				"SupplementsListResponse.full.enum-supplements-0-timeOfDay-evening.json",
+				"SupplementsListResponse.full.enum-supplements-0-ingredients-0-food-kind-supplement.json"
+			],
+			"full": "SupplementsListResponse.full.json",
+			"minimal": "SupplementsListResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listSupplements",
+					"path": "/api/supplements"
+				}
+			]
+		},
+		"TopFoodsResponse": {
+			"enumVariants": [],
+			"full": "TopFoodsResponse.full.json",
+			"minimal": "TopFoodsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getTopFoods",
+					"path": "/api/stats/top-foods"
+				}
+			]
+		},
+		"WeeklyStatsResponse": {
+			"enumVariants": [],
+			"full": "WeeklyStatsResponse.full.json",
+			"minimal": "WeeklyStatsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getWeeklyStats",
+					"path": "/api/stats/weekly"
+				}
+			]
+		},
+		"WeightEntriesResponse": {
+			"enumVariants": [],
+			"full": "WeightEntriesResponse.full.json",
+			"minimal": "WeightEntriesResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listWeightEntries",
+					"path": "/api/weight"
+				}
+			]
+		},
+		"WeightEntryResponse": {
+			"enumVariants": [],
+			"full": "WeightEntryResponse.full.json",
+			"minimal": "WeightEntryResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createWeightEntry",
+					"path": "/api/weight"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "updateWeightEntry",
+					"path": "/api/weight/{id}"
+				}
+			]
+		},
+		"WeightLatestResponse": {
+			"enumVariants": [],
+			"full": "WeightLatestResponse.full.json",
+			"minimal": "WeightLatestResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getLatestWeight",
+					"path": "/api/weight/latest"
+				}
+			]
+		}
+	}
+}
