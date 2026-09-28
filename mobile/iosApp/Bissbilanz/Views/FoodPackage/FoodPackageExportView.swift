@@ -22,6 +22,7 @@ struct FoodPackageExportView: View {
     @State private var includeRecipes = true
     @State private var brands: Set<String> = []
     @State private var labels: Set<String> = []
+    @State private var facetQuery = ""
     @State private var brandOptions: [FoodBrandStat] = []
     @State private var labelOptions: [FoodLabelStat] = []
     @State private var summary: FoodPackageSummary?
@@ -91,6 +92,7 @@ struct FoodPackageExportView: View {
                     summaryView
                 }
             }
+            .facetSearchable(isEnabled: mode == .filter, text: $facetQuery, prompt: L10n.search)
             .navigationTitle(recipesOnly ? L10n.foodPackageShareRecipe : L10n.foodPackageExportTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -160,11 +162,15 @@ struct FoodPackageExportView: View {
         options: [FacetOption],
         selected: Binding<Set<String>>
     ) -> some View {
-        Section(title) {
+        let query = facetQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let visible = query.isEmpty ? options : options.filter { $0.value.localizedCaseInsensitiveContains(query) }
+        return Section(title) {
             if options.isEmpty {
                 Text(L10n.foodPackageFilterEmpty).foregroundStyle(.secondary)
+            } else if visible.isEmpty {
+                Text(L10n.foodPackageFilterNoMatch).foregroundStyle(.secondary)
             }
-            ForEach(options) { option in
+            ForEach(visible) { option in
                 let value = option.value
                 Button {
                     if selected.wrappedValue.contains(value) {
@@ -231,6 +237,17 @@ struct FoodPackageExportView: View {
         } catch {
             errorMessage = L10n.foodPackageExportFailed
             ErrorReporter.capture(error)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func facetSearchable(isEnabled: Bool, text: Binding<String>, prompt: String) -> some View {
+        if isEnabled {
+            searchable(text: text, prompt: prompt)
+        } else {
+            self
         }
     }
 }

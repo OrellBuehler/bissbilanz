@@ -1521,6 +1521,7 @@
 	"food_package_filter_hint": "Lebensmittel, die zu einer gewählten Marke oder einem Label passen, werden exportiert.",
 	"food_package_filter_search": "Suchen…",
 	"food_package_filter_empty": "Noch nichts zur Auswahl",
+	"food_package_filter_no_match": "Keine Treffer",
 	"food_package_include_recipes": "Rezepte einschliessen",
 	"food_package_include_related_recipes": "Auch Rezepte mit diesen Lebensmitteln einschliessen",
 	"food_package_summary": "{foods} Lebensmittel · {recipes} Rezepte · {images} Fotos · ~{size}",
