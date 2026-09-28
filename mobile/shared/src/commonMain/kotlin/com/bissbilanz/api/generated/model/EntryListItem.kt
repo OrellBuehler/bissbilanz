@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.ServingUnit
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -71,6 +72,6 @@ data class EntryListItem(
     @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
     @SerialName(value = "eatenAt") @Required val eatenAt: kotlin.String,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
-    @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
+    @SerialName(value = "servingUnit") @Required val servingUnit: ServingUnit?,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
 )
