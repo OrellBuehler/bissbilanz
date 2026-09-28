@@ -60,7 +60,7 @@ class FoodPackageResolutionStateTest {
                 """
                 {"packageHash":"h","formatVersion":1,"exportedAt":null,
                  "totals":{"foods":1,"recipes":0,"images":0},
-                 "newFoods":{"count":0,"ingredientOnly":0,"samples":[]},
+                 "newFoods":{"count":0,"ingredientOnly":0,"samples":[],"items":[]},
                  "newRecipes":{"count":0,"samples":[]},
                  "conflicts":{"foods":[{"ref":"f1","reason":"barcode",
                    "incoming":{"name":"Oats","brand":null,"servingSize":100,"servingUnit":"g","calories":370,
