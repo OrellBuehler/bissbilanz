@@ -32,6 +32,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
@@ -146,7 +147,8 @@ class FoodPackageViewModelTest {
             val sent = slot<FoodPackageResolutions>()
             coEvery { local.commit(pkg.path, capture(sent)) } returns result
             val imported = mutableListOf<Unit>()
-            val listener = launch { FoodPackageEvents.imported.collect { imported.add(it) } }
+            // Subscribed before anything can emit: a shared flow without replay drops what nobody is listening to.
+            val listener = launch(start = CoroutineStart.UNDISPATCHED) { FoodPackageEvents.imported.collect { imported.add(it) } }
             val vm = viewModel(AppMode.LOCAL)
 
             vm.analyzed("Lasagne.bissbilanz")
