@@ -266,33 +266,20 @@ type DeleteRecipeResult =
 	{ status: 'deleted' } | { status: 'queued' } | { status: 'blocked'; entryCount: number };
 
 /**
- * Deletes a recipe, mirroring the web's other force-delete flows: a
- * conflict (the recipe still has diary entries) must reach the UI instead of
- * being silently swallowed, so this does NOT delete the local Dexie row
- * until the server confirms (or the caller passes `force: true` after the
- * user confirmed).
+ * Deletes a recipe. A conflict (the recipe is still logged in diary entries)
+ * must reach the UI instead of being silently swallowed, so this does NOT
+ * delete the local Dexie row until the server confirms. There is no force
+ * option: the entries have to be removed or changed explicitly first.
  */
-async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<DeleteRecipeResult> {
-	const force = opts?.force ?? false;
-
+async function deleteRecipe(id: string): Promise<DeleteRecipeResult> {
 	if (browser && navigator.onLine === false) {
-		await db.recipes.delete(id);
-		await db.recipeIngredients.where('recipeId').equals(id).delete();
-		await enqueue(
-			'DELETE',
-			`/api/recipes/${id}${force ? '?force=true' : ''}`,
-			{},
-			{
-				affectedTable: 'recipes',
-				affectedId: id
-			}
-		);
+		await queueDelete(id);
 		return { status: 'queued' };
 	}
 
 	try {
 		const { error, response } = await api.DELETE('/api/recipes/{id}', {
-			params: { path: { id }, query: force ? { force: true } : undefined }
+			params: { path: { id } }
 		});
 		if ((error as { error?: string } | undefined)?.error === 'has_entries') {
 			return { status: 'blocked', entryCount: (error as { entryCount?: number }).entryCount ?? 0 };
@@ -307,19 +294,23 @@ async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<Del
 		await refresh();
 		return { status: 'queued' };
 	} catch {
-		await db.recipes.delete(id);
-		await db.recipeIngredients.where('recipeId').equals(id).delete();
-		await enqueue(
-			'DELETE',
-			`/api/recipes/${id}${force ? '?force=true' : ''}`,
-			{},
-			{
-				affectedTable: 'recipes',
-				affectedId: id
-			}
-		);
+		await queueDelete(id);
 		return { status: 'queued' };
 	}
+}
+
+async function queueDelete(id: string) {
+	await db.recipes.delete(id);
+	await db.recipeIngredients.where('recipeId').equals(id).delete();
+	await enqueue(
+		'DELETE',
+		`/api/recipes/${id}`,
+		{},
+		{
+			affectedTable: 'recipes',
+			affectedId: id
+		}
+	);
 }
 
 export const recipeService = {

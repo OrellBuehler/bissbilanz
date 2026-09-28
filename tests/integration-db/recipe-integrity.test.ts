@@ -213,6 +213,22 @@ describe('deleteFood with recipes (integration)', () => {
 	});
 });
 
+describe('bulk delete with recipes (integration)', () => {
+	it('reports a last ingredient as last_ingredient instead of offering force', async () => {
+		const { batchFoodAction } = await import('$lib/server/food-bulk');
+		const lonely = await makeFood(userId, 'Lonely');
+		await makeRecipe(userId, 'Solo', [lonely.id]);
+
+		const results = await batchFoodAction(userId, {
+			ids: [lonely.id],
+			action: 'delete',
+			payload: { force: true }
+		});
+
+		expect(results).toEqual([{ id: lonely.id, ok: false, error: 'last_ingredient' }]);
+	});
+});
+
 describe('usage (integration)', () => {
 	it('lists recipe entries newest first with a total count', async () => {
 		const db = getTestDB(dbUrl);

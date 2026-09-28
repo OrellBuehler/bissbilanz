@@ -222,6 +222,7 @@
 		<DayLog
 			date={activeDate}
 			dashboardStyle={true}
+			highlightEntryId={data.entry}
 			onTotalsChange={(t) => (daylogTotals = t)}
 			onActivityChange={(kcal) => (daylogActivityCalories = kcal)}
 			showFasting={userPrefs?.showFastingWidget ?? true}

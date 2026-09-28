@@ -7,7 +7,8 @@
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
-	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
+	import DeleteBlockedDialog from '$lib/components/usage/DeleteBlockedDialog.svelte';
+	import WhereUsedDialog from '$lib/components/usage/WhereUsedDialog.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
@@ -26,6 +27,8 @@
 	import type { RecipeFormPayload } from '$lib/components/recipes/RecipeForm.svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { untrack } from 'svelte';
 	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
@@ -53,8 +56,9 @@
 	let editingRecipe = $state<EditingRecipe | null>(null);
 	let formImageUrl: string | null = $state(null);
 	let uploading = $state(false);
-	let forceDeleteId: string | null = $state(null);
-	let forceDeleteCount = $state(0);
+	let blockedRecipe = $state<{ id: string; name: string; entryCount: number } | null>(null);
+	let usageOpen = $state(false);
+	let usageRecipe = $state<{ id: string; name: string } | null>(null);
 	let editingExtendedNutrients: Record<string, number | null> | null = $state(null);
 
 	let query = $state('');
@@ -85,6 +89,15 @@
 			recipeService.refresh();
 			loadFoods();
 		}
+	});
+
+	// A recipe linked from a "where it's used" list opens straight into its editor.
+	$effect(() => {
+		if (!browser) return;
+		const editId = $page.url.searchParams.get('edit');
+		if (!editId) return;
+		untrack(() => openEdit(editId));
+		goto('/recipes', { replaceState: true });
 	});
 
 	// "New recipe" from the command palette.
@@ -122,18 +135,17 @@
 		closeForm();
 	};
 
-	const deleteRecipe = async (id: string) => {
-		const result = await recipeService.delete(id);
+	const deleteRecipe = async (recipe: { id: string; name: string }) => {
+		const result = await recipeService.delete(recipe.id);
 		if (result.status === 'blocked') {
-			forceDeleteId = id;
-			forceDeleteCount = result.entryCount;
+			blockedRecipe = { id: recipe.id, name: recipe.name, entryCount: result.entryCount };
 		}
 	};
 
-	const confirmForceDelete = async () => {
-		if (!forceDeleteId) return;
-		await recipeService.delete(forceDeleteId, { force: true });
-		forceDeleteId = null;
+	const showUsage = () => {
+		if (!blockedRecipe) return;
+		usageRecipe = { id: blockedRecipe.id, name: blockedRecipe.name };
+		usageOpen = true;
 	};
 
 	const toggleFavorite = async (recipe: (typeof recipes)[number]) => {
@@ -403,7 +415,7 @@
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
 							</div>
-							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
+							<DeleteButton onDelete={() => deleteRecipe(recipe)} title={m.recipes_delete()} />
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -449,10 +461,18 @@
 	{/key}
 </ResponsiveModal>
 
-<ForceDeleteDialog
-	open={forceDeleteId !== null}
-	count={forceDeleteCount}
-	description={m.recipes_delete_has_entries({ count: forceDeleteCount })}
-	onConfirm={confirmForceDelete}
-	onCancel={() => (forceDeleteId = null)}
+<DeleteBlockedDialog
+	open={blockedRecipe !== null}
+	title={m.recipes_delete_blocked_title()}
+	description={m.recipes_delete_blocked({ count: blockedRecipe?.entryCount ?? 0 })}
+	actionLabel={m.usage_where_logged()}
+	onAction={showUsage}
+	onClose={() => (blockedRecipe = null)}
+/>
+
+<WhereUsedDialog
+	bind:open={usageOpen}
+	kind="recipe"
+	id={usageRecipe?.id ?? null}
+	name={usageRecipe?.name ?? ''}
 />
