@@ -23,7 +23,9 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import com.bissbilanz.android.R
 import com.bissbilanz.android.tips.AnchoredTip
 import com.bissbilanz.android.tips.HelpSlugs
@@ -239,10 +241,21 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
         com.bissbilanz.android.ui.screens
             .FoodDetailScreen(foodId, navController)
     }
-    composable("daylog/{date}") { backStackEntry ->
+    // `entry` is set by the "where it's logged" lists: that entry is scrolled to and highlighted.
+    composable(
+        "daylog/{date}?entry={entry}",
+        arguments =
+            listOf(
+                navArgument("entry") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
         val date = backStackEntry.arguments?.getString("date") ?: return@composable
         com.bissbilanz.android.ui.screens
-            .DayLogScreen(date, navController)
+            .DayLogScreen(date, navController, highlightEntryId = backStackEntry.arguments?.getString("entry"))
     }
     composable("scanner") {
         com.bissbilanz.android.ui.screens

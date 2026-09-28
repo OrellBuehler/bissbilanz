@@ -25,12 +25,13 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPackageExportSheet
-import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.RecipeDeleteBlockedDialog
 import com.bissbilanz.android.ui.components.RecipeEditSheet
+import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
@@ -64,6 +65,7 @@ fun RecipeDetailScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
+    var showUsage by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -198,22 +200,26 @@ fun RecipeDetailScreen(
     }
 
     deleteConflict?.let { conflict ->
-        ForceDeleteDialog(
+        RecipeDeleteBlockedDialog(
             outcome = conflict,
-            onConfirm = {
+            onShowUsage = {
                 deleteConflict = null
-                scope.launch {
-                    try {
-                        recipeRepo.forceDeleteRecipe(recipeId)
-                        navController.popBackStack()
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar(deleteFailedMessage)
-                    }
-                }
+                showUsage = true
             },
-            onCancel = { deleteConflict = null },
+            onDismiss = { deleteConflict = null },
+        )
+    }
+
+    if (showUsage) {
+        WhereUsedSheet(
+            title = stringResource(R.string.where_used_title_logged),
+            name = recipe?.name ?: "",
+            load = { recipeRepo.whereUsed(recipeId) },
+            onDismiss = { showUsage = false },
+            onOpenEntry = { entry ->
+                showUsage = false
+                navController.navigate("daylog/${entry.date}?entry=${entry.id}")
+            },
         )
     }
 

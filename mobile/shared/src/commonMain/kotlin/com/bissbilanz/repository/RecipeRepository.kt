@@ -313,7 +313,7 @@ class RecipeRepository(
         } catch (e: ApiException) {
             if (e.statusCode == 409) {
                 val conflict = e.responseBody?.let { json.decodeOrNull<DeleteConflictBody>(it) }
-                DeleteOutcome.Blocked(conflict?.entryCount ?: 0, conflict?.ingredientCount, conflict?.recipeCount)
+                conflict?.toBlocked() ?: DeleteOutcome.Blocked(0)
             } else {
                 // Not a conflict — likely offline/network. Fall back to the optimistic
                 // path so the delete isn't lost; it'll be resolved (and surfaced if it
@@ -329,25 +329,25 @@ class RecipeRepository(
         }
     }
 
-    /** Deletes a recipe the user already confirmed via a [DeleteOutcome.Blocked] prompt. */
-    suspend fun forceDeleteRecipe(id: String) {
+    /**
+     * The diary entries that log this recipe, newest first, so a blocked delete can point
+     * the user at the entries to remove or change. Local mode (or a not-yet-uploaded temp
+     * id) has no server to ask and reads the local cache instead.
+     */
+    suspend fun whereUsed(id: String): WhereUsed {
         if (appModeManager.isLocal || id.isTempId()) {
-            deleteRecipe(id)
-            return
+            val rows =
+                withContext(Dispatchers.IO) {
+                    db.userDataDatabaseQueries
+                        .selectEntriesByRecipeId(id)
+                        .executeAsList()
+                }
+            return WhereUsed(
+                entries = rows.toWhereUsedEntries(json).take(WHERE_USED_ENTRY_LIMIT),
+                totalEntries = rows.size,
+            )
         }
-        val imageUrl = getRecipeCached(id)?.imageUrl
-        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
-        try {
-            api.deleteRecipe(id, force = true)
-            syncQueue.removeByAffected("recipes", id)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            // Offline or a transient failure — queue the forced delete so the user's
-            // confirmed choice still lands once connectivity returns.
-            syncQueue.enqueue(SyncOperation.DeleteRecipe(id, force = true))
-        }
-        imageUrl?.let { onImageOrphaned?.invoke(it) }
+        return api.getRecipeUsage(id).toWhereUsed()
     }
 
     /**
