@@ -150,4 +150,39 @@ struct AiTaskProcessorTests {
         let create = AiTaskProcessor.foodCreate(from: nutrition, name: "Soda")
         #expect(create.servingUnit == .ml)
     }
+
+    // MARK: - Content matching (the freshness check `completeAiTask`'s LWW guard relies on)
+
+    private static func task(
+        description: String? = "the yogurt",
+        photoUrls: [String] = [],
+        date: String = "2026-06-01",
+        mealType: String? = "lunch",
+        eatenAt: String? = nil,
+        updatedAt: String? = "2026-06-01T08:00:00Z"
+    ) -> AiTask {
+        AiTask(
+            id: "task-1", userId: "u1", status: "pending", description: description, photoUrl: nil,
+            photoUrls: photoUrls, date: date, mealType: mealType, eatenAt: eatenAt, source: nil,
+            resultSummary: nil, createdEntryIds: nil, completedAt: nil, dismissedAt: nil, acknowledgedAt: nil,
+            processedBy: nil, createdAt: nil, updatedAt: updatedAt
+        )
+    }
+
+    @Test("Identical description/photos/date/meal/time match regardless of updatedAt")
+    func matchesIgnoresUpdatedAt() {
+        let a = Self.task(updatedAt: "2026-06-01T08:00:00Z")
+        let b = Self.task(updatedAt: "2026-06-01T09:30:00Z")
+        #expect(AiTaskProcessor.matches(a, b))
+    }
+
+    @Test("A changed description, photo set, date, meal type or eaten-at time each break the match")
+    func matchesDetectsEveryEditedField() {
+        let base = Self.task()
+        #expect(!AiTaskProcessor.matches(base, Self.task(description: "something else")))
+        #expect(!AiTaskProcessor.matches(base, Self.task(photoUrls: ["p1"])))
+        #expect(!AiTaskProcessor.matches(base, Self.task(date: "2026-06-02")))
+        #expect(!AiTaskProcessor.matches(base, Self.task(mealType: "dinner")))
+        #expect(!AiTaskProcessor.matches(base, Self.task(eatenAt: "2026-06-01T12:00:00Z")))
+    }
 }

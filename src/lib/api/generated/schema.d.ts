@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+	'/api/auth/providers': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List the OIDC providers the server has credentials for. Called by the mobile sign-in screens before any session exists, to decide which provider buttons to show. */
+		get: operations['getAuthProviders'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/mobile/token': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair. */
+		post: operations['mobileToken'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/mobile/apple': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Native Sign in with Apple on iOS. The device completes the flow itself and hands over an identity token verified against the app bundle id, rather than a code to exchange. */
+		post: operations['mobileAppleSignIn'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/goals': {
 		parameters: {
 			query?: never;
@@ -1263,6 +1314,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		MobileTokenRequest:
+			| {
+					code: string;
+			  }
+			| {
+					refresh_token: string;
+			  };
+		AppleSignInRequest: {
+			identity_token: string;
+			nonce: string;
+			name?: string;
+		};
 		GoalsUpdate: {
 			calorieGoal: number;
 			proteinGoal: number;
@@ -1810,6 +1873,19 @@ export interface components {
 			wakeTime?: string | null;
 			wakeUps?: number | null;
 			notes?: string | null;
+		};
+		AuthProvidersResponse: {
+			providers: string[];
+		};
+		MobileTokenResponse: {
+			access_token: string;
+			refresh_token: string;
+			/** @constant */
+			token_type: 'Bearer';
+			expires_in: number;
+		};
+		MessageErrorResponse: {
+			message: string;
 		};
 		GoalsResponse: {
 			goals: components['schemas']['Goals'] | null;
@@ -3105,6 +3181,42 @@ export interface components {
 		};
 	};
 	responses: {
+		/** @description Bad request */
+		AuthBadRequestResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['MessageErrorResponse'];
+			};
+		};
+		/** @description Unauthorized */
+		AuthUnauthorizedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['MessageErrorResponse'];
+			};
+		};
+		/** @description Too many requests */
+		AuthRateLimitedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['MessageErrorResponse'];
+			};
+		};
+		/** @description Not found */
+		AuthNotFoundResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['MessageErrorResponse'];
+			};
+		};
 		/** @description Unauthorized */
 		UnauthorizedResponse: {
 			headers: {
@@ -3148,6 +3260,15 @@ export interface components {
 			};
 			content?: never;
 		};
+		/** @description Too many requests */
+		RateLimitedResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
 	};
 	parameters: never;
 	requestBodies: never;
@@ -3156,6 +3277,81 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+	getAuthProviders: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AuthProvidersResponse'];
+				};
+			};
+		};
+	};
+	mobileToken: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['MobileTokenRequest'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MobileTokenResponse'];
+				};
+			};
+			400: components['responses']['AuthBadRequestResponse'];
+			401: components['responses']['AuthUnauthorizedResponse'];
+			429: components['responses']['AuthRateLimitedResponse'];
+		};
+	};
+	mobileAppleSignIn: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AppleSignInRequest'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['MobileTokenResponse'];
+				};
+			};
+			400: components['responses']['AuthBadRequestResponse'];
+			401: components['responses']['AuthUnauthorizedResponse'];
+			404: components['responses']['AuthNotFoundResponse'];
+			429: components['responses']['AuthRateLimitedResponse'];
+		};
+	};
 	getGoals: {
 		parameters: {
 			query?: never;
@@ -3230,6 +3426,7 @@ export interface operations {
 					'application/json': components['schemas']['FoodsListResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -3591,6 +3788,7 @@ export interface operations {
 					'application/json': components['schemas']['FoodLabelsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
 		};
@@ -3646,6 +3844,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteFood: {
@@ -3692,6 +3891,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listEntries: {
@@ -3714,6 +3914,7 @@ export interface operations {
 					'application/json': components['schemas']['EntriesListResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -3789,6 +3990,7 @@ export interface operations {
 					'application/json': components['schemas']['EntriesRangeResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -3833,6 +4035,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listRecipes: {
@@ -3906,6 +4109,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteRecipe: {
@@ -3952,6 +4156,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listSupplements: {
@@ -4045,6 +4250,7 @@ export interface operations {
 					'application/json': components['schemas']['SupplementHistoryResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4069,6 +4275,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	deleteSupplement: {
@@ -4112,6 +4319,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	logSupplement: {
@@ -4139,6 +4347,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	unlogSupplementForDate: {
@@ -4383,6 +4592,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	updateWeightEntry: {
@@ -4411,6 +4621,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listFastingSessions: {
@@ -4533,6 +4744,7 @@ export interface operations {
 					'application/json': components['schemas']['DailyStatsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4600,6 +4812,7 @@ export interface operations {
 					'application/json': components['schemas']['MealBreakdownResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4669,6 +4882,7 @@ export interface operations {
 					'application/json': components['schemas']['CalendarResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4696,6 +4910,7 @@ export interface operations {
 						| components['schemas']['DayPropertiesRangeResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -4737,6 +4952,7 @@ export interface operations {
 		requestBody?: never;
 		responses: {
 			204: components['responses']['DeletedResponse'];
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			409: components['responses']['ConflictResponse'];
 		};
@@ -4848,6 +5064,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	updateMealType: {
@@ -4876,6 +5093,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	listFavorites: {
@@ -5067,6 +5285,7 @@ export interface operations {
 					'application/json': components['schemas']['AiTasksResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -5192,6 +5411,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 			409: components['responses']['ConflictResponse'];
 		};
 	};
@@ -5237,6 +5457,7 @@ export interface operations {
 					'application/json': components['schemas']['SleepEntriesResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
@@ -5279,6 +5500,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	updateSleepEntry: {
@@ -5307,6 +5529,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	getFoodDiversity: {
@@ -5601,6 +5824,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	lookupOpenFoodFacts: {
@@ -5623,7 +5847,9 @@ export interface operations {
 					'application/json': components['schemas']['OpenFoodFactsResponse'];
 				};
 			};
+			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
 		};
 	};
 	saveOpenFoodFactsProduct: {

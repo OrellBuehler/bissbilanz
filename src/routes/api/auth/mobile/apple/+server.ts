@@ -1,6 +1,5 @@
 import { json, error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { JOSEError } from 'jose/errors';
 import { config } from '$lib/server/env';
@@ -13,14 +12,9 @@ import { createAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 import { getRequestIp } from '$lib/server/client-ip';
+import { appleSignInRequestSchema } from '$lib/server/validation/auth';
 
 const EXPIRES_IN_SECONDS = ACCESS_TOKEN_LIFETIME_MS / 1000;
-
-const requestSchema = z.object({
-	identity_token: z.string().min(1).max(8192),
-	nonce: z.string().min(1).max(256),
-	name: z.string().max(256).optional()
-});
 
 /**
  * Native Sign in with Apple on iOS. The device completes the flow itself and hands
@@ -48,7 +42,7 @@ export const POST: RequestHandler = async (event) => {
 		throw error(400, 'Invalid JSON body');
 	}
 
-	const parsed = requestSchema.safeParse(rawBody);
+	const parsed = appleSignInRequestSchema.safeParse(rawBody);
 	if (!parsed.success) {
 		throw error(400, 'identity_token and nonce are required');
 	}

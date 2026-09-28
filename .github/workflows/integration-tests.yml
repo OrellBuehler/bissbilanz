@@ -30,8 +30,5 @@ jobs:
 
       - run: bun install
 
-      - name: Check OpenAPI spec is up-to-date
-        run: bun run api:check
-
       - name: Run integration tests
         run: bun run test:integration-db

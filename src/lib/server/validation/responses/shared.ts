@@ -7,6 +7,14 @@ export const errorResponseSchema = z
 	})
 	.meta({ id: 'ErrorResponse' });
 
+// KNOWN INACCURACY, deliberately not fixed: validationError() actually sends
+// ZodError#format(), a recursive tree with `_errors: string[]` at every level
+// rather than this flat Record<string, string[]>. Any schema wide enough to
+// describe the real shape (tried z.unknown(), z.record(unknown), an object
+// with a `_errors` array plus a catchall) makes oasdiff flag the `details`
+// property as a breaking response-type change for every operation that
+// references this shared schema (scripts/api/check-breaking.sh). Left as-is
+// rather than ship a breaking change; see docs/api-stability.md.
 export const validationErrorResponseSchema = z
 	.object({
 		error: z.string(),
@@ -25,3 +33,13 @@ export const conflictErrorResponseSchema = z
 		supplementIngredientCount: z.number().optional()
 	})
 	.meta({ id: 'ConflictErrorResponse' });
+
+// SvelteKit's `error(status, 'message')` helper serializes to `{ message }`,
+// not the `{ error }` shape the rest of the API returns via json({ error }).
+// Routes that throw error() directly (the mobile sign-in endpoints) document
+// their failures with this schema instead of errorResponseSchema.
+export const messageErrorResponseSchema = z
+	.object({
+		message: z.string()
+	})
+	.meta({ id: 'MessageErrorResponse' });

@@ -1295,6 +1295,7 @@
 	"settings_ai_task_processor_label": "Processor",
 	"settings_ai_task_processor_assistant": "AI assistant (MCP)",
 	"settings_ai_task_processor_device": "My iPhone (on-device / Private Cloud Compute)",
+	"settings_ai_task_processor_device_hint": "Tasks stay pending until the Bissbilanz iPhone app processes them.",
 	"settings_ai_task_auto_log_label": "Log automatically",
 	"settings_ai_task_auto_log_hint": "When off, estimates wait for your review in the iPhone app.",
 	"command_open": "Search",

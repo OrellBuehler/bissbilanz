@@ -78,7 +78,9 @@ bun run test:mobile             # Playwright e2e tests
 
 # API codegen (OpenAPI spec + TS/Kotlin clients)
 bun run api:generate            # Regenerate after changing API routes or validation schemas
-bun run api:check               # Verify generated output is current (enforced in CI)
+bun run mcp:generate            # Regenerate docs/mcp-tools.json after changing MCP tools/prompts
+bun run api:check               # Quick TS-only staleness check (no Docker)
+scripts/api/verify.sh           # Full API stability gate, same as CI (needs Docker)
 ```
 
 ## Code Conventions
@@ -118,7 +120,21 @@ bun run api:check               # Verify generated output is current (enforced i
 - Return consistent error format: `{ error: string }`
 - Always check user authentication/authorization
 - Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
-- The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (CI fails otherwise via `api:check`)
+- The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (the API Contract workflow fails otherwise)
+- Every new route goes into `src/lib/server/openapi.ts`; `tests/contract/openapi-coverage.test.ts` fails otherwise
+- Every new or changed endpoint needs an `expectResponseContract(method, path, response)` assertion (`tests/helpers/contract.ts`) in its `tests/api/*.test.ts` test, for each documented status it exercises — `tests/contract/response-contract-coverage.test.ts` fails on a documented 2xx JSON operation with none
+
+### API Stability (CRITICAL)
+
+`/api/*` and the MCP tools are a public contract: shipped Android/iOS builds, offline queues replaying old requests, and MCP clients all depend on them. There is no URL versioning; the API evolves additively. Full policy: `docs/api-stability.md`.
+
+- **Additive only:** new endpoints, new optional request fields, new response fields. Never remove/rename a field, endpoint, tool or parameter; never add a required request field; never make a response field optional/nullable; never tighten validation on existing input.
+- **No new values in response enums** unless the field is marked `x-extensible-enum` and every client decodes unknown values — iOS `Codable` enums fail on them and sync drops the change silently.
+- **Semantic changes are breaking** even when the shape is identical (units, per-serving vs. total, defaults when a field is omitted). Add a new field instead of changing the meaning of an old one.
+- **Changing a contract:** expand (add new beside old) → migrate clients → deprecate (`deprecated: true` + `x-sunset`) → remove after the support window in a separate PR labelled `api-breaking-change`. Never add that label to get a feature through CI; ask the user first.
+- **Deploy order:** server before the mobile builds that use a new field or endpoint.
+- **Migrations are expand/contract too:** no `DROP`/`RENAME`/type change in the release that stops using the column. A reviewed destructive migration needs a `-- destructive-ok: <reason>` line.
+- Run `scripts/api/verify.sh` before opening a PR that touches routes, validation schemas, MCP tools or migrations.
 
 ### Styling
 

@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
-import { TEST_USER, TEST_GOALS } from '../helpers/fixtures';
+import { TEST_USER, TEST_GOALS, TEST_FOOD } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
 
 let mockCalendarResult: any = null;
 let mockDailyBreakdownResult: any = null;
@@ -61,18 +62,25 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { month: '2026-02' }
 			});
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns calendar stats for valid month', async () => {
-			mockCalendarResult = { days: [{ date: '2026-02-01', calories: 2000 }] };
+			// Realistic shape: getCalendarStats() returns { days: Record<date, CalendarDay>, notedDates }
+			// (see src/lib/server/stats.ts), not an array of day objects.
+			mockCalendarResult = {
+				days: { '2026-02-01': { calories: 2000, hasEntries: true } },
+				notedDates: []
+			};
 			const event = createMockEvent({
 				user: TEST_USER,
 				searchParams: { month: '2026-02' }
 			});
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 		});
@@ -80,6 +88,7 @@ describe('api/stats - extended endpoints', () => {
 		test('returns 400 when month parameter missing', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toContain('month');
@@ -91,6 +100,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { month: '2026-2' }
 			});
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -100,6 +110,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { month: '2026-13' }
 			});
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -109,6 +120,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { month: '2026-00' }
 			});
 			const response = await calendarModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/calendar', response);
 			expect(response.status).toBe(400);
 		});
 	});
@@ -122,6 +134,7 @@ describe('api/stats - extended endpoints', () => {
 			const response = await dailyModule.GET(
 				createMockEvent({ user: TEST_USER, searchParams: { startDate, endDate } })
 			);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			expect(response.status).toBe(400);
 		});
 		test('returns 401 when not authenticated', async () => {
@@ -130,19 +143,25 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns daily breakdown with goals', async () => {
-			mockDailyBreakdownResult = [{ date: '2026-02-01', calories: 2000 }];
+			// Realistic shape: getDailyBreakdown() always returns full MacroTotals
+			// per day (calories/protein/carbs/fat/fiber), not just calories.
+			mockDailyBreakdownResult = [
+				{ date: '2026-02-01', calories: 2000, protein: 150, carbs: 200, fat: 65, fiber: 25 }
+			];
 			mockGoalsResult = TEST_GOALS;
 			const event = createMockEvent({
 				user: TEST_USER,
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toBeDefined();
@@ -158,6 +177,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.goals).toBeNull();
@@ -169,6 +189,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			expect(response.status).toBe(400);
 		});
 
@@ -178,19 +199,21 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			expect(response.status).toBe(400);
 		});
 
 		test('returns 400 when both dates missing', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			expect(response.status).toBe(400);
 		});
 
 		test('merges per-day activityCalories and reports adjustment preferences', async () => {
 			mockDailyBreakdownResult = [
-				{ date: '2026-02-01', calories: 2000 },
-				{ date: '2026-02-02', calories: 1800 }
+				{ date: '2026-02-01', calories: 2000, protein: 150, carbs: 200, fat: 65, fiber: 25 },
+				{ date: '2026-02-02', calories: 1800, protein: 140, carbs: 180, fat: 55, fiber: 20 }
 			];
 			mockGoalsResult = TEST_GOALS;
 			mockDayPropertiesRangeResult = [{ date: '2026-02-01', activityCalories: 400 }];
@@ -200,6 +223,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data[0].activityCalories).toBe(400);
@@ -217,6 +241,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-07' }
 			});
 			const response = await dailyModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/daily', response);
 			const data = await response.json();
 			expect(data.activityGoalAdjustment).toBe(false);
 			expect(data.activityCreditPercent).toBe(100);
@@ -230,18 +255,24 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { date: '2026-02-10' }
 			});
 			const response = await mealBreakdownModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/meal-breakdown', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns meal breakdown for single date', async () => {
-			mockMealBreakdownResult = [{ mealType: 'breakfast', calories: 500 }];
+			// Realistic shape: getMealBreakdown() always returns full MacroTotals
+			// per meal (calories/protein/carbs/fat/fiber), not just calories.
+			mockMealBreakdownResult = [
+				{ mealType: 'breakfast', calories: 500, protein: 30, carbs: 60, fat: 15, fiber: 8 }
+			];
 			const event = createMockEvent({
 				user: TEST_USER,
 				searchParams: { date: '2026-02-10' }
 			});
 			const response = await mealBreakdownModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/meal-breakdown', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toBeDefined();
@@ -254,6 +285,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { startDate: '2026-02-01', endDate: '2026-02-10' }
 			});
 			const response = await mealBreakdownModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/meal-breakdown', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 		});
@@ -261,6 +293,7 @@ describe('api/stats - extended endpoints', () => {
 		test('returns 400 when no date parameters', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await mealBreakdownModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/meal-breakdown', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toContain('date');
@@ -271,15 +304,31 @@ describe('api/stats - extended endpoints', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await topFoodsModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/top-foods', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
 		});
 
 		test('returns top foods with default params', async () => {
-			mockTopFoodsResult = [{ name: 'Oats', count: 15 }];
+			// Realistic shape: getTopFoods() always returns foodId/recipeId/foodName
+			// plus full MacroTotals, not just name/count.
+			mockTopFoodsResult = [
+				{
+					foodId: TEST_FOOD.id,
+					recipeId: null,
+					foodName: 'Oats',
+					count: 15,
+					calories: 389,
+					protein: 13.2,
+					carbs: 66.3,
+					fat: 6.9,
+					fiber: 10.6
+				}
+			];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await topFoodsModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/top-foods', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toBeDefined();
@@ -292,6 +341,7 @@ describe('api/stats - extended endpoints', () => {
 				searchParams: { days: '30', limit: '5' }
 			});
 			const response = await topFoodsModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/top-foods', response);
 			expect(response.status).toBe(200);
 		});
 	});
@@ -300,6 +350,7 @@ describe('api/stats - extended endpoints', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await streaksModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/streaks', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -309,6 +360,7 @@ describe('api/stats - extended endpoints', () => {
 			mockStreaksResult = { currentStreak: 5, longestStreak: 14 };
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await streaksModule.GET(event);
+			await expectResponseContract('GET', '/api/stats/streaks', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.currentStreak).toBe(5);

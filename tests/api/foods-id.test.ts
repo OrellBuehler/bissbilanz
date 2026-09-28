@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_FOOD, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
@@ -46,6 +47,7 @@ describe('api/foods/[id]', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, params: { id: TEST_FOOD.id } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -56,6 +58,7 @@ describe('api/foods/[id]', () => {
 			mockGetResult = TEST_FOOD;
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -75,6 +78,7 @@ describe('api/foods/[id]', () => {
 				params: { id: '00000000-0000-0000-0000-000000000000' }
 			});
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -90,6 +94,7 @@ describe('api/foods/[id]', () => {
 				body: { name: 'Updated Oats' }
 			});
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -105,6 +110,7 @@ describe('api/foods/[id]', () => {
 				body: { name: 'Updated Oats', calories: 400 }
 			});
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -121,6 +127,7 @@ describe('api/foods/[id]', () => {
 				body: { calories: 'not-a-number' }
 			});
 			const response = await PATCH(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -136,6 +143,7 @@ describe('api/foods/[id]', () => {
 				body: { name: 'Updated' }
 			});
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -147,6 +155,7 @@ describe('api/foods/[id]', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, params: { id: TEST_FOOD.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -156,6 +165,7 @@ describe('api/foods/[id]', () => {
 		test('returns 204 on successful delete without entries', async () => {
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
 
 			expect(response.status).toBe(204);
 		});
@@ -164,6 +174,7 @@ describe('api/foods/[id]', () => {
 			mockDeleteResult = { blocked: true, entryCount: 5 };
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(409);
@@ -179,6 +190,7 @@ describe('api/foods/[id]', () => {
 				url: `http://localhost/api/foods/${TEST_FOOD.id}?force=true`
 			});
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
 
 			expect(response.status).toBe(204);
 		});

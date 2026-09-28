@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 const TEST_SLEEP_ENTRY = {
@@ -12,10 +13,15 @@ const TEST_SLEEP_ENTRY = {
 	bedtime: null,
 	wakeTime: null,
 	wakeUps: null,
+	sleepLatencyMinutes: null,
+	deepSleepMinutes: null,
+	lightSleepMinutes: null,
+	remSleepMinutes: null,
+	source: null,
 	notes: null,
 	loggedAt: new Date('2026-03-01T06:05:00Z'),
 	createdAt: new Date('2026-03-01T06:05:00Z'),
-	updatedAt: null
+	updatedAt: new Date('2026-03-01T06:05:00Z')
 };
 
 let mockGetEntriesResult: any = [];
@@ -80,6 +86,7 @@ describe('api/sleep', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -89,6 +96,7 @@ describe('api/sleep', () => {
 			mockGetEntriesResult = [TEST_SLEEP_ENTRY];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toHaveLength(1);
@@ -99,6 +107,7 @@ describe('api/sleep', () => {
 			mockGetEntriesResult = [];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toEqual([]);
@@ -111,6 +120,7 @@ describe('api/sleep', () => {
 				searchParams: { from: '2026-03-01', to: '2026-03-31' }
 			});
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toHaveLength(1);
@@ -122,6 +132,7 @@ describe('api/sleep', () => {
 				searchParams: { from: '01-03-2026', to: '2026-03-31' }
 			});
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid from format, expected YYYY-MM-DD');
@@ -133,6 +144,7 @@ describe('api/sleep', () => {
 				searchParams: { from: '2026-03-01', to: 'not-a-date' }
 			});
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 		});
@@ -144,6 +156,7 @@ describe('api/sleep', () => {
 				searchParams: { from: '2026-03-01' }
 			});
 			const response = await sleepModule.GET(event);
+			await expectResponseContract('GET', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entries).toHaveLength(1);
@@ -157,6 +170,7 @@ describe('api/sleep', () => {
 				body: { durationMinutes: 480, quality: 8, entryDate: '2026-03-01' }
 			});
 			const response = await sleepModule.POST(event);
+			await expectResponseContract('POST', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -169,6 +183,7 @@ describe('api/sleep', () => {
 				body: { durationMinutes: 480, quality: 8, entryDate: '2026-03-01' }
 			});
 			const response = await sleepModule.POST(event);
+			await expectResponseContract('POST', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.entry.durationMinutes).toBe(480);
@@ -182,6 +197,7 @@ describe('api/sleep', () => {
 				body: { durationMinutes: 480, quality: 0, entryDate: '2026-03-01' }
 			});
 			const response = await sleepModule.POST(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 			expect(response.status).toBe(400);
 		});
 
@@ -192,6 +208,7 @@ describe('api/sleep', () => {
 				body: { durationMinutes: 480, quality: 11, entryDate: '2026-03-01' }
 			});
 			const response = await sleepModule.POST(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 			expect(response.status).toBe(400);
 		});
 
@@ -216,6 +233,7 @@ describe('api/sleep', () => {
 				}
 			});
 			const response = await sleepModule.POST(event);
+			await expectResponseContract('POST', '/api/sleep', response);
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.entry.wakeUps).toBe(1);
@@ -231,6 +249,7 @@ describe('api/sleep', () => {
 				body: { quality: 7 }
 			});
 			const response = await sleepIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/sleep/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -244,6 +263,7 @@ describe('api/sleep', () => {
 				body: { quality: 7, durationMinutes: 420 }
 			});
 			const response = await sleepIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/sleep/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.entry.quality).toBe(7);
@@ -257,6 +277,7 @@ describe('api/sleep', () => {
 				body: { quality: 7 }
 			});
 			const response = await sleepIdModule.PATCH(event);
+			await expectResponseContract('PATCH', '/api/sleep/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toContain('Sleep entry');
@@ -270,6 +291,7 @@ describe('api/sleep', () => {
 				params: { id: TEST_SLEEP_ENTRY.id }
 			});
 			const response = await sleepIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/sleep/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -282,6 +304,7 @@ describe('api/sleep', () => {
 				params: { id: TEST_SLEEP_ENTRY.id }
 			});
 			const response = await sleepIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/sleep/{id}', response);
 			expect(response.status).toBe(204);
 		});
 
@@ -292,6 +315,7 @@ describe('api/sleep', () => {
 				params: { id: '00000000-0000-4000-8000-000000000000' }
 			});
 			const response = await sleepIdModule.DELETE(event);
+			await expectResponseContract('DELETE', '/api/sleep/{id}', response);
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toContain('Sleep entry');

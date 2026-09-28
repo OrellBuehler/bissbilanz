@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_RECIPE } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
@@ -33,6 +34,7 @@ describe('api/recipes/[id]', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, params: { id: TEST_RECIPE.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/recipes/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -42,6 +44,7 @@ describe('api/recipes/[id]', () => {
 		test('returns 204 on successful delete without entries', async () => {
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_RECIPE.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/recipes/{id}', response);
 
 			expect(response.status).toBe(204);
 		});
@@ -50,6 +53,7 @@ describe('api/recipes/[id]', () => {
 			mockDeleteResult = { blocked: true, entryCount: 3 };
 			const event = createMockEvent({ user: TEST_USER, params: { id: TEST_RECIPE.id } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/recipes/{id}', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(409);
@@ -65,6 +69,7 @@ describe('api/recipes/[id]', () => {
 				url: `http://localhost/api/recipes/${TEST_RECIPE.id}?force=true`
 			});
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/recipes/{id}', response);
 
 			expect(response.status).toBe(204);
 		});

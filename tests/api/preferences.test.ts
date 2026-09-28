@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
@@ -15,30 +16,53 @@ const mockValidationError = new ZodError([
 	} as any
 ]);
 
-const TEST_PREFERENCES = {
-	userId: TEST_USER.id,
+// Mirrors the real DEFAULT_PREFERENCES in src/lib/server/preferences.ts —
+// the response schema requires every one of these fields.
+const REAL_DEFAULT_PREFERENCES = {
 	showChartWidget: true,
 	showFavoritesWidget: true,
 	showSupplementsWidget: true,
 	showWeightWidget: true,
 	showMealBreakdownWidget: true,
 	showTopFoodsWidget: true,
+	showSleepWidget: true,
+	showFastingWidget: true,
+	showDayPropertiesWidget: true,
+	showRecipeSuggestionsWidget: true,
 	widgetOrder: [
+		'fasting',
+		'day-properties',
 		'chart',
 		'favorites',
+		'recipe-suggestions',
 		'supplements',
 		'weight',
 		'meal-breakdown',
 		'top-foods',
+		'sleep',
 		'summary',
 		'daylog'
 	],
+	mealOrder: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'],
+	pinnedInsights: [],
 	startPage: 'dashboard',
 	locale: 'en',
+	timeZone: 'UTC',
 	favoriteTapAction: 'instant',
 	favoriteMealAssignmentMode: 'time_based',
 	visibleNutrients: ['calories', 'protein', 'carbs', 'fat', 'fiber'],
-	favoriteMealTimeframes: [],
+	biologicalSex: null,
+	waterGoalMl: 2000,
+	activityGoalAdjustment: false,
+	activityCreditPercent: 100,
+	aiTaskProcessor: 'assistant',
+	aiTaskAutoLog: false,
+	favoriteMealTimeframes: []
+};
+
+const TEST_PREFERENCES = {
+	userId: TEST_USER.id,
+	...REAL_DEFAULT_PREFERENCES,
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
 
@@ -48,30 +72,7 @@ vi.mock('$lib/server/preferences', () => ({
 		mockUpdateResult
 			? { success: true, data: mockUpdateResult }
 			: { success: false, error: mockValidationError },
-	DEFAULT_PREFERENCES: {
-		showChartWidget: true,
-		showFavoritesWidget: true,
-		showSupplementsWidget: true,
-		showWeightWidget: true,
-		showMealBreakdownWidget: true,
-		showTopFoodsWidget: true,
-		widgetOrder: [
-			'chart',
-			'favorites',
-			'supplements',
-			'weight',
-			'meal-breakdown',
-			'top-foods',
-			'summary',
-			'daylog'
-		],
-		startPage: 'dashboard',
-		locale: 'en',
-		favoriteTapAction: 'instant',
-		favoriteMealAssignmentMode: 'time_based',
-		visibleNutrients: [],
-		favoriteMealTimeframes: []
-	}
+	DEFAULT_PREFERENCES: REAL_DEFAULT_PREFERENCES
 }));
 
 const { GET, PATCH } = await import('../../src/routes/api/preferences/+server');
@@ -87,6 +88,7 @@ describe('api/preferences', () => {
 			const event = createMockEvent({ user: null });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -98,6 +100,7 @@ describe('api/preferences', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -111,6 +114,7 @@ describe('api/preferences', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -128,6 +132,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -143,6 +148,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -158,6 +164,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -177,6 +184,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/preferences', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -192,6 +200,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 			expect(response.status).toBe(400);
 		});
@@ -205,6 +214,7 @@ describe('api/preferences', () => {
 			});
 
 			const response = await PATCH(event);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 			const data = await response.json();
 
 			expect(response.status).toBe(400);

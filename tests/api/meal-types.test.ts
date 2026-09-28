@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { ZodError } from 'zod';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER, TEST_MEAL_TYPE, VALID_MEAL_TYPE_PAYLOAD } from '../helpers/fixtures';
 
 // Mock the meal-types module
@@ -41,6 +42,7 @@ describe('api/meal-types', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/meal-types', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -51,6 +53,7 @@ describe('api/meal-types', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/meal-types', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -63,6 +66,7 @@ describe('api/meal-types', () => {
 			const event = createMockEvent({ user: TEST_USER });
 
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/meal-types', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -77,6 +81,7 @@ describe('api/meal-types', () => {
 				body: VALID_MEAL_TYPE_PAYLOAD
 			});
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/meal-types', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -90,6 +95,7 @@ describe('api/meal-types', () => {
 			});
 
 			const response = await POST(event);
+			await expectResponseContract('POST', '/api/meal-types', response);
 			const data = await response.json();
 
 			expect(response.status).toBe(201);
@@ -107,6 +113,7 @@ describe('api/meal-types', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -122,6 +129,7 @@ describe('api/meal-types', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -136,6 +144,7 @@ describe('api/meal-types', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -151,6 +160,7 @@ describe('api/meal-types', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 
 				expect(response.status).toBe(400);
 			});
@@ -163,7 +173,9 @@ describe('api/meal-types', () => {
 
 				mockCreateResult = null;
 				const response = await POST(event);
+				// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 				const data = await response.json();
+				console.log('DEBUG BODY', JSON.stringify(data));
 
 				expect(response.status).toBe(400);
 				expect(data.error).toBe('Validation failed');

@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
 const TEST_DAY_PROPERTIES = {
@@ -8,12 +9,13 @@ const TEST_DAY_PROPERTIES = {
 	notes: null,
 	waterMl: null,
 	activityCalories: null,
+	activityCaloriesSource: null,
 	activityNote: null
 };
 
 const TEST_DAY_PROPERTIES_RANGE = [
-	{ date: '2026-03-20', isFastingDay: false },
-	{ date: '2026-03-22', isFastingDay: true }
+	{ ...TEST_DAY_PROPERTIES, date: '2026-03-20', isFastingDay: false },
+	{ ...TEST_DAY_PROPERTIES, date: '2026-03-22', isFastingDay: true }
 ];
 
 let mockGetResult: any = null;
@@ -42,6 +44,7 @@ describe('api/day-properties', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: { date: '2026-03-22' } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -50,6 +53,7 @@ describe('api/day-properties', () => {
 		test('returns 400 when date param is missing', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('date parameter is required');
@@ -58,6 +62,7 @@ describe('api/day-properties', () => {
 		test('returns 400 when date format is invalid', async () => {
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: '22-03-2026' } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid date format, expected YYYY-MM-DD');
@@ -67,6 +72,7 @@ describe('api/day-properties', () => {
 			mockGetResult = TEST_DAY_PROPERTIES;
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: '2026-03-22' } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.properties.date).toBe('2026-03-22');
@@ -77,6 +83,7 @@ describe('api/day-properties', () => {
 			mockGetResult = null;
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: '2026-03-22' } });
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.properties).toBeNull();
@@ -89,6 +96,7 @@ describe('api/day-properties', () => {
 				searchParams: { startDate: '2026-03-20', endDate: '2026-03-22' }
 			});
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.data).toHaveLength(2);
@@ -100,6 +108,7 @@ describe('api/day-properties', () => {
 				searchParams: { startDate: 'bad-date', endDate: '2026-03-22' }
 			});
 			const response = await GET(event);
+			await expectResponseContract('GET', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid startDate format, expected YYYY-MM-DD');
@@ -113,6 +122,7 @@ describe('api/day-properties', () => {
 				body: { date: '2026-03-22', isFastingDay: true }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -125,6 +135,7 @@ describe('api/day-properties', () => {
 				body: { date: '2026-03-22', isFastingDay: true }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.properties.date).toBe('2026-03-22');
@@ -132,12 +143,13 @@ describe('api/day-properties', () => {
 		});
 
 		test('sets isFastingDay to false', async () => {
-			mockSetResult = { date: '2026-03-22', isFastingDay: false };
+			mockSetResult = { ...TEST_DAY_PROPERTIES, isFastingDay: false };
 			const event = createMockEvent({
 				user: TEST_USER,
 				body: { date: '2026-03-22', isFastingDay: false }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.properties.isFastingDay).toBe(false);
@@ -149,6 +161,7 @@ describe('api/day-properties', () => {
 				body: { isFastingDay: true }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid request body');
@@ -161,6 +174,7 @@ describe('api/day-properties', () => {
 				body: { date: '2026-03-22', notes: 'rest day' }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.properties.notes).toBe('rest day');
@@ -172,6 +186,7 @@ describe('api/day-properties', () => {
 				body: { date: '2026-03-22', waterMl: -1 }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid request body');
@@ -183,6 +198,7 @@ describe('api/day-properties', () => {
 				body: { date: 'not-a-date', isFastingDay: true }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid request body');
@@ -194,6 +210,7 @@ describe('api/day-properties', () => {
 				body: { date: '2026-03-22', isFastingDay: 'yes' }
 			});
 			const response = await PUT(event);
+			await expectResponseContract('PUT', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid request body');
@@ -204,6 +221,7 @@ describe('api/day-properties', () => {
 		test('returns 401 when not authenticated', async () => {
 			const event = createMockEvent({ user: null, searchParams: { date: '2026-03-22' } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(401);
 			expect(data.error).toBe('Unauthorized');
@@ -212,6 +230,7 @@ describe('api/day-properties', () => {
 		test('returns 400 when date param is missing', async () => {
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('date parameter is required');
@@ -220,6 +239,7 @@ describe('api/day-properties', () => {
 		test('returns 400 when date format is invalid', async () => {
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: 'bad' } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(400);
 			expect(data.error).toBe('Invalid date format, expected YYYY-MM-DD');
@@ -229,6 +249,7 @@ describe('api/day-properties', () => {
 			mockDeleteResult = 'deleted';
 			const event = createMockEvent({ user: TEST_USER, searchParams: { date: '2026-03-22' } });
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/day-properties', response);
 			expect(response.status).toBe(204);
 		});
 
@@ -240,6 +261,7 @@ describe('api/day-properties', () => {
 				headers: { 'X-Client-Edited-At': '2026-03-22T08:00:00Z' }
 			});
 			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/day-properties', response);
 			const data = await response.json();
 			expect(response.status).toBe(409);
 			expect(data.error).toBe('conflict_server_newer');

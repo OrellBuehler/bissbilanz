@@ -286,6 +286,43 @@ describe('resolveOperations', () => {
 		).toThrowError(expect.objectContaining({ status: 409 }) as ApiError);
 	});
 
+	it('throws stale_preview when a food resolution targets a ref that is no longer a conflict', () => {
+		// Preview time: f1 conflicts with `target`.
+		const target = existing({ name: 'A' });
+		const m = manifest([food('f1', { name: 'A' })]);
+		expect(matchPackage(m, [target], []).foodConflicts).toHaveLength(1);
+		// Commit time: `target` was deleted elsewhere, so f1 is now "new" — the
+		// client's resolution (from the stale preview) must not be silently
+		// ignored and the food inserted unconditionally.
+		const commitMatch = matchPackage(m, [], []);
+		expect(commitMatch.newFoodRefs).toEqual(['f1']);
+		expect(() =>
+			resolveOperations(
+				m,
+				commitMatch,
+				{ foods: [{ ref: 'f1', action: 'skip', existingId: target.id }], recipes: [] },
+				[]
+			)
+		).toThrowError(expect.objectContaining({ status: 409, message: 'stale_preview' }) as ApiError);
+	});
+
+	it('throws stale_preview when a recipe resolution targets a ref that is no longer a conflict', () => {
+		const target = existingRecipe({ name: 'Porridge' });
+		const m = manifest([], [recipe('r1', { name: 'Porridge' })]);
+		expect(matchPackage(m, [], [target]).recipeConflicts).toHaveLength(1);
+		// Commit time: `target` was deleted elsewhere, so r1 is now "new".
+		const commitMatch = matchPackage(m, [], []);
+		expect(commitMatch.newRecipeRefs).toEqual(['r1']);
+		expect(() =>
+			resolveOperations(
+				m,
+				commitMatch,
+				{ foods: [], recipes: [{ ref: 'r1', action: 'skip', existingId: target.id }] },
+				[]
+			)
+		).toThrowError(expect.objectContaining({ status: 409, message: 'stale_preview' }) as ApiError);
+	});
+
 	it('rejects a disallowed action with 400', () => {
 		const m = manifest([food('f1', { name: 'Milk', servingUnit: 'g' })]);
 		const target = existing({ name: 'Milk', servingUnit: 'ml', recipeCount: 1 });

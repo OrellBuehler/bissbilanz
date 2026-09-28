@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
 import { ApiError } from '../../src/lib/server/errors';
+import { expectResponseContract } from '../helpers/contract';
 
 let parseCalls: Array<{ fileName: string; timeZone: string; format?: string }> = [];
 let runCalls: Array<{ mode: string }> = [];
@@ -69,18 +70,21 @@ describe('POST /api/account/import', () => {
 
 	test('returns 401 when not authenticated', async () => {
 		const response = await importModule.POST(eventWithFile({ user: null }));
+		await expectResponseContract('POST', '/api/account/import', response);
 		expect(response.status).toBe(401);
 		expect((await response.json()).error).toBe('Unauthorized');
 	});
 
 	test('returns 400 without a file', async () => {
 		const response = await importModule.POST(eventWithFile({ file: null }));
+		await expectResponseContract('POST', '/api/account/import', response);
 		expect(response.status).toBe(400);
 		expect((await response.json()).error).toBe('Missing import file');
 	});
 
 	test('previews by default without importing', async () => {
 		const response = await importModule.POST(eventWithFile({}));
+		await expectResponseContract('POST', '/api/account/import', response);
 		const data = await response.json();
 		expect(response.status).toBe(200);
 		expect(runCalls).toEqual([{ mode: 'preview' }]);
@@ -90,6 +94,7 @@ describe('POST /api/account/import', () => {
 
 	test('commits when asked and passes the user timezone through', async () => {
 		const response = await importModule.POST(eventWithFile({ mode: 'commit' }));
+		await expectResponseContract('POST', '/api/account/import', response);
 		const data = await response.json();
 		expect(response.status).toBe(200);
 		expect(runCalls).toEqual([{ mode: 'commit' }]);
@@ -104,10 +109,12 @@ describe('POST /api/account/import', () => {
 
 	test('rejects an unknown mode and an unknown format', async () => {
 		const badMode = await importModule.POST(eventWithFile({ mode: 'wipe' }));
+		await expectResponseContract('POST', '/api/account/import', badMode);
 		expect(badMode.status).toBe(400);
 		expect((await badMode.json()).error).toBe('Invalid import mode');
 
 		const badFormat = await importModule.POST(eventWithFile({ format: 'xlsx' }));
+		await expectResponseContract('POST', '/api/account/import', badFormat);
 		expect(badFormat.status).toBe(400);
 		expect((await badFormat.json()).error).toBe('Invalid import format');
 	});
@@ -115,6 +122,7 @@ describe('POST /api/account/import', () => {
 	test('surfaces a parse failure as a 400', async () => {
 		parseError = new ApiError(400, 'The file is empty');
 		const response = await importModule.POST(eventWithFile({}));
+		await expectResponseContract('POST', '/api/account/import', response);
 		expect(response.status).toBe(400);
 		expect((await response.json()).error).toBe('The file is empty');
 	});

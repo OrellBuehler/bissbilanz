@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
+import { expectResponseContract } from '../helpers/contract';
 
 let mockFindBarcodeResult: any = null;
 let mockFetchProductResult: any = null;
@@ -42,11 +43,13 @@ describe('api/openfoodfacts/[barcode]/save', () => {
 
 	test('returns 401 when not authenticated', async () => {
 		const response = await POST(eventFor(BARCODE, null as any));
+		await expectResponseContract('POST', '/api/openfoodfacts/{barcode}/save', response);
 		expect(response.status).toBe(401);
 	});
 
 	test('returns 400 for an invalid barcode', async () => {
 		const response = await POST(eventFor('123'));
+		await expectResponseContract('POST', '/api/openfoodfacts/{barcode}/save', response);
 		const data = await response.json();
 		expect(response.status).toBe(400);
 		expect(data.error).toBe('Invalid barcode format');
@@ -55,6 +58,7 @@ describe('api/openfoodfacts/[barcode]/save', () => {
 	test('is idempotent: returns the existing food (200) instead of erroring', async () => {
 		mockFindBarcodeResult = TEST_FOOD;
 		const response = await POST(eventFor(BARCODE));
+		await expectResponseContract('POST', '/api/openfoodfacts/{barcode}/save', response);
 		const data = await response.json();
 		expect(response.status).toBe(200);
 		expect(data.food.id).toBe(TEST_FOOD.id);
@@ -64,6 +68,7 @@ describe('api/openfoodfacts/[barcode]/save', () => {
 		mockFindBarcodeResult = null;
 		mockFetchProductResult = null;
 		const response = await POST(eventFor(BARCODE));
+		await expectResponseContract('POST', '/api/openfoodfacts/{barcode}/save', response);
 		const data = await response.json();
 		expect(response.status).toBe(404);
 		expect(data.error).toBe('Product not found');
@@ -74,6 +79,7 @@ describe('api/openfoodfacts/[barcode]/save', () => {
 		mockFetchProductResult = { name: 'Nutella', barcode: BARCODE, calories: 539 };
 		mockCreateResult = { ...TEST_FOOD, name: 'Nutella', barcode: BARCODE };
 		const response = await POST(eventFor(BARCODE));
+		await expectResponseContract('POST', '/api/openfoodfacts/{barcode}/save', response);
 		const data = await response.json();
 		expect(response.status).toBe(201);
 		expect(data.food.name).toBe('Nutella');

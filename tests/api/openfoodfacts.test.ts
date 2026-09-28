@@ -1,6 +1,68 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
+import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
+
+// fetchProduct (src/lib/server/openfoodfacts.ts) always returns every
+// OFFProduct field, never a partial object — build full, realistic products
+// here rather than the sparse shapes the tests only need for their own
+// assertions.
+const NUTELLA_PRODUCT = {
+	name: 'Nutella',
+	brand: 'Ferrero',
+	barcode: '3017620422003',
+	imageUrl: null,
+	nutriScore: 'e' as const,
+	novaGroup: 4,
+	servingSize: 100,
+	servingUnit: 'g',
+	calories: 539,
+	protein: 6.3,
+	carbs: 57.5,
+	fat: 30.9,
+	fiber: 0,
+	additives: [],
+	ingredientsText: 'Sugar, palm oil, hazelnuts, cocoa',
+	categoriesTags: []
+};
+
+const SMALL_ITEM_PRODUCT = {
+	name: 'Small Item',
+	brand: null,
+	barcode: '12345678',
+	imageUrl: null,
+	nutriScore: null,
+	novaGroup: null,
+	servingSize: 100,
+	servingUnit: 'g',
+	calories: 100,
+	protein: 1,
+	carbs: 20,
+	fat: 2,
+	fiber: 1,
+	additives: [],
+	ingredientsText: null,
+	categoriesTags: []
+};
+
+const US_PRODUCT = {
+	name: 'US Product',
+	brand: null,
+	barcode: '012345678905',
+	imageUrl: null,
+	nutriScore: null,
+	novaGroup: null,
+	servingSize: 100,
+	servingUnit: 'g',
+	calories: 250,
+	protein: 5,
+	carbs: 30,
+	fat: 10,
+	fiber: 2,
+	additives: [],
+	ingredientsText: null,
+	categoriesTags: []
+};
 
 let mockFetchProductResult: any = null;
 
@@ -26,6 +88,7 @@ describe('api/openfoodfacts/[barcode]', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(401);
@@ -39,6 +102,7 @@ describe('api/openfoodfacts/[barcode]', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -52,6 +116,7 @@ describe('api/openfoodfacts/[barcode]', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -65,6 +130,7 @@ describe('api/openfoodfacts/[barcode]', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -79,6 +145,7 @@ describe('api/openfoodfacts/[barcode]', () => {
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(404);
@@ -86,18 +153,14 @@ describe('api/openfoodfacts/[barcode]', () => {
 	});
 
 	test('returns product for valid barcode (EAN-13)', async () => {
-		mockFetchProductResult = {
-			name: 'Nutella',
-			brand: 'Ferrero',
-			calories: 539,
-			barcode: '3017620422003'
-		};
+		mockFetchProductResult = NUTELLA_PRODUCT;
 		const event = createMockEvent({
 			user: TEST_USER,
 			params: { barcode: '3017620422003' }
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		const data = await response.json();
 
 		expect(response.status).toBe(200);
@@ -106,24 +169,26 @@ describe('api/openfoodfacts/[barcode]', () => {
 	});
 
 	test('returns product for valid EAN-8 barcode', async () => {
-		mockFetchProductResult = { name: 'Small Item', barcode: '12345678' };
+		mockFetchProductResult = SMALL_ITEM_PRODUCT;
 		const event = createMockEvent({
 			user: TEST_USER,
 			params: { barcode: '12345678' }
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		expect(response.status).toBe(200);
 	});
 
 	test('returns product for valid UPC-A barcode (12 digits)', async () => {
-		mockFetchProductResult = { name: 'US Product', barcode: '012345678905' };
+		mockFetchProductResult = US_PRODUCT;
 		const event = createMockEvent({
 			user: TEST_USER,
 			params: { barcode: '012345678905' }
 		});
 
 		const response = await GET(event);
+		await expectResponseContract('GET', '/api/openfoodfacts/{barcode}', response);
 		expect(response.status).toBe(200);
 	});
 });
