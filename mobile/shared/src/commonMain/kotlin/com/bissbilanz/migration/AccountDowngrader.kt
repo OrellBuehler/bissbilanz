@@ -146,7 +146,7 @@ class AccountDowngrader(
     private suspend fun downloadRecipes() {
         val queries = db.userDataDatabaseQueries
         val summaries = api.getRecipes()
-        // Details carry the ingredient list — required for local editing. One
+        // Details carry the ingredient list and steps (with their photos) — required for local editing. One
         // request per recipe is unavoidable, so run them in small parallel
         // batches instead of a strictly sequential walk.
         for (batch in summaries.chunked(DETAIL_CONCURRENCY)) {
@@ -155,7 +155,13 @@ class AccountDowngrader(
                     batch
                         .map { summary -> async { api.getRecipe(summary.id) } }
                         .awaitAll()
-                        .map { it.copy(imageUrl = localizedImageUrl(it.imageUrl)).serverTotalsToPerServing() }
+                        .map { recipe ->
+                            recipe
+                                .copy(
+                                    imageUrl = localizedImageUrl(recipe.imageUrl),
+                                    steps = recipe.steps?.map { it.copy(imageUrl = localizedImageUrl(it.imageUrl)) },
+                                ).serverTotalsToPerServing()
+                        }
                 }
             queries.transaction {
                 for (recipe in details) {
