@@ -439,7 +439,7 @@
 			"post": {
 				"operationId": "exportFoodPackage",
 				"tags": ["Foods"],
-				"description": "Download a shareable ZIP of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. Another user imports it via /api/foods/package/preview and /api/foods/package/import.",
+				"description": "Download a shareable package (a ZIP with the `.bissbilanz` extension) of foods and recipes with their images. Foods are selected by `all`, by id, or by brand OR label; exported recipes always bring their ingredient foods along. The `Content-Disposition` filename is `<recipe name>.bissbilanz` for exactly one recipe, `<food name>.bissbilanz` for exactly one food and no recipe, otherwise `bissbilanz-foods-YYYY-MM-DD.bissbilanz` (an ASCII `filename` plus an RFC 5987 `filename*`). Another user imports it via /api/foods/package/preview and /api/foods/package/import, which read the file by content, whatever its extension.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -485,7 +485,7 @@
 			"post": {
 				"operationId": "previewFoodPackageImport",
 				"tags": ["Foods"],
-				"description": "Analyze a food package against the account without writing anything: new foods and recipes, and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.",
+				"description": "Analyze a food package against the account without writing anything: new foods and recipes (`newFoods.items` lists each food that would be created, with its role and the recipes using it, so the client can offer `mappings` onto the account's own foods), and every conflict (same barcode, or same name + brand; recipes by name) with the actions allowed for it.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -527,7 +527,7 @@
 			"post": {
 				"operationId": "importFoodPackage",
 				"tags": ["Foods"],
-				"description": "Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.",
+				"description": "Import a food package, re-uploading the previewed file with a resolution (skip, replace, keep_both) for every conflict. All-or-nothing. Optional `mappings` use one of the account's own foods instead of creating a new incoming food: the ref must be a new (non-conflict) food of the package, mapped at most once, the target must be one of the account's foods (not a supplement) whose unit fits every recipe ingredient using the ref, otherwise 400. Returns 409 `stale_preview` if the account changed since the preview, or `package_changed` if the file differs from the previewed one.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -4956,6 +4956,14 @@
 						"items": {
 							"$ref": "#/components/schemas/FoodPackageResolution"
 						}
+					},
+					"mappings": {
+						"default": [],
+						"maxItems": 5000,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageMapping"
+						}
 					}
 				},
 				"required": ["packageHash"]
@@ -4981,6 +4989,21 @@
 			"FoodPackageAction": {
 				"type": "string",
 				"enum": ["skip", "replace", "keep_both"]
+			},
+			"FoodPackageMapping": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string",
+						"pattern": "^f[0-9]{1,6}$"
+					},
+					"foodId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+					}
+				},
+				"required": ["ref", "foodId"]
 			},
 			"FoodMerge": {
 				"type": "object",
@@ -8442,9 +8465,15 @@
 						"items": {
 							"$ref": "#/components/schemas/FoodPackageNewFood"
 						}
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageNewFoodItem"
+						}
 					}
 				},
-				"required": ["count", "ingredientOnly", "samples"],
+				"required": ["count", "ingredientOnly", "samples", "items"],
 				"additionalProperties": false
 			},
 			"FoodPackageNewFood": {
@@ -8464,6 +8493,67 @@
 					}
 				},
 				"required": ["ref", "name", "brand", "calories"],
+				"additionalProperties": false
+			},
+			"FoodPackageNewFoodItem": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"role": {
+						"$ref": "#/components/schemas/FoodPackageFoodRole"
+					},
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string",
+						"enum": ["g", "kg", "ml", "cl", "l", "oz", "lb", "fl_oz", "cup", "tbsp", "tsp"]
+					},
+					"calories": {
+						"type": "number"
+					},
+					"recipes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodPackageNewFoodRecipe"
+						}
+					}
+				},
+				"required": [
+					"ref",
+					"role",
+					"name",
+					"brand",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"recipes"
+				],
+				"additionalProperties": false
+			},
+			"FoodPackageFoodRole": {
+				"type": "string",
+				"enum": ["selected", "ingredient"]
+			},
+			"FoodPackageNewFoodRecipe": {
+				"type": "object",
+				"properties": {
+					"ref": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					}
+				},
+				"required": ["ref", "name"],
 				"additionalProperties": false
 			},
 			"FoodPackageNewRecipes": {

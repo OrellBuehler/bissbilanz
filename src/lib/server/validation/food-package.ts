@@ -145,11 +145,26 @@ const resolutionSchema = z
 	})
 	.meta({ id: 'FoodPackageResolution' });
 
+const mappingSchema = z
+	.object({
+		/** A food of the package that is new to the importer (not a conflict). */
+		ref: foodRef,
+		/** One of the importer's own foods to use instead of creating the incoming one. */
+		foodId: z.guid()
+	})
+	.meta({ id: 'FoodPackageMapping' });
+
 export const foodPackageResolutionsSchema = z
 	.object({
 		packageHash: z.string().regex(/^[a-f0-9]{64}$/),
 		foods: z.array(resolutionSchema).max(MAX_PACKAGE_FOODS).default([]),
-		recipes: z.array(resolutionSchema).max(MAX_PACKAGE_RECIPES).default([])
+		recipes: z.array(resolutionSchema).max(MAX_PACKAGE_RECIPES).default([]),
+		/**
+		 * Map new incoming foods onto foods the importer already has. A mapped food is
+		 * not created; the package's recipes use `foodId` for it. Conflicts are not
+		 * mapped — they are resolved in `foods`. A ref may appear once.
+		 */
+		mappings: z.array(mappingSchema).max(MAX_PACKAGE_FOODS).default([])
 	})
 	.meta({ id: 'FoodPackageResolutions' });
 

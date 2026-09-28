@@ -385,3 +385,170 @@ describe('resolveOperations', () => {
 		expect(ops.recipes.get('r2')).toMatchObject({ kind: 'insert' });
 	});
 });
+
+describe('resolveOperations mappings', () => {
+	const setup = () => {
+		const target = existing({ name: 'My flour', servingUnit: 'g' });
+		const m = manifest(
+			[
+				food('f1', { name: 'Flour', role: 'ingredient' }),
+				food('f2', { name: 'Sugar', role: 'ingredient' }),
+				food('f3', { name: 'Loose', role: 'selected' })
+			],
+			[
+				recipe('r1', {
+					ingredients: [
+						{ food: 'f1', quantity: 200, servingUnit: 'g' },
+						{ food: 'f2', quantity: 50, servingUnit: 'g' }
+					]
+				})
+			]
+		);
+		const foods = [target];
+		return { target, m, match: matchPackage(m, foods, []), foods };
+	};
+	type Setup = ReturnType<typeof setup>;
+	const run = (
+		s: Setup,
+		mappings: { ref: string; foodId: string }[],
+		existingFoods: ExistingFood[] = s.foods
+	) => resolveOperations(s.m, s.match, { foods: [], recipes: [], mappings }, existingFoods);
+	const badRequest = (message?: RegExp) =>
+		expect.objectContaining({
+			status: 400,
+			...(message ? { message: expect.stringMatching(message) } : {})
+		});
+
+	it('uses the chosen food instead of creating the incoming one', () => {
+		const s = setup();
+		const ops = run(s, [{ ref: 'f1', foodId: s.target.id }]);
+		expect(ops.foods.get('f1')).toMatchObject({ kind: 'skip', id: s.target.id });
+		expect(ops.foods.get('f2')).toMatchObject({ kind: 'insert' });
+		expect(ops.issues).toEqual([]);
+	});
+
+	it('allows mapping a selected food', () => {
+		const s = setup();
+		const ops = run(s, [{ ref: 'f3', foodId: s.target.id }]);
+		expect(ops.foods.get('f3')).toMatchObject({ kind: 'skip', id: s.target.id });
+	});
+
+	it('creates everything as before without mappings', () => {
+		const s = setup();
+		const ops = resolveOperations(s.m, s.match, { foods: [], recipes: [] }, s.foods);
+		expect([...ops.foods.values()].map((op) => op.kind)).toEqual(['insert', 'insert', 'insert']);
+	});
+
+	it("rejects a food that is not the importer's or not a food", () => {
+		const s = setup();
+		const supplement = existing({ kind: 'supplement' });
+		const stranger = '00000000-0000-4000-8000-99999999999f';
+		expect(() => run(s, [{ ref: 'f1', foodId: stranger }])).toThrowError(badRequest());
+		expect(() =>
+			run(s, [{ ref: 'f1', foodId: supplement.id }], [...s.foods, supplement])
+		).toThrowError(badRequest());
+	});
+
+	it('rejects an unknown ref and a ref mapped twice', () => {
+		const s = setup();
+		expect(() => run(s, [{ ref: 'f9', foodId: s.target.id }])).toThrowError(badRequest());
+		expect(() =>
+			run(s, [
+				{ ref: 'f1', foodId: s.target.id },
+				{ ref: 'f1', foodId: s.target.id }
+			])
+		).toThrowError(badRequest(/more than once/));
+	});
+
+	it('rejects mapping a conflicting food', () => {
+		const conflicting = existing({ name: 'Flour' });
+		const m = manifest([food('f1', { name: 'Flour' })]);
+		const match = matchPackage(m, [conflicting], []);
+		expect(() =>
+			resolveOperations(
+				m,
+				match,
+				{
+					foods: [{ ref: 'f1', action: 'skip', existingId: conflicting.id }],
+					recipes: [],
+					mappings: [{ ref: 'f1', foodId: conflicting.id }]
+				},
+				[conflicting]
+			)
+		).toThrowError(badRequest());
+	});
+
+	it('reports a stale preview when the mapped food turned into a conflict', () => {
+		const s = setup();
+		const later = existing({ name: 'Flour' });
+		const match = matchPackage(s.m, [...s.foods, later], []);
+		expect(() =>
+			resolveOperations(
+				s.m,
+				match,
+				{ foods: [], recipes: [], mappings: [{ ref: 'f1', foodId: s.target.id }] },
+				[...s.foods, later]
+			)
+		).toThrowError(expect.objectContaining({ status: 409, message: 'stale_preview' }));
+	});
+
+	it('rejects a unit dimension that does not fit a recipe ingredient', () => {
+		const s = setup();
+		const liquid = existing({ name: 'Water', servingUnit: 'ml' });
+		const all = [...s.foods, liquid];
+		expect(() => run(s, [{ ref: 'f1', foodId: liquid.id }], all)).toThrowError(badRequest(/unit/));
+		// Nothing constrains a food no recipe uses.
+		expect(run(s, [{ ref: 'f3', foodId: liquid.id }], all).foods.get('f3')).toMatchObject({
+			kind: 'skip',
+			id: liquid.id
+		});
+	});
+
+	it('accepts another unit of the same dimension', () => {
+		const s = setup();
+		const kilo = existing({ name: 'Flour kg', servingUnit: 'kg' });
+		const ops = run(s, [{ ref: 'f1', foodId: kilo.id }], [...s.foods, kilo]);
+		expect(ops.foods.get('f1')).toMatchObject({ kind: 'skip', id: kilo.id });
+	});
+
+	it('checks the unit a replaced target will have', () => {
+		const target = existing({ name: 'Flour', servingUnit: 'g' });
+		const m = manifest(
+			[
+				food('f1', { name: 'Flour', servingUnit: 'ml' }),
+				food('f2', { name: 'Other', role: 'ingredient' })
+			],
+			[recipe('r1', { ingredients: [{ food: 'f2', quantity: 100, servingUnit: 'g' }] })]
+		);
+		const match = matchPackage(m, [target], []);
+		expect(() =>
+			resolveOperations(
+				m,
+				match,
+				{
+					foods: [{ ref: 'f1', action: 'replace', existingId: target.id }],
+					recipes: [],
+					mappings: [{ ref: 'f2', foodId: target.id }]
+				},
+				[target]
+			)
+		).toThrowError(badRequest());
+	});
+
+	it('drops a mapped ingredient food whose recipes are not imported', () => {
+		const s = setup();
+		const other = existingRecipe({ name: 'Recipe r1' });
+		const match = matchPackage(s.m, s.foods, [other]);
+		const ops = resolveOperations(
+			s.m,
+			match,
+			{
+				foods: [],
+				recipes: [{ ref: 'r1', action: 'skip', existingId: other.id }],
+				mappings: [{ ref: 'f1', foodId: s.target.id }]
+			},
+			s.foods
+		);
+		expect(ops.foods.has('f1')).toBe(false);
+	});
+});

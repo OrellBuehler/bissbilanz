@@ -302,7 +302,8 @@ const takeResolution = (
 export function resolveOperations(
 	manifest: FoodPackageManifest,
 	match: MatchResult,
-	resolutions: Pick<FoodPackageResolutions, 'foods' | 'recipes'>,
+	resolutions: Pick<FoodPackageResolutions, 'foods' | 'recipes'> &
+		Partial<Pick<FoodPackageResolutions, 'mappings'>>,
 	existingFoods: ExistingFood[]
 ): ResolvedOperations {
 	const issues: PackageIssue[] = [];
@@ -324,6 +325,7 @@ export function resolveOperations(
 
 	const conflictReason = new Map<string, ConflictReason>();
 	const replacedTargets = new Set<string>();
+	const unitAfterReplace = new Map<string, ServingUnit>();
 	const resolvedFoodRefs = new Set<string>();
 	for (const conflict of match.foodConflicts) {
 		const food = foodsByRef.get(conflict.ref)!;
@@ -340,6 +342,7 @@ export function resolveOperations(
 		const barcode = match.barcodes.get(conflict.ref) ?? null;
 		if (action === 'replace') {
 			replacedTargets.add(conflict.existingId);
+			unitAfterReplace.set(conflict.existingId, food.servingUnit);
 			foods.set(conflict.ref, { kind: 'replace', food, barcode, id: conflict.existingId });
 		} else if (action === 'keep_both') {
 			foods.set(conflict.ref, {
@@ -357,6 +360,44 @@ export function resolveOperations(
 	// "new") would otherwise be silently ignored — treat it as stale instead.
 	if (resolvedFoodRefs.size !== foodResolutions.size) {
 		throw new ApiError(409, STALE_PREVIEW);
+	}
+
+	// Mappings: a new incoming food is left out and the importer's own food
+	// stands in for it. Checked after conflicts, so a food that turned into a
+	// conflict since the preview reports a stale preview rather than a bad request.
+	const newRefs = new Set(match.newFoodRefs);
+	const mapped = new Set<string>();
+	for (const mapping of resolutions.mappings ?? []) {
+		const food = foodsByRef.get(mapping.ref);
+		if (!food) throw new ApiError(400, `Cannot map ${mapping.ref}: it is not in the package`);
+		if (!newRefs.has(mapping.ref)) {
+			throw new ApiError(
+				400,
+				`Cannot map ${mapping.ref}: it matches one of your foods, resolve it instead`
+			);
+		}
+		if (mapped.has(mapping.ref)) {
+			throw new ApiError(400, `${mapping.ref} is mapped more than once`);
+		}
+		mapped.add(mapping.ref);
+		const target = existingById.get(mapping.foodId);
+		if (!target || target.kind !== 'food') {
+			throw new ApiError(400, `Cannot map ${mapping.ref}: the chosen food was not found`);
+		}
+		const targetUnit = unitAfterReplace.get(target.id) ?? target.servingUnit;
+		for (const recipe of manifest.recipes) {
+			if (match.invalidRecipeRefs.has(recipe.ref)) continue;
+			for (const ingredient of recipe.ingredients) {
+				if (ingredient.food !== mapping.ref) continue;
+				if (!isSameUnitDimension(ingredient.servingUnit, targetUnit)) {
+					throw new ApiError(
+						400,
+						`Cannot map ${mapping.ref}: "${target.name}" uses a unit that does not fit "${recipe.name}"`
+					);
+				}
+			}
+		}
+		foods.set(mapping.ref, { kind: 'skip', food, id: target.id });
 	}
 
 	const recipes = new Map<string, RecipeOp>();
@@ -398,7 +439,7 @@ export function resolveOperations(
 		for (const ingredient of op.recipe.ingredients) {
 			referenced.add(ingredient.food);
 			const foodOp = foods.get(ingredient.food);
-			if (foodOp?.kind !== 'skip') continue;
+			if (foodOp?.kind !== 'skip' || mapped.has(ingredient.food)) continue;
 			const existing = existingById.get(foodOp.id);
 			if (existing && isSameUnitDimension(ingredient.servingUnit, existing.servingUnit)) continue;
 			issues.push({

@@ -3,15 +3,23 @@ import { strToU8, zipSync } from 'fflate';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { TEST_USER } from '../helpers/fixtures';
 import { expectResponseContract } from '../helpers/contract';
+import { ApiError } from '$lib/server/errors';
 
 let exportCalls: unknown[] = [];
 let summaryCalls: unknown[] = [];
 let commitCalls: Array<{ resolutions: unknown }> = [];
+let exportFilename = 'bissbilanz-foods-2026-09-28.bissbilanz';
+let commitError: ApiError | null = null;
 
 vi.mock('$lib/server/food-package/export', () => ({
 	buildFoodPackage: async (_userId: string, selection: unknown) => {
 		exportCalls.push(selection);
-		return { bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]), foods: 1, recipes: 0 };
+		return {
+			bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+			foods: 1,
+			recipes: 0,
+			filename: exportFilename
+		};
 	},
 	summarizePackage: async (_userId: string, selection: unknown) => {
 		summaryCalls.push(selection);
@@ -37,7 +45,23 @@ vi.mock('$lib/server/food-package/plan', () => ({
 			formatVersion: 1,
 			exportedAt: null,
 			totals: { foods: 0, recipes: 0, images: 0 },
-			newFoods: { count: 0, ingredientOnly: 0, samples: [] },
+			newFoods: {
+				count: 1,
+				ingredientOnly: 1,
+				samples: [{ ref: 'f1', name: 'Flour', brand: null, calories: 364 }],
+				items: [
+					{
+						ref: 'f1',
+						role: 'ingredient',
+						name: 'Flour',
+						brand: null,
+						servingSize: 100,
+						servingUnit: 'g',
+						calories: 364,
+						recipes: [{ ref: 'r1', name: 'Bread' }]
+					}
+				]
+			},
 			newRecipes: { count: 0, samples: [] },
 			conflicts: { foods: [], recipes: [] },
 			issues: []
@@ -48,6 +72,7 @@ vi.mock('$lib/server/food-package/plan', () => ({
 vi.mock('$lib/server/food-package/commit', () => ({
 	commitFoodPackageImport: async (_userId: string, _pkg: unknown, resolutions: unknown) => {
 		commitCalls.push({ resolutions });
+		if (commitError) throw commitError;
 		// The real commitFoodPackageImport always returns counts for every
 		// resolution bucket plus images/issues, not just `created`.
 		return {
@@ -93,6 +118,8 @@ describe('food package routes', () => {
 		exportCalls = [];
 		summaryCalls = [];
 		commitCalls = [];
+		exportFilename = 'bissbilanz-foods-2026-09-28.bissbilanz';
+		commitError = null;
 	});
 
 	test('export requires auth', async () => {
@@ -118,10 +145,22 @@ describe('food package routes', () => {
 		// for this status, so the coverage test doesn't expect it either).
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('application/zip');
-		expect(response.headers.get('content-disposition')).toMatch(
-			/attachment; filename="bissbilanz-foods-\d{4}-\d{2}-\d{2}\.zip"/
+		expect(response.headers.get('content-disposition')).toBe(
+			`attachment; filename="bissbilanz-foods-2026-09-28.bissbilanz"; filename*=UTF-8''bissbilanz-foods-2026-09-28.bissbilanz`
 		);
 		expect(exportCalls).toEqual([{ brands: ['Migros'], labels: ['bread'] }]);
+	});
+
+	test('export names the download after its content, with an ASCII fallback', async () => {
+		exportFilename = 'Käsespätzle.bissbilanz';
+		const response = await exportRoute.POST(
+			createMockEvent({ user: TEST_USER, body: { recipeIds: [crypto.randomUUID()] } })
+		);
+		expect(response.status).toBe(200);
+		expect(response.headers.get('content-type')).toBe('application/zip');
+		expect(response.headers.get('content-disposition')).toBe(
+			`attachment; filename="Kaesespaetzle.bissbilanz"; filename*=UTF-8''K%C3%A4sesp%C3%A4tzle.bissbilanz`
+		);
 	});
 
 	test('summary validates the selection', async () => {
@@ -191,6 +230,93 @@ describe('food package routes', () => {
 		);
 		await expectResponseContract('POST', '/api/foods/package/import', response);
 		expect(response.status).toBe(201);
-		expect(commitCalls[0].resolutions).toEqual({ ...resolutions, recipes: [] });
+		expect(commitCalls[0].resolutions).toEqual({ ...resolutions, recipes: [], mappings: [] });
+	});
+
+	test('preview lists the foods that would be created', async () => {
+		const response = await previewRoute.POST(upload('/api/foods/package/preview', {}));
+		await expectResponseContract('POST', '/api/foods/package/preview', response);
+		const { newFoods } = await response.json();
+		expect(newFoods.items).toEqual([
+			expect.objectContaining({
+				ref: 'f1',
+				role: 'ingredient',
+				servingUnit: 'g',
+				recipes: [{ ref: 'r1', name: 'Bread' }]
+			})
+		]);
+	});
+
+	test('import passes mappings on to the commit', async () => {
+		const resolutions = {
+			packageHash: 'a'.repeat(64),
+			mappings: [{ ref: 'f2', foodId: '00000000-0000-4000-8000-000000000002' }]
+		};
+		const response = await importRoute.POST(
+			upload('/api/foods/package/import', { resolutions: JSON.stringify(resolutions) })
+		);
+		await expectResponseContract('POST', '/api/foods/package/import', response);
+		expect(response.status).toBe(201);
+		expect(commitCalls[0].resolutions).toEqual({ ...resolutions, foods: [], recipes: [] });
+	});
+
+	test('import rejects malformed mappings before committing', async () => {
+		const bad = [
+			[{ ref: 'r1', foodId: '00000000-0000-4000-8000-000000000002' }],
+			[{ ref: 'f1', foodId: 'not-a-uuid' }],
+			[{ ref: 'f1' }]
+		];
+		for (const mappings of bad) {
+			const response = await importRoute.POST(
+				upload('/api/foods/package/import', {
+					resolutions: JSON.stringify({ packageHash: 'a'.repeat(64), mappings })
+				})
+			);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+			expect(response.status).toBe(400);
+		}
+		expect(commitCalls).toEqual([]);
+	});
+
+	test('import reports an unusable mapping as a 400 error', async () => {
+		commitError = new ApiError(400, 'Cannot map f1: the chosen food was not found');
+		const response = await importRoute.POST(
+			upload('/api/foods/package/import', {
+				resolutions: JSON.stringify({
+					packageHash: 'a'.repeat(64),
+					mappings: [{ ref: 'f1', foodId: '00000000-0000-4000-8000-000000000002' }]
+				})
+			})
+		);
+		await expectResponseContract('POST', '/api/foods/package/import', response);
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toMatch(/Cannot map f1/);
+	});
+
+	test('import reports a stale preview as 409', async () => {
+		commitError = new ApiError(409, 'stale_preview');
+		const response = await importRoute.POST(
+			upload('/api/foods/package/import', {
+				resolutions: JSON.stringify({ packageHash: 'a'.repeat(64) })
+			})
+		);
+		await expectResponseContract('POST', '/api/foods/package/import', response);
+		expect(response.status).toBe(409);
+	});
+
+	test('import accepts a package whatever its file name', async () => {
+		const body = new FormData();
+		body.append('file', new File([packageZip()], 'Lasagne.bissbilanz'));
+		body.append('resolutions', JSON.stringify({ packageHash: 'a'.repeat(64) }));
+		const event = createMockEvent({ user: TEST_USER });
+		const response = await importRoute.POST({
+			...event,
+			request: new Request('http://localhost:5173/api/foods/package/import', {
+				method: 'POST',
+				body
+			})
+		} as typeof event);
+		await expectResponseContract('POST', '/api/foods/package/import', response);
+		expect(response.status).toBe(201);
 	});
 });
