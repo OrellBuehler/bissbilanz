@@ -2,7 +2,7 @@ import { readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isNotNull } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
-import { foods, recipes, aiTasks } from '$lib/server/schema';
+import { foods, recipes, recipeSteps, aiTasks } from '$lib/server/schema';
 import {
 	UPLOAD_DIR,
 	UPLOAD_FILENAME_PATTERN,
@@ -46,9 +46,13 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 	const db = getDB();
 	// Deliberately unguarded: a DB failure must propagate, never be read as
 	// "nothing is referenced".
-	const [foodRows, recipeRows, aiTaskRows] = await Promise.all([
+	const [foodRows, recipeRows, stepRows, aiTaskRows] = await Promise.all([
 		db.select({ imageUrl: foods.imageUrl }).from(foods).where(isNotNull(foods.imageUrl)),
 		db.select({ imageUrl: recipes.imageUrl }).from(recipes).where(isNotNull(recipes.imageUrl)),
+		db
+			.select({ imageUrl: recipeSteps.imageUrl })
+			.from(recipeSteps)
+			.where(isNotNull(recipeSteps.imageUrl)),
 		db.select({ imageUrls: aiTasks.photoUrls }).from(aiTasks).where(isNotNull(aiTasks.photoUrls))
 	]);
 
@@ -56,6 +60,7 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 		[
 			...foodRows.map((row) => row.imageUrl),
 			...recipeRows.map((row) => row.imageUrl),
+			...stepRows.map((row) => row.imageUrl),
 			...aiTaskRows.flatMap((row) => row.imageUrls ?? [])
 		]
 			.map(uploadFilename)

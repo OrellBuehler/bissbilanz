@@ -283,12 +283,13 @@ describe('recipe step images', () => {
 	});
 
 	it('the orphan sweep counts step images as referenced', async () => {
-		const image = await storeImage(alice);
-		await create(alice, { steps: [{ text: 'a', imageUrl: image }] });
+		const used = await storeImage(alice);
+		const abandoned = await storeImage(alice);
+		await create(alice, { steps: [{ text: 'a', imageUrl: used }] });
 		const { cleanupOrphanedImages } = await import('$lib/server/image-cleanup');
-		const removed = await cleanupOrphanedImages(Date.now() + 7 * 24 * 60 * 60 * 1000);
-		expect(removed).toBe(0);
-		expect(existsSync(fileOf(image))).toBe(true);
+		await cleanupOrphanedImages(Date.now() + 7 * 24 * 60 * 60 * 1000);
+		expect(existsSync(fileOf(used))).toBe(true);
+		expect(existsSync(fileOf(abandoned))).toBe(false);
 	});
 });
 
