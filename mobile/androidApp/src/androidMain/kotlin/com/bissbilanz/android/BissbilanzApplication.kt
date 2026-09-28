@@ -16,6 +16,7 @@ import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthExporter
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.images.AndroidPackageImageStore
 import com.bissbilanz.android.images.ApiHostAuthInterceptor
 import com.bissbilanz.android.images.FoodImageResolver
 import com.bissbilanz.android.images.FoodImageUploader
@@ -60,6 +61,10 @@ import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.di.sharedModule
+import com.bissbilanz.foodpackage.AndroidFoodPackageArchive
+import com.bissbilanz.foodpackage.FoodPackageArchive
+import com.bissbilanz.foodpackage.LocalFoodPackageService
+import com.bissbilanz.foodpackage.PackageImageStore
 import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.migration.LocalDataMigrator
 import com.bissbilanz.mode.AppModeManager
@@ -127,6 +132,9 @@ class BissbilanzApplication :
                 single { FoodImageResolver(androidContext(), get(), get(named("baseUrl"))) }
                 single { LocalImageSweeper(androidContext(), get(), get(), get()) }
                 single { FoodImageUploader(androidContext(), get(), get()) }
+                single<FoodPackageArchive> { AndroidFoodPackageArchive() }
+                single<PackageImageStore> { AndroidPackageImageStore(androidContext()) }
+                single { LocalFoodPackageService(db = get(), json = get(), archive = get(), images = get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(

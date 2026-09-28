@@ -62,7 +62,7 @@ fun FoodPackageExportSheet(
 
     LaunchedEffect(exportedFile) {
         exportedFile?.let { file ->
-            shareFile(context, file, "application/zip")
+            shareFile(context, file, "application/zip", excludeOwnApp = true)
             viewModel.clearExportedFile()
             onDismiss()
         }

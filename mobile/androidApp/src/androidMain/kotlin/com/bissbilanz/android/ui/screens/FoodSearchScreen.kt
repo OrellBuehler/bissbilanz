@@ -154,31 +154,28 @@ fun FoodSearchScreen(navController: NavController) {
                 IconButton(onClick = { navController.navigate("food-duplicates") }) {
                     Icon(Icons.Default.JoinFull, stringResource(R.string.food_duplicates_title))
                 }
-                // Sharing goes through the server, so it is hidden in local mode.
-                if (!packageViewModel.isLocalMode) {
-                    Box {
-                        IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(Icons.Default.MoreVert, stringResource(R.string.food_package_more))
-                        }
-                        DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.food_package_share)) },
-                                leadingIcon = { Icon(Icons.Default.Share, null) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    packageViewModel.startExport()
-                                    showExportSheet = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.food_package_import)) },
-                                leadingIcon = { Icon(Icons.Default.FileOpen, null) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    navController.navigate("food-package-import")
-                                },
-                            )
-                        }
+                Box {
+                    IconButton(onClick = { showMoreMenu = true }) {
+                        Icon(Icons.Default.MoreVert, stringResource(R.string.food_package_more))
+                    }
+                    DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.food_package_share)) },
+                            leadingIcon = { Icon(Icons.Default.Share, null) },
+                            onClick = {
+                                showMoreMenu = false
+                                packageViewModel.startExport()
+                                showExportSheet = true
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.food_package_import)) },
+                            leadingIcon = { Icon(Icons.Default.FileOpen, null) },
+                            onClick = {
+                                showMoreMenu = false
+                                navController.navigate("food-package-import")
+                            },
+                        )
                     }
                 }
             }

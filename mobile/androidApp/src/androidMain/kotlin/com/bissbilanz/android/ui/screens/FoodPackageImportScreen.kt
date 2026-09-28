@@ -2,12 +2,12 @@ package com.bissbilanz.android.ui.screens
 
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +20,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AssistChip
@@ -35,6 +40,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -44,11 +51,14 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,13 +71,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
-import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.navigation.IncomingPackageFiles
+import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.theme.MacroColors
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
@@ -75,13 +91,16 @@ import com.bissbilanz.api.generated.model.FoodPackageAction
 import com.bissbilanz.api.generated.model.FoodPackageConflictNote
 import com.bissbilanz.api.generated.model.FoodPackageConflictReason
 import com.bissbilanz.api.generated.model.FoodPackageFoodConflict
+import com.bissbilanz.api.generated.model.FoodPackageFoodRole
+import com.bissbilanz.api.generated.model.FoodPackageNewFoodItem
 import com.bissbilanz.api.generated.model.FoodPackageRecipeConflict
+import com.bissbilanz.foodpackage.FoodPackageMappingState
+import com.bissbilanz.foodpackage.MappedFood
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
-
-private const val MAX_PACKAGE_BYTES = 50L * 1024 * 1024
 
 /**
  * Review and import a food package someone shared — the Android counterpart of
@@ -110,31 +129,31 @@ fun FoodPackageImportScreen(navController: NavController) {
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             if (uri == null) return@rememberLauncherForActivityResult
             scope.launch {
-                val picked =
-                    withContext(Dispatchers.IO) {
-                        var name = "package.zip"
-                        var size = -1L
-                        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                            if (cursor.moveToFirst()) {
-                                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                                if (nameIndex >= 0) name = cursor.getString(nameIndex) ?: name
-                                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex)
-                            }
-                        }
-                        if (size > MAX_PACKAGE_BYTES) {
-                            null
+                // Copied into the app cache: the preview and the import both read the file.
+                val picked = withContext(Dispatchers.IO) { IncomingPackageFiles.copyToCache(context, uri) }
+                val path = picked.path
+                if (path == null) {
+                    viewModel.fileRejected(
+                        if (picked.problem == PendingPackageImport.Problem.TOO_LARGE) {
+                            R.string.food_package_file_too_large
                         } else {
-                            context.contentResolver.openInputStream(uri)?.use { name to it.readBytes() }
-                        }
-                    }
-                if (picked == null || picked.second.size > MAX_PACKAGE_BYTES) {
-                    snackbarHostState.showSnackbar(resources.getString(R.string.food_package_file_too_large))
+                            R.string.food_package_error_unreadable
+                        },
+                    )
                 } else {
-                    viewModel.analyze(picked.first, picked.second)
+                    viewModel.analyze(picked.fileName, path)
                 }
             }
         }
+    // A package opened from another app (a tapped .bissbilanz file, or shared to Bissbilanz) is
+    // handed over through PendingPackageImport, possibly before this screen existed.
+    val incoming by PendingPackageImport.request.collectAsStateWithLifecycle()
+    LaunchedEffect(incoming) {
+        incoming?.let {
+            viewModel.openIncoming(it)
+            PendingPackageImport.consume(it)
+        }
+    }
     // Messengers often hand zips over as octet-stream.
     val mimeTypes =
         arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "application/json")
@@ -174,11 +193,6 @@ fun FoodPackageImportScreen(navController: NavController) {
             val preview = state.preview
             val result = state.result
             when {
-                viewModel.isLocalMode ->
-                    EmptyState(
-                        message = stringResource(R.string.food_package_unavailable_local),
-                        icon = Icons.Outlined.CloudOff,
-                    )
                 result != null ->
                     Column(
                         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -241,7 +255,13 @@ fun FoodPackageImportScreen(navController: NavController) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (state.error != null || state.errorRes != null) {
+                            state.fileName?.let {
+                                Text(it, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        state.errorRes?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
                         Button(onClick = { picker.launch(mimeTypes) }) {
                             Icon(Icons.Outlined.FileOpen, null, modifier = Modifier.size(18.dp))
                             Text(stringResource(R.string.food_package_choose_file), modifier = Modifier.padding(start = 8.dp))
@@ -271,6 +291,15 @@ private fun ReviewList(
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    state.fileName?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
                         stringResource(R.string.food_package_new_counts, preview.newFoods.count, preview.newRecipes.count),
                         fontWeight = FontWeight.Medium,
@@ -290,6 +319,11 @@ private fun ReviewList(
                         Text(stringResource(R.string.food_package_choose_file))
                     }
                 }
+            }
+        }
+        if (preview.newFoods.items.isNotEmpty()) {
+            item {
+                NewFoodsSection(viewModel, preview.newFoods.items, state)
             }
         }
         if (foods.isNotEmpty() && recipes.isNotEmpty()) {
@@ -341,6 +375,232 @@ private fun ReviewList(
                     onChange = { viewModel.setRecipeAction(conflict.ref, it) },
                 )
             }
+        }
+    }
+}
+
+private const val NEW_FOODS_PAGE = 20
+private const val OWN_FOOD_LIMIT = 8
+
+/**
+ * Every food the import would create, each with the option to use one of the user's own foods
+ * instead, so a shared "Milch" does not land next to the "Milch" they already keep under their
+ * own name. The mappings are sent with the resolutions.
+ */
+@Composable
+private fun NewFoodsSection(
+    viewModel: FoodPackageViewModel,
+    items: List<FoodPackageNewFoodItem>,
+    state: FoodPackageViewModel.ImportState,
+) {
+    val count = FoodPackageMappingState.foodsToCreate(items, state.mappings, state.recipes).size
+    var limit by rememberSaveable { mutableIntStateOf(NEW_FOODS_PAGE) }
+    var searching by rememberSaveable { mutableStateOf<String?>(null) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    if (count == 1) {
+                        stringResource(R.string.food_package_new_foods_title_one)
+                    } else {
+                        stringResource(R.string.food_package_new_foods_title, count)
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                SmallText(stringResource(R.string.food_package_new_foods_hint))
+            }
+            items.take(limit).forEach { item ->
+                key(item.ref) {
+                    NewFoodCard(
+                        item = item,
+                        mapped = state.mappings[item.ref],
+                        searching = searching == item.ref,
+                        viewModel = viewModel,
+                        onStartSearch = { searching = item.ref },
+                        onCancelSearch = { searching = null },
+                        onSelect = {
+                            searching = null
+                            viewModel.mapFood(item.ref, it)
+                        },
+                        onUndo = { viewModel.unmapFood(item.ref) },
+                    )
+                }
+            }
+            if (items.size > limit) {
+                OutlinedButton(onClick = { limit += NEW_FOODS_PAGE }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.food_package_show_more))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewFoodCard(
+    item: FoodPackageNewFoodItem,
+    mapped: MappedFood?,
+    searching: Boolean,
+    viewModel: FoodPackageViewModel,
+    onStartSearch: () -> Unit,
+    onCancelSearch: () -> Unit,
+    onSelect: (MappedFood) -> Unit,
+    onUndo: () -> Unit,
+) {
+    val colors = MacroColors.current
+    val unit = item.servingUnit.value.replace('_', ' ')
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        item.name,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (mapped != null) TextDecoration.LineThrough else null,
+                    )
+                    Text(
+                        buildAnnotatedString {
+                            item.brand?.let { append("$it · ") }
+                            append("${fmt(item.servingSize)} $unit · ")
+                            withStyle(SpanStyle(color = colors.calories)) { append("${fmt(item.calories)} kcal") }
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    if (item.role == FoodPackageFoodRole.selected) {
+                        stringResource(R.string.food_package_role_selected)
+                    } else {
+                        stringResource(R.string.food_package_role_ingredient)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+            if (item.recipes.isNotEmpty()) {
+                SmallText(stringResource(R.string.food_package_used_in, item.recipes.joinToString { it.name }))
+            }
+            when {
+                mapped != null ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                .padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                            Text(
+                                stringResource(
+                                    R.string.food_package_using,
+                                    mapped.brand?.let { "${mapped.name} ($it)" } ?: mapped.name,
+                                ),
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            SmallText(stringResource(R.string.food_package_using_note))
+                        }
+                        TextButton(onClick = onUndo) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.food_package_undo_mapping), modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                searching -> OwnFoodSearch(item, viewModel, onSelect, onCancelSearch)
+                else ->
+                    OutlinedButton(onClick = onStartSearch, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(stringResource(R.string.food_package_use_own), modifier = Modifier.padding(start = 8.dp))
+                    }
+            }
+        }
+    }
+}
+
+/** A search over the user's own foods, limited to those whose unit fits the incoming food's. */
+@Composable
+private fun OwnFoodSearch(
+    item: FoodPackageNewFoodItem,
+    viewModel: FoodPackageViewModel,
+    onSelect: (MappedFood) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var query by rememberSaveable(item.ref) { mutableStateOf(FoodPackageMappingState.suggestedQuery(item.name)) }
+    var results by remember { mutableStateOf<List<MappedFood>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(query) {
+        loading = true
+        delay(250)
+        results = FoodPackageMappingState.candidates(viewModel.searchOwnFoods(query), item, OWN_FOOD_LIMIT)
+        loading = false
+    }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                placeholder = { Text(stringResource(R.string.food_package_search_own)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            )
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Filled.Close, stringResource(R.string.food_package_search_cancel))
+            }
+        }
+        SmallText(stringResource(R.string.food_package_search_own_hint, item.servingUnit.value.replace('_', ' ')))
+        when {
+            loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            results.isEmpty() -> SmallText(stringResource(R.string.food_package_search_own_empty))
+            else ->
+                results.forEach { food ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onSelect(food) }
+                                .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FoodImage(
+                            imageUrl = food.imageUrl,
+                            contentDescription = food.name,
+                            modifier = Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(food.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            food.brand?.let { SmallText(it) }
+                        }
+                        SmallText("${fmt(food.servingSize)} ${food.servingUnit.replace('_', ' ')}")
+                    }
+                }
         }
     }
 }
