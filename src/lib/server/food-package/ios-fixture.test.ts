@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { deflateSync, strToU8 } from 'fflate';
 import { readFoodPackage } from './archive';
 import { foodPackageManifestSchema } from '$lib/server/validation/food-package';
@@ -142,5 +143,20 @@ describe('iOS food package fixture', () => {
 		expect(pkg.manifest).toEqual(foodPackageManifestSchema.parse(manifest));
 		const images = pkg.readImages(['images/f4.webp']);
 		expect([...images.get('images/f4.webp')!]).toEqual([...FIXTURE_IMAGE]);
+	});
+
+	it('accepts every package in the iOS fixtures folder, including one written by the app', () => {
+		const folder = dirname(FIXTURE_PATH);
+		const names = readdirSync(folder).filter((name) => name.endsWith('.bissbilanz'));
+		expect(names).toContain('food-package.bissbilanz');
+		for (const name of names) {
+			const pkg = readFoodPackage(new Uint8Array(readFileSync(join(folder, name))));
+			expect(pkg.manifest.foods.length, name).toBeGreaterThan(0);
+			const paths = [
+				...pkg.manifest.foods.map((food) => food.image),
+				...pkg.manifest.recipes.map((recipe) => recipe.image)
+			].filter((path): path is string => !!path);
+			expect([...pkg.readImages(paths).keys()].sort(), name).toEqual([...new Set(paths)].sort());
+		}
 	});
 });
