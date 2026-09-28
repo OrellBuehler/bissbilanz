@@ -126,6 +126,29 @@ struct FoodPackageIssue: Decodable, Equatable {
     let message: String
 }
 
+struct FoodPackageNewFoodRecipe: Decodable, Equatable {
+    let ref: String
+    let name: String
+}
+
+/// A food of the package that is new to the importer — created unless the user
+/// maps it onto one of their own foods.
+struct FoodPackageNewFoodItem: Decodable, Equatable, Identifiable {
+    let ref: String
+    /// `selected`, or `ingredient` when it only came along for a recipe.
+    let role: String
+    let name: String
+    let brand: String?
+    let servingSize: Double
+    let servingUnit: String
+    let calories: Double
+    /// Recipes of the package that use this food.
+    let recipes: [FoodPackageNewFoodRecipe]
+
+    var id: String { ref }
+    var isIngredient: Bool { role == "ingredient" }
+}
+
 struct FoodPackagePreview: Decodable, Equatable {
     struct Totals: Decodable, Equatable {
         let foods: Int
@@ -136,6 +159,8 @@ struct FoodPackagePreview: Decodable, Equatable {
     struct NewFoods: Decodable, Equatable {
         let count: Int
         let ingredientOnly: Int
+        /// Every food the import would create. Absent on servers that predate it.
+        let items: [FoodPackageNewFoodItem]
     }
 
     struct NewRecipes: Decodable, Equatable {
@@ -161,10 +186,33 @@ struct FoodPackageResolution: Encodable, Equatable {
     let existingId: String
 }
 
+/// A new incoming food replaced by one of the importer's own: not created, and
+/// the package's recipes use `foodId` instead.
+struct FoodPackageMapping: Encodable, Equatable {
+    let ref: String
+    let foodId: String
+}
+
 struct FoodPackageResolutions: Encodable, Equatable {
     let packageHash: String
     let foods: [FoodPackageResolution]
     let recipes: [FoodPackageResolution]
+    var mappings: [FoodPackageMapping] = []
+
+    private enum CodingKeys: String, CodingKey {
+        case packageHash, foods, recipes, mappings
+    }
+
+    /// `mappings` is left out when empty, so a server that predates it sees the body it always did.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(packageHash, forKey: .packageHash)
+        try container.encode(foods, forKey: .foods)
+        try container.encode(recipes, forKey: .recipes)
+        if !mappings.isEmpty {
+            try container.encode(mappings, forKey: .mappings)
+        }
+    }
 }
 
 struct FoodPackageCounts: Decodable, Equatable {
@@ -256,20 +304,34 @@ enum FoodPackageResolutionModel {
         return actions.count == 1 ? actions.first : nil
     }
 
+    /// `mappings` maps a new food's ref to the id of the user's own food standing in for it.
     static func resolutions(
         for preview: FoodPackagePreview,
         foods: [String: FoodPackageAction],
-        recipes: [String: FoodPackageAction]
+        recipes: [String: FoodPackageAction],
+        mappings: [String: String] = [:]
     ) -> FoodPackageResolutions {
-        FoodPackageResolutions(
+        let mapped = preview.newFoods.items.compactMap { item in
+            mappings[item.ref].map { FoodPackageMapping(ref: item.ref, foodId: $0) }
+        }
+        return FoodPackageResolutions(
             packageHash: preview.packageHash,
             foods: preview.conflicts.foods.map {
                 FoodPackageResolution(ref: $0.ref, action: foods[$0.ref] ?? .skip, existingId: $0.existing.id)
             },
             recipes: preview.conflicts.recipes.map {
                 FoodPackageResolution(ref: $0.ref, action: recipes[$0.ref] ?? .skip, existingId: $0.existing.id)
-            }
+            },
+            mappings: mapped
         )
+    }
+
+    /// A food of the user's may stand in for an incoming one when both measure in the
+    /// same dimension (mass or volume) — the server rejects a mapping that would make
+    /// a recipe's quantity meaningless.
+    static func isCompatible(_ item: FoodPackageNewFoodItem, _ food: Food) -> Bool {
+        guard let unit = ServingUnit(rawValue: item.servingUnit) else { return false }
+        return isSameUnitDimension(unit, food.servingUnit)
     }
 }
 
@@ -282,5 +344,19 @@ extension FoodPackageFoodConflict {
 extension FoodPackageRecipeConflict {
     var resolvable: FoodPackageResolutionModel.Conflict {
         .init(ref: ref, existingId: existing.id, allowed: allowed)
+    }
+}
+
+
+extension FoodPackagePreview.NewFoods {
+    private enum CodingKeys: String, CodingKey {
+        case count, ingredientOnly, items
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        count = try container.decode(Int.self, forKey: .count)
+        ingredientOnly = try container.decode(Int.self, forKey: .ingredientOnly)
+        items = try container.decodeIfPresent([FoodPackageNewFoodItem].self, forKey: .items) ?? []
     }
 }
