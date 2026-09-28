@@ -285,6 +285,7 @@
 		},
 		"FoodPackagePreviewResponse": {
 			"enumVariants": [
+				"FoodPackagePreviewResponse.full.enum-newFoods-items-0-role-ingredient.json",
 				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-reason-name-brand.json",
 				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-reason-barcode-and-name.json",
 				"FoodPackagePreviewResponse.full.enum-conflicts-foods-0-allowed-0-replace.json",

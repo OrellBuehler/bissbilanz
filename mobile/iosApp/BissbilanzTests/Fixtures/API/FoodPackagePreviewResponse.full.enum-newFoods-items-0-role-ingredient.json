@@ -2,7 +2,7 @@
 	"conflicts": {
 		"foods": [
 			{
-				"allowed": ["keep_both"],
+				"allowed": ["skip"],
 				"alsoMatches": [
 					{
 						"brand": "sample-brand",
@@ -94,7 +94,7 @@
 					}
 				],
 				"ref": "sample-ref",
-				"role": "selected",
+				"role": "ingredient",
 				"servingSize": 100,
 				"servingUnit": "g"
 			}
