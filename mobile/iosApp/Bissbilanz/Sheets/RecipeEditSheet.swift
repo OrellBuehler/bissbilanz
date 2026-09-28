@@ -277,6 +277,12 @@ struct FoodPicker: View {
     /// Food ids to leave out of results — the food-merge flow uses this so a
     /// food can't be picked as its own merge target.
     var excludingIds: Set<String> = []
+    /// Leaves out foods measured in the other dimension (mass vs. volume) — a
+    /// food package's new food can only be swapped for one of its own kind.
+    var dimension: ServingUnit.Dimension?
+    /// False when only the user's own foods make sense as a result: picking an
+    /// Open Food Facts hit would create a new food.
+    var allowsOpenFoodFacts = true
 
     @State private var query = ""
     @State private var results: [Food] = []
@@ -425,9 +431,11 @@ struct FoodPicker: View {
         isSearching = true
         let found = await foodRepository.searchFoods(query: query)
         guard !Task.isCancelled, query == self.query else { return }
-        results = excludingIds.isEmpty ? found : found.filter { !excludingIds.contains($0.id) }
+        results = found.filter { food in
+            !excludingIds.contains(food.id) && (dimension == nil || food.servingUnit.dimension == dimension)
+        }
         isSearching = false
-        guard found.count < Self.offFallbackThreshold else {
+        guard allowsOpenFoodFacts, found.count < Self.offFallbackThreshold else {
             offResults = []
             return
         }

@@ -4,7 +4,6 @@ struct RecipeDetailView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppModeManager.self) private var appMode
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
@@ -70,13 +69,10 @@ struct RecipeDetailView: View {
                         }
                         .disabled(isDuplicating)
 
-                        // Sharing is server-built; not available in local mode.
-                        if !appMode.isLocal {
-                            Button {
-                                showShareSheet = true
-                            } label: {
-                                Label(L10n.foodPackageShareRecipe, systemImage: "square.and.arrow.up")
-                            }
+                        Button {
+                            showShareSheet = true
+                        } label: {
+                            Label(L10n.foodPackageShareRecipe, systemImage: "square.and.arrow.up")
                         }
 
                         Button(role: .destructive) {

@@ -16,6 +16,10 @@ struct FoodPackageExportView: View {
     var recipeIds: [String] = []
 
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appMode
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: Mode = .all
@@ -31,6 +35,13 @@ struct FoodPackageExportView: View {
     @State private var errorMessage: String?
 
     private var recipesOnly: Bool { !recipeIds.isEmpty }
+
+    private var backend: any FoodPackageBackend {
+        FoodPackageBackends.make(
+            appMode: appMode, api: api, foodRepository: foodRepository,
+            recipeRepository: recipeRepository, context: modelContext
+        )
+    }
 
     private var selection: FoodPackageSelection? {
         switch mode {
@@ -189,10 +200,9 @@ struct FoodPackageExportView: View {
     private func loadFacets() async {
         guard brandOptions.isEmpty, labelOptions.isEmpty else { return }
         do {
-            async let brandsResult = api.getFoodBrands()
-            async let labelsResult = api.getFoodLabelStats()
-            brandOptions = try await brandsResult
-            labelOptions = try await labelsResult
+            let source = backend
+            brandOptions = try await source.brandStats()
+            labelOptions = try await source.labelStats()
         } catch {
             // Already reported by the API client; the lists just stay empty.
             errorMessage = error.localizedDescription
@@ -208,10 +218,10 @@ struct FoodPackageExportView: View {
         try? await Task.sleep(nanoseconds: 300_000_000)
         guard !Task.isCancelled else { return }
         do {
-            summary = try await api.summarizeFoodPackage(selection)
+            summary = try await backend.summarize(selection)
         } catch {
             summary = nil
-            errorMessage = error.localizedDescription
+            errorMessage = FoodPackageErrorText.message(for: error, fallback: nil)
         }
         loadingSummary = false
     }
@@ -221,16 +231,34 @@ struct FoodPackageExportView: View {
         exporting = true
         defer { exporting = false }
         do {
-            let data = try await api.exportFoodPackage(selection)
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("bissbilanz-foods-\(formatter.string(from: Date())).zip")
-            try data.write(to: url, options: .atomic)
+            let package = try await backend.export(selection)
+            let url = try FoodPackageShareFile.write(package)
             exported = ExportedArchive(url: url)
+        } catch let error as FoodPackageError {
+            errorMessage = FoodPackageErrorText.message(for: error)
         } catch {
             errorMessage = L10n.foodPackageExportFailed
             ErrorReporter.capture(error)
         }
+    }
+}
+
+/// The package as a file the share sheet can send. The file carries the package's own
+/// name (`Lasagne.bissbilanz`), because that is what WhatsApp, Mail and Messages show —
+/// each export gets a fresh folder so two packages of the same name never collide.
+enum FoodPackageShareFile {
+    static func write(
+        _ package: FoodPackageExport,
+        root: URL = FileManager.default.temporaryDirectory
+    ) throws -> URL {
+        let base = root.appendingPathComponent("food-package-share", isDirectory: true)
+        try? FileManager.default.removeItem(at: base)
+        let folder = base.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let name = FoodPackageFilename.safeFileName(package.filename)
+            ?? "\(FoodPackageFilename.genericBase(date: Date())).\(FoodPackageFormat.fileExtension)"
+        let url = folder.appendingPathComponent(name)
+        try package.data.write(to: url, options: .atomic)
+        return url
     }
 }
