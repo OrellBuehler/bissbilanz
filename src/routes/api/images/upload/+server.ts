@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
-import { processImage } from '$lib/server/images';
+import { RECIPE_STEP_MAX_DIM, processImage } from '$lib/server/images';
 import { handleApiError, requireAuth } from '$lib/server/errors';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -34,7 +34,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'File must be 10MB or smaller' }, { status: 400 });
 		}
 
-		const imageUrl = await processImage(file, userId);
+		// Optional `purpose`: a recipe step photo keeps its aspect ratio at a larger size
+		// instead of the square thumbnail every other image gets.
+		const purpose = formData.get('purpose');
+		if (purpose !== null && purpose !== 'thumbnail' && purpose !== 'recipe_step') {
+			return json({ error: 'Unknown image purpose' }, { status: 400 });
+		}
+		const imageUrl = await processImage(
+			file,
+			userId,
+			purpose === 'recipe_step' ? { maxDim: RECIPE_STEP_MAX_DIM, fit: 'inside' } : undefined
+		);
 		return json({ imageUrl }, { status: 201 });
 	} catch (error) {
 		return handleApiError(error);

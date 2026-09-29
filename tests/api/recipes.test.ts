@@ -21,7 +21,21 @@ const TEST_RECIPE_DETAIL = {
 	carbs: 45,
 	fat: 8,
 	fiber: 6,
-	ingredients: [TEST_RECIPE_INGREDIENT]
+	ingredients: [TEST_RECIPE_INGREDIENT],
+	steps: [
+		{
+			id: '10000000-0000-4000-8000-000000000022',
+			sortOrder: 0,
+			text: 'Stir the oats into hot milk',
+			imageUrl: '/uploads/11111111-1111-4111-8111-111111111111.webp'
+		},
+		{
+			id: '10000000-0000-4000-8000-000000000023',
+			sortOrder: 1,
+			text: 'Serve warm',
+			imageUrl: null
+		}
+	]
 };
 
 let mockListResult: any = [];
@@ -73,7 +87,7 @@ describe('api/recipes', () => {
 		});
 
 		test('returns recipes list', async () => {
-			mockListResult = [TEST_RECIPE_DETAIL];
+			mockListResult = [{ ...TEST_RECIPE_DETAIL, stepCount: 2 }];
 			const event = createMockEvent({ user: TEST_USER });
 			const response = await GET(event);
 			await expectResponseContract('GET', '/api/recipes', response);
@@ -108,6 +122,36 @@ describe('api/recipes', () => {
 			const data = await response.json();
 			expect(response.status).toBe(201);
 			expect(data.recipe).toBeTruthy();
+		});
+
+		test('creates recipe with steps and returns them on the detail', async () => {
+			mockCreateResult = TEST_RECIPE;
+			mockGetResult = TEST_RECIPE_DETAIL;
+			const event = createMockEvent({
+				user: TEST_USER,
+				body: {
+					...VALID_RECIPE_PAYLOAD,
+					steps: [
+						{ text: 'Stir the oats into hot milk', imageUrl: '/uploads/a.webp' },
+						{ text: 'Serve warm' }
+					]
+				}
+			});
+			const response = await POST(event);
+			await expectResponseContract('POST', '/api/recipes', response);
+			const data = await response.json();
+			expect(response.status).toBe(201);
+			expect(data.recipe.steps).toHaveLength(2);
+			expect(data.recipe.steps[1]).toMatchObject({ sortOrder: 1, imageUrl: null });
+		});
+
+		test('returns an empty steps array for a recipe without instructions', async () => {
+			mockCreateResult = TEST_RECIPE;
+			mockGetResult = { ...TEST_RECIPE_DETAIL, steps: [] };
+			const event = createMockEvent({ user: TEST_USER, body: VALID_RECIPE_PAYLOAD });
+			const response = await POST(event);
+			await expectResponseContract('POST', '/api/recipes', response);
+			expect((await response.json()).recipe.steps).toEqual([]);
 		});
 
 		describe('Validation errors', () => {

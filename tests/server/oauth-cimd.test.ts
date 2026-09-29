@@ -160,7 +160,12 @@ describe('isPublicIp', () => {
 		'::',
 		'fd00::1',
 		'fe80::1',
-		'::ffff:10.0.0.1'
+		'::ffff:10.0.0.1',
+		'::ffff:7f00:1',
+		'64:ff9b::7f00:1',
+		'192.0.0.192',
+		'198.18.0.1',
+		'fec0::1'
 	])('rejects %s', (ip) => {
 		expect(isPublicIp(ip)).toBe(false);
 	});

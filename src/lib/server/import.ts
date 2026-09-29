@@ -6,6 +6,7 @@ import {
 	foodEntries,
 	foods,
 	recipeIngredients,
+	recipeSteps,
 	recipes,
 	reminders,
 	sleepEntries,
@@ -189,6 +190,7 @@ const countRows = (data: ImportArchive): number =>
 	(data.foods?.length ?? 0) +
 	(data.recipes?.length ?? 0) +
 	(data.recipeIngredients?.length ?? 0) +
+	(data.recipeSteps?.length ?? 0) +
 	(data.supplements?.length ?? 0) +
 	(data.supplementIngredients?.length ?? 0) +
 	(data.entries?.length ?? 0) +
@@ -347,6 +349,9 @@ async function planImport(userId: string, data: ImportArchive) {
 	const newRecipeIngredients = (data.recipeIngredients ?? [])
 		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))
 		.filter((row) => newRecipeIds.has(row.recipeId) && usableFoods.has(row.foodId));
+	// Steps follow their recipe the same way. Step photos are not restored (like
+	// food and recipe photos, an import never carries images), so only text moves.
+	const newRecipeSteps = (data.recipeSteps ?? []).filter((row) => newRecipeIds.has(row.recipeId));
 	const newSupplementIngredients = (data.supplementIngredients ?? [])
 		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))
 		.filter((row) => newSupplementIds.has(row.supplementId) && usableFoods.has(row.foodId));
@@ -434,6 +439,7 @@ async function planImport(userId: string, data: ImportArchive) {
 		newFoods,
 		newRecipes,
 		newRecipeIngredients,
+		newRecipeSteps,
 		newSupplements,
 		newSupplementIngredients,
 		newEntries,
@@ -558,6 +564,16 @@ export async function runImport(
 					}))
 				)
 				.onConflictDoNothing()
+		);
+		await inChunks(plan.newRecipeSteps, (part) =>
+			tx.insert(recipeSteps).values(
+				part.map((row) => ({
+					recipeId: row.recipeId,
+					sortOrder: row.sortOrder,
+					text: row.text,
+					imageUrl: null
+				}))
+			)
 		);
 		await inChunks(plan.newSupplements, (part) =>
 			tx

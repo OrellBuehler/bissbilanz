@@ -118,7 +118,8 @@ import { isZodError } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { UPLOAD_DIR } from '$lib/server/images';
+import { RECIPE_STEP_MAX_DIM, UPLOAD_DIR } from '$lib/server/images';
+import type { discardImportedImages, importImageFromUrl } from '$lib/server/image-download';
 
 export type HandlerDeps = {
 	// Foods
@@ -221,6 +222,9 @@ export type HandlerDeps = {
 	formatDailyStatus: typeof formatDailyStatus;
 	// Resolves "today" in the user's stored timezone (server-side day bucketing).
 	todayForUser: (userId: string) => Promise<string>;
+	// Downloads external step image links into normal uploads
+	importImageFromUrl: typeof importImageFromUrl;
+	discardImportedImages: typeof discardImportedImages;
 	// Open Food Facts
 	fetchProduct: typeof fetchProduct;
 	searchProducts: typeof searchProducts;
@@ -319,10 +323,102 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	const discardImported = async (urls: string[], userId: string) => {
+		if (urls.length > 0) await d.discardImportedImages(urls, userId);
+	};
+
+	const MAX_STEP_IMAGE_DOWNLOADS = 20;
+	const STEP_IMAGE_CONCURRENCY = 4;
+	const isExternalImageLink = (value: unknown): value is string =>
+		typeof value === 'string' && /^https?:\/\//i.test(value);
+
+	/**
+	 * Agents pass step photos as external links. Each one is downloaded once and
+	 * stored like an upload, and the step gets the resulting `/uploads/...` URL.
+	 * A link that fails is an error for the whole call — never a silently missing
+	 * photo. Links in `keep` (already stored on the recipe being updated) are left
+	 * as they are. `imported` lists the files created so a failed write can drop them.
+	 */
+	const importStepImages = async (
+		userId: string,
+		payload: unknown,
+		keep: Set<string> = new Set()
+	): Promise<{ payload: unknown; imported: string[] }> => {
+		const steps = (payload as { steps?: unknown } | null)?.steps;
+		if (!Array.isArray(steps)) return { payload, imported: [] };
+
+		const links = [
+			...new Set(
+				steps
+					.map((step) => (step as { imageUrl?: unknown } | null)?.imageUrl)
+					.filter(isExternalImageLink)
+					.filter((url) => !keep.has(url))
+			)
+		];
+		if (links.length === 0) return { payload, imported: [] };
+		if (links.length > MAX_STEP_IMAGE_DOWNLOADS) {
+			throw new Error(
+				`Too many step images to download in one call (${links.length}, max ${MAX_STEP_IMAGE_DOWNLOADS})`
+			);
+		}
+
+		const stored = new Map<string, string>();
+		const failures: { url: string; error: unknown }[] = [];
+		for (let i = 0; i < links.length && failures.length === 0; i += STEP_IMAGE_CONCURRENCY) {
+			await Promise.all(
+				links.slice(i, i + STEP_IMAGE_CONCURRENCY).map(async (url) => {
+					try {
+						stored.set(
+							url,
+							await d.importImageFromUrl(url, userId, {
+								maxDim: RECIPE_STEP_MAX_DIM,
+								fit: 'inside'
+							})
+						);
+					} catch (error) {
+						failures.push({ url, error });
+					}
+				})
+			);
+		}
+		if (failures.length > 0) {
+			await d.discardImportedImages([...stored.values()], userId);
+			const { url, error } = failures[0];
+			const step =
+				steps.findIndex((s) => (s as { imageUrl?: unknown } | null)?.imageUrl === url) + 1;
+			throw new Error(
+				`Step ${step} image could not be imported from ${url}: ${error instanceof Error ? error.message : String(error)}`
+			);
+		}
+
+		return {
+			payload: {
+				...(payload as object),
+				steps: steps.map((step) => {
+					const url = (step as { imageUrl?: unknown } | null)?.imageUrl;
+					return isExternalImageLink(url) && stored.has(url)
+						? { ...(step as object), imageUrl: stored.get(url) }
+						: step;
+				})
+			},
+			imported: [...stored.values()]
+		};
+	};
+
 	const handleCreateRecipe = async (userId: string, payload: unknown) => {
 		try {
-			const result = await d.createRecipe(userId, payload);
-			if (!result.success) return errorPayload(result.error);
+			const prepared = await importStepImages(userId, payload);
+			let result;
+			try {
+				result = await d.createRecipe(userId, prepared.payload);
+			} catch (e) {
+				await discardImported(prepared.imported, userId);
+				throw e;
+			}
+			if (!result.success) {
+				await discardImported(prepared.imported, userId);
+				return errorPayload(result.error);
+			}
 			return { recipeId: result.data.id, success: true, recipe: result.data };
 		} catch (e) {
 			wrapError('create recipe', e);
@@ -720,9 +816,33 @@ export function createHandlers(d: HandlerDeps) {
 	) => {
 		try {
 			const { recipeId, ...rest } = args;
-			const result = await d.updateRecipe(userId, recipeId, rest);
-			if (!result.success) return errorPayload(result.error);
-			if (!result.data) return { error: 'Recipe not found' };
+			let prepared: { payload: unknown; imported: string[] } = { payload: rest, imported: [] };
+			if (
+				Array.isArray(rest.steps) &&
+				rest.steps.some((step) => isExternalImageLink(step?.imageUrl))
+			) {
+				const current = await d.getRecipe(userId, recipeId);
+				if (!current) return { error: 'Recipe not found' };
+				const keep = new Set(
+					(current.steps ?? []).map((step) => step.imageUrl).filter((url): url is string => !!url)
+				);
+				prepared = await importStepImages(userId, rest, keep);
+			}
+			let result;
+			try {
+				result = await d.updateRecipe(userId, recipeId, prepared.payload);
+			} catch (e) {
+				await discardImported(prepared.imported, userId);
+				throw e;
+			}
+			if (!result.success) {
+				await discardImported(prepared.imported, userId);
+				return errorPayload(result.error);
+			}
+			if (!result.data) {
+				await discardImported(prepared.imported, userId);
+				return { error: 'Recipe not found' };
+			}
 			return { success: true, recipeId };
 		} catch (e) {
 			wrapError('update recipe', e);

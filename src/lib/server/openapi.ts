@@ -818,7 +818,8 @@ export const apiPaths = {
 		post: {
 			operationId: 'createRecipe',
 			tags: ['Recipes'],
-			description: 'Create a new recipe.',
+			description:
+				'Create a new recipe. Optional `steps` are ordered cooking instructions ({ text, imageUrl? }, up to 50).',
 			requestBody: {
 				required: true,
 				content: { 'application/json': { schema: recipeCreateSchema } }
@@ -837,7 +838,8 @@ export const apiPaths = {
 		get: {
 			operationId: 'getRecipe',
 			tags: ['Recipes'],
-			description: 'Get a single recipe by ID.',
+			description:
+				'Get a single recipe by ID, including its ingredients and its ordered cooking steps (an empty array when it has none).',
 			requestParams: { path: uuidPathId },
 			responses: {
 				'200': {
@@ -851,7 +853,8 @@ export const apiPaths = {
 		patch: {
 			operationId: 'updateRecipe',
 			tags: ['Recipes'],
-			description: 'Update a recipe.',
+			description:
+				'Update a recipe. `ingredients` and `steps` each replace the whole list when present (an empty `steps` list clears them) and leave it unchanged when omitted.',
 			requestParams: { path: uuidPathId },
 			requestBody: {
 				required: true,
@@ -1710,7 +1713,8 @@ export const apiPaths = {
 		post: {
 			operationId: 'uploadImage',
 			tags: ['Images'],
-			description: 'Upload an image file.',
+			description:
+				'Upload an image file. Images are re-encoded as WebP; the default is a 512px square thumbnail. Pass purpose=recipe_step for a recipe step photo (aspect ratio kept, up to 1280px), then set the returned imageUrl on a step.',
 			requestBody: {
 				required: true,
 				content: {
@@ -1718,7 +1722,8 @@ export const apiPaths = {
 						schema: {
 							type: 'object' as const,
 							properties: {
-								image: { type: 'string' as const, format: 'binary' }
+								image: { type: 'string' as const, format: 'binary' },
+								purpose: { type: 'string' as const, enum: ['thumbnail', 'recipe_step'] }
 							},
 							required: ['image']
 						}
