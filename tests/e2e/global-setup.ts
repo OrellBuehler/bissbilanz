@@ -8,24 +8,32 @@ const SESSION_FILE = join(__dirname, '.auth/session.json');
 
 export default async function globalSetup() {
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'http://localhost:4000';
-	const browser = await chromium.launch();
+	const browser = await chromium.launch({
+		args: process.env.PW_HOST_MAP_IP
+			? [`--host-resolver-rules=MAP localhost ${process.env.PW_HOST_MAP_IP}`]
+			: []
+	});
 	const context = await browser.newContext();
 	const page = await context.newPage();
 
-	let res;
 	try {
-		res = await page.request.post(`${baseURL}/api/auth/test-session`);
-	} catch {
+		await page.goto(`${baseURL}/login`);
+	} catch (err) {
 		throw new Error(
 			`Could not reach dev server at ${baseURL}.\n` +
-				'Start it with: TEST_MODE=true TEST_AUTH_TOKEN=test-integration-token bun run dev'
+				'Start it with: TEST_MODE=true TEST_AUTH_TOKEN=test-integration-token bun run dev',
+			{ cause: err }
 		);
 	}
 
-	if (!res.ok()) {
-		const body = await res.text();
+	const res = await page.evaluate(async () => {
+		const response = await fetch('/api/auth/test-session', { method: 'POST' });
+		return { ok: response.ok, status: response.status, body: await response.text() };
+	});
+
+	if (!res.ok) {
 		throw new Error(
-			`Test session creation failed (${res.status()}): ${body}\n` +
+			`Test session creation failed (${res.status}): ${res.body}\n` +
 				'Make sure the server is running with TEST_MODE=true and TEST_AUTH_TOKEN set'
 		);
 	}
