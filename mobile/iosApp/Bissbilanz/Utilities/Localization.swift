@@ -1873,12 +1873,28 @@ enum L10n {
         localized("sync_waiting", en: "Waiting", de: "Wartet")
     }
 
-    static func syncRetryStatus(_ count: Int, _ max: Int) -> String {
+    static func syncRetryStatus(_ count: Int) -> String {
         localized(
             "sync_retry_status",
-            en: "Retry \(count)/\(max)",
-            de: "Versuch \(count)/\(max)"
+            en: "Retried \(count)x",
+            de: "\(count)x erneut versucht"
         )
+    }
+
+    static var pendingChangesParkedTitle: String {
+        localized("pending_changes_parked_title", en: "Needs your attention", de: "Braucht deine Aufmerksamkeit")
+    }
+
+    static var pendingChangesParkedDetail: String {
+        localized(
+            "pending_changes_parked_detail",
+            en: "The server rejected these changes. They are kept here until you retry or discard them.",
+            de: "Der Server hat diese Änderungen abgelehnt. Sie bleiben hier gespeichert, bis du sie erneut versuchst oder verwirfst."
+        )
+    }
+
+    static func syncParkedReason(_ reason: String) -> String {
+        localized("sync_parked_reason", en: "Rejected: \(reason)", de: "Abgelehnt: \(reason)")
     }
 
     /// Human-readable title for a queued sync operation, keyed by its stored

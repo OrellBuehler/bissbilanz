@@ -10,8 +10,46 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # Publishing a release used to build and ship whatever the tag pointed at. The
+  # tag can be cut from a commit whose PR checks were skipped or red, so the image
+  # (and therefore the deploy) is gated on the unit tests and the type check.
+  test:
+    name: Test gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compile i18n and sync SvelteKit
+        run: bun run paraglide:compile && bunx svelte-kit sync
+
+      - name: Typecheck (svelte-check)
+        run: bunx svelte-check --tsconfig ./tsconfig.json --tsgo
+
+      - name: Unit tests
+        run: bun run test
+
   build:
     runs-on: ubuntu-latest
+    needs: test
     permissions:
       contents: read
       packages: write
@@ -66,8 +104,61 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'release'
+    # One production deploy at a time, queued rather than cancelled: cancelling a
+    # deploy halfway through leaves the server on an undefined image, and two
+    # releases published back to back must land in order.
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    permissions:
+      # The rollback re-points the `latest` tag at the previous release's image.
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      HEALTH_URL: https://bissbilanz.orellbuehler.ch/api/health
+      RELEASE_TAG: ${{ github.ref_name }}
 
     steps:
+      - name: Prepare SSH access
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            Port $DEPLOY_PORT
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 30
+          EOF
+
+      - name: Record the release that is running now
+        # The rollback target. Read from the live site (config.app.version is the
+        # release tag baked into the running image) BEFORE the tunnel comes up:
+        # while wg0 is up HTTPS from this runner times out (see the verify step).
+        id: previous
+        run: |
+          set -uo pipefail
+          version=""
+          if body=$(curl -fsS --max-time 10 "$HEALTH_URL" 2>/dev/null); then
+            version=$(echo "$body" | jq -r 'select(.status == "ok") | .version // empty')
+          fi
+          if [ -z "$version" ] || [ "$version" = "$RELEASE_TAG" ]; then
+            echo "::warning::No distinct previously running release found (got '${version}'); automatic rollback is unavailable for this deploy."
+            version=""
+          else
+            echo "Currently running $version; it is the rollback target."
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Connect to home network via WireGuard
         env:
           WIREGUARD_CONFIG: ${{ secrets.WIREGUARD_CONFIG }}
@@ -78,23 +169,39 @@ jobs:
           printf '%s' "$WIREGUARD_CONFIG" | base64 -d | sudo tee /etc/wireguard/wg0.conf > /dev/null
           sudo wg-quick up wg0
 
-      - name: Deploy to server
+      - name: Back up the database before migrations run
+        # The new container runs migrations on its first start, so this is the last
+        # moment a restore point can be taken. deploy-docker.sh on the server is
+        # the only thing this key may run, so the dump itself lives there
+        # (`backup <service>`: pg_dump | gzip into a timestamped file on the host,
+        # last N kept; see docs/release.md). A server that predates the command
+        # answers "Unknown command": that is a warning unless the repository
+        # variable REQUIRE_PREDEPLOY_BACKUP is "true". Any other failure blocks
+        # the deploy.
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
-          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          REQUIRE_PREDEPLOY_BACKUP: ${{ vars.REQUIRE_PREDEPLOY_BACKUP }}
         run: |
-          umask 077
-          printf '%s\n' "$DEPLOY_KEY" > deploy_key
-          chmod 600 deploy_key
-          ssh -i deploy_key \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=accept-new \
-            -o ConnectTimeout=30 \
-            -p "$DEPLOY_PORT" \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            'deploy bissbilanz'
+          set +e
+          out=$(ssh deploy-target 'backup bissbilanz' 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -eq 0 ]; then
+            echo "Pre-deploy database backup complete."
+          elif echo "$out" | grep -q "Unknown command"; then
+            if [ "${REQUIRE_PREDEPLOY_BACKUP:-}" = "true" ]; then
+              echo "::error::The server has no 'backup' deploy command and REQUIRE_PREDEPLOY_BACKUP=true."
+              exit 1
+            fi
+            echo "::warning::The server has no 'backup' deploy command yet; deploying without a pre-deploy database dump."
+          else
+            echo "::error::Pre-deploy database backup failed (exit $rc); not deploying."
+            exit "$rc"
+          fi
+
+      - name: Deploy to server
+        id: deploy
+        run: ssh deploy-target 'deploy bissbilanz'
 
       - name: Disconnect WireGuard
         if: always()
@@ -113,16 +220,13 @@ jobs:
         # (v1.45.0 failed every attempt this way). Polls GET /api/health,
         # which does a cheap `SELECT 1` and reports the running release via
         # config.app.version (baked from the Dockerfile's APP_VERSION build arg).
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          url="https://bissbilanz.orellbuehler.ch/api/health"
-          echo "Waiting for $url to report status=ok version=$RELEASE_TAG..."
+          echo "Waiting for $HEALTH_URL to report status=ok version=$RELEASE_TAG..."
           status="none"
           version="none"
           for attempt in $(seq 1 18); do
-            if body=$(curl -fsS --max-time 5 "$url" 2>curl.err); then
+            if body=$(curl -fsS --max-time 5 "$HEALTH_URL" 2>curl.err); then
               status=$(echo "$body" | jq -r '.status // "none"')
               version=$(echo "$body" | jq -r '.version // "none"')
               echo "attempt $attempt/18: status=$status version=$version"
@@ -135,5 +239,81 @@ jobs:
             fi
             sleep 10
           done
-          echo "::error::Timed out after 3 minutes waiting for $url to report status=ok version=$RELEASE_TAG (last seen status=$status version=$version)."
+          echo "::error::Timed out after 3 minutes waiting for $HEALTH_URL to report status=ok version=$RELEASE_TAG (last seen status=$status version=$version)."
           exit 1
+
+      # --- Automatic rollback ------------------------------------------------
+      # Runs when the deploy was attempted but the release did not come up
+      # healthy. Compose runs ghcr.io/<repo>:latest, so rolling back means
+      # pointing `latest` back at the previous release's image and asking the
+      # server to redeploy, which is the only thing the deploy key can do. The
+      # database is not rolled back: migrations are expand/contract
+      # (docs/api-stability.md), so the previous image runs against the new
+      # schema; the pre-deploy dump is for anything worse than that.
+      - name: Roll back - set up image tools
+        id: rollback_tools
+        if: failure() && steps.deploy.outcome != 'skipped' && steps.previous.outputs.version != ''
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Roll back - log in to Container Registry
+        id: rollback_login
+        if: failure() && steps.rollback_tools.outcome == 'success'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Roll back - point latest at the previous release
+        id: rollback_retag
+        if: failure() && steps.rollback_login.outcome == 'success'
+        env:
+          PREVIOUS_VERSION: ${{ steps.previous.outputs.version }}
+        run: |
+          set -euo pipefail
+          image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          # docker/metadata-action tags releases with the semver, without the "v".
+          previous_tag="${PREVIOUS_VERSION#v}"
+          echo "Rolling back: $image:latest -> $image:$previous_tag"
+          docker buildx imagetools inspect "$image:$previous_tag" > /dev/null
+          docker buildx imagetools create --tag "$image:latest" "$image:$previous_tag"
+
+      - name: Roll back - reconnect WireGuard
+        id: rollback_wg
+        if: failure() && steps.rollback_retag.outcome == 'success'
+        run: sudo wg-quick up wg0
+
+      - name: Roll back - redeploy on the server
+        id: rollback_deploy
+        if: failure() && steps.rollback_wg.outcome == 'success'
+        run: ssh deploy-target 'deploy bissbilanz'
+
+      - name: Roll back - disconnect WireGuard
+        if: failure() && steps.rollback_wg.outcome != 'skipped'
+        run: sudo wg-quick down wg0 || true
+
+      - name: Roll back - verify the previous release is live
+        id: rollback_verify
+        if: failure() && steps.rollback_deploy.outcome == 'success'
+        env:
+          PREVIOUS_VERSION: ${{ steps.previous.outputs.version }}
+        run: |
+          set -uo pipefail
+          for attempt in $(seq 1 18); do
+            if body=$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null); then
+              status=$(echo "$body" | jq -r '.status // "none"')
+              version=$(echo "$body" | jq -r '.version // "none"')
+              echo "attempt $attempt/18: status=$status version=$version"
+              if [ "$status" = "ok" ] && [ "$version" = "$PREVIOUS_VERSION" ]; then
+                echo "::error::$RELEASE_TAG failed its health check and was rolled back to $PREVIOUS_VERSION (now live and healthy). This deploy is still marked failed."
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "::error::Rollback to $PREVIOUS_VERSION did not become healthy within 3 minutes. Production needs manual attention."
+          exit 1
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/config

@@ -1,6 +1,7 @@
 package com.bissbilanz.migration
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.EntryCreate
@@ -199,15 +200,15 @@ class LocalDataMigratorTest {
             assertEquals(0L, cacheQueries.countSyncQueue().executeAsOne())
 
             coVerifyOrder {
-                api.createFood(any()) // Apple
-                api.createFood(any()) // Banana
-                api.createRecipe(any())
-                api.createEntry(any())
-                api.createEntry(any())
-                api.createWeightEntry(any())
-                api.createSleepEntry(any())
-                api.createSupplement(any())
-                api.logSupplement(any(), any())
+                api.createFood(any(), any(), any()) // Apple
+                api.createFood(any(), any(), any()) // Banana
+                api.createRecipe(any(), any(), any())
+                api.createEntry(any(), any(), any())
+                api.createEntry(any(), any(), any())
+                api.createWeightEntry(any(), any(), any())
+                api.createSleepEntry(any(), any(), any())
+                api.createSupplement(any(), any(), any())
+                api.logSupplement(any(), any(), any(), any())
                 api.setGoals(any())
                 api.updatePreferences(any())
                 api.setDayProperties(any(), any())
@@ -232,7 +233,7 @@ class LocalDataMigratorTest {
                     .ingredients
                     .map { it.foodId },
             )
-            coVerify { api.logSupplement("srv-supp-1", "2024-01-15") }
+            coVerify { api.logSupplement("srv-supp-1", "2024-01-15", any(), any()) }
             coVerify { api.setGoals(Goals(2000.0, 150.0, 250.0, 65.0, 30.0)) }
             coVerify { api.setDayProperties("2024-01-15", true) }
 
@@ -284,7 +285,7 @@ class LocalDataMigratorTest {
             insertEntry(entry("temp_entry-2", recipeId = "temp_recipe-1", recipe = recipe))
 
             stubHappyApi()
-            coEvery { api.createEntry(any()) } returns
+            coEvery { api.createEntry(any(), any(), any()) } returns
                 serverEntry("srv-entry-1", foodId = "srv-food-1") andThenThrows
                 RuntimeException("network down")
 
@@ -304,7 +305,7 @@ class LocalDataMigratorTest {
 
             // Second run: only the remaining temp entry is uploaded.
             val entryCreates = mutableListOf<EntryCreate>()
-            coEvery { api.createEntry(capture(entryCreates)) } answers {
+            coEvery { api.createEntry(capture(entryCreates), any(), any()) } answers {
                 serverEntry("srv-entry-2", recipeId = entryCreates.last().recipeId)
             }
 
@@ -313,8 +314,8 @@ class LocalDataMigratorTest {
             assertEquals(MigrationState.Completed, migrator.state.value)
             assertEquals(AppMode.SYNCED, appMode.mode.value)
             assertEquals("srv-recipe-1", entryCreates.single().recipeId)
-            coVerify(exactly = 1) { api.createFood(any()) }
-            coVerify(exactly = 1) { api.createRecipe(any()) }
+            coVerify(exactly = 1) { api.createFood(any(), any(), any()) }
+            coVerify(exactly = 1) { api.createRecipe(any(), any(), any()) }
         }
 
     @Test
@@ -327,7 +328,7 @@ class LocalDataMigratorTest {
             insertEntry(entry("old-entry-1", foodId = "old-food-1", food = oldFood))
             insertSupplement(supplement("old-supp-1", foodId = "old-food-1"))
             insertSupplementLog("old-supp-1")
-            coEvery { api.createFood(any()) } throws RuntimeException("offline")
+            coEvery { api.createFood(any(), any(), any()) } throws RuntimeException("offline")
 
             migrator.migrate()
 
@@ -379,11 +380,11 @@ class LocalDataMigratorTest {
 
             assertEquals(MigrationState.Completed, migrator.state.value)
             assertEquals(AppMode.SYNCED, appMode.mode.value)
-            coVerify(exactly = 1) { api.createFood(any()) }
-            coVerify(exactly = 1) { api.createRecipe(any()) }
-            coVerify(exactly = 1) { api.createEntry(any()) }
-            coVerify(exactly = 1) { api.createSupplement(any()) }
-            coVerify { api.logSupplement("srv-supp-1", "2024-01-15") }
+            coVerify(exactly = 1) { api.createFood(any(), any(), any()) }
+            coVerify(exactly = 1) { api.createRecipe(any(), any(), any()) }
+            coVerify(exactly = 1) { api.createEntry(any(), any(), any()) }
+            coVerify(exactly = 1) { api.createSupplement(any(), any(), any()) }
+            coVerify { api.logSupplement("srv-supp-1", "2024-01-15", any(), any()) }
             assertEquals(
                 listOf("srv-food-1"),
                 captures.recipeCreates
@@ -606,8 +607,8 @@ class LocalDataMigratorTest {
             migrator.migrate()
 
             assertEquals(MigrationState.Completed, migrator.state.value)
-            coVerify(exactly = 0) { api.createRecipe(any()) }
-            coVerify(exactly = 0) { api.createSupplement(any()) }
+            coVerify(exactly = 0) { api.createRecipe(any(), any(), any()) }
+            coVerify(exactly = 0) { api.createSupplement(any(), any(), any()) }
             assertTrue(queries.selectAllRecipes().executeAsList().isEmpty())
             assertTrue(queries.selectAllSupplements().executeAsList().isEmpty())
         }
@@ -712,6 +713,112 @@ class LocalDataMigratorTest {
         }
 
     // -------------------------------------------------------------------------------
+    // migrate(): 409 duplicate barcode + stable idempotency keys
+    // -------------------------------------------------------------------------------
+
+    @Test
+    fun migrateAdoptsTheExistingServerFoodWhenTheBarcodeAlreadyExists() =
+        runTest {
+            val apple = TestFixtures.food(id = "temp_food-a", name = "Apple").copy(barcode = "4001234567890")
+            insertFood(apple)
+            insertEntry(entry("temp_entry-1", foodId = "temp_food-a", food = apple))
+            stubHappyApi()
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("duplicate barcode", 409)
+            coEvery { api.getFoodByBarcode("4001234567890") } returns
+                TestFixtures.food(id = "srv-existing", name = "Apple (server)").copy(barcode = "4001234567890")
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            assertEquals(listOf("srv-existing"), queries.selectAllFoods().executeAsList().map { it.id })
+            // The local entry now points at the food that already lived on the account.
+            val entryCreates = mutableListOf<EntryCreate>()
+            coVerify { api.createEntry(capture(entryCreates), any(), any()) }
+            assertEquals("srv-existing", entryCreates.single().foodId)
+            coVerify(exactly = 1) { api.createFood(any(), any(), any()) }
+        }
+
+    @Test
+    fun migrateKeepsTheFoodWithoutItsBarcodeWhenTheOwnerCannotBeLookedUp() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple").copy(barcode = "4001234567890"))
+            val creates = mutableListOf<FoodCreate>()
+            stubHappyApi()
+            coEvery { api.createFood(capture(creates), any(), any()) } answers {
+                if (creates.last().barcode != null) throw ApiException("duplicate barcode", 409)
+                TestFixtures.food(id = "srv-food-1", name = creates.last().name)
+            }
+            coEvery { api.getFoodByBarcode(any()) } returns null
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            assertEquals(listOf("4001234567890", null), creates.map { it.barcode })
+            assertEquals(listOf("srv-food-1"), queries.selectAllFoods().executeAsList().map { it.id })
+        }
+
+    @Test
+    fun migrateRethrowsA409ThatIsNotABarcodeConflict() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple"))
+            stubHappyApi()
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("conflict", 409)
+
+            migrator.migrate()
+
+            assertIs<MigrationState.Failed>(migrator.state.value)
+            coVerify(exactly = 0) { api.getFoodByBarcode(any()) }
+        }
+
+    @Test
+    fun resumeAfterACrashReusesTheIdempotencyKeyOfTheRowThatMayHaveCommitted() =
+        runTest {
+            val apple = TestFixtures.food(id = "temp_food-a", name = "Apple")
+            insertFood(apple)
+            insertEntry(entry("temp_entry-1", foodId = "temp_food-a", food = apple))
+            stubHappyApi()
+            val entryKeys = mutableListOf<String?>()
+            val foodKeys = mutableListOf<String?>()
+            coEvery { api.createFood(any(), captureNullable(foodKeys), any()) } returns
+                TestFixtures.food(id = "srv-food-1", name = "Apple")
+            // The first attempt reaches the server but the response is lost: the local row
+            // stays temp_, exactly the state a crash right after the request leaves behind.
+            coEvery { api.createEntry(any(), captureNullable(entryKeys), any()) } throws
+                RuntimeException("connection lost after send")
+
+            migrator.migrate()
+            assertIs<MigrationState.Failed>(migrator.state.value)
+
+            coEvery { api.createEntry(any(), captureNullable(entryKeys), any()) } answers {
+                serverEntry("srv-entry-1", foodId = "srv-food-1")
+            }
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            assertEquals(2, entryKeys.size)
+            assertTrue(entryKeys.all { !it.isNullOrBlank() })
+            assertEquals(entryKeys[0], entryKeys[1])
+            // Different rows never share a key.
+            assertTrue(foodKeys.single() != entryKeys[0])
+        }
+
+    @Test
+    fun idempotencyKeysAreFreshForANewMigrationCycle() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple"))
+            stubHappyApi()
+            val keys = mutableListOf<String?>()
+            coEvery { api.createFood(any(), captureNullable(keys), any()) } throws RuntimeException("offline")
+
+            migrator.migrate()
+            migrator.resetNormalization()
+            migrator.migrate()
+
+            assertEquals(2, keys.size)
+            assertTrue(keys[0] != keys[1])
+        }
+
+    // -------------------------------------------------------------------------------
     // resetNormalization()
     // -------------------------------------------------------------------------------
 
@@ -759,10 +866,10 @@ class LocalDataMigratorTest {
         val recipeCreates = mutableListOf<RecipeCreate>()
         val entryCreates = mutableListOf<EntryCreate>()
         val supplementCreates = mutableListOf<SupplementCreate>()
-        coEvery { api.createFood(capture(foodCreates)) } answers {
+        coEvery { api.createFood(capture(foodCreates), any(), any()) } answers {
             TestFixtures.food(id = "srv-food-${foodCreates.size}", name = foodCreates.last().name)
         }
-        coEvery { api.createRecipe(capture(recipeCreates)) } answers {
+        coEvery { api.createRecipe(capture(recipeCreates), any(), any()) } answers {
             recipeDetail(
                 id = "srv-recipe-${recipeCreates.size}",
                 foodId =
@@ -774,16 +881,16 @@ class LocalDataMigratorTest {
                 name = recipeCreates.last().name,
             )
         }
-        coEvery { api.createEntry(capture(entryCreates)) } answers {
+        coEvery { api.createEntry(capture(entryCreates), any(), any()) } answers {
             serverEntry(
                 id = "srv-entry-${entryCreates.size}",
                 foodId = entryCreates.last().foodId,
                 recipeId = entryCreates.last().recipeId,
             )
         }
-        coEvery { api.createWeightEntry(any()) } returns weightEntry("srv-weight-1")
-        coEvery { api.createSleepEntry(any()) } returns sleepEntry("srv-sleep-1")
-        coEvery { api.createSupplement(capture(supplementCreates)) } answers {
+        coEvery { api.createWeightEntry(any(), any(), any()) } returns weightEntry("srv-weight-1")
+        coEvery { api.createSleepEntry(any(), any(), any()) } returns sleepEntry("srv-sleep-1")
+        coEvery { api.createSupplement(capture(supplementCreates), any(), any()) } answers {
             supplement(
                 id = "srv-supp-${supplementCreates.size}",
                 foodId =
@@ -794,7 +901,7 @@ class LocalDataMigratorTest {
                         ?.foodId ?: "srv-food-1",
             )
         }
-        coEvery { api.logSupplement(any(), any()) } answers {
+        coEvery { api.logSupplement(any(), any(), any(), any()) } answers {
             SupplementLog(
                 supplementId = firstArg(),
                 date = secondArg() ?: "2024-01-15",

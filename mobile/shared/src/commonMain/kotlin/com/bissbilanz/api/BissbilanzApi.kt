@@ -557,10 +557,13 @@ class BissbilanzApi(
 
     suspend fun getFoodByBarcode(barcode: String): Food? =
         try {
-            val response: FoodResponse = get("/api/foods") { parameter("barcode", barcode) }
-            response.food
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
+            // The barcode filter answers with the list envelope (`{ foods, total }`),
+            // not a single `{ food }`.
+            val response: FoodsListResponse = get("/api/foods") { parameter("barcode", barcode) }
+            response.foods.firstOrNull()
+        } catch (e: ApiException) {
+            // A barcode the server rejects (e.g. a non-numeric code) simply has no match.
+            if (e.statusCode !in 400..499) throw e
             null
         }
 

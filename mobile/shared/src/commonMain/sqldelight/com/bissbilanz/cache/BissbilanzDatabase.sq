@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS SyncQueue (
     retryCount INTEGER NOT NULL DEFAULT 0,
     idempotencyKey TEXT,
     clientEditedAt TEXT,
-    nextAttemptAt INTEGER NOT NULL DEFAULT 0
+    nextAttemptAt INTEGER NOT NULL DEFAULT 0,
+    failedAt INTEGER,
+    failureReason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS SyncMeta (
@@ -44,7 +46,7 @@ DELETE FROM CachedMealType;
 
 -- Sync Queue
 selectSyncQueue:
-SELECT * FROM SyncQueue WHERE nextAttemptAt <= ? ORDER BY createdAt LIMIT 50;
+SELECT * FROM SyncQueue WHERE failedAt IS NULL AND nextAttemptAt <= ? ORDER BY createdAt LIMIT 50;
 
 selectAllSyncQueue:
 SELECT * FROM SyncQueue ORDER BY createdAt;
@@ -60,7 +62,7 @@ selectSyncQueueItemRetryCount:
 SELECT retryCount FROM SyncQueue WHERE id = ?;
 
 selectNextSyncQueueRetryAt:
-SELECT nextAttemptAt FROM SyncQueue WHERE nextAttemptAt > ? ORDER BY nextAttemptAt LIMIT 1;
+SELECT nextAttemptAt FROM SyncQueue WHERE failedAt IS NULL AND nextAttemptAt > ? ORDER BY nextAttemptAt LIMIT 1;
 
 updateSyncQueueNextAttemptAt:
 UPDATE SyncQueue SET nextAttemptAt = ? WHERE id = ?;
@@ -81,7 +83,27 @@ deleteSyncQueueByAffected:
 DELETE FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;
 
 countSyncQueue:
-SELECT COUNT(*) FROM SyncQueue;
+SELECT COUNT(*) FROM SyncQueue WHERE failedAt IS NULL;
+
+countFailedSyncQueue:
+SELECT COUNT(*) FROM SyncQueue WHERE failedAt IS NOT NULL;
+
+-- A parked (permanently rejected) change stays in the table, out of the drain, until
+-- the user retries or discards it.
+parkSyncQueueItem:
+UPDATE SyncQueue SET failedAt = ?, failureReason = ? WHERE id = ?;
+
+unparkSyncQueueItem:
+UPDATE SyncQueue SET failedAt = NULL, failureReason = NULL, retryCount = 0, nextAttemptAt = 0 WHERE id = ?;
+
+unparkAllSyncQueue:
+UPDATE SyncQueue SET failedAt = NULL, failureReason = NULL, retryCount = 0, nextAttemptAt = 0 WHERE failedAt IS NOT NULL;
+
+deleteFailedSyncQueueItem:
+DELETE FROM SyncQueue WHERE id = ? AND failedAt IS NOT NULL;
+
+deleteFailedSyncQueue:
+DELETE FROM SyncQueue WHERE failedAt IS NOT NULL;
 
 clearSyncQueue:
 DELETE FROM SyncQueue;

@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import { enqueue, pendingIdsFor } from '$lib/stores/offline-queue';
-import { isQueued } from '$lib/utils/api';
+import { isQueued, sentWriteHeaders } from '$lib/utils/api';
 
 type RefreshTableOpts<T extends { id: string }> = {
 	table: EntityTable<T, 'id'>;
@@ -98,10 +98,12 @@ export async function withOfflineFallback<T>(
 			return { status: 'applied', data, response };
 		}
 		return { status: 'error', response };
-	} catch {
+	} catch (err) {
+		// Reuse the key the failed online request was sent with (see sentWriteHeaders).
 		await enqueue(opts.method, opts.url, opts.body, {
 			affectedTable: opts.affectedTable,
-			affectedId: opts.affectedId
+			affectedId: opts.affectedId,
+			...sentWriteHeaders(err)
 		});
 		return { status: 'queued' };
 	}

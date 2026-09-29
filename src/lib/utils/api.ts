@@ -23,6 +23,29 @@ function applySyncHeaders(headers: Headers, isWrite: boolean): Headers {
 	return headers;
 }
 
+/**
+ * A failed online write carries the headers it was sent with, so the offline
+ * fallback can queue the replay under the SAME idempotency key. If the request
+ * committed server-side before the connection dropped, the replay is then
+ * recognised as a duplicate instead of creating a second row.
+ */
+export type SentWriteHeaders = { idempotencyKey?: string; clientEditedAt?: string };
+
+export function sentWriteHeaders(err: unknown): SentWriteHeaders {
+	const sent = (err as { sentWrite?: SentWriteHeaders } | null)?.sentWrite;
+	return sent ?? {};
+}
+
+function tagFailedWrite(err: unknown, headers: Headers): never {
+	if (err && typeof err === 'object') {
+		(err as { sentWrite?: SentWriteHeaders }).sentWrite = {
+			idempotencyKey: headers.get(IDEMPOTENCY_KEY_HEADER) ?? undefined,
+			clientEditedAt: headers.get(CLIENT_EDITED_AT_HEADER) ?? undefined
+		};
+	}
+	throw err;
+}
+
 export async function apiFetch(input: Request | string, init?: RequestInit): Promise<Response> {
 	const response =
 		input instanceof Request ? await apiFetchRequest(input) : await apiFetchString(input, init);
@@ -55,7 +78,12 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 			applyClientVersionHeaders(new Headers(request.headers)),
 			isWrite
 		);
-		return fetch(new Request(request, { headers }), { duplex: 'half' } as RequestInit);
+		try {
+			return await fetch(new Request(request, { headers }), { duplex: 'half' } as RequestInit);
+		} catch (err) {
+			if (isWrite) tagFailedWrite(err, headers);
+			throw err;
+		}
 	}
 
 	return fetch(request, { duplex: 'half' } as RequestInit);
@@ -85,7 +113,12 @@ async function apiFetchString(url: string, options: RequestInit = {}): Promise<R
 			applyClientVersionHeaders(new Headers(options.headers)),
 			isWrite
 		);
-		return fetch(url, { ...options, headers });
+		try {
+			return await fetch(url, { ...options, headers });
+		} catch (err) {
+			if (isWrite) tagFailedWrite(err, headers);
+			throw err;
+		}
 	}
 
 	return fetch(url, options);

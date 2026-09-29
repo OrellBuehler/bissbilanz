@@ -144,6 +144,11 @@
     <string name="pending_sync_empty">Everything is synced</string>
     <string name="pending_sync_empty_detail">No local changes are waiting to upload.</string>
     <string name="pending_sync_retry_count">Retried %1$d times</string>
+    <string name="pending_sync_parked_title">Needs your attention</string>
+    <string name="pending_sync_parked_detail">The server rejected these changes. They are kept here until you retry or discard them.</string>
+    <string name="pending_sync_parked_reason">Rejected: %1$s</string>
+    <string name="pending_sync_retry">Retry</string>
+    <string name="pending_sync_discard">Discard</string>
     <string name="sync_create_entry">Add food entry</string>
     <string name="sync_update_entry">Edit food entry</string>
     <string name="sync_delete_entry">Delete food entry</string>

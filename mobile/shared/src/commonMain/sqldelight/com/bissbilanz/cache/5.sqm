@@ -1,0 +1,2 @@
+ALTER TABLE SyncQueue ADD COLUMN failedAt INTEGER;
+ALTER TABLE SyncQueue ADD COLUMN failureReason TEXT;

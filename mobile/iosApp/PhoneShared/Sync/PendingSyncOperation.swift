@@ -30,6 +30,11 @@ final class PendingSyncOperation {
     var idempotencyKey: String = UUID().uuidString
     var clientEditedAt: String = DateFormatting.isoDateTimeString(from: Date())
     var nextAttemptAt: Date = Date.distantPast
+    /// Set when the server permanently rejected the change: the row is parked (kept, out of
+    /// the drain) until the user retries or discards it. Optional so the store migrates
+    /// additively.
+    var failedAt: Date?
+    var failureReason: String?
 
     init(seq: Int, operation: SyncOperation) {
         let now = Date()

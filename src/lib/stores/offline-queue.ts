@@ -21,7 +21,12 @@ export async function enqueue(
 	method: string,
 	url: string,
 	body: object,
-	meta?: { affectedTable?: string; affectedId?: string }
+	meta?: {
+		affectedTable?: string;
+		affectedId?: string;
+		idempotencyKey?: string;
+		clientEditedAt?: string;
+	}
 ): Promise<void> {
 	if (!browser) return;
 	await db.syncQueue.add({
@@ -32,9 +37,9 @@ export async function enqueue(
 		affectedTable: meta?.affectedTable,
 		affectedId: meta?.affectedId,
 		// Stable across every retry → the server replays rather than re-applies.
-		idempotencyKey: crypto.randomUUID(),
+		idempotencyKey: meta?.idempotencyKey ?? crypto.randomUUID(),
 		// The moment the user made this edit, for last-write-wins resolution.
-		clientEditedAt: new Date().toISOString(),
+		clientEditedAt: meta?.clientEditedAt ?? new Date().toISOString(),
 		retryCount: 0,
 		nextAttemptAt: 0
 	});
