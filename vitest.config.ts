@@ -25,6 +25,19 @@ export default defineConfig({
 			'tests/integration-db/**',
 			'tests/e2e/**'
 		],
+		coverage: {
+			provider: 'v8',
+			reporter: ['text-summary', 'json-summary', 'lcov', 'html'],
+			reportsDirectory: './coverage',
+			thresholds: { lines: 67, statements: 66, functions: 56, branches: 62 },
+			include: ['src/lib/**/*.ts', 'src/routes/api/**/*.ts', 'src/hooks*.ts'],
+			exclude: [
+				'src/lib/api/generated/**',
+				'src/lib/paraglide/**',
+				'src/**/*.d.ts',
+				'src/**/*.test.ts'
+			]
+		},
 		setupFiles: ['./tests/utils/dexie-preload.ts'],
 		server: {
 			deps: {

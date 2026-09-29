@@ -88,3 +88,4 @@ tests/fixtures/catalog/bad.jsonl
 *.keystore
 *.p12
 /store/promo/out/
+coverage/
