@@ -1,0 +1,729 @@
+{
+	"$comment": "Shared recipe math: unit conversion, ingredient macro aggregation, cooked-weight yield and whole-recipe to per-serving conversion.",
+	"tolerance": 1e-9,
+	"implementations": {
+		"convertQuantityForMacros": ["web", "kotlin", "swift"],
+		"recipeMacros": ["web", "kotlin", "swift"],
+		"cookedWeightServingSize": ["web", "kotlin", "swift"],
+		"gramsToServings": ["web", "kotlin"],
+		"caloriesPerHundredGrams": ["web", "kotlin", "swift"],
+		"wholeToPerServing": ["kotlin", "swift"]
+	},
+	"cases": [
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "same_unit",
+			"input": {
+				"quantity": 50,
+				"from": "g",
+				"to": "g"
+			},
+			"expected": 50
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "kg_to_g",
+			"input": {
+				"quantity": 0.25,
+				"from": "kg",
+				"to": "g"
+			},
+			"expected": 250
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "g_to_kg",
+			"input": {
+				"quantity": 500,
+				"from": "g",
+				"to": "kg"
+			},
+			"expected": 0.5
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "oz_to_g",
+			"input": {
+				"quantity": 4,
+				"from": "oz",
+				"to": "g"
+			},
+			"expected": 113.3980925
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "lb_to_g",
+			"input": {
+				"quantity": 1,
+				"from": "lb",
+				"to": "g"
+			},
+			"expected": 453.59237
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "tbsp_to_ml",
+			"input": {
+				"quantity": 2,
+				"from": "tbsp",
+				"to": "ml"
+			},
+			"expected": 30
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "tsp_to_ml",
+			"input": {
+				"quantity": 3,
+				"from": "tsp",
+				"to": "ml"
+			},
+			"expected": 15
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "cup_to_ml",
+			"input": {
+				"quantity": 1.5,
+				"from": "cup",
+				"to": "ml"
+			},
+			"expected": 360
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "fl_oz_to_ml",
+			"input": {
+				"quantity": 8,
+				"from": "fl_oz",
+				"to": "ml"
+			},
+			"expected": 236.5882365
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "l_to_cl",
+			"input": {
+				"quantity": 0.5,
+				"from": "l",
+				"to": "cl"
+			},
+			"expected": 50
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "ml_to_l",
+			"input": {
+				"quantity": 250,
+				"from": "ml",
+				"to": "l"
+			},
+			"expected": 0.25
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "cross_dimension_g_to_ml_unchanged",
+			"input": {
+				"quantity": 30,
+				"from": "g",
+				"to": "ml"
+			},
+			"expected": 30
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "cross_dimension_tbsp_to_g_unchanged",
+			"input": {
+				"quantity": 2,
+				"from": "tbsp",
+				"to": "g"
+			},
+			"expected": 2
+		},
+		{
+			"fn": "convertQuantityForMacros",
+			"name": "zero_quantity",
+			"input": {
+				"quantity": 0,
+				"from": "cup",
+				"to": "ml"
+			},
+			"expected": 0
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "single_ingredient_scaled_by_quantity",
+			"input": {
+				"totalServings": 1,
+				"ingredients": [
+					{
+						"quantity": 50,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 100,
+							"servingUnit": "g",
+							"calories": 380,
+							"protein": 13,
+							"carbs": 66,
+							"fat": 7,
+							"fiber": 10
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 190,
+					"protein": 6.5,
+					"carbs": 33,
+					"fat": 3.5,
+					"fiber": 5
+				},
+				"total": {
+					"calories": 190,
+					"protein": 6.5,
+					"carbs": 33,
+					"fat": 3.5,
+					"fiber": 5
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "two_ingredients_four_servings",
+			"input": {
+				"totalServings": 4,
+				"ingredients": [
+					{
+						"quantity": 200,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 100,
+							"servingUnit": "g",
+							"calories": 350,
+							"protein": 12,
+							"carbs": 70,
+							"fat": 2,
+							"fiber": 3
+						}
+					},
+					{
+						"quantity": 30,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 15,
+							"servingUnit": "g",
+							"calories": 90,
+							"protein": 0,
+							"carbs": 0,
+							"fat": 10,
+							"fiber": 0
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 220,
+					"protein": 6,
+					"carbs": 35,
+					"fat": 6,
+					"fiber": 1.5
+				},
+				"total": {
+					"calories": 880,
+					"protein": 24,
+					"carbs": 140,
+					"fat": 24,
+					"fiber": 6
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "volume_ingredient_converted_to_food_unit",
+			"input": {
+				"totalServings": 2,
+				"ingredients": [
+					{
+						"quantity": 2,
+						"servingUnit": "tbsp",
+						"food": {
+							"servingSize": 100,
+							"servingUnit": "ml",
+							"calories": 200,
+							"protein": 0,
+							"carbs": 0,
+							"fat": 22,
+							"fiber": 0
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 30,
+					"protein": 0,
+					"carbs": 0,
+					"fat": 3.3,
+					"fiber": 0
+				},
+				"total": {
+					"calories": 60,
+					"protein": 0,
+					"carbs": 0,
+					"fat": 6.6,
+					"fiber": 0
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "mass_ingredient_in_kg_against_gram_food",
+			"input": {
+				"totalServings": 5,
+				"ingredients": [
+					{
+						"quantity": 0.5,
+						"servingUnit": "kg",
+						"food": {
+							"servingSize": 100,
+							"servingUnit": "g",
+							"calories": 120,
+							"protein": 4,
+							"carbs": 20,
+							"fat": 1,
+							"fiber": 2
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 120,
+					"protein": 4,
+					"carbs": 20,
+					"fat": 1,
+					"fiber": 2
+				},
+				"total": {
+					"calories": 600,
+					"protein": 20,
+					"carbs": 100,
+					"fat": 5,
+					"fiber": 10
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "cross_dimension_legacy_row_uses_raw_quantity",
+			"input": {
+				"totalServings": 1,
+				"ingredients": [
+					{
+						"quantity": 30,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 15,
+							"servingUnit": "ml",
+							"calories": 90,
+							"protein": 0,
+							"carbs": 0,
+							"fat": 10,
+							"fiber": 0
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 180,
+					"protein": 0,
+					"carbs": 0,
+					"fat": 20,
+					"fiber": 0
+				},
+				"total": {
+					"calories": 180,
+					"protein": 0,
+					"carbs": 0,
+					"fat": 20,
+					"fiber": 0
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "fractional_servings",
+			"input": {
+				"totalServings": 0.5,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 100,
+							"servingUnit": "g",
+							"calories": 250,
+							"protein": 10,
+							"carbs": 30,
+							"fat": 8,
+							"fiber": 4
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 500,
+					"protein": 20,
+					"carbs": 60,
+					"fat": 16,
+					"fiber": 8
+				},
+				"total": {
+					"calories": 250,
+					"protein": 10,
+					"carbs": 30,
+					"fat": 8,
+					"fiber": 4
+				}
+			}
+		},
+		{
+			"fn": "recipeMacros",
+			"name": "food_serving_unit_oz_ingredient_g",
+			"input": {
+				"totalServings": 3,
+				"ingredients": [
+					{
+						"quantity": 113.4,
+						"servingUnit": "g",
+						"food": {
+							"servingSize": 4,
+							"servingUnit": "oz",
+							"calories": 150,
+							"protein": 20,
+							"carbs": 0,
+							"fat": 8,
+							"fiber": 0
+						}
+					}
+				]
+			},
+			"expected": {
+				"perServing": {
+					"calories": 50.00084106353024,
+					"protein": 6.666778808470699,
+					"carbs": 0,
+					"fat": 2.6667115233882797,
+					"fiber": 0
+				},
+				"total": {
+					"calories": 150.00252319059072,
+					"protein": 20.000336425412097,
+					"carbs": 0,
+					"fat": 8.000134570164839,
+					"fiber": 0
+				}
+			}
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "grams_per_serving",
+			"input": {
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": 150
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "fractional_grams_per_serving",
+			"input": {
+				"cookedWeight": 1000,
+				"totalServings": 3
+			},
+			"expected": 333.3333333333333
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "no_cooked_weight",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "zero_cooked_weight",
+			"input": {
+				"cookedWeight": 0,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "negative_cooked_weight",
+			"input": {
+				"cookedWeight": -100,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "zero_servings",
+			"input": {
+				"cookedWeight": 600,
+				"totalServings": 0
+			},
+			"expected": null
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "negative_servings",
+			"input": {
+				"cookedWeight": 600,
+				"totalServings": -2
+			},
+			"expected": null
+		},
+		{
+			"fn": "cookedWeightServingSize",
+			"name": "fractional_servings",
+			"input": {
+				"cookedWeight": 300,
+				"totalServings": 0.5
+			},
+			"expected": 600
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "two_servings",
+			"input": {
+				"grams": 300,
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": 2
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "half_serving",
+			"input": {
+				"grams": 75,
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": 0.5
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "more_than_a_dish",
+			"input": {
+				"grams": 1200,
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": 8
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "zero_grams",
+			"input": {
+				"grams": 0,
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "negative_grams",
+			"input": {
+				"grams": -10,
+				"cookedWeight": 600,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "no_cooked_weight",
+			"input": {
+				"grams": 100,
+				"cookedWeight": null,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "gramsToServings",
+			"name": "zero_servings",
+			"input": {
+				"grams": 100,
+				"cookedWeight": 600,
+				"totalServings": 0
+			},
+			"expected": null
+		},
+		{
+			"fn": "caloriesPerHundredGrams",
+			"name": "whole_recipe_calories",
+			"input": {
+				"calories": 2000,
+				"cookedWeight": 800,
+				"totalServings": 4
+			},
+			"expected": 250
+		},
+		{
+			"fn": "caloriesPerHundredGrams",
+			"name": "fractional_result",
+			"input": {
+				"calories": 1000,
+				"cookedWeight": 700,
+				"totalServings": 2
+			},
+			"expected": 142.85714285714286
+		},
+		{
+			"fn": "caloriesPerHundredGrams",
+			"name": "no_cooked_weight",
+			"input": {
+				"calories": 2000,
+				"cookedWeight": null,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "caloriesPerHundredGrams",
+			"name": "zero_cooked_weight",
+			"input": {
+				"calories": 2000,
+				"cookedWeight": 0,
+				"totalServings": 4
+			},
+			"expected": null
+		},
+		{
+			"fn": "caloriesPerHundredGrams",
+			"name": "zero_servings_ignored_by_web_and_swift",
+			"input": {
+				"calories": 2000,
+				"cookedWeight": 800,
+				"totalServings": 0
+			},
+			"expected": 250,
+			"divergences": [
+				{
+					"platform": "kotlin",
+					"expected": null,
+					"reason": "Kotlin caloriesPerHundredGrams derives grams per serving first, which needs totalServings > 0. Unreachable: the server rejects totalServings <= 0."
+				}
+			]
+		},
+		{
+			"fn": "wholeToPerServing",
+			"name": "four_servings",
+			"input": {
+				"totalServings": 4,
+				"macros": {
+					"calories": 2000,
+					"protein": 200,
+					"carbs": 250,
+					"fat": 100,
+					"fiber": 20
+				}
+			},
+			"expected": {
+				"calories": 500,
+				"protein": 50,
+				"carbs": 62.5,
+				"fat": 25,
+				"fiber": 5
+			}
+		},
+		{
+			"fn": "wholeToPerServing",
+			"name": "one_serving",
+			"input": {
+				"totalServings": 1,
+				"macros": {
+					"calories": 640,
+					"protein": 64,
+					"carbs": 80,
+					"fat": 32,
+					"fiber": 6.4
+				}
+			},
+			"expected": {
+				"calories": 640,
+				"protein": 64,
+				"carbs": 80,
+				"fat": 32,
+				"fiber": 6.4
+			}
+		},
+		{
+			"fn": "wholeToPerServing",
+			"name": "twelve_servings",
+			"input": {
+				"totalServings": 12,
+				"macros": {
+					"calories": 3000,
+					"protein": 300,
+					"carbs": 375,
+					"fat": 150,
+					"fiber": 30
+				}
+			},
+			"expected": {
+				"calories": 250,
+				"protein": 25,
+				"carbs": 31.25,
+				"fat": 12.5,
+				"fiber": 2.5
+			}
+		},
+		{
+			"fn": "wholeToPerServing",
+			"name": "fractional_servings_divide_by_them",
+			"input": {
+				"totalServings": 0.5,
+				"macros": {
+					"calories": 400,
+					"protein": 40,
+					"carbs": 50,
+					"fat": 20,
+					"fiber": 4
+				}
+			},
+			"expected": {
+				"calories": 800,
+				"protein": 80,
+				"carbs": 100,
+				"fat": 40,
+				"fiber": 8
+			},
+			"divergences": [
+				{
+					"platform": "swift",
+					"expected": {
+						"calories": 400,
+						"protein": 40,
+						"carbs": 50,
+						"fat": 20,
+						"fiber": 4
+					},
+					"reason": "KNOWN BUG: Swift Recipe.*PerServing divides by max(totalServings, 1), so a recipe with 0 < totalServings < 1 is not scaled. Server (NULLIF(totalServings, 0)) and Kotlin divide by totalServings."
+				}
+			]
+		}
+	]
+}

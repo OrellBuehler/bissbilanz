@@ -8,7 +8,8 @@ on:
     # already do) so a change to the Xcode selection or build steps here
     # gets validated on the PR that makes it, not just on the next mobile/**
     # change.
-    paths: [mobile/**, .github/workflows/mobile-ios.yml]
+    paths:
+      [mobile/**, tests/fixtures/shared/**, analytics-parity/**, .github/workflows/mobile-ios.yml]
 
 concurrency:
   group: ios-${{ github.ref }}

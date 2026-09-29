@@ -54,6 +54,8 @@ const MAX_RETRIES = 5;
 /** Exponential backoff base; doubles each retry up to the cap. */
 const BASE_BACKOFF_MS = 2000;
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
+/** 4xx statuses that mean "try again later", not "this request is invalid" (matches the mobile SyncManager). */
+const TRANSIENT_CLIENT_STATUSES = new Set([408, 425, 429]);
 
 /** Backoff delay for the Nth retry (1-based), with jitter to avoid thundering. */
 function backoffDelay(retryCount: number): number {
@@ -144,7 +146,11 @@ export async function syncQueue(): Promise<number> {
 					// Don't remove items from queue so they can be retried after re-login.
 					setAuthRequired(true);
 					break;
-				} else if (response.status >= 400 && response.status < 500) {
+				} else if (
+					response.status >= 400 &&
+					response.status < 500 &&
+					!TRANSIENT_CLIENT_STATUSES.has(response.status)
+				) {
 					// Client errors (400, 409 duplicate/validation, 422, …) are unrecoverable
 					// as-is. Park them so the user can retry or discard.
 					const data = await response.json().catch(() => ({}));
@@ -162,7 +168,7 @@ export async function syncQueue(): Promise<number> {
 					if (deadLettered.length > 1) addSyncError(m.sync_error_dependency());
 				} else {
 					// Server error (5xx, incl. 503 request_in_progress for an idempotency
-					// claim still in flight) — transient; retry with exponential backoff.
+					// claim still in flight) or 408/425/429 (rate limited) — transient; retry with exponential backoff.
 					const count = (req.retryCount ?? 0) + 1;
 					if (count >= MAX_RETRIES) {
 						const reason = `HTTP ${response.status}`;

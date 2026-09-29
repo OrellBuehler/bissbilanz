@@ -1,0 +1,608 @@
+{
+	"$comment": "Shared nutrition label parsing: OCR rows to nutrient values, basis detection and decimal normalisation.",
+	"tolerance": 1e-9,
+	"implementations": {
+		"parseRows": ["web", "kotlin", "swift"],
+		"isVolumeBasis": ["web", "kotlin", "swift"],
+		"parseDecimal": ["web", "kotlin", "swift"]
+	},
+	"cases": [
+		{
+			"fn": "parseRows",
+			"name": "german_eu_panel_comma_decimals",
+			"input": {
+				"rows": [
+					"Nährwerte pro 100 g",
+					"Energie 1569 kJ / 375 kcal",
+					"Fett 4,5 g",
+					"davon gesättigte Fettsäuren 1,2 g",
+					"Kohlenhydrate 71,4 g",
+					"davon Zucker 14,0 g",
+					"Ballaststoffe 2,0 g",
+					"Eiweiß 9,7 g",
+					"Salz 1,28 g"
+				]
+			},
+			"expected": {
+				"calories": 375,
+				"protein": 9.7,
+				"carbs": 71.4,
+				"fat": 4.5,
+				"fiber": 2,
+				"sugar": 14,
+				"saturatedFat": 1.2,
+				"salt": 1.28,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "english_eu_panel_point_decimals",
+			"input": {
+				"rows": [
+					"Energy 1569 kJ / 375 kcal",
+					"Fat 4.5 g",
+					"of which saturates 1.2 g",
+					"Carbohydrate 71.4 g",
+					"of which sugars 14 g",
+					"Fibre 2 g",
+					"Protein 9.7 g",
+					"Salt 1.28 g"
+				]
+			},
+			"expected": {
+				"calories": 375,
+				"protein": 9.7,
+				"carbs": 71.4,
+				"fat": 4.5,
+				"fiber": 2,
+				"sugar": 14,
+				"saturatedFat": 1.2,
+				"salt": 1.28,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "us_panel_with_percent_dv_and_sodium",
+			"input": {
+				"rows": [
+					"Nutrition Facts",
+					"Serving size 1 cup",
+					"Calories 240",
+					"Total Fat 8g 10%",
+					"Saturated Fat 1g 5%",
+					"Trans Fat 0g",
+					"Sodium 200mg 9%",
+					"Total Carbohydrate 37g 13%",
+					"Dietary Fiber 4g 14%",
+					"Total Sugars 12g",
+					"Protein 3g"
+				]
+			},
+			"expected": {
+				"calories": 240,
+				"protein": 3,
+				"carbs": 37,
+				"fat": 8,
+				"fiber": 4,
+				"sugar": 12,
+				"saturatedFat": 1,
+				"salt": null,
+				"sodium": 200,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kj_only_thousands_dot",
+			"input": {
+				"rows": ["Energie 1.569 kJ"]
+			},
+			"expected": {
+				"calories": 375,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kj_only_converted_to_kcal",
+			"input": {
+				"rows": ["Energy 2000 kJ"]
+			},
+			"expected": {
+				"calories": 478.01,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kcal_preferred_over_kj",
+			"input": {
+				"rows": ["Brennwert 1000 kJ 239 kcal"]
+			},
+			"expected": {
+				"calories": 239,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kcal_only",
+			"input": {
+				"rows": ["Energy 375 kcal"]
+			},
+			"expected": {
+				"calories": 375,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kcal_kj_header_pair",
+			"input": {
+				"rows": ["Brennwert kcal/kJ 42/180"]
+			},
+			"expected": {
+				"calories": 42,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kj_kcal_header_pair",
+			"input": {
+				"rows": ["Energie kJ/kcal 180/42"]
+			},
+			"expected": {
+				"calories": 42,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "sodium_in_grams_becomes_mg",
+			"input": {
+				"rows": ["Natrium 0,12 g"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": 120,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "salt_in_mg_becomes_grams",
+			"input": {
+				"rows": ["Salt 320 mg"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": 0.32,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "saturated_fat_does_not_overwrite_fat",
+			"input": {
+				"rows": ["Fat 10 g", "Saturated fat 3 g"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": 10,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": 3,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "of_which_sugars_is_not_carbs",
+			"input": {
+				"rows": ["Carbohydrate 20 g", "of which sugars 8 g"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": 20,
+				"fat": null,
+				"fiber": null,
+				"sugar": 8,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "trans_fat_before_total_fat_ignored",
+			"input": {
+				"rows": ["Trans Fat 0 g", "Total Fat 8 g"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": 8,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "unsaturated_rows_ignored",
+			"input": {
+				"rows": [
+					"einfach ungesättigte Fettsäuren 6 g",
+					"mehrfach ungesättigte Fettsäuren 2 g",
+					"Fett 10 g",
+					"davon gesättigte Fettsäuren 3 g"
+				]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": 10,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": 3,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "unrelated_lines_yield_nothing",
+			"input": {
+				"rows": ["INGREDIENTS: water, salt", "Best before 2026"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "empty_rows",
+			"input": {
+				"rows": []
+			},
+			"expected": {
+				"calories": null,
+				"protein": null,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "two_column_drink_panel_per_100ml_and_per_can",
+			"input": {
+				"rows": [
+					"Nährwerte pro 100 ml pro Dose 250 ml",
+					"Energie kJ/kcal 180/42 450/105",
+					"Fett 0 0",
+					"Kohlenhydrate 10,6 26,5",
+					"davon Zucker 10,6 26,5",
+					"Eiweiß 0,5 1,3",
+					"Salz 0,02 0,05"
+				]
+			},
+			"expected": {
+				"calories": 42,
+				"protein": 0.5,
+				"carbs": 10.6,
+				"fat": 0,
+				"fiber": null,
+				"sugar": 10.6,
+				"saturatedFat": null,
+				"salt": 0.02,
+				"sodium": null,
+				"isVolume": true
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "per_100g_and_per_serving_columns_first_wins",
+			"input": {
+				"rows": [
+					"Nährwerte pro 100 g pro Portion 30 g",
+					"Energie 1650 kJ / 394 kcal 495 kJ / 118 kcal",
+					"Fett 12,0 g 3,6 g",
+					"Kohlenhydrate 55,5 g 16,7 g",
+					"Eiweiß 8,0 g 2,4 g"
+				]
+			},
+			"expected": {
+				"calories": 394,
+				"protein": 8,
+				"carbs": 55.5,
+				"fat": 12,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "first_occurrence_wins",
+			"input": {
+				"rows": ["Protein 9 g", "Protein 12 g"]
+			},
+			"expected": {
+				"calories": null,
+				"protein": 9,
+				"carbs": null,
+				"fat": null,
+				"fiber": null,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "parseRows",
+			"name": "kj_space_grouping_with_comma_decimals",
+			"input": {
+				"rows": ["Brennwert 1 569 kJ", "Ballaststoffe 2,5 g", "Kohlenhydrate 50 g"]
+			},
+			"expected": {
+				"calories": 375,
+				"protein": null,
+				"carbs": 50,
+				"fat": null,
+				"fiber": 2.5,
+				"sugar": null,
+				"saturatedFat": null,
+				"salt": null,
+				"sodium": null,
+				"isVolume": false
+			}
+		},
+		{
+			"fn": "isVolumeBasis",
+			"name": "per_100ml_no_space",
+			"input": {
+				"rows": ["Nährwerte pro 100ml"]
+			},
+			"expected": true
+		},
+		{
+			"fn": "isVolumeBasis",
+			"name": "per_100_ml_space",
+			"input": {
+				"rows": ["Nutrition per 100 ml"]
+			},
+			"expected": true
+		},
+		{
+			"fn": "isVolumeBasis",
+			"name": "per_100g_is_not_volume",
+			"input": {
+				"rows": ["Nährwerte pro 100 g"]
+			},
+			"expected": false
+		},
+		{
+			"fn": "isVolumeBasis",
+			"name": "1000_ml_is_not_a_100_ml_basis",
+			"input": {
+				"rows": ["Zubereitung mit 1000 ml Wasser"]
+			},
+			"expected": false
+		},
+		{
+			"fn": "isVolumeBasis",
+			"name": "no_rows",
+			"input": {
+				"rows": []
+			},
+			"expected": false
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "comma_decimal",
+			"input": {
+				"token": "4,5",
+				"energyKJ": false
+			},
+			"expected": 4.5
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "point_decimal",
+			"input": {
+				"token": "4.5",
+				"energyKJ": false
+			},
+			"expected": 4.5
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "eu_grouping",
+			"input": {
+				"token": "1.234,5",
+				"energyKJ": false
+			},
+			"expected": 1234.5
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "us_grouping",
+			"input": {
+				"token": "1,234.5",
+				"energyKJ": false
+			},
+			"expected": 1234.5
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "space_grouping",
+			"input": {
+				"token": "1 569",
+				"energyKJ": false
+			},
+			"expected": 1569
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "lone_dot_is_decimal_for_macros",
+			"input": {
+				"token": "1.569",
+				"energyKJ": false
+			},
+			"expected": 1.569
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "lone_dot_is_thousands_for_energy_kj",
+			"input": {
+				"token": "1.569",
+				"energyKJ": true
+			},
+			"expected": 1569
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "short_fraction_stays_decimal_for_energy_kj",
+			"input": {
+				"token": "0.5",
+				"energyKJ": true
+			},
+			"expected": 0.5
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "two_dots_are_thousands",
+			"input": {
+				"token": "1.234.567",
+				"energyKJ": false
+			},
+			"expected": 1234567
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "integer",
+			"input": {
+				"token": "375",
+				"energyKJ": false
+			},
+			"expected": 375
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "not_a_number",
+			"input": {
+				"token": "abc",
+				"energyKJ": false
+			},
+			"expected": null
+		},
+		{
+			"fn": "parseDecimal",
+			"name": "empty",
+			"input": {
+				"token": "",
+				"energyKJ": false
+			},
+			"expected": null
+		}
+	]
+}

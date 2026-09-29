@@ -40,9 +40,6 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: bunx playwright install chromium --with-deps
-
       - name: Seed test database
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
@@ -60,21 +57,36 @@ jobs:
           TEST_AUTH_TOKEN: 'test-integration-token'
         run: bun run build
 
-      - name: Update screenshot baselines
+      - name: Start app
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
-          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET }}
+          SESSION_SECRET: ${{ secrets.E2E_SESSION_SECRET || 'e2e-test-only-session-secret-padded-to-32-chars' }}
           PUBLIC_APP_URL: http://localhost:4000
+          ORIGIN: http://localhost:4000
           INFOMANIAK_CLIENT_ID: fake
           INFOMANIAK_CLIENT_SECRET: fake
           INFOMANIAK_REDIRECT_URI: http://localhost:4000/oauth/callback
-          CI: 'true'
-        run: bunx playwright test --update-snapshots tests/e2e/screenshots.e2e.ts
+          TEST_MODE: 'true'
+          TEST_AUTH_TOKEN: 'test-integration-token'
+          PORT: '4000'
+        run: |
+          nohup bun build/index.js > app.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:4000/api/health > /dev/null && exit 0
+            sleep 1
+          done
+          cat app.log
+          exit 1
+
+      - name: Update screenshot baselines
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
+        run: scripts/e2e/run-in-docker.sh --update-snapshots --project='visual-*'
 
       - name: Commit updated baselines
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/screenshots/
+          git add tests/e2e/__screenshots__/
           git diff --staged --quiet || git commit -m "test: update playwright screenshot baselines"
           git push

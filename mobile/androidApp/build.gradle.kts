@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.sentry)
+    alias(libs.plugins.kover)
 }
 
 val sentryAuthToken = System.getenv("SENTRY_AUTH_TOKEN")

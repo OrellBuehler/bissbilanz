@@ -7,7 +7,7 @@ import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { isSupplementDue } from '$lib/utils/supplements';
 import type { Result } from '$lib/server/types';
-import { withValidation } from '$lib/server/errors';
+import { ApiError, withValidation } from '$lib/server/errors';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 
 type SupplementRow = typeof supplements.$inferSelect;
@@ -48,7 +48,7 @@ const resolveIngredientFoodId = async (
 			.from(foods)
 			.where(and(eq(foods.id, ingredient.foodId), eq(foods.userId, userId)));
 		if (!existing) {
-			throw new Error(`Food ${ingredient.foodId} not found`);
+			throw new ApiError(404, 'Food not found');
 		}
 		return ingredient.foodId;
 	}

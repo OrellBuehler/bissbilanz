@@ -13,3 +13,4 @@ project.inlang/*
 # prettier's array wrapping will never match a generator's, and letting it
 # reformat the file makes the drift check fail forever.
 analytics-parity/fixtures/golden-vectors.json
+coverage

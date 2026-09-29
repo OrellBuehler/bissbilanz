@@ -6,7 +6,8 @@ import {
 	foodLabels,
 	recipeIngredients,
 	recipes,
-	supplementIngredients
+	supplementIngredients,
+	supplements
 } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { foodColumnsWithLabels, seedCatalogLabels } from '$lib/server/food-labels';
@@ -303,11 +304,13 @@ export const deleteFood = async (
 			tx
 				.select({ count: count(), recipeCount: countDistinct(recipeIngredients.recipeId) })
 				.from(recipeIngredients)
-				.where(eq(recipeIngredients.foodId, id)),
+				.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+				.where(and(eq(recipeIngredients.foodId, id), eq(recipes.userId, userId))),
 			tx
 				.select({ count: count() })
 				.from(supplementIngredients)
-				.where(eq(supplementIngredients.foodId, id)),
+				.innerJoin(supplements, eq(supplements.id, supplementIngredients.supplementId))
+				.where(and(eq(supplementIngredients.foodId, id), eq(supplements.userId, userId))),
 			findLastIngredientRecipes(tx, userId, id)
 		]);
 		const entryCount = entries[0].count;
