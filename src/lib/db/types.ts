@@ -122,8 +122,19 @@ export type DexieRecipe = {
 	carbs: number | null;
 	fat: number | null;
 	fiber: number | null;
+	// Number of cooking steps; the list endpoint only sends the count, the
+	// steps themselves live in `recipeSteps`. Absent on rows cached by older builds.
+	stepCount?: number;
 	createdAt: string | null;
 	updatedAt: string | null;
+};
+
+export type DexieRecipeStep = {
+	id: string;
+	recipeId: string;
+	sortOrder: number;
+	text: string;
+	imageUrl: string | null;
 };
 
 export type DexieRecipeIngredient = {

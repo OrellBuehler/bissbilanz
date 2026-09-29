@@ -16,6 +16,7 @@
 package com.bissbilanz.api.generated.model
 
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.RecipeStepInput
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -29,6 +30,7 @@ import kotlinx.serialization.encoding.*
  * @param isFavorite
  * @param imageUrl
  * @param cookedWeight
+ * @param steps
  */
 @Serializable
 data class RecipeUpdate(
@@ -38,4 +40,5 @@ data class RecipeUpdate(
     @SerialName(value = "isFavorite") val isFavorite: kotlin.Boolean? = null,
     @SerialName(value = "imageUrl") val imageUrl: kotlin.String? = null,
     @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
+    @SerialName(value = "steps") val steps: kotlin.collections.List<RecipeStepInput>? = null,
 )

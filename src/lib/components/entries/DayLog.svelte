@@ -29,6 +29,7 @@
 	type Props = {
 		date: string;
 		dashboardStyle?: boolean;
+		highlightEntryId?: string | null;
 		onTotalsChange?: (totals: MacroTotals) => void;
 		scanModalOpen?: boolean;
 		addModalOpen?: boolean;
@@ -42,6 +43,7 @@
 	let {
 		date,
 		dashboardStyle = false,
+		highlightEntryId = null,
 		onTotalsChange,
 		scanModalOpen = $bindable(false),
 		addModalOpen = $bindable(false),
@@ -85,6 +87,23 @@
 	let barcodeFoodId: string | null = $state(null);
 	let isFastingDay = $state(false);
 	let fastingLoading = $state(false);
+
+	// Coming from a "where it's logged" list: scroll to the entry once it is on
+	// screen and drop the highlight after a moment.
+	let highlighted = $state<string | null>(null);
+	let handledHighlight: string | null = null;
+	$effect(() => {
+		const target = highlightEntryId;
+		if (!target || target === handledHighlight || !entries.some((entry) => entry.id === target)) {
+			return;
+		}
+		handledHighlight = target;
+		highlighted = target;
+		requestAnimationFrame(() =>
+			document.getElementById(`entry-${target}`)?.scrollIntoView({ block: 'center' })
+		);
+		setTimeout(() => (highlighted = null), 4000);
+	});
 
 	// Fire background refreshes
 	$effect(() => {
@@ -291,6 +310,7 @@
 			<MealSection
 				title={mealType}
 				{dashboardStyle}
+				highlightEntryId={highlighted}
 				entries={entries.filter((e) => e.mealType === mealType)}
 				onAdd={() => {
 					addModalOpen = true;

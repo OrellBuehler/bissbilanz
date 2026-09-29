@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,18 +20,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPackageExportSheet
-import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.RecipeDeleteBlockedDialog
 import com.bissbilanz.android.ui.components.RecipeEditSheet
+import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
@@ -41,6 +44,7 @@ import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.toDisplayString
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -50,6 +54,7 @@ import org.koin.compose.koinInject
 fun RecipeDetailScreen(
     recipeId: String,
     navController: NavController,
+    savedStateHandle: SavedStateHandle? = null,
 ) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
@@ -64,6 +69,7 @@ fun RecipeDetailScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
+    var showUsage by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -76,6 +82,20 @@ fun RecipeDetailScreen(
     val duplicateFailedMessage = stringResource(R.string.recipe_detail_duplicate_failed)
     val copyNameTemplate = stringResource(R.string.recipe_copy_name_format)
     var isDuplicating by remember { mutableStateOf(false) }
+
+    // "Log this recipe" on the last cooking page comes back here and opens the same sheet
+    // the Log button does.
+    val logFlow =
+        remember(savedStateHandle) {
+            savedStateHandle?.getStateFlow(NAV_KEY_LOG_RECIPE_AFTER_COOKING, false) ?: MutableStateFlow(false)
+        }
+    val logAfterCooking by logFlow.collectAsState()
+    LaunchedEffect(logAfterCooking, recipe) {
+        if (logAfterCooking && recipe != null) {
+            showLogDialog = true
+            savedStateHandle?.set(NAV_KEY_LOG_RECIPE_AFTER_COOKING, false)
+        }
+    }
 
     LaunchedEffect(recipeId) {
         isLoading = true
@@ -198,22 +218,26 @@ fun RecipeDetailScreen(
     }
 
     deleteConflict?.let { conflict ->
-        ForceDeleteDialog(
+        RecipeDeleteBlockedDialog(
             outcome = conflict,
-            onConfirm = {
+            onShowUsage = {
                 deleteConflict = null
-                scope.launch {
-                    try {
-                        recipeRepo.forceDeleteRecipe(recipeId)
-                        navController.popBackStack()
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
-                        snackbarHostState.showSnackbar(deleteFailedMessage)
-                    }
-                }
+                showUsage = true
             },
-            onCancel = { deleteConflict = null },
+            onDismiss = { deleteConflict = null },
+        )
+    }
+
+    if (showUsage) {
+        WhereUsedSheet(
+            title = stringResource(R.string.where_used_title_logged),
+            name = recipe?.name ?: "",
+            load = { recipeRepo.whereUsed(recipeId) },
+            onDismiss = { showUsage = false },
+            onOpenEntry = { entry ->
+                showUsage = false
+                navController.navigate("daylog/${entry.date}?entry=${entry.id}")
+            },
         )
     }
 
@@ -346,6 +370,19 @@ fun RecipeDetailScreen(
                             )
                         }
 
+                        val steps = r.steps.orEmpty().sortedBy { it.sortOrder }
+                        if (steps.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { navController.navigate("recipe/$recipeId/cook") },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                            ) {
+                                Icon(Icons.Default.Restaurant, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.recipe_detail_start_cooking), style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
 
                         val ingredients = r.ingredients
@@ -377,6 +414,47 @@ fun RecipeDetailScreen(
                                         }
                                         if (ing != ingredients.last()) {
                                             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (steps.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        stringResource(R.string.recipe_detail_steps_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    steps.forEachIndexed { index, step ->
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            Text(
+                                                "${index + 1}.",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            ) {
+                                                Text(step.text, style = MaterialTheme.typography.bodyLarge)
+                                                step.imageUrl?.let { url ->
+                                                    FoodImage(
+                                                        imageUrl = url,
+                                                        contentDescription =
+                                                            stringResource(R.string.recipe_detail_step_photo, index + 1),
+                                                        modifier =
+                                                            Modifier
+                                                                .size(96.dp)
+                                                                .clip(RoundedCornerShape(8.dp)),
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }

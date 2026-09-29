@@ -22,6 +22,11 @@ export const validationErrorResponseSchema = z
 	})
 	.meta({ id: 'ValidationErrorResponse' });
 
+// Named so generated clients get a real type instead of an inline object.
+const lastIngredientRecipeSchema = z
+	.object({ id: z.string().uuid(), name: z.string() })
+	.meta({ id: 'LastIngredientRecipe' });
+
 export const conflictErrorResponseSchema = z
 	.object({
 		error: z.string(),
@@ -30,7 +35,10 @@ export const conflictErrorResponseSchema = z
 		// it, and the distinct recipes among them.
 		ingredientCount: z.number().optional(),
 		recipeCount: z.number().optional(),
-		supplementIngredientCount: z.number().optional()
+		supplementIngredientCount: z.number().optional(),
+		// `has_entries` on a food delete: recipes the food is the only ingredient
+		// of. Such a delete is refused even with force=true.
+		lastIngredientRecipes: z.array(lastIngredientRecipeSchema).optional()
 	})
 	.meta({ id: 'ConflictErrorResponse' });
 

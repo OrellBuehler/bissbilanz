@@ -11,12 +11,14 @@ export const MAX_PACKAGE_BYTES = 50 * 1024 * 1024;
 export const MAX_PACKAGE_FOODS = 5000;
 export const MAX_PACKAGE_RECIPES = 1000;
 export const MAX_RECIPE_INGREDIENTS = 100;
+export const MAX_PACKAGE_RECIPE_STEPS = 50;
 export const MAX_FILTER_VALUES = 50;
 export const MAX_MANIFEST_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_ENTRY_BYTES = 5 * 1024 * 1024;
 /** Sum of every inflated entry we read from one archive. */
 export const MAX_TOTAL_INFLATED_BYTES = 150 * 1024 * 1024;
-export const MAX_ZIP_ENTRIES = MAX_PACKAGE_FOODS + MAX_PACKAGE_RECIPES + 16;
+export const MAX_ZIP_ENTRIES =
+	MAX_PACKAGE_FOODS + MAX_PACKAGE_RECIPES * (1 + MAX_PACKAGE_RECIPE_STEPS) + 16;
 /** Conflicts that get an inline thumbnail of the incoming image in the preview. */
 export const MAX_PREVIEW_THUMBNAILS = 300;
 export const MAX_PREVIEW_SAMPLES = 50;

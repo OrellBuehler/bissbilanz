@@ -5,11 +5,13 @@ import {
 	foodEntries,
 	foodLabels,
 	recipeIngredients,
+	recipes,
 	supplementIngredients
 } from '$lib/server/schema';
 import { foodCreateSchema, foodUpdateSchema } from '$lib/server/validation';
 import { foodColumnsWithLabels, seedCatalogLabels } from '$lib/server/food-labels';
 import {
+	aliasedTable,
 	and,
 	count,
 	countDistinct,
@@ -19,6 +21,8 @@ import {
 	getTableColumns,
 	ilike,
 	isNotNull,
+	ne,
+	notExists,
 	or,
 	sql
 } from 'drizzle-orm';
@@ -28,6 +32,7 @@ import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import type { TxOrDb } from '$lib/server/ownership';
 import { unlinkUpload } from '$lib/server/images';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
@@ -250,6 +255,38 @@ export const updateFood = (
 		}
 	});
 
+const otherIngredients = aliasedTable(recipeIngredients, 'other_ingredients');
+
+/**
+ * The user's recipes for which this food is the only ingredient (every
+ * ingredient row of the recipe is this food). Deleting the food would leave
+ * such a recipe empty, and a recipe must always have an ingredient.
+ */
+export const findLastIngredientRecipes = (
+	db: TxOrDb,
+	userId: string,
+	foodId: string
+): Promise<{ id: string; name: string }[]> =>
+	db
+		.selectDistinct({ id: recipes.id, name: recipes.name })
+		.from(recipes)
+		.innerJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
+		.where(
+			and(
+				eq(recipes.userId, userId),
+				eq(recipeIngredients.foodId, foodId),
+				notExists(
+					db
+						.select({ one: sql`1` })
+						.from(otherIngredients)
+						.where(
+							and(eq(otherIngredients.recipeId, recipes.id), ne(otherIngredients.foodId, foodId))
+						)
+				)
+			)
+		)
+		.orderBy(recipes.name);
+
 export const deleteFood = async (
 	userId: string,
 	id: string,
@@ -258,7 +295,7 @@ export const deleteFood = async (
 	const db = getDB();
 
 	const result = await db.transaction(async (tx) => {
-		const [entries, ingredients, supplementIngs] = await Promise.all([
+		const [entries, ingredients, supplementIngs, lastIngredientRecipes] = await Promise.all([
 			tx
 				.select({ count: count() })
 				.from(foodEntries)
@@ -270,7 +307,8 @@ export const deleteFood = async (
 			tx
 				.select({ count: count() })
 				.from(supplementIngredients)
-				.where(eq(supplementIngredients.foodId, id))
+				.where(eq(supplementIngredients.foodId, id)),
+			findLastIngredientRecipes(tx, userId, id)
 		]);
 		const entryCount = entries[0].count;
 		const ingredientCount = ingredients[0].count;
@@ -288,7 +326,23 @@ export const deleteFood = async (
 					entryCount,
 					ingredientCount,
 					recipeCount,
-					supplementIngredientCount
+					supplementIngredientCount,
+					...(lastIngredientRecipes.length > 0 && { lastIngredientRecipes })
+				} as DeleteResult,
+				imageUrl: null
+			};
+		}
+
+		// Same for the last ingredient of a recipe: `force` removes a food from
+		// recipes that keep other ingredients, never one that would end up empty.
+		if (lastIngredientRecipes.length > 0) {
+			return {
+				deleted: {
+					blocked: true,
+					entryCount,
+					ingredientCount,
+					recipeCount,
+					lastIngredientRecipes
 				} as DeleteResult,
 				imageUrl: null
 			};

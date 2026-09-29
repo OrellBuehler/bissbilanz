@@ -14,6 +14,7 @@ import {
 	foods,
 	identities,
 	recipeIngredients,
+	recipeSteps,
 	recipes,
 	reminders,
 	sleepEntries,
@@ -69,6 +70,7 @@ async function gatherData(userId: string) {
 		foodRows,
 		recipeRows,
 		recipeIngredientRows,
+		recipeStepRows,
 		entryRows,
 		supplementRows,
 		supplementIngredientRows,
@@ -117,6 +119,18 @@ async function gatherData(userId: string) {
 			.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
 			.where(eq(recipes.userId, userId))
 			.orderBy(asc(recipeIngredients.recipeId), asc(recipeIngredients.sortOrder)),
+		db
+			.select({
+				id: recipeSteps.id,
+				recipeId: recipeSteps.recipeId,
+				sortOrder: recipeSteps.sortOrder,
+				text: recipeSteps.text,
+				imageUrl: recipeSteps.imageUrl
+			})
+			.from(recipeSteps)
+			.innerJoin(recipes, eq(recipes.id, recipeSteps.recipeId))
+			.where(eq(recipes.userId, userId))
+			.orderBy(asc(recipeSteps.recipeId), asc(recipeSteps.sortOrder)),
 		db
 			.with(recipeMacrosCte)
 			.select({
@@ -225,6 +239,7 @@ async function gatherData(userId: string) {
 		foods: stripUserId(foodRows),
 		recipes: stripUserId(recipeRows),
 		recipeIngredients: recipeIngredientRows,
+		recipeSteps: recipeStepRows,
 		entries: entryRows,
 		supplements: stripUserId(supplementRows),
 		supplementIngredients: supplementIngredientRows,
@@ -346,6 +361,15 @@ function buildCsvFiles(data: ExportData): Record<string, string> {
 				ingredient.foodName,
 				ingredient.quantity,
 				ingredient.servingUnit
+			])
+		),
+		'csv/recipe-steps.csv': toCsv(
+			['recipe', 'step', 'text', 'image'],
+			data.recipeSteps.map((step) => [
+				recipeNames.get(step.recipeId),
+				step.sortOrder + 1,
+				step.text,
+				imageName(step.imageUrl)
 			])
 		),
 		'csv/supplements.csv': toCsv(
@@ -486,6 +510,9 @@ async function gatherImages(data: ExportData): Promise<Record<string, Uint8Array
 	for (const recipe of data.recipes) {
 		if (recipe.imageUrl?.startsWith('/uploads/')) urls.add(recipe.imageUrl);
 	}
+	for (const step of data.recipeSteps) {
+		if (step.imageUrl?.startsWith('/uploads/')) urls.add(step.imageUrl);
+	}
 	for (const task of data.aiTasks) {
 		for (const photoUrl of task.photoUrls ?? []) {
 			if (photoUrl.startsWith('/uploads/')) urls.add(photoUrl);
@@ -516,7 +543,7 @@ bissbilanz.json   Complete export of your data (canonical, machine-readable).
 csv/              The same data as spreadsheet-friendly CSV files.
                   food-entries.csv is denormalized: each row carries the food
                   name and the calories/macros computed for that entry.
-images/           Your uploaded food and recipe photos.
+images/           Your uploaded food, recipe and recipe step photos.
 
 All times are ISO 8601 (UTC). CSV files are UTF-8 with BOM, comma-separated.
 `;

@@ -50,8 +50,9 @@ struct FoodMergeSheet: View {
             .filter(\.differs)
     }
 
-    private var servingsDiffer: Bool {
-        Set(foods.map { "\($0.servingSize) \($0.servingUnit.rawValue)" }).count > 1
+    private var servingNote: FoodMergeServingNote {
+        let servingId = FoodMergePlan.servingFoodId(foods: foods, keeperId: keeperId, overrides: overrides)
+        return FoodMergePlan.servingNote(foods: foods, servingFoodId: servingId)
     }
 
     var body: some View {
@@ -180,8 +181,13 @@ struct FoodMergeSheet: View {
         } footer: {
             if diffs.isEmpty {
                 Text(L10n.foodMergeIdentical)
-            } else if servingsDiffer {
-                Text(L10n.foodMergeServingMismatch)
+            } else {
+                switch servingNote {
+                case .same: EmptyView()
+                case .sameUnit: Text(L10n.foodMergeServingRescaled)
+                case .convertibleUnits: Text(L10n.foodMergeServingUnitsConvert)
+                case .incompatibleUnits: Text(L10n.foodMergeServingIncompatible)
+                }
             }
         }
     }
@@ -239,6 +245,9 @@ struct FoodMergeSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            if diff.scaledFoodIds.contains(diff.resultFoodId), let resultFood {
+                scaledHint(resultFood)
+            }
         }
         .accessibilityElement(children: .combine)
     }
@@ -263,7 +272,9 @@ struct FoodMergeSheet: View {
         let value = diff.values[food.id] ?? .empty
         let isKept = value == diff.result
         let canPick = !isKept && !value.isEmpty
-            && FoodMergePlan.canPick(key: diff.key, from: food.id, foods: foods, keeperId: keeperId)
+            && FoodMergePlan.canPick(
+                key: diff.key, from: food.id, foods: foods, keeperId: keeperId, overrides: overrides
+            )
         let tint: Color = isKept ? .green : .red
         return Button {
             guard canPick else { return }
@@ -276,10 +287,15 @@ struct FoodMergeSheet: View {
                     .frame(width: 14)
                     .accessibilityHidden(true)
                 tagBadge(food)
-                valueView(value, key: diff.key, food: food)
-                    .font(.system(.subheadline, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    valueView(value, key: diff.key, food: food)
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundStyle(.primary)
+                    if diff.scaledFoodIds.contains(food.id) {
+                        scaledHint(food)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if isKept, diff.resultFoodId == food.id {
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.semibold))
@@ -294,10 +310,29 @@ struct FoodMergeSheet: View {
         .accessibilityAddTraits(isKept ? .isSelected : [])
     }
 
+    /// Subtle note that a per-serving value was converted to the merged serving.
+    private func scaledHint(_ food: Food) -> some View {
+        Text(L10n.foodMergeScaledFrom("\(MacroFormat.nutrient(food.servingSize)) \(food.servingUnit.displayName)"))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+    }
+
     /// Takes `key` from `foodId`, or drops the pick when that value is what
-    /// the merge would produce on its own anyway.
+    /// the merge would produce on its own anyway. The serving is one choice,
+    /// so amount and unit are picked together.
     private func pick(_ key: String, from foodId: String) {
-        let automatic = FoodMergePlan.diffs(foods: foods, keeperId: keeperId)
+        if FoodMergePlan.servingKeys.contains(key) {
+            for servingKey in FoodMergePlan.servingKeys {
+                if foodId == keeperId {
+                    overrides.removeValue(forKey: servingKey)
+                } else {
+                    overrides[servingKey] = foodId
+                }
+            }
+            return
+        }
+        let servingOverrides = overrides.filter { FoodMergePlan.servingKeys.contains($0.key) }
+        let automatic = FoodMergePlan.diffs(foods: foods, keeperId: keeperId, overrides: servingOverrides)
             .first { $0.key == key }
         if let automatic, automatic.values[foodId] == automatic.result {
             overrides.removeValue(forKey: key)
@@ -312,13 +347,12 @@ struct FoodMergeSheet: View {
         guard !isMerging else { return }
         isMerging = true
         defer { isMerging = false }
-        let sourceIds = foods.map(\.id).filter { $0 != keeperId }
-        let overrideValues = FoodMergePlan.overrideValues(foods: foods, keeperId: keeperId, overrides: overrides)
+        let submission = FoodMergePlan.submission(foods: foods, keeperId: keeperId, overrides: overrides)
         do {
             let merged = try await foodRepository.mergeFoods(
-                keeperId: keeperId,
-                sourceIds: sourceIds,
-                overrides: overrideValues
+                keeperId: submission.keeperId,
+                sourceIds: submission.sourceIds,
+                overrides: submission.overrides
             )
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
@@ -383,9 +417,15 @@ struct FoodMergeSheet: View {
                 return "\(MacroFormat.nutrient(number)) \(food?.servingUnit.displayName ?? "")"
             }
             if key == "novaGroup" { return "\(Int(number))" }
-            if let unit = unit(for: key) { return "\(MacroFormat.nutrient(number)) \(unit)" }
+            if let unit = unit(for: key) { return "\(nutrientAmount(number)) \(unit)" }
             return MacroFormat.nutrient(number)
         }
+    }
+
+    /// Up to three decimals, so a rescaled value shows what will be saved
+    /// rather than a rounded-off one.
+    private func nutrientAmount(_ number: Double) -> String {
+        number.formatted(.number.precision(.fractionLength(0 ... 3)).grouping(.never))
     }
 
     private func unit(for key: String) -> String? {

@@ -27,7 +27,7 @@ describe('/api/images/upload spec', () => {
 		};
 		const schema =
 			spec.paths['/api/images/upload'].post.requestBody.content['multipart/form-data'].schema;
-		expect(Object.keys(schema.properties)).toEqual(['image']);
+		expect(Object.keys(schema.properties)).toEqual(['image', 'purpose']);
 		expect(schema.required).toEqual(['image']);
 	});
 });

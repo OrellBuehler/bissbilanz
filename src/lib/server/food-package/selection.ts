@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
-import { foodLabels, foods, recipeIngredients, recipes } from '$lib/server/schema';
+import { foodLabels, foods, recipeIngredients, recipeSteps, recipes } from '$lib/server/schema';
 import { foodColumnsWithLabels } from '$lib/server/food-labels';
 import { normalizeLabels } from '$lib/server/labels';
 import { ApiError } from '$lib/server/errors';
@@ -14,11 +14,13 @@ export type SelectedFood = typeof foods.$inferSelect & {
 };
 export type SelectedRecipe = typeof recipes.$inferSelect;
 export type SelectedIngredient = typeof recipeIngredients.$inferSelect;
+export type SelectedStep = typeof recipeSteps.$inferSelect;
 
 export type PackageSelection = {
 	foods: SelectedFood[];
 	recipes: SelectedRecipe[];
 	ingredients: SelectedIngredient[];
+	steps: SelectedStep[];
 };
 
 /**
@@ -120,6 +122,18 @@ export async function resolvePackageSelection(
 			)
 		: [];
 
+	const steps = selectedRecipes.length
+		? await collect(
+				selectedRecipes.map((recipe) => recipe.id),
+				(part) =>
+					db
+						.select()
+						.from(recipeSteps)
+						.where(inArray(recipeSteps.recipeId, part))
+						.orderBy(asc(recipeSteps.recipeId), asc(recipeSteps.sortOrder))
+			)
+		: [];
+
 	const missing = [
 		...new Set(ingredients.map((row) => row.foodId).filter((id) => !selectedFoodIds.has(id)))
 	];
@@ -140,5 +154,5 @@ export async function resolvePackageSelection(
 		throw new ApiError(413, `A package can hold at most ${MAX_PACKAGE_FOODS} foods`);
 	}
 
-	return { foods: all, recipes: selectedRecipes, ingredients };
+	return { foods: all, recipes: selectedRecipes, ingredients, steps };
 }

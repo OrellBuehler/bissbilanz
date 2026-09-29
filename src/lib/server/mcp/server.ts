@@ -243,7 +243,14 @@ export function createMcpServer(userId: string): McpServer {
 		imageUrl: 'Image URL or relative path (null to clear)',
 		cookedWeight:
 			'Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings ' +
-			'for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings).'
+			'for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings).',
+		steps:
+			'Optional cooking instructions as an ordered list; each step is { text, imageUrl? } (text up to 2000 characters, up to 50 steps). ' +
+			'Write plain-language instructions the user can follow while cooking, one action or stage per step. ' +
+			'imageUrl may be an external https image link: the server downloads it and stores it as a normal upload, ' +
+			'and the whole call fails with an error if a link cannot be fetched (no silent drops). Only JPEG, PNG, WebP or GIF up to 10MB ' +
+			'on a public https host are accepted. Steps returned by get_recipe carry /uploads/... image paths that can be passed back unchanged. ' +
+			'On update, a provided list REPLACES all steps (send [] to clear them); omit it to keep the existing steps.'
 	};
 
 	server.registerTool(
@@ -251,7 +258,12 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Create Recipe',
 			description:
-				'Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.',
+				'Create a new recipe from foods that already exist in the database. Each ingredient references a food ID. ' +
+				'Before calling this, find every ingredient with search_foods (and find_food_by_barcode / search_openfoodfacts for packaged products) ' +
+				'and reuse the existing food. Create a missing ingredient food with create_food only from real nutrition data ' +
+				'(a label photo, a specific product with its nutrition facts, or a web link carrying them) — never guess nutrition values. ' +
+				'A recipe is a list of ingredient foods with quantities; never create a single food that represents the whole dish. ' +
+				'Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link).',
 			inputSchema: describeShape(recipeCreateSchema.shape, RECIPE_FIELD_DOCS),
 			annotations: WRITE
 		},
@@ -418,7 +430,8 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'List Recipes',
 			description:
 				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). " +
-				'A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food.',
+				'A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food. ' +
+				'stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves.',
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
@@ -430,7 +443,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Get Recipe',
 			description:
-				'Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts). ' +
+				'Get a recipe with its full ingredient list, its ordered cooking steps (steps: [{ id, sortOrder, text, imageUrl }], empty when it has none) and whole-recipe macro totals (divide by totalServings for per-serving amounts). ' +
 				'cookedWeight (grams of the finished dish, if set) lets grams eaten be converted to servings: grams / (cookedWeight / totalServings).',
 			inputSchema: {
 				recipeId: z.string().describe('ID of the recipe')
@@ -670,7 +683,8 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Update Recipe',
 			description:
-				'Update an existing recipe. Can change name, servings, or replace all ingredients.',
+				'Update an existing recipe. Can change name, servings, cooking steps, or replace all ingredients. ' +
+				'ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted.',
 			inputSchema: {
 				recipeId: z.string().uuid().describe('The recipe ID to update'),
 				...describeShape(recipeUpdateSchema.shape, RECIPE_FIELD_DOCS)

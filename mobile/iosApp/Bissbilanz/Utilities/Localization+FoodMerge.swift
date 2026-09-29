@@ -101,15 +101,40 @@ extension L10n {
         )
     }
 
-    static var foodMergeServingMismatch: String {
+    static var foodMergeServingRescaled: String {
         localized(
-            "food_merge_serving_mismatch",
-            en: "Serving sizes differ. Moved diary entries are rescaled to the kept serving, so their " +
-                "logged calories stay the same. Nutrients can only be taken from a food with the same serving.",
-            de: "Die Portionsgrössen unterscheiden sich. Umgestellte Tagebucheinträge werden auf die behaltene " +
-                "Portion umgerechnet, damit ihre Kalorien gleich bleiben. Nährwerte lassen sich nur von einem " +
-                "Lebensmittel mit derselben Portion übernehmen."
+            "food_merge_serving_rescaled",
+            en: "Serving sizes differ. Pick the serving to keep; nutrient values from the other food are " +
+                "rescaled to it, and moved diary entries are rescaled so their logged calories stay the same.",
+            de: "Die Portionsgrössen unterscheiden sich. Wähle die Portion, die bleibt; Nährwerte des anderen " +
+                "Lebensmittels werden darauf umgerechnet, und umgestellte Tagebucheinträge werden angepasst, " +
+                "damit ihre Kalorien gleich bleiben."
         )
+    }
+
+    static var foodMergeServingUnitsConvert: String {
+        localized(
+            "food_merge_serving_units_convert",
+            en: "Serving units differ but convert. Pick the serving to keep; nutrient values from the other " +
+                "food are converted to it.",
+            de: "Die Portionseinheiten unterscheiden sich, lassen sich aber umrechnen. Wähle die Portion, die " +
+                "bleibt; Nährwerte des anderen Lebensmittels werden darauf umgerechnet."
+        )
+    }
+
+    static var foodMergeServingIncompatible: String {
+        localized(
+            "food_merge_serving_incompatible",
+            en: "Some serving units can't be converted into each other, like g and ml. Nutrients of " +
+                "those foods can't be taken over; they stay with the food whose serving is kept.",
+            de: "Manche Portionseinheiten lassen sich nicht ineinander umrechnen, etwa g und ml. Nährwerte " +
+                "dieser Lebensmittel können nicht übernommen werden; sie bleiben beim Lebensmittel, dessen " +
+                "Portion bleibt."
+        )
+    }
+
+    static func foodMergeScaledFrom(_ serving: String) -> String {
+        localized("food_merge_scaled_from", en: "scaled from \(serving)", de: "umgerechnet von \(serving)")
     }
 
     static var foodMergeServingUnit: String {
@@ -148,11 +173,11 @@ extension L10n {
         )
     }
 
-    static var foodsSelectToMerge: String {
+    static var foodsSelectHint: String {
         localized(
-            "foods_select_to_merge",
-            en: "Select two or more foods to merge",
-            de: "Wähle zwei oder mehr Lebensmittel zum Zusammenführen"
+            "foods_select_hint",
+            en: "Select foods to share, or two or more to merge",
+            de: "Wähle Lebensmittel zum Teilen oder zwei oder mehr zum Zusammenführen"
         )
     }
 
