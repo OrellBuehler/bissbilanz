@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
@@ -46,7 +45,6 @@ import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
-import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.normalizeMealType
@@ -73,9 +71,7 @@ fun DayLogScreen(
     highlightEntryId: String? = null,
 ) {
     val viewModel: DayLogViewModel = koinViewModel()
-    val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
     val appModeManager: AppModeManager = koinInject()
     val context = LocalContext.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
@@ -185,13 +181,11 @@ fun DayLogScreen(
                     onClick = {
                         showCopyDialog = false
                         scope.launch {
-                            try {
-                                val count = entryRepo.copyEntries(yesterday, date)
+                            val count = viewModel.copyEntries(yesterday, date)
+                            if (count != null) {
                                 snackbarHostState.showSnackbar(context.getString(R.string.daylog_copied_entries, count))
                                 viewModel.loadEntries(date, force = true)
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
+                            } else {
                                 snackbarHostState.showSnackbar(context.getString(R.string.daylog_no_entries_to_copy))
                             }
                         }

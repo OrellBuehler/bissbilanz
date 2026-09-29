@@ -71,6 +71,28 @@ class DayLogViewModelTest {
         }
 
     @Test
+    fun copyEntriesReturnsCountFromRepository() =
+        runTest {
+            coEvery { entryRepo.copyEntries("2024-01-14", "2024-01-15") } returns 3
+
+            val viewModel = DayLogViewModel(entryRepo, errorReporter)
+
+            assertEquals(3, viewModel.copyEntries("2024-01-14", "2024-01-15"))
+        }
+
+    @Test
+    fun copyEntriesReportsFailureAndReturnsNull() =
+        runTest {
+            val failure = RuntimeException("Network error")
+            coEvery { entryRepo.copyEntries(any(), any()) } throws failure
+
+            val viewModel = DayLogViewModel(entryRepo, errorReporter)
+
+            assertNull(viewModel.copyEntries("2024-01-14", "2024-01-15"))
+            io.mockk.verify { errorReporter.captureException(failure) }
+        }
+
+    @Test
     fun loadEntriesSkipsDuplicateDate() =
         runTest {
             coEvery { entryRepo.refresh("2024-01-15") } coAnswers {
