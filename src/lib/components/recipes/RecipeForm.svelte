@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IngredientRow from './IngredientRow.svelte';
+	import RecipeStepsEditor from './RecipeStepsEditor.svelte';
 	import { buildRecipePayload, type RecipeFormState } from '$lib/utils/recipe-builder';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -8,11 +9,13 @@
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
 	import ExtendedNutrientsList from '$lib/components/shared/ExtendedNutrientsList.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import type { ServingUnit } from '$lib/units';
 	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
+	import { toStepDrafts, type StepDraft } from '$lib/utils/recipe-steps';
 
 	type IngredientFood = {
 		id: string;
@@ -35,7 +38,13 @@
 			cookedWeight?: number | null;
 			calories?: number | null;
 			ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
+			// null = not downloaded yet (offline): the editor is hidden and the save
+			// leaves the server's steps untouched. Omitted = no steps.
+			steps?: Array<{ text: string; imageUrl?: string | null }> | null;
 		} | null;
+		// Set for a saved recipe; shows a "Start cooking" shortcut when it has steps.
+		cookHref?: string;
+		onUploadStepImage?: (file: File) => Promise<string | null>;
 		onSave: (payload: RecipeFormPayload) => Promise<void>;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
@@ -54,10 +63,14 @@
 		onImageUpload,
 		onImageRemove,
 		uploading = false,
-		extendedNutrients = null
+		extendedNutrients = null,
+		cookHref,
+		onUploadStepImage
 	}: Props = $props();
 
 	const emptyIngredient = () => ({ foodId: '', quantity: 1, servingUnit: 'g' as ServingUnit });
+
+	const initialSteps = (): StepDraft[] => toStepDrafts(recipe?.steps);
 
 	const initialState = (): RecipeFormState & { isFavorite: boolean } => ({
 		name: recipe?.name ?? '',
@@ -76,6 +89,12 @@
 
 	// svelte-ignore state_referenced_locally
 	let formState: RecipeFormState & { isFavorite: boolean } = $state(initialState());
+	// svelte-ignore state_referenced_locally
+	let steps: StepDraft[] = $state(initialSteps());
+	// svelte-ignore state_referenced_locally
+	const stepsAvailable = recipe?.steps !== null;
+	// svelte-ignore state_referenced_locally
+	const hadSteps = (recipe?.steps?.length ?? 0) > 0;
 	let saving = $state(false);
 
 	const addIngredient = () => {
@@ -103,7 +122,7 @@
 		e.preventDefault();
 		if (!canSave) return;
 		const payload: RecipeFormPayload = {
-			...buildRecipePayload(formState),
+			...buildRecipePayload({ ...formState, steps: stepsAvailable ? steps : null }),
 			isFavorite: formState.isFavorite
 		};
 		if (payload.ingredients.length === 0) return;
@@ -112,7 +131,10 @@
 			await onSave(payload);
 			// A create form clears for the next recipe; an edit form keeps
 			// showing what was just saved.
-			if (!recipe) formState = initialState();
+			if (!recipe) {
+				formState = initialState();
+				steps = initialSteps();
+			}
 		} finally {
 			saving = false;
 		}
@@ -167,6 +189,23 @@
 			<Plus class="size-4" />
 			{m.recipe_form_add_ingredient()}
 		</Button>
+	</div>
+	<div class="space-y-2">
+		<div class="flex items-center justify-between gap-2">
+			<Label class="text-sm font-medium">{m.recipe_form_steps()}</Label>
+			{#if cookHref && hadSteps}
+				<Button href={cookHref} size="sm">
+					<ChefHat class="size-4" />
+					{m.recipe_start_cooking()}
+				</Button>
+			{/if}
+		</div>
+		{#if stepsAvailable}
+			<p class="text-xs text-muted-foreground">{m.recipe_form_steps_hint()}</p>
+			<RecipeStepsEditor bind:steps onUploadImage={onUploadStepImage} />
+		{:else}
+			<p class="text-xs text-muted-foreground">{m.recipe_form_steps_unavailable()}</p>
+		{/if}
 	</div>
 	{#if extendedNutrients}
 		<div class="space-y-2">

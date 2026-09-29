@@ -3,12 +3,15 @@ package com.bissbilanz.android.images
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeStep
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -64,5 +67,46 @@ class LocalImageSweeperTest {
             sweepUnreferenced(context, referenced = emptySet(), now = now)
 
             assertTrue(fresh.exists())
+        }
+
+    @Test
+    fun `a recipe references its cover and every step photo`() {
+        val recipe =
+            RecipeDetail(
+                id = "r1",
+                userId = "u",
+                name = "Soup",
+                totalServings = 2.0,
+                isFavorite = false,
+                imageUrl = "file:///cover.jpg",
+                calories = 0.0,
+                protein = 0.0,
+                carbs = 0.0,
+                fat = 0.0,
+                fiber = 0.0,
+                ingredients = emptyList(),
+                steps =
+                    listOf(
+                        RecipeStep("s1", 0, "Chop", "file:///step-1.jpg"),
+                        RecipeStep("s2", 1, "Stir", null),
+                        RecipeStep("s3", 2, "Serve", "/uploads/aaaaaaaa-2222.webp"),
+                    ),
+            )
+
+        assertEquals(
+            listOf("file:///cover.jpg", "file:///step-1.jpg", "/uploads/aaaaaaaa-2222.webp"),
+            recipe.referencedImageUrls(),
+        )
+        assertEquals(emptyList(), recipe.copy(imageUrl = null, steps = null).referencedImageUrls())
+    }
+
+    @Test
+    fun `keeps a photo only a recipe step points at`() =
+        runTest {
+            val stepPhoto = photo("local-step.jpg", ageMs = 2 * dayMs)
+
+            sweepUnreferenced(context, referenced = setOf(LocalImageStore.fileUri(stepPhoto)), now = now)
+
+            assertTrue(stepPhoto.exists())
         }
 }

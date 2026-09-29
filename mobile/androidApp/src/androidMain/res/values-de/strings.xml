@@ -728,6 +728,35 @@
     <string name="recipe_edit_amount">Menge</string>
     <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
+    <string name="recipe_edit_steps_count">Schritte (%1$d)</string>
+    <string name="recipe_edit_no_steps">Noch keine Schritte.\nFüge Schritte hinzu, um das Rezept Schritt für Schritt zu kochen.</string>
+    <string name="recipe_edit_steps_unavailable">Die Schritte können erst bearbeitet werden, wenn dieses Rezept einmal online geöffnet wurde.</string>
+    <string name="recipe_edit_step_label">Schritt %1$d</string>
+    <string name="recipe_edit_step_hint">Beschreibe diesen Schritt</string>
+    <string name="recipe_edit_step_move_up">Schritt %1$d nach oben</string>
+    <string name="recipe_edit_step_move_down">Schritt %1$d nach unten</string>
+    <string name="recipe_edit_step_remove">Schritt %1$d entfernen</string>
+    <string name="recipe_edit_step_photo_camera">Foto für Schritt %1$d aufnehmen</string>
+    <string name="recipe_edit_step_photo_library">Foto für Schritt %1$d auswählen</string>
+    <string name="recipe_edit_step_photo_remove">Foto entfernen</string>
+    <string name="recipe_edit_step_photo_failed">Foto konnte nicht hochgeladen werden</string>
+    <string name="recipe_detail_steps_title">Schritte</string>
+    <string name="recipe_detail_start_cooking">Kochen starten</string>
+    <string name="recipe_detail_step_photo">Foto zu Schritt %1$d</string>
+    <string name="recipe_cook_ingredients">Zutaten</string>
+    <string name="recipe_cook_ingredients_hint">Hake Zutaten ab, sobald du sie bereitgelegt hast.</string>
+    <string name="recipe_cook_step_of">Schritt %1$d von %2$d</string>
+    <string name="recipe_cook_page_indicator">Seite %1$d von %2$d</string>
+    <string name="recipe_cook_close">Kochmodus schliessen</string>
+    <string name="recipe_cook_next">Weiter</string>
+    <string name="recipe_cook_back">Zurück</string>
+    <string name="recipe_cook_done">Fertig</string>
+    <string name="recipe_cook_log">Dieses Rezept erfassen</string>
+    <string name="recipe_cook_finished_title">Fertig gekocht</string>
+    <string name="recipe_cook_finished_text">Guten Appetit. Erfasse das Gericht, damit dein Tagebuch aktuell bleibt.</string>
+    <string name="recipe_cook_no_steps">Dieses Rezept hat noch keine Schritte. Ergänze sie im Bearbeiten-Dialog.</string>
+    <string name="recipe_cook_servings">Ergibt %1$d Portionen</string>
+    <string name="recipe_cook_step_photo">Foto zu Schritt %1$d</string>
 
     <!-- Supplements screen -->
     <string name="supplements_add">Nahrungsergänzungsmittel hinzufügen</string>

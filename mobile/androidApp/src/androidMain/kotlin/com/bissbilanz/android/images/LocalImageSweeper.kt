@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 /**
- * Deletes on-device photos no food or recipe points at any more.
+ * Deletes on-device photos no food, recipe or recipe step points at any more.
  *
  * An account has the server's hourly sweep for this (`src/lib/server/
  * image-cleanup.ts`): an upload no row references is an orphan once it is old
@@ -39,14 +39,17 @@ class LocalImageSweeper(
                     queries.selectAllFoods().executeAsList().mapNotNullTo(this) {
                         json.decodeOrNull<Food>(it.jsonData)?.imageUrl
                     }
-                    queries.selectAllRecipes().executeAsList().mapNotNullTo(this) {
-                        json.decodeOrNull<RecipeDetail>(it.jsonData)?.imageUrl
+                    queries.selectAllRecipes().executeAsList().forEach { row ->
+                        json.decodeOrNull<RecipeDetail>(row.jsonData)?.let { addAll(it.referencedImageUrls()) }
                     }
                 }
             }
         sweepUnreferenced(context, referenced)
     }
 }
+
+/** Every photo a recipe keeps on the device: its cover and each step's photo. */
+internal fun RecipeDetail.referencedImageUrls(): List<String> = listOfNotNull(imageUrl) + steps.orEmpty().mapNotNull { it.imageUrl }
 
 /** The file half of [LocalImageSweeper.sweep], with the referenced URLs already gathered. */
 internal suspend fun sweepUnreferenced(

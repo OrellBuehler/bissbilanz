@@ -1458,12 +1458,16 @@ class BissbilanzApi(
         fileName: String,
         fileBytes: ByteArray,
         contentType: String = "image/jpeg",
+        purpose: String? = null,
     ): String {
         val response =
             client.submitFormWithBinaryData(
                 url = "/api/images/upload",
                 formData =
                     formData {
+                        // `recipe_step` keeps the aspect ratio (up to 1280 px) instead of the
+                        // square thumbnail every other image gets.
+                        purpose?.let { append("purpose", it) }
                         // The route reads `formData.get('image')` — a mismatched
                         // field name is a 400 the client can't tell from a real one.
                         append(
