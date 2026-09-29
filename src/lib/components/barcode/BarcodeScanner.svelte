@@ -3,7 +3,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { startCamera, stopCamera, mapCameraError } from '$lib/utils/camera';
-	import { createBarcodeScanner } from '$lib/utils/barcode-detect';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -50,6 +49,7 @@
 		}
 
 		try {
+			const { createBarcodeScanner } = await import('$lib/utils/barcode-detect');
 			scanner = await createBarcodeScanner(videoEl, onScan);
 			if (destroyed) {
 				scanner.stop();
