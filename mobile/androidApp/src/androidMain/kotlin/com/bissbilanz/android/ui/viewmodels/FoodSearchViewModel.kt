@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.EntryCreate
@@ -70,6 +71,8 @@ class FoodSearchViewModel(
 
     init {
         loadAllFoods()
+        // An imported food package changes the list this screen already holds.
+        viewModelScope.launch { FoodPackageEvents.imported.collect { refresh() } }
         viewModelScope.launch {
             try {
                 foodRepo.refreshRecentFoods()

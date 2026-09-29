@@ -35,6 +35,7 @@ class PendingNavigationTest {
         PendingNavigation.route.value?.let { PendingNavigation.consume(it) }
         PendingNavigation.consumeFoodQuery()
         PendingLogConfirmation.consume()
+        PendingPackageImport.request.value?.let { PendingPackageImport.consume(it) }
     }
 
     @Test
@@ -98,6 +99,42 @@ class PendingNavigationTest {
         assertNull(PendingLogConfirmation.confirmation.value)
     }
 
+    @Test
+    fun aSharedFoodPackageOpensTheImportScreenEvenBeforeTheNavHostExists() {
+        // What tapping a .bissbilanz file does on a cold start: the intent is read in onCreate.
+        PendingPackageImport.request(PendingPackageImport.Request("Lasagne.bissbilanz", "/cache/incoming/a.pkg"))
+
+        composeTestRule.setContent { NavShell() }
+        awaitText("package screen")
+
+        composeTestRule.onNodeWithText("package screen").assertIsDisplayed()
+    }
+
+    @Test
+    fun aSharedFoodPackageOpensTheImportScreenWhileTheAppIsRunning() {
+        composeTestRule.setContent { NavShell() }
+        awaitText("dashboard screen")
+
+        PendingPackageImport.request(PendingPackageImport.Request("Lasagne.bissbilanz", "/cache/incoming/a.pkg"))
+        awaitText("package screen")
+    }
+
+    @Test
+    fun aFoodPackageRequestStaysUntilTheImportScreenClaimsIt() {
+        val request = PendingPackageImport.Request("Lasagne.bissbilanz", "/cache/incoming/a.pkg")
+        PendingPackageImport.request(request)
+        assertEquals(request, PendingPackageImport.request.value)
+
+        // A newer file replaced it: consuming the old one must not drop the new one.
+        val newer = PendingPackageImport.Request("Pizza.bissbilanz", "/cache/incoming/b.pkg")
+        PendingPackageImport.request(newer)
+        PendingPackageImport.consume(request)
+        assertEquals(newer, PendingPackageImport.request.value)
+
+        PendingPackageImport.consume(newer)
+        assertNull(PendingPackageImport.request.value)
+    }
+
     private fun awaitText(text: String) {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             composeTestRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
@@ -121,6 +158,7 @@ class PendingNavigationTest {
                 composable("dashboard") { Text("dashboard screen") }
                 composable("scanner") { Text("scanner screen") }
                 composable("weight") { Text("weight screen") }
+                composable("food-package-import") { Text("package screen") }
             }
         }
     }

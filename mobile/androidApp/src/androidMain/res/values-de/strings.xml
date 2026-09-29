@@ -1377,7 +1377,26 @@
     <string name="food_package_result_foods">Lebensmittel: %1$d neu · %2$d ersetzt · %3$d beide behalten · %4$d übersprungen</string>
     <string name="food_package_result_recipes">Rezepte: %1$d neu · %2$d ersetzt · %3$d beide behalten · %4$d übersprungen</string>
     <string name="food_package_done">Fertig</string>
-    <string name="food_package_unavailable_local">Zum Teilen von Lebensmitteln brauchst du ein Konto und eine Internetverbindung.</string>
+    <string name="food_package_new_foods_title">%1$d neue Lebensmittel werden hinzugefügt</string>
+    <string name="food_package_new_foods_title_one">1 neues Lebensmittel wird hinzugefügt</string>
+    <string name="food_package_new_foods_hint">Hast du eines davon schon unter eigenem Namen? Nimm stattdessen dein Lebensmittel, damit deine Liste aufgeräumt bleibt.</string>
+    <string name="food_package_role_selected">Geteiltes Lebensmittel</string>
+    <string name="food_package_role_ingredient">Zutat</string>
+    <string name="food_package_used_in">Verwendet in %1$s</string>
+    <string name="food_package_use_own">Eines meiner Lebensmittel nutzen</string>
+    <string name="food_package_using">Nutze %1$s</string>
+    <string name="food_package_using_note">Wird nicht hinzugefügt, stattdessen kommt dein Lebensmittel zum Einsatz.</string>
+    <string name="food_package_undo_mapping">Rückgängig</string>
+    <string name="food_package_search_own">Deine Lebensmittel durchsuchen</string>
+    <string name="food_package_search_own_hint">Es werden nur Lebensmittel mit kompatibler Einheit (z. B. %1$s) gezeigt.</string>
+    <string name="food_package_search_own_empty">Kein passendes Lebensmittel mit kompatibler Einheit.</string>
+    <string name="food_package_search_cancel">Abbrechen</string>
+    <string name="food_package_show_more">Mehr anzeigen</string>
+    <string name="food_package_error_not_a_package">Das ist kein Bissbilanz-Lebensmittelpaket.</string>
+    <string name="food_package_error_account_export">Das ist ein vollständiger Konto-Export und kein Lebensmittelpaket. Importiere ihn im Web unter Einstellungen → Daten importieren.</string>
+    <string name="food_package_error_newer_version">Dieses Paket wurde mit einer neueren Version von Bissbilanz erstellt. Bitte aktualisiere zuerst die App.</string>
+    <string name="food_package_error_invalid">Dieses Lebensmittelpaket ist beschädigt oder unvollständig und kann nicht importiert werden.</string>
+    <string name="food_package_error_unreadable">Die Datei konnte nicht gelesen werden. Öffne sie noch einmal aus der App, von der du sie erhalten hast.</string>
 
     <!-- Update required (client version gate) -->
     <string name="update_required_title">Update erforderlich</string>

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * A route asked for from outside the Compose tree: a launcher shortcut, a widget or a
@@ -93,6 +94,14 @@ fun PendingNavigationHandler(navController: NavController) {
         // with it the graph — does not exist yet when this effect first runs. Navigating
         // then throws. The first back stack entry is the signal that the host is up.
         navController.currentBackStackEntryFlow.first()
+        // A shared food package: the import screen claims the request itself once it is up.
+        launch {
+            PendingPackageImport.request.filterNotNull().collect {
+                navController.navigate("food-package-import") {
+                    launchSingleTop = true
+                }
+            }
+        }
         PendingNavigation.route.filterNotNull().collect { route ->
             // Cleared before the jump, so a route that cannot be navigated to is dropped
             // rather than retried on every recomposition.

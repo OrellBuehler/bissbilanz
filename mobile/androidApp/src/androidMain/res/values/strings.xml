@@ -1379,7 +1379,26 @@
     <string name="food_package_result_foods">Foods: %1$d new · %2$d replaced · %3$d kept both · %4$d skipped</string>
     <string name="food_package_result_recipes">Recipes: %1$d new · %2$d replaced · %3$d kept both · %4$d skipped</string>
     <string name="food_package_done">Done</string>
-    <string name="food_package_unavailable_local">Sharing foods requires an account and an internet connection.</string>
+    <string name="food_package_new_foods_title">%1$d new foods will be added</string>
+    <string name="food_package_new_foods_title_one">1 new food will be added</string>
+    <string name="food_package_new_foods_hint">Already have one of these under your own name? Use your food instead, so your list stays tidy.</string>
+    <string name="food_package_role_selected">Shared food</string>
+    <string name="food_package_role_ingredient">Ingredient</string>
+    <string name="food_package_used_in">Used in %1$s</string>
+    <string name="food_package_use_own">Use one of my foods</string>
+    <string name="food_package_using">Using %1$s</string>
+    <string name="food_package_using_note">Not added, your food is used instead.</string>
+    <string name="food_package_undo_mapping">Undo</string>
+    <string name="food_package_search_own">Search your foods</string>
+    <string name="food_package_search_own_hint">Only foods with a compatible unit (like %1$s) are shown.</string>
+    <string name="food_package_search_own_empty">No matching food with a compatible unit.</string>
+    <string name="food_package_search_cancel">Cancel</string>
+    <string name="food_package_show_more">Show more</string>
+    <string name="food_package_error_not_a_package">This is not a Bissbilanz food package.</string>
+    <string name="food_package_error_account_export">This is a full account export, not a food package. Import it on the web under Settings → Import data.</string>
+    <string name="food_package_error_newer_version">This package was made by a newer version of Bissbilanz. Please update the app first.</string>
+    <string name="food_package_error_invalid">This food package is damaged or incomplete and can\'t be imported.</string>
+    <string name="food_package_error_unreadable">The file couldn\'t be read. Try opening it again from the app it came from.</string>
 
     <!-- Update required (client version gate) -->
     <string name="update_required_title">Update required</string>

@@ -113,6 +113,7 @@ import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.createHttpEngine
+import com.bissbilanz.foodpackage.filenameFromContentDisposition
 import com.bissbilanz.model.Entry
 import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.*
@@ -132,6 +133,12 @@ import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+/** A food package the server exported, with the file name it wants it shared under. */
+class FoodPackageDownload(
+    val bytes: ByteArray,
+    val fileName: String,
+)
 
 class ApiException(
     message: String,
@@ -1510,7 +1517,12 @@ class BissbilanzApi(
     suspend fun summarizeFoodPackage(selection: FoodPackageSelection): FoodPackageSummaryResponse =
         post("/api/foods/package/summary", selection)
 
-    suspend fun exportFoodPackage(selection: FoodPackageSelection): ByteArray {
+    /**
+     * The package the server built and the file name it asked for (`.bissbilanz`, named after the
+     * single recipe or food it holds). The name comes from `Content-Disposition`, preferring the
+     * UTF-8 `filename*`.
+     */
+    suspend fun exportFoodPackage(selection: FoodPackageSelection): FoodPackageDownload {
         val response =
             client.post("/api/foods/package/export") {
                 applyClientVersionHeaders(clientPlatform, clientVersion)
@@ -1526,7 +1538,10 @@ class BissbilanzApi(
                 responseBody = body,
             )
         }
-        return response.body()
+        return FoodPackageDownload(
+            bytes = response.body(),
+            fileName = filenameFromContentDisposition(response.headers[HttpHeaders.ContentDisposition]),
+        )
     }
 
     suspend fun previewFoodPackage(

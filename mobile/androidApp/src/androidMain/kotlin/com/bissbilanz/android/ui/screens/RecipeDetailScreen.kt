@@ -282,14 +282,11 @@ fun RecipeDetailScreen(
                         ) {
                             Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_detail_duplicate))
                         }
-                        // Sharing goes through the server; not available in local mode.
-                        if (!packageViewModel.isLocalMode) {
-                            IconButton(onClick = {
-                                packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
-                                showShareSheet = true
-                            }) {
-                                Icon(Icons.Default.Share, stringResource(R.string.food_package_share_recipe))
-                            }
+                        IconButton(onClick = {
+                            packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
+                            showShareSheet = true
+                        }) {
+                            Icon(Icons.Default.Share, stringResource(R.string.food_package_share_recipe))
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, stringResource(R.string.action_delete), tint = MaterialTheme.colorScheme.error)
