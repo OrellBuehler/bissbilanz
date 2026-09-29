@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Build stage - install dependencies
+# Build stage - install dependencies (bun version must match .bun-version)
 FROM oven/bun:1.4.0-alpine AS deps
 WORKDIR /app
 
