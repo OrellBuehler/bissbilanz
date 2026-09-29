@@ -28,14 +28,6 @@ struct Recipe: Codable, Identifiable, Hashable {
     var steps: [RecipeStep]? = nil
     var stepCount: Int? = nil
 
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    static func == (lhs: Recipe, rhs: Recipe) -> Bool {
-        lhs.id == rhs.id
-    }
-
     /// `calories`/`protein`/etc. are whole-recipe totals (matching the server and the
     /// list/detail endpoints) — divide by `totalServings` for a one-serving preview.
     /// Guards a non-positive `totalServings`, matching `EntryFactory.makeEntry`.
@@ -66,7 +58,7 @@ struct Recipe: Codable, Identifiable, Hashable {
     }
 }
 
-struct RecipeIngredient: Codable, Identifiable {
+struct RecipeIngredient: Codable, Identifiable, Hashable {
     let id: String?
     let recipeId: String?
     let foodId: String

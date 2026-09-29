@@ -555,105 +555,28 @@ struct RecipeModelTests {
         #expect(single.recipe.imageUrl == "/uploads/a1b2.webp")
     }
 
-    @Test("Recipe equality based on id")
-    func recipeEquality() {
-        let r1 = Recipe(
-            id: "r1",
-            userId: "u1",
-            name: "A",
-            totalServings: 1,
-            isFavorite: false,
-            imageUrl: nil,
-            calories: 100,
-            protein: 5,
-            carbs: 10,
-            fat: 3,
-            fiber: 2,
-            cookedWeight: nil,
-            createdAt: nil,
-            updatedAt: nil,
-            ingredients: nil
-        )
-        let r2 = Recipe(
-            id: "r1",
-            userId: "u1",
-            name: "B",
-            totalServings: 2,
-            isFavorite: true,
-            imageUrl: nil,
-            calories: 200,
-            protein: 10,
-            carbs: 20,
-            fat: 6,
-            fiber: 4,
-            cookedWeight: nil,
-            createdAt: nil,
-            updatedAt: nil,
-            ingredients: nil
-        )
-        let r3 = Recipe(
-            id: "r2",
-            userId: "u1",
-            name: "A",
-            totalServings: 1,
-            isFavorite: false,
-            imageUrl: nil,
-            calories: 100,
-            protein: 5,
-            carbs: 10,
-            fat: 3,
-            fiber: 2,
-            cookedWeight: nil,
-            createdAt: nil,
-            updatedAt: nil,
-            ingredients: nil
-        )
+    // A detail fetch returns the same recipe with its ingredients; SwiftUI skips
+    // the redraw when the new @State value compares equal, so equality must see
+    // the difference or the ingredient list never appears.
+    @Test("Recipe equality sees ingredients, not just the id")
+    func recipeEqualityIncludesIngredients() {
+        let summary = Self.recipe(totalServings: 4, calories: 1510)
+        var detail = summary
+        detail.ingredients = [
+            RecipeIngredient(
+                id: "i1",
+                recipeId: "r1",
+                foodId: "f1",
+                quantity: 400,
+                servingUnit: .g,
+                sortOrder: 0,
+                food: nil
+            )
+        ]
 
-        #expect(r1 == r2)
-        #expect(r1 != r3)
-    }
-
-    @Test("Recipe hashable uses id")
-    func recipeHashable() {
-        let r1 = Recipe(
-            id: "r1",
-            userId: "u1",
-            name: "A",
-            totalServings: 1,
-            isFavorite: false,
-            imageUrl: nil,
-            calories: nil,
-            protein: nil,
-            carbs: nil,
-            fat: nil,
-            fiber: nil,
-            cookedWeight: nil,
-            createdAt: nil,
-            updatedAt: nil,
-            ingredients: nil
-        )
-        let r2 = Recipe(
-            id: "r1",
-            userId: "u1",
-            name: "B",
-            totalServings: 2,
-            isFavorite: true,
-            imageUrl: nil,
-            calories: nil,
-            protein: nil,
-            carbs: nil,
-            fat: nil,
-            fiber: nil,
-            cookedWeight: nil,
-            createdAt: nil,
-            updatedAt: nil,
-            ingredients: nil
-        )
-
-        var set = Set<Recipe>()
-        set.insert(r1)
-        set.insert(r2)
-        #expect(set.count == 1)
+        #expect(summary == summary)
+        #expect(summary != detail)
+        #expect(Set([summary, detail]).count == 2)
     }
 
     private static func recipe(
