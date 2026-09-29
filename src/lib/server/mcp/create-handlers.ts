@@ -768,6 +768,13 @@ export function createHandlers(d: HandlerDeps) {
 	const handleDeleteFood = async (userId: string, args: { foodId: string; force?: boolean }) => {
 		try {
 			const result = await d.deleteFood(userId, args.foodId, args.force ?? false);
+			if (result.blocked && result.lastIngredientRecipes?.length)
+				return {
+					blocked: true,
+					entryCount: result.entryCount,
+					lastIngredientRecipes: result.lastIngredientRecipes,
+					hint: 'The food is the only ingredient of these recipes; force cannot delete it. Add another ingredient to them or delete the recipes first'
+				};
 			if (result.blocked)
 				return {
 					blocked: true,

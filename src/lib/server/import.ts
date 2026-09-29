@@ -314,7 +314,7 @@ async function planImport(userId: string, data: ImportArchive) {
 		return true;
 	});
 	const remapFoodId = (id: string) => foodIdRemap.get(id) ?? id;
-	const newRecipes = recipeRows.filter(
+	const candidateRecipes = recipeRows.filter(
 		(row) => !recipeState.owned.has(row.id) && !recipeState.foreign.has(row.id)
 	);
 	const newSupplements = supplementRows.filter(
@@ -334,7 +334,6 @@ async function planImport(userId: string, data: ImportArchive) {
 	}
 
 	const usableFoods = new Set([...foodState.owned, ...newFoods.map((row) => row.id)]);
-	const usableRecipes = new Set([...recipeState.owned, ...newRecipes.map((row) => row.id)]);
 	const usableSupplements = new Set([
 		...supplementState.owned,
 		...newSupplements.map((row) => row.id)
@@ -344,13 +343,24 @@ async function planImport(userId: string, data: ImportArchive) {
 
 	// Ingredients are re-created only for recipes/supplements this import adds,
 	// so an existing recipe is never silently duplicated or re-stuffed.
-	const newRecipeIds = new Set(newRecipes.map((row) => row.id));
+	const candidateRecipeIds = new Set(candidateRecipes.map((row) => row.id));
 	const newSupplementIds = new Set(newSupplements.map((row) => row.id));
-	const newRecipeIngredients = (data.recipeIngredients ?? [])
+	const candidateRecipeIngredients = (data.recipeIngredients ?? [])
 		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))
-		.filter((row) => newRecipeIds.has(row.recipeId) && usableFoods.has(row.foodId));
+		.filter((row) => candidateRecipeIds.has(row.recipeId) && usableFoods.has(row.foodId));
+	// A recipe must consist of at least one food ingredient, so one whose
+	// ingredients are all missing or unusable is skipped rather than imported empty.
+	const recipeIdsWithIngredients = new Set(candidateRecipeIngredients.map((row) => row.recipeId));
+	const newRecipes = candidateRecipes.filter((row) => {
+		if (recipeIdsWithIngredients.has(row.id)) return true;
+		issues.push({ row: 0, message: `Recipe "${row.name}" has no usable ingredients` });
+		return false;
+	});
+	const newRecipeIngredients = candidateRecipeIngredients;
+	const usableRecipes = new Set([...recipeState.owned, ...newRecipes.map((row) => row.id)]);
 	// Steps follow their recipe the same way. Step photos are not restored (like
 	// food and recipe photos, an import never carries images), so only text moves.
+	const newRecipeIds = new Set(newRecipes.map((row) => row.id));
 	const newRecipeSteps = (data.recipeSteps ?? []).filter((row) => newRecipeIds.has(row.recipeId));
 	const newSupplementIngredients = (data.supplementIngredients ?? [])
 		.map((row) => ({ ...row, foodId: remapFoodId(row.foodId) }))

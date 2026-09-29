@@ -2,9 +2,11 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -54,6 +56,7 @@ import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.resolvedProtein
 import com.bissbilanz.util.toDisplayString
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import kotlinx.datetime.LocalDate
@@ -66,6 +69,8 @@ import org.koin.compose.koinInject
 fun DayLogScreen(
     date: String,
     navController: NavController,
+    // Set from a "where it's logged" list: this entry is scrolled to and highlighted.
+    highlightEntryId: String? = null,
 ) {
     val viewModel: DayLogViewModel = koinViewModel()
     val entryRepo: EntryRepository = koinInject()
@@ -89,6 +94,10 @@ fun DayLogScreen(
     var searchQuery by remember { mutableStateOf("") }
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val scope = rememberCoroutineScope()
+
+    val listState = rememberLazyListState()
+    var highlightedId by remember { mutableStateOf<String?>(null) }
+    var handledHighlightId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(date) {
         viewModel.loadEntries(date)
@@ -138,6 +147,31 @@ fun DayLogScreen(
             mealTypes.filter { mealGroups.containsKey(it) } +
                 mealGroups.keys.filter { it !in mealTypes }
         }
+
+    // Index of the highlighted entry among the LazyColumn items: the optional search
+    // field, then per meal one header item followed by its entries.
+    val highlightIndex =
+        remember(sortedMeals, mealGroups, visibleEntries, searchQuery, highlightEntryId) {
+            if (highlightEntryId == null) return@remember null
+            var index = if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) 1 else 0
+            for (meal in sortedMeals) {
+                val mealEntries = mealGroups[meal] ?: continue
+                index += 1
+                val position = mealEntries.indexOfFirst { it.id == highlightEntryId }
+                if (position >= 0) return@remember index + position
+                index += mealEntries.size
+            }
+            null
+        }
+    LaunchedEffect(highlightIndex, isLoading) {
+        val target = highlightEntryId ?: return@LaunchedEffect
+        if (isLoading || highlightIndex == null || handledHighlightId == target) return@LaunchedEffect
+        handledHighlightId = target
+        highlightedId = target
+        listState.animateScrollToItem(highlightIndex)
+        delay(4000)
+        highlightedId = null
+    }
 
     if (showCopyDialog) {
         val parsedDate = LocalDate.parse(date)
@@ -258,6 +292,7 @@ fun DayLogScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
@@ -338,7 +373,19 @@ fun DayLogScreen(
                                 )
                             }
                             items(mealEntries, key = { it.id }) { entry ->
-                                Box(modifier = Modifier.animateItem().padding(vertical = 2.dp)) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .animateItem()
+                                            .padding(vertical = 2.dp)
+                                            .then(
+                                                if (entry.id == highlightedId) {
+                                                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium)
+                                                } else {
+                                                    Modifier
+                                                },
+                                            ),
+                                ) {
                                     SwipeToDismissEntry(
                                         entry = entry,
                                         onDelete = {

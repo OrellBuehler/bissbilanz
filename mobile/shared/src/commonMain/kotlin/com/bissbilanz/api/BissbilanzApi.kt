@@ -46,6 +46,7 @@ import com.bissbilanz.api.generated.model.FoodPackageSelection
 import com.bissbilanz.api.generated.model.FoodPackageSummaryResponse
 import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodResponse
+import com.bissbilanz.api.generated.model.FoodUsageResponse
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.FoodsRecentResponse
 import com.bissbilanz.api.generated.model.Goals
@@ -75,6 +76,7 @@ import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeResponse
 import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.api.generated.model.RecipeUsageResponse
 import com.bissbilanz.api.generated.model.RecipesListResponse
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderCreate
@@ -383,6 +385,10 @@ class BissbilanzApi(
         limit: Int = 100,
         offset: Int = 0,
     ): List<Food> = getFoodsPaginated(limit, offset).foods
+
+    suspend fun getFoodUsage(id: String): FoodUsageResponse = get("/api/foods/$id/usage")
+
+    suspend fun getRecipeUsage(id: String): RecipeUsageResponse = get("/api/recipes/$id/usage")
 
     suspend fun getFood(id: String): Food {
         val response: FoodResponse = get("/api/foods/$id")

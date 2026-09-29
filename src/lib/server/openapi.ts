@@ -58,6 +58,7 @@ import {
 	entriesRangeResponseSchema
 } from './validation/responses/entries';
 import { recipesListResponseSchema, recipeResponseSchema } from './validation/responses/recipes';
+import { foodUsageResponseSchema, recipeUsageResponseSchema } from './validation/responses/usage';
 import {
 	supplementsListResponseSchema,
 	supplementResponseSchema,
@@ -678,7 +679,8 @@ export const apiPaths = {
 		delete: {
 			operationId: 'deleteFood',
 			tags: ['Foods'],
-			description: 'Delete a food. Pass force=true to delete even if diary entries reference it.',
+			description:
+				'Delete a food. Pass force=true to delete even if diary entries or recipes reference it. Refused with 409 even with force when the food is the only ingredient of a recipe (see lastIngredientRecipes) or is a supplement ingredient.',
 			requestParams: {
 				path: uuidPathId,
 				query: z.object({ force: z.boolean().optional() })
@@ -687,6 +689,23 @@ export const apiPaths = {
 				'204': res204,
 				'401': res401,
 				'409': res409
+			}
+		}
+	},
+	'/api/foods/{id}/usage': {
+		get: {
+			operationId: 'getFoodUsage',
+			tags: ['Foods'],
+			description:
+				'Where a food is used: the diary entries logging it (newest first, at most 200, with the total count), and the recipes and supplements that use it as an ingredient.',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodUsageResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
 			}
 		}
 	},
@@ -873,15 +892,40 @@ export const apiPaths = {
 		delete: {
 			operationId: 'deleteRecipe',
 			tags: ['Recipes'],
-			description: 'Delete a recipe. Pass force=true to delete even if diary entries reference it.',
+			description:
+				'Delete a recipe. Fails with 409 while diary entries log it; list them with GET /api/recipes/{id}/usage, remove or change them, then delete the recipe. The force parameter is deprecated and only kept for shipped app builds.',
 			requestParams: {
 				path: uuidPathId,
-				query: z.object({ force: z.boolean().optional() })
+				query: z.object({
+					force: z.boolean().optional().meta({
+						deprecated: true,
+						description:
+							'Deprecated: deletes the diary entries that log the recipe along with it. Clients no longer offer this; remove the entries explicitly instead.',
+						'x-sunset': '2027-03-31'
+					})
+				})
 			},
 			responses: {
 				'204': res204,
 				'401': res401,
 				'409': res409
+			}
+		}
+	},
+	'/api/recipes/{id}/usage': {
+		get: {
+			operationId: 'getRecipeUsage',
+			tags: ['Recipes'],
+			description:
+				'Where a recipe is logged: the diary entries referencing it, newest first (at most 200, with the total count).',
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeUsageResponseSchema } }
+				},
+				'401': res401,
+				'404': res404
 			}
 		}
 	},

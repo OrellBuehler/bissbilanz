@@ -22,6 +22,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
+	import WhereUsedDialog from '$lib/components/usage/WhereUsedDialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import Clock from '@lucide/svelte/icons/clock';
@@ -69,6 +70,11 @@
 	let forceDeleteId: string | null = $state(null);
 	let forceDeleteEntryCount = $state(0);
 	let forceDeleteRecipeCount = $state(0);
+	let forceDeleteSupplementCount = $state(0);
+	let forceDeleteLastRecipes = $state<{ id: string; name: string }[]>([]);
+	let forceDeleteName = $state('');
+	let usageOpen = $state(false);
+	let usageFood = $state<{ id: string; name: string } | null>(null);
 	let qualityOpen = $state(false);
 
 	let selecting = $state(false);
@@ -255,10 +261,18 @@
 			params: { path: { id } }
 		});
 		if (response.status === 409 && error) {
-			const conflict = error as { entryCount?: number; recipeCount?: number };
+			const conflict = error as {
+				entryCount?: number;
+				recipeCount?: number;
+				supplementIngredientCount?: number;
+				lastIngredientRecipes?: { id: string; name: string }[];
+			};
 			forceDeleteId = id;
+			forceDeleteName = foods.find((food) => food.id === id)?.name ?? '';
 			forceDeleteEntryCount = conflict.entryCount ?? 0;
 			forceDeleteRecipeCount = conflict.recipeCount ?? 0;
+			forceDeleteSupplementCount = conflict.supplementIngredientCount ?? 0;
+			forceDeleteLastRecipes = conflict.lastIngredientRecipes ?? [];
 			return;
 		}
 		foodService.refresh();
@@ -273,7 +287,20 @@
 		foodService.refresh();
 	};
 
+	// Force cannot delete a food that is a recipe's only ingredient or that
+	// supplements still use; say why instead of offering a button that does nothing.
+	const forceUnavailable = $derived(
+		forceDeleteLastRecipes.length > 0 || forceDeleteSupplementCount > 0
+	);
+
 	const foodDeleteDescription = () => {
+		if (forceUnavailable) {
+			return m.foods_delete_blocked_summary({
+				entryCount: forceDeleteEntryCount,
+				recipeCount: forceDeleteRecipeCount,
+				supplementCount: forceDeleteSupplementCount
+			});
+		}
 		if (forceDeleteEntryCount > 0 && forceDeleteRecipeCount > 0) {
 			return m.foods_delete_has_entries_and_recipes({
 				entryCount: forceDeleteEntryCount,
@@ -284,6 +311,24 @@
 			return m.foods_delete_has_recipes({ count: forceDeleteRecipeCount });
 		}
 		return m.foods_delete_has_entries({ count: forceDeleteEntryCount });
+	};
+
+	const foodDeleteNote = () => {
+		if (forceDeleteLastRecipes.length > 0) {
+			return m.foods_delete_last_ingredient({
+				recipes: forceDeleteLastRecipes.map((recipe) => `"${recipe.name}"`).join(', ')
+			});
+		}
+		if (forceDeleteSupplementCount > 0) {
+			return m.foods_delete_has_supplements({ count: forceDeleteSupplementCount });
+		}
+		return undefined;
+	};
+
+	const showFoodUsage = () => {
+		if (!forceDeleteId) return;
+		usageFood = { id: forceDeleteId, name: forceDeleteName };
+		usageOpen = true;
 	};
 
 	const enrichFood = async (id: string, barcode: string) => {
@@ -835,8 +880,19 @@
 	open={forceDeleteId !== null}
 	count={forceDeleteEntryCount + forceDeleteRecipeCount}
 	description={foodDeleteDescription()}
+	note={foodDeleteNote()}
+	forceDisabled={forceUnavailable}
+	usageLabel={m.usage_where_used()}
+	onShowUsage={showFoodUsage}
 	onConfirm={confirmForceDelete}
 	onCancel={() => (forceDeleteId = null)}
+/>
+
+<WhereUsedDialog
+	bind:open={usageOpen}
+	kind="food"
+	id={usageFood?.id ?? null}
+	name={usageFood?.name ?? ''}
 />
 
 <MergeFoodDialog

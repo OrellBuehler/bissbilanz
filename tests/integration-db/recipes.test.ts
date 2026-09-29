@@ -352,10 +352,27 @@ describe('food delete conflict counts (integration)', () => {
 				fiber: 1
 			})
 			.returning();
+		const [keeper] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Keeper',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 50,
+				protein: 1,
+				carbs: 5,
+				fat: 1,
+				fiber: 1
+			})
+			.returning();
 		const created = await createRecipe(userId, {
 			name: 'Recipe',
 			totalServings: 1,
-			ingredients: [{ foodId: food.id, quantity: 50, servingUnit: 'g' }]
+			ingredients: [
+				{ foodId: food.id, quantity: 50, servingUnit: 'g' },
+				{ foodId: keeper.id, quantity: 20, servingUnit: 'g' }
+			]
 		});
 		expect(created.success).toBe(true);
 		if (!created.success) return;
@@ -364,7 +381,7 @@ describe('food delete conflict counts (integration)', () => {
 		expect(result.blocked).toBe(false);
 
 		const recipe = await getRecipe(userId, created.data.id);
-		expect(recipe?.ingredients).toHaveLength(0);
+		expect(recipe?.ingredients.map((ingredient) => ingredient.foodId)).toEqual([keeper.id]);
 	});
 });
 

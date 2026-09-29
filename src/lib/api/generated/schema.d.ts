@@ -308,12 +308,29 @@ export interface paths {
 		get: operations['getFood'];
 		put?: never;
 		post?: never;
-		/** @description Delete a food. Pass force=true to delete even if diary entries reference it. */
+		/** @description Delete a food. Pass force=true to delete even if diary entries or recipes reference it. Refused with 409 even with force when the food is the only ingredient of a recipe (see lastIngredientRecipes) or is a supplement ingredient. */
 		delete: operations['deleteFood'];
 		options?: never;
 		head?: never;
 		/** @description Update a food in the personal database. */
 		patch: operations['updateFood'];
+		trace?: never;
+	};
+	'/api/foods/{id}/usage': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Where a food is used: the diary entries logging it (newest first, at most 200, with the total count), and the recipes and supplements that use it as an ingredient. */
+		get: operations['getFoodUsage'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	'/api/entries': {
@@ -415,12 +432,29 @@ export interface paths {
 		get: operations['getRecipe'];
 		put?: never;
 		post?: never;
-		/** @description Delete a recipe. Pass force=true to delete even if diary entries reference it. */
+		/** @description Delete a recipe. Fails with 409 while diary entries log it; list them with GET /api/recipes/{id}/usage, remove or change them, then delete the recipe. The force parameter is deprecated and only kept for shipped app builds. */
 		delete: operations['deleteRecipe'];
 		options?: never;
 		head?: never;
 		/** @description Update a recipe. `ingredients` and `steps` each replace the whole list when present (an empty `steps` list clears them) and leave it unchanged when omitted. */
 		patch: operations['updateRecipe'];
+		trace?: never;
+	};
+	'/api/recipes/{id}/usage': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Where a recipe is logged: the diary entries referencing it, newest first (at most 200, with the total count). */
+		get: operations['getRecipeUsage'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	'/api/supplements': {
@@ -2211,6 +2245,12 @@ export interface components {
 			ingredientCount?: number;
 			recipeCount?: number;
 			supplementIngredientCount?: number;
+			lastIngredientRecipes?: components['schemas']['LastIngredientRecipe'][];
+		};
+		LastIngredientRecipe: {
+			/** Format: uuid */
+			id: string;
+			name: string;
 		};
 		FoodDuplicatesResponse: {
 			groups: components['schemas']['FoodDuplicateGroup'][];
@@ -2259,6 +2299,31 @@ export interface components {
 		FoodLabelsSetResponse: {
 			labels: string[];
 			dropped: string[];
+		};
+		FoodUsageResponse: {
+			entries: components['schemas']['UsageEntry'][];
+			totalEntries: number;
+			recipes: components['schemas']['FoodUsageRecipe'][];
+			supplements: components['schemas']['FoodUsageSupplement'][];
+		};
+		UsageEntry: {
+			/** Format: uuid */
+			id: string;
+			date: string;
+			mealType: string;
+			servings: number;
+			eatenAt: string;
+		};
+		FoodUsageRecipe: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			isLastIngredient: boolean;
+		};
+		FoodUsageSupplement: {
+			/** Format: uuid */
+			id: string;
+			name: string;
 		};
 		EntriesListResponse: {
 			entries: components['schemas']['EntryListItem'][];
@@ -2462,6 +2527,10 @@ export interface components {
 			alcohol: number | null;
 			water: number | null;
 			salt: number | null;
+		};
+		RecipeUsageResponse: {
+			entries: components['schemas']['UsageEntry'][];
+			totalEntries: number;
 		};
 		SupplementsListResponse: {
 			supplements: components['schemas']['Supplement'][];
@@ -3909,6 +3978,30 @@ export interface operations {
 			404: components['responses']['NotFoundResponse'];
 		};
 	};
+	getFoodUsage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodUsageResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
 	listEntries: {
 		parameters: {
 			query: {
@@ -4130,6 +4223,7 @@ export interface operations {
 	deleteRecipe: {
 		parameters: {
 			query?: {
+				/** @description Deprecated: deletes the diary entries that log the recipe along with it. Clients no longer offer this; remove the entries explicitly instead. */
 				force?: boolean;
 			};
 			header?: never;
@@ -4170,6 +4264,30 @@ export interface operations {
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	getRecipeUsage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeUsageResponse'];
+				};
+			};
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
 		};

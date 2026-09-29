@@ -45,6 +45,13 @@ struct Recipe: Codable, Identifiable, Hashable {
     var fatPerServing: Double? { fat.map { $0 / max(totalServings, 1) } }
     var fiberPerServing: Double? { fiber.map { $0 / max(totalServings, 1) } }
 
+    /// True when every ingredient row is this food, so removing the food would
+    /// leave the recipe without an ingredient.
+    func hasOnlyIngredient(_ foodId: String) -> Bool {
+        let ingredients = ingredients ?? []
+        return !ingredients.isEmpty && ingredients.allSatisfy { $0.foodId == foodId }
+    }
+
     /// Grams per serving implied by `cookedWeight` — lets a recipe be logged by
     /// weight instead of by serving count. `servings = grams / servingSize`.
     var cookedWeightServingSize: Double? {

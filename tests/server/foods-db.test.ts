@@ -4,7 +4,7 @@ import { TEST_USER, TEST_FOOD, TEST_FOOD_2, VALID_FOOD_PAYLOAD } from '../helper
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 
 // Create mock DB
-const { db, setResult, setError, reset } = createMockDB();
+const { db, setResult, setError, reset, queueResults } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -183,16 +183,43 @@ describe('foods-db', () => {
 	});
 
 	describe('deleteFood', () => {
+		// deleteFood counts entries, recipe ingredients and supplement ingredients,
+		// then looks up recipes the food is the last ingredient of.
+		const counts = (entries: number, ingredients = 0, supplements = 0, lastRecipes: any[] = []) =>
+			queueResults([
+				[{ count: entries }],
+				[{ count: ingredients, recipeCount: ingredients }],
+				[{ count: supplements }],
+				lastRecipes
+			]);
+
 		test('deletes food', async () => {
-			setResult([{ count: 0 }]);
+			counts(0);
 			const result = await deleteFood(TEST_USER.id, TEST_FOOD.id);
 			expect(result.blocked).toBe(false);
 		});
 
 		test('does not throw when deleting nonexistent food', async () => {
-			setResult([{ count: 0 }]);
+			counts(0);
 			const result = await deleteFood(TEST_USER.id, 'nonexistent-id');
 			expect(result.blocked).toBe(false);
+		});
+
+		test('blocks a food with entries unless forced', async () => {
+			counts(2);
+			expect(await deleteFood(TEST_USER.id, TEST_FOOD.id)).toMatchObject({
+				blocked: true,
+				entryCount: 2
+			});
+			counts(2);
+			expect(await deleteFood(TEST_USER.id, TEST_FOOD.id, true)).toEqual({ blocked: false });
+		});
+
+		test('blocks the last ingredient of a recipe even when forced', async () => {
+			const recipes = [{ id: 'recipe-1', name: 'Porridge' }];
+			counts(0, 1, 0, recipes);
+			const result = await deleteFood(TEST_USER.id, TEST_FOOD.id, true);
+			expect(result).toMatchObject({ blocked: true, lastIngredientRecipes: recipes });
 		});
 	});
 

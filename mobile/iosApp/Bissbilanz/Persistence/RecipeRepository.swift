@@ -251,27 +251,17 @@ final class RecipeRepository {
         }
     }
 
-    /// Deletes a recipe the user already confirmed via a `DeleteOutcome.blocked` prompt.
-    func forceDeleteRecipe(id: String) async throws {
+    /// The diary entries that log this recipe, newest first, so a blocked delete
+    /// can point the user at the entries to remove or change. Local mode (or a
+    /// not-yet-uploaded temp id) has no server to ask and reads the local store.
+    func whereUsed(id: String) async throws -> WhereUsed {
         if appMode.isLocal || LocalStore.isTempId(id) {
-            try await deleteRecipe(id: id)
-            return
+            let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId == id })
+            let rows = (try? context.fetch(descriptor)) ?? []
+            let entries = WhereUsed.sortedNewestFirst(rows.map(\.whereUsedEntry))
+            return WhereUsed(entries: Array(entries.prefix(WhereUsed.entryLimit)), totalEntries: rows.count)
         }
-        let doomed = recipe(id: id)
-        let imageUrl = doomed?.imageUrl
-        Self.evictLocalPhotos(of: doomed?.orderedSteps ?? [], keeping: [])
-        deleteRow(id: id)
-        save()
-        do {
-            try await api.deleteRecipe(id: id, force: true)
-            syncManager.removeQueued(table: "recipes", affectedId: id)
-        } catch {
-            if error is CancellationError { throw error }
-            // Offline or a transient failure — queue the forced delete so the
-            // user's confirmed choice still lands once connectivity returns.
-            syncManager.enqueue(.deleteRecipe(id: id, force: true))
-        }
-        if let imageUrl { LocalImageStore.evict(imageUrl) }
+        return try await api.getRecipeUsage(id: id)
     }
 
     /// Rewrites the still-queued create for a temp-id recipe so the eventual
@@ -407,7 +397,7 @@ final class RecipeRepository {
     }
 
     /// Copy of `recipe` with `ingredients` swapped in and macros recomputed.
-    private static func applying(ingredients: [RecipeIngredient], to recipe: Recipe) -> Recipe {
+    static func applying(ingredients: [RecipeIngredient], to recipe: Recipe) -> Recipe {
         let macros = recipeMacros(of: ingredients)
         var result = Recipe(
             id: recipe.id,
