@@ -1529,6 +1529,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { id, ...rest } = args;
 			const result = await d.updateSleepEntry(userId, id, rest);
 			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Sleep entry not found' };
 			return { success: true, entryId: id };
 		} catch (e) {
 			wrapError('update sleep', e);

@@ -60,8 +60,9 @@ export const deleteMealType = async (userId: string, id: string) => {
 			.delete(customMealTypes)
 			.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)));
 	} catch (error) {
-		const dbError = error as { code?: string };
-		if (dbError.code === '23503') {
+		const dbError = error as { code?: string; cause?: { code?: string } };
+		const code = dbError.cause?.code ?? dbError.code;
+		if (code === '23503' || code === '23001') {
 			throw new ApiError(
 				409,
 				'Meal type is used in favorites meal timeframes and cannot be deleted'
