@@ -43,6 +43,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 class SyncManagerTest {
     private lateinit var api: BissbilanzApi
@@ -139,20 +140,82 @@ class SyncManagerTest {
         }
 
     @Test
-    fun clientErrorDropsOperationAndRecordsError() =
+    fun clientErrorParksOperationInsteadOfDeletingIt() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
             coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("bad request", 400)
 
             val synced = manager.syncPendingQueue()
 
-            assertEquals(1, synced)
+            assertEquals(0, synced)
+            // Out of the drain, but still stored so the user can retry or discard it.
             assertEquals(0, syncQueue.pendingCount())
+            assertEquals(1, syncQueue.failedCount())
+            assertEquals(1, manager.state.value.failedCount)
+            val parked = manager.parkedChanges().single()
+            assertEquals("HTTP 400", parked.failureReason)
+            assertNotNull(parked.failedAt)
             assertTrue(
                 manager.state.value.errors
                     .single()
                     .contains("HTTP 400"),
             )
+        }
+
+    @Test
+    fun parkedOperationIsNotSentAgainUntilRetried() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("unprocessable", 422)
+            manager.syncPendingQueue()
+
+            manager.syncPendingQueue()
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
+
+            coEvery { api.deleteEntry("e1", any(), any()) } returns Unit
+            manager.retryParked(manager.parkedChanges().single().id)
+
+            coVerify(exactly = 2) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(0, syncQueue.all().size)
+            assertEquals(0, manager.state.value.failedCount)
+        }
+
+    @Test
+    fun discardParkedDeletesOnlyParkedChanges() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("bad request", 400)
+            manager.syncPendingQueue()
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            var refreshes = 0
+            manager.onConflictResolved = { refreshes++ }
+            val pendingId = syncQueue.all().single { it.failedAt == null }.id
+
+            // A pending (not parked) row is untouched even when addressed by id.
+            manager.discardParked(pendingId)
+            assertEquals(2, syncQueue.all().size)
+
+            manager.discardParked(manager.parkedChanges().single().id)
+
+            assertEquals(listOf(pendingId), syncQueue.all().map { it.id })
+            assertEquals(0, manager.state.value.failedCount)
+            assertEquals(2, refreshes)
+        }
+
+    @Test
+    fun transientClientStatusesBackOffInsteadOfParking() =
+        runTest {
+            listOf(408, 425, 429).forEach { status ->
+                syncQueue.clear()
+                syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+                coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("transient", status)
+
+                manager.syncPendingQueue()
+
+                assertEquals(1, syncQueue.pendingCount(), "status $status")
+                assertEquals(0, syncQueue.failedCount(), "status $status")
+                assertEquals(1, syncQueue.all().single().retryCount, "status $status")
+            }
         }
 
     @Test
@@ -173,13 +236,14 @@ class SyncManagerTest {
 
             val synced = manager.syncPendingQueue()
 
-            assertEquals(1, synced)
+            // Parked, not deleted: the user's logged meal stays visible with the reason.
+            assertEquals(0, synced)
             assertEquals(0, syncQueue.pendingCount())
-            val notice =
+            assertEquals("the referenced food or recipe no longer exists", manager.parkedChanges().single().failureReason)
+            assertTrue(
                 manager.state.value.conflictNotices
-                    .single()
-            assertTrue(notice.contains("no longer exists"))
-            assertTrue(!notice.contains("deleted on another device"))
+                    .isEmpty(),
+            )
         }
 
     @Test
@@ -200,7 +264,7 @@ class SyncManagerTest {
         }
 
     @Test
-    fun serverErrorBacksOffAndGivesUpAfterMaxRetries() =
+    fun serverErrorBacksOffIndefinitelyWithoutDropping() =
         runTest {
             syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
             coEvery { api.deleteEntry(any(), any(), any()) } throws ApiException("server error", 500)
@@ -220,18 +284,31 @@ class SyncManagerTest {
                 }
             }
 
-            // Attempt 5: hits the MAX_RETRIES cap, drops the item.
-            syncQueue.setNextAttemptAt(itemId, 0)
-            val last = manager.syncPendingQueue()
+            // Attempts 5..20: the old five-retry cap must be gone — the change survives an
+            // outage far longer than a deploy restart and is never parked or dropped.
+            repeat(16) {
+                syncQueue.setNextAttemptAt(itemId, 0)
+                assertEquals(0, manager.syncPendingQueue())
+            }
 
-            assertEquals(1, last)
-            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(1, syncQueue.pendingCount())
+            assertEquals(0, syncQueue.failedCount())
             assertTrue(
                 manager.state.value.errors
-                    .single()
-                    .contains("Gave up"),
+                    .isEmpty(),
             )
-            coVerify(exactly = 5) { api.deleteEntry(any(), any(), any()) }
+            coVerify(exactly = 20) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(20L, syncQueue.all().single().retryCount)
+
+            // Backoff is capped (5 minutes plus jitter), not exponential without bound.
+            val gate = syncQueue.all().single().nextAttemptAt - Clock.System.now().toEpochMilliseconds()
+            assertTrue(gate <= 5 * 60 * 1_000L, "backoff gate $gate exceeds the cap")
+
+            // Recovery: the same change uploads once the server is back.
+            coEvery { api.deleteEntry(any(), any(), any()) } returns Unit
+            syncQueue.setNextAttemptAt(itemId, 0)
+            assertEquals(1, manager.syncPendingQueue())
+            assertEquals(0, syncQueue.pendingCount())
         }
 
     @Test
@@ -738,7 +815,7 @@ class SyncManagerTest {
         }
 
     @Test
-    fun chainedEntryCreateDropsAsNeverCreatedOnceFoodCreateIsPermanentlyGone() =
+    fun chainedEntryCreateWaitsBehindAParkedFoodCreateAndIsParkedOnceItIsDiscarded() =
         runTest {
             enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
             enqueueAt(
@@ -754,19 +831,22 @@ class SyncManagerTest {
             // No stub for api.createEntry: its referenced food was never created, so
             // it must never be attempted.
 
-            // The food create 400s and is dropped permanently; the entry create right
-            // behind it in the same batch sees its reference is gone for good and
-            // drops too, without ever hitting the network.
-            val synced = manager.syncPendingQueue()
-
-            assertEquals(2, synced)
-            assertEquals(0, syncQueue.pendingCount())
+            // The food create 400s and is parked; the entry create behind it sees its
+            // parent still exists in the queue and waits, without hitting the network.
+            assertEquals(0, manager.syncPendingQueue())
+            assertEquals(1, syncQueue.pendingCount())
+            assertEquals(1, syncQueue.failedCount())
             coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
-            assertTrue(
-                manager.state.value.conflictNotices
-                    .single()
-                    .contains("was never created"),
-            )
+
+            // Once the user discards the food create nothing can resolve the reference:
+            // the entry create is parked (kept for review), still never sent.
+            manager.discardParked(manager.parkedChanges().single().id)
+            syncQueue.setNextAttemptAt(syncQueue.all().single().id, 0)
+            assertEquals(0, manager.syncPendingQueue())
+
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals("the food or recipe it depended on was never created", manager.parkedChanges().single().failureReason)
+            coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
         }
 
     private fun serverEntry(

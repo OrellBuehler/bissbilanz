@@ -47,9 +47,11 @@ fun PendingSyncScreen(navController: NavController) {
 
     // Re-read whenever the queue drains or something new is enqueued, so the
     // list tracks the same state the sync manager reports.
-    LaunchedEffect(syncState.pendingCount, syncState.isSyncing) {
+    LaunchedEffect(syncState.pendingCount, syncState.failedCount, syncState.isSyncing) {
         pending = syncQueue.all()
     }
+    val parked = pending.filter { it.failedAt != null }
+    val waiting = pending.filter { it.failedAt == null }
 
     Scaffold(
         topBar = {
@@ -61,7 +63,7 @@ fun PendingSyncScreen(navController: NavController) {
                     }
                 },
                 actions = {
-                    if (pending.isNotEmpty()) {
+                    if (waiting.isNotEmpty()) {
                         IconButton(
                             onClick = { scope.launch { syncManager.syncPendingQueue() } },
                             enabled = !syncState.isSyncing,
@@ -130,7 +132,75 @@ fun PendingSyncScreen(navController: NavController) {
                     }
                 }
 
-                items(pending, key = { it.id }) { request ->
+                if (parked.isNotEmpty()) {
+                    item(key = "parked-header") {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                stringResource(R.string.pending_sync_parked_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                stringResource(R.string.pending_sync_parked_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(parked, key = { "parked-${it.id}" }) { request ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Icon(
+                                        iconFor(request.operation),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Column {
+                                        Text(
+                                            stringResource(labelFor(request.operation)),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                        )
+                                        request.failureReason?.let { reason ->
+                                            Text(
+                                                stringResource(R.string.pending_sync_parked_reason, reason),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                            )
+                                        }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    TextButton(onClick = { scope.launch { syncManager.discardParked(request.id) } }) {
+                                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(stringResource(R.string.pending_sync_discard))
+                                    }
+                                    TextButton(
+                                        onClick = { scope.launch { syncManager.retryParked(request.id) } },
+                                        enabled = !syncState.isSyncing,
+                                    ) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(stringResource(R.string.pending_sync_retry))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                items(waiting, key = { it.id }) { request ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

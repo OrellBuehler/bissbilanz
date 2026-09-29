@@ -61,7 +61,7 @@ fun SettingsScreen(navController: NavController) {
     val healthConnect: HealthConnectService = koinInject()
     val healthAvailable = remember { healthConnect.isAvailable() }
     val syncState by syncManager.state.collectAsStateWithLifecycle()
-    val pendingSyncCount = syncState.pendingCount
+    val pendingSyncCount = syncState.pendingCount + syncState.failedCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()

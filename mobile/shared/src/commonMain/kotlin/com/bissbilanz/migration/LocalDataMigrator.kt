@@ -1,6 +1,7 @@
 package com.bissbilanz.migration
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.FavoriteMealTimeframeInput
@@ -46,6 +47,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /** What would be uploaded by [LocalDataMigrator.migrate], counted from the local cache. */
 data class MigrationPlan(
@@ -194,6 +197,7 @@ class LocalDataMigrator(
      */
     fun resetNormalization() {
         cacheQueries.deleteSyncMeta(NORMALIZED_MARKER)
+        cacheQueries.deleteSyncMeta(MIGRATION_ID_MARKER)
     }
 
     private suspend fun runMigration() {
@@ -215,6 +219,7 @@ class LocalDataMigrator(
             done = uploadPreferences(done, total)
             uploadDayProperties(done, total)
             cacheQueries.deleteSyncMeta(NORMALIZED_MARKER)
+            cacheQueries.deleteSyncMeta(MIGRATION_ID_MARKER)
             appModeManager.setMode(AppMode.SYNCED)
             _state.value = MigrationState.Completed
         } catch (e: Exception) {
@@ -506,6 +511,43 @@ class LocalDataMigrator(
         _state.value = MigrationState.Running(done, total, step)
     }
 
+    /**
+     * Idempotency key for uploading the local row [localId]. Stable across retries and app
+     * restarts of one migration cycle (per-cycle id persisted in `SyncMeta` + the row's
+     * temp id), so a create that committed server-side just before a crash is replayed
+     * by the server on resume instead of duplicating the row.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private fun uploadKey(localId: String): String {
+        val id =
+            cacheQueries.selectSyncMeta(MIGRATION_ID_MARKER).executeAsOneOrNull()
+                ?: Uuid.random().toString().also { cacheQueries.upsertSyncMeta(MIGRATION_ID_MARKER, it) }
+        return "mig-$id-$localId"
+    }
+
+    /**
+     * Creates [cached] on the server. A 409 means the account already has a food with the
+     * same barcode (typically from an earlier partial run or another device); that food is
+     * adopted as the upload result so the migration continues instead of failing forever.
+     * The 409 body only carries a message, so the existing food is looked up by barcode.
+     */
+    private suspend fun createFoodOrAdoptExisting(
+        localId: String,
+        cached: Food,
+    ): Food {
+        val create = cached.toFoodCreate().copy(imageUrl = uploadableImageUrl(cached.imageUrl))
+        try {
+            return api.createFood(create, uploadKey(localId))
+        } catch (e: ApiException) {
+            val barcode = cached.barcode
+            if (e.statusCode != HTTP_STATUS_CONFLICT || barcode.isNullOrBlank()) throw e
+            api.getFoodByBarcode(barcode)?.let { return it }
+            // The server refused the barcode but will not show us the owner (e.g. a
+            // barcode format its lookup rejects): keep the food, drop only the barcode.
+            return api.createFood(create.copy(barcode = null), uploadKey("$localId:no-barcode"))
+        }
+    }
+
     private suspend fun uploadFoods(
         startDone: Int,
         total: Int,
@@ -516,7 +558,7 @@ class LocalDataMigrator(
             val cached =
                 json.decodeOrNull<Food>(row.jsonData)
                     ?: throw IllegalStateException("Could not read local food \"${row.name}\"")
-            val server = api.createFood(cached.toFoodCreate().copy(imageUrl = uploadableImageUrl(cached.imageUrl)))
+            val server = createFoodOrAdoptExisting(row.id, cached)
             queries.transaction {
                 queries.deleteFood(row.id)
                 queries.insertFood(
@@ -590,7 +632,7 @@ class LocalDataMigrator(
                             )
                         },
                 )
-            val server = api.createRecipe(create).serverTotalsToPerServing()
+            val server = api.createRecipe(create, uploadKey(row.id)).serverTotalsToPerServing()
             queries.transaction {
                 queries.deleteRecipe(row.id)
                 queries.insertRecipe(
@@ -631,7 +673,7 @@ class LocalDataMigrator(
                 progress(++done, total, STEP_ENTRIES)
                 continue
             }
-            val server = api.createEntry(cached.toEntryCreate())
+            val server = api.createEntry(cached.toEntryCreate(), uploadKey(row.id))
             val updated =
                 cached.copy(
                     id = server.id,
@@ -661,6 +703,7 @@ class LocalDataMigrator(
             val server =
                 api.createWeightEntry(
                     WeightCreate(weightKg = cached.weightKg, entryDate = cached.entryDate, notes = cached.notes),
+                    uploadKey(row.id),
                 )
             queries.transaction {
                 queries.deleteWeightEntry(row.id)
@@ -698,6 +741,7 @@ class LocalDataMigrator(
                         wakeUps = cached.wakeUps,
                         notes = cached.notes,
                     ),
+                    uploadKey(row.id),
                 )
             queries.transaction {
                 queries.deleteSleepEntry(row.id)
@@ -745,7 +789,7 @@ class LocalDataMigrator(
                     sortOrder = cached.sortOrder,
                     timeOfDay = cached.timeOfDay?.let { SupplementCreate.TimeOfDay.valueOf(it.name) },
                 )
-            val server = api.createSupplement(create)
+            val server = api.createSupplement(create, uploadKey(row.id))
             queries.transaction {
                 queries.deleteSupplement(row.id)
                 queries.insertSupplement(
@@ -775,7 +819,7 @@ class LocalDataMigrator(
                 progress(++done, total, STEP_SUPPLEMENT_LOGS)
                 continue
             }
-            api.logSupplement(row.supplementId, row.date)
+            api.logSupplement(row.supplementId, row.date, uploadKey(row.id))
             queries.transaction {
                 queries.deleteSupplementLogById(row.id)
                 queries.insertSupplementLog(
@@ -808,7 +852,7 @@ class LocalDataMigrator(
                     weekdays = cached.weekdays,
                     enabled = cached.enabled,
                 )
-            val server = api.createReminder(create)
+            val server = api.createReminder(create, uploadKey(row.id))
             queries.transaction {
                 queries.deleteReminder(row.id)
                 queries.insertReminder(
@@ -1085,6 +1129,8 @@ class LocalDataMigrator(
 
     companion object {
         private const val NORMALIZED_MARKER = "migration_normalized"
+        private const val MIGRATION_ID_MARKER = "migration_id"
+        private const val HTTP_STATUS_CONFLICT = 409
 
         const val STEP_PREPARE = "prepare"
         const val STEP_FOODS = "foods"

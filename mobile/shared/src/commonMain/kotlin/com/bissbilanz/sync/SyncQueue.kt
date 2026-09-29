@@ -20,6 +20,9 @@ data class QueuedRequest(
     val idempotencyKey: String,
     val clientEditedAt: String,
     val nextAttemptAt: Long,
+    /** Set once the server permanently rejected the change; it is parked, not retried. */
+    val failedAt: Long? = null,
+    val failureReason: String? = null,
 )
 
 class SyncQueue(
@@ -62,17 +65,22 @@ class SyncQueue(
                 .filter { it.id !in inProgress }
                 .map {
                     inProgress.add(it.id)
-                    QueuedRequest(
-                        id = it.id,
-                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
-                        createdAt = it.createdAt,
-                        retryCount = it.retryCount,
-                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
-                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
-                        nextAttemptAt = it.nextAttemptAt,
-                    )
+                    it.toQueuedRequest()
                 }
         }
+
+    private fun com.bissbilanz.cache.SyncQueue.toQueuedRequest() =
+        QueuedRequest(
+            id = id,
+            operation = json.decodeFromString(SyncOperation.serializer(), operation),
+            createdAt = createdAt,
+            retryCount = retryCount,
+            idempotencyKey = idempotencyKey ?: id.toString(),
+            clientEditedAt = clientEditedAt ?: createdAt.toString(),
+            nextAttemptAt = nextAttemptAt,
+            failedAt = failedAt,
+            failureReason = failureReason,
+        )
 
     suspend fun remove(id: Long) =
         mutex.withLock {
@@ -87,15 +95,7 @@ class SyncQueue(
                 .selectAllSyncQueue()
                 .executeAsList()
                 .map {
-                    QueuedRequest(
-                        id = it.id,
-                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
-                        createdAt = it.createdAt,
-                        retryCount = it.retryCount,
-                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
-                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
-                        nextAttemptAt = it.nextAttemptAt,
-                    )
+                    it.toQueuedRequest()
                 }
         }
 
@@ -108,15 +108,7 @@ class SyncQueue(
                 .selectSyncQueueByAffected(table, id)
                 .executeAsList()
                 .map {
-                    QueuedRequest(
-                        id = it.id,
-                        operation = json.decodeFromString(SyncOperation.serializer(), it.operation),
-                        createdAt = it.createdAt,
-                        retryCount = it.retryCount,
-                        idempotencyKey = it.idempotencyKey ?: it.id.toString(),
-                        clientEditedAt = it.clientEditedAt ?: it.createdAt.toString(),
-                        nextAttemptAt = it.nextAttemptAt,
-                    )
+                    it.toQueuedRequest()
                 }
         }
 
@@ -199,10 +191,53 @@ class SyncQueue(
                 .executeAsOneOrNull()
         }
 
+    /** Changes still waiting to upload. Parked (permanently rejected) changes are not counted. */
     suspend fun pendingCount(): Long =
         mutex.withLock {
             db.bissbilanzDatabaseQueries.countSyncQueue().executeAsOne()
         }
+
+    suspend fun failedCount(): Long =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries.countFailedSyncQueue().executeAsOne()
+        }
+
+    /**
+     * Parks [id]: the server permanently rejected it, so it leaves the drain but stays in
+     * the queue until the user retries or discards it. Never deletes the change.
+     */
+    suspend fun park(
+        id: Long,
+        reason: String,
+    ) {
+        mutex.withLock {
+            inProgress.remove(id)
+            db.bissbilanzDatabaseQueries.parkSyncQueueItem(Clock.System.now().toEpochMilliseconds(), reason, id)
+        }
+    }
+
+    /** Puts a parked change back in line for the next drain; null retries every parked change. */
+    suspend fun unpark(id: Long? = null) {
+        mutex.withLock {
+            if (id == null) {
+                db.bissbilanzDatabaseQueries.unparkAllSyncQueue()
+            } else {
+                db.bissbilanzDatabaseQueries.unparkSyncQueueItem(id)
+            }
+        }
+        _enqueueSignal.tryEmit(Unit)
+    }
+
+    /** Deletes a parked change for good (the user chose to); null discards every parked change. */
+    suspend fun discardParked(id: Long? = null) {
+        mutex.withLock {
+            if (id == null) {
+                db.bissbilanzDatabaseQueries.deleteFailedSyncQueue()
+            } else {
+                db.bissbilanzDatabaseQueries.deleteFailedSyncQueueItem(id)
+            }
+        }
+    }
 
     suspend fun clear() =
         mutex.withLock {

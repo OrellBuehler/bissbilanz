@@ -34,6 +34,8 @@ import com.bissbilanz.model.Entry as LocalEntry
 data class SyncState(
     val isSyncing: Boolean = false,
     val pendingCount: Long = 0,
+    /** Changes the server permanently rejected; kept in the queue for the user to retry or discard. */
+    val failedCount: Long = 0,
     val lastSyncedAt: Long? = null,
     val errors: List<String> = emptyList(),
     val conflictNotices: List<String> = emptyList(),
@@ -84,7 +86,8 @@ class SyncManager(
         this.onSynced = onSynced
         autoRetryEnabled = true
         scope.launch {
-            _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
+            _state.value =
+                _state.value.copy(pendingCount = syncQueue.pendingCount(), failedCount = syncQueue.failedCount())
 
             connectivityProvider.isOnline.collect { online ->
                 if (online) {
@@ -132,10 +135,12 @@ class SyncManager(
             }
         } finally {
             val pending = syncQueue.pendingCount()
+            val failed = syncQueue.failedCount()
             _state.value =
                 _state.value.copy(
                     isSyncing = false,
                     pendingCount = pending,
+                    failedCount = failed,
                     lastSyncedAt =
                         if (totalSynced > 0) {
                             Clock.System.now().toEpochMilliseconds()
@@ -223,14 +228,12 @@ class SyncManager(
                             continue
                         }
                         // Nothing will ever resolve this `temp_` id: the create it
-                        // depended on was dropped/failed for good.
-                        syncQueue.remove(req.id)
-                        synced++
-                        addConflict(
-                            "Offline change to ${req.operation.description} was dropped: " +
-                                "the food or recipe it depended on was never created.",
+                        // depended on is gone (the user discarded it). Park rather than
+                        // delete — the user's change stays visible until they decide.
+                        parkFailed(
+                            req,
+                            "the food or recipe it depended on was never created",
                         )
-                        sawConflict = true
                         continue
                     }
 
@@ -265,13 +268,7 @@ class SyncManager(
                         // existed when the op was queued and is gone now (e.g. the food
                         // was deleted before the offline create finally drained).
                         e.statusCode in listOf(404, 410) && isCreate -> {
-                            syncQueue.remove(req.id)
-                            synced++
-                            addConflict(
-                                "Offline change to ${req.operation.description} was dropped: " +
-                                    "the referenced food or recipe no longer exists.",
-                            )
-                            sawConflict = true
+                            parkFailed(req, "the referenced food or recipe no longer exists")
                         }
 
                         // 404/410 on other (non-create, non-delete) PATCH/PUT/POST →
@@ -295,11 +292,9 @@ class SyncManager(
                             sawConflict = true
                         }
 
-                        // 409 without header → real duplicate/validation conflict; dead-letter
+                        // 409 without header → real duplicate/validation conflict; park
                         e.statusCode == 409 -> {
-                            syncQueue.remove(req.id)
-                            synced++
-                            addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
+                            parkFailed(req, "HTTP ${e.statusCode}")
                         }
 
                         // 426: this build is too old for the server. Every other request
@@ -313,58 +308,43 @@ class SyncManager(
                             break
                         }
 
-                        // Other 4xx client errors → dead-letter
-                        e.statusCode in 400..499 -> {
-                            syncQueue.remove(req.id)
-                            synced++
-                            addError("Failed to sync ${req.operation.description}: HTTP ${e.statusCode}")
+                        // Permanent 4xx client errors → park (kept, surfaced, retry/discard).
+                        // Timeouts and rate limits are transient and fall through to backoff.
+                        e.statusCode in 400..499 && e.statusCode !in TRANSIENT_CLIENT_STATUSES -> {
+                            parkFailed(req, "HTTP ${e.statusCode}")
                         }
 
-                        // 5xx / network errors → exponential backoff
+                        // 5xx / 408 / 425 / 429 / network errors → capped exponential
+                        // backoff, retried indefinitely: a deploy restart or a long outage
+                        // must never cost the user an offline-logged change.
                         else -> {
                             val count = syncQueue.incrementAndGetRetryCount(req.id)
-                            if (count >= MAX_RETRIES) {
-                                syncQueue.remove(req.id)
-                                synced++
-                                addError(
-                                    "Gave up syncing ${req.operation.description} after $MAX_RETRIES retries.",
-                                )
-                            } else {
-                                val delay = backoffMs(count, req.id)
-                                syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
-                                syncQueue.releaseForRetry(req.id)
-                                stoppedEarly = true
-                                break
-                            }
+                            val delay = backoffMs(count, req.id)
+                            syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
+                            syncQueue.releaseForRetry(req.id)
+                            stoppedEarly = true
+                            break
                         }
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
                     val count = syncQueue.incrementAndGetRetryCount(req.id)
-                    if (count >= MAX_RETRIES) {
-                        syncQueue.remove(req.id)
-                        synced++
-                        addError(
-                            "Gave up syncing ${req.operation.description} after $MAX_RETRIES retries.",
-                        )
-                    } else {
-                        val delay = backoffMs(count, req.id)
-                        syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
-                        syncQueue.releaseForRetry(req.id)
-                        // Skip a payload this build cannot serialize: it is broken for this one
-                        // operation, and parking the rest of the queue behind it buys nothing.
-                        // Everything else caught here is a transport failure that every remaining
-                        // upload would hit too, so stop — continuing would spend all five retries
-                        // of every queued item on one outage and dead-letter the lot.
-                        if (!isPayloadFailure(e)) {
-                            stoppedEarly = true
-                            break
-                        }
+                    val delay = backoffMs(count, req.id)
+                    syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
+                    syncQueue.releaseForRetry(req.id)
+                    // Skip a payload this build cannot serialize: it is broken for this one
+                    // operation, and holding the rest of the queue behind it buys nothing.
+                    // Everything else caught here is a transport failure that every remaining
+                    // upload would hit too, so stop and let the backoff timer retry.
+                    if (!isPayloadFailure(e)) {
+                        stoppedEarly = true
+                        break
                     }
                 }
 
-                _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
+                _state.value =
+                    _state.value.copy(pendingCount = syncQueue.pendingCount(), failedCount = syncQueue.failedCount())
             }
         } finally {
             // Release any drained-but-unprocessed items back to the queue. An early
@@ -871,6 +851,42 @@ class SyncManager(
         }
     }
 
+    /**
+     * The server permanently rejected [req]. It is parked — kept in the queue with the
+     * reason, out of the drain — and surfaced so the user can retry or discard it, never
+     * deleted on their behalf.
+     */
+    private suspend fun parkFailed(
+        req: QueuedRequest,
+        reason: String,
+    ) {
+        syncQueue.park(req.id, reason)
+        addError("Could not sync ${req.operation.description} ($reason). It was kept so you can retry or discard it.")
+    }
+
+    /** Every change the server permanently rejected, oldest first. */
+    suspend fun parkedChanges(): List<QueuedRequest> = syncQueue.all().filter { it.failedAt != null }
+
+    /** Puts a parked change (or all of them, when [id] is null) back in line and drains now. */
+    suspend fun retryParked(id: Long? = null) {
+        syncQueue.unpark(id)
+        _state.value = _state.value.copy(failedCount = syncQueue.failedCount(), pendingCount = syncQueue.pendingCount())
+        syncPendingQueue()
+    }
+
+    /** Deletes a parked change (or all of them, when [id] is null) on the user's say-so. */
+    suspend fun discardParked(id: Long? = null) {
+        syncQueue.discardParked(id)
+        _state.value = _state.value.copy(failedCount = syncQueue.failedCount())
+        // Pull server state back so an optimistic local row for the discarded change goes away.
+        try {
+            onConflictResolved?.invoke()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+
     private fun addError(message: String) {
         _state.value = _state.value.copy(errors = _state.value.errors + message)
     }
@@ -885,7 +901,8 @@ class SyncManager(
     }
 
     companion object {
-        private const val MAX_RETRIES = 5
+        /** Client errors that are transient (timeout, too early, rate limited): retried, never parked. */
+        private val TRANSIENT_CLIENT_STATUSES = setOf(408, 425, 429)
 
         /** Caps how many 50-item pages a single [syncPendingQueue] call drains, so a
          * pathological queue can't loop forever within one call. */

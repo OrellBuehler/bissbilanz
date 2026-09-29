@@ -142,6 +142,11 @@
     <string name="pending_sync_empty">Alles synchronisiert</string>
     <string name="pending_sync_empty_detail">Es warten keine lokalen Änderungen auf den Upload.</string>
     <string name="pending_sync_retry_count">%1$d Mal erneut versucht</string>
+    <string name="pending_sync_parked_title">Braucht deine Aufmerksamkeit</string>
+    <string name="pending_sync_parked_detail">Der Server hat diese Änderungen abgelehnt. Sie bleiben hier gespeichert, bis du sie erneut versuchst oder verwirfst.</string>
+    <string name="pending_sync_parked_reason">Abgelehnt: %1$s</string>
+    <string name="pending_sync_retry">Erneut versuchen</string>
+    <string name="pending_sync_discard">Verwerfen</string>
     <string name="sync_create_entry">Eintrag hinzufügen</string>
     <string name="sync_update_entry">Eintrag bearbeiten</string>
     <string name="sync_delete_entry">Eintrag löschen</string>
