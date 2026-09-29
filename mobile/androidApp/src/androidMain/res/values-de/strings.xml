@@ -1303,6 +1303,8 @@
     <string name="food_package_labels">Labels</string>
     <string name="food_package_filter_hint">Lebensmittel, die zu einer gewählten Marke oder einem Label passen, werden exportiert.</string>
     <string name="food_package_filter_empty">Noch nichts zur Auswahl</string>
+    <string name="food_package_filter_search">Marken und Labels suchen</string>
+    <string name="food_package_filter_no_match">Keine Treffer</string>
     <string name="food_package_include_recipes">Rezepte einschliessen</string>
     <string name="food_package_include_related_recipes">Auch Rezepte mit diesen Lebensmitteln einschliessen</string>
     <string name="food_package_summary">%1$d Lebensmittel · %2$d Rezepte · %3$d Fotos · ~%4$s</string>

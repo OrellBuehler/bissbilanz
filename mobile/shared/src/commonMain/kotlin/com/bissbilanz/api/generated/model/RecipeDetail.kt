@@ -17,6 +17,7 @@ package com.bissbilanz.api.generated.model
 
 import com.bissbilanz.api.generated.model.RecipeExtendedNutrients
 import com.bissbilanz.api.generated.model.RecipeIngredient
+import com.bissbilanz.api.generated.model.RecipeStep
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -39,6 +40,7 @@ import kotlinx.serialization.encoding.*
  * @param cookedWeight
  * @param createdAt
  * @param updatedAt
+ * @param steps
  * @param extendedNutrientsPerServing
  */
 @Serializable
@@ -58,5 +60,6 @@ data class RecipeDetail(
     @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
+    @SerialName(value = "steps") val steps: kotlin.collections.List<RecipeStep>? = null,
     @SerialName(value = "extendedNutrientsPerServing") val extendedNutrientsPerServing: RecipeExtendedNutrients? = null,
 )

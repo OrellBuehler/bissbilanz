@@ -17,6 +17,7 @@ import type { Result } from '$lib/server/types';
 import { unlinkUploads } from '$lib/server/images';
 import { foodColumnsWithLabels } from '$lib/server/food-labels';
 import type { FoodWithLabels } from '$lib/server/foods';
+import { convertQuantityForMacros, isSameUnitDimension, unitConversionFactor } from '$lib/units';
 
 type Food = typeof foods.$inferSelect;
 
@@ -100,6 +101,51 @@ export function applyOverrides(
 	return result as Partial<Food>;
 }
 
+type ServingOf = Pick<Food, 'servingSize' | 'servingUnit'>;
+
+/**
+ * Multiplier for a diary entry's (or supplement ingredient's) `servings` when
+ * it moves from `source` to `keeper`, so the logged amount stays the same.
+ * Serving sizes are compared in base units (1 kg vs 100 g is a factor of 10).
+ * Across dimensions (mass vs. volume) there is no density to convert with, so
+ * the plain size ratio is used.
+ */
+export function servingsRescaleFactor(source: ServingOf, keeper: ServingOf): number {
+	if (!(keeper.servingSize > 0)) return 1;
+	const unitFactor = unitConversionFactor(source.servingUnit, keeper.servingUnit) ?? 1;
+	return (source.servingSize * unitFactor) / keeper.servingSize;
+}
+
+/**
+ * The quantity/unit a recipe ingredient needs once it points at `keeper`.
+ * Ingredients already measured in the keeper's dimension keep their values;
+ * the macro math converts units on read. Otherwise (mass vs. volume merge)
+ * the amount is re-expressed in the keeper's serving unit, keeping the same
+ * number of servings so the recipe's macros don't change.
+ */
+export function rescaleIngredient(
+	ingredient: Pick<typeof recipeIngredients.$inferSelect, 'quantity' | 'servingUnit'>,
+	source: ServingOf,
+	keeper: ServingOf
+): { quantity: number; servingUnit: Food['servingUnit'] } {
+	if (
+		isSameUnitDimension(ingredient.servingUnit, keeper.servingUnit) ||
+		!(source.servingSize > 0) ||
+		!(keeper.servingSize > 0)
+	) {
+		return { quantity: ingredient.quantity, servingUnit: ingredient.servingUnit };
+	}
+	const inSourceUnit = convertQuantityForMacros(
+		ingredient.quantity,
+		ingredient.servingUnit,
+		source.servingUnit
+	);
+	return {
+		quantity: (inSourceUnit / source.servingSize) * keeper.servingSize,
+		servingUnit: keeper.servingUnit
+	};
+}
+
 export type MergeFoodsInput = {
 	keeperId: string;
 	sourceIds: string[];
@@ -121,7 +167,9 @@ export type MergeFoodsInput = {
  *   - supplement_ingredients.food_id rows pointing at sources are re-pointed to
  *     keeper, rescaled the same way (servings is a serving count like food_entries,
  *     not an absolute quantity)
- *   - recipe_ingredients.food_id rows pointing at sources are re-pointed to keeper
+ *   - recipe_ingredients.food_id rows pointing at sources are re-pointed to keeper;
+ *     quantity/unit are only rewritten when the keeper's serving unit is in a
+ *     different dimension than the ingredient's
  *   - food_labels on sources are unioned onto the keeper (skipping labels the
  *     keeper already has) before the source rows — and their cascade-deleted
  *     labels — are gone
@@ -184,7 +232,7 @@ export async function mergeFoods(
 			// per-serving × servings, and the keeper's servingSize wins the merge,
 			// so without this the past days'/supplements' totals would silently change.
 			for (const source of sources) {
-				const factor = keeper.servingSize > 0 ? source.servingSize / keeper.servingSize : 1;
+				const factor = servingsRescaleFactor(source, keeper);
 				await tx
 					.update(foodEntries)
 					.set({ foodId: keeperId, servings: sql`${foodEntries.servings} * ${factor}` })
@@ -213,21 +261,31 @@ export async function mergeFoods(
 					);
 			}
 
-			// Recipe ingredients reference foods by absolute quantity (grams), which
-			// is density-preserving for true duplicates, so quantity is left as-is.
+			// Recipe ingredients store an absolute quantity + unit that is converted
+			// against the food's serving unit at read time, so they only change when
+			// the keeper's unit is in a different dimension (see rescaleIngredient).
 			// Scope to the user's recipes — recipe_ingredients has no user_id column.
-			await tx
-				.update(recipeIngredients)
-				.set({ foodId: keeperId })
-				.where(
-					and(
-						inArray(recipeIngredients.foodId, uniqueSources),
-						inArray(
-							recipeIngredients.recipeId,
-							tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.userId, userId))
+			const userRecipeIds = tx
+				.select({ id: recipes.id })
+				.from(recipes)
+				.where(eq(recipes.userId, userId));
+			for (const source of sources) {
+				const ingredients = await tx
+					.select()
+					.from(recipeIngredients)
+					.where(
+						and(
+							eq(recipeIngredients.foodId, source.id),
+							inArray(recipeIngredients.recipeId, userRecipeIds)
 						)
-					)
-				);
+					);
+				for (const ingredient of ingredients) {
+					await tx
+						.update(recipeIngredients)
+						.set({ foodId: keeperId, ...rescaleIngredient(ingredient, source, keeper) })
+						.where(eq(recipeIngredients.id, ingredient.id));
+				}
+			}
 
 			// Union food_labels onto the keeper: adopt any source label the keeper
 			// doesn't already carry. food_labels.food_id cascade-deletes with the

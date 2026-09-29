@@ -31,7 +31,8 @@ export type FoodPackageSummary = {
 const uploadedImages = (selection: PackageSelection) =>
 	[
 		...selection.foods.map((food) => food.imageUrl),
-		...selection.recipes.map((recipe) => recipe.imageUrl)
+		...selection.recipes.map((recipe) => recipe.imageUrl),
+		...selection.steps.map((step) => step.imageUrl)
 	]
 		.map(uploadFilename)
 		.filter((name): name is string => name !== null);
@@ -54,7 +55,7 @@ export async function summarizePackage(
 	const present = sizes.filter((size): size is number => size !== null);
 	const estimatedBytes =
 		present.reduce((sum, size) => sum + size, 0) +
-		(selection.foods.length + selection.recipes.length) * BYTES_PER_ITEM;
+		(selection.foods.length + selection.recipes.length + selection.steps.length) * BYTES_PER_ITEM;
 	return {
 		foods: selection.foods.filter((food) => food.role === 'selected').length,
 		recipes: selection.recipes.length,
@@ -111,7 +112,7 @@ A collection of foods and recipes to share with other Bissbilanz users.
 Import it in Bissbilanz under Foods -> Import -> Food package.
 
 bissbilanz-foods.json   Foods, recipes and their ingredients.
-images/                 Photos of the foods and recipes.
+images/                 Photos of the foods, recipes and recipe steps.
 `;
 
 export type BuiltFoodPackage = { bytes: Uint8Array<ArrayBuffer>; foods: number; recipes: number };
@@ -147,6 +148,7 @@ export async function buildFoodPackage(
 	);
 
 	const ingredientsByRecipe = Map.groupBy(selection.ingredients, (row) => row.recipeId);
+	const stepsByRecipe = Map.groupBy(selection.steps, (row) => row.recipeId);
 	const manifestRecipes = await Promise.all(
 		selection.recipes.map(async (recipe, index) => {
 			const ref = `r${index + 1}`;
@@ -160,7 +162,22 @@ export async function buildFoodPackage(
 					food: refByFoodId.get(row.foodId)!,
 					quantity: row.quantity,
 					servingUnit: row.servingUnit
-				}))
+				})),
+				steps: await Promise.all(
+					(stepsByRecipe.get(recipe.id) ?? []).map(async (step, stepIndex) => {
+						const image = await addImage(step.imageUrl, `${ref}s${stepIndex + 1}`);
+						return {
+							text: step.text,
+							image,
+							// An uploaded image travels as bytes; only an allow-listed public URL travels as a URL.
+							imageUrl: image
+								? null
+								: step.imageUrl?.startsWith('/')
+									? null
+									: allowedImageUrl(step.imageUrl)
+						};
+					})
+				)
 			};
 		})
 	);

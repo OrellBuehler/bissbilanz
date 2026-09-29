@@ -98,7 +98,7 @@ const makeRecipe = async (owner: string, name: string, foodIds: string[]) => {
 
 describe('backfill migration for empty recipes', () => {
 	const backfill = readFileSync(
-		join(process.cwd(), 'drizzle', '0066_backfill_empty_recipes.sql'),
+		join(process.cwd(), 'drizzle', '0067_backfill_empty_recipes.sql'),
 		'utf8'
 	);
 

@@ -27,6 +27,10 @@ let mockGoals: any = null;
 let mockUpsertGoalsResult: any = null;
 let mockFood: any = null;
 let mockRecipe: any = null;
+const recipeWrites: any[] = [];
+const importedLinks: string[] = [];
+const discarded: string[] = [];
+const failingLinks = new Set<string>();
 let mockFavFoods: any[] = [];
 let mockFavRecipes: any[] = [];
 let mockDeleteEntryResult: any = null;
@@ -129,15 +133,27 @@ const mockDeps = {
 	deleteFood: async () => mockDeleteFoodResult,
 	listRecentFoods: async () => mockRecentFoods,
 	listRecipes: async () => ({ items: mockRecipes, total: mockRecipes.length }),
-	createRecipe: async () =>
-		mockCreateRecipeResult
+	createRecipe: async (_userId: string, payload: unknown) => {
+		recipeWrites.push(payload);
+		return mockCreateRecipeResult
 			? { success: true, data: mockCreateRecipeResult }
-			: { success: false, error: new Error('Validation failed') },
+			: { success: false, error: new Error('Validation failed') };
+	},
 	getRecipe: async () => mockRecipe,
-	updateRecipe: async () =>
-		mockUpdateRecipeResult
+	updateRecipe: async (_userId: string, _id: string, payload: unknown) => {
+		recipeWrites.push(payload);
+		return mockUpdateRecipeResult
 			? { success: true, data: mockUpdateRecipeResult }
-			: { success: false, error: new Error('Validation failed') },
+			: { success: false, error: new Error('Validation failed') };
+	},
+	importImageFromUrl: async (url: string) => {
+		importedLinks.push(url);
+		if (failingLinks.has(url)) throw new Error('HTTP 404');
+		return `/uploads/${importedLinks.length}.webp`;
+	},
+	discardImportedImages: async (urls: string[]) => {
+		discarded.push(...urls);
+	},
 	deleteRecipe: async () => mockDeleteRecipeResult,
 	createEntry: async () =>
 		mockCreateEntryResult
@@ -383,6 +399,10 @@ describe('MCP handlers', () => {
 		mockUpsertGoalsResult = null;
 		mockFood = null;
 		mockRecipe = null;
+		recipeWrites.length = 0;
+		importedLinks.length = 0;
+		discarded.length = 0;
+		failingLinks.clear();
 		mockFavFoods = [];
 		mockFavRecipes = [];
 		mockDeleteEntryResult = { id: TEST_ENTRY.id, date: TEST_ENTRY.date };
@@ -519,6 +539,145 @@ describe('MCP handlers', () => {
 			mockCreateRecipeResult = null;
 			const result: any = await handleCreateRecipe(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('recipe steps', () => {
+		const base = {
+			name: 'Shake',
+			totalServings: 2,
+			ingredients: [{ foodId: TEST_FOOD.id, quantity: 1, servingUnit: 'cup' }]
+		};
+
+		test('create passes steps without images through untouched', async () => {
+			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'r1' };
+			const steps = [{ text: 'Blend' }, { text: 'Serve', imageUrl: '/uploads/a.webp' }];
+			const result: any = await handleCreateRecipe(TEST_USER.id, { ...base, steps });
+			expect(result.success).toBe(true);
+			expect(recipeWrites[0].steps).toEqual(steps);
+			expect(importedLinks).toEqual([]);
+		});
+
+		test('create downloads external image links once each and stores the upload URLs', async () => {
+			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'r1' };
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				...base,
+				steps: [
+					{ text: 'Chop', imageUrl: 'https://cdn.example.com/a.jpg' },
+					{ text: 'Mix', imageUrl: 'https://cdn.example.com/b.jpg' },
+					{ text: 'Chop more', imageUrl: 'https://cdn.example.com/a.jpg' },
+					{ text: 'Serve' }
+				]
+			});
+			expect(result.success).toBe(true);
+			expect(importedLinks.sort()).toEqual([
+				'https://cdn.example.com/a.jpg',
+				'https://cdn.example.com/b.jpg'
+			]);
+			const steps = recipeWrites[0].steps;
+			expect(steps[0].imageUrl).toMatch(/^\/uploads\/\d\.webp$/);
+			expect(steps[2].imageUrl).toBe(steps[0].imageUrl);
+			expect(steps[1].imageUrl).not.toBe(steps[0].imageUrl);
+			expect(steps[3]).toEqual({ text: 'Serve' });
+		});
+
+		test('a link that cannot be downloaded fails the whole call and writes nothing', async () => {
+			failingLinks.add('https://cdn.example.com/dead.jpg');
+			await expect(
+				handleCreateRecipe(TEST_USER.id, {
+					...base,
+					steps: [
+						{ text: 'Fine', imageUrl: 'https://cdn.example.com/ok.jpg' },
+						{ text: 'Broken', imageUrl: 'https://cdn.example.com/dead.jpg' }
+					]
+				})
+			).rejects.toThrow(
+				/Step 2 image could not be imported from https:\/\/cdn\.example\.com\/dead\.jpg: HTTP 404/
+			);
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('images stored for a create that then fails validation are discarded', async () => {
+			mockCreateRecipeResult = null;
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				...base,
+				steps: [{ text: 'a', imageUrl: 'https://cdn.example.com/a.jpg' }]
+			});
+			expect(result.error).toBeDefined();
+			expect(discarded).toEqual(['/uploads/1.webp']);
+		});
+
+		test('too many downloads in one call is refused before fetching anything', async () => {
+			const steps = Array.from({ length: 21 }, (_, i) => ({
+				text: `s${i}`,
+				imageUrl: `https://cdn.example.com/${i}.jpg`
+			}));
+			await expect(handleCreateRecipe(TEST_USER.id, { ...base, steps })).rejects.toThrow(
+				/Too many step images/
+			);
+			expect(importedLinks).toEqual([]);
+		});
+
+		test('update keeps links already stored on the recipe and downloads new ones', async () => {
+			mockRecipe = {
+				...TEST_RECIPE,
+				steps: [
+					{ id: 's1', sortOrder: 0, text: 'Old', imageUrl: 'https://legacy.example.com/x.jpg' }
+				]
+			};
+			mockUpdateRecipeResult = TEST_RECIPE;
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				steps: [
+					{ text: 'Old', imageUrl: 'https://legacy.example.com/x.jpg' },
+					{ text: 'New', imageUrl: 'https://cdn.example.com/n.jpg' }
+				]
+			});
+			expect(result.success).toBe(true);
+			expect(importedLinks).toEqual(['https://cdn.example.com/n.jpg']);
+			expect(recipeWrites[0].steps[0].imageUrl).toBe('https://legacy.example.com/x.jpg');
+			expect(recipeWrites[0].steps[1].imageUrl).toBe('/uploads/1.webp');
+		});
+
+		test('update of an unknown recipe downloads nothing', async () => {
+			mockRecipe = null;
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: 'missing',
+				steps: [{ text: 'a', imageUrl: 'https://cdn.example.com/a.jpg' }]
+			});
+			expect(result.error).toBe('Recipe not found');
+			expect(importedLinks).toEqual([]);
+		});
+
+		test('update discards downloads when the write is rejected', async () => {
+			mockRecipe = { ...TEST_RECIPE, steps: [] };
+			mockUpdateRecipeResult = null;
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				steps: [{ text: 'a', imageUrl: 'https://cdn.example.com/a.jpg' }]
+			});
+			expect(result.error).toBeDefined();
+			expect(discarded).toEqual(['/uploads/1.webp']);
+		});
+
+		test('update without steps or with uploaded images never looks the recipe up', async () => {
+			mockUpdateRecipeResult = TEST_RECIPE;
+			await handleUpdateRecipe(TEST_USER.id, { recipeId: TEST_RECIPE.id, name: 'X' });
+			await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				steps: [{ text: 'a', imageUrl: '/uploads/a.webp' }]
+			});
+			expect(importedLinks).toEqual([]);
+			expect(recipeWrites).toHaveLength(2);
+		});
+
+		test('get_recipe returns the steps from the data layer', async () => {
+			mockRecipe = {
+				...TEST_RECIPE,
+				steps: [{ id: 's1', sortOrder: 0, text: 'Blend', imageUrl: null }]
+			};
+			const result: any = await handleGetRecipe(TEST_USER.id, TEST_RECIPE.id);
+			expect(result.steps).toEqual([{ id: 's1', sortOrder: 0, text: 'Blend', imageUrl: null }]);
 		});
 	});
 

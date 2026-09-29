@@ -1305,6 +1305,8 @@
     <string name="food_package_labels">Labels</string>
     <string name="food_package_filter_hint">Foods matching any selected brand or label are included.</string>
     <string name="food_package_filter_empty">Nothing to choose from yet</string>
+    <string name="food_package_filter_search">Search brands and labels</string>
+    <string name="food_package_filter_no_match">No matches</string>
     <string name="food_package_include_recipes">Include recipes</string>
     <string name="food_package_include_related_recipes">Also include recipes that use these foods</string>
     <string name="food_package_summary">%1$d foods · %2$d recipes · %3$d photos · ~%4$s</string>

@@ -294,7 +294,11 @@ export async function planFoodPackageImport(
 	const selectedNew = newFoods.filter((food) => food.role === 'selected');
 	const images =
 		manifest.foods.filter((food) => food.image).length +
-		manifest.recipes.filter((recipe) => recipe.image).length;
+		manifest.recipes.filter((recipe) => recipe.image).length +
+		manifest.recipes.reduce(
+			(sum, recipe) => sum + (recipe.steps ?? []).filter((step) => step.image).length,
+			0
+		);
 
 	return {
 		match,
