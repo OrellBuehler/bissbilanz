@@ -1036,8 +1036,8 @@ final class SyncManager {
         save()
         refreshCounts()
         // Pull server state back so an optimistic local row for the discarded change goes away.
-        if let callback = onConflictResolved {
-            Task { await callback(dates) }
+        Task { [weak self] in
+            await self?.onConflictResolved?(dates)
         }
     }
 
