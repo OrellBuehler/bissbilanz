@@ -20,7 +20,7 @@ struct Recipe: Codable, Identifiable, Hashable {
     let cookedWeight: Double?
     let createdAt: String?
     let updatedAt: String?
-    let ingredients: [RecipeIngredient]?
+    var ingredients: [RecipeIngredient]?
     // Optional cooking instructions: the detail endpoint always sends `steps`
     // (empty when there are none), the list endpoint only `stepCount`. `var` with
     // a nil default keeps the memberwise initializer and decodes older cached

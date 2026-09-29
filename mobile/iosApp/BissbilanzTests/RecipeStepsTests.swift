@@ -395,6 +395,31 @@ struct RecipeStepsTests {
         #expect(repo.recipe(id: "unknown")?.steps == nil)
     }
 
+    @Test("A list refresh keeps cached ingredients, but takes the server's macros")
+    func listRefreshPreservesIngredients() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+        let base = try recipe(id: "r1", steps: [(text: "Chop", imageUrl: nil)])
+        let cached = try JSONPatch.merged(Recipe.self, base: base, patch: [
+            "ingredients": [["foodId": "f1", "quantity": 100, "servingUnit": "g", "sortOrder": 0]],
+        ])
+        harness.context.insert(LocalRecipe(recipe: cached))
+        try harness.context.save()
+        harness.stub("GET", "/api/recipes", json: """
+        {"recipes": [{
+            "id": "r1", "name": "Bowl", "totalServings": 2, "isFavorite": false,
+            "calories": 640, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1, "stepCount": 1
+        }]}
+        """)
+
+        try await repo.refresh()
+
+        let refreshed = try #require(repo.recipe(id: "r1"))
+        #expect(refreshed.ingredients?.map(\.foodId) == ["f1"])
+        #expect(refreshed.steps?.map(\.text) == ["Chop"])
+        #expect(refreshed.calories == 640)
+    }
+
     // MARK: - Duplicate
 
     @Test("Duplicating copies the steps in order and shares server-hosted photos")

@@ -341,15 +341,20 @@ final class RecipeRepository {
         return LocalImageStore.writeLocalPhoto(photo.data)
     }
 
-    /// A list-endpoint copy (`steps` nil, only `stepCount`) must not wipe the
-    /// steps a detail fetch cached: the list refresh runs on every launch and
-    /// the detail may be opened offline afterwards. Kept only while the count
-    /// still matches — a different count means the steps changed elsewhere and
-    /// the cached ones are stale, so they go until the next detail refresh. A
-    /// count of zero is itself an answer: no steps.
-    static func preservingSteps(_ incoming: Recipe, existing: Recipe?) -> Recipe {
-        guard incoming.steps == nil else { return incoming }
+    /// A list-endpoint copy carries neither `ingredients` nor `steps` (only
+    /// `stepCount`), and must not wipe what a detail fetch cached: the list
+    /// refresh runs on every launch and the detail may be opened offline
+    /// afterwards (cooking mode needs both). Cached ingredients are kept as is;
+    /// cached steps only while the count still matches — a different count means
+    /// the steps changed elsewhere and the cached ones are stale, so they go
+    /// until the next detail refresh. A count of zero is itself an answer: no
+    /// steps.
+    static func preservingDetail(_ incoming: Recipe, existing: Recipe?) -> Recipe {
         var merged = incoming
+        if merged.ingredients == nil {
+            merged.ingredients = existing?.ingredients
+        }
+        guard incoming.steps == nil else { return merged }
         if incoming.stepCount == 0 {
             merged.steps = []
         } else if let kept = existing?.steps, kept.count == incoming.stepCount {
@@ -436,7 +441,7 @@ final class RecipeRepository {
 
     private func upsert(_ recipe: Recipe) {
         if let row = fetchRow(id: recipe.id) {
-            row.update(from: Self.preservingSteps(recipe, existing: row.toRecipe()))
+            row.update(from: Self.preservingDetail(recipe, existing: row.toRecipe()))
         } else {
             context.insert(LocalRecipe(recipe: recipe))
         }
