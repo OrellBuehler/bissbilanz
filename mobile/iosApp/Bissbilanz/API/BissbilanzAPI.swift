@@ -1256,9 +1256,10 @@ final class BissbilanzAPI {
         try await post("/api/foods/package/summary", body: selection)
     }
 
-    /// The shareable zip for a selection. Raw bytes — the response is a binary
-    /// archive, not the JSON envelope `performRequest` expects.
-    func exportFoodPackage(_ selection: FoodPackageSelection) async throws -> Data {
+    /// The shareable package for a selection. Raw bytes — the response is a binary
+    /// archive, not the JSON envelope `performRequest` expects — plus the name the
+    /// server gave it (`Content-Disposition`), so the shared file is named for its content.
+    func exportFoodPackage(_ selection: FoodPackageSelection) async throws -> FoodPackageExport {
         var request = URLRequest(url: try makeURL("/api/foods/package/export"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1271,7 +1272,10 @@ final class BissbilanzAPI {
             if httpResponse.statusCode >= 400 {
                 throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
             }
-            return data
+            let filename = FoodPackageFilename.filename(
+                fromContentDisposition: httpResponse.value(forHTTPHeaderField: "Content-Disposition")
+            ) ?? "\(FoodPackageFilename.genericBase(date: Date())).\(FoodPackageFormat.fileExtension)"
+            return FoodPackageExport(data: data, filename: filename)
         } catch {
             ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
             throw error

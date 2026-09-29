@@ -1,26 +1,50 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+extension UTType {
+    /// A Bissbilanz food package: a zip that opens in this app. Declared as an
+    /// exported type in `project.yml`, so files named `*.bissbilanz` offer to open here.
+    static let foodPackage = UTType(exportedAs: "com.bissbilanz.food-package", conformingTo: .zip)
+}
+
 /// Review and import a food package someone shared — the iOS counterpart of the
-/// web's FoodPackageImportDialog. The file is sent twice (preview, then import
-/// with the chosen resolutions), so its bytes are kept here.
+/// web's FoodPackageImportDialog. In synced mode the file is sent twice (preview,
+/// then import with the chosen resolutions), so its bytes are kept here; in local
+/// mode the same two steps run against the on-device store.
 struct FoodPackageImportView: View {
+    /// A package another app handed over (already copied into the temporary
+    /// directory); it is analyzed as soon as the view appears.
+    var fileURL: URL?
+    /// Why a handed-over file could not even be staged.
+    var initialError: String?
+
     @Environment(BissbilanzAPI.self) private var api
+    @Environment(AppModeManager.self) private var appMode
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(\.modelContext) private var modelContext
 
     @State private var showPicker = false
     @State private var fileData: Data?
-    @State private var fileName = "package.zip"
+    @State private var fileName = "package.bissbilanz"
     @State private var preview: FoodPackagePreview?
     @State private var foodActions: [String: FoodPackageAction] = [:]
     @State private var recipeActions: [String: FoodPackageAction] = [:]
+    @State private var foodMappings: [String: Food] = [:]
+    @State private var pickingItem: FoodPackageNewFoodItem?
     @State private var result: FoodPackageImportResult?
     @State private var analyzing = false
     @State private var importing = false
     @State private var errorMessage: String?
 
-    private static let maxBytes = 50 * 1024 * 1024
+    private static let maxBytes = FoodPackageFormat.maxPackageBytes
+
+    private var backend: any FoodPackageBackend {
+        FoodPackageBackends.make(
+            appMode: appMode, api: api, foodRepository: foodRepository,
+            recipeRepository: recipeRepository, context: modelContext
+        )
+    }
 
     var body: some View {
         List {
@@ -66,8 +90,29 @@ struct FoodPackageImportView: View {
                 .background(.bar)
             }
         }
-        .fileImporter(isPresented: $showPicker, allowedContentTypes: [.zip, .json, .data]) { picked in
+        .fileImporter(isPresented: $showPicker, allowedContentTypes: [.foodPackage, .zip, .json, .data]) { picked in
             Task { await load(picked) }
+        }
+        .sheet(item: $pickingItem) { item in
+            NavigationStack {
+                FoodPicker(
+                    onPicked: { food in foodMappings[item.ref] = food },
+                    dimension: ServingUnit(rawValue: item.servingUnit)?.dimension,
+                    allowsOpenFoodFacts: false
+                )
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.cancel) { pickingItem = nil }
+                    }
+                }
+            }
+        }
+        .task {
+            if let initialError {
+                errorMessage = initialError
+            } else if let fileURL, fileData == nil {
+                await load(.success(fileURL))
+            }
         }
     }
 
@@ -77,11 +122,18 @@ struct FoodPackageImportView: View {
     private func reviewSections(_ preview: FoodPackagePreview) -> some View {
         let foods = preview.conflicts.foods
         let recipes = preview.conflicts.recipes
+        let newFoods = preview.newFoods
         Section {
-            Text(L10n.foodPackageNewCounts(foods: preview.newFoods.count, recipes: preview.newRecipes.count))
-                .font(.subheadline.weight(.medium))
-            if preview.newFoods.ingredientOnly > 0 {
-                Text(L10n.foodPackageIngredientOnly(preview.newFoods.ingredientOnly))
+            if let errorMessage {
+                Text(errorMessage).font(.caption).foregroundStyle(.red)
+            }
+            Text(L10n.foodPackageNewCounts(
+                foods: newFoods.items.isEmpty ? newFoods.count : newFoods.items.count,
+                recipes: preview.newRecipes.count
+            ))
+            .font(.subheadline.weight(.medium))
+            if newFoods.ingredientOnly > 0 {
+                Text(L10n.foodPackageIngredientOnly(newFoods.ingredientOnly))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Text(foods.count + recipes.count > 0
@@ -92,6 +144,23 @@ struct FoodPackageImportView: View {
                 Text(issue.message).font(.caption).foregroundStyle(.secondary)
             }
             Button(L10n.foodPackageChooseFile) { showPicker = true }
+        }
+
+        if !newFoods.items.isEmpty {
+            Section {
+                ForEach(newFoods.items) { item in
+                    FoodPackageNewFoodRow(
+                        item: item,
+                        mapped: foodMappings[item.ref],
+                        onChoose: { pickingItem = item },
+                        onUndo: { foodMappings[item.ref] = nil }
+                    )
+                }
+            } header: {
+                Text(L10n.foodPackageNewFoodsHeader(newFoods.items.count - foodMappings.count))
+            } footer: {
+                Text(L10n.foodPackageNewFoodsFooter)
+            }
         }
 
         if !foods.isEmpty {
@@ -189,7 +258,7 @@ struct FoodPackageImportView: View {
             await analyze()
         } catch {
             ErrorReporter.capture(error)
-            errorMessage = L10n.foodPackageImportFailed
+            errorMessage = L10n.foodPackageOpenFailed
         }
     }
 
@@ -198,16 +267,20 @@ struct FoodPackageImportView: View {
         analyzing = true
         defer { analyzing = false }
         do {
-            let loaded = try await api.previewFoodPackage(fileData, filename: fileName)
+            // A file that is no package at all gets the same friendly answer in both
+            // modes, and never travels to the server. Anything subtler is left to
+            // whoever applies the package (the server words those itself).
+            if !appMode.isLocal, let problem = FoodPackageErrorText.obviousProblem(in: fileData) {
+                throw problem
+            }
+            let loaded = try await backend.preview(fileData, filename: fileName)
             preview = loaded
+            foodMappings = [:]
             foodActions = FoodPackageResolutionModel.initial(loaded.conflicts.foods.map(\.resolvable))
             recipeActions = FoodPackageResolutionModel.initial(loaded.conflicts.recipes.map(\.resolvable))
-        } catch let APIError.badRequest(body) {
-            preview = nil
-            errorMessage = Self.serverMessage(body) ?? L10n.foodPackageImportFailed
         } catch {
             preview = nil
-            errorMessage = error.localizedDescription
+            errorMessage = FoodPackageErrorText.message(for: error, fallback: nil)
         }
     }
 
@@ -215,33 +288,90 @@ struct FoodPackageImportView: View {
         guard let fileData, let preview else { return }
         importing = true
         defer { importing = false }
+        errorMessage = nil
         do {
-            result = try await api.importFoodPackage(
+            result = try await backend.importPackage(
                 fileData,
                 filename: fileName,
                 resolutions: FoodPackageResolutionModel.resolutions(
-                    for: preview, foods: foodActions, recipes: recipeActions
+                    for: preview, foods: foodActions, recipes: recipeActions,
+                    mappings: foodMappings.mapValues(\.id)
                 )
             )
-            // Pull the new and replaced rows into the local store.
-            do {
-                try await foodRepository.mirrorAll()
-                try await recipeRepository.refresh()
-            } catch {
-                ErrorReporter.capture(error)
-            }
-        } catch APIError.conflict {
-            // The account changed since the preview: review again.
-            errorMessage = L10n.foodPackageStale
+        } catch where FoodPackageErrorText.isStale(error) {
+            // The data changed since the preview: review again.
             await analyze()
+            if self.preview != nil { errorMessage = L10n.foodPackageStale }
         } catch {
             // Already captured by the API client; keep the reason next to the message.
             ErrorReporter.addBreadcrumb(
                 "food package import failed: \(error.localizedDescription)",
                 category: "food-package"
             )
-            errorMessage = L10n.foodPackageImportFailed
+            errorMessage = FoodPackageErrorText.message(for: error, fallback: L10n.foodPackageImportFailed)
         }
+    }
+}
+
+/// What the user is told when a package cannot be read or applied — whichever
+/// backend said no.
+enum FoodPackageErrorText {
+    static func isStale(_ error: Error) -> Bool {
+        if case APIError.conflict = error { return true }
+        if let error = error as? FoodPackageError {
+            return error == .stalePreview || error == .packageChanged
+        }
+        return false
+    }
+
+    /// Why a file is no package at all (wrong kind of file, damaged, a newer format) —
+    /// nil when it reads as one, or fails a rule only whoever applies it should judge.
+    static func obviousProblem(in data: Data) -> FoodPackageError? {
+        guard case let .failure(error) = Result(catching: { try FoodPackageReader.read(data) }),
+              let problem = error as? FoodPackageError else { return nil }
+        if case .invalid = problem { return nil }
+        return problem
+    }
+
+    /// `fallback` replaces the raw description of an error nothing else explains.
+    static func message(for error: Error, fallback: String?) -> String {
+        if let error = error as? FoodPackageError {
+            return message(for: error)
+        }
+        if case let APIError.badRequest(body) = error {
+            return serverMessage(body).map(friendly) ?? fallback ?? L10n.foodPackageImportFailed
+        }
+        return fallback ?? error.localizedDescription
+    }
+
+    static func message(for error: FoodPackageError) -> String {
+        switch error {
+        case .empty: L10n.foodPackageEmptyFile
+        case .tooLarge: L10n.foodPackageFileTooLarge
+        case .tooManyFiles: L10n.foodPackageTooManyFiles
+        case .damaged: L10n.foodPackageDamaged
+        case .notAPackage, .missingManifest: L10n.foodPackageNotAPackage
+        case .accountExport: L10n.foodPackageAccountExport
+        case .newerVersion: L10n.foodPackageNewerVersion
+        case let .invalid(detail): L10n.foodPackageInvalid(detail)
+        case .stalePreview, .packageChanged: L10n.foodPackageStale
+        case let .badRequest(message): message
+        case .nothingToExport: L10n.foodPackageNothingSelected
+        case .exportTooLarge: L10n.foodPackageTooLarge
+        case .tooManyFoods, .tooManyRecipes: L10n.foodPackageTooManyItems
+        }
+    }
+
+    /// The server words its rejections in English; the ones a user can hit by picking
+    /// the wrong file get the localized text instead.
+    private static func friendly(_ message: String) -> String {
+        if message.hasPrefix("Unrecognized file") || message.contains("does not contain a readable") {
+            return L10n.foodPackageNotAPackage
+        }
+        if message.contains("full account export") { return L10n.foodPackageAccountExport }
+        if message.contains("newer version of Bissbilanz") { return L10n.foodPackageNewerVersion }
+        if message.contains("damaged") { return L10n.foodPackageDamaged }
+        return message
     }
 
     /// The server's `{ "error": … }` text for a rejected file (e.g. an account export).
@@ -286,6 +416,74 @@ struct FoodPackageActionPicker: View {
         case .replace: L10n.foodPackageReplace
         case .keepBoth: L10n.foodPackageKeepBoth
         }
+    }
+}
+
+/// One food the import would create, with the way out of it: standing one of the
+/// user's own foods in for it. A chosen food is shown with an undo.
+private struct FoodPackageNewFoodRow: View {
+    let item: FoodPackageNewFoodItem
+    let mapped: Food?
+    let onChoose: () -> Void
+    let onUndo: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(item.name).font(.subheadline.weight(.medium))
+                    if item.isIngredient {
+                        Text(L10n.foodPackageIngredientBadge)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(.quaternary, in: .capsule)
+                    }
+                }
+                if let brand = item.brand, !brand.isEmpty {
+                    Text(brand).font(.caption).foregroundStyle(.secondary)
+                }
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+                if !item.recipes.isEmpty {
+                    Text(L10n.foodPackageUsedIn(recipeNames)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .opacity(mapped == nil ? 1 : 0.6)
+            .accessibilityElement(children: .combine)
+
+            if let mapped {
+                HStack(spacing: 8) {
+                    Label(L10n.foodPackageWillUse(mapped.name), systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(MacroColors.fiber)
+                    Spacer(minLength: 8)
+                    Button(action: onUndo) {
+                        Label(L10n.foodPackageUndoMapping, systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityHint(L10n.foodPackageUndoMappingHint(item.name))
+                }
+            } else {
+                Button(action: onChoose) {
+                    Label(L10n.foodPackageUseMyFood, systemImage: "arrow.left.arrow.right")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityHint(L10n.foodPackageUseMyFoodHint(item.name))
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var detail: String {
+        let unit = ServingUnit(rawValue: item.servingUnit)?.displayName ?? item.servingUnit
+        return "\(MacroFormat.nutrient(item.servingSize)) \(unit) \u{00B7} \(MacroFormat.nutrient(item.calories)) kcal"
+    }
+
+    private var recipeNames: String {
+        let names = item.recipes.prefix(2).map(\.name).joined(separator: ", ")
+        let more = item.recipes.count - 2
+        return more > 0 ? "\(names) +\(more)" : names
     }
 }
 
@@ -415,7 +613,8 @@ private struct FoodPackageFoodSide: View {
 }
 
 /// Incoming thumbnails arrive as small inline `data:` URLs; existing images load
-/// through `FoodImageView` (authenticated server uploads and public URLs).
+/// through `FoodImageView` (authenticated server uploads, public URLs and, in
+/// local mode, photos stored on the device).
 private struct FoodPackageThumbnail: View {
     let imageUrl: String?
 

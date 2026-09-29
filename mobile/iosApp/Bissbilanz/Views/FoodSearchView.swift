@@ -188,26 +188,29 @@ struct FoodSearchView: View {
 
     private var toolbarActions: some View {
         HStack(spacing: 12) {
-            // Duplicate detection, merging and food packages are all
-            // server-side — no account, no server to scan, merge or exchange
-            // packages with (mirrors AIMealSheet's `!appMode.isLocal` gating
-            // on other account-only actions) — so they share one overflow
-            // menu instead of crowding the toolbar with four separate icons.
-            if canMerge {
+            // Duplicate detection and merging are server-side — no account, no
+            // server to scan or merge with (mirrors AIMealSheet's
+            // `!appMode.isLocal` gating on other account-only actions).
+            // Food packages work in both modes: the server builds them when
+            // signed in, the device itself in local mode. All of it shares one
+            // overflow menu instead of crowding the toolbar with four icons.
+            if date == nil {
                 Menu {
-                    Button {
-                        isSelecting = true
-                    } label: {
-                        Label(L10n.foodsSelect, systemImage: "checkmark.circle")
-                    }
+                    if canMerge {
+                        Button {
+                            isSelecting = true
+                        } label: {
+                            Label(L10n.foodsSelect, systemImage: "checkmark.circle")
+                        }
 
-                    Button {
-                        showDuplicates = true
-                    } label: {
-                        Label(L10n.foodsDuplicatesViewAll, systemImage: "doc.on.doc")
-                    }
+                        Button {
+                            showDuplicates = true
+                        } label: {
+                            Label(L10n.foodsDuplicatesViewAll, systemImage: "doc.on.doc")
+                        }
 
-                    Divider()
+                        Divider()
+                    }
 
                     Button {
                         showShareFoods = true

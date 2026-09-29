@@ -52,6 +52,7 @@ struct BissbilanzApp: App {
     @State private var goalsRepository: GoalsRepository
     @State private var preferencesRepository: PreferencesRepository
     @State private var deepLinkRouter: DeepLinkRouter
+    @State private var foodPackageInbox: FoodPackageInbox
     @State private var mealEstimator: MealEstimator
     @State private var foodLabeler: FoodLabeler
     @State private var fastingManager: FastingTimerManager
@@ -219,6 +220,7 @@ struct BissbilanzApp: App {
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
+        _foodPackageInbox = State(wrappedValue: FoodPackageInbox())
         _fastingManager = State(wrappedValue: FastingTimerManager(
             entryRepository: entryRepo, syncManager: sync, api: api
         ))
@@ -449,6 +451,7 @@ struct BissbilanzApp: App {
             .environment(goalsRepository)
             .environment(preferencesRepository)
             .environment(deepLinkRouter)
+            .environment(foodPackageInbox)
             .environment(mealEstimator)
             .environment(foodLabeler)
             .environment(fastingManager)
@@ -458,7 +461,10 @@ struct BissbilanzApp: App {
             .environment(aiTaskProcessor)
             .modelContainer(modelContainer)
             .onOpenURL { url in
-                if let link = DeepLink.parse(url) {
+                if url.isFileURL {
+                    // A `.bissbilanz` food package from Files, Mail, WhatsApp, …
+                    foodPackageInbox.receive(url)
+                } else if let link = DeepLink.parse(url) {
                     deepLinkRouter.pending = link
                 } else {
                     Task {
