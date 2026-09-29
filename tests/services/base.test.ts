@@ -6,6 +6,7 @@ vi.mock('$lib/stores/offline-queue', () => ({
 }));
 
 import { withOfflineFallback } from '../../src/lib/services/base';
+import { apiFetch } from '../../src/lib/utils/api';
 import { enqueue } from '$lib/stores/offline-queue';
 
 const mockEnqueue = enqueue as ReturnType<typeof vi.fn>;
@@ -100,5 +101,30 @@ describe('withOfflineFallback', () => {
 				affectedId: '1'
 			}
 		);
+	});
+
+	test('queues the replay under the idempotency key the failed online request used', async () => {
+		vi.stubGlobal('navigator', { onLine: true });
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+		await withOfflineFallback(
+			() => apiFetch('/api/entries', { method: 'POST', body: '{}' }) as never,
+			{
+				method: 'POST',
+				url: '/api/entries',
+				body: {},
+				affectedTable: 'foodEntries'
+			}
+		);
+
+		const sent = new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers);
+		const meta = mockEnqueue.mock.calls[0][3];
+		expect(sent.get('idempotency-key')).toBeTruthy();
+		expect(meta.idempotencyKey).toBe(sent.get('idempotency-key'));
+		expect(meta.clientEditedAt).toBe(sent.get('x-client-edited-at'));
+		vi.unstubAllGlobals();
+		fetchSpy.mockRestore();
 	});
 });

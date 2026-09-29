@@ -136,7 +136,7 @@ vi.mock('$lib/stores/offline-queue', () => ({
 	enqueue: vi.fn().mockResolvedValue(undefined)
 }));
 
-import { apiFetch } from '../../src/lib/utils/api';
+import { apiFetch, sentWriteHeaders } from '../../src/lib/utils/api';
 import { enqueue } from '$lib/stores/offline-queue';
 
 describe('apiFetch', () => {
@@ -384,6 +384,27 @@ describe('apiFetch', () => {
 			});
 
 			expect(enqueue).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('failed online writes', () => {
+		test('tag the thrown error with the idempotency key that was sent', async () => {
+			setOnline(true);
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+			const err = await apiFetch('/api/foods', { method: 'POST', body: '{}' }).catch((e) => e);
+
+			const sent = new Headers((fetchSpy.mock.calls[0][1] as RequestInit).headers);
+			expect(sentWriteHeaders(err).idempotencyKey).toBe(sent.get('idempotency-key'));
+			expect(sentWriteHeaders(err).clientEditedAt).toBe(sent.get('x-client-edited-at'));
+			expect(sentWriteHeaders(err).idempotencyKey).toBeTruthy();
+		});
+
+		test('sentWriteHeaders is empty for errors that were never tagged', () => {
+			expect(sentWriteHeaders(new Error('x'))).toEqual({});
+			expect(sentWriteHeaders(null)).toEqual({});
 		});
 	});
 });
