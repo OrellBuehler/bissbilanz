@@ -3,6 +3,8 @@ import SwiftUI
 
 /// Mirrors MAX_AI_TASK_PHOTOS on the server.
 private let maxAiTaskPhotos = 5
+/// Mirrors the description limit in the server's AI task validation.
+private let maxAiTaskDescriptionLength = 2000
 
 /// Entry point for AI-assisted meal logging: a free-text description (and
 /// optionally up to five photos) can either be estimated via `MealEstimator`
@@ -89,6 +91,11 @@ struct AIMealSheet: View {
                 Section(L10n.aiMealWhatDidYouEat) {
                     TextField(L10n.aiMealDescriptionPlaceholder, text: $description, axis: .vertical)
                         .lineLimit(4 ... 8)
+                        .onChange(of: description) { _, newValue in
+                            if newValue.count > maxAiTaskDescriptionLength {
+                                description = String(newValue.prefix(maxAiTaskDescriptionLength))
+                            }
+                        }
                 }
 
                 // Shown in Synced mode regardless (for "send to assistant"), and in
