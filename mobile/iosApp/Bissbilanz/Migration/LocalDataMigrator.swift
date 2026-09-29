@@ -318,6 +318,36 @@ final class LocalDataMigrator {
         return try? await api.uploadImage(photo.data, filename: photo.filename, purpose: purpose)
     }
 
+    /// Creates the food on the server. A 409 means the account already has a food
+    /// with the same barcode (an earlier partial run, another device); that food is
+    /// adopted as the upload result so the migration continues instead of failing
+    /// forever. The 409 body only carries a message, so the existing food is looked
+    /// up by barcode. When the server refuses the barcode but will not show its
+    /// owner, the food is kept and only the barcode is dropped.
+    private func createFoodOrAdoptExisting(_ create: FoodCreate, localId: String) async throws -> Food {
+        do {
+            return try await api.createFood(create, idempotencyKey: Self.migrationKey("food", localId))
+        } catch let error as APIError {
+            guard case .conflict = error, let barcode = create.barcode, !barcode.isEmpty else { throw error }
+            let existing: Food?
+            do {
+                existing = try await api.findFoodByBarcode(barcode)
+            } catch let lookupError as APIError {
+                // A barcode format the lookup rejects (400) simply has no match;
+                // anything else is a real failure and resumes the migration later.
+                guard case .badRequest = lookupError else { throw lookupError }
+                existing = nil
+            }
+            if let existing { return existing }
+            var withoutBarcode = create
+            withoutBarcode.barcode = nil
+            return try await api.createFood(
+                withoutBarcode,
+                idempotencyKey: Self.migrationKey("food-no-barcode", localId)
+            )
+        }
+    }
+
     private func uploadFoods(done startDone: Int, total: Int) async throws -> Int {
         var done = startDone
         progress(done, total, .foods)
@@ -328,10 +358,7 @@ final class LocalDataMigrator {
                 throw MigrationError.unreadableRow("food \"\(row.name)\"")
             }
             create.imageUrl = await uploadableImageUrl(food.imageUrl)
-            let server = try await api.createFood(
-                create,
-                idempotencyKey: Self.migrationKey("food", row.id)
-            )
+            let server = try await createFoodOrAdoptExisting(create, localId: row.id)
             LocalRemap.replaceFood(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .foods)

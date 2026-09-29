@@ -9,11 +9,19 @@ import SwiftUI
 /// writes to), so it updates live as ops drain or new ones are enqueued.
 struct PendingSyncView: View {
     @Environment(SyncManager.self) private var syncManager
-    @Query(sort: \PendingSyncOperation.seq) private var pending: [PendingSyncOperation]
+    @Query(sort: \PendingSyncOperation.seq) private var queued: [PendingSyncOperation]
+
+    private var pending: [PendingSyncOperation] {
+        queued.filter { $0.failedAt == nil }
+    }
+
+    private var parked: [PendingSyncOperation] {
+        queued.filter { $0.failedAt != nil }
+    }
 
     var body: some View {
         List {
-            if pending.isEmpty {
+            if queued.isEmpty {
                 ContentUnavailableView {
                     Label(L10n.pendingChangesEmpty, systemImage: "checkmark.circle")
                 } description: {
@@ -31,9 +39,22 @@ struct PendingSyncView: View {
                         }
                     }
                 }
-                Section {
-                    ForEach(pending) { row in
-                        PendingSyncRow(row: row)
+                if !parked.isEmpty {
+                    Section {
+                        ForEach(parked) { row in
+                            ParkedSyncRow(row: row)
+                        }
+                    } header: {
+                        Text(L10n.pendingChangesParkedTitle)
+                    } footer: {
+                        Text(L10n.pendingChangesParkedDetail)
+                    }
+                }
+                if !pending.isEmpty {
+                    Section {
+                        ForEach(pending) { row in
+                            PendingSyncRow(row: row)
+                        }
                     }
                 }
             }
@@ -52,6 +73,48 @@ struct PendingSyncView: View {
                 }
             }
         }
+    }
+}
+
+/// A change the server permanently rejected: kept in the store (never deleted by
+/// the drain) with the reason, and the user decides whether to retry or discard it.
+private struct ParkedSyncRow: View {
+    @Environment(SyncManager.self) private var syncManager
+    let row: PendingSyncOperation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: PendingSyncRow.icon(for: row.type))
+                    .foregroundStyle(.red)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.pendingChangeTitle(forType: row.type))
+                        .font(.subheadline)
+                    if let reason = row.failureReason {
+                        Text(L10n.syncParkedReason(reason))
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            HStack {
+                Button(role: .destructive) {
+                    syncManager.discardParked(row)
+                } label: {
+                    Label(L10n.discard, systemImage: "trash")
+                }
+                Spacer()
+                Button {
+                    syncManager.retryParked(row)
+                } label: {
+                    Label(L10n.retry, systemImage: "arrow.clockwise")
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -78,7 +141,7 @@ private struct PendingSyncRow: View {
     @ViewBuilder
     private var statusLabel: some View {
         if row.retryCount > 0 {
-            Text(L10n.syncRetryStatus(row.retryCount, SyncManager.maxRetries))
+            Text(L10n.syncRetryStatus(row.retryCount))
                 .font(.caption2)
                 .foregroundStyle(.orange)
         } else {

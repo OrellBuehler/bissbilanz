@@ -16,26 +16,30 @@ import SwiftData
 ///   Exception: `completeAiTask` forces itself through unconditionally on this
 ///   response instead — see `execute` — since the entries it logged already
 ///   exist and dropping it would leave the task pending forever.
-/// - HTTP 409 without header → real validation conflict; dead-letter (drop + error).
+/// - HTTP 409 without header → real validation conflict; parked (see below).
 /// - HTTP 404/410 on DELETE → idempotent; treat as success, remove silently.
 /// - HTTP 404/410 on a create (create_entry/create_recipe/create_supplement) →
 ///   the create has no row of its own to have been deleted; a referenced
 ///   foodId/recipeId no longer exists. Still-`temp_` references are caught
 ///   before the request even goes out (see `unresolvedReference`) and either
-///   kept queued (the peer create is still pending) or dropped as
-///   "never created"; a resolved-but-now-missing reference is dropped as
-///   "no longer exists". Both remove + conflict notice, distinct from below.
+///   kept queued (the peer create is still pending) or parked as
+///   "never created"; a resolved-but-now-missing reference is parked as
+///   "no longer exists" with a conflict notice, distinct from below.
 /// - HTTP 404/410 on other (non-create, non-delete) ops → record deleted
 ///   elsewhere; remove + conflict notice.
 /// - 401 → `performRequest` already refreshed and retried once, so a final 401
 ///   means the session is dead: draining stops, the queue is kept.
-/// - 5xx / network errors → retryCount increments, exponential backoff via
-///   `nextAttemptAt`; after `maxRetries` failed attempts the row is dropped with
-///   an error.
+/// - 5xx / 408 / 425 / 429 / network errors → retryCount increments, capped
+///   exponential backoff via `nextAttemptAt`, retried indefinitely — a deploy
+///   restart or a long outage must never cost the user an offline-logged change.
+/// - Any other 4xx (400, 422, header-less 409, …) → *parked*: `failedAt` and
+///   `failureReason` are set, the row stays in the store out of the drain, and
+///   the pending-changes screen offers retry / discard. Rows are only ever
+///   deleted by the user (discard) — never silently by the drain.
 /// - 426 → this build is older than the server's minimum version
 ///   (`UpdateRequiredGate` is already flagged by `BissbilanzAPI` by the time
 ///   this is seen); draining stops, the row and its retryCount are untouched —
-///   never retried, dead-lettered, or counted against `maxRetries` — so it
+///   never retried, parked, or counted as a failed attempt — so it
 ///   uploads unchanged once the app is updated.
 @MainActor
 @Observable
@@ -47,6 +51,8 @@ final class SyncManager {
 
     private(set) var isSyncing = false
     private(set) var pendingCount = 0
+    /// Rows the server permanently rejected, kept for the user to retry or discard.
+    private(set) var failedCount = 0
     private(set) var errors: [String] = []
     /// Conflict notices for the banner, capped — a device that was offline for
     /// a while can lose many writes, and `errors` is reset per drain while
@@ -88,7 +94,8 @@ final class SyncManager {
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
 
-    static let maxRetries = 5
+    /// Client errors that are transient (timeout, too early, rate limited): retried, never parked.
+    private static let transientClientStatuses: Set<Int> = [408, 425, 429]
     private static let backoffBase: TimeInterval = 2.0
     private static let backoffCap: TimeInterval = 5 * 60.0
     private static let backoffJitter: TimeInterval = 0.5
@@ -103,7 +110,7 @@ final class SyncManager {
         self.api = api
         self.appMode = appMode
         self.connectivity = connectivity
-        pendingCount = queuedCount()
+        refreshCounts()
         connectivity.onOnlineChange = { [weak self] online in
             if online {
                 self?.scheduleDrain()
@@ -120,7 +127,7 @@ final class SyncManager {
         guard !appMode.isLocal else { return }
         context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
         save()
-        pendingCount = queuedCount()
+        refreshCounts()
         scheduleDrain()
     }
 
@@ -193,7 +200,7 @@ final class SyncManager {
     func remove(_ row: PendingSyncOperation) {
         context.delete(row)
         save()
-        pendingCount = queuedCount()
+        refreshCounts()
     }
 
     /// Drops every queued operation touching (table, id) — used when a
@@ -204,7 +211,7 @@ final class SyncManager {
             context.delete(row)
         }
         save()
-        pendingCount = queuedCount()
+        refreshCounts()
     }
 
     /// Drops the conflict notices once the user has acknowledged them.
@@ -223,6 +230,7 @@ final class SyncManager {
         try? context.delete(model: PendingSyncOperation.self)
         save()
         pendingCount = 0
+        failedCount = 0
     }
 
     // MARK: - Draining
@@ -255,7 +263,7 @@ final class SyncManager {
         defer {
             isSyncing = false
             isDraining = false
-            pendingCount = queuedCount()
+            refreshCounts()
             if processed > 0 {
                 lastSyncedAt = Date()
             }
@@ -280,10 +288,11 @@ final class SyncManager {
                 // path in the drain (a corrupted or schema-changed payload, else
                 // discarded with no error, notice, or telemetry).
                 ErrorReporter.captureWarning(
-                    "Sync op dropped: undecodable payload",
-                    context: ["sync.type": row.type, "sync.seq": row.seq, "sync.outcome": "dropped_undecodable"]
+                    "Sync op parked: undecodable payload",
+                    context: ["sync.type": row.type, "sync.seq": row.seq, "sync.outcome": "parked_undecodable"]
                 )
-                remove(row)
+                park(row, reason: "unreadable payload")
+                errors.append("Could not sync a queued change (unreadable payload). It was kept so you can discard it.")
                 continue
             }
             let isDelete = isDeleteOperation(operation)
@@ -304,16 +313,13 @@ final class SyncManager {
                     save()
                     continue
                 }
-                remove(row)
-                processed += 1
-                sawConflict = true
-                conflictDates.formUnion(dayKeys(for: operation))
-                noteConflict(
-                    "Offline change to \(operation.summary) was dropped: the food or recipe it depended on was never created."
-                )
+                // Nothing will ever resolve this `temp_` id (the user discarded the
+                // create it depended on). Park rather than delete: the change stays
+                // visible until the user decides.
+                parkFailed(row, operation, reason: "the food or recipe it depended on was never created")
                 ErrorReporter.captureWarning(
-                    "Sync op dropped: referenced create was never created",
-                    context: dropContext(operation, row, outcome: "dropped_reference_not_created", status: nil)
+                    "Sync op parked: referenced create was never created",
+                    context: dropContext(operation, row, outcome: "parked_reference_not_created", status: nil)
                 )
                 continue
             }
@@ -346,12 +352,10 @@ final class SyncManager {
                     )
 
                 case .conflict(serverNewer: false):
-                    remove(row)
-                    processed += 1
-                    errors.append("Failed to sync \(operation.summary): HTTP 409")
+                    parkFailed(row, operation, reason: "HTTP 409")
                     ErrorReporter.captureWarning(
-                        "Sync op dropped: validation conflict",
-                        context: dropContext(operation, row, outcome: "dropped_validation_conflict", status: 409)
+                        "Sync op parked: validation conflict",
+                        context: dropContext(operation, row, outcome: "parked_validation_conflict", status: 409)
                     )
 
                 case .notFound where isDelete:
@@ -368,8 +372,7 @@ final class SyncManager {
                 // gone now (e.g. the food was deleted before the offline
                 // create finally drained).
                 case .notFound where isCreateOperation(operation):
-                    remove(row)
-                    processed += 1
+                    park(row, reason: "the referenced food or recipe no longer exists")
                     sawConflict = true
                     conflictDates.formUnion(dayKeys(for: operation))
                     noteConflict(droppedReferenceNotice(for: operation))
@@ -377,8 +380,8 @@ final class SyncManager {
                         missingFoodIds.insert(foodId)
                     }
                     ErrorReporter.captureWarning(
-                        "Sync op dropped: referenced record missing",
-                        context: dropContext(operation, row, outcome: "dropped_reference_missing", status: 404)
+                        "Sync op parked: referenced record missing",
+                        context: dropContext(operation, row, outcome: "parked_reference_missing", status: 404)
                     )
 
                 case .notFound:
@@ -395,12 +398,10 @@ final class SyncManager {
                     )
 
                 case let .clientError(status):
-                    remove(row)
-                    processed += 1
-                    errors.append("Failed to sync \(operation.summary): HTTP \(status)")
+                    parkFailed(row, operation, reason: "HTTP \(status)")
                     ErrorReporter.captureWarning(
-                        "Sync op dropped: client error",
-                        context: dropContext(operation, row, outcome: "dropped_client_error", status: status)
+                        "Sync op parked: client error",
+                        context: dropContext(operation, row, outcome: "parked_client_error", status: status)
                     )
 
                 case .offline:
@@ -420,36 +421,24 @@ final class SyncManager {
                     break drain
 
                 case .retryableOperation, .serverUnavailable:
+                    // Retried indefinitely with capped backoff: the row is never dropped
+                    // for being unlucky, only parked when the server rejects it for good.
                     row.retryCount += 1
-                    if row.retryCount >= Self.maxRetries {
-                        remove(row)
-                        processed += 1
-                        errors.append("Gave up syncing \(operation.summary) after \(Self.maxRetries) retries.")
-                        ErrorReporter.captureWarning(
-                            "Sync op dropped: max retries",
-                            context: dropContext(operation, row, outcome: "dropped_max_retries", status: nil)
-                        )
-                        // Keep going even when the server looked unavailable: if this op
-                        // was simply poison the queue behind it is fine, and if the server
-                        // really is down the next op backs off and aborts below.
-                    } else {
-                        row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
-                        save()
-                        if case .serverUnavailable = kind {
-                            // Abort. Every remaining op would hit the same outage, and
-                            // because `nextDueRow` skips this backed-off row the drain
-                            // would charge a retry to each of them — five drains of a
-                            // one-minute outage would dead-letter the entire queue.
-                            break drain
-                        }
-                        // Per-operation failure: skip it. A backed-off row is filtered out
-                        // by `nextDueRow`, so the loop advances to the next due op instead
-                        // of stalling the whole queue behind this one.
-                        continue
+                    row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
+                    save()
+                    if case .serverUnavailable = kind {
+                        // Abort. Every remaining op would hit the same outage, and
+                        // because `nextDueRow` skips this backed-off row the drain
+                        // would charge a retry to each of them.
+                        break drain
                     }
+                    // Per-operation failure: skip it. A backed-off row is filtered out
+                    // by `nextDueRow`, so the loop advances to the next due op instead
+                    // of stalling the whole queue behind this one.
+                    continue
                 }
             }
-            pendingCount = queuedCount()
+            refreshCounts()
         }
         // Once per drain, not once per conflict: a batch that lost three edits needs
         // a single refresh. Reached on every exit path — a drain that resolved a
@@ -851,7 +840,7 @@ final class SyncManager {
         guard let apiError = error as? APIError else {
             // Unknown throws default to server-scoped: mistaking a global failure for a
             // per-operation one dead-letters the whole queue, while the reverse only
-            // stalls it until `maxRetries` drops the offending op.
+            // stalls it behind a backed-off op.
             return isConnectivityError(error, isOnline: isOnline) ? .offline : .serverUnavailable
         }
         switch apiError {
@@ -866,6 +855,7 @@ final class SyncManager {
         case .badRequest:
             return .clientError(400)
         case let .serverError(status, _):
+            if transientClientStatuses.contains(status) { return .serverUnavailable }
             return status < 500 ? .clientError(status) : .serverUnavailable
         case let .networkError(underlying):
             return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .serverUnavailable
@@ -961,7 +951,7 @@ final class SyncManager {
     private func nextDueRow() -> PendingSyncOperation? {
         let now = Date()
         let descriptor = FetchDescriptor<PendingSyncOperation>(
-            predicate: #Predicate { $0.nextAttemptAt <= now },
+            predicate: #Predicate { $0.nextAttemptAt <= now && $0.failedAt == nil },
             sortBy: [SortDescriptor(\.seq)]
         )
         var limited = descriptor
@@ -974,7 +964,81 @@ final class SyncManager {
     /// `.count` — and that ran on every enqueue, after each drain iteration
     /// and on every retry schedule.
     private func queuedCount() -> Int {
-        (try? context.fetchCount(FetchDescriptor<PendingSyncOperation>())) ?? 0
+        let descriptor = FetchDescriptor<PendingSyncOperation>(predicate: #Predicate { $0.failedAt == nil })
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    private func parkedCount() -> Int {
+        let descriptor = FetchDescriptor<PendingSyncOperation>(predicate: #Predicate { $0.failedAt != nil })
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    private func refreshCounts() {
+        pendingCount = queuedCount()
+        failedCount = parkedCount()
+    }
+
+    // MARK: - Parked (permanently rejected) changes
+
+    /// Rows the server permanently rejected, oldest first. They stay in the store,
+    /// out of the drain, until the user retries or discards them.
+    func parkedRows() -> [PendingSyncOperation] {
+        let descriptor = FetchDescriptor<PendingSyncOperation>(
+            predicate: #Predicate { $0.failedAt != nil },
+            sortBy: [SortDescriptor(\.seq)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    private func park(_ row: PendingSyncOperation, reason: String) {
+        row.failedAt = Date()
+        row.failureReason = reason
+        save()
+        refreshCounts()
+    }
+
+    private func parkFailed(_ row: PendingSyncOperation, _ operation: SyncOperation, reason: String) {
+        park(row, reason: reason)
+        errors.append("Could not sync \(operation.summary) (\(reason)). It was kept so you can retry or discard it.")
+    }
+
+    /// Puts a parked change back in line for the next drain.
+    func retryParked(_ row: PendingSyncOperation) {
+        guard row.failedAt != nil else { return }
+        unpark(row)
+        save()
+        refreshCounts()
+        scheduleDrain()
+    }
+
+    func retryAllParked() {
+        for row in parkedRows() {
+            unpark(row)
+        }
+        save()
+        refreshCounts()
+        scheduleDrain()
+    }
+
+    private func unpark(_ row: PendingSyncOperation) {
+        row.failedAt = nil
+        row.failureReason = nil
+        row.retryCount = 0
+        row.nextAttemptAt = Date.distantPast
+    }
+
+    /// Deletes a parked change on the user's say-so. Only parked rows can be
+    /// discarded here; a live queued row is never touched.
+    func discardParked(_ row: PendingSyncOperation) {
+        guard row.failedAt != nil else { return }
+        let dates = row.operation().map { dayKeys(for: $0) } ?? []
+        context.delete(row)
+        save()
+        refreshCounts()
+        // Pull server state back so an optimistic local row for the discarded change goes away.
+        if let callback = onConflictResolved {
+            Task { await callback(dates) }
+        }
     }
 
     /// All queued rows in FIFO order.
@@ -1114,7 +1178,7 @@ final class SyncManager {
         // Asks the store for the single soonest backed-off row rather than
         // loading the whole queue to take a minimum over it.
         var descriptor = FetchDescriptor<PendingSyncOperation>(
-            predicate: #Predicate { $0.nextAttemptAt > now },
+            predicate: #Predicate { $0.nextAttemptAt > now && $0.failedAt == nil },
             sortBy: [SortDescriptor(\.nextAttemptAt)]
         )
         descriptor.fetchLimit = 1
@@ -1133,7 +1197,7 @@ final class SyncManager {
     /// User-initiated retry from the pending-changes screen: clear all backoff so
     /// every queued op is due immediately, then drain.
     func retryNow() {
-        for row in queuedRows() {
+        for row in queuedRows() where row.failedAt == nil {
             row.nextAttemptAt = Date.distantPast
         }
         save()

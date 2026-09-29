@@ -43,8 +43,8 @@ struct SyncManagerTests {
         #expect(harness.syncManager.errors.isEmpty)
     }
 
-    @Test("4xx responses drop the operation and record an error")
-    func clientErrorDropsOperation() async throws {
+    @Test("4xx responses park the operation for review instead of deleting it")
+    func clientErrorParksOperation() async throws {
         let harness = try RepositoryHarness()
         harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
         harness.stub("POST", "/api/goals", json: "{}")
@@ -54,11 +54,70 @@ struct SyncManagerTests {
 
         await harness.syncManager.drainPendingQueue()
 
-        // The rejected op is gone, draining continued with the next op.
-        #expect(harness.syncManager.queuedRows().isEmpty)
+        // The rejected op is parked (kept, out of the drain), draining continued with the next op.
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["create_food"])
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food"])
+        #expect(harness.syncManager.parkedRows().first?.failureReason == "HTTP 400")
+        #expect(harness.syncManager.pendingCount == 0)
+        #expect(harness.syncManager.failedCount == 1)
         #expect(harness.syncManager.errors.count == 1)
         #expect(harness.syncManager.errors.first?.contains("HTTP 400") == true)
         #expect(harness.recordedRequests.contains("POST /api/goals"))
+    }
+
+    @Test("A parked op is not sent again until retried, and uploads once the server accepts it")
+    func parkedOperationWaitsForRetry() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/goals", status: 422, json: #"{"error": "invalid"}"#)
+
+        harness.syncManager.enqueue(.setGoals(body: .defaults))
+        await harness.syncManager.drainPendingQueue()
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(harness.recordedRequests == ["POST /api/goals"])
+        let parked = try #require(harness.syncManager.parkedRows().first)
+
+        harness.stub("POST", "/api/goals", json: "{}")
+        harness.syncManager.retryParked(parked)
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(harness.recordedRequests == ["POST /api/goals", "POST /api/goals"])
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.failedCount == 0)
+    }
+
+    @Test("Discarding deletes a parked op and never touches a live queued one")
+    func discardParkedOnlyDeletesParkedRows() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/goals", status: 400, json: #"{"error": "invalid"}"#)
+
+        harness.syncManager.enqueue(.setGoals(body: .defaults))
+        await harness.syncManager.drainPendingQueue()
+        harness.syncManager.enqueue(.deleteFood(id: "f1", force: false))
+        let live = try #require(harness.syncManager.queuedRows().first { $0.failedAt == nil })
+        let parked = try #require(harness.syncManager.parkedRows().first)
+
+        harness.syncManager.discardParked(live)
+        #expect(harness.syncManager.queuedRows().count == 2)
+
+        harness.syncManager.discardParked(parked)
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["delete_food"])
+        #expect(harness.syncManager.failedCount == 0)
+        #expect(harness.syncManager.pendingCount == 1)
+    }
+
+    @Test("Timeouts and rate limits back off instead of parking")
+    func transientClientStatusesBackOff() async throws {
+        for status in [408, 425, 429] {
+            let harness = try RepositoryHarness()
+            harness.stub("POST", "/api/goals", status: status, json: #"{"error": "slow down"}"#)
+
+            harness.syncManager.enqueue(.setGoals(body: .defaults))
+            await harness.syncManager.drainPendingQueue()
+
+            #expect(harness.syncManager.parkedRows().isEmpty)
+            #expect(harness.syncManager.queuedRows().first?.retryCount == 1)
+        }
     }
 
     @Test("A create_entry 404 for a real foodId reports a missing reference, not a remote delete")
@@ -76,8 +135,9 @@ struct SyncManagerTests {
 
         let drained = await harness.syncManager.drainPendingQueue()
 
-        #expect(drained == 1)
-        #expect(harness.syncManager.queuedRows().isEmpty)
+        // Parked, not deleted: the user's logged meal stays visible with the reason.
+        #expect(drained == 0)
+        #expect(harness.syncManager.parkedRows().count == 1)
         #expect(harness.syncManager.conflictNotices.first?.contains("no longer exists") == true)
         #expect(harness.syncManager.conflictNotices.first?.contains("deleted on another device") == false)
     }
@@ -101,7 +161,8 @@ struct SyncManagerTests {
 
         let drained = await harness.syncManager.drainPendingQueue()
 
-        #expect(drained == 1)
+        #expect(drained == 0)
+        #expect(harness.syncManager.parkedRows().count == 1)
         #expect(harness.syncManager.conflictNotices.first?.contains("Skyr") == true)
         #expect(harness.syncManager.conflictNotices.first?.contains("2026-06-01") == true)
         #expect(reportedMissingFoodIds == Set(["real-food-id"]))
@@ -136,8 +197,8 @@ struct SyncManagerTests {
         #expect(harness.syncManager.conflictNotices.first?.contains("deleted on another device") == true)
     }
 
-    @Test("5xx ends the drain so the ops behind it keep their retry budget, then drops after the cap")
-    func serverErrorEndsDrainThenDropsAfterCap() async throws {
+    @Test("5xx ends the drain so the ops behind it keep their retry count, and the op is retried indefinitely")
+    func serverErrorEndsDrainAndNeverDrops() async throws {
         let harness = try RepositoryHarness()
         harness.stub("POST", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
         harness.stub("POST", "/api/goals", json: "{}")
@@ -156,23 +217,24 @@ struct SyncManagerTests {
         #expect(!harness.recordedRequests.contains("POST /api/goals"))
         harness.syncManager.resetBackoffForTesting()
 
-        // Attempts 2..<maxRetries: createFood keeps failing and re-backing off, and the
-        // op behind it keeps its untouched budget. Reset the backoff after each so the
-        // next drain picks it up without a real delay.
-        for expectedRetry in 2 ..< SyncManager.maxRetries {
+        // Attempts 2...12: createFood keeps failing and re-backing off, and the op behind
+        // it keeps its untouched count. The old five-retry cap is gone — a one-minute deploy
+        // restart or a long outage must never cost the user an offline-logged change.
+        // Reset the backoff after each so the next drain picks it up without a real delay.
+        for expectedRetry in 2 ... 12 {
             await harness.syncManager.drainPendingQueue()
             #expect(harness.syncManager.queuedRows().count == 2)
             #expect(harness.syncManager.queuedRows().first?.retryCount == expectedRetry)
             #expect(harness.syncManager.queuedRows().last?.retryCount == 0)
+            #expect(harness.syncManager.parkedRows().isEmpty)
             harness.syncManager.resetBackoffForTesting()
         }
+        #expect(harness.syncManager.errors.isEmpty)
 
-        // Final attempt hits the cap: createFood is dropped with a give-up error, and
-        // the drain carries on — a poison op must not park the queue once it is gone.
+        // The backoff is capped (5 minutes plus jitter), not exponential without bound.
         await harness.syncManager.drainPendingQueue()
-        #expect(harness.syncManager.queuedRows().isEmpty)
-        #expect(harness.recordedRequests.contains("POST /api/goals"))
-        #expect(harness.syncManager.errors.contains { $0.contains("Gave up syncing create food") })
+        let gate = try #require(harness.syncManager.queuedRows().first?.nextAttemptAt)
+        #expect(gate.timeIntervalSinceNow <= 5 * 60 + 1)
     }
 
     @Test("An undecodable response backs off only that op and drains the ones behind it")
@@ -364,8 +426,8 @@ struct SyncManagerTests {
         #expect(harness.syncManager.conflictNotices.isEmpty)
     }
 
-    @Test("A chained entry create drops as 'never created' once its food create is permanently gone")
-    func chainedEntryCreateDropsAfterFoodCreateDropped() async throws {
+    @Test("A chained entry create waits behind a parked food create and is parked once that is discarded")
+    func chainedEntryCreateParksAfterFoodCreateDiscarded() async throws {
         let harness = try RepositoryHarness()
         harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
         // No /api/entries stub: the entry create must never be attempted —
@@ -378,15 +440,24 @@ struct SyncManagerTests {
             localId: LocalStore.makeTempId()
         ))
 
+        // The food create 400s and is parked; the entry create right behind it
+        // sees its parent still exists in the store and waits, without ever
+        // hitting the network.
         let drained = await harness.syncManager.drainPendingQueue()
-
-        // The food create 400s and is dropped permanently; the entry create
-        // right behind it sees its reference is gone for good and drops too,
-        // in the same pass, without ever hitting the network.
-        #expect(drained == 2)
-        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(drained == 0)
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food"])
+        #expect(harness.syncManager.pendingCount == 1)
         #expect(harness.recordedRequests == ["POST /api/foods"])
-        #expect(harness.syncManager.conflictNotices.first?.contains("was never created") == true)
+
+        // Once the user discards the food create nothing can resolve the
+        // reference: the entry create is parked too (kept for review), still
+        // never sent.
+        harness.syncManager.discardParked(try #require(harness.syncManager.parkedRows().first))
+        harness.syncManager.resetBackoffForTesting()
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_entry"])
+        #expect(harness.syncManager.pendingCount == 0)
+        #expect(harness.recordedRequests == ["POST /api/foods"])
     }
 
     @Test("Connectivity failures stop draining without consuming the retry budget")
@@ -397,7 +468,7 @@ struct SyncManagerTests {
         harness.stubError("POST", "/api/goals", code: .notConnectedToInternet)
 
         harness.syncManager.enqueue(.setGoals(body: .defaults))
-        for _ in 0 ..< (SyncManager.maxRetries + 1) {
+        for _ in 0 ..< 6 {
             await harness.syncManager.drainPendingQueue()
         }
 

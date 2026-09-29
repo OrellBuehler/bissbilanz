@@ -240,6 +240,68 @@ struct MigratorTests {
         #expect(harness.recipeRepository.recipe(id: "r-server") != nil)
     }
 
+    @Test("A 409 duplicate barcode adopts the existing server food and the migration continues")
+    func duplicateBarcodeAdoptsExistingFood() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        try harness.context.insert(LocalFood(food: harness.food(
+            id: "temp_food1", name: "Local Rice", barcode: "4001234567890"
+        )))
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: "temp_entry1", date: "2026-06-01", foodId: "temp_food1"),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+        stubAllCreates(harness)
+        harness.stub("POST", "/api/foods", status: 409, json: #"{"error": "A food with barcode 4001234567890 already exists"}"#)
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [{
+            "id": "f-existing", "userId": "u1", "name": "Rice (server)", "servingSize": 100, "servingUnit": "g",
+            "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false,
+            "barcode": "4001234567890"
+        }], "total": 1}
+        """)
+
+        let migrator = harness.migrator
+        await migrator.migrate()
+
+        #expect(migrator.state == .completed)
+        #expect(harness.foodRepository.food(id: "f-existing") != nil)
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let entryCreate = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(entryCreate.foodId == "f-existing")
+        #expect(harness.recordedRequests.count(where: { $0 == "POST /api/foods" }) == 1)
+    }
+
+    @Test("A resumed migration replays the same idempotency key for a row that may have committed")
+    func resumeReusesIdempotencyKey() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        try harness.context.insert(LocalFood(food: harness.food(id: "temp_food1", name: "Local Rice")))
+        try harness.context.save()
+        stubAllCreates(harness)
+        harness.stubError("POST", "/api/foods", code: .networkConnectionLost)
+
+        let migrator = harness.migrator
+        await migrator.migrate()
+        guard case .failed = migrator.state else {
+            Issue.record("expected the migration to fail on the food upload")
+            return
+        }
+
+        harness.stub("POST", "/api/foods", json: """
+        {"food": {
+            "id": "f-server", "userId": "u1", "name": "Local Rice", "servingSize": 100, "servingUnit": "g",
+            "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false
+        }}
+        """)
+        await migrator.migrate()
+
+        #expect(migrator.state == .completed)
+        let keys = harness.recordedHeaders("POST", "/api/foods").map { $0["Idempotency-Key"] }
+        #expect(keys.count == 2)
+        #expect(keys[0] != nil)
+        #expect(keys[0] == keys[1])
+    }
+
     @Test("Dangling references upload as quick entries and dropped ingredients")
     func danglingReferencesDegradeGracefully() async throws {
         let harness = try RepositoryHarness(mode: .local)

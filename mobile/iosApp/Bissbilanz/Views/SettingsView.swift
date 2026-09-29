@@ -67,7 +67,8 @@ struct SettingsView: View {
                 // Account status — only when something needs attention
                 // (local mode, an expired session, unsynced or failed changes).
                 if appModeManager.isLocal || authManager.authState == .expired
-                    || syncManager.pendingCount > 0 || syncManager.errors.last != nil
+                    || syncManager.pendingCount > 0 || syncManager.failedCount > 0
+                    || syncManager.errors.last != nil
                 {
                     Section {
                         accountStatusRows
@@ -560,7 +561,7 @@ struct SettingsView: View {
                     Label(L10n.signIn, systemImage: "person.crop.circle")
                 }
             }
-            if syncManager.pendingCount > 0 {
+            if syncManager.pendingCount + syncManager.failedCount > 0 {
                 NavigationLink {
                     PendingSyncView()
                 } label: {
@@ -568,7 +569,7 @@ struct SettingsView: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
-                        Text(L10n.pendingSyncCount(syncManager.pendingCount))
+                        Text(L10n.pendingSyncCount(syncManager.pendingCount + syncManager.failedCount))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
