@@ -3,6 +3,8 @@ import { normalize } from '$lib/server/food-duplicates';
 export const FOOD_PACKAGE_FORMAT = 'bissbilanz.food-package';
 export const FOOD_PACKAGE_VERSION = 1;
 export const MANIFEST_NAME = 'bissbilanz-foods.json';
+/** Same zip content as ever; only the name says "open me in Bissbilanz". */
+export const FOOD_PACKAGE_EXTENSION = '.bissbilanz';
 
 /** An export larger than this is refused, so every package we produce can be imported. */
 export const MAX_PACKAGE_BYTES = 50 * 1024 * 1024;

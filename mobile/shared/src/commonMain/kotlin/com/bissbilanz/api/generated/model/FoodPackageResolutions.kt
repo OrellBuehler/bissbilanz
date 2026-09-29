@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.FoodPackageMapping
 import com.bissbilanz.api.generated.model.FoodPackageResolution
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
@@ -26,10 +27,12 @@ import kotlinx.serialization.encoding.*
  * @param packageHash
  * @param foods
  * @param recipes
+ * @param mappings
  */
 @Serializable
 data class FoodPackageResolutions(
     @SerialName(value = "packageHash") @Required val packageHash: kotlin.String,
     @SerialName(value = "foods") val foods: kotlin.collections.List<FoodPackageResolution>? = null,
     @SerialName(value = "recipes") val recipes: kotlin.collections.List<FoodPackageResolution>? = null,
+    @SerialName(value = "mappings") val mappings: kotlin.collections.List<FoodPackageMapping>? = null,
 )

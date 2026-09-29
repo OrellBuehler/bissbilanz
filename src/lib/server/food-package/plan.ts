@@ -116,6 +116,18 @@ export type RecipeConflictPreview = {
 	notes: ConflictNote[];
 };
 
+export type NewFoodItem = {
+	ref: string;
+	role: 'selected' | 'ingredient';
+	name: string;
+	brand: string | null;
+	servingSize: number;
+	servingUnit: ServingUnit;
+	calories: number;
+	/** Recipes of the package that use this food. */
+	recipes: { ref: string; name: string }[];
+};
+
 export type FoodPackagePreview = {
 	packageHash: string;
 	formatVersion: number;
@@ -125,6 +137,8 @@ export type FoodPackagePreview = {
 		count: number;
 		ingredientOnly: number;
 		samples: { ref: string; name: string; brand: string | null; calories: number }[];
+		/** Every food that would be created, with its role and the recipes using it. */
+		items: NewFoodItem[];
 	};
 	newRecipes: { count: number; samples: { ref: string; name: string }[] };
 	conflicts: { foods: FoodConflictPreview[]; recipes: RecipeConflictPreview[] };
@@ -291,6 +305,28 @@ export async function planFoodPackageImport(
 	});
 
 	const newFoods = match.newFoodRefs.map((ref) => foodsByRef.get(ref)!);
+	const recipesByFood = new Map<string, { ref: string; name: string }[]>();
+	for (const recipe of manifest.recipes) {
+		if (match.invalidRecipeRefs.has(recipe.ref)) continue;
+		for (const ref of new Set(recipe.ingredients.map((ingredient) => ingredient.food))) {
+			const list = recipesByFood.get(ref) ?? [];
+			list.push({ ref: recipe.ref, name: recipe.name });
+			recipesByFood.set(ref, list);
+		}
+	}
+	// An ingredient-only food no importable recipe uses is never created.
+	const newFoodItems: NewFoodItem[] = newFoods
+		.filter((food) => food.role === 'selected' || recipesByFood.has(food.ref))
+		.map((food) => ({
+			ref: food.ref,
+			role: food.role,
+			name: food.name,
+			brand: food.brand ?? null,
+			servingSize: food.servingSize,
+			servingUnit: food.servingUnit,
+			calories: round1(food.calories),
+			recipes: recipesByFood.get(food.ref) ?? []
+		}));
 	const selectedNew = newFoods.filter((food) => food.role === 'selected');
 	const images =
 		manifest.foods.filter((food) => food.image).length +
@@ -318,7 +354,8 @@ export async function planFoodPackageImport(
 						name: food.name,
 						brand: food.brand ?? null,
 						calories: round1(food.calories)
-					}))
+					})),
+				items: newFoodItems
 			},
 			newRecipes: {
 				count: match.newRecipeRefs.length,

@@ -169,6 +169,20 @@ describe('export selection', () => {
 		expect(summary).toMatchObject({ foods: 1, recipes: 1, ingredientFoods: 2 });
 	});
 
+	it('names the file after a single recipe or a single food', async () => {
+		const recipe = await exporter.buildFoodPackage(alice, { recipeIds: [ids.porridge] });
+		expect(recipe.filename).toBe('Porridge.bissbilanz');
+		const one = await exporter.buildFoodPackage(alice, { brands: ['Migros'] });
+		expect(one.filename).toBe('Oats.bissbilanz');
+		const several = await exporter.buildFoodPackage(alice, { all: true });
+		expect(several.filename).toMatch(/^bissbilanz-foods-\d{4}-\d{2}-\d{2}\.bissbilanz$/);
+		const foodAndRecipe = await exporter.buildFoodPackage(alice, {
+			brands: ['Migros'],
+			includeRecipes: 'related'
+		});
+		expect(foodAndRecipe.filename).toMatch(/^bissbilanz-foods-/);
+	});
+
 	it('exports everything except supplements, and ignores foreign ids', async () => {
 		const { bytes } = await exporter.buildFoodPackage(alice, {
 			all: true,
@@ -357,6 +371,70 @@ describe('import', () => {
 		expect(rows).toHaveLength(2);
 		expect(rows.find((row) => row.id === carolOats.id)?.barcode).toBe('7610000000001');
 		expect(rows.find((row) => row.id !== carolOats.id)?.barcode).toBeNull();
+	});
+
+	it("maps new foods onto the importer's own foods instead of creating them", async () => {
+		const [frank] = await db.insert(users).values({ infomaniakSub: 'package-frank' }).returning();
+		const ownHoney = await insertFood(frank.id, { name: 'Blütenhonig', brand: 'Coop' });
+		const ownMilk = await insertFood(frank.id, { name: 'Vollmilch', servingUnit: 'l' });
+		const { bytes } = await exporter.buildFoodPackage(alice, { recipeIds: [ids.porridge] });
+		const pkg = archive.readFoodPackage(bytes);
+		const { preview } = await plan.planFoodPackageImport(frank.id, pkg);
+		expect(preview.conflicts.foods).toEqual([]);
+		expect(preview.newFoods.items.map((item) => [item.name, item.role]).sort()).toEqual([
+			['Honey', 'ingredient'],
+			['Milk', 'ingredient'],
+			['Oats', 'ingredient']
+		]);
+		expect(preview.newFoods.items.every((item) => item.recipes[0].name === 'Porridge')).toBe(true);
+		const ref = (name: string) => preview.newFoods.items.find((item) => item.name === name)!.ref;
+
+		// A mass food cannot stand in for the milk (ml), a bad target is refused, nothing is written.
+		await expect(
+			commit.commitFoodPackageImport(frank.id, pkg, {
+				packageHash: preview.packageHash,
+				foods: [],
+				recipes: [],
+				mappings: [{ ref: ref('Milk'), foodId: ownHoney.id }]
+			})
+		).rejects.toMatchObject({ status: 400 });
+		await expect(
+			commit.commitFoodPackageImport(frank.id, pkg, {
+				packageHash: preview.packageHash,
+				foods: [],
+				recipes: [],
+				mappings: [{ ref: ref('Milk'), foodId: ids.bobMilk }]
+			})
+		).rejects.toMatchObject({ status: 400 });
+		expect(await db.select().from(recipes).where(eq(recipes.userId, frank.id))).toHaveLength(0);
+
+		const result = await commit.commitFoodPackageImport(frank.id, pkg, {
+			packageHash: preview.packageHash,
+			foods: [],
+			recipes: [],
+			mappings: [
+				{ ref: ref('Honey'), foodId: ownHoney.id },
+				{ ref: ref('Milk'), foodId: ownMilk.id }
+			]
+		});
+		expect(result).toMatchObject({ created: { foods: 1, recipes: 1 }, skipped: { foods: 2 } });
+		const created = await db.select().from(foods).where(eq(foods.userId, frank.id));
+		expect(created.map((f) => f.name).sort()).toEqual(['Blütenhonig', 'Oats', 'Vollmilch']);
+		const [recipe] = await db.select().from(recipes).where(eq(recipes.userId, frank.id));
+		const ingredients = await db
+			.select()
+			.from(recipeIngredients)
+			.where(eq(recipeIngredients.recipeId, recipe.id));
+		const oats = created.find((f) => f.name === 'Oats')!;
+		expect(ingredients.map((row) => row.foodId).sort()).toEqual(
+			[oats.id, ownHoney.id, ownMilk.id].sort()
+		);
+		// The ingredient keeps the recipe's own unit; the mapped food is untouched.
+		expect(ingredients.find((row) => row.foodId === ownMilk.id)).toMatchObject({
+			quantity: 200,
+			servingUnit: 'ml'
+		});
+		expect(created.find((f) => f.id === ownMilk.id)).toMatchObject({ servingUnit: 'l' });
 	});
 
 	it('rolls back rows and image files when the transaction fails', async () => {

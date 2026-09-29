@@ -121,6 +121,29 @@ export const foodPackagePreviewResponseSchema = z
 							calories: z.number()
 						})
 						.meta({ id: 'FoodPackageNewFood' })
+				),
+				/**
+				 * Every food that would be created, in package order, with its role and the
+				 * package's recipes that use it. Ingredient-only foods no recipe uses are left
+				 * out.
+				 */
+				items: z.array(
+					z
+						.object({
+							ref: z.string(),
+							role: z.enum(['selected', 'ingredient']).meta({ id: 'FoodPackageFoodRole' }),
+							name: z.string(),
+							brand: z.string().nullable(),
+							servingSize: z.number(),
+							servingUnit: z.enum(servingUnitValues),
+							calories: z.number(),
+							recipes: z.array(
+								z
+									.object({ ref: z.string(), name: z.string() })
+									.meta({ id: 'FoodPackageNewFoodRecipe' })
+							)
+						})
+						.meta({ id: 'FoodPackageNewFoodItem' })
 				)
 			})
 			.meta({ id: 'FoodPackageNewFoods' }),

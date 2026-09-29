@@ -95,7 +95,8 @@ const dropFiles = (filenames: string[]) =>
 export async function commitFoodPackageImport(
 	userId: string,
 	pkg: FoodPackageFile,
-	resolutions: FoodPackageResolutions
+	resolutions: Pick<FoodPackageResolutions, 'packageHash' | 'foods' | 'recipes'> &
+		Partial<Pick<FoodPackageResolutions, 'mappings'>>
 ): Promise<FoodPackageImportResult> {
 	if (resolutions.packageHash !== pkg.packageHash) throw new ApiError(409, PACKAGE_CHANGED);
 

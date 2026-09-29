@@ -11,7 +11,12 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import FacetPicker from './FacetPicker.svelte';
-	import { formatBytes, responseError, type FoodPackageSelection } from './foodPackage';
+	import {
+		filenameFromContentDisposition,
+		formatBytes,
+		responseError,
+		type FoodPackageSelection
+	} from './foodPackage';
 	import type { components } from '$lib/api/generated/schema';
 
 	type Mode = 'all' | 'filter' | 'selected';
@@ -155,12 +160,11 @@
 				return;
 			}
 			const blob = await response.blob();
-			const filename =
-				response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ??
-				'bissbilanz-foods.zip';
+			const filename = filenameFromContentDisposition(response.headers.get('Content-Disposition'));
 			const file = new File([blob], filename, { type: 'application/zip' });
 
-			// Phones (and the installed PWA) can hand the file straight to a messenger.
+			// Phones (and the installed PWA) can hand the file straight to a messenger;
+			// where the browser refuses the custom extension it downloads as before.
 			if (navigator.canShare?.({ files: [file] })) {
 				try {
 					await navigator.share({ files: [file], title: filename });
