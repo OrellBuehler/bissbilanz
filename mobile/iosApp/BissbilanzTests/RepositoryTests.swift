@@ -1463,6 +1463,37 @@ struct RepositoryTests {
         #expect(merged.startPage == Preferences.defaults.startPage)
     }
 
+    @Test("A legacy day-properties toggle fans out to the three split toggles locally")
+    func preferencesLegacyDayPropertiesFansOut() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        harness.context.insert(LocalPreferences(preferences: .defaults))
+        try harness.context.save()
+        harness.stub("PATCH", "/api/preferences", status: 500, json: #"{"error": "boom"}"#)
+
+        var update = PreferencesUpdate()
+        update.showDayPropertiesWidget = false
+        _ = try await repo.update(update)
+        await harness.syncManager.drainPendingQueue()
+
+        let hidden = try #require(repo.preferences())
+        #expect(hidden.showWaterWidget == false)
+        #expect(hidden.showActivityWidget == false)
+        #expect(hidden.showNotesWidget == false)
+        #expect(hidden.showDayPropertiesWidget == false)
+
+        var single = PreferencesUpdate()
+        single.showNotesWidget = true
+        _ = try await repo.update(single)
+        await harness.syncManager.drainPendingQueue()
+
+        let merged = try #require(repo.preferences())
+        #expect(merged.showWaterWidget == false)
+        #expect(merged.showActivityWidget == false)
+        #expect(merged.showNotesWidget == true)
+        #expect(merged.showDayPropertiesWidget == true)
+    }
+
     // MARK: Local mode
 
     @Test("Local mode repositories never hit the network and never enqueue")

@@ -92,6 +92,9 @@ describe('preferences', () => {
 		test('preserves a complete valid order unchanged', async () => {
 			const order = [
 				'fasting',
+				'water',
+				'activity',
+				'notes',
 				'day-properties',
 				'chart',
 				'streaks',
@@ -117,8 +120,44 @@ describe('preferences', () => {
 
 			const result = await getPreferences(TEST_USER.id);
 
-			expect(result?.widgetOrder?.slice(0, 3)).toEqual(['fasting', 'day-properties', 'chart']);
+			expect(result?.widgetOrder?.slice(0, 6)).toEqual([
+				'fasting',
+				'water',
+				'activity',
+				'notes',
+				'day-properties',
+				'chart'
+			]);
 			expect(result?.widgetOrder?.at(-1)).toBe('daylog');
+		});
+
+		test('slots the split day-detail cards in where the combined card sat', async () => {
+			setResult([makePrefsRow(['chart', 'fasting', 'favorites', 'day-properties', 'daylog'])]);
+
+			const result = await getPreferences(TEST_USER.id);
+
+			expect(result?.widgetOrder?.slice(0, 7)).toEqual([
+				'chart',
+				'fasting',
+				'favorites',
+				'water',
+				'activity',
+				'notes',
+				'day-properties'
+			]);
+		});
+
+		test('keeps a custom order of the split day-detail cards', async () => {
+			setResult([
+				makePrefsRow(['notes', 'fasting', 'chart', 'day-properties', 'water', 'daylog', 'activity'])
+			]);
+
+			const result = await getPreferences(TEST_USER.id);
+			const order = result?.widgetOrder ?? [];
+
+			expect(order.indexOf('notes')).toBe(0);
+			expect(order.indexOf('water')).toBe(order.indexOf('day-properties') + 1);
+			expect(order.at(-1)).toBe('activity');
 		});
 
 		test('inserts missing keys before daylog', async () => {
@@ -176,6 +215,60 @@ describe('preferences', () => {
 
 			const order = result?.widgetOrder ?? [];
 			expect(order.filter((k) => k === 'daylog')).toHaveLength(1);
+		});
+	});
+
+	describe('day-detail visibility sync', () => {
+		const upsertSet = () =>
+			getCalls().find((c) => c.method === 'onConflictDoUpdate')?.args[0]?.set as Record<
+				string,
+				unknown
+			>;
+
+		test('legacy combined toggle hides all three split cards', async () => {
+			setResult([{ userId: TEST_USER.id, widgetOrder: ['daylog'] }]);
+
+			await updatePreferences(TEST_USER.id, { showDayPropertiesWidget: false });
+
+			expect(upsertSet()).toMatchObject({
+				showDayPropertiesWidget: false,
+				showWaterWidget: false,
+				showActivityWidget: false,
+				showNotesWidget: false
+			});
+		});
+
+		test('legacy toggle stays on while any split card is shown', async () => {
+			setResult([
+				{
+					userId: TEST_USER.id,
+					widgetOrder: ['daylog'],
+					showWaterWidget: false,
+					showActivityWidget: false,
+					showNotesWidget: true
+				}
+			]);
+
+			await updatePreferences(TEST_USER.id, { showWaterWidget: false });
+
+			expect(upsertSet()).toMatchObject({ showWaterWidget: false, showDayPropertiesWidget: true });
+			expect(upsertSet()).not.toHaveProperty('showNotesWidget');
+		});
+
+		test('legacy toggle turns off with the last split card', async () => {
+			setResult([
+				{
+					userId: TEST_USER.id,
+					widgetOrder: ['daylog'],
+					showWaterWidget: false,
+					showActivityWidget: false,
+					showNotesWidget: true
+				}
+			]);
+
+			await updatePreferences(TEST_USER.id, { showNotesWidget: false });
+
+			expect(upsertSet()).toMatchObject({ showNotesWidget: false, showDayPropertiesWidget: false });
 		});
 	});
 

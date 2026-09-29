@@ -923,8 +923,9 @@
     <string name="dashboard_layout_row_daylog_desc">Mahlzeiten und ihre Einträge</string>
     <string name="dashboard_calorie_trend_desc">Kalorien der letzten 7 Tage</string>
     <string name="settings_widget_fasting_desc">Fastentag-Schalter und das laufende Fasten</string>
-    <string name="settings_widget_day_properties">Tagesdetails</string>
-    <string name="settings_widget_day_properties_desc">Wasser, Aktivität und Notizen zum Tag</string>
+    <string name="settings_widget_water_desc">Wasseraufnahme im Verhältnis zum Ziel</string>
+    <string name="settings_widget_activity_desc">Verbrannte Kalorien durch Training und Aktivität</string>
+    <string name="settings_widget_notes_desc">Freie Notizen zum Tag</string>
     <string name="settings_widget_favorites_desc">Zeigt deine Top 5 Lieblingslebensmittel</string>
     <string name="settings_widget_recipe_suggestions_desc">Rezepte, die zum restlichen Tagesziel passen</string>
     <string name="settings_widget_supplements_desc">Zeigt die heutige Supplement-Checkliste</string>

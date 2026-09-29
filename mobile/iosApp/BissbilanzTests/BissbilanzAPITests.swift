@@ -921,8 +921,8 @@ struct APIResponseDecodingTests {
         // iOS doesn't model (mealOrder, favoriteMealTimeframes, updatedAt) — the
         // decode must succeed via the envelope and ignore the extras. This
         // payload also predates showFastingWidget/showDayPropertiesWidget/
-        // showRecipeSuggestionsWidget — all three must default to true rather
-        // than fail the whole decode.
+        // showRecipeSuggestionsWidget and the split showWater/Activity/NotesWidget
+        // — all must default to true rather than fail the whole decode.
         let json = """
         {
             "preferences": {
@@ -955,7 +955,64 @@ struct APIResponseDecodingTests {
         #expect(response.preferences.timeZone == "Europe/Zurich")
         #expect(response.preferences.showFastingWidget == true)
         #expect(response.preferences.showDayPropertiesWidget == true)
+        #expect(response.preferences.showWaterWidget == true)
+        #expect(response.preferences.showActivityWidget == true)
+        #expect(response.preferences.showNotesWidget == true)
         #expect(response.preferences.showRecipeSuggestionsWidget == true)
+    }
+
+    @Test("Split day-card toggles fall back to the legacy day-properties toggle")
+    func preferencesSplitTogglesFallBackToLegacy() throws {
+        func decode(_ extra: String) throws -> Preferences {
+            let json = """
+            {
+                "showChartWidget": true,
+                "showFavoritesWidget": true,
+                "showSupplementsWidget": true,
+                "showWeightWidget": true,
+                "showMealBreakdownWidget": true,
+                "showTopFoodsWidget": true,
+                "showSleepWidget": true,
+                \(extra)
+                "widgetOrder": [],
+                "startPage": "dashboard",
+                "favoriteTapAction": "instant",
+                "favoriteMealAssignmentMode": "time_based",
+                "visibleNutrients": [],
+                "locale": null,
+                "timeZone": null
+            }
+            """.data(using: .utf8)!
+            return try JSONDecoder().decode(Preferences.self, from: json)
+        }
+
+        let legacyOff = try decode(#""showDayPropertiesWidget": false,"#)
+        #expect(legacyOff.showWaterWidget == false)
+        #expect(legacyOff.showActivityWidget == false)
+        #expect(legacyOff.showNotesWidget == false)
+
+        let explicit = try decode(
+            #""showDayPropertiesWidget": false, "showWaterWidget": true, "showActivityWidget": false, "showNotesWidget": true,"#
+        )
+        #expect(explicit.showWaterWidget == true)
+        #expect(explicit.showActivityWidget == false)
+        #expect(explicit.showNotesWidget == true)
+    }
+
+    @Test("Preferences update encodes the split day-card toggles only when set")
+    func preferencesUpdateSplitToggleEncoding() throws {
+        var update = PreferencesUpdate()
+        update.showWaterWidget = false
+        update.widgetOrder = ["water", "day-properties"]
+
+        let data = try JSONEncoder().encode(update)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(json["showWaterWidget"] as? Bool == false)
+        #expect(json["showActivityWidget"] == nil)
+        #expect(json["showNotesWidget"] == nil)
+        #expect(json["showDayPropertiesWidget"] == nil)
+        #expect(json["widgetOrder"] as? [String] == ["water", "day-properties"])
     }
 
     @Test("Daily stats response decodes")

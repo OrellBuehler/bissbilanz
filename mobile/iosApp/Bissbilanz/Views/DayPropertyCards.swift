@@ -1,37 +1,41 @@
 import SwiftUI
 
-/// Three stacked day-properties cards: a water tracker with quick-add buttons,
-/// an informational activity-calories input with a short note, and an
-/// autosaving notes field. They share one dashboard slot and visibility
-/// toggle. Mirrors the web `DayPropertiesCard.svelte`.
-/// Offline-first through `EntryRepository.setDayProperties`, which merges
-/// each partial write onto the day's stored row rather than replacing it.
-struct DayPropertiesCard: View {
+// The three day-properties dashboard cards — a water tracker with quick-add
+// buttons, an activity-calories input with a short note, and an autosaving
+// notes field. Each is its own dashboard section with its own visibility
+// toggle and position (see `DashboardSection`). Mirrors the web
+// `DayPropertiesCard.svelte`.
+// Offline-first through `EntryRepository.setDayProperties`, which merges
+// each partial write onto the day's stored row rather than replacing it, so
+// the three cards can save independently without clobbering one another.
+
+private enum DayPropertiesInput {
+    static func parseInt(_ text: String) -> Int? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? nil : Int(trimmed)
+    }
+
+    static func clamp(_ value: Int, max upper: Int) -> Int {
+        Swift.max(0, Swift.min(value, upper))
+    }
+}
+
+struct WaterCard: View {
     private enum Field: Hashable {
-        case water, activity, activityNote, notes
+        case water
     }
 
     private static let maxWaterMl = 20000
-    private static let maxActivityCalories = 20000
-    private static let notesDebounce: UInt64 = 1_200_000_000
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
 
     let date: String
-    /// Reported after every load/save so the dashboard can show an
-    /// "Activity: +N kcal" summary line without this card owning that layout.
-    var onActivityChange: ((Int?) -> Void)?
 
     @State private var properties: DayProperties?
     @State private var waterGoalMl = 2000
     @State private var waterDraft = ""
-    @State private var activityDraft = ""
-    @State private var activityNoteDraft = ""
-    @State private var notesDraft = ""
-    @State private var notesDirty = false
-    @State private var notesTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
 
     private var waterMl: Int { properties?.waterMl ?? 0 }
@@ -41,21 +45,12 @@ struct DayPropertiesCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            waterSection.dayPropertiesCard()
-            activitySection.dayPropertiesCard()
-            notesSection.dayPropertiesCard()
-        }
-        .task(id: date) { load() }
-        .onChange(of: focusedField) { previous, _ in
-            switch previous {
-            case .water: commitWater()
-            case .activity: commitActivity()
-            case .activityNote: commitActivityNote()
-            case .notes: commitNotes()
-            case nil: break
+        content
+            .dayPropertiesCard()
+            .task(id: date) { load() }
+            .onChange(of: focusedField) { previous, _ in
+                if previous == .water { commitWater() }
             }
-        }
     }
 
     private var adaptiveInputLayout: AnyLayout {
@@ -64,9 +59,7 @@ struct DayPropertiesCard: View {
             : AnyLayout(HStackLayout(spacing: 8))
     }
 
-    // MARK: - Water
-
-    private var waterSection: some View {
+    private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 HStack(spacing: 6) {
@@ -120,14 +113,14 @@ struct DayPropertiesCard: View {
     }
 
     private func addWater(_ delta: Int) {
-        let clamped = clamp(waterMl + delta, max: Self.maxWaterMl)
+        let clamped = DayPropertiesInput.clamp(waterMl + delta, max: Self.maxWaterMl)
         waterDraft = String(clamped)
         save(DayPropertiesPatch(waterMl: .some(clamped)))
     }
 
     private func commitWater() {
-        let parsed = parseInt(waterDraft)
-        let clamped = parsed.map { clamp($0, max: Self.maxWaterMl) }
+        let parsed = DayPropertiesInput.parseInt(waterDraft)
+        let clamped = parsed.map { DayPropertiesInput.clamp($0, max: Self.maxWaterMl) }
         waterDraft = clamped.map(String.init) ?? ""
         save(DayPropertiesPatch(waterMl: .some(clamped)))
     }
@@ -137,9 +130,62 @@ struct DayPropertiesCard: View {
         save(DayPropertiesPatch(waterMl: .some(nil)))
     }
 
-    // MARK: - Activity
+    // MARK: - Load/Save
 
-    private var activitySection: some View {
+    private func load() {
+        properties = entryRepository.dayProperties(date: date)
+        waterGoalMl = preferencesRepository.preferences()?.waterGoalMl ?? 2000
+        waterDraft = properties?.waterMl.map(String.init) ?? ""
+    }
+
+    private func save(_ patch: DayPropertiesPatch) {
+        Task {
+            try? await entryRepository.setDayProperties(date: date, patch: patch)
+            properties = entryRepository.dayProperties(date: date)
+        }
+    }
+}
+
+struct ActivityCard: View {
+    private enum Field: Hashable {
+        case activity, activityNote
+    }
+
+    private static let maxActivityCalories = 20000
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(EntryRepository.self) private var entryRepository
+
+    let date: String
+    /// Reported after every load/save so the dashboard can show an
+    /// "Activity: +N kcal" summary line without this card owning that layout.
+    var onActivityChange: ((Int?) -> Void)?
+
+    @State private var properties: DayProperties?
+    @State private var activityDraft = ""
+    @State private var activityNoteDraft = ""
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        content
+            .dayPropertiesCard()
+            .task(id: date) { load() }
+            .onChange(of: focusedField) { previous, _ in
+                switch previous {
+                case .activity: commitActivity()
+                case .activityNote: commitActivityNote()
+                case nil: break
+                }
+            }
+    }
+
+    private var adaptiveInputLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "flame.fill")
@@ -197,8 +243,8 @@ struct DayPropertiesCard: View {
     /// explicit user action from here on. Clearing the field this way clears
     /// the source too, matching the dedicated clear button below.
     private func commitActivity() {
-        let parsed = parseInt(activityDraft)
-        let clamped = parsed.map { clamp($0, max: Self.maxActivityCalories) }
+        let parsed = DayPropertiesInput.parseInt(activityDraft)
+        let clamped = parsed.map { DayPropertiesInput.clamp($0, max: Self.maxActivityCalories) }
         activityDraft = clamped.map(String.init) ?? ""
         let source: String?? = clamped == nil ? .some(nil) : .some("manual")
         save(DayPropertiesPatch(activityCalories: .some(clamped), activityCaloriesSource: source))
@@ -221,9 +267,51 @@ struct DayPropertiesCard: View {
         ))
     }
 
-    // MARK: - Notes
+    // MARK: - Load/Save
 
-    private var notesSection: some View {
+    private func load() {
+        properties = entryRepository.dayProperties(date: date)
+        activityDraft = properties?.activityCalories.map(String.init) ?? ""
+        activityNoteDraft = properties?.activityNote ?? ""
+        onActivityChange?(properties?.activityCalories)
+    }
+
+    private func save(_ patch: DayPropertiesPatch) {
+        Task {
+            try? await entryRepository.setDayProperties(date: date, patch: patch)
+            properties = entryRepository.dayProperties(date: date)
+            onActivityChange?(properties?.activityCalories)
+        }
+    }
+}
+
+struct NotesCard: View {
+    private enum Field: Hashable {
+        case notes
+    }
+
+    private static let notesDebounce: UInt64 = 1_200_000_000
+
+    @Environment(EntryRepository.self) private var entryRepository
+
+    let date: String
+
+    @State private var properties: DayProperties?
+    @State private var notesDraft = ""
+    @State private var notesDirty = false
+    @State private var notesTask: Task<Void, Never>?
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        content
+            .dayPropertiesCard()
+            .task(id: date) { load() }
+            .onChange(of: focusedField) { previous, _ in
+                if previous == .notes { commitNotes() }
+            }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "note.text")
@@ -273,29 +361,14 @@ struct DayPropertiesCard: View {
 
     private func load() {
         properties = entryRepository.dayProperties(date: date)
-        waterGoalMl = preferencesRepository.preferences()?.waterGoalMl ?? 2000
-        waterDraft = properties?.waterMl.map(String.init) ?? ""
-        activityDraft = properties?.activityCalories.map(String.init) ?? ""
-        activityNoteDraft = properties?.activityNote ?? ""
         if !notesDirty { notesDraft = properties?.notes ?? "" }
-        onActivityChange?(properties?.activityCalories)
     }
 
     private func save(_ patch: DayPropertiesPatch) {
         Task {
             try? await entryRepository.setDayProperties(date: date, patch: patch)
             properties = entryRepository.dayProperties(date: date)
-            onActivityChange?(properties?.activityCalories)
         }
-    }
-
-    private func parseInt(_ text: String) -> Int? {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? nil : Int(trimmed)
-    }
-
-    private func clamp(_ value: Int, max upper: Int) -> Int {
-        Swift.max(0, Swift.min(value, upper))
     }
 }
 

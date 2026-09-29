@@ -139,7 +139,9 @@ private fun DashboardSection.title(): String =
     stringResource(
         when (this) {
             DashboardSection.FASTING -> R.string.fasting_title
-            DashboardSection.DAY_PROPERTIES -> R.string.settings_widget_day_properties
+            DashboardSection.WATER -> R.string.day_water_title
+            DashboardSection.ACTIVITY -> R.string.day_activity_title
+            DashboardSection.NOTES -> R.string.day_notes_title
             DashboardSection.CHART -> R.string.dashboard_calorie_trend_title
             DashboardSection.FAVORITES -> R.string.favorites_title
             DashboardSection.RECIPE_SUGGESTIONS -> R.string.recipe_suggestions_title
@@ -157,7 +159,9 @@ private fun DashboardSection.description(): String =
     stringResource(
         when (this) {
             DashboardSection.FASTING -> R.string.settings_widget_fasting_desc
-            DashboardSection.DAY_PROPERTIES -> R.string.settings_widget_day_properties_desc
+            DashboardSection.WATER -> R.string.settings_widget_water_desc
+            DashboardSection.ACTIVITY -> R.string.settings_widget_activity_desc
+            DashboardSection.NOTES -> R.string.settings_widget_notes_desc
             DashboardSection.CHART -> R.string.dashboard_calorie_trend_desc
             DashboardSection.FAVORITES -> R.string.settings_widget_favorites_desc
             DashboardSection.RECIPE_SUGGESTIONS -> R.string.settings_widget_recipe_suggestions_desc

@@ -2038,15 +2038,27 @@ enum L10n {
         )
     }
 
-    static var dashboardSectionDayDetailsTitle: String {
-        localized("dashboard_section_day_details_title", en: "Day details", de: "Tagesdetails")
+    static var dashboardSectionWaterDescription: String {
+        localized(
+            "dashboard_section_water_description",
+            en: "Water intake with quick-add buttons",
+            de: "Wasseraufnahme mit Schnellwahl-Tasten"
+        )
     }
 
-    static var dashboardSectionDayDetailsDescription: String {
+    static var dashboardSectionActivityDescription: String {
         localized(
-            "dashboard_section_day_details_description",
-            en: "Water, activity and notes for the day",
-            de: "Wasser, Aktivität und Notizen für den Tag"
+            "dashboard_section_activity_description",
+            en: "Activity calories and a short note",
+            de: "Aktivitätskalorien und eine kurze Notiz"
+        )
+    }
+
+    static var dashboardSectionNotesDescription: String {
+        localized(
+            "dashboard_section_notes_description",
+            en: "Free-form notes for the day",
+            de: "Freie Notizen für den Tag"
         )
     }
 

@@ -381,6 +381,9 @@ export const userPreferences = pgTable(
 		showSleepWidget: boolean('show_sleep_widget').notNull().default(true),
 		showFastingWidget: boolean('show_fasting_widget').notNull().default(true),
 		showDayPropertiesWidget: boolean('show_day_properties_widget').notNull().default(true),
+		showWaterWidget: boolean('show_water_widget').notNull().default(true),
+		showActivityWidget: boolean('show_activity_widget').notNull().default(true),
+		showNotesWidget: boolean('show_notes_widget').notNull().default(true),
 		showRecipeSuggestionsWidget: boolean('show_recipe_suggestions_widget').notNull().default(true),
 		widgetOrder: text('widget_order')
 			.array()

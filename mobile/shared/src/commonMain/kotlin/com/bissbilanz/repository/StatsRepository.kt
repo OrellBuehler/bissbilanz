@@ -6,6 +6,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.decodePreferencesOrNull
 import com.bissbilanz.util.totalMacros
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -128,7 +129,7 @@ class StatsRepository(
             db.userDataDatabaseQueries
                 .selectPreferences()
                 .executeAsOneOrNull()
-                ?.let { json.decodeOrNull<Preferences>(it.jsonData) }
+                ?.let { json.decodePreferencesOrNull(it.jsonData) }
         return DailyStatsResponse(
             data = data,
             goals = goals,

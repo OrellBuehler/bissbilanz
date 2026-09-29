@@ -14,9 +14,17 @@
 			name: () => m.settings_widget_fasting(),
 			desc: () => m.settings_widget_fasting_desc()
 		},
-		'day-properties': {
-			name: () => m.settings_widget_day_properties(),
-			desc: () => m.settings_widget_day_properties_desc()
+		water: {
+			name: () => m.settings_widget_water(),
+			desc: () => m.settings_widget_water_desc()
+		},
+		activity: {
+			name: () => m.settings_widget_activity(),
+			desc: () => m.settings_widget_activity_desc()
+		},
+		notes: {
+			name: () => m.settings_widget_notes(),
+			desc: () => m.settings_widget_notes_desc()
 		},
 		chart: {
 			name: () => m.settings_section_chart(),
@@ -74,7 +82,9 @@
 		topFoods: boolean;
 		sleep: boolean;
 		fasting: boolean;
-		dayProperties: boolean;
+		water: boolean;
+		activity: boolean;
+		notes: boolean;
 	};
 
 	type Props = {
@@ -89,20 +99,27 @@
 		Array<{ id: string; name: () => string; desc: () => string; key: string }>
 	>([]);
 
+	// Placeholder for older clients that still render the combined day card; it
+	// keeps its slot in the saved order but has no row here.
+	const HIDDEN_KEYS = new Set(['day-properties']);
+
 	$effect(() => {
-		widgetOrder = order.map((key) => ({
-			id: key,
-			key,
-			name: WIDGET_DEFS[key]?.name ?? (() => key),
-			desc: WIDGET_DEFS[key]?.desc ?? (() => '')
-		}));
+		widgetOrder = order
+			.filter((key) => !HIDDEN_KEYS.has(key))
+			.map((key) => ({
+				id: key,
+				key,
+				name: WIDGET_DEFS[key]?.name ?? (() => key),
+				desc: WIDGET_DEFS[key]?.desc ?? (() => '')
+			}));
 	});
 
 	const handleSort = (event: any) => {
 		const { draggedItemIndex, targetItemIndex } = event;
 		if (draggedItemIndex == null || targetItemIndex == null) return;
 		widgetOrder = sortItems(widgetOrder, draggedItemIndex, targetItemIndex);
-		const newOrder = widgetOrder.map((w) => w.key);
+		const visible = widgetOrder.map((w) => w.key).values();
+		const newOrder = order.map((key) => (HIDDEN_KEYS.has(key) ? key : visible.next().value!));
 		onSavePreference('widgetOrder', newOrder);
 	};
 </script>
@@ -168,10 +185,20 @@
 								checked={visibility.fasting}
 								onCheckedChange={(v) => onSavePreference('showFastingWidget', v)}
 							/>
-						{:else if widget.key === 'day-properties'}
+						{:else if widget.key === 'water'}
 							<Switch
-								checked={visibility.dayProperties}
-								onCheckedChange={(v) => onSavePreference('showDayPropertiesWidget', v)}
+								checked={visibility.water}
+								onCheckedChange={(v) => onSavePreference('showWaterWidget', v)}
+							/>
+						{:else if widget.key === 'activity'}
+							<Switch
+								checked={visibility.activity}
+								onCheckedChange={(v) => onSavePreference('showActivityWidget', v)}
+							/>
+						{:else if widget.key === 'notes'}
+							<Switch
+								checked={visibility.notes}
+								onCheckedChange={(v) => onSavePreference('showNotesWidget', v)}
 							/>
 						{/if}
 					</div>

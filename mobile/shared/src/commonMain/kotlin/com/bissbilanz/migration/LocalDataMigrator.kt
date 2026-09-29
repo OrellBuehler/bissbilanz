@@ -35,6 +35,7 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.CachedEntry
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.decodePreferencesOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.serverTotalsToPerServing
@@ -848,7 +849,7 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         val row = queries.selectPreferences().executeAsOneOrNull() ?: return done
-        val prefs = json.decodeOrNull<Preferences>(row.jsonData) ?: return done
+        val prefs = json.decodePreferencesOrNull(row.jsonData) ?: return done
         progress(done, total, STEP_PREFERENCES)
         api.updatePreferences(prefs.toPreferencesUpdate())
         progress(++done, total, STEP_PREFERENCES)
@@ -1052,6 +1053,9 @@ class LocalDataMigrator(
             showSleepWidget = showSleepWidget,
             showFastingWidget = showFastingWidget,
             showDayPropertiesWidget = showDayPropertiesWidget,
+            showWaterWidget = showWaterWidget,
+            showActivityWidget = showActivityWidget,
+            showNotesWidget = showNotesWidget,
             showRecipeSuggestionsWidget = showRecipeSuggestionsWidget,
             widgetOrder =
                 widgetOrder

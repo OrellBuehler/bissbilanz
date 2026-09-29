@@ -71,9 +71,10 @@ struct DashboardView: View {
     @State private var showCopyConfirmation = false
     @State private var toastMessage: String?
     @State private var isFastingDay = false
-    /// Reported by `DayPropertiesCard`; drives the "Activity: +N kcal" summary
-    /// line and, when `preferences.activityGoalAdjustment` is on, the goal
-    /// ring adjustment below (see `activityAdjustment`).
+    /// Read from the local store in `loadFromStore` and kept fresh by
+    /// `ActivityCard`; drives the "Activity: +N kcal" summary line and, when
+    /// `preferences.activityGoalAdjustment` is on, the goal ring adjustment
+    /// below (see `activityAdjustment`) — whether or not the card is shown.
     @State private var dayActivityCalories: Int?
     /// Edge the incoming day content is pushed in from when the date changes.
     @State private var slideEdge: Edge = .trailing
@@ -356,7 +357,7 @@ struct DashboardView: View {
         VStack(spacing: 16) {
             macroRings
 
-            if preferences.showDayPropertiesWidget, let dayActivityCalories, dayActivityCalories > 0 {
+            if preferences.showActivityWidget, let dayActivityCalories, dayActivityCalories > 0 {
                 activitySummaryLine(dayActivityCalories)
             }
 
@@ -439,8 +440,12 @@ struct DashboardView: View {
         switch section {
         case .fasting:
             fastingSection
-        case .dayProperties:
-            DayPropertiesCard(date: dateString) { dayActivityCalories = $0 }
+        case .water:
+            WaterCard(date: dateString)
+        case .activity:
+            ActivityCard(date: dateString) { dayActivityCalories = $0 }
+        case .notes:
+            NotesCard(date: dateString)
         case .daylog:
             daylogSection
         case .chart:
@@ -461,7 +466,7 @@ struct DashboardView: View {
             mealBreakdownWidget
         case .topFoods:
             topFoodsWidget
-        case .streaks, .summary:
+        case .streaks, .summary, .dayProperties:
             EmptyView()
         }
     }
@@ -1242,6 +1247,7 @@ struct DashboardView: View {
         goals = goalsRepository.goals() ?? .defaults
         preferences = preferencesRepository.preferences() ?? .defaults
         isFastingDay = entryRepository.isFastingDay(date: dateString)
+        dayActivityCalories = entryRepository.dayProperties(date: dateString)?.activityCalories
         supplementChecklist = supplementRepository.localChecklist(date: dateString)
         closestWeight = weightRepository.closest(to: dateString)
         closestSleep = sleepRepository.closest(to: dateString)
