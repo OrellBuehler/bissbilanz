@@ -23,8 +23,10 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param code
+ * @param codeVerifier
  */
 @Serializable
 data class MobileTokenRequestAnyOf(
     @SerialName(value = "code") @Required val code: kotlin.String,
+    @SerialName(value = "code_verifier") val codeVerifier: kotlin.String? = null,
 )

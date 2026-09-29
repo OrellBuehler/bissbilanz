@@ -14,6 +14,7 @@ vi.mock('$lib/server/auth-account', () => ({
 }));
 vi.mock('$lib/server/oauth', () => ({
 	createAccessToken: vi.fn(async () => ({ accessToken: 'at', refreshToken: 'rt' })),
+	FIRST_PARTY_SCOPES: ['mcp:access', 'account:manage'],
 	ACCESS_TOKEN_LIFETIME_MS: 3_600_000
 }));
 

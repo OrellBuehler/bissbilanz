@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import DashboardCard from '$lib/components/dashboard/DashboardCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Pin from '@lucide/svelte/icons/pin';
@@ -45,6 +46,8 @@
 				failedSources = result.failedSources;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
+				if (navigator.onLine)
+					Sentry.captureException(e, { extra: { context: 'PinnedInsights.load' } });
 			} finally {
 				if (!controller.signal.aborted) loading = false;
 			}

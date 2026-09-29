@@ -207,8 +207,13 @@ final class AccountDowngrader {
                 continue
             }
             var file = LocalImageStore.cachedFile(for: imageUrl)
-            if file == nil, let data = try? await api.downloadImage(path: imageUrl) {
-                file = LocalImageStore.write(data, named: key)
+            if file == nil {
+                do {
+                    let data = try await api.downloadImage(path: imageUrl)
+                    file = LocalImageStore.write(data, named: key)
+                } catch {
+                    ErrorReporter.capture(error, context: ["operation": "downgrade_image_download"])
+                }
             }
             guard let file else {
                 result.append(item)
@@ -239,8 +244,13 @@ final class AccountDowngrader {
                     continue
                 }
                 var file = LocalImageStore.cachedFile(for: imageUrl)
-                if file == nil, let data = try? await api.downloadImage(path: imageUrl) {
-                    file = LocalImageStore.write(data, named: key)
+                if file == nil {
+                    do {
+                        let data = try await api.downloadImage(path: imageUrl)
+                        file = LocalImageStore.write(data, named: key)
+                    } catch {
+                        ErrorReporter.capture(error, context: ["operation": "downgrade_step_image_download"])
+                    }
                 }
                 localized.append(RecipeStep(
                     id: step.id,

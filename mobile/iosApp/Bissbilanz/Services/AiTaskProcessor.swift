@@ -369,7 +369,12 @@ final class AiTaskProcessor {
 
     private func dismiss(_ task: AiTask, reason: String, source: MealEstimateSource) async {
         let update = AiTaskUpdate(status: "dismissed", resultSummary: reason, processedBy: Self.processedBy(for: source))
-        guard (try? await api.updateAiTask(id: task.id, update)) != nil else { return }
+        do {
+            _ = try await api.updateAiTask(id: task.id, update)
+        } catch {
+            ErrorReporter.capture(error, context: ["operation": "ai_task_dismiss"])
+            return
+        }
         aiTaskStore.markResolvedLocally(id: task.id)
     }
 
@@ -383,8 +388,10 @@ final class AiTaskProcessor {
     private func downloadPhotos(_ task: AiTask) async -> [Data] {
         var result: [Data] = []
         for path in task.photoUrls {
-            if let data = try? await api.downloadImage(path: path) {
-                result.append(data)
+            do {
+                result.append(try await api.downloadImage(path: path))
+            } catch {
+                ErrorReporter.capture(error, context: ["operation": "ai_task_photo_download"])
             }
         }
         return result
@@ -394,8 +401,11 @@ final class AiTaskProcessor {
         let scanner = NutritionLabelScanner()
         var results: [PhotoScan] = []
         for (index, data) in photos.enumerated() {
-            if let nutrition = try? await scanner.scan(data) {
+            do {
+                let nutrition = try await scanner.scan(data)
                 results.append(PhotoScan(index: index, nutrition: nutrition))
+            } catch {
+                ErrorReporter.capture(error, context: ["operation": "ai_task_label_scan"])
             }
         }
         return results

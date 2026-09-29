@@ -15,10 +15,12 @@ vi.mock('$lib/server/db', () => ({
 let mockDataRange: any = { earliest: null, latest: null };
 let mockDeleteError: Error | null = null;
 let mockRateLimitError: Error | null = null;
+let mockOnDelete: (() => void) | null = null;
 
 vi.mock('$lib/server/account', () => ({
 	getAccountDataRange: async () => mockDataRange,
 	deleteAccount: async () => {
+		mockOnDelete?.();
 		if (mockDeleteError) throw mockDeleteError;
 	}
 }));
@@ -39,6 +41,7 @@ describe('api/account', () => {
 		mockDataRange = { earliest: null, latest: null };
 		mockDeleteError = null;
 		mockRateLimitError = null;
+		mockOnDelete = null;
 	});
 
 	describe('GET /api/account', () => {
@@ -79,6 +82,33 @@ describe('api/account', () => {
 			const response = await DELETE(event as any);
 			await expectResponseContract('DELETE', '/api/account', response);
 			expect(response.status).toBe(204);
+		});
+
+		test('lets the mobile apps delete with their first-party token', async () => {
+			const event = {
+				...createMockEvent({ user: TEST_USER }),
+				locals: { user: TEST_USER, tokenScopes: ['mcp:access', 'account:manage'] },
+				cookies
+			};
+			const response = await DELETE(event as any);
+			await expectResponseContract('DELETE', '/api/account', response);
+			expect(response.status).toBe(204);
+		});
+
+		test('forbids an OAuth/MCP token from deleting the account', async () => {
+			let deleted = false;
+			mockOnDelete = () => {
+				deleted = true;
+			};
+			const event = {
+				...createMockEvent({ user: TEST_USER }),
+				locals: { user: TEST_USER, tokenScopes: ['mcp:access'] },
+				cookies
+			};
+			const response = await DELETE(event as any);
+			await expectResponseContract('DELETE', '/api/account', response);
+			expect(response.status).toBe(403);
+			expect(deleted).toBe(false);
 		});
 	});
 });

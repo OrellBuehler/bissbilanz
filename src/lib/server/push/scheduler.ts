@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { building } from '$app/environment';
 import { isPushEnabled } from './config';
 import { dispatchReminders } from './dispatch';
@@ -13,6 +14,7 @@ const tick = async () => {
 		await dispatchReminders(new Date());
 	} catch (error) {
 		console.error('[push-reminders] Tick failed:', error);
+		Sentry.captureException(error, { tags: { job: 'push-reminders' } });
 	} finally {
 		running = false;
 	}

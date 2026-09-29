@@ -448,6 +448,6 @@ final class RecipeRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("RecipeRepository.save")
     }
 }

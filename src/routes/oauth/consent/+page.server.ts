@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { redirect, fail, isRedirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
@@ -126,6 +127,7 @@ export const actions = {
 		} catch (error) {
 			if (isRedirect(error)) throw error;
 			console.error('Failed to approve authorization:', error);
+			Sentry.captureException(error);
 			return fail(500, { error: 'Failed to complete authorization' });
 		}
 	},

@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CryptoKit
 import Foundation
 import Observation
 import Security
@@ -21,6 +22,7 @@ final class AuthManager {
     private let baseURL: String
     private let session: URLSession
     private var pendingState: String?
+    private var pendingCodeVerifier: String?
     /// In-flight refresh, shared by concurrent callers. Refresh tokens rotate
     /// on use, so two parallel refreshes would invalidate each other and kill
     /// the session.
@@ -155,8 +157,25 @@ final class AuthManager {
 
     func buildLoginURL(provider: String = "infomaniak") -> URL? {
         let state = UUID().uuidString
+        let verifier = Self.generateCodeVerifier()
         pendingState = state
-        return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)&provider=\(provider)")
+        pendingCodeVerifier = verifier
+        let challenge = Self.codeChallenge(for: verifier)
+        return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)&provider=\(provider)&code_challenge=\(challenge)&code_challenge_method=S256")
+    }
+
+    nonisolated static func generateCodeVerifier() -> String {
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        var generator = SystemRandomNumberGenerator()
+        return String((0 ..< 64).map { _ in alphabet.randomElement(using: &generator) ?? "A" })
+    }
+
+    nonisolated static func codeChallenge(for verifier: String) -> String {
+        Data(SHA256.hash(data: Data(verifier.utf8)))
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 
     @discardableResult
@@ -168,7 +187,9 @@ final class AuthManager {
         else {
             return false
         }
+        let codeVerifier = pendingCodeVerifier
         pendingState = nil
+        pendingCodeVerifier = nil
 
         guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else { return false }
 
@@ -177,7 +198,8 @@ final class AuthManager {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         ClientVersionHeader.apply(to: &request)
 
-        let body = ["code": code]
+        var body = ["code": code]
+        if let codeVerifier { body["code_verifier"] = codeVerifier }
         request.httpBody = try? JSONEncoder().encode(body)
 
         do {

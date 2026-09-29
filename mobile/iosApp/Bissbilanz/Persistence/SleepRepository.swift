@@ -253,7 +253,7 @@ final class SleepRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("SleepRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
         syncLatestToHealth()
     }

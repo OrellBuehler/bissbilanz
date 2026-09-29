@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
@@ -35,6 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	} catch (error) {
 		console.error('Failed to load MCP settings:', error);
+		Sentry.captureException(error);
 		return fail(500, { error: 'Failed to load MCP settings' });
 	}
 };
@@ -73,6 +75,7 @@ export const actions = {
 			};
 		} catch (error) {
 			console.error('Failed to regenerate client secret:', error);
+			Sentry.captureException(error);
 			return fail(500, { error: 'Failed to regenerate client secret' });
 		}
 	},
@@ -127,6 +130,7 @@ export const actions = {
 			return { success: true, action: 'addRedirectUri' };
 		} catch (error) {
 			console.error('Failed to add redirect URI:', error);
+			Sentry.captureException(error);
 			return fail(500, { error: 'Failed to add redirect URI' });
 		}
 	},
@@ -155,6 +159,7 @@ export const actions = {
 			return { success: true, action: 'revokeClient' };
 		} catch (error) {
 			console.error('Failed to revoke client:', error);
+			Sentry.captureException(error);
 			return fail(500, { error: 'Failed to revoke client' });
 		}
 	},
@@ -201,6 +206,7 @@ export const actions = {
 			return { success: true, action: 'removeRedirectUri' };
 		} catch (error) {
 			console.error('Failed to remove redirect URI:', error);
+			Sentry.captureException(error);
 			return fail(500, { error: 'Failed to remove redirect URI' });
 		}
 	}

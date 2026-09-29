@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { onMount, type Component } from 'svelte';
 	import { liveQuery } from 'dexie';
 	import { goto } from '$app/navigation';
@@ -51,6 +52,8 @@
 			recentFoods = (data?.foods ?? []).map((f) => ({ id: f.id, name: f.name }));
 		} catch (e) {
 			if (dev) console.warn('Failed to load recent foods:', e);
+			if (navigator.onLine)
+				Sentry.captureException(e, { extra: { context: 'CommandPalette.loadRecentFoods' } });
 		}
 	};
 

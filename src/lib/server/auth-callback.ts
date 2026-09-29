@@ -51,6 +51,7 @@ export async function resolveProviderProfile(input: {
 		});
 	} catch (e) {
 		if (e instanceof JOSEError) throw error(401, 'ID token verification failed');
+		Sentry.captureException(e, { extra: { providerId: provider.id } });
 		throw error(500, 'Failed to verify ID token');
 	}
 
@@ -63,7 +64,12 @@ export async function resolveProviderProfile(input: {
 	}
 
 	const profile = provider.mapClaims(claims, userInfo);
-	if (!profile.sub) throw error(500, 'Provider did not return a subject identifier');
+	if (!profile.sub) {
+		Sentry.captureMessage('Provider did not return a subject identifier', {
+			extra: { providerId: provider.id }
+		});
+		throw error(500, 'Provider did not return a subject identifier');
+	}
 
 	return { profile, tokens };
 }
@@ -81,7 +87,7 @@ export async function startSession(input: {
 }) {
 	const session = await createSession(input.userId, input.refreshToken);
 
-	input.cookies.set('session', session.id, {
+	input.cookies.set('session', session.token, {
 		path: '/',
 		httpOnly: true,
 		secure: config.app.secureCookies,
@@ -295,7 +301,7 @@ export async function handleMobileCallback(input: {
 	});
 
 	const user = await findOrCreateUserByIdentity(provider.id, profile, 'en');
-	const oneTimeCode = createOneTimeCode(user.id);
+	const oneTimeCode = createOneTimeCode(user.id, pending.appCodeChallenge);
 
 	throw redirect(
 		302,

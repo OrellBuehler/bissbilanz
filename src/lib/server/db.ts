@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
@@ -59,6 +60,8 @@ export async function runMigrations(): Promise<void> {
 		await migrate(database, { migrationsFolder: migrationsPath });
 	} catch (error) {
 		console.error('Migration failed:', error);
+		Sentry.captureException(error, { tags: { job: 'migrations' } });
+		await Sentry.flush(2000);
 		throw error;
 	}
 }

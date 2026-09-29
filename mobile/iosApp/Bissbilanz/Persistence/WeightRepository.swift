@@ -251,7 +251,7 @@ final class WeightRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("WeightRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
         syncLatestToHealth()
     }

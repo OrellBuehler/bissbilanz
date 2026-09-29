@@ -22,7 +22,7 @@ enum LocalDedup {
         collapse(LocalPreferences.self, key: \.id, modifiedAt: \.modifiedAt, payload: \.jsonData, in: context)
         collapse(LocalSupplementLog.self, key: \.id, modifiedAt: \.modifiedAt, payload: \.jsonData, in: context)
         collapse(LocalDayProperties.self, key: \.date, modifiedAt: \.modifiedAt, payload: \.jsonData, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalDedup.save")
     }
 
     /// Keeps the best row per `key` and deletes the rest. Returns the number of

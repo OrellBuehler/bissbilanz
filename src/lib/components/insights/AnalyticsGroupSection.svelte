@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { onMount } from 'svelte';
 	import InsightsSection from './InsightsSection.svelte';
 	import InsightCardHost from '$lib/components/analytics/InsightCardHost.svelte';
@@ -38,6 +39,8 @@
 				failedSources = result.failedSources;
 			} catch (e) {
 				if (e instanceof DOMException && e.name === 'AbortError') return;
+				if (navigator.onLine)
+					Sentry.captureException(e, { extra: { context: 'AnalyticsGroupSection.load' } });
 			} finally {
 				if (!signal.aborted) loading = false;
 			}

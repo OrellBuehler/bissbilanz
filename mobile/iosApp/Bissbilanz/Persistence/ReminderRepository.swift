@@ -127,6 +127,6 @@ final class ReminderRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("ReminderRepository.save")
     }
 }

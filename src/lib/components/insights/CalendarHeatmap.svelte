@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -34,7 +35,9 @@
 			} else {
 				days = {};
 			}
-		} catch {
+		} catch (e) {
+			if (navigator.onLine)
+				Sentry.captureException(e, { extra: { context: 'CalendarHeatmap.load' } });
 			days = {};
 		} finally {
 			loading = false;

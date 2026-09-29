@@ -41,7 +41,7 @@
 				"operationId": "mobileToken",
 				"tags": ["Auth"],
 				"security": [],
-				"description": "Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair.",
+				"description": "Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair. When the login flow was started with a PKCE code_challenge (S256), `code_verifier` is required and checked; flows started without one (older builds) redeem on the code alone.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -2990,6 +2990,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
 					}
 				}
 			}
@@ -3013,6 +3016,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
 					}
 				}
 			}
@@ -3063,6 +3069,9 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
 					}
 				}
 			}
@@ -4186,6 +4195,11 @@
 								"type": "string",
 								"minLength": 1,
 								"maxLength": 2048
+							},
+							"code_verifier": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 256
 							}
 						},
 						"required": ["code"]
@@ -13325,6 +13339,16 @@
 			},
 			"DeletedResponse": {
 				"description": "Deleted"
+			},
+			"ForbiddenResponse": {
+				"description": "Forbidden. The bearer token lacks the account:manage scope (issued to the first-party mobile apps only).",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
 			},
 			"RateLimitedResponse": {
 				"description": "Too many requests",

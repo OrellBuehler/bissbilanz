@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
+import { ApiError, handleApiError, requireAccountAccess } from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
+import { readCappedFormData } from '$lib/server/upload';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { MAX_IMPORT_BYTES, parseImportFile, runImport } from '$lib/server/import';
 import {
@@ -12,7 +13,7 @@ import {
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
-		const userId = requireAuth(locals);
+		const userId = requireAccountAccess(locals);
 		rateLimit(`account:import:${userId}`, 20, 3_600_000);
 
 		const contentLength = Number(request.headers.get('content-length') ?? 0);
@@ -20,7 +21,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw new ApiError(400, 'File must be 20MB or smaller');
 		}
 
-		const formData = await request.formData();
+		const formData = await readCappedFormData(request, MAX_IMPORT_BYTES);
 		const file = formData.get('file');
 		if (!file || !(file instanceof File)) {
 			throw new ApiError(400, 'Missing import file');

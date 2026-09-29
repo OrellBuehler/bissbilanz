@@ -14,9 +14,11 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.units.Mass
+import com.bissbilanz.util.Failures
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 /** A body-weight sample read back out of Health Connect. */
@@ -45,6 +47,12 @@ data class SleepNight(
 class HealthConnectService(
     private val context: Context,
 ) {
+    private fun report(e: Throwable) {
+        if (e is CancellationException) throw e
+        if (e is SecurityException) return
+        Failures.report(e)
+    }
+
     private fun client(): HealthConnectClient? = runCatching { HealthConnectClient.getOrCreate(context) }.getOrNull()
 
     val readPermissions =
@@ -103,7 +111,7 @@ class HealthConnectService(
                         weightKg = record.weight.inKilograms,
                     )
                 }
-        }.getOrDefault(emptyList())
+        }.onFailure(::report).getOrDefault(emptyList())
     }
 
     suspend fun writeWeight(
@@ -125,7 +133,7 @@ class HealthConnectService(
                     ),
                 ),
             )
-        }.isSuccess
+        }.onFailure(::report).isSuccess
     }
 
     // MARK: - Sleep
@@ -143,7 +151,7 @@ class HealthConnectService(
                     ),
                 ).records
                 .mapNotNull { session -> session.toNight(zone) }
-        }.getOrDefault(emptyList())
+        }.onFailure(::report).getOrDefault(emptyList())
     }
 
     suspend fun writeSleep(
@@ -166,7 +174,7 @@ class HealthConnectService(
                     ),
                 ),
             )
-        }.isSuccess
+        }.onFailure(::report).isSuccess
     }
 
     // MARK: - Workout calories
@@ -219,7 +227,7 @@ class HealthConnectService(
                 totals[date] = (totals[date] ?: 0) + kcal.roundToInt()
             }
             totals
-        }.getOrDefault(emptyMap())
+        }.onFailure(::report).getOrDefault(emptyMap())
     }
 
     // MARK: - Nutrition
@@ -289,7 +297,7 @@ class HealthConnectService(
                     ),
                 ),
             )
-        }.isSuccess
+        }.onFailure(::report).isSuccess
     }
 
     /**

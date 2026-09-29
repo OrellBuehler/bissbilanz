@@ -139,7 +139,11 @@ final class PhoneWatchConnectivity: NSObject, @unchecked Sendable {
               session.isWatchAppInstalled,
               let payload = WatchPayloadCodec.encode(state, key: WatchPayloadKey.state)
         else { return }
-        try? session.updateApplicationContext(payload)
+        do {
+            try session.updateApplicationContext(payload)
+        } catch {
+            ErrorReporter.captureWarning("Watch application context update failed", context: ["reason": ErrorReporter.reason(for: error)])
+        }
     }
 }
 

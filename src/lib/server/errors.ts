@@ -31,6 +31,18 @@ function extractPgError(error: unknown): PgErrorCause | null {
 }
 
 /**
+ * True for errors raised by the database layer, whose messages embed the SQL
+ * and its parameters and must never reach an API or MCP caller.
+ */
+export function isDatabaseError(error: unknown): boolean {
+	return (
+		extractPgError(error) !== null ||
+		(error instanceof Error &&
+			(error.name === 'DrizzleQueryError' || error.message.startsWith('Failed query')))
+	);
+}
+
+/**
  * Custom API error class for throwing errors with status codes
  */
 export class ApiError extends Error {
@@ -41,6 +53,17 @@ export class ApiError extends Error {
 	) {
 		super(message);
 		this.name = 'ApiError';
+	}
+}
+
+/**
+ * Error whose message is written for the MCP caller and safe to show as is.
+ * Anything else thrown inside a tool is reported to Sentry and hidden.
+ */
+export class McpUserError extends Error {
+	constructor(message: string, options?: { cause?: unknown }) {
+		super(message, options);
+		this.name = 'McpUserError';
 	}
 }
 
@@ -85,6 +108,7 @@ export function handleApiError(error: unknown): Response {
 	}
 
 	if (error instanceof ApiError) {
+		if (error.status >= 500) Sentry.captureException(error);
 		return json(
 			{
 				error: error.message,
@@ -132,6 +156,23 @@ export function requireAuth(locals: App.Locals): string {
 		throw new ApiError(401, 'Unauthorized');
 	}
 	return locals.user.id;
+}
+
+/**
+ * Guard for account-level routes (delete, export, import, sign-in methods).
+ * Cookie sessions pass. Bearer tokens must carry the account scope, which only the
+ * mobile apps' own tokens have — OAuth/MCP tokens issued to third parties do not.
+ */
+export function hasAccountAccess(locals: App.Locals): boolean {
+	return !locals.tokenScopes || locals.tokenScopes.includes('account:manage');
+}
+
+export function requireAccountAccess(locals: App.Locals): string {
+	const userId = requireAuth(locals);
+	if (!hasAccountAccess(locals)) {
+		throw new ApiError(403, 'This action is not available to this token');
+	}
+	return userId;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -386,7 +386,10 @@ async function deleteRecipe(id: string): Promise<DeleteRecipeResult> {
 		// reconcile the local copy with whatever the server actually has.
 		await refresh();
 		return { status: 'queued' };
-	} catch {
+	} catch (err) {
+		if (typeof navigator === 'undefined' || navigator.onLine) {
+			Sentry.captureException(err, { extra: { context: 'recipe-service.remove' } });
+		}
 		await queueDelete(id);
 		return { status: 'queued' };
 	}

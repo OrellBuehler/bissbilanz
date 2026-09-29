@@ -159,7 +159,8 @@
 			.then(({ data }) => {
 				if (!cancelled) offResults = data?.results ?? [];
 			})
-			.catch(() => {
+			.catch((e) => {
+				if (navigator.onLine) Sentry.captureException(e, { extra: { context: 'foods.offSearch' } });
 				if (!cancelled) offResults = [];
 			})
 			.finally(() => {

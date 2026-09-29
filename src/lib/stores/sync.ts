@@ -149,6 +149,12 @@ export async function syncQueue(): Promise<number> {
 					// as-is. Park them so the user can retry or discard.
 					const data = await response.json().catch(() => ({}));
 					const reason = (data as Record<string, string>).error ?? `HTTP ${response.status}`;
+					if (response.status !== 409) {
+						Sentry.captureMessage('Offline queue request rejected by the server', {
+							level: 'warning',
+							extra: { status: response.status, method: req.method, reason }
+						});
+					}
 					const deadLettered = await markFailed(req.id!, reason);
 					for (const id of deadLettered) deadLetteredThisPass.add(id);
 					synced++;

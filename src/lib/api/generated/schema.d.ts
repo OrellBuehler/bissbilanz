@@ -30,7 +30,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair. */
+		/** @description Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair. When the login flow was started with a PKCE code_challenge (S256), `code_verifier` is required and checked; flows started without one (older builds) redeem on the code alone. */
 		post: operations['mobileToken'];
 		delete?: never;
 		options?: never;
@@ -1351,6 +1351,7 @@ export interface components {
 		MobileTokenRequest:
 			| {
 					code: string;
+					code_verifier?: string;
 			  }
 			| {
 					refresh_token: string;
@@ -3378,6 +3379,15 @@ export interface components {
 			};
 			content?: never;
 		};
+		/** @description Forbidden. The bearer token lacks the account:manage scope (issued to the first-party mobile apps only). */
+		ForbiddenResponse: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
 		/** @description Too many requests */
 		RateLimitedResponse: {
 			headers: {
@@ -5344,6 +5354,7 @@ export interface operations {
 		responses: {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
 		};
 	};
 	exportAccountData: {
@@ -5365,6 +5376,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
 		};
 	};
 	importAccountData: {
@@ -5398,6 +5410,7 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
 		};
 	};
 	uploadImage: {

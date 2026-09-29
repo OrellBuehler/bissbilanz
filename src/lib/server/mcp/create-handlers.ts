@@ -114,7 +114,8 @@ import type {
 } from '$lib/server/ai-tasks';
 import type { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
-import { isZodError } from '$lib/server/errors';
+import * as Sentry from '@sentry/sveltekit';
+import { ApiError, McpUserError, isDatabaseError, isZodError } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -240,12 +241,17 @@ function errorPayload(e: unknown): {
 			issues: e.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
 		};
 	}
-	return { error: e instanceof Error ? e.message : 'Unexpected error' };
+	if (e instanceof Error && !isDatabaseError(e)) return { error: e.message };
+	Sentry.captureException(e, { tags: { source: 'mcp' } });
+	return { error: 'Internal error. The request could not be completed.' };
 }
 
 export function createHandlers(d: HandlerDeps) {
 	function wrapError(op: string, e: unknown): never {
-		throw new Error(`Failed to ${op}: ${e instanceof Error ? e.message : String(e)}`);
+		if (e instanceof McpUserError || (e instanceof ApiError && e.status < 500)) {
+			throw new McpUserError(`Failed to ${op}: ${e.message}`);
+		}
+		throw new McpUserError(`Failed to ${op}`, { cause: e });
 	}
 
 	const MAX_RANGE_DAYS = 366;
@@ -357,7 +363,7 @@ export function createHandlers(d: HandlerDeps) {
 		];
 		if (links.length === 0) return { payload, imported: [] };
 		if (links.length > MAX_STEP_IMAGE_DOWNLOADS) {
-			throw new Error(
+			throw new McpUserError(
 				`Too many step images to download in one call (${links.length}, max ${MAX_STEP_IMAGE_DOWNLOADS})`
 			);
 		}
@@ -386,7 +392,7 @@ export function createHandlers(d: HandlerDeps) {
 			const { url, error } = failures[0];
 			const step =
 				steps.findIndex((s) => (s as { imageUrl?: unknown } | null)?.imageUrl === url) + 1;
-			throw new Error(
+			throw new McpUserError(
 				`Step ${step} image could not be imported from ${url}: ${error instanceof Error ? error.message : String(error)}`
 			);
 		}
@@ -1759,7 +1765,8 @@ export function createHandlers(d: HandlerDeps) {
 							data: buffer.toString('base64'),
 							mimeType: 'image/webp'
 						});
-					} catch {
+					} catch (err) {
+						Sentry.captureException(err, { level: 'warning', tags: { source: 'mcp' } });
 						content.push({ type: 'text', text: 'A photo is unavailable.' });
 					}
 				} else {

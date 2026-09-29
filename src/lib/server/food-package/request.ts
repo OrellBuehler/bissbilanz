@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/server/errors';
+import { readCappedFormData } from '$lib/server/upload';
 import { readFoodPackage, type FoodPackageFile } from './archive';
 import { MAX_PACKAGE_BYTES } from './format';
 
@@ -10,12 +11,7 @@ export async function readPackageUpload(
 	if (contentLength > MAX_PACKAGE_BYTES + 64 * 1024) {
 		throw new ApiError(400, `File must be ${MAX_PACKAGE_BYTES / 1024 / 1024}MB or smaller`);
 	}
-	let form: FormData;
-	try {
-		form = await request.formData();
-	} catch {
-		throw new ApiError(400, 'Expected a multipart/form-data upload');
-	}
+	const form = await readCappedFormData(request, MAX_PACKAGE_BYTES);
 	const file = form.get('file');
 	if (!file || !(file instanceof File)) throw new ApiError(400, 'Missing package file');
 	if (file.size > MAX_PACKAGE_BYTES) {

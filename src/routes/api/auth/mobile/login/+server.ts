@@ -7,6 +7,7 @@ import {
 	generateNonce,
 	buildAuthorizeUrl
 } from '$lib/server/oidc';
+import { isValidCodeChallengeS256 } from '$lib/server/oauth';
 import { storePendingState } from '$lib/server/mobile-auth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
@@ -17,6 +18,14 @@ export const GET: RequestHandler = async (event) => {
 	const state = url.searchParams.get('state');
 	if (!state || state.length > 128) {
 		throw error(400, 'Missing or invalid state parameter');
+	}
+
+	const appCodeChallenge = url.searchParams.get('code_challenge') ?? undefined;
+	if (appCodeChallenge !== undefined) {
+		const method = url.searchParams.get('code_challenge_method') ?? 'S256';
+		if (method !== 'S256' || !isValidCodeChallengeS256(appCodeChallenge)) {
+			throw error(400, 'Invalid code_challenge');
+		}
 	}
 
 	const provider = getProvider(url.searchParams.get('provider') ?? 'infomaniak');
@@ -33,7 +42,7 @@ export const GET: RequestHandler = async (event) => {
 	const codeChallenge = await createCodeChallenge(codeVerifier);
 	const nonce = generateNonce();
 
-	storePendingState(state, codeVerifier, nonce, provider.id);
+	storePendingState(state, codeVerifier, nonce, provider.id, appCodeChallenge);
 
 	const authorizeUrl = buildAuthorizeUrl({
 		provider,

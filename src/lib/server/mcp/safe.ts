@@ -1,4 +1,5 @@
-import { ResultValidationError } from '$lib/server/errors';
+import * as Sentry from '@sentry/sveltekit';
+import { ApiError, McpUserError, ResultValidationError } from '$lib/server/errors';
 
 export type McpResult = {
 	content: ({ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string })[];
@@ -39,8 +40,17 @@ export const safe = <T extends unknown[], R>(fn: (...args: T) => Promise<R>) => 
 					isError: true
 				};
 			}
+			// Messages of unexpected errors can carry SQL or internals; only errors that
+			// were written for the caller are passed through.
+			if (e instanceof McpUserError || (e instanceof ApiError && e.status < 500)) {
+				if (e instanceof McpUserError && e.cause) {
+					Sentry.captureException(e.cause, { tags: { source: 'mcp' } });
+				}
+				return { ...asText({ error: e.message }), isError: true };
+			}
+			Sentry.captureException(e, { tags: { source: 'mcp' } });
 			return {
-				...asText({ error: e instanceof Error ? e.message : 'Unexpected error' }),
+				...asText({ error: 'Internal error. The request could not be completed.' }),
 				isError: true
 			};
 		}

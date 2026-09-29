@@ -135,9 +135,13 @@ final class SupplementNotificationDelegate: NSObject, UNUserNotificationCenterDe
                 // idempotent. `logSupplement` cancels that day's remaining reminders
                 // itself. The payload date, not today: acting after midnight must log
                 // the day the reminder fired.
-                try? await repository.logSupplement(
-                    id: supplementId, date: payload.date ?? DateFormatting.today
-                )
+                do {
+                    try await repository.logSupplement(
+                        id: supplementId, date: payload.date ?? DateFormatting.today
+                    )
+                } catch {
+                    ErrorReporter.captureWarning("Logging a supplement from a reminder action failed", context: ["reason": ErrorReporter.reason(for: error)])
+                }
             }
 
         case SupplementReminderScheduler.snoozeAction:

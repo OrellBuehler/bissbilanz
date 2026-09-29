@@ -16,7 +16,7 @@ enum LocalRemap {
         }
         upsertFood(food, in: context)
         remapFoodReferences(from: oldId, to: food.id, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
     }
 
     static func replaceRecipe(id oldId: String, with recipe: Recipe, in context: ModelContext) {
@@ -25,7 +25,7 @@ enum LocalRemap {
         }
         upsertRecipe(recipe, in: context)
         remapRecipeReferences(from: oldId, to: recipe.id, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
     }
 
     static func replaceEntry(id oldId: String, with entry: Entry, date: String, in context: ModelContext) {
@@ -33,7 +33,7 @@ enum LocalRemap {
             context.delete(row)
         }
         upsertEntry(entry, date: date, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
     }
 
     static func replaceWeight(id oldId: String, with entry: WeightEntry, in context: ModelContext) {
@@ -41,7 +41,7 @@ enum LocalRemap {
             context.delete(row)
         }
         upsertWeight(entry, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
         reindexSpotlight(oldId: oldId, weight: entry)
     }
 
@@ -50,7 +50,7 @@ enum LocalRemap {
             context.delete(row)
         }
         upsertSleep(entry, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
         reindexSpotlight(oldId: oldId, sleep: entry)
     }
 
@@ -80,7 +80,7 @@ enum LocalRemap {
             context.delete(row)
         }
         upsertReminder(reminder, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
     }
 
     static func replaceSupplement(
@@ -94,7 +94,7 @@ enum LocalRemap {
         }
         upsertSupplement(supplement, in: context)
         remapSupplementReferences(from: oldId, to: supplement.id, rekeyLogIds: rekeyLogIds, in: context)
-        try? context.save()
+        context.saveReportingFailure("LocalRemap.save")
     }
 
     // MARK: - Reference rewriting
@@ -106,10 +106,13 @@ enum LocalRemap {
         let entryDescriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId == oldId })
         for row in (try? context.fetch(entryDescriptor)) ?? [] {
             row.foodId = newId
-            if let entry = row.toEntry(),
-               let patched = try? JSONPatch.merged(Entry.self, base: entry, patch: ["foodId": newId])
-            {
-                row.jsonData = LocalStoreCoding.encode(patched)
+            if let entry = row.toEntry() {
+                do {
+                    let patched = try JSONPatch.merged(Entry.self, base: entry, patch: ["foodId": newId])
+                    row.jsonData = LocalStoreCoding.encode(patched)
+                } catch {
+                    ErrorReporter.captureWarning("Remapping an entry reference failed", context: ["reason": ErrorReporter.reason(for: error)])
+                }
             }
         }
         // Recipes and supplements keep their ingredient food ids inside the
@@ -138,10 +141,13 @@ enum LocalRemap {
         let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId == oldId })
         for row in (try? context.fetch(descriptor)) ?? [] {
             row.recipeId = newId
-            if let entry = row.toEntry(),
-               let patched = try? JSONPatch.merged(Entry.self, base: entry, patch: ["recipeId": newId])
-            {
-                row.jsonData = LocalStoreCoding.encode(patched)
+            if let entry = row.toEntry() {
+                do {
+                    let patched = try JSONPatch.merged(Entry.self, base: entry, patch: ["recipeId": newId])
+                    row.jsonData = LocalStoreCoding.encode(patched)
+                } catch {
+                    ErrorReporter.captureWarning("Remapping an entry reference failed", context: ["reason": ErrorReporter.reason(for: error)])
+                }
             }
         }
     }

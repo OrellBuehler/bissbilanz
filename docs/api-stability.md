@@ -148,3 +148,22 @@ Only for the contract step above, or for a security fix with no additive alterna
 `bun run api:fixtures:ios` (part of `api:generate`) builds a full and a minimal example payload
 for every response schema the iOS app decodes into `mobile/iosApp/BissbilanzTests/Fixtures/`, and
 the iOS unit tests decode each one. A server change that breaks Swift decoding fails CI.
+
+## Pending contract steps
+
+Compatibility paths kept only for shipped builds. Remove each in a separate PR labelled
+`api-breaking-change` once `MIN_CLIENT_VERSIONS` (`src/lib/server/client-version.ts`) is raised
+past the first build that no longer needs it, and after checking `bun run clients:versions`.
+
+- **Mobile login without PKCE.** `/api/auth/mobile/login` accepts an optional S256
+  `code_challenge`; when one was sent, `/api/auth/mobile/token` requires the matching
+  `code_verifier` for the one-time code. Builds that predate PKCE send neither, and their codes
+  still redeem on the code alone (`consumeOneTimeCode` in `src/lib/server/mobile-auth.ts`). Once
+  every supported build sends PKCE, make the challenge required at login and the verifier
+  required at the token exchange.
+- **Legacy plaintext cookie values.** Web logins from before token hashing have the cookie value
+  as `sessions.id` and a null `token_hash`; `findSessionRow` in `src/lib/server/session.ts`
+  looks them up by id and moves them onto a fresh id with a hash on first use. They expire
+  within 7 days of the release, after which the fallback can go. The `sessions.id` column stays.
+- **Mobile tokens issued before the `account:manage` scope.** Migration 0069 backfills the scope
+  onto live mobile-client tokens; nothing further to remove.
