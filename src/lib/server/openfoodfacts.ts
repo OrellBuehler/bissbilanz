@@ -152,7 +152,8 @@ export async function searchProducts(query: string, limit?: number): Promise<OFF
 			.filter((p) => p.product_name.length > 0)
 			.map((p) => mapSearchProduct(p, p.code ?? ''));
 	} catch (err) {
-		Sentry.captureException(err, { extra: { query } });
+		const timedOut = err instanceof DOMException && err.name === 'TimeoutError';
+		Sentry.captureException(err, { level: timedOut ? 'warning' : 'error', extra: { query } });
 		return [];
 	}
 }

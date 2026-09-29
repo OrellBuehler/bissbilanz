@@ -153,7 +153,17 @@ struct LoginView: View {
     private func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) {
         if case let .failure(error) = result {
             appleRawNonce = ""
-            if (error as? ASAuthorizationError)?.code != .canceled {
+            if let appleError = error as? ASAuthorizationError {
+                guard appleError.code != .canceled else { return }
+                // The description of these errors reaches Sentry as "[Filtered]",
+                // so only the codes are sent.
+                let nsError = appleError as NSError
+                var context: [String: Any] = ["apple_error_code": nsError.code]
+                if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    context["underlying_code"] = underlying.code
+                }
+                ErrorReporter.captureWarning("Sign in with Apple failed", context: context)
+            } else {
                 ErrorReporter.captureWarning("Sign in with Apple failed", context: ["reason": ErrorReporter.reason(for: error)])
             }
             return

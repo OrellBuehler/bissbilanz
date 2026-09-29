@@ -66,6 +66,9 @@ import kotlin.time.Instant
 /** Mirrors MAX_AI_TASK_PHOTOS on the server. */
 private const val MAX_AI_TASK_PHOTOS = 5
 
+/** Mirrors the description limit in the server's AI task validation. */
+private const val MAX_AI_TASK_DESCRIPTION_LENGTH = 2000
+
 /**
  * Hands a meal to the MCP assistant: a description, up to five photos and the
  * target meal are queued as an AI task the assistant logs later. Mirrors the
@@ -379,7 +382,7 @@ fun AiMealSheet(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
+                onValueChange = { description = it.take(MAX_AI_TASK_DESCRIPTION_LENGTH) },
                 label = { Text(stringResource(R.string.ai_task_what_did_you_eat)) },
                 placeholder = { Text(stringResource(R.string.ai_task_description_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
