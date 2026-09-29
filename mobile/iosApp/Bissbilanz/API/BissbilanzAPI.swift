@@ -963,9 +963,14 @@ final class BissbilanzAPI {
     /// Uploads a food or recipe image and returns its `/uploads/<uuid>.webp` URL.
     /// The route reads the `image` form field; `postMultipart` sets the `Origin`
     /// header the server's CSRF check requires of any native multipart POST.
-    func uploadImage(_ data: Data, filename: String = "food.jpg") async throws -> String {
+    ///
+    /// `purpose` is the route's optional extra form field: `recipe_step` keeps a
+    /// cooking-step photo's aspect ratio (up to 1280 px) instead of the square
+    /// thumbnail a food or recipe cover gets.
+    func uploadImage(_ data: Data, filename: String = "food.jpg", purpose: String? = nil) async throws -> String {
         let response: ImageUploadResponse = try await postMultipart(
-            "/api/images/upload", data: data, fieldName: "image", filename: filename
+            "/api/images/upload", data: data, fieldName: "image", filename: filename,
+            fields: purpose.map { ["purpose": $0] } ?? [:]
         )
         return response.imageUrl
     }
@@ -1104,20 +1109,24 @@ final class BissbilanzAPI {
         data: Data,
         fieldName: String,
         filename: String,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        fields: [String: String] = [:]
     ) async throws -> T {
         try await postMultipart(
-            path, fieldName: fieldName, parts: [(data: data, filename: filename)], mimeType: mimeType
+            path, fieldName: fieldName, parts: [(data: data, filename: filename)], mimeType: mimeType,
+            fields: fields
         )
     }
 
     /// Repeats `fieldName` once per part, which is how the routes that accept
-    /// several files read them.
+    /// several files read them. `fields` are plain text form fields sent
+    /// alongside the file parts.
     private func postMultipart<T: Decodable>(
         _ path: String,
         fieldName: String,
         parts: [(data: Data, filename: String)],
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        fields: [String: String] = [:]
     ) async throws -> T {
         var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "POST"
@@ -1127,7 +1136,7 @@ final class BissbilanzAPI {
         // Several photos over a weak cellular uplink outlast the default 60s.
         request.timeoutInterval = 120
         request.httpBody = Self.multipartBody(
-            boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts
+            boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts, fields: fields
         )
         return try await performRequest(request)
     }
@@ -1138,9 +1147,15 @@ final class BissbilanzAPI {
         fieldName: String,
         mimeType: String,
         parts: [(data: Data, filename: String)],
+        fields: [String: String] = [:],
         closing: Bool = true
     ) -> Data {
         var body = Data()
+        for (name, value) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
         for part in parts {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append(
