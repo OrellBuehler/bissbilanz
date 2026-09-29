@@ -1,5 +1,5 @@
 import { getDB } from '$lib/server/db';
-import { recipes, recipeIngredients, foods, foodEntries } from '$lib/server/schema';
+import { recipes, recipeIngredients, recipeSteps, foods, foodEntries } from '$lib/server/schema';
 import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
 import { and, count, eq, sql, type SQL } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
@@ -7,7 +7,7 @@ import { withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { assertFoodOwnedForIngredient } from '$lib/server/ownership';
-import { unlinkUpload } from '$lib/server/images';
+import { unlinkUpload, unlinkUploads, uploadFilename } from '$lib/server/images';
 import { convertedIngredientQuantitySql } from '$lib/server/recipe-macros';
 import { ALL_NUTRIENT_KEYS, NUTRIENT_BY_KEY } from '$lib/nutrients';
 import { nutrientColumn } from '$lib/server/nutrient-columns';
@@ -28,6 +28,43 @@ export const macroAggregations = {
 	carbs: sql<number>`COALESCE(SUM(${foods.carbs} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
 	fat: sql<number>`COALESCE(SUM(${foods.fat} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`,
 	fiber: sql<number>`COALESCE(SUM(${foods.fiber} * ${convertedIngredientQuantitySql} / ${foods.servingSize}), 0)`
+};
+
+type StepInput = { text: string; imageUrl?: string | null };
+
+const toStepRows = (recipeId: string, steps: StepInput[]) =>
+	steps.map((step, index) => ({
+		recipeId,
+		sortOrder: index,
+		text: step.text,
+		imageUrl: step.imageUrl ?? null
+	}));
+
+/**
+ * Unlink uploads a recipe no longer uses, unless another recipe step, recipe
+ * cover or food still points at the same file (a duplicated recipe reuses its
+ * source's step images). Run after the transaction so it sees the final state.
+ */
+export const unlinkUnreferencedUploads = async (
+	urls: (string | null | undefined)[],
+	userId: string
+): Promise<void> => {
+	const db = getDB();
+	const unreferenced: string[] = [];
+	for (const url of new Set(urls)) {
+		if (!uploadFilename(url) || !url) continue;
+		const [step, recipe, food] = await Promise.all([
+			db
+				.select({ id: recipeSteps.id })
+				.from(recipeSteps)
+				.where(eq(recipeSteps.imageUrl, url))
+				.limit(1),
+			db.select({ id: recipes.id }).from(recipes).where(eq(recipes.imageUrl, url)).limit(1),
+			db.select({ id: foods.id }).from(foods).where(eq(foods.imageUrl, url)).limit(1)
+		]);
+		if (step.length + recipe.length + food.length === 0) unreferenced.push(url);
+	}
+	await unlinkUploads(unreferenced, userId);
 };
 
 export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
@@ -54,7 +91,8 @@ export const listRecipes = async (
 			isFavorite: recipes.isFavorite,
 			imageUrl: recipes.imageUrl,
 			cookedWeight: recipes.cookedWeight,
-			...macroAggregations
+			...macroAggregations,
+			stepCount: sql<number>`(SELECT count(*)::int FROM ${recipeSteps} WHERE ${recipeSteps.recipeId} = ${recipes.id})`
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
@@ -104,6 +142,9 @@ export const createRecipe = (
 				await assertFoodOwnedForIngredient(tx, userId, ingredient.foodId, ingredient.servingUnit);
 			}
 			await tx.insert(recipeIngredients).values(ingredientRows);
+			if (data.steps?.length) {
+				await tx.insert(recipeSteps).values(toStepRows(created.id, data.steps));
+			}
 			return created;
 		});
 	});
@@ -146,7 +187,7 @@ const getRecipeExtendedNutrients = async (
 
 export const getRecipe = async (userId: string, id: string) => {
 	const db = getDB();
-	const [recipeResult, ingredients, extendedNutrientsPerServing] = await Promise.all([
+	const [recipeResult, ingredients, steps, extendedNutrientsPerServing] = await Promise.all([
 		db
 			.select({
 				id: recipes.id,
@@ -170,13 +211,23 @@ export const getRecipe = async (userId: string, id: string) => {
 			.from(recipeIngredients)
 			.where(eq(recipeIngredients.recipeId, id))
 			.orderBy(recipeIngredients.sortOrder),
+		db
+			.select({
+				id: recipeSteps.id,
+				sortOrder: recipeSteps.sortOrder,
+				text: recipeSteps.text,
+				imageUrl: recipeSteps.imageUrl
+			})
+			.from(recipeSteps)
+			.where(eq(recipeSteps.recipeId, id))
+			.orderBy(recipeSteps.sortOrder),
 		getRecipeExtendedNutrients(db, userId, id)
 	]);
 
 	const recipe = recipeResult[0];
 	if (!recipe) return null;
 
-	return roundNutrition({ ...recipe, ingredients, extendedNutrientsPerServing });
+	return roundNutrition({ ...recipe, ingredients, steps, extendedNutrientsPerServing });
 };
 
 export const updateRecipe = (
@@ -187,7 +238,7 @@ export const updateRecipe = (
 ): Promise<Result<typeof recipes.$inferSelect | null>> =>
 	withValidation(recipeUpdateSchema, payload, async (data) => {
 		const db = getDB();
-		const { ingredients, ...recipeData } = data;
+		const { ingredients, steps, ...recipeData } = data;
 
 		const result = await db.transaction(async (tx) => {
 			const [previous] =
@@ -209,7 +260,7 @@ export const updateRecipe = (
 				)
 				.returning();
 
-			if (!updated) return { updated: null, superseded: null };
+			if (!updated) return { updated: null, superseded: null, droppedStepImages: [] };
 
 			if (ingredients) {
 				// Reject ingredients referencing foods the caller doesn't own (IDOR).
@@ -227,15 +278,32 @@ export const updateRecipe = (
 				await tx.insert(recipeIngredients).values(rows);
 			}
 
+			let droppedStepImages: (string | null)[] = [];
+			if (steps) {
+				const previousSteps = await tx
+					.select({ imageUrl: recipeSteps.imageUrl })
+					.from(recipeSteps)
+					.where(eq(recipeSteps.recipeId, id));
+				await tx.delete(recipeSteps).where(eq(recipeSteps.recipeId, id));
+				if (steps.length) await tx.insert(recipeSteps).values(toStepRows(id, steps));
+				const kept = new Set(steps.map((step) => step.imageUrl));
+				droppedStepImages = previousSteps
+					.map((row) => row.imageUrl)
+					.filter((url) => !kept.has(url));
+			}
+
 			// Only when the write actually landed and the image really changed — an
 			// LWW-rejected update leaves the old URL in place.
 			const superseded =
 				previous?.imageUrl && previous.imageUrl !== updated.imageUrl ? previous.imageUrl : null;
-			return { updated, superseded };
+			return { updated, superseded, droppedStepImages };
 		});
 
 		// After commit, so a rolled-back update never destroys the file.
 		if (result.superseded) await unlinkUpload(result.superseded, userId);
+		if (result.droppedStepImages.length) {
+			await unlinkUnreferencedUploads(result.droppedStepImages, userId);
+		}
 		return result.updated;
 	});
 
@@ -254,7 +322,11 @@ export const deleteRecipe = async (
 		const entryCount = entries[0].count;
 
 		if (entryCount > 0 && !force) {
-			return { deleted: { blocked: true, entryCount } as DeleteResult, imageUrl: null };
+			return {
+				deleted: { blocked: true, entryCount } as DeleteResult,
+				imageUrl: null,
+				stepImages: []
+			};
 		}
 
 		if (entryCount > 0) {
@@ -262,15 +334,29 @@ export const deleteRecipe = async (
 				.delete(foodEntries)
 				.where(and(eq(foodEntries.recipeId, id), eq(foodEntries.userId, userId)));
 		}
+		const stepImages = (
+			await tx
+				.select({ imageUrl: recipeSteps.imageUrl })
+				.from(recipeSteps)
+				.innerJoin(recipes, eq(recipes.id, recipeSteps.recipeId))
+				.where(and(eq(recipeSteps.recipeId, id), eq(recipes.userId, userId)))
+		).map((row) => row.imageUrl);
 		const [deleted] = await tx
 			.delete(recipes)
 			.where(and(eq(recipes.id, id), eq(recipes.userId, userId)))
 			.returning({ imageUrl: recipes.imageUrl });
 
-		return { deleted: { blocked: false } as DeleteResult, imageUrl: deleted?.imageUrl ?? null };
+		return {
+			deleted: { blocked: false } as DeleteResult,
+			imageUrl: deleted?.imageUrl ?? null,
+			stepImages: deleted ? stepImages : []
+		};
 	});
 
 	// After commit, so a rolled-back delete never destroys the file.
-	if (!result.deleted.blocked) await unlinkUpload(result.imageUrl, userId);
+	if (!result.deleted.blocked) {
+		await unlinkUpload(result.imageUrl, userId);
+		await unlinkUnreferencedUploads(result.stepImages, userId);
+	}
 	return result.deleted;
 };

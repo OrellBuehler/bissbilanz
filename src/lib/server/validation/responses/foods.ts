@@ -165,6 +165,8 @@ export const foodBatchResultSchema = z
 	.object({
 		id: z.string().uuid(),
 		ok: z.boolean(),
+		// `delete` only: `last_ingredient` means the food is the only ingredient of
+		// a recipe, which even `force` does not delete.
 		error: z.string().optional(),
 		// `delete` only: the food is still referenced by diary entries and was
 		// left alone. Retry with `force` to delete those entries too.

@@ -32,6 +32,7 @@ struct RecipeListView: View {
     @State private var duplicatedRecipe: Recipe?
     @State private var errorMessage: String?
     @State private var deleteConflict: (recipe: Recipe, conflict: DeleteConflict)?
+    @State private var usageRecipe: Recipe?
 
     private var filteredRecipes: [Recipe] {
         let matching = searchQuery.isEmpty
@@ -153,18 +154,23 @@ struct RecipeListView: View {
                 if let errorMessage { Text(errorMessage) }
             }
             .alert(
-                L10n.stillInUse,
+                L10n.recipeDeleteBlockedTitle,
                 isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
             ) {
-                Button(L10n.deleteAnyway, role: .destructive) {
-                    if let recipe = deleteConflict?.recipe {
-                        deleteConflict = nil
-                        Task { await forceDeleteRecipe(recipe) }
-                    }
+                Button(L10n.whereItsLogged) {
+                    usageRecipe = deleteConflict?.recipe
+                    deleteConflict = nil
                 }
-                Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+                Button(L10n.ok, role: .cancel) { deleteConflict = nil }
             } message: {
-                if let deleteConflict { Text(deleteConflict.conflict.message) }
+                if let deleteConflict {
+                    Text(L10n.recipeDeleteBlockedMessage(deleteConflict.conflict.entryCount))
+                }
+            }
+            .sheet(item: $usageRecipe) { recipe in
+                WhereUsedSheet(title: L10n.whereItsLogged, name: recipe.name) {
+                    try await recipeRepository.whereUsed(id: recipe.id)
+                }
             }
         }
     }
@@ -241,15 +247,6 @@ struct RecipeListView: View {
             case let .blocked(conflict):
                 deleteConflict = (recipe, conflict)
             }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        recipes = recipeRepository.recipes()
-    }
-
-    private func forceDeleteRecipe(_ recipe: Recipe) async {
-        do {
-            try await recipeRepository.forceDeleteRecipe(id: recipe.id)
         } catch {
             errorMessage = error.localizedDescription
         }

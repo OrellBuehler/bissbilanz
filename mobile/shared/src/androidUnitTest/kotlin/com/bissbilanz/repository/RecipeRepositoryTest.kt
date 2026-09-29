@@ -5,6 +5,9 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.RecipeStep
+import com.bissbilanz.api.generated.model.RecipeStepInput
+import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -16,6 +19,7 @@ import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -380,5 +384,260 @@ class RecipeRepositoryTest {
             val copy = repository.duplicateRecipe(created.id, "Rice Bowl (copy)")
 
             assertNull(copy.cookedWeight)
+        }
+
+    // -------------------------------------------------------------------------------
+    // steps
+    // -------------------------------------------------------------------------------
+
+    private fun createWithSteps(steps: List<RecipeStepInput>?) =
+        RecipeCreate(
+            name = "Rice Bowl",
+            totalServings = 1.0,
+            ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+            steps = steps,
+        )
+
+    private fun cachedRecipe(id: String) =
+        json.decodeFromString<RecipeDetail>(
+            db.userDataDatabaseQueries
+                .selectRecipeById(id)
+                .executeAsOneOrNull()!!
+                .jsonData,
+        )
+
+    @Test
+    fun createCachesStepsInOrderWithTheirPhotos() =
+        runTest {
+            insertLocalFood("temp_f1")
+
+            val created =
+                repository.createRecipe(
+                    createWithSteps(
+                        listOf(
+                            RecipeStepInput("Boil the rice", "file:///photos/a.jpg"),
+                            RecipeStepInput("Serve"),
+                        ),
+                    ),
+                )
+
+            assertEquals(listOf("Boil the rice", "Serve"), created.steps!!.map { it.text })
+            assertEquals(listOf(0, 1), created.steps!!.map { it.sortOrder })
+            assertEquals(listOf("file:///photos/a.jpg", null), created.steps!!.map { it.imageUrl })
+            assertEquals(created.steps, cachedRecipe(created.id).steps)
+        }
+
+    @Test
+    fun createWithoutStepsCachesAnEmptyKnownList() =
+        runTest {
+            insertLocalFood("temp_f1")
+
+            val created = repository.createRecipe(createWithSteps(null))
+
+            assertEquals(emptyList(), cachedRecipe(created.id).steps)
+        }
+
+    @Test
+    fun updateReplacesStepsAndAnEmptyListClearsThem() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created = repository.createRecipe(createWithSteps(listOf(RecipeStepInput("Old"))))
+
+            val replaced =
+                repository.updateRecipe(
+                    created.id,
+                    RecipeUpdate(steps = listOf(RecipeStepInput("New"), RecipeStepInput("Two"))),
+                )
+            assertEquals(listOf("New", "Two"), replaced.steps!!.map { it.text })
+
+            val cleared = repository.updateRecipe(created.id, RecipeUpdate(steps = emptyList()))
+            assertEquals(emptyList(), cleared.steps)
+            assertEquals(emptyList(), cachedRecipe(created.id).steps)
+        }
+
+    @Test
+    fun updateWithoutStepsKeepsThem() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created = repository.createRecipe(createWithSteps(listOf(RecipeStepInput("Keep me"))))
+
+            val updated = repository.updateRecipe(created.id, RecipeUpdate(name = "Renamed"))
+
+            assertEquals(listOf("Keep me"), updated.steps!!.map { it.text })
+        }
+
+    @Test
+    fun updatingATempRecipeFoldsTheStepsIntoTheQueuedCreate() =
+        runTest {
+            insertLocalFood("srv_f1")
+            val (synced, queue) = syncedRepository()
+            val created =
+                synced.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("srv_f1", 100.0, ServingUnit.g)),
+                        steps = listOf(RecipeStepInput("First")),
+                    ),
+                )
+
+            synced.updateRecipe(
+                created.id,
+                RecipeUpdate(steps = listOf(RecipeStepInput("Edited"), RecipeStepInput("Added"))),
+            )
+
+            val create =
+                queue
+                    .all()
+                    .map { it.operation }
+                    .filterIsInstance<SyncOperation.CreateRecipe>()
+                    .single()
+            assertEquals(
+                listOf("Edited", "Added"),
+                json.decodeFromString<RecipeCreate>(create.body).steps!!.map { it.text },
+            )
+        }
+
+    @Test
+    fun updatingAServerRecipeQueuesTheStepsInThePatchBody() =
+        runTest {
+            insertLocalFood("srv_f1")
+            val (synced, queue) = syncedRepository()
+            val server =
+                synced
+                    .createRecipe(
+                        RecipeCreate(
+                            name = "Rice Bowl",
+                            totalServings = 1.0,
+                            ingredients = listOf(RecipeIngredientInput("srv_f1", 100.0, ServingUnit.g)),
+                        ),
+                    ).copy(id = "srv_r1")
+            db.userDataDatabaseQueries.insertRecipe(
+                id = server.id,
+                name = server.name,
+                totalServings = server.totalServings,
+                isFavorite = 0L,
+                calories = server.calories,
+                protein = server.protein,
+                carbs = server.carbs,
+                fat = server.fat,
+                fiber = server.fiber,
+                jsonData = json.encodeToString(server),
+            )
+
+            synced.updateRecipe("srv_r1", RecipeUpdate(steps = emptyList()))
+
+            val update =
+                queue
+                    .all()
+                    .map { it.operation }
+                    .filterIsInstance<SyncOperation.UpdateRecipe>()
+                    .single()
+            // An explicit empty list is what clears the steps on the server.
+            assertTrue(update.body.contains("\"steps\":[]"), update.body)
+        }
+
+    @Test
+    fun duplicateCopiesStepsAndTheirPhotos() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val created =
+                repository.createRecipe(
+                    createWithSteps(
+                        listOf(RecipeStepInput("One", "file:///photos/a.jpg"), RecipeStepInput("Two")),
+                    ),
+                )
+
+            val copy = repository.duplicateRecipe(created.id, "Rice Bowl (copy)")
+
+            assertEquals(listOf("One", "Two"), copy.steps!!.map { it.text })
+            assertEquals(listOf("file:///photos/a.jpg", null), copy.steps!!.map { it.imageUrl })
+            // Fresh step rows, not the source's.
+            val sourceIds = created.steps!!.map { it.id }
+            assertTrue(copy.steps!!.none { it.id in sourceIds })
+        }
+
+    private fun summary(
+        id: String,
+        stepCount: Int?,
+    ) = RecipeSummary(
+        id = id,
+        name = "Rice Bowl",
+        totalServings = 2.0,
+        isFavorite = false,
+        imageUrl = null,
+        calories = 200.0,
+        protein = 0.0,
+        carbs = 0.0,
+        fat = 0.0,
+        fiber = 0.0,
+        stepCount = stepCount,
+    )
+
+    private fun cacheServerRecipe(steps: List<String>?) {
+        val recipe =
+            RecipeDetail(
+                id = "srv_r1",
+                userId = "u",
+                name = "Rice Bowl",
+                totalServings = 2.0,
+                isFavorite = false,
+                imageUrl = null,
+                calories = 100.0,
+                protein = 0.0,
+                carbs = 0.0,
+                fat = 0.0,
+                fiber = 0.0,
+                ingredients = emptyList(),
+                steps = steps?.mapIndexed { i, text -> RecipeStep("s$i", i, text, null) },
+            )
+        db.userDataDatabaseQueries.insertRecipe(
+            id = recipe.id,
+            name = recipe.name,
+            totalServings = recipe.totalServings,
+            isFavorite = 0L,
+            calories = recipe.calories,
+            protein = recipe.protein,
+            carbs = recipe.carbs,
+            fat = recipe.fat,
+            fiber = recipe.fiber,
+            jsonData = json.encodeToString(recipe),
+        )
+    }
+
+    @Test
+    fun refreshKeepsCachedStepsWhileTheListCountStillMatches() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            cacheServerRecipe(listOf("Chop", "Cook"))
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 2))
+
+            synced.refresh()
+
+            assertEquals(listOf("Chop", "Cook"), cachedRecipe("srv_r1").steps!!.map { it.text })
+        }
+
+    @Test
+    fun refreshDropsCachedStepsWhoseCountChangedSoTheyAreRefetched() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            cacheServerRecipe(listOf("Chop", "Cook"))
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 3))
+
+            synced.refresh()
+
+            // null = "not downloaded", which the editor treats as unavailable rather than empty.
+            assertNull(cachedRecipe("srv_r1").steps)
+        }
+
+    @Test
+    fun refreshMarksARecipeWithNoStepsAsKnownEmpty() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 0))
+
+            synced.refresh()
+
+            assertEquals(emptyList(), cachedRecipe("srv_r1").steps)
         }
 }

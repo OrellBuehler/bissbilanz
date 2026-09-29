@@ -55,9 +55,12 @@ export async function batchFoodAction(
 					// supplement-ingredient and image-cleanup rules stay identical.
 					const result = await deleteFood(userId, id, input.payload?.force ?? false);
 					results.push(
-						result.blocked
-							? { id, ok: false, error: 'has_entries', entryCount: result.entryCount ?? 0 }
-							: { id, ok: true }
+						!result.blocked
+							? { id, ok: true }
+							: result.lastIngredientRecipes?.length
+								? // Force cannot override this, so it must not offer the force retry.
+									{ id, ok: false, error: 'last_ingredient' }
+								: { id, ok: false, error: 'has_entries', entryCount: result.entryCount ?? 0 }
 					);
 				} catch (error) {
 					results.push({

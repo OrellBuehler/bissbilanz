@@ -11,6 +11,16 @@
 	bestehendes Rezept gibt es noch keinen Zutaten-Editor.
 </p>
 
+<h2 class="mb-3 mt-8 text-xl font-semibold">Kochschritte und Kochmodus</h2>
+<p class="mb-6">
+	Im Rezept-Editor enthält der Bereich <strong>Schritte</strong> deine Zubereitungsanleitung. Füge
+	Schritte hinzu, ordne sie mit den Pfeiltasten neu an und gib jedem Schritt bei Bedarf ein Foto.
+	Sobald ein Rezept Schritte hat, öffnet <strong>Kochen starten</strong> eine Vollbildansicht: zuerst
+	eine Zutaten-Checkliste, dann pro Seite ein Schritt in grosser Schrift. Wische nach links für den nächsten
+	Schritt oder nutze die Schaltflächen Weiter und Zurück; der Bildschirm bleibt beim Kochen an. Am Ende
+	kannst du das Rezept direkt erfassen.
+</p>
+
 <h2 class="mb-3 mt-8 text-xl font-semibold">Ein Rezept erfassen</h2>
 <p class="mb-6">
 	Ein Rezept erscheint im Tab <strong>Rezepte</strong> des Erfassungsblatts sowie in den Favoriten, wenn

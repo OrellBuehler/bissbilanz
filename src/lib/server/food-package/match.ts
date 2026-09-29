@@ -64,7 +64,7 @@ export type MatchResult = {
 	newFoodRefs: string[];
 	recipeConflicts: RecipeConflict[];
 	newRecipeRefs: string[];
-	/** Recipes that cannot be rebuilt (unknown ingredient ref, incompatible unit). */
+	/** Recipes that cannot be rebuilt (no ingredients, unknown ingredient ref, incompatible unit). */
 	invalidRecipeRefs: Set<string>;
 	issues: PackageIssue[];
 };
@@ -108,6 +108,11 @@ export function matchPackage(
 	// Recipes that cannot be rebuilt are reported and left out entirely.
 	const invalidRecipeRefs = new Set<string>();
 	for (const recipe of manifest.recipes) {
+		if (recipe.ingredients.length === 0) {
+			invalidRecipeRefs.add(recipe.ref);
+			issues.push({ ref: recipe.ref, message: `"${recipe.name}": the recipe has no ingredients` });
+			continue;
+		}
 		for (const ingredient of recipe.ingredients) {
 			const food = foodsByRef.get(ingredient.food);
 			if (!food) {

@@ -11,6 +11,15 @@
 	existing recipe yet.
 </p>
 
+<h2 class="mb-3 mt-8 text-xl font-semibold">Cooking steps and cooking mode</h2>
+<p class="mb-6">
+	In the recipe editor, the <strong>Steps</strong> section holds your cooking instructions. Add
+	steps, reorder them with the arrow buttons and give any step a photo. Once a recipe has steps, tap
+	<strong>Start cooking</strong> for a full-screen view: first an ingredients checklist, then one step
+	per page in large type. Swipe left for the next step or use the Next and Back buttons, and the screen
+	stays on while you cook. At the end you can log the recipe straight away.
+</p>
+
 <h2 class="mb-3 mt-8 text-xl font-semibold">Logging a recipe</h2>
 <p class="mb-6">
 	A recipe shows up in the <strong>Recipes</strong> tab of the add-entry sheet, and in Favorites if you've

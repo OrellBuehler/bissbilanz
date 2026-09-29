@@ -58,6 +58,13 @@ export const importRecipeIngredientSchema = z.object({
 	sortOrder: z.number().int().min(0).default(0)
 });
 
+export const importRecipeStepSchema = z.object({
+	id: uuid.optional(),
+	recipeId: uuid,
+	sortOrder: z.number().int().min(0).default(0),
+	text: z.string().trim().min(1).max(2000)
+});
+
 export const importSupplementSchema = z.object({
 	id: uuid,
 	name: text(200),
@@ -149,6 +156,7 @@ export const importArchiveSchema = z.object({
 	foods: z.array(importFoodSchema).optional(),
 	recipes: z.array(importRecipeSchema).optional(),
 	recipeIngredients: z.array(importRecipeIngredientSchema).optional(),
+	recipeSteps: z.array(importRecipeStepSchema).optional(),
 	supplements: z.array(importSupplementSchema).optional(),
 	supplementIngredients: z.array(importSupplementIngredientSchema).optional(),
 	entries: z.array(importEntrySchema).optional(),

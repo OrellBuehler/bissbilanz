@@ -96,7 +96,9 @@ struct APIContractDecodingTests {
         entry("AiTaskAcknowledgeResponse", AiTaskAcknowledgeResponse.self),
         entry("AiTaskPhotoResponse", AiTaskPhotoResponse.self),
         entry("McpStatusResponse", McpStatusResponse.self),
-        entry("OpenFoodFactsSearchResponse", BissbilanzAPI.OpenFoodFactsSearchResponse.self)
+        entry("OpenFoodFactsSearchResponse", BissbilanzAPI.OpenFoodFactsSearchResponse.self),
+        entry("FoodUsageResponse", WhereUsed.self),
+        entry("RecipeUsageResponse", WhereUsed.self)
     ]
 
     private struct FixtureManifest: Decodable {

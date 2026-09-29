@@ -20,5 +20,8 @@ export type DeleteResult =
 			// which can exceed this if a food appears twice in one recipe).
 			recipeCount?: number;
 			supplementIngredientCount?: number;
+			// Recipes for which the food is the only ingredient. Blocks a delete even
+			// with `force`: a recipe must always keep at least one ingredient.
+			lastIngredientRecipes?: { id: string; name: string }[];
 	  }
 	| { blocked: false };

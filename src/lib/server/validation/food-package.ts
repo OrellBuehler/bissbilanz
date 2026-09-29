@@ -8,6 +8,7 @@ import {
 	MAX_FILTER_VALUES,
 	MAX_PACKAGE_FOODS,
 	MAX_PACKAGE_RECIPES,
+	MAX_PACKAGE_RECIPE_STEPS,
 	MAX_RECIPE_INGREDIENTS
 } from '$lib/server/food-package/format';
 
@@ -47,6 +48,12 @@ export const packageFoodSchema = z.object({
 	imageUrl: z.string().max(2048).nullish()
 });
 
+export const packageRecipeStepSchema = z.object({
+	text: z.string().trim().min(1).max(2000),
+	image: imagePath.nullish(),
+	imageUrl: z.string().max(2048).nullish()
+});
+
 export const packageRecipeSchema = z.object({
 	ref: recipeRef,
 	name: z.string().trim().min(1).max(200),
@@ -61,7 +68,9 @@ export const packageRecipeSchema = z.object({
 				servingUnit: servingUnitSchema
 			})
 		)
-		.max(MAX_RECIPE_INGREDIENTS)
+		.max(MAX_RECIPE_INGREDIENTS),
+	/** Absent in packages made before recipe steps existed: an import then leaves steps alone. */
+	steps: z.array(packageRecipeStepSchema).max(MAX_PACKAGE_RECIPE_STEPS).optional()
 });
 
 export const foodPackageManifestSchema = z
@@ -96,6 +105,7 @@ export const foodPackageManifestSchema = z
 export type FoodPackageManifest = z.output<typeof foodPackageManifestSchema>;
 export type PackageFood = z.output<typeof packageFoodSchema>;
 export type PackageRecipe = z.output<typeof packageRecipeSchema>;
+export type PackageRecipeStep = z.output<typeof packageRecipeStepSchema>;
 
 export const foodPackageIncludeRecipesSchema = z
 	.enum(['all', 'related', 'none'])

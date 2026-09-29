@@ -1029,6 +1029,97 @@ enum L10n {
         )
     }
 
+    static func deleteConflictSummary(entries: Int, recipes: Int, supplements: Int) -> String {
+        localized(
+            "delete_conflict_summary",
+            en: "This is still used in \(entries) food log entries, \(recipes) recipes and \(supplements) supplements.",
+            de: "Wird noch in \(entries) Einträgen, \(recipes) Rezepten und \(supplements) Supplementen verwendet."
+        )
+    }
+
+    static func deleteConflictLastIngredient(recipes: String) -> String {
+        localized(
+            "delete_conflict_last_ingredient",
+            en: "It is the only ingredient of \(recipes). A recipe needs at least one ingredient, " +
+                "so it can't be deleted. Add another ingredient to those recipes or delete them first.",
+            de: "Es ist die einzige Zutat von \(recipes). Ein Rezept braucht mindestens eine Zutat, " +
+                "deshalb kann es nicht gelöscht werden. Füge diesen Rezepten eine weitere Zutat hinzu " +
+                "oder lösche sie zuerst."
+        )
+    }
+
+    static func deleteConflictSupplements(_ count: Int) -> String {
+        localized(
+            "delete_conflict_supplements",
+            en: "It is an ingredient of \(count) supplements. Remove it from those supplements first.",
+            de: "Es ist Zutat von \(count) Supplementen. Entferne es zuerst aus diesen Supplementen."
+        )
+    }
+
+    static var recipeDeleteBlockedTitle: String {
+        localized(
+            "recipe_delete_blocked_title",
+            en: "Can't delete this recipe",
+            de: "Rezept kann nicht gelöscht werden"
+        )
+    }
+
+    static func recipeDeleteBlockedMessage(_ count: Int) -> String {
+        localized(
+            "recipe_delete_blocked_message",
+            en: "This recipe is logged in \(count) food log entries. " +
+                "Remove or change those entries first, then delete the recipe.",
+            de: "Dieses Rezept ist in \(count) Einträgen eingetragen. " +
+                "Entferne oder ändere zuerst diese Einträge und lösche dann das Rezept."
+        )
+    }
+
+    // MARK: - Where used
+
+    static var whereItsLogged: String {
+        localized("where_its_logged", en: "Where it's logged", de: "Wo es eingetragen ist")
+    }
+
+    static var whereItsUsed: String {
+        localized("where_its_used", en: "Where it's used", de: "Wo es verwendet wird")
+    }
+
+    static var whereUsedFailed: String {
+        localized("where_used_failed", en: "Couldn't load this list.", de: "Die Liste konnte nicht geladen werden.")
+    }
+
+    static var whereUsedEmpty: String {
+        localized("where_used_empty", en: "Not used anywhere.", de: "Wird nirgends verwendet.")
+    }
+
+    static func whereUsedEntriesHeading(_ count: Int) -> String {
+        localized("where_used_entries_heading", en: "Food log entries (\(count))", de: "Einträge (\(count))")
+    }
+
+    static func whereUsedRecipesHeading(_ count: Int) -> String {
+        localized("where_used_recipes_heading", en: "Recipes (\(count))", de: "Rezepte (\(count))")
+    }
+
+    static func whereUsedSupplementsHeading(_ count: Int) -> String {
+        localized("where_used_supplements_heading", en: "Supplements (\(count))", de: "Supplemente (\(count))")
+    }
+
+    static func whereUsedShowingNewest(shown: Int, total: Int) -> String {
+        localized(
+            "where_used_showing_newest",
+            en: "Showing the newest \(shown) of \(total) entries.",
+            de: "Die neuesten \(shown) von \(total) Einträgen werden angezeigt."
+        )
+    }
+
+    static func whereUsedServings(_ servings: String) -> String {
+        localized("where_used_servings", en: "\(servings) servings", de: "\(servings) Portionen")
+    }
+
+    static var whereUsedLastIngredient: String {
+        localized("where_used_last_ingredient", en: "Only ingredient", de: "Einzige Zutat")
+    }
+
     // MARK: - Goals
 
     static var goals: String {

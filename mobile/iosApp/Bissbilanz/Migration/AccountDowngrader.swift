@@ -106,9 +106,11 @@ final class AccountDowngrader {
         let localizedFoods = await localizePhotos(foods, url: \.imageUrl) { food, url in
             try? JSONPatch.merged(Food.self, base: food, patch: ["imageUrl": url as Any])
         }
-        let localizedRecipes = await localizePhotos(recipes, url: \.imageUrl) { recipe, url in
-            try? JSONPatch.merged(Recipe.self, base: recipe, patch: ["imageUrl": url as Any])
-        }
+        let localizedRecipes = await localizeStepPhotos(
+            in: await localizePhotos(recipes, url: \.imageUrl) { recipe, url in
+                try? JSONPatch.merged(Recipe.self, base: recipe, patch: ["imageUrl": url as Any])
+            }
+        )
 
         let weightEntries = try await api.getWeightEntries()
         let goals = try await api.getGoals()
@@ -213,6 +215,43 @@ final class AccountDowngrader {
                 continue
             }
             result.append(rewrite(item, file.absoluteString) ?? item)
+        }
+        return result
+    }
+
+    /// The same for recipe step photos, which live on the steps rather than on
+    /// the recipe. A photo that can't be fetched is dropped from its step (the
+    /// step itself is kept): the account is about to be deleted, and a
+    /// `/uploads/` URL that 404s would later make the sign-in migration re-send
+    /// a reference the server no longer holds.
+    private func localizeStepPhotos(in recipes: [Recipe]) async -> [Recipe] {
+        var result: [Recipe] = []
+        result.reserveCapacity(recipes.count)
+        for recipe in recipes {
+            guard let steps = recipe.steps, steps.contains(where: { $0.imageUrl != nil }) else {
+                result.append(recipe)
+                continue
+            }
+            var localized: [RecipeStep] = []
+            for step in steps {
+                guard let imageUrl = step.imageUrl, let key = LocalImageStore.cacheKey(for: imageUrl) else {
+                    localized.append(step)
+                    continue
+                }
+                var file = LocalImageStore.cachedFile(for: imageUrl)
+                if file == nil, let data = try? await api.downloadImage(path: imageUrl) {
+                    file = LocalImageStore.write(data, named: key)
+                }
+                localized.append(RecipeStep(
+                    id: step.id,
+                    sortOrder: step.sortOrder,
+                    text: step.text,
+                    imageUrl: file?.absoluteString
+                ))
+            }
+            var copy = recipe
+            copy.steps = localized
+            result.append(copy)
         }
         return result
     }

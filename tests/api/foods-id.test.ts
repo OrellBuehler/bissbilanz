@@ -12,8 +12,12 @@ vi.mock('$lib/server/foods', () => ({
 	getFood: async () => mockGetResult,
 	updateFood: async () => mockUpdateResult,
 	deleteFood: async (_userId: string, _id: string, force: boolean) => {
-		if (!force && mockDeleteResult.blocked) {
-			return { blocked: true, entryCount: mockDeleteResult.entryCount };
+		if (mockDeleteResult.lastIngredientRecipes || (!force && mockDeleteResult.blocked)) {
+			return {
+				blocked: true,
+				entryCount: mockDeleteResult.entryCount,
+				lastIngredientRecipes: mockDeleteResult.lastIngredientRecipes
+			};
 		}
 		return { blocked: false };
 	},
@@ -180,6 +184,23 @@ describe('api/foods/[id]', () => {
 			expect(response.status).toBe(409);
 			expect(data.error).toBe('has_entries');
 			expect(data.entryCount).toBe(5);
+		});
+
+		test('returns 409 with the recipes when the food is their last ingredient, even with force', async () => {
+			const recipes = [{ id: '10000000-0000-4000-8000-000000000020', name: 'Porridge' }];
+			mockDeleteResult = { blocked: true, entryCount: 0, lastIngredientRecipes: recipes };
+			const event = createMockEvent({
+				user: TEST_USER,
+				params: { id: TEST_FOOD.id },
+				url: `http://localhost/api/foods/${TEST_FOOD.id}?force=true`
+			});
+			const response = await DELETE(event);
+			await expectResponseContract('DELETE', '/api/foods/{id}', response);
+			const data = await response.json();
+
+			expect(response.status).toBe(409);
+			expect(data.error).toBe('has_entries');
+			expect(data.lastIngredientRecipes).toEqual(recipes);
 		});
 
 		test('returns 204 when force=true even with entries', async () => {

@@ -1,0 +1,12 @@
+{
+	"entries": [
+		{
+			"date": "sample-date",
+			"eatenAt": "sample-eatenAt",
+			"id": "875f01fb-d930-4218-87da-e4719a33e256",
+			"mealType": "sample-mealType",
+			"servings": 12.5
+		}
+	],
+	"totalEntries": 3
+}

@@ -19,9 +19,21 @@ const recipeSummarySchema = z
 		protein: z.number(),
 		carbs: z.number(),
 		fat: z.number(),
-		fiber: z.number()
+		fiber: z.number(),
+		// Number of cooking steps, for a "has instructions" badge. Always sent by
+		// the server; optional so cached copies from older builds still decode.
+		stepCount: z.number().int().optional()
 	})
 	.meta({ id: 'RecipeSummary' });
+
+const recipeStepResponseSchema = z
+	.object({
+		id: z.string().uuid(),
+		sortOrder: z.number().int(),
+		text: z.string(),
+		imageUrl: z.string().nullable()
+	})
+	.meta({ id: 'RecipeStep' });
 
 const recipeIngredientResponseSchema = z
 	.object({
@@ -51,6 +63,9 @@ const recipeDetailSchema = z
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
 		ingredients: z.array(recipeIngredientResponseSchema),
+		// Ordered cooking steps (possibly empty). Always sent by the server; optional
+		// so recipe copies cached by older builds still decode.
+		steps: z.array(recipeStepResponseSchema).optional(),
 		// Per-serving (unlike the whole-recipe core macros above), to match
 		// what a food's nutrient panel shows.
 		extendedNutrientsPerServing: extendedNutrientsSchema.optional()

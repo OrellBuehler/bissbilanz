@@ -62,11 +62,28 @@ struct DeleteConflict: Decodable {
     let entryCount: Int
     let ingredientCount: Int?
     let recipeCount: Int?
+    /// Foods only: supplements still use the food, which `force` cannot override.
+    var supplementIngredientCount: Int?
+    /// Foods only: recipes the food is the sole ingredient of. `force` cannot
+    /// override this either — a recipe must keep at least one ingredient.
+    var lastIngredientRecipes: [WhereUsedRef]?
+
+    /// Forcing cannot delete this food, so the prompt must not offer it.
+    var forceUnavailable: Bool {
+        !(lastIngredientRecipes ?? []).isEmpty || (supplementIngredientCount ?? 0) > 0
+    }
 
     /// Mirrors the web's ForceDeleteDialog copy — the message varies by which
     /// counts are actually present.
     var message: String {
         let recipeCount = recipeCount ?? 0
+        if forceUnavailable {
+            return L10n.deleteConflictSummary(
+                entries: entryCount,
+                recipes: recipeCount,
+                supplements: supplementIngredientCount ?? 0
+            )
+        }
         if entryCount > 0, recipeCount > 0 {
             return L10n.deleteConflictEntriesAndRecipes(entries: entryCount, recipes: recipeCount)
         }
@@ -74,6 +91,18 @@ struct DeleteConflict: Decodable {
             return L10n.deleteConflictRecipes(recipeCount)
         }
         return L10n.deleteConflictEntries(entryCount)
+    }
+
+    /// Why "Delete anyway" is not offered, when it is not.
+    var forceUnavailableReason: String? {
+        if let recipes = lastIngredientRecipes, !recipes.isEmpty {
+            let names = recipes.map { "\"\($0.name)\"" }.joined(separator: ", ")
+            return L10n.deleteConflictLastIngredient(recipes: names)
+        }
+        if let count = supplementIngredientCount, count > 0 {
+            return L10n.deleteConflictSupplements(count)
+        }
+        return nil
     }
 }
 
@@ -153,6 +182,10 @@ final class BissbilanzAPI {
     func getFood(id: String) async throws -> Food {
         let response: FoodResponse = try await get("/api/foods/\(id)")
         return response.food
+    }
+
+    func getFoodUsage(id: String) async throws -> WhereUsed {
+        try await get("/api/foods/\(id)/usage")
     }
 
     func createFood(
@@ -333,6 +366,10 @@ final class BissbilanzAPI {
     func getRecipe(id: String) async throws -> Recipe {
         let response: RecipeResponse = try await get("/api/recipes/\(id)")
         return response.recipe
+    }
+
+    func getRecipeUsage(id: String) async throws -> WhereUsed {
+        try await get("/api/recipes/\(id)/usage")
     }
 
     func createRecipe(
@@ -963,9 +1000,14 @@ final class BissbilanzAPI {
     /// Uploads a food or recipe image and returns its `/uploads/<uuid>.webp` URL.
     /// The route reads the `image` form field; `postMultipart` sets the `Origin`
     /// header the server's CSRF check requires of any native multipart POST.
-    func uploadImage(_ data: Data, filename: String = "food.jpg") async throws -> String {
+    ///
+    /// `purpose` is the route's optional extra form field: `recipe_step` keeps a
+    /// cooking-step photo's aspect ratio (up to 1280 px) instead of the square
+    /// thumbnail a food or recipe cover gets.
+    func uploadImage(_ data: Data, filename: String = "food.jpg", purpose: String? = nil) async throws -> String {
         let response: ImageUploadResponse = try await postMultipart(
-            "/api/images/upload", data: data, fieldName: "image", filename: filename
+            "/api/images/upload", data: data, fieldName: "image", filename: filename,
+            fields: purpose.map { ["purpose": $0] } ?? [:]
         )
         return response.imageUrl
     }
@@ -1104,20 +1146,24 @@ final class BissbilanzAPI {
         data: Data,
         fieldName: String,
         filename: String,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        fields: [String: String] = [:]
     ) async throws -> T {
         try await postMultipart(
-            path, fieldName: fieldName, parts: [(data: data, filename: filename)], mimeType: mimeType
+            path, fieldName: fieldName, parts: [(data: data, filename: filename)], mimeType: mimeType,
+            fields: fields
         )
     }
 
     /// Repeats `fieldName` once per part, which is how the routes that accept
-    /// several files read them.
+    /// several files read them. `fields` are plain text form fields sent
+    /// alongside the file parts.
     private func postMultipart<T: Decodable>(
         _ path: String,
         fieldName: String,
         parts: [(data: Data, filename: String)],
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        fields: [String: String] = [:]
     ) async throws -> T {
         var request = URLRequest(url: try makeURL(path))
         request.httpMethod = "POST"
@@ -1127,7 +1173,7 @@ final class BissbilanzAPI {
         // Several photos over a weak cellular uplink outlast the default 60s.
         request.timeoutInterval = 120
         request.httpBody = Self.multipartBody(
-            boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts
+            boundary: boundary, fieldName: fieldName, mimeType: mimeType, parts: parts, fields: fields
         )
         return try await performRequest(request)
     }
@@ -1138,9 +1184,15 @@ final class BissbilanzAPI {
         fieldName: String,
         mimeType: String,
         parts: [(data: Data, filename: String)],
+        fields: [String: String] = [:],
         closing: Bool = true
     ) -> Data {
         var body = Data()
+        for (name, value) in fields.sorted(by: { $0.key < $1.key }) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
         for part in parts {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append(
