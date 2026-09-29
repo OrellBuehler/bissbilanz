@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 const UPLOAD_DIR = await mkdtemp(join(tmpdir(), 'bissbilanz-uploads-'));
 process.env.UPLOAD_DIR = UPLOAD_DIR;
 
-type Rows = { foods: string[]; recipes: string[]; aiTasks: string[] };
-let referenced: Rows = { foods: [], recipes: [], aiTasks: [] };
+type Rows = { foods: string[]; recipes: string[]; recipeSteps: string[]; aiTasks: string[] };
+const noRows = (): Rows => ({ foods: [], recipes: [], recipeSteps: [], aiTasks: [] });
+let referenced: Rows = noRows();
 let uploadOwned = true;
 let forgetCalls = 0;
 let dbError: Error | null = null;
@@ -23,7 +24,13 @@ const fakeDB = {
 						where: () => ({ limit: async () => (uploadOwned ? [{ filename: 'owned' }] : []) })
 					};
 				const key =
-					table === schema.foods ? 'foods' : table === schema.recipes ? 'recipes' : 'aiTasks';
+					table === schema.foods
+						? 'foods'
+						: table === schema.recipes
+							? 'recipes'
+							: table === schema.recipeSteps
+								? 'recipeSteps'
+								: 'aiTasks';
 				return {
 					where: () =>
 						dbError
@@ -55,7 +62,8 @@ const { unlinkUpload, unlinkUploads, uploadFilename } = await import('$lib/serve
 const NAMES = [
 	'aaaaaaaa-0000-4000-8000-000000000001.webp',
 	'bbbbbbbb-0000-4000-8000-000000000002.webp',
-	'cccccccc-0000-4000-8000-000000000003.webp'
+	'cccccccc-0000-4000-8000-000000000003.webp',
+	'dddddddd-0000-4000-8000-000000000004.webp'
 ];
 
 const write = async (name: string, ageMs = 0) => {
@@ -73,7 +81,7 @@ const listDir = () => readdir(UPLOAD_DIR);
 beforeEach(async () => {
 	await rm(UPLOAD_DIR, { recursive: true, force: true });
 	await mkdir(UPLOAD_DIR, { recursive: true });
-	referenced = { foods: [], recipes: [], aiTasks: [] };
+	referenced = noRows();
 	dbError = null;
 	uploadOwned = true;
 	forgetCalls = 0;
@@ -163,11 +171,12 @@ describe('cleanupOrphanedImages', () => {
 		expect((await listDir()).sort()).toEqual([NAMES[0], NAMES[1]].sort());
 	});
 
-	test('keeps files referenced by any of foods, recipes or ai tasks', async () => {
+	test('keeps files referenced by any of foods, recipes, recipe steps or ai tasks', async () => {
 		for (const name of NAMES) await write(name, ORPHAN_GRACE_MS + 60_000);
 		referenced = {
 			foods: [`/uploads/${NAMES[0]}`],
 			recipes: [`/uploads/${NAMES[1]}`],
+			recipeSteps: [`/uploads/${NAMES[3]}`],
 			aiTasks: [`/uploads/${NAMES[2]}`]
 		};
 

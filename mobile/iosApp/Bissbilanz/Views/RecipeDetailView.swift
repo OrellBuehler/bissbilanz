@@ -3,6 +3,7 @@ import SwiftUI
 struct RecipeDetailView: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(FoodImageLoader.self) private var imageLoader
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -16,8 +17,10 @@ struct RecipeDetailView: View {
     @State private var showShareSheet = false
     @State private var showDeleteConfirmation = false
     @State private var showLogSheet = false
+    @State private var showCooking = false
     @State private var errorMessage: String?
     @State private var deleteConflict: DeleteConflict?
+    @State private var showUsage = false
     @State private var duplicatedRecipe: Recipe?
     @State private var isDuplicating = false
     // The server's recipe response has no embedded `food` on ingredients — resolved
@@ -107,6 +110,11 @@ struct RecipeDetailView: View {
         .sheet(item: $duplicatedRecipe) { copy in
             RecipeEditSheet(recipe: copy) { _ in }
         }
+        .fullScreenCover(isPresented: $showCooking) {
+            if let recipe {
+                RecipeCookingView(recipe: recipe, foodNames: foodNames)
+            }
+        }
         .confirmationDialog(L10n.delete, isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button(L10n.delete, role: .destructive) {
                 Task { await deleteRecipe() }
@@ -120,16 +128,21 @@ struct RecipeDetailView: View {
             if let errorMessage { Text(errorMessage) }
         }
         .alert(
-            L10n.stillInUse,
+            L10n.recipeDeleteBlockedTitle,
             isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
         ) {
-            Button(L10n.deleteAnyway, role: .destructive) {
+            Button(L10n.whereItsLogged) {
                 deleteConflict = nil
-                Task { await forceDeleteRecipe() }
+                showUsage = true
             }
-            Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
+            Button(L10n.ok, role: .cancel) { deleteConflict = nil }
         } message: {
-            if let deleteConflict { Text(deleteConflict.message) }
+            if let deleteConflict { Text(L10n.recipeDeleteBlockedMessage(deleteConflict.entryCount)) }
+        }
+        .sheet(isPresented: $showUsage) {
+            WhereUsedSheet(title: L10n.whereItsLogged, name: recipe?.name ?? "") {
+                try await recipeRepository.whereUsed(id: recipeId)
+            }
         }
     }
 
@@ -144,6 +157,23 @@ struct RecipeDetailView: View {
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                         .accessibilityHidden(true)
+                }
+            }
+
+            // Cooking mode is about following steps — the ingredient list is
+            // already on this screen — so it is only offered once there are some.
+            if !recipe.orderedSteps.isEmpty {
+                Section {
+                    Button {
+                        showCooking = true
+                    } label: {
+                        Label(L10n.startCooking, systemImage: "flame")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
                 }
             }
 
@@ -232,6 +262,14 @@ struct RecipeDetailView: View {
                 }
             }
 
+            if !recipe.orderedSteps.isEmpty {
+                Section(L10n.recipeSteps) {
+                    ForEach(Array(recipe.orderedSteps.enumerated()), id: \.element.id) { index, step in
+                        stepRow(step, number: index + 1)
+                    }
+                }
+            }
+
             Section(L10n.totals) {
                 if let cal = recipe.calories {
                     NutrientRow(label: L10n.calories, value: cal, unit: "kcal", color: accessibleColor(.calories))
@@ -253,6 +291,25 @@ struct RecipeDetailView: View {
         .listStyle(.insetGrouped)
     }
 
+    private func stepRow(_ step: RecipeStep, number: Int) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(number)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 24, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(step.text)
+                if let imageUrl = step.imageUrl, !imageUrl.isEmpty {
+                    FoodImageView(imageUrl: imageUrl, contentMode: .fit)
+                        .frame(maxWidth: 280, minHeight: 96, maxHeight: 200, alignment: .leading)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(L10n.recipeStepNumber(number)): \(step.text)")
+    }
+
     private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
         AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
@@ -270,7 +327,12 @@ struct RecipeDetailView: View {
             if recipe == nil { self.error = error }
         }
         isLoading = false
-        if let recipe { await resolveFoodNames(for: recipe) }
+        if let recipe {
+            await resolveFoodNames(for: recipe)
+            // Cooking mode is used at the stove, often with a weak connection:
+            // fetch the step photos to disk now so it doesn't need one then.
+            _ = await imageLoader.warmCache(for: recipe.orderedSteps.compactMap(\.imageUrl))
+        }
     }
 
     private func resolveFoodNames(for recipe: Recipe) async {
@@ -296,15 +358,6 @@ struct RecipeDetailView: View {
             case let .blocked(conflict):
                 deleteConflict = conflict
             }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func forceDeleteRecipe() async {
-        do {
-            try await recipeRepository.forceDeleteRecipe(id: recipeId)
-            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }

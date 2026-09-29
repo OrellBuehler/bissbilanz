@@ -36,6 +36,7 @@
 		}>;
 		readonly?: boolean;
 		dashboardStyle?: boolean;
+		highlightEntryId?: string | null;
 		onAdd?: () => void;
 		onEdit?: (entry: {
 			id: string;
@@ -61,6 +62,7 @@
 		entries = [],
 		readonly = false,
 		dashboardStyle = false,
+		highlightEntryId = null,
 		onAdd,
 		onEdit,
 		onDelete
@@ -97,7 +99,11 @@
 						quickFiber: entry.quickFiber,
 						quickName: entry.quickName
 					})}
-				<SwipeableEntry onDelete={() => onDelete?.(entry.id)}>
+				<SwipeableEntry
+					id="entry-{entry.id}"
+					highlighted={entry.id === highlightEntryId}
+					onDelete={() => onDelete?.(entry.id)}
+				>
 					<div
 						role="button"
 						tabindex="0"

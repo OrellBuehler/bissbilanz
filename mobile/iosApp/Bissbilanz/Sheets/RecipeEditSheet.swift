@@ -3,6 +3,7 @@ import SwiftUI
 struct RecipeEditSheet: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
     let existingRecipe: Recipe?
@@ -15,6 +16,16 @@ struct RecipeEditSheet: View {
     @State private var ingredients: [IngredientRow] = []
     @State private var imageUrl: String?
     @State private var originalImageUrl: String?
+    @State private var steps: [StepRow] = []
+    // What the recipe had when the sheet opened: an update only carries `steps`
+    // when they differ, since a present list replaces every step server-side.
+    @State private var originalSteps: [RecipeStepInput] = []
+    // False while an existing recipe's steps are unknown (a summary-shaped cache
+    // that couldn't be refreshed). Editing then would replace steps that were
+    // never seen, so the section stays read-only until the recipe has loaded.
+    @State private var stepsLoaded = true
+    @State private var editMode: EditMode = .inactive
+    @FocusState private var focusedStep: UUID?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -27,6 +38,12 @@ struct RecipeEditSheet: View {
         var food: Food?
         var quantity: String
         var unit: ServingUnit
+    }
+
+    struct StepRow: Identifiable, Equatable {
+        let id = UUID()
+        var text: String
+        var imageUrl: String?
     }
 
     init(recipe: Recipe? = nil, onSaved: @escaping (Recipe) -> Void = { _ in }) {
@@ -113,6 +130,8 @@ struct RecipeEditSheet: View {
                     }
                 }
 
+                stepsSection
+
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
@@ -121,6 +140,7 @@ struct RecipeEditSheet: View {
                     }
                 }
             }
+            .environment(\.editMode, $editMode)
             .keyboardDismissable()
             .navigationTitle(existingRecipe != nil ? L10n.editRecipe : L10n.createRecipe)
             .navigationBarTitleDisplayMode(.inline)
@@ -141,6 +161,100 @@ struct RecipeEditSheet: View {
             }
             .task { await prefill() }
         }
+    }
+
+    /// Ordered cooking steps: text, an optional photo, reorder and delete. The
+    /// reorder handles only exist in edit mode, toggled from the header, which
+    /// also keeps the rows short (no photo controls) while one is being dragged.
+    @ViewBuilder
+    private var stepsSection: some View {
+        Section {
+            if stepsLoaded {
+                ForEach(steps) { step in
+                    stepRow(step)
+                }
+                .onMove { source, destination in
+                    steps.move(fromOffsets: source, toOffset: destination)
+                }
+                .onDelete { indices in
+                    steps.remove(atOffsets: indices)
+                }
+
+                if steps.count < RecipeStepLimits.maxSteps {
+                    Button {
+                        let row = StepRow(text: "", imageUrl: nil)
+                        steps.append(row)
+                        focusedStep = row.id
+                    } label: {
+                        Label(L10n.recipeStepAdd, systemImage: "plus")
+                    }
+                } else {
+                    Text(L10n.recipeStepsLimit(RecipeStepLimits.maxSteps))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text(L10n.recipeStepsUnavailable)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            HStack {
+                Text(L10n.recipeSteps)
+                Spacer()
+                if stepsLoaded, steps.count > 1 {
+                    Button(editMode.isEditing ? L10n.done : L10n.recipeStepReorder) {
+                        withAnimation {
+                            editMode = editMode.isEditing ? .inactive : .active
+                        }
+                    }
+                    .textCase(nil)
+                }
+            }
+        } footer: {
+            Text(L10n.recipeStepsFooter)
+        }
+    }
+
+    private func stepRow(_ step: StepRow) -> some View {
+        let number = (steps.firstIndex(where: { $0.id == step.id }) ?? 0) + 1
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.recipeStepNumber(number))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField(L10n.recipeStepPlaceholder, text: stepTextBinding(for: step.id), axis: .vertical)
+                .lineLimit(editMode.isEditing ? (1 ... 2) : (2 ... 10))
+                .focused($focusedStep, equals: step.id)
+                .accessibilityLabel(L10n.recipeStepNumber(number))
+            if !editMode.isEditing {
+                RecipeStepPhotoField(imageUrl: step.imageUrl, stepNumber: number) { url in
+                    if let index = steps.firstIndex(where: { $0.id == step.id }) {
+                        steps[index].imageUrl = url
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// By id rather than by index: `ForEach($steps)` bindings index into the
+    /// array, and a write that lands after the row was deleted or moved (an
+    /// autocorrect commit, say) would otherwise hit the wrong step or trap.
+    private func stepTextBinding(for id: UUID) -> Binding<String> {
+        Binding(
+            get: { steps.first(where: { $0.id == id })?.text ?? "" },
+            set: { newValue in
+                if let index = steps.firstIndex(where: { $0.id == id }) {
+                    steps[index].text = newValue
+                }
+            }
+        )
+    }
+
+    /// The steps as the server takes them: trimmed, blank ones dropped, and the
+    /// server's length and count caps applied. Internal so it is testable.
+    static func stepInputs(from rows: [StepRow]) -> [RecipeStepInput] {
+        RecipeStepInput.sanitized(rows.map { RecipeStepInput(text: $0.text, imageUrl: $0.imageUrl) })
     }
 
     /// The per-100g calorie hint once a cooked weight is entered, or the generic
@@ -166,6 +280,32 @@ struct RecipeEditSheet: View {
         imageUrl = recipe.imageUrl
         originalImageUrl = recipe.imageUrl
         ingredients = await Self.resolvedIngredientRows(for: recipe, foodRepository: foodRepository)
+        await prefillSteps(for: recipe)
+    }
+
+    /// A recipe copied from the list endpoint (or cached by an older build) has
+    /// no `steps`; fetch the detail once so the editor shows — and never
+    /// silently replaces — what the recipe really has. Local mode has no server,
+    /// so a missing list there simply means no steps.
+    private func prefillSteps(for recipe: Recipe) async {
+        var source = recipe
+        if source.steps == nil, !appMode.isLocal, !LocalStore.isTempId(recipe.id) {
+            try? await recipeRepository.refreshRecipe(id: recipe.id)
+            source = recipeRepository.recipe(id: recipe.id) ?? recipe
+        }
+        let loaded: [RecipeStep]
+        if let known = source.steps {
+            loaded = known
+        } else if appMode.isLocal || source.stepCount == 0 {
+            loaded = []
+        } else {
+            stepsLoaded = false
+            return
+        }
+        let inputs = loaded.sorted { $0.sortOrder < $1.sortOrder }.map(\.input)
+        originalSteps = inputs
+        steps = inputs.map { StepRow(text: $0.text, imageUrl: $0.imageUrl) }
+        stepsLoaded = true
     }
 
     /// Resolves each of `recipe`'s ingredients into an `IngredientRow`, hydrating
@@ -203,6 +343,8 @@ struct RecipeEditSheet: View {
             )
         }
 
+        let stepInputs = Self.stepInputs(from: steps)
+
         do {
             var saved: Recipe
             var photoFailed = false
@@ -218,6 +360,11 @@ struct RecipeEditSheet: View {
                 // same reasoning: an emptied cooked weight has to reach the server
                 // as an explicit null or the old value survives the edit.
                 update.cookedWeight = .some(parsedCookedWeight)
+                // Only when they changed (and were seen): a present list
+                // replaces every step, an omitted one leaves them alone.
+                if stepsLoaded, stepInputs != originalSteps {
+                    update.steps = stepInputs
+                }
                 saved = try await recipeRepository.updateRecipe(id: existing.id, update)
                 // Separate from the body when editing: `RecipeUpdate` omits nil
                 // optionals, so a removal sent that way would be dropped and
@@ -247,7 +394,8 @@ struct RecipeEditSheet: View {
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite,
                     imageUrl: imageUrl,
-                    cookedWeight: parsedCookedWeight
+                    cookedWeight: parsedCookedWeight,
+                    steps: stepInputs.isEmpty ? nil : stepInputs
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }

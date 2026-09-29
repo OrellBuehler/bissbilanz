@@ -230,6 +230,15 @@ describe('remapLocalId', () => {
 		expect(await db.foodEntries.get('e1')).toMatchObject({ recipeId: SERVER_FOOD });
 	});
 
+	test('repoints recipe steps at the server recipe id', async () => {
+		await db.recipes.put({ id: TEMP_FOOD, name: 'R' } as never);
+		await db.recipeSteps.put({ id: 's1', recipeId: TEMP_FOOD, sortOrder: 0, text: 'Mix' } as never);
+
+		await remapLocalId('recipes', TEMP_FOOD, SERVER_FOOD);
+
+		expect(await db.recipeSteps.get('s1')).toMatchObject({ recipeId: SERVER_FOOD });
+	});
+
 	test('re-keys supplement logs under the server supplement id', async () => {
 		await db.supplements.put({ id: TEMP_FOOD, name: 'S' } as never);
 		await db.supplementLogs.put({ supplementId: TEMP_FOOD, date: '2026-09-05' } as never);

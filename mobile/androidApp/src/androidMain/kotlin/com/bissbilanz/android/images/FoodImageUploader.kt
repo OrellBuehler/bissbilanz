@@ -21,12 +21,15 @@ class FoodImageUploader(
     private val appModeManager: AppModeManager,
 ) {
     @OptIn(ExperimentalUuidApi::class)
-    suspend fun store(jpeg: ByteArray): String {
+    suspend fun store(
+        jpeg: ByteArray,
+        purpose: String? = null,
+    ): String {
         if (appModeManager.isLocal) {
             val file = LocalImageStore.write(context, "local-${Uuid.random()}.jpg", jpeg)
             return LocalImageStore.fileUri(file)
         }
-        val imageUrl = api.uploadImage("food.jpg", jpeg, contentType = "image/jpeg")
+        val imageUrl = api.uploadImage("food.jpg", jpeg, contentType = "image/jpeg", purpose = purpose)
         // Seed the cache with the bytes we already hold, so the new image renders
         // immediately instead of after a round trip — and offline right away.
         LocalImageStore.cacheKey(imageUrl)?.let { LocalImageStore.write(context, it, jpeg) }

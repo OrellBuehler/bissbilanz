@@ -89,3 +89,58 @@ describe('planImport barcode collisions', () => {
 		expect(sections.entries).toEqual({ name: 'entries', toImport: 2, skipped: 0 });
 	});
 });
+
+describe('planImport recipes', () => {
+	beforeEach(() => reset());
+
+	const RECIPE_FULL = '30000000-0000-4000-8000-000000000001';
+	const RECIPE_EMPTY = '30000000-0000-4000-8000-000000000002';
+	const RECIPE_DANGLING = '30000000-0000-4000-8000-000000000003';
+	const FOOD_GONE = '10000000-0000-4000-8000-0000000000ff';
+
+	const recipe = (id: string, name: string) => ({ id, name, totalServings: 2 });
+	const ingredient = (recipeId: string, foodId: string) => ({
+		recipeId,
+		foodId,
+		quantity: 100,
+		servingUnit: 'g' as const,
+		sortOrder: 0
+	});
+
+	test('skips recipes without a usable ingredient and reports them', async () => {
+		setResult([]);
+
+		const summary = await runImport(
+			TEST_USER.id,
+			parsed({
+				foods: [food(FOOD_A, 'Oats', null)],
+				recipes: [
+					recipe(RECIPE_FULL, 'Porridge'),
+					recipe(RECIPE_EMPTY, 'Nothing'),
+					recipe(RECIPE_DANGLING, 'Ghost')
+				],
+				recipeIngredients: [
+					ingredient(RECIPE_FULL, FOOD_A),
+					ingredient(RECIPE_DANGLING, FOOD_GONE)
+				],
+				entries: [
+					{
+						id: '20000000-0000-4000-8000-000000000001',
+						date: '2026-03-01',
+						mealType: 'Lunch',
+						amount: 1,
+						recipeId: RECIPE_EMPTY
+					}
+				]
+			}),
+			'preview'
+		);
+
+		const sections = Object.fromEntries(summary.sections.map((s) => [s.name, s]));
+		expect(sections.recipes).toEqual({ name: 'recipes', toImport: 1, skipped: 2 });
+		expect(sections.entries).toEqual({ name: 'entries', toImport: 0, skipped: 1 });
+		const messages = summary.issues.map((i) => i.message);
+		expect(messages).toContain('Recipe "Nothing" has no usable ingredients');
+		expect(messages).toContain('Recipe "Ghost" has no usable ingredients');
+	});
+});

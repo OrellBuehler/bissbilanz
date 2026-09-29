@@ -36,7 +36,8 @@ export const DELETE: RequestHandler = withAuthedResource(
 					entryCount: result.entryCount,
 					ingredientCount: result.ingredientCount,
 					recipeCount: result.recipeCount,
-					supplementIngredientCount: result.supplementIngredientCount
+					supplementIngredientCount: result.supplementIngredientCount,
+					lastIngredientRecipes: result.lastIngredientRecipes
 				},
 				{ status: 409 }
 			);

@@ -379,7 +379,7 @@
 		"/tools/create_recipe": {
 			"post": {
 				"operationId": "create_recipe",
-				"description": "Create a new recipe with multiple food ingredients. Each ingredient references a food ID from the database.",
+				"description": "Create a new recipe from foods that already exist in the database. Each ingredient references a food ID. Before calling this, find every ingredient with search_foods (and find_food_by_barcode / search_openfoodfacts for packaged products) and reuse the existing food. Create a missing ingredient food with create_food only from real nutrition data (a label photo, a specific product with its nutrition facts, or a web link carrying them) — never guess nutrition values. A recipe is a list of ingredient foods with quantities; never create a single food that represents the whole dish. Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link).",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -440,6 +440,21 @@
 									"cookedWeight": {
 										"anyOf": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "null" }],
 										"description": "Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings)."
+									},
+									"steps": {
+										"description": "Optional cooking instructions as an ordered list; each step is { text, imageUrl? } (text up to 2000 characters, up to 50 steps). Write plain-language instructions the user can follow while cooking, one action or stage per step. imageUrl may be an external https image link: the server downloads it and stores it as a normal upload, and the whole call fails with an error if a link cannot be fetched (no silent drops). Only JPEG, PNG, WebP or GIF up to 10MB on a public https host are accepted. Steps returned by get_recipe carry /uploads/... image paths that can be passed back unchanged. On update, a provided list REPLACES all steps (send [] to clear them); omit it to keep the existing steps.",
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+												"imageUrl": {
+													"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }]
+												}
+											},
+											"required": ["text"]
+										}
 									}
 								},
 								"required": ["name", "totalServings", "ingredients"]
@@ -2196,7 +2211,7 @@
 		"/tools/get_recipe": {
 			"post": {
 				"operationId": "get_recipe",
-				"description": "Get a recipe with its full ingredient list and whole-recipe macro totals (divide by totalServings for per-serving amounts). cookedWeight (grams of the finished dish, if set) lets grams eaten be converted to servings: grams / (cookedWeight / totalServings).",
+				"description": "Get a recipe with its full ingredient list, its ordered cooking steps (steps: [{ id, sortOrder, text, imageUrl }], empty when it has none) and whole-recipe macro totals (divide by totalServings for per-serving amounts). cookedWeight (grams of the finished dish, if set) lets grams eaten be converted to servings: grams / (cookedWeight / totalServings).",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -2714,7 +2729,7 @@
 		"/tools/list_recipes": {
 			"post": {
 				"operationId": "list_recipes",
-				"description": "List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food.",
+				"description": "List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food. stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves.",
 				"requestBody": {
 					"required": true,
 					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
@@ -3876,7 +3891,7 @@
 		"/tools/update_recipe": {
 			"post": {
 				"operationId": "update_recipe",
-				"description": "Update an existing recipe. Can change name, servings, or replace all ingredients.",
+				"description": "Update an existing recipe. Can change name, servings, cooking steps, or replace all ingredients. ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -3943,6 +3958,21 @@
 									"cookedWeight": {
 										"description": "Grams of the finished/cooked dish (optional, null to clear). When set, log_food servings for this recipe can be computed from grams eaten via grams / (cookedWeight / totalServings).",
 										"anyOf": [{ "type": "number", "exclusiveMinimum": 0 }, { "type": "null" }]
+									},
+									"steps": {
+										"description": "Optional cooking instructions as an ordered list; each step is { text, imageUrl? } (text up to 2000 characters, up to 50 steps). Write plain-language instructions the user can follow while cooking, one action or stage per step. imageUrl may be an external https image link: the server downloads it and stores it as a normal upload, and the whole call fails with an error if a link cannot be fetched (no silent drops). Only JPEG, PNG, WebP or GIF up to 10MB on a public https host are accepted. Steps returned by get_recipe carry /uploads/... image paths that can be passed back unchanged. On update, a provided list REPLACES all steps (send [] to clear them); omit it to keep the existing steps.",
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+												"imageUrl": {
+													"anyOf": [{ "type": "string", "maxLength": 2048 }, { "type": "null" }]
+												}
+											},
+											"required": ["text"]
+										}
 									}
 								},
 								"required": ["recipeId"]

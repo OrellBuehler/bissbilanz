@@ -12,6 +12,7 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.RecipeStepInput
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderCreate
 import com.bissbilanz.api.generated.model.ServingUnit
@@ -543,6 +544,9 @@ class LocalDataMigrator(
     ): Int {
         var done = startDone
         progress(done, total, STEP_RECIPES)
+        // A duplicated recipe points its steps at the same photo files as its source:
+        // upload each file once and reuse the server URL.
+        val stepPhotos = mutableMapOf<String, String?>()
         for (row in queries.selectAllRecipes().executeAsList().filter { it.id.isTempId() }) {
             val cached =
                 json.decodeOrNull<RecipeDetail>(row.jsonData)
@@ -574,6 +578,16 @@ class LocalDataMigrator(
                     isFavorite = cached.isFavorite,
                     imageUrl = uploadableImageUrl(cached.imageUrl),
                     cookedWeight = cached.cookedWeight,
+                    steps =
+                        cached.steps?.sortedBy { it.sortOrder }?.map { step ->
+                            RecipeStepInput(
+                                text = step.text,
+                                imageUrl =
+                                    step.imageUrl?.let { url ->
+                                        stepPhotos.getOrPut(url) { uploadableImageUrl(url, RECIPE_STEP_PHOTO_PURPOSE) }
+                                    },
+                            )
+                        },
                 )
             val server = api.createRecipe(create).serverTotalsToPerServing()
             queries.transaction {
@@ -911,7 +925,10 @@ class LocalDataMigrator(
      * back is a 400 that no retry can clear — it would strand the migration forever.
      * Re-upload the local file instead, and drop the reference if that is impossible.
      */
-    private suspend fun uploadableImageUrl(imageUrl: String?): String? {
+    private suspend fun uploadableImageUrl(
+        imageUrl: String?,
+        purpose: String? = null,
+    ): String? {
         if (imageUrl == null) return null
         val alreadyValid =
             (imageUrl.startsWith("/") && !imageUrl.startsWith("//")) ||
@@ -920,7 +937,7 @@ class LocalDataMigrator(
         if (alreadyValid) return imageUrl
         val photo = localPhotoReader?.read(imageUrl) ?: return null
         return try {
-            api.uploadImage(photo.first, photo.second)
+            api.uploadImage(photo.first, photo.second, purpose = purpose)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             // The photo is a nice-to-have; the food/recipe row is not.
@@ -1068,6 +1085,9 @@ class LocalDataMigrator(
         const val STEP_PREPARE = "prepare"
         const val STEP_FOODS = "foods"
         const val STEP_RECIPES = "recipes"
+
+        /** `POST /api/images/upload` purpose that keeps a step photo's aspect ratio. */
+        const val RECIPE_STEP_PHOTO_PURPOSE = "recipe_step"
         const val STEP_ENTRIES = "entries"
         const val STEP_WEIGHTS = "weights"
         const val STEP_SLEEP = "sleep"

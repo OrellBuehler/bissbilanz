@@ -24,6 +24,7 @@ struct FoodDetailView: View {
     @State private var showTipHelp = false
     private let favoritesLoggingTip = FavoritesLoggingTip()
     @State private var deleteConflict: DeleteConflict?
+    @State private var showUsage = false
     @State private var showMergePicker = false
     /// Picked in the merge picker; turned into `mergeCandidates` once that
     /// sheet is gone, since two sheets can't be up at once.
@@ -178,13 +179,29 @@ struct FoodDetailView: View {
             L10n.stillInUse,
             isPresented: .init(get: { deleteConflict != nil }, set: { if !$0 { deleteConflict = nil } })
         ) {
-            Button(L10n.deleteAnyway, role: .destructive) {
+            Button(L10n.whereItsUsed) {
                 deleteConflict = nil
-                Task { await forceDeleteFood() }
+                showUsage = true
+            }
+            if deleteConflict?.forceUnavailable != true {
+                Button(L10n.deleteAnyway, role: .destructive) {
+                    deleteConflict = nil
+                    Task { await forceDeleteFood() }
+                }
             }
             Button(L10n.cancel, role: .cancel) { deleteConflict = nil }
         } message: {
-            if let deleteConflict { Text(deleteConflict.message) }
+            if let deleteConflict {
+                // "Delete anyway" is withheld when force cannot work; say why.
+                Text([deleteConflict.message, deleteConflict.forceUnavailableReason]
+                    .compactMap { $0 }
+                    .joined(separator: "\n\n"))
+            }
+        }
+        .sheet(isPresented: $showUsage) {
+            WhereUsedSheet(title: L10n.whereItsUsed, name: food?.name ?? "") {
+                try await foodRepository.whereUsed(id: foodId)
+            }
         }
     }
 

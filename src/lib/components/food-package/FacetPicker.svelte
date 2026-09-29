@@ -46,6 +46,8 @@
 	</div>
 	{#if items.length === 0}
 		<p class="text-xs text-muted-foreground">{m.food_package_filter_empty()}</p>
+	{:else if visible.length === 0}
+		<p class="text-xs text-muted-foreground">{m.food_package_filter_no_match()}</p>
 	{:else}
 		<div class="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
 			{#each visible as item (item.value)}

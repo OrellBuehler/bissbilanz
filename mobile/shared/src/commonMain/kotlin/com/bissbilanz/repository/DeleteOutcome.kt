@@ -1,5 +1,6 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.api.generated.model.LastIngredientRecipe
 import kotlinx.serialization.Serializable
 
 /**
@@ -15,7 +16,17 @@ sealed class DeleteOutcome {
         val entryCount: Int,
         val ingredientCount: Int? = null,
         val recipeCount: Int? = null,
-    ) : DeleteOutcome()
+        val supplementIngredientCount: Int? = null,
+        /** Recipes the food is the only ingredient of (foods only). */
+        val lastIngredientRecipes: List<WhereUsedRef> = emptyList(),
+    ) : DeleteOutcome() {
+        /**
+         * Forcing cannot delete this food: it would leave a recipe without an ingredient,
+         * or supplements still use it. Callers must not offer "delete anyway".
+         */
+        val forceUnavailable: Boolean
+            get() = lastIngredientRecipes.isNotEmpty() || (supplementIngredientCount ?: 0) > 0
+    }
 }
 
 /** Shape of the 409 `has_entries` body from DELETE /api/foods/{id} and /api/recipes/{id}. */
@@ -24,4 +35,15 @@ internal data class DeleteConflictBody(
     val entryCount: Int = 0,
     val ingredientCount: Int? = null,
     val recipeCount: Int? = null,
-)
+    val supplementIngredientCount: Int? = null,
+    val lastIngredientRecipes: List<LastIngredientRecipe>? = null,
+) {
+    fun toBlocked() =
+        DeleteOutcome.Blocked(
+            entryCount = entryCount,
+            ingredientCount = ingredientCount,
+            recipeCount = recipeCount,
+            supplementIngredientCount = supplementIngredientCount,
+            lastIngredientRecipes = lastIngredientRecipes.orEmpty().map { WhereUsedRef(it.id, it.name, isLastIngredient = true) },
+        )
+}

@@ -8,8 +8,13 @@ struct DayLogView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     let date: String
+    /// Set from a "where it's logged" list: this entry is scrolled to and
+    /// briefly highlighted.
+    var highlightEntryId: String?
 
     @State private var entries: [Entry] = []
+    @State private var revealedEntryId: String?
+    @State private var highlightedEntryId: String?
     /// Image URL per logged food/recipe id, resolved from the local store
     /// whenever the entry list changes. An entry row carries no image of its
     /// own, and looking one up per row per render would be a SwiftData fetch
@@ -177,11 +182,35 @@ struct DayLogView: View {
     }
 
     private var entryList: some View {
+        ScrollViewReader { proxy in
+            entryListContent
+                .onAppear { revealHighlightedEntry(proxy) }
+                .onChange(of: entries.map(\.id)) { _, _ in revealHighlightedEntry(proxy) }
+        }
+    }
+
+    private func revealHighlightedEntry(_ proxy: ScrollViewProxy) {
+        guard let target = highlightEntryId, revealedEntryId != target,
+              entries.contains(where: { $0.id == target })
+        else { return }
+        revealedEntryId = target
+        highlightedEntryId = target
+        proxy.scrollTo(target, anchor: .center)
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            highlightedEntryId = nil
+        }
+    }
+
+    private var entryListContent: some View {
         List {
             ForEach(mealGroups, id: \.0) { mealType, mealEntries in
                 Section {
                     ForEach(sortedByTime(mealEntries)) { entry in
                         entryRow(entry)
+                            .listRowBackground(
+                                entry.id == highlightedEntryId ? Color.accentColor.opacity(0.2) : nil
+                            )
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task { await deleteEntry(entry) }

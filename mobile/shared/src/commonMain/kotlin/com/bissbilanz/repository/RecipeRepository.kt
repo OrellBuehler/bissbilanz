@@ -10,6 +10,8 @@ import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.RecipeStep
+import com.bissbilanz.api.generated.model.RecipeStepInput
 import com.bissbilanz.api.generated.model.RecipeUpdate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -63,17 +65,22 @@ class RecipeRepository(
         // recipe create/edit (the list screen calls refresh() on save) races the
         // async sync-queue upload; without this the summary list would wipe the
         // just-created recipe or resurrect a deleted one until the next refresh.
-        val preserved =
+        val previous =
             queries
                 .selectAllRecipes()
                 .executeAsList()
-                .filter { it.id.isTempId() || it.id in pendingIds }
-                .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                .mapNotNull { row -> json.decodeOrNull<RecipeDetail>(row.jsonData)?.let { row.id to it } }
+                .toMap()
+        val preserved = previous.filterKeys { it.isTempId() || it in pendingIds }.values
         withContext(Dispatchers.IO) {
             queries.transaction {
                 queries.deleteAllRecipes()
                 summaries.forEach { s ->
                     if (s.id in pendingIds) return@forEach
+                    // The list has no ingredients or steps, only a step count. Keep what a
+                    // detail fetch cached earlier so the recipe still cooks offline; steps
+                    // whose count no longer matches are dropped (unknown) and re-fetched.
+                    val cached = previous[s.id]
                     val recipe =
                         RecipeDetail(
                             id = s.id,
@@ -87,7 +94,8 @@ class RecipeRepository(
                             carbs = s.carbs,
                             fat = s.fat,
                             fiber = s.fiber,
-                            ingredients = emptyList(),
+                            ingredients = cached?.ingredients ?: emptyList(),
+                            steps = cachedStepsFor(s.stepCount, cached),
                         ).serverTotalsToPerServing()
                     queries.insertRecipe(
                         id = recipe.id,
@@ -153,11 +161,13 @@ class RecipeRepository(
     }
 
     /**
-     * Copies a recipe (ingredients, servings, cooked weight) under a new name, not
-     * favorited, without its image — two recipes must never share one `imageUrl`,
+     * Copies a recipe (ingredients, steps, servings, cooked weight) under a new name, not
+     * favorited, without its cover image — two recipes must never share one `imageUrl`,
      * since the server's `unlinkUpload` has no reference count and would delete the
      * file out from under whichever recipe keeps it once the other's image changes
-     * or is deleted. Goes through [createRecipe] so it works offline the same way,
+     * or is deleted. Step photos are copied by reference: the server only unlinks one
+     * once no step, recipe or food points at it, and the on-device store keeps them
+     * until the sweep finds them unreferenced. Goes through [createRecipe] so it works offline the same way,
      * and returns a temp-id [RecipeDetail] the caller can immediately open for editing.
      */
     suspend fun duplicateRecipe(
@@ -172,9 +182,13 @@ class RecipeRepository(
                 ingredients = source.ingredients.toIngredientInputs(),
                 isFavorite = false,
                 cookedWeight = source.cookedWeight,
+                steps = source.steps?.toStepInputs(),
             ),
         )
     }
+
+    private fun List<RecipeStep>.toStepInputs(): List<RecipeStepInput> =
+        sortedBy { it.sortOrder }.map { RecipeStepInput(text = it.text, imageUrl = it.imageUrl) }
 
     private fun List<RecipeIngredient>.toIngredientInputs(): List<RecipeIngredientInput> =
         map { ing ->
@@ -210,6 +224,7 @@ class RecipeRepository(
                             // this way would be dropped. [setImage] owns the field.
                             imageUrl = existing.imageUrl,
                             ingredients = recipe.ingredients?.toRecipeIngredients() ?: existing.ingredients,
+                            steps = recipe.steps?.toRecipeSteps() ?: existing.steps,
                             cookedWeight =
                                 cleared.pick(RecipeField.COOKED_WEIGHT, recipe.cookedWeight, existing.cookedWeight),
                         ).withRecomputedMacros()
@@ -230,6 +245,7 @@ class RecipeRepository(
                     fat = 0.0,
                     fiber = 0.0,
                     ingredients = recipe.ingredients?.toRecipeIngredients() ?: emptyList(),
+                    steps = recipe.steps?.toRecipeSteps(),
                 ).withRecomputedMacros()
             }
         if (id.isTempId()) {
@@ -313,7 +329,7 @@ class RecipeRepository(
         } catch (e: ApiException) {
             if (e.statusCode == 409) {
                 val conflict = e.responseBody?.let { json.decodeOrNull<DeleteConflictBody>(it) }
-                DeleteOutcome.Blocked(conflict?.entryCount ?: 0, conflict?.ingredientCount, conflict?.recipeCount)
+                conflict?.toBlocked() ?: DeleteOutcome.Blocked(0)
             } else {
                 // Not a conflict — likely offline/network. Fall back to the optimistic
                 // path so the delete isn't lost; it'll be resolved (and surfaced if it
@@ -329,25 +345,25 @@ class RecipeRepository(
         }
     }
 
-    /** Deletes a recipe the user already confirmed via a [DeleteOutcome.Blocked] prompt. */
-    suspend fun forceDeleteRecipe(id: String) {
+    /**
+     * The diary entries that log this recipe, newest first, so a blocked delete can point
+     * the user at the entries to remove or change. Local mode (or a not-yet-uploaded temp
+     * id) has no server to ask and reads the local cache instead.
+     */
+    suspend fun whereUsed(id: String): WhereUsed {
         if (appModeManager.isLocal || id.isTempId()) {
-            deleteRecipe(id)
-            return
+            val rows =
+                withContext(Dispatchers.IO) {
+                    db.userDataDatabaseQueries
+                        .selectEntriesByRecipeId(id)
+                        .executeAsList()
+                }
+            return WhereUsed(
+                entries = rows.toWhereUsedEntries(json).take(WHERE_USED_ENTRY_LIMIT),
+                totalEntries = rows.size,
+            )
         }
-        val imageUrl = getRecipeCached(id)?.imageUrl
-        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
-        try {
-            api.deleteRecipe(id, force = true)
-            syncQueue.removeByAffected("recipes", id)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            // Offline or a transient failure — queue the forced delete so the user's
-            // confirmed choice still lands once connectivity returns.
-            syncQueue.enqueue(SyncOperation.DeleteRecipe(id, force = true))
-        }
-        imageUrl?.let { onImageOrphaned?.invoke(it) }
+        return api.getRecipeUsage(id).toWhereUsed()
     }
 
     /**
@@ -370,6 +386,7 @@ class RecipeRepository(
                     name = update.name ?: body.name,
                     totalServings = update.totalServings ?: body.totalServings,
                     ingredients = update.ingredients ?: body.ingredients,
+                    steps = update.steps ?: body.steps,
                     isFavorite = update.isFavorite ?: body.isFavorite,
                     cookedWeight = cleared.pick(RecipeField.COOKED_WEIGHT, update.cookedWeight, body.cookedWeight),
                 )
@@ -407,7 +424,13 @@ class RecipeRepository(
             fat = 0.0,
             fiber = 0.0,
             ingredients = recipe.ingredients.toRecipeIngredients(),
+            steps = (recipe.steps ?: emptyList()).toRecipeSteps(),
         ).withRecomputedMacros()
+
+    private fun List<RecipeStepInput>.toRecipeSteps(): List<RecipeStep> =
+        mapIndexed { index, input ->
+            RecipeStep(id = newTempId(), sortOrder = index, text = input.text, imageUrl = input.imageUrl)
+        }
 
     private fun List<RecipeIngredientInput>.toRecipeIngredients(): List<RecipeIngredient> =
         mapIndexed { index, input ->
@@ -441,4 +464,19 @@ class RecipeRepository(
             fiber = macros.fiber,
         )
     }
+
+    /**
+     * The steps to keep for a recipe the list just reported [stepCount] steps for:
+     * none when the count says so, the cached ones when they still add up, and null
+     * (not downloaded) otherwise. Without a count (older server) the cache is trusted.
+     */
+    private fun cachedStepsFor(
+        stepCount: Int?,
+        cached: RecipeDetail?,
+    ): List<RecipeStep>? =
+        when {
+            stepCount == 0 -> emptyList()
+            stepCount == null -> cached?.steps
+            else -> cached?.steps?.takeIf { it.size == stepCount }
+        }
 }
