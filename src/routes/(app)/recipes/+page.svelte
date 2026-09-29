@@ -14,6 +14,7 @@
 	import Star from '@lucide/svelte/icons/star';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 	import Copy from '@lucide/svelte/icons/copy';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import FileArchive from '@lucide/svelte/icons/file-archive';
@@ -43,6 +44,8 @@
 		cookedWeight: number | null;
 		calories: number | null;
 		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
+		// null while the steps are not cached (opened offline before ever loading them).
+		steps: Array<{ text: string; imageUrl: string | null }> | null;
 	};
 
 	let packageExportOpen = $state(false);
@@ -165,6 +168,7 @@
 		const recipe = await db.recipes.get(id);
 		if (!recipe) return;
 		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).sortBy('sortOrder');
+		const cachedSteps = await recipeService.cachedSteps(recipe);
 		editingRecipe = {
 			id: recipe.id,
 			name: recipe.name,
@@ -177,7 +181,8 @@
 				foodId: i.foodId,
 				quantity: i.quantity,
 				servingUnit: i.servingUnit
-			}))
+			})),
+			steps: cachedSteps?.map((step) => ({ text: step.text, imageUrl: step.imageUrl })) ?? null
 		};
 		formImageUrl = recipe.imageUrl;
 		showForm = true;
@@ -197,6 +202,8 @@
 			uploading = false;
 		}
 	};
+
+	const handleStepImageUpload = (file: File) => uploadImageFile(file, 'recipe-step', 'recipe_step');
 
 	const handleImageRemove = async () => {
 		if (uploading) return;
@@ -315,6 +322,11 @@
 								<span class="text-orange-500">{fmt(recipe.carbs ?? 0)}g C</span>
 								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
+							{#if recipe.stepCount}
+								<p class="mt-1 text-xs text-muted-foreground">
+									{m.recipe_step_count({ count: recipe.stepCount })}
+								</p>
+							{/if}
 							{#if cookedWeightSubtitle(recipe)}
 								<p class="mt-1 text-xs text-muted-foreground">{cookedWeightSubtitle(recipe)}</p>
 							{/if}
@@ -346,6 +358,20 @@
 							>
 								<CirclePlus class="size-4" />
 							</Button>
+							{#if recipe.stepCount}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="hidden sm:inline-flex"
+									aria-label={m.recipe_start_cooking()}
+									onclick={(e) => {
+										e.stopPropagation();
+										goto(`/recipes/${recipe.id}/cook`);
+									}}
+								>
+									<ChefHat class="size-4" />
+								</Button>
+							{/if}
 							<Button
 								variant="ghost"
 								size="icon"
@@ -387,6 +413,12 @@
 										{/snippet}
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
+										{#if recipe.stepCount}
+											<DropdownMenu.Item onclick={() => goto(`/recipes/${recipe.id}/cook`)}>
+												<ChefHat class="mr-2 size-4" />
+												{m.recipe_start_cooking()}
+											</DropdownMenu.Item>
+										{/if}
 										<DropdownMenu.Item onclick={() => duplicateRecipe(recipe)}>
 											<Copy class="mr-2 size-4" />
 											{m.recipes_duplicate()}
@@ -445,6 +477,8 @@
 			onSave={editingRecipe ? updateRecipe : createRecipe}
 			onImageUpload={handleImageUpload}
 			onImageRemove={handleImageRemove}
+			cookHref={editingRecipe ? `/recipes/${editingRecipe.id}/cook` : undefined}
+			onUploadStepImage={handleStepImageUpload}
 		/>
 	{/key}
 </ResponsiveModal>

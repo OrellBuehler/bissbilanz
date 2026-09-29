@@ -255,7 +255,12 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     composable("recipe/{recipeId}") { backStackEntry ->
         val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
         com.bissbilanz.android.ui.screens
-            .RecipeDetailScreen(recipeId, navController)
+            .RecipeDetailScreen(recipeId, navController, backStackEntry.savedStateHandle)
+    }
+    composable("recipe/{recipeId}/cook") { backStackEntry ->
+        val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
+        com.bissbilanz.android.ui.screens
+            .RecipeCookScreen(recipeId, navController)
     }
     composable("weight") {
         com.bissbilanz.android.ui.screens

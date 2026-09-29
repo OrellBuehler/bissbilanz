@@ -715,6 +715,35 @@
     <string name="recipe_edit_amount">Amount</string>
     <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
+    <string name="recipe_edit_steps_count">Steps (%1$d)</string>
+    <string name="recipe_edit_no_steps">No steps yet.\nAdd steps to cook this recipe one step at a time.</string>
+    <string name="recipe_edit_steps_unavailable">Steps can\'t be edited until this recipe has been opened online once.</string>
+    <string name="recipe_edit_step_label">Step %1$d</string>
+    <string name="recipe_edit_step_hint">Describe this step</string>
+    <string name="recipe_edit_step_move_up">Move step %1$d up</string>
+    <string name="recipe_edit_step_move_down">Move step %1$d down</string>
+    <string name="recipe_edit_step_remove">Remove step %1$d</string>
+    <string name="recipe_edit_step_photo_camera">Take a photo for step %1$d</string>
+    <string name="recipe_edit_step_photo_library">Choose a photo for step %1$d</string>
+    <string name="recipe_edit_step_photo_remove">Remove photo</string>
+    <string name="recipe_edit_step_photo_failed">Failed to upload photo</string>
+    <string name="recipe_detail_steps_title">Steps</string>
+    <string name="recipe_detail_start_cooking">Start cooking</string>
+    <string name="recipe_detail_step_photo">Photo for step %1$d</string>
+    <string name="recipe_cook_ingredients">Ingredients</string>
+    <string name="recipe_cook_ingredients_hint">Check off ingredients as you gather them.</string>
+    <string name="recipe_cook_step_of">Step %1$d of %2$d</string>
+    <string name="recipe_cook_page_indicator">Page %1$d of %2$d</string>
+    <string name="recipe_cook_close">Close cooking mode</string>
+    <string name="recipe_cook_next">Next</string>
+    <string name="recipe_cook_back">Back</string>
+    <string name="recipe_cook_done">Done</string>
+    <string name="recipe_cook_log">Log this recipe</string>
+    <string name="recipe_cook_finished_title">All done</string>
+    <string name="recipe_cook_finished_text">Enjoy your meal. Log it to keep your diary up to date.</string>
+    <string name="recipe_cook_no_steps">This recipe has no steps yet. Add some by editing the recipe.</string>
+    <string name="recipe_cook_servings">Makes %1$d servings</string>
+    <string name="recipe_cook_step_photo">Photo for step %1$d</string>
 
     <!-- Supplements screen -->
     <string name="supplements_add">Add supplement</string>

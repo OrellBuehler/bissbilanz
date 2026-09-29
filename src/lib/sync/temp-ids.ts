@@ -53,7 +53,7 @@ export async function remapLocalId(table: string, tempId: string, serverId: stri
 
 	await db.transaction(
 		'rw',
-		[rows, db.foodEntries, db.recipeIngredients, db.supplementLogs],
+		[rows, db.foodEntries, db.recipeIngredients, db.recipeSteps, db.supplementLogs],
 		async () => {
 			const row = await rows.get(tempId);
 			if (row) {
@@ -67,6 +67,7 @@ export async function remapLocalId(table: string, tempId: string, serverId: stri
 			} else if (table === 'recipes') {
 				await db.foodEntries.where('recipeId').equals(tempId).modify({ recipeId: serverId });
 				await db.recipeIngredients.where('recipeId').equals(tempId).modify({ recipeId: serverId });
+				await db.recipeSteps.where('recipeId').equals(tempId).modify({ recipeId: serverId });
 			} else if (table === 'supplements') {
 				// supplementLogs is keyed by [supplementId+date]: a primary-key change
 				// has to be a delete + re-insert.
