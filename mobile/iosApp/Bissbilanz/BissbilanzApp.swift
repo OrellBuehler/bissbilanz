@@ -61,6 +61,10 @@ struct BissbilanzApp: App {
     @State private var mcpConnectionStatus: McpConnectionStatus
     @State private var aiTaskProcessor: AiTaskProcessor
     private let modelContainer: ModelContainer
+    /// Set when the on-disk store could not be opened in Local mode. The app then
+    /// shows `StoreUnavailableView` instead of running against the empty in-memory
+    /// stand-in in `modelContainer`.
+    private let storeUnavailable: LocalStore.StoreUnavailable?
     /// Read-only day/week totals for the Siri data-query intents and the
     /// Spotlight day index. Not part of the SwiftUI environment — the views
     /// read the repositories directly.
@@ -123,6 +127,7 @@ struct BissbilanzApp: App {
         // simulator's real on-disk App Group store.
         let container: ModelContainer
         if Self.isRunningTests {
+            storeUnavailable = nil
             do {
                 container = try LocalStore.makeContainer(inMemory: true)
             } catch {
@@ -132,10 +137,12 @@ struct BissbilanzApp: App {
                 fatalError("Failed to create in-memory test container: \(error)")
             }
         } else {
-            container = LocalStore.makeContainerWithFallback(
+            let opened = LocalStore.openStore(
                 cloudKitEnabled: appMode.isLocal,
                 onError: { error, context in ErrorReporter.capture(error, context: context) }
             )
+            container = opened.container
+            storeUnavailable = opened.unavailable
         }
         modelContainer = container
         let context = container.mainContext
@@ -418,7 +425,11 @@ struct BissbilanzApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let minVersion = updateGate.minVersion {
+                if let storeUnavailable {
+                    // The local data could not be opened and this device holds the only
+                    // copy: stop here rather than run against an empty stand-in store.
+                    StoreUnavailableView(hasBackup: storeUnavailable.backupURL != nil)
+                } else if let minVersion = updateGate.minVersion {
                     // Ahead of the normal routing below and independent of auth
                     // state — an old build isn't safe to use against the server
                     // at all, whether or not the user is signed in.
@@ -486,6 +497,7 @@ struct BissbilanzApp: App {
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
+                guard storeUnavailable == nil else { return }
                 if phase == .active {
                     syncManager.scheduleDrain()
                     // Pick up fasts ended from the lock screen and re-request
