@@ -4709,6 +4709,10 @@ enum L10n {
         localized("food_package_filter_empty", en: "Nothing to choose from yet", de: "Noch nichts zur Auswahl")
     }
 
+    static var foodPackageFilterNoMatch: String {
+        localized("food_package_filter_no_match", en: "No matches", de: "Keine Treffer")
+    }
+
     static var foodPackageIncludeRecipes: String {
         localized("food_package_include_recipes", en: "Include recipes", de: "Rezepte einschliessen")
     }

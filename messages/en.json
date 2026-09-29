@@ -1521,6 +1521,7 @@
 	"food_package_filter_hint": "Foods matching any selected brand or label are included.",
 	"food_package_filter_search": "Search…",
 	"food_package_filter_empty": "Nothing to choose from yet",
+	"food_package_filter_no_match": "No matches",
 	"food_package_include_recipes": "Include recipes",
 	"food_package_include_related_recipes": "Also include recipes that use these foods",
 	"food_package_summary": "{foods} foods · {recipes} recipes · {images} photos · ~{size}",
