@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.ServingUnit
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -66,7 +67,7 @@ data class EntryRangeItem(
     @SerialName(value = "quickFiber") @Required val quickFiber: kotlin.Double?,
     @SerialName(value = "quickNutrients") @Required val quickNutrients: kotlin.collections.Map<kotlin.String, kotlin.Double>?,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double?,
-    @SerialName(value = "servingUnit") @Required val servingUnit: kotlin.String?,
+    @SerialName(value = "servingUnit") @Required val servingUnit: ServingUnit?,
     @SerialName(value = "foodName") @Required val foodName: kotlin.String?,
     @SerialName(value = "calories") @Required val calories: kotlin.Double,
     @SerialName(value = "protein") @Required val protein: kotlin.Double,

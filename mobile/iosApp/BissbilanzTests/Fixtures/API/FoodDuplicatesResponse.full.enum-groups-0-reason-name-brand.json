@@ -1,0 +1,16 @@
+{
+	"groups": [
+		{
+			"foods": [
+				{
+					"barcode": "sample-barcode",
+					"brand": "sample-brand",
+					"id": "6264f0d0-b73a-48c9-8bbf-fbceeecb2aef",
+					"name": "sample-name"
+				}
+			],
+			"key": "sample-key",
+			"reason": "name_brand"
+		}
+	]
+}

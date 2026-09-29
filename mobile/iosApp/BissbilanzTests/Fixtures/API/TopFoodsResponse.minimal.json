@@ -1,0 +1,15 @@
+{
+	"data": [
+		{
+			"calories": 450,
+			"carbs": 50,
+			"count": 3,
+			"fat": 15,
+			"fiber": 8,
+			"foodId": null,
+			"foodName": "sample-foodName",
+			"protein": 30,
+			"recipeId": null
+		}
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"properties": {
+		"activityCalories": 250,
+		"activityCaloriesSource": "health_connect",
+		"activityNote": "sample-activityNote",
+		"date": "sample-date",
+		"isFastingDay": true,
+		"notes": "sample-notes",
+		"waterMl": 2000
+	}
+}

@@ -336,7 +336,7 @@ class AccountDowngrader(
             fat = fat,
             fiber = fiber,
             servingSize = servingSize,
-            servingUnit = servingUnit,
+            servingUnit = servingUnit?.value,
         )
 
     companion object {

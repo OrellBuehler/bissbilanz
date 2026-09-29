@@ -235,7 +235,7 @@ final class FoodRepository {
     func refreshFavorites() async throws {
         guard !appMode.isLocal else { return }
         let response = try await api.getFavorites()
-        let favoriteIds = Set(response.foods.map(\.id))
+        let favoriteIds = Set((response.foods ?? []).map(\.id))
         // Rows with an un-uploaded queued write must survive the server
         // response: a refresh racing the sync-queue upload would otherwise
         // reapply the stale server copy over the user's edit (see
@@ -247,7 +247,7 @@ final class FoodRepository {
                 row.update(from: patched)
             }
         }
-        for food in response.foods where !pendingFoodIds.contains(food.id) {
+        for food in response.foods ?? [] where !pendingFoodIds.contains(food.id) {
             upsert(food)
         }
         for recipe in response.recipes ?? [] where !pendingRecipeIds.contains(recipe.id) {

@@ -1,0 +1,39 @@
+{
+	"supplement": {
+		"createdAt": "sample-createdAt",
+		"id": "3c18459a-eaa6-4ecb-8323-46a8f37c75c1",
+		"ingredients": [
+			{
+				"food": {
+					"brand": "sample-brand",
+					"calories": 450,
+					"carbs": 50,
+					"fat": 15,
+					"fiber": 8,
+					"id": "cce91188-59c4-4721-8c10-174640156d07",
+					"ingredientsText": "sample-ingredientsText",
+					"kind": "food",
+					"name": "sample-name",
+					"protein": 30,
+					"servingSize": 100,
+					"servingUnit": "sample-servingUnit"
+				},
+				"foodId": "8ab9cf36-a803-4e37-8ce4-8fa45ded510d",
+				"id": "4bd9412a-8dd7-4b1b-81bf-14b8a4fc1291",
+				"servings": 12.5,
+				"sortOrder": 0,
+				"supplementId": "68bdcd5f-63dd-43ac-8b5e-7875df6b200a"
+			}
+		],
+		"isActive": true,
+		"name": "sample-name",
+		"reminderTimes": ["sample-reminderTimes"],
+		"scheduleDays": [3],
+		"scheduleStartDate": "sample-scheduleStartDate",
+		"scheduleType": "daily",
+		"sortOrder": 0,
+		"timeOfDay": "morning",
+		"updatedAt": "sample-updatedAt",
+		"userId": "86f0edb7-2f8d-4924-877b-ac8d90499e42"
+	}
+}

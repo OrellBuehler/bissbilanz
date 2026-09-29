@@ -1,0 +1,22 @@
+{
+	"task": {
+		"acknowledgedAt": "sample-acknowledgedAt",
+		"completedAt": "sample-completedAt",
+		"createdAt": "sample-createdAt",
+		"createdEntryIds": ["sample-createdEntryIds"],
+		"date": "sample-date",
+		"description": "sample-description",
+		"dismissedAt": "sample-dismissedAt",
+		"eatenAt": "sample-eatenAt",
+		"id": "07e6cef4-b50c-461d-886d-c092ca53aa63",
+		"mealType": "sample-mealType",
+		"photoUrl": "sample-photoUrl",
+		"photoUrls": ["sample-photoUrls"],
+		"processedBy": "assistant",
+		"resultSummary": "sample-resultSummary",
+		"source": "sample-source",
+		"status": "pending",
+		"updatedAt": "sample-updatedAt",
+		"userId": "2a8c8bf1-5de1-43d6-8432-7657c7d51544"
+	}
+}

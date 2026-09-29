@@ -1,0 +1,10 @@
+{
+	"days": {
+		"sample": {
+			"calories": 450,
+			"hasEntries": true,
+			"hasFast": true
+		}
+	},
+	"notedDates": ["sample-notedDates"]
+}
