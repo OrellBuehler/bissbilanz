@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { RECIPE_STEP_MAX_DIM, processImage } from '$lib/server/images';
 import { handleApiError, requireAuth } from '$lib/server/errors';
+import { readCappedFormData } from '$lib/server/upload';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -10,7 +11,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
 
-		const formData = await request.formData();
+		const formData = await readCappedFormData(request, MAX_FILE_SIZE);
 		const file = formData.get('image');
 
 		if (!file || !(file instanceof File)) {

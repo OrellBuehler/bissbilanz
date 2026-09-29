@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 
@@ -32,7 +33,8 @@ vi.mock('$lib/server/db', () => ({
 }));
 
 let tokenCounter = 0;
-vi.mock('$lib/server/oauth', () => ({
+vi.mock('$lib/server/oauth', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/oauth')>()),
 	generateToken: vi.fn(() => `token-${++tokenCounter}`)
 }));
 
@@ -54,6 +56,50 @@ describe('mobile-auth', () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+	});
+
+	describe('PKCE binding of the one-time code', () => {
+		const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+		const challenge = createHash('sha256').update(verifier).digest('base64url');
+
+		test('redeems with the matching verifier', () => {
+			const code = createOneTimeCode('user-1', challenge);
+			expect(consumeOneTimeCode(code, verifier)).toBe('user-1');
+		});
+
+		test('rejects a code issued with a challenge when no verifier is sent', () => {
+			const code = createOneTimeCode('user-1', challenge);
+			expect(consumeOneTimeCode(code)).toBeUndefined();
+		});
+
+		test('rejects a wrong or malformed verifier', () => {
+			const wrong = 'A'.repeat(43);
+			expect(consumeOneTimeCode(createOneTimeCode('user-1', challenge), wrong)).toBeUndefined();
+			expect(consumeOneTimeCode(createOneTimeCode('user-1', challenge), 'short')).toBeUndefined();
+		});
+
+		test('burns the code on a failed attempt so the verifier cannot be guessed', () => {
+			const code = createOneTimeCode('user-1', challenge);
+			expect(consumeOneTimeCode(code, 'A'.repeat(43))).toBeUndefined();
+			expect(consumeOneTimeCode(code, verifier)).toBeUndefined();
+		});
+
+		test('still redeems a code issued without a challenge (older builds)', () => {
+			const code = createOneTimeCode('user-1');
+			expect(consumeOneTimeCode(code)).toBe('user-1');
+		});
+
+		test('ignores a verifier sent for a code issued without a challenge', () => {
+			const code = createOneTimeCode('user-1');
+			expect(consumeOneTimeCode(code, verifier)).toBe('user-1');
+		});
+
+		test('carries the challenge from the pending login state', () => {
+			storePendingState('state-x', 'cv', 'nonce', 'infomaniak', challenge);
+			expect(consumePendingState('state-x')?.appCodeChallenge).toBe(challenge);
+			storePendingState('state-y', 'cv', 'nonce', 'infomaniak');
+			expect(consumePendingState('state-y')?.appCodeChallenge).toBeUndefined();
+		});
 	});
 
 	describe('storePendingState / consumePendingState', () => {

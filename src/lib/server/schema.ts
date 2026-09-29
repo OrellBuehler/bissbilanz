@@ -106,10 +106,14 @@ export const sessions = pgTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		refreshToken: text('refresh_token'),
+		// SHA-256 of the cookie token. Null on sessions created before hashing, whose
+		// id is still the cookie value; those are upgraded on first use.
+		tokenHash: text('token_hash'),
 		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
+		uniqueIndex('idx_sessions_token_hash').on(table.tokenHash),
 		index('idx_sessions_user_id').on(table.userId),
 		index('idx_sessions_expires_at').on(table.expiresAt)
 	]
@@ -880,6 +884,10 @@ export const oauthTokens = pgTable(
 			.array()
 			.notNull()
 			.default(sql`ARRAY['mcp:access']::text[]`),
+		// Rotation keeps the family and its absolute expiry, so a refresh chain cannot
+		// outlive familyExpiresAt. Null on tokens issued before this existed.
+		familyId: uuid('family_id'),
+		familyExpiresAt: timestamp('family_expires_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [

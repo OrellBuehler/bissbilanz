@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { json } from '@sveltejs/kit';
 import { sql } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
@@ -9,6 +10,7 @@ export const GET: RequestHandler = async () => {
 		await getDB().execute(sql`SELECT 1`);
 	} catch (err) {
 		console.error('[health] Database check failed:', err);
+		Sentry.captureException(err, { tags: { job: 'health' } });
 		return json({ status: 'degraded' }, { status: 503 });
 	}
 	return json({ status: 'ok', version: config.app.version });

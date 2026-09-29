@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { AI_PHOTO_MAX_DIM, processImage } from '$lib/server/images';
 import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
 import { MAX_AI_TASK_PHOTOS } from '$lib/server/validation';
+import { readCappedFormData } from '$lib/server/upload';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -11,7 +12,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	try {
 		const userId = requireAuth(locals);
 
-		const formData = await request.formData();
+		const formData = await readCappedFormData(request, MAX_FILE_SIZE * MAX_AI_TASK_PHOTOS);
 		// getAll so one request can carry a whole meal; a single-photo client
 		// sending one `photo` field still lands here unchanged.
 		const files = formData.getAll('photo').filter((value): value is File => value instanceof File);

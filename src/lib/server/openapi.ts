@@ -152,6 +152,13 @@ const res401: ZodOpenApiResponseObject = {
 	content: { 'application/json': { schema: errorResponseSchema } }
 };
 
+const res403: ZodOpenApiResponseObject = {
+	id: 'ForbiddenResponse',
+	description:
+		'Forbidden. The bearer token lacks the account:manage scope (issued to the first-party mobile apps only).',
+	content: { 'application/json': { schema: errorResponseSchema } }
+};
+
 const res400: ZodOpenApiResponseObject = {
 	id: 'ValidationErrorResponse',
 	description: 'Validation error',
@@ -231,7 +238,7 @@ export const apiPaths = {
 			tags: ['Auth'],
 			security: [],
 			description:
-				'Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair.',
+				'Exchange a one-time code from the mobile OIDC redirect flow, or a refresh token, for an access/refresh token pair. When the login flow was started with a PKCE code_challenge (S256), `code_verifier` is required and checked; flows started without one (older builds) redeem on the code alone.',
 			requestBody: {
 				required: true,
 				content: { 'application/json': { schema: mobileTokenRequestSchema } }
@@ -1691,7 +1698,8 @@ export const apiPaths = {
 				'Permanently delete the authenticated account and all associated data (entries, foods, recipes, supplements, weight, sleep, goals, preferences, sessions, OAuth grants, uploaded images). Irreversible.',
 			responses: {
 				'204': res204,
-				'401': res401
+				'401': res401,
+				'403': res403
 			}
 		}
 	},
@@ -1711,7 +1719,8 @@ export const apiPaths = {
 						}
 					}
 				},
-				'401': res401
+				'401': res401,
+				'403': res403
 			}
 		}
 	},
@@ -1747,7 +1756,8 @@ export const apiPaths = {
 					content: { 'application/json': { schema: importSummaryResponseSchema } }
 				},
 				'400': res400,
-				'401': res401
+				'401': res401,
+				'403': res403
 			}
 		}
 	},

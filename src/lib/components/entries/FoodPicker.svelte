@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Sentry from '@sentry/sveltekit';
 	import { onlyFavorites } from '$lib/utils/favorites';
 	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -112,6 +113,8 @@
 				if (trimmed === query.trim()) catalogResults = (data?.results ?? []) as CatalogHit[];
 			} catch (e) {
 				if (dev) console.warn('catalog search failed:', e);
+				if (navigator.onLine)
+					Sentry.captureException(e, { extra: { context: 'FoodPicker.catalogSearch' } });
 				catalogResults = [];
 			} finally {
 				catalogLoading = false;
@@ -130,6 +133,8 @@
 				if (trimmed === query.trim()) offResults = (data?.results ?? []) as OffHit[];
 			} catch (e) {
 				if (dev) console.warn('Open Food Facts search failed:', e);
+				if (navigator.onLine)
+					Sentry.captureException(e, { extra: { context: 'FoodPicker.offSearch' } });
 				offResults = [];
 			} finally {
 				offLoading = false;
@@ -183,6 +188,8 @@
 			recentFoods = data.foods ?? [];
 		} catch (e) {
 			if (dev) console.warn('Failed to load recent foods:', e);
+			if (navigator.onLine)
+				Sentry.captureException(e, { extra: { context: 'FoodPicker.loadRecentFoods' } });
 		} finally {
 			loadingRecent = false;
 		}
@@ -217,6 +224,8 @@
 			}
 		} catch (e) {
 			if (dev) console.warn('Failed to load favorite recipes:', e);
+			if (navigator.onLine)
+				Sentry.captureException(e, { extra: { context: 'FoodPicker.loadFavoriteRecipes' } });
 		} finally {
 			loadingFavorites = false;
 		}

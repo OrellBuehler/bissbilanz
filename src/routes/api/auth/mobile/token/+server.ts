@@ -1,7 +1,12 @@
 import { json, error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { consumeOneTimeCode, MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
-import { createAccessToken, refreshAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
+import {
+	createAccessToken,
+	refreshAccessToken,
+	ACCESS_TOKEN_LIFETIME_MS,
+	FIRST_PARTY_SCOPES
+} from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 import { getRequestIp } from '$lib/server/client-ip';
@@ -33,12 +38,17 @@ export const POST: RequestHandler = async (event) => {
 	const body = parsed.data;
 
 	if ('code' in body) {
-		const userId = consumeOneTimeCode(body.code);
+		const userId = consumeOneTimeCode(body.code, body.code_verifier);
 		if (!userId) {
 			throw error(400, 'Invalid or expired code');
 		}
 
-		const { accessToken, refreshToken } = await createAccessToken(userId, MOBILE_CLIENT_ID);
+		const { accessToken, refreshToken } = await createAccessToken(
+			userId,
+			MOBILE_CLIENT_ID,
+			undefined,
+			{ scopes: FIRST_PARTY_SCOPES }
+		);
 
 		return json({
 			access_token: accessToken,

@@ -3,7 +3,7 @@ import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_SESSION, TEST_SESSION_WITH_USER } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, queueResults, getCalls, reset } = createMockDB();
 
 // NOTE: Do NOT mock $lib/server/token-crypto here.
 // The real encryptToken/decryptToken work fine in tests (pure crypto, no DB),
@@ -67,6 +67,7 @@ vi.mock('$lib/server/db', () => ({
 // Import after mocking
 const {
 	generateSessionId,
+	hashSessionToken,
 	createSession,
 	getSession,
 	getSessionWithUser,
@@ -134,14 +135,15 @@ describe('session-db', () => {
 	});
 
 	describe('getSession', () => {
-		test('returns session when valid and not expired', async () => {
-			const futureSession = {
-				...TEST_SESSION,
-				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day from now
-			};
-			setResult([futureSession]);
+		const row = (expiresAt: Date) => ({
+			session: { ...TEST_SESSION, tokenHash: 'h', expiresAt },
+			user: TEST_USER
+		});
 
-			const result = await getSession(TEST_SESSION.id);
+		test('returns session when valid and not expired', async () => {
+			setResult([row(new Date(Date.now() + 24 * 60 * 60 * 1000))]);
+
+			const result = await getSession('opaque-cookie-token');
 
 			expect(result).toBeTruthy();
 			expect(result?.id).toBe(TEST_SESSION.id);
@@ -156,27 +158,91 @@ describe('session-db', () => {
 		});
 
 		test('returns null when session is expired', async () => {
-			const expiredSession = {
-				...TEST_SESSION,
-				expiresAt: new Date(Date.now() - 1000) // 1 second ago
-			};
-			setResult([expiredSession]);
+			setResult([row(new Date(Date.now() - 1000))]);
 
-			const result = await getSession(TEST_SESSION.id);
+			const result = await getSession('opaque-cookie-token');
 
 			expect(result).toBeNull();
 		});
 
 		test('returns session when expiry is in the future', async () => {
-			const validSession = {
-				...TEST_SESSION,
-				expiresAt: new Date(Date.now() + 1000) // 1 second from now
-			};
-			setResult([validSession]);
+			setResult([row(new Date(Date.now() + 1000))]);
 
-			const result = await getSession(TEST_SESSION.id);
+			const result = await getSession('opaque-cookie-token');
 
 			expect(result).toBeTruthy();
+		});
+	});
+
+	describe('token hashing', () => {
+		test('hashSessionToken is the hex SHA-256 of the token', () => {
+			expect(hashSessionToken('abc')).toBe(
+				'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+			);
+		});
+
+		test('createSession stores only the hash and hands back the cookie token', async () => {
+			setResult([{ ...TEST_SESSION, tokenHash: 'stored' }]);
+
+			const created = await createSession(TEST_USER.id);
+
+			expect(created.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+			const values = getCalls().find((c) => c.method === 'values')!.args[0];
+			expect(values.tokenHash).toBe(hashSessionToken(created.token));
+			expect(JSON.stringify(values)).not.toContain(created.token);
+			expect(values.id).toBeUndefined();
+		});
+
+		test('looks the session up by hash without touching the legacy id path', async () => {
+			const found = {
+				session: { ...TEST_SESSION, expiresAt: new Date(Date.now() + 60_000) },
+				user: TEST_USER
+			};
+			queueResults([[found]]);
+
+			const data = await getSessionWithUser(TEST_SESSION.id);
+
+			expect(data?.user.id).toBe(TEST_USER.id);
+			expect(getCalls().some((c) => c.method === 'update')).toBe(false);
+		});
+
+		test('falls back to a legacy plaintext session and upgrades it to a hash', async () => {
+			const legacy = { ...TEST_SESSION, tokenHash: null, expiresAt: new Date(Date.now() + 60_000) };
+			const upgraded = {
+				...legacy,
+				id: 'new-random-id',
+				tokenHash: hashSessionToken(TEST_SESSION.id)
+			};
+			queueResults([[], [upgraded], [TEST_USER]]);
+
+			const data = await getSessionWithUser(TEST_SESSION.id);
+
+			expect(data?.session.id).toBe('new-random-id');
+			expect(data?.user.id).toBe(TEST_USER.id);
+			const set = getCalls().find((c) => c.method === 'set')!.args[0];
+			expect(set.tokenHash).toBe(hashSessionToken(TEST_SESSION.id));
+			expect(set.id).not.toBe(TEST_SESSION.id);
+		});
+
+		test('does not query legacy ids for a token that is not a uuid', async () => {
+			queueResults([[]]);
+
+			const data = await getSessionWithUser('not-a-uuid-token');
+
+			expect(data).toBeNull();
+			expect(getCalls().some((c) => c.method === 'update')).toBe(false);
+		});
+
+		test('re-reads by hash when a concurrent request already upgraded the legacy row', async () => {
+			const found = {
+				session: { ...TEST_SESSION, expiresAt: new Date(Date.now() + 60_000) },
+				user: TEST_USER
+			};
+			queueResults([[], [], [found]]);
+
+			const data = await getSessionWithUser(TEST_SESSION.id);
+
+			expect(data?.user.id).toBe(TEST_USER.id);
 		});
 	});
 

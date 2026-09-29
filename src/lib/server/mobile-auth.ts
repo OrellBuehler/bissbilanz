@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { generateToken } from './oauth';
+import { generateToken, isValidCodeVerifier, verifyPKCE } from './oauth';
 import { getDB, oauthClients } from './db';
 import { createTtlStore } from './auth-transactions';
 
@@ -12,32 +12,48 @@ type PendingState = {
 	codeVerifier: string;
 	nonce: string;
 	provider: string;
+	/** S256 challenge from the app; absent for builds that predate PKCE. */
+	appCodeChallenge?: string;
 };
 
+type OneTimeCode = { userId: string; appCodeChallenge?: string };
+
 const pendingStates = createTtlStore<PendingState>(STATE_TTL_MS);
-const oneTimeCodes = createTtlStore<{ userId: string }>(CODE_TTL_MS);
+const oneTimeCodes = createTtlStore<OneTimeCode>(CODE_TTL_MS);
 
 export function storePendingState(
 	state: string,
 	codeVerifier: string,
 	nonce: string,
-	provider: string
+	provider: string,
+	appCodeChallenge?: string
 ) {
-	pendingStates.set(state, { codeVerifier, nonce, provider });
+	pendingStates.set(state, { codeVerifier, nonce, provider, appCodeChallenge });
 }
 
 export function consumePendingState(state: string): PendingState | undefined {
 	return pendingStates.consume(state);
 }
 
-export function createOneTimeCode(userId: string): string {
+export function createOneTimeCode(userId: string, appCodeChallenge?: string): string {
 	const code = generateToken(32);
-	oneTimeCodes.set(code, { userId });
+	oneTimeCodes.set(code, { userId, appCodeChallenge });
 	return code;
 }
 
-export function consumeOneTimeCode(code: string): string | undefined {
-	return oneTimeCodes.consume(code)?.userId;
+/**
+ * Single use. A code issued with a PKCE challenge only redeems with the matching
+ * verifier; a code issued without one (older builds) redeems on its own.
+ * TODO: drop the no-challenge path once MIN_CLIENT_VERSIONS is past the first PKCE build.
+ */
+export function consumeOneTimeCode(code: string, codeVerifier?: string): string | undefined {
+	const entry = oneTimeCodes.consume(code);
+	if (!entry) return undefined;
+	if (entry.appCodeChallenge) {
+		if (!codeVerifier || !isValidCodeVerifier(codeVerifier)) return undefined;
+		if (!verifyPKCE(codeVerifier, entry.appCodeChallenge)) return undefined;
+	}
+	return entry.userId;
 }
 
 export async function ensureMobileClient() {

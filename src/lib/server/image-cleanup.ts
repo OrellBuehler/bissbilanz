@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isNotNull } from 'drizzle-orm';
@@ -35,7 +36,10 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 		entries = await readdir(UPLOAD_DIR);
 	} catch (err) {
 		// No directory yet (nothing uploaded on this instance) — nothing to do.
-		console.error('[image-cleanup] Could not read UPLOAD_DIR', err);
+		if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+			console.error('[image-cleanup] Could not read UPLOAD_DIR', err);
+			Sentry.captureException(err, { tags: { job: 'image-cleanup' } });
+		}
 		return 0;
 	}
 
@@ -73,6 +77,10 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 		console.warn(
 			`[image-cleanup] Aborting: ${candidates.length} upload file(s) but no referenced images`
 		);
+		Sentry.captureMessage('image-cleanup aborted: upload files but no referenced images', {
+			level: 'warning',
+			tags: { job: 'image-cleanup' }
+		});
 		return 0;
 	}
 
@@ -89,6 +97,9 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 		} catch (err) {
 			// Raced with another delete, or unreadable — skip it.
 			console.error(`[image-cleanup] Could not remove ${filename}`, err);
+			if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+				Sentry.captureException(err, { level: 'warning', tags: { job: 'image-cleanup' } });
+			}
 		}
 	}
 

@@ -3,7 +3,7 @@ import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_OAUTH_CLIENT } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, reset } = createMockDB();
+const { db, setResult, getCalls, reset } = createMockDB();
 
 // Mock env first
 vi.mock('$lib/server/env', () => {
@@ -456,16 +456,26 @@ describe('oauth-db', () => {
 	});
 
 	describe('refreshAccessToken', () => {
+		const claimed = (overrides: Record<string, unknown> = {}) => ({
+			id: 'token-123',
+			refreshTokenHash: 'hash',
+			clientId: 'test-client',
+			userId: TEST_USER.id,
+			scopes: ['mcp:access'],
+			familyId: '20000000-0000-4000-8000-000000000001',
+			familyExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			createdAt: new Date(),
+			expiresAt: new Date(Date.now() + 60000),
+			refreshTokenExpiresAt: new Date(Date.now() + 60000),
+			...overrides
+		});
+		const insertedValues = () =>
+			getCalls()
+				.filter((c) => c.method === 'values')
+				.at(-1)!.args[0];
+
 		test('generates new token pair when refresh valid', async () => {
-			const tokenRecord = {
-				id: 'token-123',
-				refreshTokenHash: 'hash',
-				clientId: 'test-client',
-				userId: TEST_USER.id,
-				expiresAt: new Date(Date.now() + 60000),
-				refreshTokenExpiresAt: new Date(Date.now() + 60000)
-			};
-			setResult(tokenRecord);
+			setResult([claimed()]);
 
 			const result = await refreshAccessToken('refresh-token', 'test-client');
 
@@ -477,12 +487,95 @@ describe('oauth-db', () => {
 			}
 		});
 
-		test('returns undefined when refresh token not found', async () => {
-			setResult(undefined);
+		test('claims the token with a single DELETE instead of a read-then-delete', async () => {
+			setResult([claimed()]);
+
+			await refreshAccessToken('refresh-token', 'test-client');
+
+			const methods = getCalls().map((c) => c.method);
+			expect(methods).toContain('delete');
+			expect(methods).toContain('returning');
+			expect(methods).not.toContain('query.oauthTokens.findFirst');
+		});
+
+		test('returns undefined when refresh token not found or already claimed', async () => {
+			setResult([]);
 
 			const result = await refreshAccessToken('refresh-token', 'test-client');
 
 			expect(result).toBeUndefined();
+			expect(getCalls().some((c) => c.method === 'values')).toBe(false);
+		});
+
+		test('carries the family and scopes onto the rotated token', async () => {
+			setResult([claimed({ scopes: ['mcp:access', 'account:manage'] })]);
+
+			await refreshAccessToken('refresh-token', 'test-client');
+
+			const values = insertedValues();
+			expect(values.familyId).toBe('20000000-0000-4000-8000-000000000001');
+			expect(values.scopes).toEqual(['mcp:access', 'account:manage']);
+		});
+
+		test('refuses once the family absolute lifetime has passed', async () => {
+			setResult([claimed({ familyExpiresAt: new Date(Date.now() - 1000) })]);
+
+			const result = await refreshAccessToken('refresh-token', 'test-client');
+
+			expect(result).toBeUndefined();
+			expect(getCalls().some((c) => c.method === 'values')).toBe(false);
+		});
+
+		test('never lets a refresh token outlive its family', async () => {
+			const familyExpiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+			setResult([claimed({ familyExpiresAt })]);
+
+			await refreshAccessToken('refresh-token', 'test-client');
+
+			expect(insertedValues().refreshTokenExpiresAt.getTime()).toBe(familyExpiresAt.getTime());
+		});
+
+		test('gives tokens from before families a 90 day cap from their issue time', async () => {
+			const createdAt = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000);
+			setResult([claimed({ familyId: null, familyExpiresAt: null, createdAt })]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeUndefined();
+
+			setResult([
+				claimed({
+					familyId: null,
+					familyExpiresAt: null,
+					createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+				})
+			]);
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeTruthy();
+			expect(insertedValues().familyId).toBe('token-123');
+		});
+	});
+
+	describe('createAccessToken', () => {
+		test('starts a new family capped at 90 days for third-party clients', async () => {
+			setResult([]);
+			await createAccessToken(TEST_USER.id, 'test-client');
+			const values = getCalls()
+				.filter((c) => c.method === 'values')
+				.at(-1)!.args[0];
+			const days = (values.familyExpiresAt.getTime() - Date.now()) / 86_400_000;
+			expect(days).toBeGreaterThan(89.9);
+			expect(days).toBeLessThan(90.1);
+			expect(values.scopes).toBeUndefined();
+		});
+
+		test('gives first-party tokens the account scope and a longer family', async () => {
+			setResult([]);
+			await createAccessToken(TEST_USER.id, 'bissbilanz-mobile', undefined, {
+				scopes: ['mcp:access', 'account:manage']
+			});
+			const values = getCalls()
+				.filter((c) => c.method === 'values')
+				.at(-1)!.args[0];
+			expect(values.scopes).toEqual(['mcp:access', 'account:manage']);
+			expect((values.familyExpiresAt.getTime() - Date.now()) / 86_400_000).toBeGreaterThan(300);
 		});
 	});
 

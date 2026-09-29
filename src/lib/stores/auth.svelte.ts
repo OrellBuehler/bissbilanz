@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import type { UserProfile } from '$lib/server/types';
 import { clearAllData, clearCacheStorage } from '$lib/db';
@@ -46,6 +47,7 @@ export async function fetchUser(): Promise<void> {
 		state.isAuthenticated = !!data.user;
 	} catch (error) {
 		console.error('Failed to fetch user:', error);
+		if (!(browser && !navigator.onLine)) Sentry.captureException(error);
 		state.user = null;
 		state.isAuthenticated = false;
 	} finally {
@@ -73,13 +75,20 @@ export async function logout(confirmDiscard?: () => Promise<boolean>): Promise<v
 		}
 		await fetch('/api/auth/logout', { method: 'POST' });
 		// Clear all cached data from Dexie and Cache Storage to prevent data leaking between users
-		await clearAllData().catch((err) => console.error('Clear data failed:', err));
-		await clearCacheStorage().catch((err) => console.error('Clear cache failed:', err));
+		await clearAllData().catch((err) => {
+			console.error('Clear data failed:', err);
+			Sentry.captureException(err);
+		});
+		await clearCacheStorage().catch((err) => {
+			console.error('Clear cache failed:', err);
+			Sentry.captureException(err);
+		});
 		state.user = null;
 		state.isAuthenticated = false;
 		window.location.href = '/login';
 	} catch (error) {
 		console.error('Logout failed:', error);
+		if (!(browser && !navigator.onLine)) Sentry.captureException(error);
 	}
 }
 

@@ -75,6 +75,17 @@ describe('POST /api/account/import', () => {
 		expect((await response.json()).error).toBe('Unauthorized');
 	});
 
+	test('forbids an OAuth/MCP token from importing', async () => {
+		const event = eventWithFile({});
+		const response = await importModule.POST({
+			...event,
+			locals: { user: TEST_USER, tokenScopes: ['mcp:access'] }
+		} as typeof event);
+		await expectResponseContract('POST', '/api/account/import', response);
+		expect(response.status).toBe(403);
+		expect(runCalls).toEqual([]);
+	});
+
 	test('returns 400 without a file', async () => {
 		const response = await importModule.POST(eventWithFile({ file: null }));
 		await expectResponseContract('POST', '/api/account/import', response);

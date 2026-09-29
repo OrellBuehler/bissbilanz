@@ -1,11 +1,11 @@
 import type { RequestHandler } from './$types';
 import { buildAccountExport } from '$lib/server/export';
-import { handleApiError, requireAuth } from '$lib/server/errors';
+import { handleApiError, requireAccountAccess } from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		const userId = requireAuth(locals);
+		const userId = requireAccountAccess(locals);
 		rateLimit(`account:export:${userId}`, 5, 3_600_000);
 
 		const archive = await buildAccountExport(userId);

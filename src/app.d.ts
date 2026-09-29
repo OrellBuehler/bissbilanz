@@ -8,6 +8,8 @@ declare global {
 		interface Locals {
 			user?: User;
 			session?: Session;
+			/** Scopes of the bearer token that authenticated this request; unset for cookie sessions. */
+			tokenScopes?: string[];
 		}
 	}
 }

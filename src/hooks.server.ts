@@ -3,14 +3,14 @@ import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/server/session';
-import { validateAccessToken } from '$lib/server/oauth';
+import { validateAccessToken, cleanupExpiredOAuthData } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
 import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
-import { isCrossOriginEndpoint, isFormPostCallback, isOriginMismatch } from '$lib/server/csrf';
+import { isCrossOriginEndpoint, isCsrfViolation } from '$lib/server/csrf';
 import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
@@ -55,15 +55,26 @@ export async function init() {
 			migrationsRan = true;
 		} catch (err) {
 			console.error('[startup] Migration failed:', err);
+			Sentry.captureException(err, { tags: { job: 'migrations' } });
+			await Sentry.flush(2000);
 			throw err;
 		}
 	}
 	await ensureMobileClient();
 	const runCleanup = () => {
-		cleanExpiredSessions().catch((err) => console.error('[session-cleanup] Error:', err));
-		cleanupIdempotencyKeys().catch((err) => console.error('[idempotency-cleanup] Error:', err));
-		cleanupAiTasks().catch((err) => console.error('[ai-tasks-cleanup] Error:', err));
-		cleanupOrphanedImages().catch((err) => console.error('[image-cleanup] Error:', err));
+		const jobs: Record<string, () => Promise<unknown>> = {
+			'session-cleanup': cleanExpiredSessions,
+			'idempotency-cleanup': cleanupIdempotencyKeys,
+			'ai-tasks-cleanup': cleanupAiTasks,
+			'image-cleanup': cleanupOrphanedImages,
+			'oauth-cleanup': cleanupExpiredOAuthData
+		};
+		for (const [job, run] of Object.entries(jobs)) {
+			run().catch((err) => {
+				console.error(`[${job}] Error:`, err);
+				Sentry.captureException(err, { tags: { job } });
+			});
+		}
 	};
 	runCleanup();
 	setInterval(runCleanup, 3600000);
@@ -110,12 +121,8 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Manual CSRF check for non-exempt routes
-	if (
-		!isCrossOrigin &&
-		!isFormPostCallback(pathname) &&
-		isOriginMismatch(event.request, event.url)
-	) {
-		return new Response('Cross-site POST form submissions are forbidden', { status: 403 });
+	if (isCsrfViolation(event.request, event.url)) {
+		return new Response('Cross-site requests are forbidden', { status: 403 });
 	}
 
 	const sessionId = event.cookies.get('session');
@@ -141,6 +148,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			// from TEST_AUTH_TOKEN so no usable credential lives in the repo
 			if (config.testMode && config.testAuthToken && token === config.testAuthToken) {
 				bearerUser = await withDbRetry(() => getUserById(config.testUserId));
+				event.locals.tokenScopes = [API_ACCESS_SCOPE, 'account:manage'];
 			}
 
 			if (!bearerUser) {
@@ -158,6 +166,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 					if (!bearerUser) {
 						return json({ error: 'Unauthorized' }, { status: 401 });
 					}
+					event.locals.tokenScopes = tokenResult.scopes;
 				}
 			}
 

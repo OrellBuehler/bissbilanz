@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { getDB } from '$lib/server/db';
 import {
 	pushSubscriptions,
@@ -293,6 +294,7 @@ export const dispatchReminders = async (now: Date = new Date()): Promise<void> =
 			await dispatchRemindersForUser(userId, now);
 		} catch (error) {
 			console.error('[push-reminders] Dispatch failed for user:', error);
+			Sentry.captureException(error, { tags: { job: 'push-reminders' } });
 		}
 	}
 };

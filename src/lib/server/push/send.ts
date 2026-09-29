@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import webpush from 'web-push';
 import { getDB } from '$lib/server/db';
 import { pushSubscriptions } from '$lib/server/schema';
@@ -75,8 +76,10 @@ export const sendToSubscriptions = async (
 					return;
 				}
 				console.error('[push] Delivery failed:', error);
+				Sentry.captureException(error, { level: 'warning', tags: { job: 'push-delivery' } });
 				await recordFailure(sub.id).catch((recordErr) => {
 					console.error('[push] Failed to record failure:', recordErr);
+					Sentry.captureException(recordErr, { tags: { job: 'push-delivery' } });
 				});
 			}
 		})

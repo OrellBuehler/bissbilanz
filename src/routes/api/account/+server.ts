@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { deleteAccount, getAccountDataRange } from '$lib/server/account';
 import { getDB, users } from '$lib/server/db';
-import { ApiError, handleApiError, requireAuth } from '$lib/server/errors';
+import { ApiError, handleApiError, requireAccountAccess, requireAuth } from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 	try {
-		const userId = requireAuth(locals);
+		const userId = requireAccountAccess(locals);
 		try {
 			rateLimit(`account:delete:${userId}`, 3, 60_000);
 		} catch (err) {

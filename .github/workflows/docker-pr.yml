@@ -88,7 +88,7 @@ jobs:
               exit 1
             fi
 
-            status_code="$(curl -sS -o /tmp/bissbilanz-health.json -w '%{http_code}' http://127.0.0.1:3000/api/auth/me || true)"
+            status_code="$(curl -sS -o /tmp/bissbilanz-health.json -w '%{http_code}' http://127.0.0.1:3000/api/health || true)"
             if [ "$status_code" = "200" ]; then
               cat /tmp/bissbilanz-health.json
               exit 0

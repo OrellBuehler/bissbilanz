@@ -26,9 +26,11 @@ import kotlinx.serialization.encoding.*
  *
  * @param code
  * @param refreshToken
+ * @param codeVerifier
  */
 @Serializable
 data class MobileTokenRequest(
     @SerialName(value = "code") @Required val code: kotlin.String,
     @SerialName(value = "refresh_token") @Required val refreshToken: kotlin.String,
+    @SerialName(value = "code_verifier") val codeVerifier: kotlin.String? = null,
 )

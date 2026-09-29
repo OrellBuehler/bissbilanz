@@ -1,4 +1,5 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
@@ -9,6 +10,8 @@ import {
 	isValidRedirectUriFormat
 } from '$lib/server/oauth';
 import { resolveOAuthClient } from '$lib/server/oauth-cimd';
+import { rateLimit } from '$lib/server/rate-limit';
+import { getRequestIp } from '$lib/server/client-ip';
 
 function oauthError(code: string, detail?: string): never {
 	const errorUrl = new URL('/oauth/error', 'http://localhost');
@@ -19,7 +22,15 @@ function oauthError(code: string, detail?: string): never {
 	throw redirect(302, errorUrl.pathname + errorUrl.search);
 }
 
-export const GET: RequestHandler = async ({ url, request }) => {
+export const GET: RequestHandler = async (event) => {
+	const { url, request } = event;
+	try {
+		rateLimit(`oauth:authorize:${getRequestIp(event)}`, 30, 60_000);
+	} catch (err) {
+		Sentry.captureException(err, { level: 'warning' });
+		throw error(429, 'Too many requests');
+	}
+
 	const responseType = url.searchParams.get('response_type');
 	const clientId = url.searchParams.get('client_id');
 	const redirectUri = url.searchParams.get('redirect_uri');

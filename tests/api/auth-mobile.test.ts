@@ -41,12 +41,14 @@ vi.mock('$lib/server/oauth', () => ({
 			(mockRefreshResult as Record<string, unknown> | undefined) &&
 			(mockRefreshResult[token] ?? undefined)
 	),
+	FIRST_PARTY_SCOPES: ['mcp:access', 'account:manage'],
 	ACCESS_TOKEN_LIFETIME_MS: 3_600_000
 }));
 
 let mockOneTimeCodeUser: string | undefined;
+const consumeOneTimeCode = vi.fn((_code: string, _verifier?: string) => mockOneTimeCodeUser);
 vi.mock('$lib/server/mobile-auth', () => ({
-	consumeOneTimeCode: () => mockOneTimeCodeUser,
+	consumeOneTimeCode: (code: string, verifier?: string) => consumeOneTimeCode(code, verifier),
 	MOBILE_CLIENT_ID: 'bissbilanz-mobile'
 }));
 
@@ -95,6 +97,34 @@ describe('POST /api/auth/mobile/token', () => {
 		expect(response.status).toBe(200);
 		const data = await response.json();
 		expect(data.access_token).toBe('new-access');
+	});
+
+	test('passes the PKCE verifier through to the code check', async () => {
+		mockOneTimeCodeUser = 'user-1';
+		const response = await callRoute(
+			tokenPOST,
+			tokenEvent({ code: 'a-code', code_verifier: 'v'.repeat(43) })
+		);
+		await expectResponseContract('POST', '/api/auth/mobile/token', response);
+		expect(response.status).toBe(200);
+		expect(consumeOneTimeCode).toHaveBeenLastCalledWith('a-code', 'v'.repeat(43));
+	});
+
+	test('still accepts a code request without a verifier (older builds)', async () => {
+		mockOneTimeCodeUser = 'user-1';
+		const response = await callRoute(tokenPOST, tokenEvent({ code: 'a-code' }));
+		expect(response.status).toBe(200);
+		expect(consumeOneTimeCode).toHaveBeenLastCalledWith('a-code', undefined);
+	});
+
+	test('rejects a code that fails its PKCE check', async () => {
+		mockOneTimeCodeUser = undefined;
+		const response = await callRoute(
+			tokenPOST,
+			tokenEvent({ code: 'a-code', code_verifier: 'wrong'.repeat(9) })
+		);
+		await expectResponseContract('POST', '/api/auth/mobile/token', response);
+		expect(response.status).toBe(400);
 	});
 
 	test('rejects a body with neither code nor refresh_token', async () => {

@@ -8,7 +8,7 @@ import { appleConfig } from '$lib/server/apple-secret';
 import { verifyIdToken } from '$lib/server/oidc-jwt';
 import { findOrCreateUserByIdentity } from '$lib/server/auth-account';
 import { MOBILE_CLIENT_ID } from '$lib/server/mobile-auth';
-import { createAccessToken, ACCESS_TOKEN_LIFETIME_MS } from '$lib/server/oauth';
+import { createAccessToken, ACCESS_TOKEN_LIFETIME_MS, FIRST_PARTY_SCOPES } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
 import type { RequestHandler } from './$types';
 import { getRequestIp } from '$lib/server/client-ip';
@@ -61,11 +61,17 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (e) {
 		if (e instanceof JOSEError) throw error(401, 'Identity token verification failed');
+		Sentry.captureException(e);
 		throw error(500, 'Failed to verify identity token');
 	}
 
 	const profile = providerDefs.apple.mapClaims(claims);
-	if (!profile.sub) throw error(500, 'Provider did not return a subject identifier');
+	if (!profile.sub) {
+		Sentry.captureMessage('Provider did not return a subject identifier', {
+			extra: { providerId: 'apple' }
+		});
+		throw error(500, 'Provider did not return a subject identifier');
+	}
 
 	// Apple only discloses the name on the very first authorization.
 	const user = await findOrCreateUserByIdentity(
@@ -74,7 +80,12 @@ export const POST: RequestHandler = async (event) => {
 		'en'
 	);
 
-	const { accessToken, refreshToken } = await createAccessToken(user.id, MOBILE_CLIENT_ID);
+	const { accessToken, refreshToken } = await createAccessToken(
+		user.id,
+		MOBILE_CLIENT_ID,
+		undefined,
+		{ scopes: FIRST_PARTY_SCOPES }
+	);
 
 	return json({
 		access_token: accessToken,

@@ -47,6 +47,7 @@ describe('CSRF handling for the Apple callback', () => {
 			method: 'POST',
 			headers: {
 				origin: 'https://appleid.apple.com',
+				cookie: 'session=abc',
 				'content-type': 'application/x-www-form-urlencoded'
 			},
 			body: 'code=x&state=y'

@@ -1,7 +1,7 @@
-import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+import { randomBytes, randomUUID, createHash, timingSafeEqual } from 'crypto';
 import * as Sentry from '@sentry/sveltekit';
 import { compareSync, hashSync } from 'bcrypt';
-import { eq, and, gt, lt, isNull } from 'drizzle-orm';
+import { eq, and, gt, lt, isNull, or } from 'drizzle-orm';
 import {
 	getDB,
 	oauthClients,
@@ -20,6 +20,16 @@ export const SALT_ROUNDS = 10;
 export const ACCESS_TOKEN_LIFETIME_MS = 60 * 60 * 1000; // 1 hour
 export const REFRESH_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const AUTH_CODE_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
+// Rotation extends a refresh token indefinitely; the family cap bounds the chain.
+export const REFRESH_FAMILY_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+// First-party apps stay signed in much longer, so their chain is capped later.
+export const FIRST_PARTY_REFRESH_FAMILY_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** Lets a bearer token act on the REST API and MCP. Every token carries it. */
+export const SCOPE_API_ACCESS = 'mcp:access';
+/** Lets a bearer token delete, export or import the account. First-party mobile apps only. */
+export const SCOPE_ACCOUNT_MANAGE = 'account:manage';
+export const FIRST_PARTY_SCOPES = [SCOPE_API_ACCESS, SCOPE_ACCOUNT_MANAGE];
 
 export function generateToken(bytes: number = 32): string {
 	return randomBytes(bytes).toString('base64url');
@@ -332,10 +342,13 @@ function hashAccessToken(token: string): string {
 	return createHash('sha256').update(token).digest('hex');
 }
 
+type TokenFamily = { familyId: string; familyExpiresAt: Date };
+
 export async function createAccessToken(
 	userId: string,
 	clientId: string,
-	conn?: Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0]
+	conn?: Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0],
+	options?: { scopes?: string[]; family?: TokenFamily }
 ): Promise<{ accessToken: string; refreshToken: string }> {
 	const db = conn ?? getDB();
 
@@ -344,8 +357,19 @@ export async function createAccessToken(
 	const accessTokenHash = hashAccessToken(accessToken);
 	const refreshTokenHash = hashAccessToken(refreshToken);
 
-	const expiresAt = new Date(Date.now() + ACCESS_TOKEN_LIFETIME_MS);
-	const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_LIFETIME_MS);
+	const now = Date.now();
+	const expiresAt = new Date(now + ACCESS_TOKEN_LIFETIME_MS);
+	const firstParty = options?.scopes?.includes(SCOPE_ACCOUNT_MANAGE) ?? false;
+	const family = options?.family ?? {
+		familyId: randomUUID(),
+		familyExpiresAt: new Date(
+			now + (firstParty ? FIRST_PARTY_REFRESH_FAMILY_LIFETIME_MS : REFRESH_FAMILY_LIFETIME_MS)
+		)
+	};
+	// A refresh token never outlives its family.
+	const refreshTokenExpiresAt = new Date(
+		Math.min(now + REFRESH_TOKEN_LIFETIME_MS, family.familyExpiresAt.getTime())
+	);
 
 	await db.insert(oauthTokens).values({
 		accessTokenHash,
@@ -353,7 +377,10 @@ export async function createAccessToken(
 		clientId,
 		userId,
 		expiresAt,
-		refreshTokenExpiresAt
+		refreshTokenExpiresAt,
+		familyId: family.familyId,
+		familyExpiresAt: family.familyExpiresAt,
+		...(options?.scopes ? { scopes: options.scopes } : {})
 	});
 
 	return { accessToken, refreshToken };
@@ -368,20 +395,37 @@ export async function refreshAccessToken(
 	const now = new Date();
 
 	return db.transaction(async (tx) => {
-		const tokenRecord = await tx.query.oauthTokens.findFirst({
-			where: and(
-				eq(oauthTokens.refreshTokenHash, tokenHash),
-				eq(oauthTokens.clientId, clientId),
-				gt(oauthTokens.refreshTokenExpiresAt, now)
+		// Claim the token atomically: of two concurrent refreshes with the same token
+		// exactly one gets the row back, the other blocks on it and then finds nothing.
+		const [claimed] = await tx
+			.delete(oauthTokens)
+			.where(
+				and(
+					eq(oauthTokens.refreshTokenHash, tokenHash),
+					eq(oauthTokens.clientId, clientId),
+					gt(oauthTokens.refreshTokenExpiresAt, now)
+				)
 			)
+			.returning();
+
+		if (!claimed) return undefined;
+
+		// Tokens issued before families existed get one now, capped from their issue time.
+		const familyExpiresAt =
+			claimed.familyExpiresAt ??
+			new Date(
+				(claimed.createdAt ?? now).getTime() +
+					(claimed.scopes.includes(SCOPE_ACCOUNT_MANAGE)
+						? FIRST_PARTY_REFRESH_FAMILY_LIFETIME_MS
+						: REFRESH_FAMILY_LIFETIME_MS)
+			);
+		if (familyExpiresAt <= now) return undefined;
+
+		const result = await createAccessToken(claimed.userId, clientId, tx, {
+			scopes: claimed.scopes,
+			family: { familyId: claimed.familyId ?? claimed.id, familyExpiresAt }
 		});
-
-		if (!tokenRecord) return undefined;
-
-		await tx.delete(oauthTokens).where(eq(oauthTokens.id, tokenRecord.id));
-
-		const result = await createAccessToken(tokenRecord.userId, clientId, tx);
-		return { ...result, userId: tokenRecord.userId };
+		return { ...result, userId: claimed.userId };
 	});
 }
 
@@ -445,6 +489,14 @@ export async function cleanupExpiredOAuthData(): Promise<void> {
 	const db = getDB();
 	const now = new Date();
 
-	await db.delete(oauthTokens).where(lt(oauthTokens.expiresAt, now));
+	// A token row is dead only once its refresh token has expired too.
+	await db
+		.delete(oauthTokens)
+		.where(
+			and(
+				lt(oauthTokens.expiresAt, now),
+				or(isNull(oauthTokens.refreshTokenExpiresAt), lt(oauthTokens.refreshTokenExpiresAt, now))
+			)
+		);
 	await db.delete(oauthAuthorizationCodes).where(lt(oauthAuthorizationCodes.expiresAt, now));
 }
