@@ -1,0 +1,343 @@
+{
+	"$comment": "Shared offline-sync conflict handling: how a queued write is disposed of for each server response. Driven through the real drain loop on web, Android and iOS.",
+	"implementations": {
+		"syncOutcome": ["web", "kotlin", "swift"]
+	},
+	"cases": [
+		{
+			"fn": "syncOutcome",
+			"name": "update_409_server_newer_is_dropped_with_notice",
+			"input": {
+				"op": "update",
+				"status": 409,
+				"conflictHeader": "server-newer"
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": true
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_409_server_newer_is_dropped_with_notice",
+			"input": {
+				"op": "delete",
+				"status": 409,
+				"conflictHeader": "server-newer"
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": true
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "create_409_server_newer_is_dropped_with_notice",
+			"input": {
+				"op": "create",
+				"status": 409,
+				"conflictHeader": "server-newer"
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": true
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_409_without_header_is_parked",
+			"input": {
+				"op": "update",
+				"status": 409,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "create_409_without_header_is_parked",
+			"input": {
+				"op": "create",
+				"status": 409,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_404_reports_deleted_elsewhere",
+			"input": {
+				"op": "update",
+				"status": 404,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": true
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_410_reports_deleted_elsewhere",
+			"input": {
+				"op": "update",
+				"status": 410,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": true
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_404_is_idempotent_success",
+			"input": {
+				"op": "delete",
+				"status": 404,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_410_is_idempotent_success",
+			"input": {
+				"op": "delete",
+				"status": 410,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "create_404_missing_reference_is_parked",
+			"input": {
+				"op": "create",
+				"status": 404,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": null
+			},
+			"divergences": [
+				{
+					"platform": "web",
+					"expected": {
+						"queue": "removed",
+						"conflictNotice": true
+					},
+					"reason": "Web treats every 404/410 on a non-DELETE as \"record deleted elsewhere\" and drops the queued create; the apps park it so the logged meal stays visible."
+				}
+			]
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_400_is_parked",
+			"input": {
+				"op": "update",
+				"status": 400,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_400_is_parked",
+			"input": {
+				"op": "delete",
+				"status": 400,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_422_is_parked",
+			"input": {
+				"op": "update",
+				"status": 422,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "parked",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_408_backs_off",
+			"input": {
+				"op": "update",
+				"status": 408,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_425_backs_off",
+			"input": {
+				"op": "update",
+				"status": 425,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_429_backs_off",
+			"input": {
+				"op": "update",
+				"status": 429,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_500_backs_off",
+			"input": {
+				"op": "update",
+				"status": 500,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_502_backs_off",
+			"input": {
+				"op": "update",
+				"status": 502,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_503_backs_off",
+			"input": {
+				"op": "update",
+				"status": 503,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_504_backs_off",
+			"input": {
+				"op": "update",
+				"status": 504,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_500_backs_off",
+			"input": {
+				"op": "delete",
+				"status": 500,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "create_503_backs_off",
+			"input": {
+				"op": "create",
+				"status": 503,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "retry",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "update_426_keeps_queue_untouched",
+			"input": {
+				"op": "update",
+				"status": 426,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "kept",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_426_keeps_queue_untouched",
+			"input": {
+				"op": "delete",
+				"status": 426,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "kept",
+				"conflictNotice": false
+			}
+		},
+		{
+			"fn": "syncOutcome",
+			"name": "delete_204_is_removed",
+			"input": {
+				"op": "delete",
+				"status": 204,
+				"conflictHeader": null
+			},
+			"expected": {
+				"queue": "removed",
+				"conflictNotice": false
+			}
+		}
+	]
+}

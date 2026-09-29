@@ -288,6 +288,17 @@ targets:
       # The same goes for the binary food package fixtures under
       # Fixtures/FoodPackage/, which the tests read back from the test bundle.
       - path: BissbilanzTests
+      # Cross-platform fixtures shared with the web and Android suites (SharedFixtureTests,
+      # AnalyticsConsistencyTests). Referenced in place — never copied — so all three
+      # platforms assert the very same files; read back with Bundle.url(forResource:).
+      - path: ../../tests/fixtures/shared
+        includes:
+          - '*.json'
+        buildPhase: resources
+      - path: ../../analytics-parity/fixtures
+        includes:
+          - '*.json'
+        buildPhase: resources
     dependencies:
       - target: Bissbilanz
     settings:

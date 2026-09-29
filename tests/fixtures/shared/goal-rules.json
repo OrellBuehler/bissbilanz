@@ -1,0 +1,906 @@
+{
+	"$comment": "Shared goal rules: outcome classification, activity goal adjustment and adherence summary. See tests/fixtures/shared/README.md for the schema.",
+	"tolerance": 1e-9,
+	"implementations": {
+		"classifyGoalOutcome": ["web", "kotlin"],
+		"adjustGoalsForActivity": ["web", "kotlin", "swift"],
+		"summarizeGoalAdherence": ["web", "kotlin"]
+	},
+	"cases": [
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "minimum_exact",
+			"input": {
+				"rule": "minimum",
+				"value": 150,
+				"goal": 150
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "minimum_just_below",
+			"input": {
+				"rule": "minimum",
+				"value": 149.99,
+				"goal": 150
+			},
+			"expected": "below"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "minimum_far_above",
+			"input": {
+				"rule": "minimum",
+				"value": 400,
+				"goal": 150
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "maximum_exact",
+			"input": {
+				"rule": "maximum",
+				"value": 65,
+				"goal": 65
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "maximum_just_above",
+			"input": {
+				"rule": "maximum",
+				"value": 65.01,
+				"goal": 65
+			},
+			"expected": "above"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "maximum_zero_intake",
+			"input": {
+				"rule": "maximum",
+				"value": 0,
+				"goal": 65
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_lower_edge_inclusive",
+			"input": {
+				"rule": "range",
+				"value": 1800,
+				"goal": 2000
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_just_below_lower_edge",
+			"input": {
+				"rule": "range",
+				"value": 1799.99,
+				"goal": 2000
+			},
+			"expected": "below"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_upper_edge_inclusive",
+			"input": {
+				"rule": "range",
+				"value": 2200,
+				"goal": 2000
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_just_above_upper_edge",
+			"input": {
+				"rule": "range",
+				"value": 2200.01,
+				"goal": 2000
+			},
+			"expected": "above"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_exact_goal",
+			"input": {
+				"rule": "range",
+				"value": 2000,
+				"goal": 2000
+			},
+			"expected": "met"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "range_zero_intake",
+			"input": {
+				"rule": "range",
+				"value": 0,
+				"goal": 2000
+			},
+			"expected": "below"
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "zero_goal_is_ineligible",
+			"input": {
+				"rule": "minimum",
+				"value": 100,
+				"goal": 0
+			},
+			"expected": null
+		},
+		{
+			"fn": "classifyGoalOutcome",
+			"name": "negative_goal_is_ineligible",
+			"input": {
+				"rule": "range",
+				"value": 100,
+				"goal": -5
+			},
+			"expected": null
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "full_credit_scales_macros",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 400,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 400,
+				"goals": {
+					"calorieGoal": 2400,
+					"proteinGoal": 180,
+					"carbGoal": 300,
+					"fatGoal": 78,
+					"fiberGoal": 36,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "half_credit",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 400,
+				"enabled": true,
+				"creditPercent": 50
+			},
+			"expected": {
+				"activityBonus": 200,
+				"goals": {
+					"calorieGoal": 2200,
+					"proteinGoal": 165,
+					"carbGoal": 275,
+					"fatGoal": 72,
+					"fiberGoal": 33,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "disabled_leaves_goals",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 400,
+				"enabled": false,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "null_activity",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": null,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "zero_activity",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 0,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "negative_activity",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": -50,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "zero_calorie_goal",
+			"input": {
+				"goals": {
+					"calorieGoal": 0,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activityCalories": 300,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 0,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "zero_credit_percent",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 400,
+				"enabled": true,
+				"creditPercent": 0
+			},
+			"expected": {
+				"activityBonus": 0,
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "bonus_rounds_half_up",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 5,
+				"enabled": true,
+				"creditPercent": 50
+			},
+			"expected": {
+				"activityBonus": 3,
+				"goals": {
+					"calorieGoal": 2003,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "macro_rounds_half_up",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 125,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activityCalories": 200,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 200,
+				"goals": {
+					"calorieGoal": 2200,
+					"proteinGoal": 138,
+					"carbGoal": 275,
+					"fatGoal": 72,
+					"fiberGoal": 33
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "tiny_bonus_leaves_rounded_macros_unchanged",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 3,
+				"enabled": true,
+				"creditPercent": 100
+			},
+			"expected": {
+				"activityBonus": 3,
+				"goals": {
+					"calorieGoal": 2003,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "adjustGoalsForActivity",
+			"name": "credit_above_100",
+			"input": {
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				},
+				"activityCalories": 200,
+				"enabled": true,
+				"creditPercent": 150
+			},
+			"expected": {
+				"activityBonus": 300,
+				"goals": {
+					"calorieGoal": 2300,
+					"proteinGoal": 173,
+					"carbGoal": 288,
+					"fatGoal": 75,
+					"fiberGoal": 35,
+					"sodiumGoal": 2300,
+					"sugarGoal": 50
+				}
+			}
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "mixed_week",
+			"input": {
+				"days": [
+					{
+						"date": "2026-03-01",
+						"calories": 2000,
+						"protein": 160,
+						"carbs": 240,
+						"fat": 60,
+						"fiber": 32
+					},
+					{
+						"date": "2026-03-02",
+						"calories": 1500,
+						"protein": 100,
+						"carbs": 300,
+						"fat": 80,
+						"fiber": 20
+					},
+					{
+						"date": "2026-03-03",
+						"calories": 2600,
+						"protein": 150,
+						"carbs": 250,
+						"fat": 65,
+						"fiber": 30
+					},
+					{
+						"date": "2026-03-04",
+						"calories": 1900,
+						"protein": 149,
+						"carbs": 251,
+						"fat": 65,
+						"fiber": 29
+					}
+				],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activity": {
+					"enabled": false,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 1,
+					"met": 2,
+					"above": 1,
+					"eligible": 4
+				},
+				{
+					"key": "protein",
+					"below": 2,
+					"met": 2,
+					"above": 0,
+					"eligible": 4
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 2,
+					"above": 2,
+					"eligible": 4
+				},
+				{
+					"key": "fat",
+					"below": 0,
+					"met": 3,
+					"above": 1,
+					"eligible": 4
+				},
+				{
+					"key": "fiber",
+					"below": 2,
+					"met": 2,
+					"above": 0,
+					"eligible": 4
+				}
+			]
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "days_without_entries_are_not_eligible",
+			"input": {
+				"days": [
+					{
+						"date": "2026-03-01",
+						"calories": 2000,
+						"protein": 150,
+						"carbs": 250,
+						"fat": 65,
+						"fiber": 30
+					},
+					{
+						"date": "2026-03-02",
+						"calories": 0,
+						"protein": 0,
+						"carbs": 0,
+						"fat": 0,
+						"fiber": 0
+					}
+				],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activity": {
+					"enabled": false,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "protein",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "fat",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "fiber",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				}
+			]
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "macro_without_goal_is_omitted",
+			"input": {
+				"days": [
+					{
+						"date": "2026-03-01",
+						"calories": 2000,
+						"protein": 150,
+						"carbs": 250,
+						"fat": 65,
+						"fiber": 30
+					}
+				],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 0,
+					"fiberGoal": 0
+				},
+				"activity": {
+					"enabled": false,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "protein",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				}
+			]
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "activity_raises_effective_goal",
+			"input": {
+				"days": [
+					{
+						"date": "2026-03-01",
+						"calories": 2350,
+						"protein": 175,
+						"carbs": 290,
+						"fat": 75,
+						"fiber": 35,
+						"activityCalories": 400
+					},
+					{
+						"date": "2026-03-02",
+						"calories": 2350,
+						"protein": 175,
+						"carbs": 290,
+						"fat": 75,
+						"fiber": 35
+					}
+				],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activity": {
+					"enabled": true,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 0,
+					"met": 1,
+					"above": 1,
+					"eligible": 2
+				},
+				{
+					"key": "protein",
+					"below": 1,
+					"met": 1,
+					"above": 0,
+					"eligible": 2
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 1,
+					"above": 1,
+					"eligible": 2
+				},
+				{
+					"key": "fat",
+					"below": 0,
+					"met": 1,
+					"above": 1,
+					"eligible": 2
+				},
+				{
+					"key": "fiber",
+					"below": 1,
+					"met": 1,
+					"above": 0,
+					"eligible": 2
+				}
+			]
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "activity_ignored_when_disabled",
+			"input": {
+				"days": [
+					{
+						"date": "2026-03-01",
+						"calories": 2350,
+						"protein": 175,
+						"carbs": 290,
+						"fat": 75,
+						"fiber": 35,
+						"activityCalories": 400
+					}
+				],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activity": {
+					"enabled": false,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 0,
+					"met": 0,
+					"above": 1,
+					"eligible": 1
+				},
+				{
+					"key": "protein",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 0,
+					"above": 1,
+					"eligible": 1
+				},
+				{
+					"key": "fat",
+					"below": 0,
+					"met": 0,
+					"above": 1,
+					"eligible": 1
+				},
+				{
+					"key": "fiber",
+					"below": 0,
+					"met": 1,
+					"above": 0,
+					"eligible": 1
+				}
+			]
+		},
+		{
+			"fn": "summarizeGoalAdherence",
+			"name": "no_days",
+			"input": {
+				"days": [],
+				"goals": {
+					"calorieGoal": 2000,
+					"proteinGoal": 150,
+					"carbGoal": 250,
+					"fatGoal": 65,
+					"fiberGoal": 30
+				},
+				"activity": {
+					"enabled": false,
+					"creditPercent": 100
+				}
+			},
+			"expected": [
+				{
+					"key": "calories",
+					"below": 0,
+					"met": 0,
+					"above": 0,
+					"eligible": 0
+				},
+				{
+					"key": "protein",
+					"below": 0,
+					"met": 0,
+					"above": 0,
+					"eligible": 0
+				},
+				{
+					"key": "carbs",
+					"below": 0,
+					"met": 0,
+					"above": 0,
+					"eligible": 0
+				},
+				{
+					"key": "fat",
+					"below": 0,
+					"met": 0,
+					"above": 0,
+					"eligible": 0
+				},
+				{
+					"key": "fiber",
+					"below": 0,
+					"met": 0,
+					"above": 0,
+					"eligible": 0
+				}
+			]
+		}
+	]
+}

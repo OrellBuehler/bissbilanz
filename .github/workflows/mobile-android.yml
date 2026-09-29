@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-    paths: [mobile/**]
+    paths: [mobile/**, tests/fixtures/shared/**, analytics-parity/**]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -134,3 +134,86 @@ jobs:
             mobile/androidApp/build/reports/tests/
             mobile/shared/build/reports/tests/
           retention-days: 7
+
+  coverage:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+          key: gradle-android-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-android-${{ runner.os }}-
+
+      # Informational only: no coverage threshold fails the build. The task runs each
+      # module's JVM unit tests with the Kover agent attached; generated OpenAPI code is
+      # excluded in shared/build.gradle.kts.
+      - name: Generate Kover coverage reports
+        run: ./gradlew shared:koverXmlReportDebug shared:koverHtmlReportDebug androidApp:koverXmlReportDebug
+
+      - name: Summarize coverage
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          reports = {
+              "shared": "shared/build/reports/kover/reportDebug.xml",
+              "androidApp": "androidApp/build/reports/kover/reportDebug.xml",
+          }
+          rows = ["## Kotlin coverage (Kover)", "", "| Module | Lines | Branches | Methods |", "| --- | --- | --- | --- |"]
+          for module, path in reports.items():
+              if not os.path.exists(path):
+                  rows.append(f"| {module} | no report | | |")
+                  continue
+              counters = {c.get("type"): c for c in ET.parse(path).getroot().findall("counter")}
+
+              def pct(kind):
+                  c = counters.get(kind)
+                  if c is None:
+                      return "n/a"
+                  missed, covered = int(c.get("missed")), int(c.get("covered"))
+                  total = missed + covered
+                  return f"{100 * covered / total:.1f}% ({covered}/{total})" if total else "n/a"
+
+              rows.append(f"| {module} | {pct('LINE')} | {pct('BRANCH')} | {pct('METHOD')} |")
+          text = "\n".join(rows)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(text + "\n")
+          PY
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: kover-coverage
+          path: |
+            mobile/shared/build/reports/kover/
+            mobile/androidApp/build/reports/kover/
+          retention-days: 14
