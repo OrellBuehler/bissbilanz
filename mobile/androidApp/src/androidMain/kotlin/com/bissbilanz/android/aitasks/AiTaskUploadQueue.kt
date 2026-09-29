@@ -1,6 +1,7 @@
 package com.bissbilanz.android.aitasks
 
 import android.content.Context
+import com.bissbilanz.util.Failures
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -139,9 +140,12 @@ class AiTaskUploadQueue(
 
     private fun readIndexLocked(): List<QueuedAiTaskUpload> {
         if (!indexFile.exists()) return emptyList()
-        return runCatching {
+        return try {
             json.decodeFromString<List<QueuedAiTaskUpload>>(indexFile.readText())
-        }.getOrDefault(emptyList())
+        } catch (e: Exception) {
+            Failures.report(IllegalStateException("AI task upload queue index unreadable: ${e::class.simpleName}"))
+            emptyList()
+        }
     }
 
     /** Writes to a temp file first so a crash mid-write cannot leave a truncated index behind. */

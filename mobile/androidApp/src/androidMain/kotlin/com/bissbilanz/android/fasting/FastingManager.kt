@@ -8,6 +8,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.util.Failures
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -223,7 +224,7 @@ private fun com.bissbilanz.api.generated.model.FastingSession.toLocalOrNull(): F
             targetHours = targetHours,
             endedAtEpochMs = Instant.parse(endedAt).toEpochMilliseconds(),
         )
-    }.getOrNull()
+    }.onFailure { Failures.report(it) }.getOrNull()
 
 /** Wire shape for a finished fast; the local id doubles as the server id. */
 fun FastingSession.toUpsert(): FastingSessionUpsert =

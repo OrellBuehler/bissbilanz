@@ -8,6 +8,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.Failures
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -102,8 +103,18 @@ class AccountDowngrader(
      */
     suspend fun finalize() {
         api.deleteAccount()
-        runCatching { syncQueue.clear() }
-        runCatching { authManager.logout() }
+        try {
+            syncQueue.clear()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Failures.report(e)
+        }
+        try {
+            authManager.logout()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Failures.report(e)
+        }
         appModeManager.setMode(AppMode.LOCAL)
     }
 

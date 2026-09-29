@@ -115,6 +115,7 @@ import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.createHttpEngine
 import com.bissbilanz.foodpackage.filenameFromContentDisposition
 import com.bissbilanz.model.Entry
+import com.bissbilanz.util.Failures
 import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -801,6 +802,7 @@ class BissbilanzApi(
             response.goals
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            if (e !is ApiException || e.statusCode !in 400..499) Failures.report(e)
             null
         }
 

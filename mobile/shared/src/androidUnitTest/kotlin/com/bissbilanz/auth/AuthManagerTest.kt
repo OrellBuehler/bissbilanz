@@ -89,19 +89,16 @@ class AuthManagerTest {
     @Test
     fun buildLoginUrlReturnsCorrectUrl() {
         val url = authManager.buildLoginUrl("my-state")
-        assertEquals(
-            "https://test.example.com/api/auth/mobile/login?state=my-state&provider=infomaniak",
-            url,
+        assertTrue(
+            url.startsWith("https://test.example.com/api/auth/mobile/login?state=my-state&provider=infomaniak&code_challenge="),
         )
+        assertTrue(url.endsWith("&code_challenge_method=S256"))
     }
 
     @Test
     fun buildLoginUrlCarriesTheChosenProvider() {
         val url = authManager.buildLoginUrl("my-state", "google")
-        assertEquals(
-            "https://test.example.com/api/auth/mobile/login?state=my-state&provider=google",
-            url,
-        )
+        assertTrue(url.startsWith("https://test.example.com/api/auth/mobile/login?state=my-state&provider=google&code_challenge="))
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.bissbilanz.auth
 import com.bissbilanz.api.UpdateGate
 import com.bissbilanz.api.applyClientVersionHeaders
 import com.bissbilanz.api.installUpdateGate
+import com.bissbilanz.util.Failures
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
@@ -72,6 +73,9 @@ class AuthManager(
     @Volatile
     private var pendingState: String? = null
 
+    @Volatile
+    private var pendingCodeVerifier: String? = null
+
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
@@ -91,8 +95,12 @@ class AuthManager(
         state: String,
         provider: String = "infomaniak",
     ): String {
+        val verifier = Pkce.generateVerifier()
         pendingState = state
-        return "$baseUrl/api/auth/mobile/login?state=$state&provider=$provider"
+        pendingCodeVerifier = verifier
+        val challenge = Pkce.challengeFor(verifier)
+        return "$baseUrl/api/auth/mobile/login?state=$state&provider=$provider" +
+            "&code_challenge=$challenge&code_challenge_method=S256"
     }
 
     /** Which sign-in providers the server has configured, or null when the request fails. */
@@ -102,23 +110,29 @@ class AuthManager(
             response.providers
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            Failures.report(e)
             null
         }
 
     fun validateState(state: String?): Boolean {
         val expected = pendingState
         pendingState = null
-        return state != null && state == expected
+        val valid = state != null && state == expected
+        if (!valid) pendingCodeVerifier = null
+        return valid
     }
 
-    suspend fun handleCallback(code: String): Boolean =
-        try {
-            val response: TokenResponse =
-                client
-                    .post("$baseUrl/api/auth/mobile/token") {
-                        contentType(ContentType.Application.Json)
-                        setBody(mapOf("code" to code))
-                    }.body()
+    suspend fun handleCallback(code: String): Boolean {
+        val codeVerifier = pendingCodeVerifier
+        pendingCodeVerifier = null
+        return try {
+            val httpResponse =
+                client.post("$baseUrl/api/auth/mobile/token") {
+                    contentType(ContentType.Application.Json)
+                    setBody(listOfNotNull("code" to code, codeVerifier?.let { "code_verifier" to it }).toMap())
+                }
+            if (!httpResponse.status.isSuccess()) return false
+            val response: TokenResponse = httpResponse.body()
 
             secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
             response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
@@ -126,8 +140,10 @@ class AuthManager(
             true
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            Failures.report(e)
             false
         }
+    }
 
     suspend fun getAccessToken(): String? = secureStorage.load(KEY_ACCESS_TOKEN)
 
@@ -182,6 +198,7 @@ class AuthManager(
                 // keeps the state it just set.
                 _authState.compareAndSet(AuthState.Refreshing, stateBeforeRefresh)
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                Failures.report(e)
                 false
             }
         }
