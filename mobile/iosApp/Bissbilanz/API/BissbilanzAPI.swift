@@ -131,11 +131,11 @@ extension APIError {
 @MainActor
 @Observable
 final class BissbilanzAPI {
-    private let baseURL: String
+    let baseURL: String
     private let authManager: AuthManager
     private let session: URLSession
     private let decoder: JSONDecoder
-    private let encoder: JSONEncoder
+    let encoder: JSONEncoder
     /// Shared with `AuthManager` — see `ClientVersionHeader`/`UpdateRequiredGate`.
     let updateGate: UpdateRequiredGate
 
@@ -155,951 +155,20 @@ final class BissbilanzAPI {
         encoder = JSONEncoder()
     }
 
-    // MARK: - Foods
-
-    func searchFoods(query: String) async throws -> [Food] {
-        let response: FoodsResponse = try await get("/api/foods", params: ["q": query])
-        return response.foods
-    }
-
-    func getFoods(limit: Int = 100, offset: Int = 0) async throws -> [Food] {
-        let response: FoodsResponse = try await get(
-            "/api/foods",
-            params: ["limit": "\(limit)", "offset": "\(offset)"]
-        )
-        return response.foods
-    }
-
-    func getRecentFoods(limit: Int = 20) async throws -> [Food] {
-        let response: FoodsResponse = try await get("/api/foods/recent", params: ["limit": "\(limit)"])
-        return response.foods
-    }
-
-    func getFavorites() async throws -> FavoritesResponse {
-        try await get("/api/favorites")
-    }
-
-    func getFood(id: String) async throws -> Food {
-        let response: FoodResponse = try await get("/api/foods/\(id)")
-        return response.food
-    }
-
-    func getFoodUsage(id: String) async throws -> WhereUsed {
-        try await get("/api/foods/\(id)/usage")
-    }
-
-    func createFood(
-        _ food: FoodCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Food {
-        let response: FoodResponse = try await post(
-            "/api/foods", body: food,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.food
-    }
-
-    func updateFood(
-        id: String,
-        _ food: FoodCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Food {
-        let response: FoodResponse = try await patch(
-            "/api/foods/\(id)", body: food,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.food
-    }
-
-    func deleteFood(
-        id: String,
-        force: Bool = false,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            force ? "/api/foods/\(id)?force=true" : "/api/foods/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    func findFoodByBarcode(_ barcode: String) async throws -> Food? {
-        let response: FoodsResponse = try await get("/api/foods", params: ["barcode": barcode])
-        return response.foods.first
-    }
-
-    /// Sets a food's labels. With `source`/`mode` both nil this is a user
-    /// write — the source defaults to `user` server-side and replaces
-    /// everything, which makes it authoritative over anything a labeller
-    /// seeded. `FoodAutoLabeler`/the "Suggest labels" button instead pass
-    /// `source: "llm", mode: "extend"`, which only adds the given labels
-    /// without touching the user's own. A 409 means a newer edit already won
-    /// last-write-wins.
-    func setFoodLabels(
-        id: String,
-        labels: [String],
-        source: String? = nil,
-        mode: String? = nil,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> FoodLabelsSetResponse {
-        try await put(
-            "/api/foods/\(id)/labels",
-            body: FoodLabelsSetBody(labels: labels, source: source, mode: mode),
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    func toggleFavorite(
-        foodId: String,
-        isFavorite: Bool,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Food {
-        let body = ["isFavorite": isFavorite]
-        let response: FoodResponse = try await patch(
-            "/api/foods/\(foodId)", body: body,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.food
-    }
-
-    /// Server-computed candidate groups for foods that may be the same
-    /// product — see `FoodDuplicateGroup`. No params: it scans the whole
-    /// personal food database.
-    func getFoodDuplicates() async throws -> [FoodDuplicateGroup] {
-        let response: FoodDuplicatesResponse = try await get("/api/foods/duplicates")
-        return response.groups
-    }
-
-    /// Merges `sourceIds` into `keeperId`: every food_entries/recipe_ingredients/
-    /// supplement_ingredients row referencing a source is re-pointed to the
-    /// keeper (servings rescaled so historical macros stay invariant), food
-    /// labels are unioned onto the keeper, and the source food rows are
-    /// permanently deleted. Fields the keeper is missing are auto-filled from
-    /// the sources, and `overrides` wins over both. Returns the merged keeper
-    /// (the full `Food` shape).
-    func mergeFoods(
-        keeperId: String,
-        sourceIds: [String],
-        overrides: [String: FoodMergeValue] = [:]
-    ) async throws -> Food {
-        let response: FoodResponse = try await post(
-            "/api/foods/merge",
-            body: FoodMergeRequest(
-                keeperId: keeperId,
-                sourceIds: sourceIds,
-                overrides: overrides.isEmpty ? nil : overrides
-            )
-        )
-        return response.food
-    }
-
-    // MARK: - Entries
-
-    func getEntries(date: String) async throws -> [Entry] {
-        let response: EntriesResponse = try await get("/api/entries", params: ["date": date])
-        return response.entries
-    }
-
-    func getEntriesRange(startDate: String, endDate: String) async throws -> [Entry] {
-        let response: EntriesResponse = try await get("/api/entries/range", params: [
-            "startDate": startDate,
-            "endDate": endDate,
-        ])
-        return response.entries
-    }
-
-    func createEntry(
-        _ entry: EntryCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Entry {
-        let response: EntryResponse = try await post(
-            "/api/entries", body: entry,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func updateEntry(
-        id: String,
-        _ update: EntryUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Entry {
-        let response: EntryResponse = try await patch(
-            "/api/entries/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func deleteEntry(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/entries/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    func copyEntries(fromDate: String, toDate: String) async throws -> [Entry] {
-        let response: EntriesResponse = try await post(
-            "/api/entries/copy?fromDate=\(fromDate)&toDate=\(toDate)",
-            body: [String: String]()
-        )
-        return response.entries
-    }
-
-    // MARK: - Recipes
-
-    func getRecipes() async throws -> [Recipe] {
-        let response: RecipesResponse = try await get("/api/recipes")
-        return response.recipes
-    }
-
-    func getRecipe(id: String) async throws -> Recipe {
-        let response: RecipeResponse = try await get("/api/recipes/\(id)")
-        return response.recipe
-    }
-
-    func getRecipeUsage(id: String) async throws -> WhereUsed {
-        try await get("/api/recipes/\(id)/usage")
-    }
-
-    func createRecipe(
-        _ recipe: RecipeCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Recipe {
-        let response: RecipeResponse = try await post(
-            "/api/recipes", body: recipe,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.recipe
-    }
-
-    func updateRecipe(
-        id: String,
-        _ update: RecipeUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Recipe {
-        let response: RecipeResponse = try await patch(
-            "/api/recipes/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.recipe
-    }
-
-    func deleteRecipe(
-        id: String,
-        force: Bool = false,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            force ? "/api/recipes/\(id)?force=true" : "/api/recipes/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Goals
-
-    func getGoals() async throws -> Goals? {
-        let response: GoalsResponse = try await get("/api/goals")
-        return response.goals
-    }
-
-    func setGoals(
-        _ goals: Goals,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Goals {
-        let response: GoalsResponse = try await post(
-            "/api/goals", body: goals,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.goals ?? goals
-    }
-
-    // MARK: - Weight
-
-    func getWeightEntries() async throws -> [WeightEntry] {
-        let response: WeightEntriesResponse = try await get("/api/weight")
-        return response.entries
-    }
-
-    func getLatestWeight() async throws -> WeightEntry? {
-        do {
-            let response: WeightLatestResponse? = try await get("/api/weight/latest")
-            return response?.entry
-        } catch {
-            ErrorReporter.capture(error, context: ["endpoint": "/api/weight/latest"])
-            return nil
-        }
-    }
-
-    func createWeightEntry(
-        _ entry: WeightCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> WeightEntry {
-        let response: WeightEntryResponse = try await post(
-            "/api/weight", body: entry,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func updateWeightEntry(
-        id: String,
-        _ update: WeightUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> WeightEntry {
-        let response: WeightEntryResponse = try await patch(
-            "/api/weight/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func deleteWeightEntry(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/weight/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Fasting
-
-    /// Finished fasts, newest first — used to pull fasts logged elsewhere
-    /// (the web app, another device) into the local history. `from`/`to` are
-    /// ISO 8601 instants filtering on `startedAt`; all params are optional.
-    func listFastingSessions(
-        from: String? = nil,
-        to: String? = nil,
-        limit: Int? = nil
-    ) async throws -> [FastingSessionRemote] {
-        var params: [String: String] = [:]
-        if let from { params["from"] = from }
-        if let to { params["to"] = to }
-        if let limit { params["limit"] = String(limit) }
-        let response: FastingSessionsResponse = try await get("/api/fasts", params: params)
-        return response.sessions
-    }
-
-    func upsertFastingSession(
-        _ session: FastingSessionUpsert,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> FastingSessionRemote {
-        let response: FastingSessionResponse = try await post(
-            "/api/fasts", body: session,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.session
-    }
-
-    func deleteFastingSession(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/fasts/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Sleep
-
-    func getSleepEntries(from: String? = nil, to: String? = nil) async throws -> [SleepEntry] {
-        var params: [String: String] = [:]
-        if let from { params["from"] = from }
-        if let to { params["to"] = to }
-        let response: SleepEntriesResponse = try await get("/api/sleep", params: params)
-        return response.entries
-    }
-
-    func createSleepEntry(
-        _ entry: SleepCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> SleepEntry {
-        let response: SleepEntryResponse = try await post(
-            "/api/sleep", body: entry,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func updateSleepEntry(
-        id: String,
-        _ update: SleepUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> SleepEntry {
-        let response: SleepEntryResponse = try await patch(
-            "/api/sleep/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.entry
-    }
-
-    func deleteSleepEntry(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/sleep/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Supplements
-
-    /// `all: true` also returns archived supplements — the default list is
-    /// active-only, which silently loses rows in a full account download.
-    func getSupplements(all: Bool = false) async throws -> [Supplement] {
-        let response: SupplementsResponse = try await get(
-            "/api/supplements",
-            params: all ? ["all": "true"] : [:]
-        )
-        return response.supplements
-    }
-
-    func createSupplement(
-        _ supplement: SupplementCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Supplement {
-        let response: SupplementResponse = try await post(
-            "/api/supplements", body: supplement,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.supplement
-    }
-
-    func updateSupplement(
-        id: String,
-        _ update: SupplementUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Supplement {
-        let response: SupplementResponse = try await patch(
-            "/api/supplements/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.supplement
-    }
-
-    func deleteSupplement(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/supplements/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    func getSupplementChecklist(date: String) async throws -> [SupplementChecklist] {
-        let response: SupplementChecklistResponse = try await get("/api/supplements/\(date)/checklist")
-        return response.checklist
-    }
-
-    func logSupplement(
-        id: String,
-        date: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> SupplementLog {
-        let response: SupplementLogResponse = try await post(
-            "/api/supplements/\(id)/log", body: ["date": date],
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.log
-    }
-
-    func unlogSupplement(
-        id: String,
-        date: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/supplements/\(id)/log/\(date)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    func getSupplementHistory(startDate: String, endDate: String) async throws -> [SupplementHistoryEntry] {
-        let response: SupplementHistoryResponse = try await get("/api/supplements/history", params: [
-            "from": startDate,
-            "to": endDate,
-        ])
-        return response.history
-    }
-
-    // MARK: - Reminders
-
-    func getReminders() async throws -> [Reminder] {
-        let response: RemindersListResponse = try await get("/api/reminders")
-        return response.reminders
-    }
-
-    func createReminder(
-        _ reminder: ReminderCreate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Reminder {
-        let response: ReminderResponse = try await post(
-            "/api/reminders", body: reminder,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.reminder
-    }
-
-    func updateReminder(
-        id: String,
-        _ update: ReminderUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Reminder {
-        let response: ReminderResponse = try await patch(
-            "/api/reminders/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.reminder
-    }
-
-    func deleteReminder(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/reminders/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Stats
-
-    func getWeeklyStats() async throws -> MacroTotals {
-        let response: WeeklyMonthlyStatsResponse = try await get("/api/stats/weekly")
-        return response.stats
-    }
-
-    func getMonthlyStats() async throws -> MacroTotals {
-        let response: WeeklyMonthlyStatsResponse = try await get("/api/stats/monthly")
-        return response.stats
-    }
-
-    func getStreaks() async throws -> StreaksResponse {
-        try await get("/api/stats/streaks")
-    }
-
-    /// `sort` is "count" (most logged) or a macro key, ranking by the food's
-    /// total contribution to it over the period.
-    func getTopFoods(days: Int = 7, limit: Int = 10, sort: String = "count") async throws -> [TopFoodEntry] {
-        let response: TopFoodsResponse = try await get("/api/stats/top-foods", params: [
-            "days": "\(days)",
-            "limit": "\(limit)",
-            "sort": sort,
-        ])
-        return response.data
-    }
-
-    func getDailyStats(startDate: String, endDate: String) async throws -> DailyStatsResponse {
-        try await get("/api/stats/daily", params: [
-            "startDate": startDate,
-            "endDate": endDate,
-        ])
-    }
-
-    func getCalendarStats(month: Int, year: Int) async throws -> [String: CalendarDayData] {
-        let response: CalendarResponse = try await get("/api/stats/calendar", params: [
-            "month": String(format: "%04d-%02d", year, month),
-        ])
-        return response.days
-    }
-
-    func getMealBreakdown(days: Int = 7) async throws -> [MealBreakdownEntry] {
-        let end = Date()
-        let start = end.adding(days: -(days - 1))
-        let response: MealBreakdownResponse = try await get("/api/stats/meal-breakdown", params: [
-            "startDate": DateFormatting.isoString(from: start),
-            "endDate": DateFormatting.isoString(from: end),
-        ])
-        return response.data
-    }
-
-    // MARK: - Preferences
-
-    func getPreferences() async throws -> Preferences {
-        // The server wraps the body as `{ preferences: {...} }` (like every other
-        // endpoint), so decode the envelope rather than a bare `Preferences`.
-        let response: PreferencesResponse = try await get("/api/preferences")
-        return response.preferences
-    }
-
-    func updatePreferences(
-        _ prefs: PreferencesUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Preferences {
-        let response: PreferencesResponse = try await patch(
-            "/api/preferences", body: prefs,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.preferences
-    }
-
-    // MARK: - Meal Types
-
-    func getMealTypes() async throws -> [MealType] {
-        let response: MealTypesResponse = try await get("/api/meal-types")
-        return response.mealTypes
-    }
-
-    func createMealType(name: String, sortOrder: Int) async throws -> MealType {
-        let response: MealTypeResponse = try await post(
-            "/api/meal-types",
-            body: MealTypeCreate(name: name, sortOrder: sortOrder)
-        )
-        return response.mealType
-    }
-
-    func deleteMealType(id: String) async throws {
-        try await deleteRequest("/api/meal-types/\(id)")
-    }
-
-    // MARK: - Day Properties
-
-    // The server exposes day properties as a single collection route keyed by a
-    // `date` query parameter (GET/DELETE) and a PUT body — there is no `/{date}`
-    // path segment and no POST handler.
-    func getDayProperties(date: String) async throws -> DayProperties? {
-        let response: DayPropertiesResponse = try await get("/api/day-properties", params: ["date": date])
-        return response.properties
-    }
-
-    func getDayPropertiesRange(startDate: String, endDate: String) async throws -> [DayProperties] {
-        let response: DayPropertiesRangeResponse = try await get("/api/day-properties", params: [
-            "startDate": startDate,
-            "endDate": endDate,
-        ])
-        return response.data
-    }
-
-    func setDayProperties(
-        date: String,
-        patch: DayPropertiesPatch,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> DayProperties {
-        let body = DayPropertiesSet(date: date, patch: patch)
-        let response: DayPropertiesResponse = try await put(
-            "/api/day-properties", body: body,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        guard let properties = response.properties else {
-            throw APIError.serverError(200, "Server returned null properties for day \(date)")
-        }
-        return properties
-    }
-
-    func deleteDayProperties(
-        date: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/day-properties?date=\(date)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    // MARK: - Open Food Facts proxy
-
-    /// A proxy hit: the `Food` prefill plus the raw OFF categories, which are
-    /// not part of `Food` and only exist to be handed back on create.
-    struct OpenFoodFactsHit {
-        let food: Food
-        let categoriesTags: [String]?
-    }
-
-    /// The proxy returns `{product: {...}}` — the `Food` prefill shape minus
-    /// the user-scoped fields (`userId`, `isFavorite`) and with nullable
-    /// serving info, so the gaps are patched in before decoding, mirroring
-    /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
-    /// or unparseable responses.
-    func lookupBarcode(_ barcode: String) async throws -> OpenFoodFactsHit? {
-        // The barcode is untrusted external input: the scanner accepts Code 39
-        // (whose charset includes the space) and Code 128 (full ASCII), so a
-        // scan can legitimately produce a string that isn't a valid path
-        // segment. Percent-encode against alphanumerics — anything a product
-        // code actually contains survives, everything else is escaped rather
-        // than reshaping the URL.
-        guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
-              let url = URL(string: "\(baseURL)/api/openfoodfacts/\(encoded)")
-        else { return nil }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        let result: (Data, HTTPURLResponse)
-        do {
-            result = try await executeRequestData(request)
-        } catch {
-            ErrorReporter.capture(error, context: ["endpoint": "/api/openfoodfacts/{barcode}"])
-            return nil
-        }
-        let (data, httpResponse) = result
-        guard httpResponse.statusCode == 200,
-              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              var product = root["product"] as? [String: Any]
-        else { return nil }
-
-        // `Food.id` is required; older servers omit `id` on this endpoint, so the
-        // barcode stands in for it like the Local-mode client does.
-        if !(product["id"] is String) {
-            product["id"] = barcode
-        }
-        product["userId"] = ""
-        product["isFavorite"] = false
-        if !(product["servingSize"] is NSNumber) {
-            product["servingSize"] = 100
-        }
-        let unit = product["servingUnit"] as? String
-        if ServingUnit(rawValue: unit ?? "") == nil {
-            product["servingUnit"] = "g"
-        }
-        if !(product["barcode"] is String) {
-            product["barcode"] = barcode
-        }
-        let food: Food
-        do {
-            food = try JSONPatch.decode(Food.self, from: product)
-        } catch {
-            ErrorReporter.captureWarning("Open Food Facts proxy product decode failed", context: ["reason": ErrorReporter.reason(for: error)])
-            return nil
-        }
-        return OpenFoodFactsHit(food: food, categoriesTags: product["categoriesTags"] as? [String])
-    }
-
-    /// One row of `/api/openfoodfacts/search`: enough to render a picker row
-    /// and to instantiate the product by barcode (copy-on-use) once picked.
-    struct OpenFoodFactsSearchHit: Decodable, Identifiable, Hashable, Sendable {
-        let barcode: String
-        let name: String
-        let brand: String?
-        let imageUrl: String?
-        let calories: Double
-        let protein: Double
-        let carbs: Double
-        let fat: Double
-
-        var id: String { barcode }
-    }
-
-    struct OpenFoodFactsSearchResponse: Decodable {
-        let results: [OpenFoodFactsSearchHit]
-    }
-
-    func searchOpenFoodFacts(query: String, limit: Int = 10) async throws -> [OpenFoodFactsSearchHit] {
-        let response: OpenFoodFactsSearchResponse = try await get(
-            "/api/openfoodfacts/search",
-            params: ["q": query, "limit": "\(limit)"]
-        )
-        return response.results
-    }
-
-    // MARK: - AI Tasks
-
-    func createAiTask(_ task: AiTaskCreate, idempotencyKey: String? = nil) async throws -> AiTask {
-        for attempt in 0 ... 3 {
-            do {
-                let response: AiTaskResponse = try await post(
-                    "/api/ai-tasks", body: task, idempotencyKey: idempotencyKey
-                )
-                return response.task
-            } catch let pending as AiTaskRequestInProgress {
-                guard attempt < 3 else { throw pending }
-                try await Task.sleep(nanoseconds: UInt64(min(pending.retryAfter, 86400) * 1_000_000_000))
-            }
-        }
-        throw AiTaskRequestInProgress(retryAfter: 60)
-    }
-
-    func listAiTasks(
-        status: String? = nil,
-        acknowledged: Bool? = nil,
-        limit: Int? = nil,
-        offset: Int? = nil
-    ) async throws -> (tasks: [AiTask], total: Int) {
-        var params: [String: String] = [:]
-        if let status { params["status"] = status }
-        if let acknowledged { params["acknowledged"] = acknowledged ? "true" : "false" }
-        if let limit { params["limit"] = "\(limit)" }
-        if let offset { params["offset"] = "\(offset)" }
-        let response: AiTasksResponse = try await get("/api/ai-tasks", params: params)
-        return (response.tasks, response.total)
-    }
-
-    func updateAiTask(
-        id: String,
-        _ update: AiTaskUpdate,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> AiTask {
-        let response: AiTaskResponse = try await patch(
-            "/api/ai-tasks/\(id)", body: update,
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.task
-    }
-
-    func deleteAiTask(
-        id: String,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws {
-        try await deleteRequest(
-            "/api/ai-tasks/\(id)",
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-    }
-
-    /// Clears the unread state on resolved tasks. Pass nil to acknowledge everything
-    /// unacknowledged, which is what opening the list does.
-    @discardableResult
-    func acknowledgeAiTasks(ids: [String]? = nil) async throws -> Int {
-        let response: AiTaskAcknowledgeResponse = try await post(
-            "/api/ai-tasks/acknowledge", body: AiTaskAcknowledge(ids: ids)
-        )
-        return response.acknowledged
-    }
-
-    /// Uploads every photo of one meal in a single request — the route reads
-    /// repeated `photo` parts and answers with the URLs in the order sent.
-    func uploadAiTaskPhotos(_ photos: [(data: Data, filename: String)]) async throws -> [String] {
-        let response: AiTaskPhotoResponse = try await postMultipart(
-            "/api/ai-tasks/photo", fieldName: "photo", parts: photos
-        )
-        return response.photoUrls
-    }
-
-    // MARK: - MCP
-
-    /// Whether the signed-in user has at least one MCP client (e.g. Claude.ai,
-    /// Claude Code) authorized against their account — see Settings → MCP on
-    /// the web app. Local (anonymous) mode has no server and never calls this.
-    func getMcpStatus() async throws -> Bool {
-        let response: McpStatusResponse = try await get("/api/mcp/status")
-        return response.connected
-    }
-
-    // MARK: - Images
-
-    /// Uploads a food or recipe image and returns its `/uploads/<uuid>.webp` URL.
-    /// The route reads the `image` form field; `postMultipart` sets the `Origin`
-    /// header the server's CSRF check requires of any native multipart POST.
-    ///
-    /// `purpose` is the route's optional extra form field: `recipe_step` keeps a
-    /// cooking-step photo's aspect ratio (up to 1280 px) instead of the square
-    /// thumbnail a food or recipe cover gets.
-    func uploadImage(_ data: Data, filename: String = "food.jpg", purpose: String? = nil) async throws -> String {
-        let response: ImageUploadResponse = try await postMultipart(
-            "/api/images/upload", data: data, fieldName: "image", filename: filename,
-            fields: purpose.map { ["purpose": $0] } ?? [:]
-        )
-        return response.imageUrl
-    }
-
-    /// Attaches or, with a nil `imageUrl`, removes a food's image.
-    ///
-    /// A partial PATCH rather than a full `FoodCreate` body: that struct's
-    /// optional fields are omitted when nil, so a removal sent that way would
-    /// never reach the server and the old image would stay.
-    func setFoodImage(
-        id: String,
-        imageUrl: String?,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Food {
-        let response: FoodResponse = try await patch(
-            "/api/foods/\(id)", body: ImagePatch(imageUrl: imageUrl),
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.food
-    }
-
-    /// Attaches or, with a nil `imageUrl`, removes a recipe's image. Same
-    /// partial-PATCH reasoning as `setFoodImage`, and the same body shape —
-    /// the route reads `imageUrl` off the recipe patch and treats an explicit
-    /// null as a removal.
-    func setRecipeImage(
-        id: String,
-        imageUrl: String?,
-        idempotencyKey: String? = nil,
-        clientEditedAt: String? = nil
-    ) async throws -> Recipe {
-        let response: RecipeResponse = try await patch(
-            "/api/recipes/\(id)", body: ImagePatch(imageUrl: imageUrl),
-            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
-        )
-        return response.recipe
-    }
-
-    /// Whether a URL points at our own API. Used to keep the account's bearer
-    /// token off every other host — scheme, host and port must all match, since
-    /// a plaintext or different-port variant of the same name is a different
-    /// origin.
-    func isOwnHost(_ url: URL) -> Bool {
-        guard let base = URL(string: baseURL) else { return false }
-        return url.scheme == base.scheme && url.host() == base.host() && url.port == base.port
-    }
-
-    /// Raw bytes of a server-hosted image. Takes a server-relative path only, so
-    /// the account's bearer token cannot be sent anywhere but our own host.
-    func downloadImage(path: String) async throws -> Data {
-        guard path.hasPrefix("/") else { throw APIError.badRequest("Not a server path") }
-        let request = URLRequest(url: try makeURL(path))
-        let (data, httpResponse) = try await executeRequestData(request)
-        if httpResponse.statusCode >= 400 {
-            throw APIError.serverError(httpResponse.statusCode, nil)
-        }
-        return data
-    }
-
     // MARK: - HTTP helpers
 
     /// Builds `baseURL + path` as a `URL`, throwing instead of the force-unwrap
     /// every call site used to repeat — `baseURL` comes from user-editable
     /// settings (a self-hosted deployment's own host), so a malformed value
     /// should surface as an error rather than crash the app.
-    private func makeURL(_ path: String) throws -> URL {
+    func makeURL(_ path: String) throws -> URL {
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw APIError.badRequest("Invalid URL: \(path)")
         }
         return url
     }
 
-    private func get<T: Decodable>(_ path: String, params: [String: String] = [:]) async throws -> T {
+    func get<T: Decodable>(_ path: String, params: [String: String] = [:]) async throws -> T {
         var components = URLComponents(string: "\(baseURL)\(path)")!
         if !params.isEmpty {
             components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
@@ -1113,7 +182,7 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func post<T: Decodable>(
+    func post<T: Decodable>(
         _ path: String,
         body: some Encodable,
         idempotencyKey: String? = nil,
@@ -1127,7 +196,7 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func patch<T: Decodable>(
+    func patch<T: Decodable>(
         _ path: String,
         body: some Encodable,
         idempotencyKey: String? = nil,
@@ -1141,7 +210,7 @@ final class BissbilanzAPI {
         return try await performRequest(request)
     }
 
-    private func put<T: Decodable>(
+    func put<T: Decodable>(
         _ path: String,
         body: some Encodable,
         idempotencyKey: String? = nil,
@@ -1159,7 +228,7 @@ final class BissbilanzAPI {
     /// blocks any `multipart/form-data` POST that arrives without an `Origin`
     /// header — browsers always send one, but `URLSession` doesn't, so it must
     /// be set explicitly here or every multipart upload 403s.
-    private func postMultipart<T: Decodable>(
+    func postMultipart<T: Decodable>(
         _ path: String,
         data: Data,
         fieldName: String,
@@ -1176,7 +245,7 @@ final class BissbilanzAPI {
     /// Repeats `fieldName` once per part, which is how the routes that accept
     /// several files read them. `fields` are plain text form fields sent
     /// alongside the file parts.
-    private func postMultipart<T: Decodable>(
+    func postMultipart<T: Decodable>(
         _ path: String,
         fieldName: String,
         parts: [(data: Data, filename: String)],
@@ -1197,7 +266,7 @@ final class BissbilanzAPI {
     }
 
     /// `closing: false` leaves the body open so further parts can follow.
-    private static func multipartBody(
+    static func multipartBody(
         boundary: String,
         fieldName: String,
         mimeType: String,
@@ -1256,100 +325,7 @@ final class BissbilanzAPI {
         }
     }
 
-    // MARK: - Food packages
-
-    /// Brands of the user's foods with per-brand counts — the export filter's options.
-    func getFoodBrands() async throws -> [FoodBrandStat] {
-        let response: FoodBrandsResponse = try await get("/api/foods/brands")
-        return response.brands
-    }
-
-    /// Labels on the user's foods (supplements excluded) with per-label counts.
-    func getFoodLabelStats() async throws -> [FoodLabelStat] {
-        let response: FoodLabelStatsResponse = try await get("/api/foods/labels", params: ["kind": "food"])
-        return response.labels
-    }
-
-    func summarizeFoodPackage(_ selection: FoodPackageSelection) async throws -> FoodPackageSummary {
-        try await post("/api/foods/package/summary", body: selection)
-    }
-
-    /// The shareable package for a selection. Raw bytes — the response is a binary
-    /// archive, not the JSON envelope `performRequest` expects — plus the name the
-    /// server gave it (`Content-Disposition`), so the shared file is named for its content.
-    func exportFoodPackage(_ selection: FoodPackageSelection) async throws -> FoodPackageExport {
-        var request = URLRequest(url: try makeURL("/api/foods/package/export"))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try encoder.encode(selection)
-        // Photos of a whole food database — allow more than the default 60s
-        request.timeoutInterval = 180
-        ErrorReporter.addBreadcrumb("POST /api/foods/package/export", category: "http")
-        do {
-            let (data, httpResponse) = try await executeRequestData(request)
-            if httpResponse.statusCode >= 400 {
-                throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
-            }
-            let filename = FoodPackageFilename.filename(
-                fromContentDisposition: httpResponse.value(forHTTPHeaderField: "Content-Disposition")
-            ) ?? "\(FoodPackageFilename.genericBase(date: Date())).\(FoodPackageFormat.fileExtension)"
-            return FoodPackageExport(data: data, filename: filename)
-        } catch {
-            ErrorReporter.capture(error, context: Self.errorContext(for: request, error: error))
-            throw error
-        }
-    }
-
-    /// New items and conflicts in a package; writes nothing.
-    func previewFoodPackage(_ data: Data, filename: String) async throws -> FoodPackagePreview {
-        try await postPackage("/api/foods/package/preview", data: data, filename: filename, resolutions: nil)
-    }
-
-    /// Imports the previewed file with a resolution per conflict. A stale preview
-    /// comes back as `APIError.conflict` — preview again.
-    func importFoodPackage(
-        _ data: Data,
-        filename: String,
-        resolutions: FoodPackageResolutions
-    ) async throws -> FoodPackageImportResult {
-        try await postPackage(
-            "/api/foods/package/import", data: data, filename: filename, resolutions: resolutions
-        )
-    }
-
-    /// A multipart POST with the package as `file` and, for the import, the
-    /// resolutions as a JSON `resolutions` part. Sets `Origin` like every other
-    /// native multipart POST (see `postMultipart`).
-    private func postPackage<T: Decodable>(
-        _ path: String,
-        data: Data,
-        filename: String,
-        resolutions: FoodPackageResolutions?
-    ) async throws -> T {
-        var request = URLRequest(url: try makeURL(path))
-        request.httpMethod = "POST"
-        let boundary = "Boundary-\(UUID().uuidString)"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue(baseURL, forHTTPHeaderField: "Origin")
-        request.timeoutInterval = 180
-        var body = Self.multipartBody(
-            boundary: boundary, fieldName: "file", mimeType: "application/zip",
-            parts: [(data: data, filename: filename)],
-            closing: false
-        )
-        if let resolutions {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"resolutions\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: application/json\r\n\r\n".data(using: .utf8)!)
-            body.append(try encoder.encode(resolutions))
-            body.append("\r\n".data(using: .utf8)!)
-        }
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
-        return try await performRequest(request)
-    }
-
-    private func deleteRequest(
+    func deleteRequest(
         _ path: String,
         idempotencyKey: String? = nil,
         clientEditedAt: String? = nil
@@ -1360,7 +336,7 @@ final class BissbilanzAPI {
         let _: EmptyResponse = try await performRequest(request)
     }
 
-    private func applySyncHeaders(
+    func applySyncHeaders(
         _ request: inout URLRequest,
         idempotencyKey: String?,
         clientEditedAt: String?
@@ -1381,7 +357,7 @@ final class BissbilanzAPI {
     /// Every request also drops a breadcrumb and, on failure, attaches the
     /// endpoint, method, status code and (truncated) response body — enough to
     /// debug a reported issue without reproducing it.
-    private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+    func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         ErrorReporter.addBreadcrumb(
             "\(request.httpMethod ?? "?") \(request.url?.path ?? "?")",
             category: "http"
@@ -1399,7 +375,7 @@ final class BissbilanzAPI {
     /// URL *path* is included — query strings can carry search terms (food
     /// names), and the response body is truncated to keep events small and
     /// avoid shipping large payloads.
-    private static func errorContext(for request: URLRequest, error: Error) -> [String: Any] {
+    static func errorContext(for request: URLRequest, error: Error) -> [String: Any] {
         var context: [String: Any] = [:]
         if let method = request.httpMethod {
             context["method"] = method
@@ -1433,7 +409,7 @@ final class BissbilanzAPI {
         return context
     }
 
-    private func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+    func executeRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         // Both the first attempt and the post-refresh 401 retry come back
         // through the same status classification + decode, so a 4xx/5xx/decode
         // failure on retry surfaces as the right APIError rather than a raw
@@ -1442,7 +418,7 @@ final class BissbilanzAPI {
         return try decodeResponse(data, httpResponse)
     }
 
-    private func executeRequestData(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    func executeRequestData(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         // Refresh a token already past its `exp` before spending a request on
         // it. The 401 path below still exists for everything this can't know
         // (a revoked token, a clock skew, an unparseable JWT) — this just stops
@@ -1580,4 +556,4 @@ final class BissbilanzAPI {
     }
 }
 
-private struct EmptyResponse: Decodable {}
+struct EmptyResponse: Decodable {}
