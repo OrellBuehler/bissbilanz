@@ -13,6 +13,7 @@ import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
+import com.bissbilanz.api.generated.model.RecipeStep
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementBackingFood
@@ -653,6 +654,61 @@ class LocalDataMigratorTest {
 
             assertEquals("/uploads/kept.webp", captures.foodCreates.single().imageUrl)
             coVerify(exactly = 0) { api.uploadImage(any(), any(), any()) }
+        }
+
+    @Test
+    fun migrateUploadsRecipeStepsAndReuploadsTheirLocalPhotosOnce() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple"))
+            insertRecipe(
+                recipeDetail("temp_recipe-1", foodId = "temp_food-a").copy(
+                    steps =
+                        listOf(
+                            RecipeStep("temp_s2", 1, "Cook", "file:///photos/step-a.jpg"),
+                            RecipeStep("temp_s1", 0, "Chop", "file:///photos/step-a.jpg"),
+                            RecipeStep("temp_s3", 2, "Serve", "/uploads/kept.webp"),
+                            RecipeStep("temp_s4", 3, "Rest", null),
+                        ),
+                ),
+            )
+            val captures = stubHappyApi()
+            coEvery { api.uploadImage(any(), any(), any(), any()) } returns "/uploads/srv-step.webp"
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            val steps = captures.recipeCreates.single().steps!!
+            assertEquals(listOf("Chop", "Cook", "Serve", "Rest"), steps.map { it.text })
+            assertEquals(
+                listOf("/uploads/srv-step.webp", "/uploads/srv-step.webp", "/uploads/kept.webp", null),
+                steps.map { it.imageUrl },
+            )
+            // Both steps point at one local file, uploaded once, as a step photo.
+            coVerify(exactly = 1) { api.uploadImage("step-a.jpg", any(), any(), "recipe_step") }
+        }
+
+    @Test
+    fun migrateDropsAnUnreadableStepPhotoButKeepsTheStep() =
+        runTest {
+            migrator = migratorFor(db, localPhotoReader = { null })
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple"))
+            insertRecipe(
+                recipeDetail("temp_recipe-1", foodId = "temp_food-a").copy(
+                    steps = listOf(RecipeStep("temp_s1", 0, "Chop", "file:///photos/gone.jpg")),
+                ),
+            )
+            val captures = stubHappyApi()
+
+            migrator.migrate()
+
+            assertEquals(MigrationState.Completed, migrator.state.value)
+            val step =
+                captures.recipeCreates
+                    .single()
+                    .steps!!
+                    .single()
+            assertEquals("Chop", step.text)
+            assertNull(step.imageUrl)
         }
 
     // -------------------------------------------------------------------------------

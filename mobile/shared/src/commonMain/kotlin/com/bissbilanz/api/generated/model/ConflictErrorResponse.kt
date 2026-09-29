@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.LastIngredientRecipe
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -27,6 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param ingredientCount
  * @param recipeCount
  * @param supplementIngredientCount
+ * @param lastIngredientRecipes
  */
 @Serializable
 data class ConflictErrorResponse(
@@ -35,4 +37,5 @@ data class ConflictErrorResponse(
     @SerialName(value = "ingredientCount") val ingredientCount: kotlin.Double? = null,
     @SerialName(value = "recipeCount") val recipeCount: kotlin.Double? = null,
     @SerialName(value = "supplementIngredientCount") val supplementIngredientCount: kotlin.Double? = null,
+    @SerialName(value = "lastIngredientRecipes") val lastIngredientRecipes: kotlin.collections.List<LastIngredientRecipe>? = null,
 )

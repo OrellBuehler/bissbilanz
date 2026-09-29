@@ -11,13 +11,17 @@ import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
+import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
+import com.bissbilanz.userdata.CachedEntry
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.mergeOpenFoodFactsOntoFood
@@ -344,19 +348,13 @@ class FoodRepository(
      * queues the server delete, which — if the food still has diary entries or is used by
      * a recipe — used to dead-letter on the resulting 409 and reappear on the next refresh,
      * with no indication to the user why. In Local mode (or a not-yet-uploaded temp id)
-     * there is no server to ask, so diary entries referencing it are counted locally
-     * instead (recipe-ingredient references aren't tracked in the local cache).
+     * there is no server to ask, so entries, recipes and supplements referencing it are
+     * read from the local cache instead, with the same rules as the server.
      */
     suspend fun deleteFoodChecked(id: String): DeleteOutcome {
         if (appModeManager.isLocal || id.isTempId()) {
-            val entryCount =
-                withContext(ioDispatcher) {
-                    db.userDataDatabaseQueries
-                        .selectEntriesByFoodId(id)
-                        .executeAsList()
-                        .size
-                }
-            if (entryCount > 0) return DeleteOutcome.Blocked(entryCount)
+            val blocked = localFoodUsage(id).toBlocked(id)
+            if (blocked != null) return blocked
             deleteFood(id)
             return DeleteOutcome.Deleted
         }
@@ -374,7 +372,7 @@ class FoodRepository(
         } catch (e: ApiException) {
             if (e.statusCode == 409) {
                 val conflict = e.responseBody?.let { json.decodeOrNull<DeleteConflictBody>(it) }
-                DeleteOutcome.Blocked(conflict?.entryCount ?: 0, conflict?.ingredientCount, conflict?.recipeCount)
+                conflict?.toBlocked() ?: DeleteOutcome.Blocked(0)
             } else {
                 deleteFood(id)
                 DeleteOutcome.Deleted
@@ -387,9 +385,15 @@ class FoodRepository(
         }
     }
 
-    /** Deletes a food the user already confirmed via a [DeleteOutcome.Blocked] prompt. */
+    /**
+     * Deletes a food the user already confirmed via a [DeleteOutcome.Blocked] prompt.
+     * Refused with [IllegalStateException] when [DeleteOutcome.Blocked.forceUnavailable]
+     * applies — the prompt must not offer it, and the server refuses it too.
+     */
     suspend fun forceDeleteFood(id: String) {
         if (appModeManager.isLocal || id.isTempId()) {
+            check(localFoodUsage(id).toBlocked(id)?.forceUnavailable != true) { "Food $id cannot be force-deleted" }
+            if (appModeManager.isLocal) removeFoodFromLocalRecipes(id)
             deleteFood(id)
             return
         }
@@ -408,6 +412,120 @@ class FoodRepository(
         }
         onFoodChanged?.invoke()
         imageUrl?.let { onImageOrphaned?.invoke(it) }
+    }
+
+    /**
+     * The diary entries, recipes and supplements that use this food, so a blocked delete
+     * can point the user at what to change. Local mode (or a not-yet-uploaded temp id)
+     * reads the local cache instead of asking the server.
+     */
+    suspend fun whereUsed(id: String): WhereUsed {
+        if (appModeManager.isLocal || id.isTempId()) {
+            val usage = localFoodUsage(id)
+            return WhereUsed(
+                entries = usage.entries.toWhereUsedEntries(json).take(WHERE_USED_ENTRY_LIMIT),
+                totalEntries = usage.entries.size,
+                recipes =
+                    usage.recipes
+                        .map { WhereUsedRef(it.id, it.name, isLastIngredient = it.ingredients.all { ing -> ing.foodId == id }) }
+                        .sortedBy { it.name.lowercase() },
+                supplements = usage.supplements.map { WhereUsedRef(it.id, it.name) }.sortedBy { it.name.lowercase() },
+            )
+        }
+        return api.getFoodUsage(id).toWhereUsed()
+    }
+
+    private class LocalFoodUsage(
+        val entries: List<CachedEntry>,
+        val recipes: List<RecipeDetail>,
+        val supplements: List<Supplement>,
+    ) {
+        /** Mirrors the server's `deleteFood` rules; null when nothing references the food. */
+        fun toBlocked(foodId: String): DeleteOutcome.Blocked? {
+            if (entries.isEmpty() && recipes.isEmpty() && supplements.isEmpty()) return null
+            return DeleteOutcome.Blocked(
+                entryCount = entries.size,
+                ingredientCount = recipes.sumOf { recipe -> recipe.ingredients.count { it.foodId == foodId } },
+                recipeCount = recipes.size,
+                supplementIngredientCount = supplements.sumOf { s -> s.ingredients.count { it.foodId == foodId } },
+                lastIngredientRecipes =
+                    recipes
+                        .filter { recipe -> recipe.ingredients.all { it.foodId == foodId } }
+                        .map { WhereUsedRef(it.id, it.name, isLastIngredient = true) },
+            )
+        }
+    }
+
+    private suspend fun localFoodUsage(id: String): LocalFoodUsage =
+        withContext(ioDispatcher) {
+            val queries = db.userDataDatabaseQueries
+            LocalFoodUsage(
+                entries = queries.selectEntriesByFoodId(id).executeAsList(),
+                recipes =
+                    queries
+                        .selectAllRecipes()
+                        .executeAsList()
+                        .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                        .filter { recipe -> recipe.ingredients.any { it.foodId == id } },
+                supplements =
+                    queries
+                        .selectAllSupplements()
+                        .executeAsList()
+                        .mapNotNull { json.decodeOrNull<Supplement>(it.jsonData) }
+                        .filter { supplement -> supplement.ingredients.any { it.foodId == id } },
+            )
+        }
+
+    /**
+     * Local-mode counterpart of the server's ON DELETE CASCADE on recipe ingredients: a
+     * forced food delete removes the food from every recipe that keeps other ingredients
+     * (never one it is the last ingredient of — that delete is refused) and recomputes
+     * their macros without it.
+     */
+    private suspend fun removeFoodFromLocalRecipes(id: String) {
+        withContext(ioDispatcher) {
+            val queries = db.userDataDatabaseQueries
+            queries.transaction {
+                queries.selectAllRecipes().executeAsList().forEach { row ->
+                    val recipe = json.decodeOrNull<RecipeDetail>(row.jsonData) ?: return@forEach
+                    if (recipe.ingredients.none { it.foodId == id }) return@forEach
+                    val remaining =
+                        recipe.ingredients
+                            .filter { it.foodId != id }
+                            .mapIndexed { index, ingredient -> ingredient.copy(sortOrder = index) }
+                    if (remaining.isEmpty()) return@forEach
+                    val macros =
+                        computeRecipePerServingMacros(remaining, recipe.totalServings) { foodId ->
+                            queries.selectFoodById(foodId).executeAsOneOrNull()?.let { json.decodeOrNull<Food>(it.jsonData) }
+                        }
+                    val withoutFood = recipe.copy(ingredients = remaining)
+                    val updated =
+                        if (macros == null) {
+                            withoutFood
+                        } else {
+                            withoutFood.copy(
+                                calories = macros.calories,
+                                protein = macros.protein,
+                                carbs = macros.carbs,
+                                fat = macros.fat,
+                                fiber = macros.fiber,
+                            )
+                        }
+                    queries.insertRecipe(
+                        id = updated.id,
+                        name = updated.name,
+                        totalServings = updated.totalServings,
+                        isFavorite = if (updated.isFavorite) 1L else 0L,
+                        calories = updated.calories,
+                        protein = updated.protein,
+                        carbs = updated.carbs,
+                        fat = updated.fat,
+                        fiber = updated.fiber,
+                        jsonData = json.encodeToString(updated),
+                    )
+                }
+            }
+        }
     }
 
     private fun requireOnline() {

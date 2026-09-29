@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Export foods and recipes as one shareable zip — the iOS counterpart of the
 /// web's FoodPackageExportDialog. Presented as a sheet from the foods list
-/// (everything, or by brand/label) and from a recipe (that recipe only).
+/// (everything, by brand/label, or the foods picked in multi-select) and from
+/// a recipe (that recipe only).
 struct FoodPackageExportView: View {
     enum Mode: Hashable { case all, filter, selected }
 
@@ -14,14 +15,17 @@ struct FoodPackageExportView: View {
 
     /// Pre-selected recipes (sharing one recipe); empty for the foods list.
     var recipeIds: [String] = []
+    /// Pre-selected foods (the foods list's multi-select); empty otherwise.
+    var foodIds: [String] = []
 
     @Environment(BissbilanzAPI.self) private var api
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mode: Mode = .all
-    @State private var includeRecipes = true
+    @State private var mode: Mode
+    @State private var includeRecipes: Bool
     @State private var brands: Set<String> = []
     @State private var labels: Set<String> = []
+    @State private var facetQuery = ""
     @State private var brandOptions: [FoodBrandStat] = []
     @State private var labelOptions: [FoodLabelStat] = []
     @State private var summary: FoodPackageSummary?
@@ -30,7 +34,17 @@ struct FoodPackageExportView: View {
     @State private var exported: ExportedArchive?
     @State private var errorMessage: String?
 
+    init(recipeIds: [String] = [], foodIds: [String] = []) {
+        self.recipeIds = recipeIds
+        self.foodIds = foodIds
+        _mode = State(initialValue: recipeIds.isEmpty && foodIds.isEmpty ? .all : .selected)
+        // Picked foods export just those unless the user opts into the recipes
+        // using them, like the web dialog.
+        _includeRecipes = State(initialValue: foodIds.isEmpty)
+    }
+
     private var recipesOnly: Bool { !recipeIds.isEmpty }
+    private var hasPreselection: Bool { !recipeIds.isEmpty || !foodIds.isEmpty }
 
     private var selection: FoodPackageSelection? {
         switch mode {
@@ -39,7 +53,11 @@ struct FoodPackageExportView: View {
                 ? FoodPackageSelection(includeRecipes: "all")
                 : FoodPackageSelection(all: true, includeRecipes: includeRecipes ? "all" : "none")
         case .selected:
-            FoodPackageSelection(recipeIds: recipeIds, includeRecipes: "none")
+            FoodPackageSelection(
+                foodIds: foodIds.isEmpty ? nil : foodIds,
+                recipeIds: recipeIds.isEmpty ? nil : recipeIds,
+                includeRecipes: includeRecipes && !foodIds.isEmpty ? "related" : "none"
+            )
         case .filter:
             brands.isEmpty && labels.isEmpty
                 ? nil
@@ -57,8 +75,8 @@ struct FoodPackageExportView: View {
                 Section {
                     Picker(L10n.foodPackageMode, selection: $mode) {
                         Text(L10n.foodPackageModeAll).tag(Mode.all)
-                        if recipesOnly {
-                            Text(L10n.foodPackageModeSelected(recipeIds.count)).tag(Mode.selected)
+                        if hasPreselection {
+                            Text(L10n.foodPackageModeSelected(recipeIds.count + foodIds.count)).tag(Mode.selected)
                         } else {
                             Text(L10n.foodPackageModeFilter).tag(Mode.filter)
                         }
@@ -91,6 +109,7 @@ struct FoodPackageExportView: View {
                     summaryView
                 }
             }
+            .facetSearchable(isEnabled: mode == .filter, text: $facetQuery, prompt: L10n.search)
             .navigationTitle(recipesOnly ? L10n.foodPackageShareRecipe : L10n.foodPackageExportTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -108,9 +127,6 @@ struct FoodPackageExportView: View {
             }
             .sheet(item: $exported) { archive in
                 ShareSheet(url: archive.url)
-            }
-            .task {
-                if recipesOnly { mode = .selected }
             }
             .task(id: mode) {
                 if mode == .filter { await loadFacets() }
@@ -160,11 +176,15 @@ struct FoodPackageExportView: View {
         options: [FacetOption],
         selected: Binding<Set<String>>
     ) -> some View {
-        Section(title) {
+        let query = facetQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let visible = query.isEmpty ? options : options.filter { $0.value.localizedCaseInsensitiveContains(query) }
+        return Section(title) {
             if options.isEmpty {
                 Text(L10n.foodPackageFilterEmpty).foregroundStyle(.secondary)
+            } else if visible.isEmpty {
+                Text(L10n.foodPackageFilterNoMatch).foregroundStyle(.secondary)
             }
-            ForEach(options) { option in
+            ForEach(visible) { option in
                 let value = option.value
                 Button {
                     if selected.wrappedValue.contains(value) {
@@ -231,6 +251,17 @@ struct FoodPackageExportView: View {
         } catch {
             errorMessage = L10n.foodPackageExportFailed
             ErrorReporter.capture(error)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func facetSearchable(isEnabled: Bool, text: Binding<String>, prompt: String) -> some View {
+        if isEnabled {
+            searchable(text: text, prompt: prompt)
+        } else {
+            self
         }
     }
 }

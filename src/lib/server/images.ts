@@ -19,6 +19,12 @@ export const THUMBNAIL_MAX_DIM = 512;
 /** AI meal photos: kept larger so the model can still read a nutrition label. */
 export const AI_PHOTO_MAX_DIM = 1024;
 
+/** Recipe step photos: larger than a thumbnail and never cropped, so the whole step stays visible. */
+export const RECIPE_STEP_MAX_DIM = 1280;
+
+/** Largest image accepted from an upload or a server-side download. */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 /** Decoded pixels a single image may expand to; guards against decompression bombs. */
 const MAX_INPUT_PIXELS = 25_000_000;
 
@@ -58,8 +64,15 @@ export const processImage = async (
 	file: File,
 	userId: string,
 	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
+): Promise<string> => processImageBytes(Buffer.from(await file.arrayBuffer()), userId, opts);
+
+/** `processImage` for bytes that are already in memory (e.g. a downloaded image). */
+export const processImageBytes = async (
+	bytes: Uint8Array,
+	userId: string,
+	opts?: { maxDim?: number; fit?: 'cover' | 'inside' }
 ): Promise<string> => {
-	const processed = await renderThumbnail(Buffer.from(await file.arrayBuffer()), opts);
+	const processed = await renderThumbnail(bytes, opts);
 
 	let filename: string | null = null;
 	try {

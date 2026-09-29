@@ -7,13 +7,15 @@
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
-	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
+	import DeleteBlockedDialog from '$lib/components/usage/DeleteBlockedDialog.svelte';
+	import WhereUsedDialog from '$lib/components/usage/WhereUsedDialog.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import Star from '@lucide/svelte/icons/star';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 	import Copy from '@lucide/svelte/icons/copy';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
 	import FileArchive from '@lucide/svelte/icons/file-archive';
@@ -26,6 +28,8 @@
 	import type { RecipeFormPayload } from '$lib/components/recipes/RecipeForm.svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { untrack } from 'svelte';
 	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
@@ -43,6 +47,8 @@
 		cookedWeight: number | null;
 		calories: number | null;
 		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
+		// null while the steps are not cached (opened offline before ever loading them).
+		steps: Array<{ text: string; imageUrl: string | null }> | null;
 	};
 
 	let packageExportOpen = $state(false);
@@ -53,8 +59,9 @@
 	let editingRecipe = $state<EditingRecipe | null>(null);
 	let formImageUrl: string | null = $state(null);
 	let uploading = $state(false);
-	let forceDeleteId: string | null = $state(null);
-	let forceDeleteCount = $state(0);
+	let blockedRecipe = $state<{ id: string; name: string; entryCount: number } | null>(null);
+	let usageOpen = $state(false);
+	let usageRecipe = $state<{ id: string; name: string } | null>(null);
 	let editingExtendedNutrients: Record<string, number | null> | null = $state(null);
 
 	let query = $state('');
@@ -85,6 +92,15 @@
 			recipeService.refresh();
 			loadFoods();
 		}
+	});
+
+	// A recipe linked from a "where it's used" list opens straight into its editor.
+	$effect(() => {
+		if (!browser) return;
+		const editId = $page.url.searchParams.get('edit');
+		if (!editId) return;
+		untrack(() => openEdit(editId));
+		goto('/recipes', { replaceState: true });
 	});
 
 	// "New recipe" from the command palette.
@@ -122,18 +138,17 @@
 		closeForm();
 	};
 
-	const deleteRecipe = async (id: string) => {
-		const result = await recipeService.delete(id);
+	const deleteRecipe = async (recipe: { id: string; name: string }) => {
+		const result = await recipeService.delete(recipe.id);
 		if (result.status === 'blocked') {
-			forceDeleteId = id;
-			forceDeleteCount = result.entryCount;
+			blockedRecipe = { id: recipe.id, name: recipe.name, entryCount: result.entryCount };
 		}
 	};
 
-	const confirmForceDelete = async () => {
-		if (!forceDeleteId) return;
-		await recipeService.delete(forceDeleteId, { force: true });
-		forceDeleteId = null;
+	const showUsage = () => {
+		if (!blockedRecipe) return;
+		usageRecipe = { id: blockedRecipe.id, name: blockedRecipe.name };
+		usageOpen = true;
 	};
 
 	const toggleFavorite = async (recipe: (typeof recipes)[number]) => {
@@ -165,6 +180,7 @@
 		const recipe = await db.recipes.get(id);
 		if (!recipe) return;
 		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).sortBy('sortOrder');
+		const cachedSteps = await recipeService.cachedSteps(recipe);
 		editingRecipe = {
 			id: recipe.id,
 			name: recipe.name,
@@ -177,7 +193,8 @@
 				foodId: i.foodId,
 				quantity: i.quantity,
 				servingUnit: i.servingUnit
-			}))
+			})),
+			steps: cachedSteps?.map((step) => ({ text: step.text, imageUrl: step.imageUrl })) ?? null
 		};
 		formImageUrl = recipe.imageUrl;
 		showForm = true;
@@ -197,6 +214,8 @@
 			uploading = false;
 		}
 	};
+
+	const handleStepImageUpload = (file: File) => uploadImageFile(file, 'recipe-step', 'recipe_step');
 
 	const handleImageRemove = async () => {
 		if (uploading) return;
@@ -315,6 +334,11 @@
 								<span class="text-orange-500">{fmt(recipe.carbs ?? 0)}g C</span>
 								<span class="text-yellow-600">{fmt(recipe.fat ?? 0)}g F</span>
 							</div>
+							{#if recipe.stepCount}
+								<p class="mt-1 text-xs text-muted-foreground">
+									{m.recipe_step_count({ count: recipe.stepCount })}
+								</p>
+							{/if}
 							{#if cookedWeightSubtitle(recipe)}
 								<p class="mt-1 text-xs text-muted-foreground">{cookedWeightSubtitle(recipe)}</p>
 							{/if}
@@ -346,6 +370,20 @@
 							>
 								<CirclePlus class="size-4" />
 							</Button>
+							{#if recipe.stepCount}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="hidden sm:inline-flex"
+									aria-label={m.recipe_start_cooking()}
+									onclick={(e) => {
+										e.stopPropagation();
+										goto(`/recipes/${recipe.id}/cook`);
+									}}
+								>
+									<ChefHat class="size-4" />
+								</Button>
+							{/if}
 							<Button
 								variant="ghost"
 								size="icon"
@@ -387,6 +425,12 @@
 										{/snippet}
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
+										{#if recipe.stepCount}
+											<DropdownMenu.Item onclick={() => goto(`/recipes/${recipe.id}/cook`)}>
+												<ChefHat class="mr-2 size-4" />
+												{m.recipe_start_cooking()}
+											</DropdownMenu.Item>
+										{/if}
 										<DropdownMenu.Item onclick={() => duplicateRecipe(recipe)}>
 											<Copy class="mr-2 size-4" />
 											{m.recipes_duplicate()}
@@ -403,7 +447,7 @@
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
 							</div>
-							<DeleteButton onDelete={() => deleteRecipe(recipe.id)} title={m.recipes_delete()} />
+							<DeleteButton onDelete={() => deleteRecipe(recipe)} title={m.recipes_delete()} />
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -445,14 +489,24 @@
 			onSave={editingRecipe ? updateRecipe : createRecipe}
 			onImageUpload={handleImageUpload}
 			onImageRemove={handleImageRemove}
+			cookHref={editingRecipe ? `/recipes/${editingRecipe.id}/cook` : undefined}
+			onUploadStepImage={handleStepImageUpload}
 		/>
 	{/key}
 </ResponsiveModal>
 
-<ForceDeleteDialog
-	open={forceDeleteId !== null}
-	count={forceDeleteCount}
-	description={m.recipes_delete_has_entries({ count: forceDeleteCount })}
-	onConfirm={confirmForceDelete}
-	onCancel={() => (forceDeleteId = null)}
+<DeleteBlockedDialog
+	open={blockedRecipe !== null}
+	title={m.recipes_delete_blocked_title()}
+	description={m.recipes_delete_blocked({ count: blockedRecipe?.entryCount ?? 0 })}
+	actionLabel={m.usage_where_logged()}
+	onAction={showUsage}
+	onClose={() => (blockedRecipe = null)}
+/>
+
+<WhereUsedDialog
+	bind:open={usageOpen}
+	kind="recipe"
+	id={usageRecipe?.id ?? null}
+	name={usageRecipe?.name ?? ''}
 />

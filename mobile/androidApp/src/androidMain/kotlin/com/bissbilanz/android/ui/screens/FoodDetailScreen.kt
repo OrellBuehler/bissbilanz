@@ -42,6 +42,7 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.MergeConfirmDialog
 import com.bissbilanz.android.ui.components.MergeTargetSearchDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
@@ -84,6 +85,7 @@ fun FoodDetailScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
+    var showUsage by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
     var showMergeTargetPicker by remember { mutableStateOf(false) }
@@ -191,6 +193,7 @@ fun FoodDetailScreen(
     deleteConflict?.let { conflict ->
         ForceDeleteDialog(
             outcome = conflict,
+            onShowUsage = { showUsage = true },
             onConfirm = {
                 deleteConflict = null
                 scope.launch {
@@ -205,6 +208,30 @@ fun FoodDetailScreen(
                 }
             },
             onCancel = { deleteConflict = null },
+        )
+    }
+
+    if (showUsage) {
+        WhereUsedSheet(
+            title = stringResource(R.string.where_used_title_used),
+            name = food?.name ?: "",
+            load = { foodRepo.whereUsed(foodId) },
+            onDismiss = { showUsage = false },
+            onOpenEntry = { entry ->
+                showUsage = false
+                deleteConflict = null
+                navController.navigate("daylog/${entry.date}?entry=${entry.id}")
+            },
+            onOpenRecipe = { recipe ->
+                showUsage = false
+                deleteConflict = null
+                navController.navigate("recipe/${recipe.id}")
+            },
+            onOpenSupplement = {
+                showUsage = false
+                deleteConflict = null
+                navController.navigate("supplements")
+            },
         )
     }
 

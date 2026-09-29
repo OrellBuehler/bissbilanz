@@ -27,6 +27,8 @@ interface MockDB {
 interface MockDBFactory {
 	db: MockDB;
 	setResult: (result: any) => void;
+	/** Results handed to the next awaited queries in order; afterwards setResult's value applies. */
+	queueResults: (results: any[]) => void;
 	setError: (error: Error) => void;
 	reset: () => void;
 	getCalls: () => Array<{ method: string; args: any[] }>;
@@ -35,6 +37,8 @@ interface MockDBFactory {
 export function createMockDB(): MockDBFactory {
 	let mockResult: any = [];
 	let mockError: Error | null = null;
+	let queued: any[] = [];
+	const nextResult = () => (queued.length > 0 ? queued.shift() : mockResult);
 	const calls: Array<{ method: string; args: any[] }> = [];
 
 	// Create a chainable object that tracks calls and resolves to mockResult
@@ -48,7 +52,7 @@ export function createMockDB(): MockDBFactory {
 			then: (resolve: (value: any) => any, reject?: (error: any) => any) =>
 				mockError
 					? Promise.reject(mockError).then(resolve, reject)
-					: Promise.resolve(mockResult).then(resolve, reject),
+					: Promise.resolve(nextResult()).then(resolve, reject),
 			catch: (reject: (error: any) => any) =>
 				mockError
 					? Promise.reject(mockError).catch(reject)
@@ -116,6 +120,9 @@ export function createMockDB(): MockDBFactory {
 			mockResult = result;
 			mockError = null;
 		},
+		queueResults: (results: any[]) => {
+			queued = [...results];
+		},
 		setError: (error: Error) => {
 			mockError = error;
 			mockResult = [];
@@ -123,6 +130,7 @@ export function createMockDB(): MockDBFactory {
 		reset: () => {
 			mockResult = [];
 			mockError = null;
+			queued = [];
 			calls.length = 0;
 		},
 		getCalls: () => [...calls]

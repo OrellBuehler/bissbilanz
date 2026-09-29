@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,6 +24,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -32,6 +34,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -59,6 +64,7 @@ fun FoodPackageExportSheet(
     val exportedFile by viewModel.exportedFile.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var facetQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(exportedFile) {
         exportedFile?.let { file ->
@@ -122,13 +128,23 @@ fun FoodPackageExportSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                OutlinedTextField(
+                    value = facetQuery,
+                    onValueChange = { facetQuery = it },
+                    label = { Text(stringResource(R.string.food_package_filter_search)) },
+                    leadingIcon = { Icon(Icons.Default.Search, stringResource(R.string.food_search_icon_desc)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
                 FacetChips(
+                    query = facetQuery,
                     title = stringResource(R.string.food_package_brands),
                     options = state.brandOptions.map { it.brand to it.count },
                     selected = state.brands,
                     onToggle = viewModel::toggleBrand,
                 )
                 FacetChips(
+                    query = facetQuery,
                     title = stringResource(R.string.food_package_labels),
                     options = state.labelOptions.map { it.label to it.count },
                     selected = state.labels,
@@ -213,6 +229,7 @@ fun FoodPackageExportSheet(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FacetChips(
+    query: String,
     title: String,
     options: List<Pair<String, Int>>,
     selected: Set<String>,
@@ -227,8 +244,18 @@ private fun FacetChips(
         )
         return
     }
+    val trimmed = query.trim()
+    val visible = if (trimmed.isEmpty()) options else options.filter { it.first.contains(trimmed, ignoreCase = true) }
+    if (visible.isEmpty()) {
+        Text(
+            stringResource(R.string.food_package_filter_no_match),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (value, count) ->
+        visible.forEach { (value, count) ->
             val isSelected = value in selected
             FilterChip(
                 selected = isSelected,

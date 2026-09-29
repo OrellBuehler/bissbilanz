@@ -235,6 +235,7 @@
 		<DayLog
 			date={activeDate}
 			dashboardStyle={true}
+			highlightEntryId={data.entry}
 			onTotalsChange={(t) => (daylogTotals = t)}
 			showFasting={userPrefs?.showFastingWidget ?? true}
 			showDayProperties={false}

@@ -2,9 +2,9 @@ import { liveQuery } from 'dexie';
 import * as Sentry from '@sentry/sveltekit';
 import { browser } from '$app/environment';
 import { db } from '$lib/db';
-import type { DexieRecipe, DexieRecipeIngredient } from '$lib/db/types';
+import type { DexieRecipe, DexieRecipeIngredient, DexieRecipeStep } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { enqueue } from '$lib/stores/offline-queue';
+import { enqueue, pendingIdsFor } from '$lib/stores/offline-queue';
 import { refreshTable, withOfflineFallback } from './base';
 
 function allRecipes() {
@@ -16,8 +16,37 @@ function recipeById(id: string) {
 		const recipe = await db.recipes.get(id);
 		if (!recipe) return undefined;
 		const ingredients = await db.recipeIngredients.where('recipeId').equals(id).toArray();
-		return { recipe, ingredients };
+		const steps = await db.recipeSteps.where('recipeId').equals(id).sortBy('sortOrder');
+		return { recipe, ingredients, steps };
 	});
+}
+
+type StepInput = { text: string; imageUrl?: string | null };
+
+const toStepRows = (recipeId: string, steps: StepInput[]): DexieRecipeStep[] =>
+	steps.map((step, index) => ({
+		id: crypto.randomUUID(),
+		recipeId,
+		sortOrder: index,
+		text: step.text,
+		imageUrl: step.imageUrl ?? null
+	}));
+
+async function replaceLocalSteps(recipeId: string, rows: DexieRecipeStep[]) {
+	await db.recipeSteps.where('recipeId').equals(recipeId).delete();
+	if (rows.length > 0) await db.recipeSteps.bulkPut(rows);
+}
+
+/**
+ * Cooking steps of a cached recipe, or null when the cache is known to be
+ * incomplete (the list said N steps but fewer are mirrored, e.g. the recipe was
+ * only ever loaded through the list). Callers use null to avoid treating
+ * "not downloaded yet" as "no steps" — an edit would otherwise wipe them.
+ */
+async function cachedSteps(recipe: DexieRecipe): Promise<DexieRecipeStep[] | null> {
+	const rows = await db.recipeSteps.where('recipeId').equals(recipe.id).sortBy('sortOrder');
+	if (recipe.stepCount === undefined || rows.length !== recipe.stepCount) return null;
+	return rows;
 }
 
 async function refresh() {
@@ -28,11 +57,37 @@ async function refresh() {
 			const { data } = await api.GET('/api/recipes');
 			return (data?.recipes as unknown as DexieRecipe[]) ?? null;
 		},
-		extraTables: [db.recipeIngredients],
+		extraTables: [db.recipeIngredients, db.recipeSteps],
 		cascadeDelete: async (staleIds) => {
 			await db.recipeIngredients.where('recipeId').anyOf(staleIds).delete();
+			await db.recipeSteps.where('recipeId').anyOf(staleIds).delete();
 		}
 	});
+	await prefetchMissingSteps();
+}
+
+/**
+ * The list endpoint only reports a step count, so download the detail of any
+ * recipe whose steps are not mirrored yet — that is what lets the cooking mode
+ * open without a connection. Recipes with an un-synced local edit are skipped:
+ * the server copy would overwrite it.
+ */
+async function prefetchMissingSteps() {
+	if (browser && navigator.onLine === false) return;
+	try {
+		const withSteps = (await db.recipes.toArray()).filter((r) => (r.stepCount ?? 0) > 0);
+		if (withSteps.length === 0) return;
+		const pending = await pendingIdsFor('recipes');
+		for (const recipe of withSteps) {
+			if (pending.has(recipe.id)) continue;
+			const local = await db.recipeSteps.where('recipeId').equals(recipe.id).count();
+			if (local !== recipe.stepCount) await refreshById(recipe.id);
+		}
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'recipe-service.prefetchMissingSteps' } });
+		}
+	}
 }
 
 /**
@@ -60,10 +115,25 @@ async function refreshById(id: string) {
 
 async function putRecipeWithIngredients(
 	id: string,
-	recipe: { ingredients?: unknown } & Record<string, unknown>
+	recipe: { ingredients?: unknown; steps?: unknown } & Record<string, unknown>
 ) {
-	const { ingredients, ...recipeData } = recipe;
-	await db.recipes.put(recipeData as unknown as DexieRecipe);
+	const { ingredients, steps, ...recipeData } = recipe;
+	const stepRows = Array.isArray(steps)
+		? (steps as Array<Partial<DexieRecipeStep> & { text: string }>).map(
+				(step, index): DexieRecipeStep => ({
+					id: step.id ?? crypto.randomUUID(),
+					recipeId: id,
+					sortOrder: step.sortOrder ?? index,
+					text: step.text,
+					imageUrl: step.imageUrl ?? null
+				})
+			)
+		: null;
+	await db.recipes.put({
+		...recipeData,
+		...(stepRows ? { stepCount: stepRows.length } : {})
+	} as unknown as DexieRecipe);
+	if (stepRows) await replaceLocalSteps(id, stepRows);
 	if (Array.isArray(ingredients)) {
 		await db.recipeIngredients.where('recipeId').equals(id).delete();
 		await db.recipeIngredients.bulkPut(
@@ -98,11 +168,15 @@ async function create(recipe: Record<string, unknown>): Promise<MutationResult> 
 		carbs: null,
 		fat: null,
 		fiber: null,
+		stepCount: Array.isArray(recipe.steps) ? recipe.steps.length : 0,
 		createdAt: now,
 		updatedAt: now
 	};
 
 	await db.recipes.put(dexieRecipe);
+	if (Array.isArray(recipe.steps)) {
+		await replaceLocalSteps(id, toStepRows(id, recipe.steps as StepInput[]));
+	}
 
 	if (Array.isArray(recipe.ingredients)) {
 		const items: DexieRecipeIngredient[] = (
@@ -138,7 +212,7 @@ async function create(recipe: Record<string, unknown>): Promise<MutationResult> 
 type DuplicateRecipeResult = { status: 'created' | 'queued'; id: string } | { status: 'failed' };
 
 /**
- * Copies a recipe (ingredients, servings, cooked weight) under a new name,
+ * Copies a recipe (ingredients, steps, servings, cooked weight) under a new name,
  * not favorited, without its image (two recipes must never share one
  * `imageUrl` — deleting or changing either row's image would unlink the
  * file out from under the other, since `unlinkUpload` has no reference
@@ -153,6 +227,15 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 		.where('recipeId')
 		.equals(id)
 		.sortBy('sortOrder');
+	// Step photos may be shared with the copy: the server only unlinks a file
+	// once no step, recipe or food references it any more. When the source's
+	// steps are not fully cached, fetch them so the copy does not lose them.
+	let sourceSteps = await cachedSteps(source);
+	if (!sourceSteps) {
+		await refreshById(id);
+		const reloaded = await db.recipes.get(id);
+		sourceSteps = (reloaded && (await cachedSteps(reloaded))) || [];
+	}
 
 	const now = new Date().toISOString();
 	const localId = crypto.randomUUID();
@@ -165,7 +248,8 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 			foodId: i.foodId,
 			quantity: i.quantity,
 			servingUnit: i.servingUnit
-		}))
+		})),
+		steps: sourceSteps.map((step) => ({ text: step.text, imageUrl: step.imageUrl }))
 	};
 
 	const dexieRecipe: DexieRecipe = {
@@ -181,10 +265,12 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 		carbs: source.carbs,
 		fat: source.fat,
 		fiber: source.fiber,
+		stepCount: sourceSteps.length,
 		createdAt: now,
 		updatedAt: now
 	};
 	await db.recipes.put(dexieRecipe);
+	await replaceLocalSteps(localId, toStepRows(localId, payload.steps));
 	await db.recipeIngredients.bulkPut(
 		sourceIngredients.map((i): DexieRecipeIngredient => ({
 			id: crypto.randomUUID(),
@@ -204,6 +290,7 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 				// reachable under one consistent key afterward.
 				await db.recipes.delete(localId);
 				await db.recipeIngredients.where('recipeId').equals(localId).delete();
+				await db.recipeSteps.where('recipeId').equals(localId).delete();
 				await putRecipeWithIngredients(data.recipe.id as string, data.recipe);
 			},
 			method: 'POST',
@@ -223,8 +310,13 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 
 async function update(id: string, recipe: Record<string, unknown>): Promise<MutationResult> {
 	const now = new Date().toISOString();
-	const { ingredients, ...recipeUpdates } = recipe;
-	await db.recipes.update(id, { ...recipeUpdates, updatedAt: now });
+	const { ingredients, steps, ...recipeUpdates } = recipe;
+	await db.recipes.update(id, {
+		...recipeUpdates,
+		...(Array.isArray(steps) ? { stepCount: steps.length } : {}),
+		updatedAt: now
+	});
+	if (Array.isArray(steps)) await replaceLocalSteps(id, toStepRows(id, steps as StepInput[]));
 
 	if (Array.isArray(ingredients)) {
 		await db.recipeIngredients.where('recipeId').equals(id).delete();
@@ -266,33 +358,20 @@ type DeleteRecipeResult =
 	{ status: 'deleted' } | { status: 'queued' } | { status: 'blocked'; entryCount: number };
 
 /**
- * Deletes a recipe, mirroring the web's other force-delete flows: a
- * conflict (the recipe still has diary entries) must reach the UI instead of
- * being silently swallowed, so this does NOT delete the local Dexie row
- * until the server confirms (or the caller passes `force: true` after the
- * user confirmed).
+ * Deletes a recipe. A conflict (the recipe is still logged in diary entries)
+ * must reach the UI instead of being silently swallowed, so this does NOT
+ * delete the local Dexie row until the server confirms. There is no force
+ * option: the entries have to be removed or changed explicitly first.
  */
-async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<DeleteRecipeResult> {
-	const force = opts?.force ?? false;
-
+async function deleteRecipe(id: string): Promise<DeleteRecipeResult> {
 	if (browser && navigator.onLine === false) {
-		await db.recipes.delete(id);
-		await db.recipeIngredients.where('recipeId').equals(id).delete();
-		await enqueue(
-			'DELETE',
-			`/api/recipes/${id}${force ? '?force=true' : ''}`,
-			{},
-			{
-				affectedTable: 'recipes',
-				affectedId: id
-			}
-		);
+		await queueDelete(id);
 		return { status: 'queued' };
 	}
 
 	try {
 		const { error, response } = await api.DELETE('/api/recipes/{id}', {
-			params: { path: { id }, query: force ? { force: true } : undefined }
+			params: { path: { id } }
 		});
 		if ((error as { error?: string } | undefined)?.error === 'has_entries') {
 			return { status: 'blocked', entryCount: (error as { entryCount?: number }).entryCount ?? 0 };
@@ -300,6 +379,7 @@ async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<Del
 		if (response.ok) {
 			await db.recipes.delete(id);
 			await db.recipeIngredients.where('recipeId').equals(id).delete();
+			await db.recipeSteps.where('recipeId').equals(id).delete();
 			return { status: 'deleted' };
 		}
 		// Any other failure (e.g. a stale-delete LWW conflict) — a refresh will
@@ -307,24 +387,30 @@ async function deleteRecipe(id: string, opts?: { force?: boolean }): Promise<Del
 		await refresh();
 		return { status: 'queued' };
 	} catch {
-		await db.recipes.delete(id);
-		await db.recipeIngredients.where('recipeId').equals(id).delete();
-		await enqueue(
-			'DELETE',
-			`/api/recipes/${id}${force ? '?force=true' : ''}`,
-			{},
-			{
-				affectedTable: 'recipes',
-				affectedId: id
-			}
-		);
+		await queueDelete(id);
 		return { status: 'queued' };
 	}
+}
+
+async function queueDelete(id: string) {
+	await db.recipes.delete(id);
+	await db.recipeIngredients.where('recipeId').equals(id).delete();
+	await db.recipeSteps.where('recipeId').equals(id).delete();
+	await enqueue(
+		'DELETE',
+		`/api/recipes/${id}`,
+		{},
+		{
+			affectedTable: 'recipes',
+			affectedId: id
+		}
+	);
 }
 
 export const recipeService = {
 	allRecipes,
 	recipeById,
+	cachedSteps,
 	refresh,
 	refreshById,
 	create,

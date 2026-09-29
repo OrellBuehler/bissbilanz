@@ -4,9 +4,17 @@ import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, eq, inArray } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
-import { foodLabels, foods, recipeIngredients, recipes, uploads } from '$lib/server/schema';
+import {
+	foodLabels,
+	foods,
+	recipeIngredients,
+	recipeSteps,
+	recipes,
+	uploads
+} from '$lib/server/schema';
 import { UPLOAD_DIR, renderThumbnail, unlinkUploads, writeUploadFile } from '$lib/server/images';
 import { isDuplicateBarcodeError } from '$lib/server/foods';
+import { unlinkUnreferencedUploads } from '$lib/server/recipes';
 import { MAX_LABELS_PER_FOOD, normalizeLabels } from '$lib/server/labels';
 import { ApiError } from '$lib/server/errors';
 import { collect, inChunks } from '$lib/server/db-chunks';
@@ -34,6 +42,8 @@ export type FoodPackageImportResult = {
 
 export const PACKAGE_CHANGED = 'package_changed';
 const IMAGE_CONCURRENCY = 4;
+
+const stepImageKey = (recipeRef: string, index: number) => `${recipeRef}s${index + 1}`;
 
 /** Fields a package food carries onto the stored row (insert and replace alike). */
 const foodFields = (food: PackageFood) => ({
@@ -96,15 +106,36 @@ export async function commitFoodPackageImport(
 	const issues: PackageIssue[] = [...match.issues, ...ops.issues];
 
 	// ── Images ────────────────────────────────────────────────────────────
-	const imageJobs: { path: string; name: string; ref: string }[] = [];
+	// `key` identifies the image within the import; `ref` is the item shown in issues.
+	const imageJobs: { path: string; name: string; ref: string; key: string }[] = [];
 	for (const op of ops.foods.values()) {
 		if (op.kind !== 'skip' && op.food.image) {
-			imageJobs.push({ path: op.food.image, name: op.food.name, ref: op.food.ref });
+			imageJobs.push({
+				path: op.food.image,
+				name: op.food.name,
+				ref: op.food.ref,
+				key: op.food.ref
+			});
 		}
 	}
 	for (const op of ops.recipes.values()) {
-		if (op.kind !== 'skip' && op.recipe.image) {
-			imageJobs.push({ path: op.recipe.image, name: op.recipe.name, ref: op.recipe.ref });
+		if (op.kind === 'skip') continue;
+		if (op.recipe.image) {
+			imageJobs.push({
+				path: op.recipe.image,
+				name: op.recipe.name,
+				ref: op.recipe.ref,
+				key: op.recipe.ref
+			});
+		}
+		for (const [index, step] of (op.recipe.steps ?? []).entries()) {
+			if (!step.image) continue;
+			imageJobs.push({
+				path: step.image,
+				name: `${op.recipe.name}, step ${index + 1}`,
+				ref: op.recipe.ref,
+				key: stepImageKey(op.recipe.ref, index)
+			});
 		}
 	}
 	const imageBytes = pkg.readImages([...new Set(imageJobs.map((job) => job.path))]);
@@ -126,7 +157,7 @@ export async function commitFoodPackageImport(
 			}
 			const filename = await writeUploadFile(rendered);
 			written.push(filename);
-			imageByRef.set(job.ref, `/uploads/${filename}`);
+			imageByRef.set(job.key, `/uploads/${filename}`);
 		});
 	} catch (error) {
 		await dropFiles(written);
@@ -136,10 +167,19 @@ export async function commitFoodPackageImport(
 	const imageFor = (ref: string, url: string | null | undefined) =>
 		imageByRef.get(ref) ?? packageImageUrl(url);
 
+	const stepRowsFor = (recipeId: string, recipe: PackageRecipe) =>
+		(recipe.steps ?? []).map((step, index) => ({
+			recipeId,
+			sortOrder: index,
+			text: step.text,
+			imageUrl: imageFor(stepImageKey(recipe.ref, index), step.imageUrl)
+		}));
+
 	// ── Writes ────────────────────────────────────────────────────────────
 	const now = new Date();
 	const foodIdByRef = new Map<string, string>();
 	const superseded: string[] = [];
+	const supersededSteps: string[] = [];
 	const counts = {
 		created: { foods: 0, recipes: 0 },
 		replaced: { foods: 0, recipes: 0 },
@@ -243,6 +283,7 @@ export async function commitFoodPackageImport(
 
 			const recipeInserts: (typeof recipes.$inferInsert)[] = [];
 			const ingredientInserts: ReturnType<typeof ingredientRows> = [];
+			const stepInserts: ReturnType<typeof stepRowsFor> = [];
 			for (const op of ops.recipes.values()) {
 				if (op.kind === 'skip') {
 					counts.skipped.recipes += 1;
@@ -263,6 +304,7 @@ export async function commitFoodPackageImport(
 						updatedAt: now
 					});
 					ingredientInserts.push(...ingredientRows(id, op.recipe));
+					stepInserts.push(...stepRowsFor(id, op.recipe));
 					if (op.keptBoth) counts.keptBoth.recipes += 1;
 					else counts.created.recipes += 1;
 					continue;
@@ -284,11 +326,26 @@ export async function commitFoodPackageImport(
 					.where(and(eq(recipes.id, op.id), eq(recipes.userId, userId)));
 				await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, op.id));
 				ingredientInserts.push(...ingredientRows(op.id, op.recipe));
+				// A package without a `steps` list predates steps: keep what the recipe has.
+				if (op.recipe.steps) {
+					const oldSteps = await tx
+						.select({ imageUrl: recipeSteps.imageUrl })
+						.from(recipeSteps)
+						.where(eq(recipeSteps.recipeId, op.id));
+					await tx.delete(recipeSteps).where(eq(recipeSteps.recipeId, op.id));
+					const rows = stepRowsFor(op.id, op.recipe);
+					stepInserts.push(...rows);
+					const kept = new Set(rows.map((row) => row.imageUrl));
+					for (const row of oldSteps) {
+						if (row.imageUrl && !kept.has(row.imageUrl)) supersededSteps.push(row.imageUrl);
+					}
+				}
 				if (image && old.imageUrl && old.imageUrl !== image) superseded.push(old.imageUrl);
 				counts.replaced.recipes += 1;
 			}
 			await inChunks(recipeInserts, (part) => tx.insert(recipes).values(part));
 			await inChunks(ingredientInserts, (part) => tx.insert(recipeIngredients).values(part));
+			await inChunks(stepInserts, (part) => tx.insert(recipeSteps).values(part));
 		});
 	} catch (error) {
 		await dropFiles(written);
@@ -300,6 +357,7 @@ export async function commitFoodPackageImport(
 	}
 
 	await unlinkUploads(superseded, userId);
+	await unlinkUnreferencedUploads(supersededSteps, userId);
 
 	return {
 		...counts,

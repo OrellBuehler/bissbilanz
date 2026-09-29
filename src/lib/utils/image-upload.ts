@@ -11,9 +11,15 @@ type UploadTarget = { type: 'food'; id: string } | { type: 'recipe'; id: string 
  * anything. A create flow has no row to PATCH yet, so it carries the URL in the
  * create body instead; an abandoned upload is collected by the orphan sweep.
  */
-export async function uploadImageFile(file: File, context = 'create'): Promise<string | null> {
+export async function uploadImageFile(
+	file: File,
+	context = 'create',
+	purpose?: 'recipe_step'
+): Promise<string | null> {
 	const formData = new FormData();
 	formData.append('image', file);
+	// A step photo keeps its aspect ratio (up to 1280px) instead of the square thumbnail.
+	if (purpose) formData.append('purpose', purpose);
 
 	try {
 		const uploadRes = await apiFetch('/api/images/upload', {

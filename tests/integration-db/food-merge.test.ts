@@ -428,4 +428,148 @@ describe('mergeFoods (integration)', () => {
 			.where(eq(foods.id, sourceBacking.id));
 		expect(remainingBackingFoods).toHaveLength(0);
 	});
+
+	describe('unit-aware rescaling', () => {
+		const insertFood = async (
+			name: string,
+			servingSize: number,
+			servingUnit: 'g' | 'kg' | 'ml' | 'l'
+		) => {
+			const db = getTestDB(dbUrl);
+			const [row] = await db
+				.insert(foods)
+				.values({
+					userId,
+					name,
+					servingSize,
+					servingUnit,
+					calories: 100,
+					protein: 0,
+					carbs: 0,
+					fat: 0,
+					fiber: 0
+				})
+				.returning();
+			return row;
+		};
+
+		const logEntry = async (foodId: string, servings: number) => {
+			const db = getTestDB(dbUrl);
+			const [entry] = await db
+				.insert(foodEntries)
+				.values({ userId, foodId, date: '2026-04-21', mealType: 'lunch', servings })
+				.returning();
+			return entry;
+		};
+
+		const merge = async (keeper: string, source: string) => {
+			const { mergeFoods } = await import('$lib/server/food-merge');
+			const result = await mergeFoods(userId, { keeperId: keeper, sourceIds: [source] });
+			expect(result.success).toBe(true);
+		};
+
+		const servingsOf = async (id: string) => {
+			const db = getTestDB(dbUrl);
+			const [row] = await db.select().from(foodEntries).where(eq(foodEntries.id, id));
+			return row.servings;
+		};
+
+		it('converts kg to g (1 kg source into 100 g keeper)', async () => {
+			const source = await insertFood('Flour 1kg', 1, 'kg');
+			const entry = await logEntry(source.id, 0.5);
+			await merge(keeperId, source.id);
+			// 0.5 kg = 500 g = 5 servings of the 100 g keeper.
+			expect(await servingsOf(entry.id)).toBeCloseTo(5, 5);
+		});
+
+		it('converts g to kg (100 g source into 1 kg keeper)', async () => {
+			const db = getTestDB(dbUrl);
+			const kgKeeper = await insertFood('Flour 1kg', 1, 'kg');
+			const entry = await logEntry(sourceId, 3);
+			await merge(kgKeeper.id, sourceId);
+			// 300 g = 0.3 servings of the 1 kg keeper.
+			expect(await servingsOf(entry.id)).toBeCloseTo(0.3, 5);
+			const rows = await db.select().from(foodEntries).where(eq(foodEntries.id, entry.id));
+			expect(rows[0].foodId).toBe(kgKeeper.id);
+		});
+
+		it('converts l to ml (1 l source into 330 ml keeper)', async () => {
+			const mlKeeper = await insertFood('Cola 330ml', 330, 'ml');
+			const source = await insertFood('Cola 1l', 1, 'l');
+			const entry = await logEntry(source.id, 2);
+			await merge(mlKeeper.id, source.id);
+			// 2 l = 2000 ml = 2000/330 servings.
+			expect(await servingsOf(entry.id)).toBeCloseTo(2000 / 330, 5);
+		});
+
+		it('leaves same-unit merges on the plain size ratio', async () => {
+			const source = await insertFood('Yogurt 250g', 250, 'g');
+			const entry = await logEntry(source.id, 2);
+			await merge(keeperId, source.id);
+			expect(await servingsOf(entry.id)).toBeCloseTo(5, 5);
+		});
+
+		it('falls back to the size ratio across mass and volume', async () => {
+			const source = await insertFood('Milk 200ml', 200, 'ml');
+			const entry = await logEntry(source.id, 1);
+			await merge(keeperId, source.id);
+			expect(await servingsOf(entry.id)).toBeCloseTo(2, 5);
+		});
+
+		it('rescales supplement ingredients across units', async () => {
+			const db = getTestDB(dbUrl);
+			const source = await insertFood('Powder 1kg', 1, 'kg');
+			const [supplement] = await db
+				.insert(supplements)
+				.values({ userId, name: 'Powder', scheduleType: 'daily' })
+				.returning();
+			const [ingredient] = await db
+				.insert(supplementIngredients)
+				.values({ supplementId: supplement.id, foodId: source.id, servings: 0.01, sortOrder: 0 })
+				.returning();
+			await merge(keeperId, source.id);
+			const [updated] = await db
+				.select()
+				.from(supplementIngredients)
+				.where(eq(supplementIngredients.id, ingredient.id));
+			// 0.01 kg = 10 g = 0.1 servings of the 100 g keeper.
+			expect(updated.foodId).toBe(keeperId);
+			expect(updated.servings).toBeCloseTo(0.1, 5);
+		});
+
+		it('leaves recipe ingredient quantity and unit untouched when units are convertible', async () => {
+			const db = getTestDB(dbUrl);
+			const source = await insertFood('Flour 1kg', 1, 'kg');
+			const [ingredient] = await db
+				.insert(recipeIngredients)
+				.values({ recipeId, foodId: source.id, quantity: 250, servingUnit: 'g', sortOrder: 1 })
+				.returning();
+			await merge(keeperId, source.id);
+			const [updated] = await db
+				.select()
+				.from(recipeIngredients)
+				.where(eq(recipeIngredients.id, ingredient.id));
+			expect(updated.foodId).toBe(keeperId);
+			expect(updated.quantity).toBe(250);
+			expect(updated.servingUnit).toBe('g');
+		});
+
+		it('re-expresses recipe ingredients in the keeper unit across mass and volume', async () => {
+			const db = getTestDB(dbUrl);
+			const source = await insertFood('Milk 250ml', 250, 'ml');
+			const [ingredient] = await db
+				.insert(recipeIngredients)
+				.values({ recipeId, foodId: source.id, quantity: 500, servingUnit: 'ml', sortOrder: 1 })
+				.returning();
+			await merge(keeperId, source.id);
+			const [updated] = await db
+				.select()
+				.from(recipeIngredients)
+				.where(eq(recipeIngredients.id, ingredient.id));
+			// 500 ml = 2 servings of the source = 200 g of the 100 g keeper.
+			expect(updated.foodId).toBe(keeperId);
+			expect(updated.quantity).toBeCloseTo(200, 5);
+			expect(updated.servingUnit).toBe('g');
+		});
+	});
 });

@@ -6,10 +6,12 @@
 
 	type Props = {
 		onDelete?: () => void;
+		id?: string;
+		highlighted?: boolean;
 		children: Snippet;
 	};
 
-	let { onDelete, children }: Props = $props();
+	let { onDelete, id, highlighted = false, children }: Props = $props();
 
 	let offsetX = spring(0, { stiffness: 0.3, damping: 0.8 });
 	let swiping = $state(false);
@@ -56,7 +58,12 @@
 	}
 </script>
 
-<div class="relative overflow-hidden rounded-lg">
+<div
+	{id}
+	class="relative overflow-hidden rounded-lg transition-shadow duration-500"
+	class:ring-2={highlighted}
+	class:ring-primary={highlighted}
+>
 	<div
 		class="absolute inset-y-0 right-0 flex w-20 items-center justify-center bg-destructive text-destructive-foreground"
 	>

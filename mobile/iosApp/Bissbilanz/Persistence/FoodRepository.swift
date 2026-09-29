@@ -610,14 +610,12 @@ final class FoodRepository {
     /// entries or is used by a recipe — used to dead-letter on the resulting 409
     /// and reappear on the next refresh, with no indication to the user why. In
     /// Local mode (or a not-yet-uploaded temp id) there is no server to ask, so
-    /// diary entries referencing it are counted locally instead (recipe-ingredient
-    /// references aren't tracked in the local cache).
+    /// entries, recipes and supplements referencing it are read from the local
+    /// store instead, with the same rules as the server.
     func deleteFoodChecked(id: String) async throws -> DeleteOutcome {
         if appMode.isLocal || LocalStore.isTempId(id) {
-            let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId == id })
-            let entryCount = (try? context.fetch(descriptor))?.count ?? 0
-            if entryCount > 0 {
-                return .blocked(DeleteConflict(entryCount: entryCount, ingredientCount: nil, recipeCount: nil))
+            if let conflict = localUsage(foodId: id).conflict {
+                return .blocked(conflict)
             }
             try await deleteFood(id: id)
             return .deleted
@@ -639,8 +637,14 @@ final class FoodRepository {
     }
 
     /// Deletes a food the user already confirmed via a `DeleteOutcome.blocked` prompt.
+    /// Refused when `DeleteConflict.forceUnavailable` applies — the prompt must
+    /// not offer it, and the server refuses it too.
     func forceDeleteFood(id: String) async throws {
         if appMode.isLocal || LocalStore.isTempId(id) {
+            if localUsage(foodId: id).conflict?.forceUnavailable == true {
+                throw APIError.conflict(serverNewer: false, body: nil)
+            }
+            if appMode.isLocal { removeFromLocalRecipes(foodId: id) }
             try await deleteFood(id: id)
             return
         }
@@ -655,6 +659,97 @@ final class FoodRepository {
             syncManager.enqueue(.deleteFood(id: id, force: true))
         }
         if let imageUrl { LocalImageStore.evict(imageUrl) }
+    }
+
+    /// The diary entries, recipes and supplements that use this food, so a
+    /// blocked delete can point the user at what to change. Local mode (or a
+    /// not-yet-uploaded temp id) reads the local store instead of asking the server.
+    func whereUsed(id: String) async throws -> WhereUsed {
+        guard appMode.isLocal || LocalStore.isTempId(id) else {
+            return try await api.getFoodUsage(id: id)
+        }
+        let usage = localUsage(foodId: id)
+        let byName = { (lhs: WhereUsedRef, rhs: WhereUsedRef) in
+            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+        let entries = WhereUsed.sortedNewestFirst(usage.entries.map(\.whereUsedEntry))
+        return WhereUsed(
+            entries: Array(entries.prefix(WhereUsed.entryLimit)),
+            totalEntries: usage.entries.count,
+            recipes: usage.recipes.map {
+                WhereUsedRef(id: $0.id, name: $0.name, isLastIngredient: $0.hasOnlyIngredient(id))
+            }.sorted(by: byName),
+            supplements: usage.supplements.map { WhereUsedRef(id: $0.id, name: $0.name) }.sorted(by: byName)
+        )
+    }
+
+    private struct LocalUsage {
+        let foodId: String
+        let entries: [LocalEntry]
+        let recipes: [Recipe]
+        let supplements: [Supplement]
+
+        /// Mirrors the server's `deleteFood` rules; nil when nothing references the food.
+        var conflict: DeleteConflict? {
+            guard !entries.isEmpty || !recipes.isEmpty || !supplements.isEmpty else { return nil }
+            let ingredientCount = recipes.reduce(0) { total, recipe in
+                total + (recipe.ingredients ?? []).count { $0.foodId == foodId }
+            }
+            let supplementCount = supplements.reduce(0) { total, supplement in
+                total + supplement.ingredients.count { $0.foodId == foodId }
+            }
+            return DeleteConflict(
+                entryCount: entries.count,
+                ingredientCount: ingredientCount,
+                recipeCount: recipes.count,
+                supplementIngredientCount: supplementCount,
+                lastIngredientRecipes: recipes
+                    .filter { $0.hasOnlyIngredient(foodId) }
+                    .map { WhereUsedRef(id: $0.id, name: $0.name, isLastIngredient: true) }
+            )
+        }
+    }
+
+    private func localUsage(foodId: String) -> LocalUsage {
+        let entryDescriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.foodId == foodId })
+        let recipeRows = (try? context.fetch(FetchDescriptor<LocalRecipe>())) ?? []
+        let supplementRows = (try? context.fetch(FetchDescriptor<LocalSupplement>())) ?? []
+        return LocalUsage(
+            foodId: foodId,
+            entries: (try? context.fetch(entryDescriptor)) ?? [],
+            recipes: recipeRows.compactMap { $0.toRecipe() }
+                .filter { ($0.ingredients ?? []).contains { $0.foodId == foodId } },
+            supplements: supplementRows.compactMap { $0.toSupplement() }
+                .filter { $0.ingredients.contains { $0.foodId == foodId } }
+        )
+    }
+
+    /// Local-mode counterpart of the server's ON DELETE CASCADE on recipe
+    /// ingredients: a forced food delete removes the food from every recipe that
+    /// keeps other ingredients (never one it is the only ingredient of — that
+    /// delete is refused) and recomputes their macros without it.
+    private func removeFromLocalRecipes(foodId: String) {
+        let rows = (try? context.fetch(FetchDescriptor<LocalRecipe>())) ?? []
+        for row in rows {
+            guard let recipe = row.toRecipe(),
+                  let ingredients = recipe.ingredients,
+                  ingredients.contains(where: { $0.foodId == foodId })
+            else { continue }
+            let remaining = ingredients.filter { $0.foodId != foodId }.enumerated().map { index, ingredient in
+                RecipeIngredient(
+                    id: ingredient.id,
+                    recipeId: ingredient.recipeId,
+                    foodId: ingredient.foodId,
+                    quantity: ingredient.quantity,
+                    servingUnit: ingredient.servingUnit,
+                    sortOrder: index,
+                    food: ingredient.food ?? LocalRemap.foodRow(id: ingredient.foodId, in: context)?.toFood()
+                )
+            }
+            guard !remaining.isEmpty else { continue }
+            row.update(from: RecipeRepository.applying(ingredients: remaining, to: recipe))
+        }
+        save()
     }
 
     @discardableResult

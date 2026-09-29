@@ -24,10 +24,13 @@ import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.RecipeField
+import com.bissbilanz.util.RecipeStepDraft
 import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.isSameUnitDimension
+import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
+import com.bissbilanz.util.toStepInputs
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -69,6 +72,11 @@ fun RecipeEditSheet(
     var loadedCalories by remember { mutableStateOf<Double?>(null) }
 
     var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
+    var steps by remember { mutableStateOf(listOf<RecipeStepDraft>()) }
+    // False when the recipe came from a cache that never downloaded its steps (offline
+    // after a list-only refresh): the editor is hidden and a save leaves them untouched
+    // rather than sending an empty list that would clear them on the server.
+    var stepsAvailable by remember { mutableStateOf(true) }
     var openUnitDropdownIndex by remember { mutableStateOf<Int?>(null) }
     var showFoodPicker by remember { mutableStateOf(false) }
     var foodSearchQuery by remember { mutableStateOf("") }
@@ -112,6 +120,11 @@ fun RecipeEditSheet(
                 originalImageUrl = recipe.imageUrl
                 cookedWeightText = recipe.cookedWeight?.toDisplayString() ?: ""
                 loadedCalories = recipe.calories
+                stepsAvailable = recipe.steps != null
+                steps =
+                    recipe.steps.orEmpty().sortedBy { it.sortOrder }.map {
+                        RecipeStepDraft(key = newTempId(), text = it.text, imageUrl = it.imageUrl)
+                    }
                 ingredients =
                     recipe.ingredients.map { ing ->
                         RecipeIngredientRow(
@@ -478,6 +491,18 @@ fun RecipeEditSheet(
                     )
                 }
 
+                HorizontalDivider()
+
+                if (stepsAvailable) {
+                    RecipeStepsEditor(steps = steps, onStepsChange = { steps = it })
+                } else {
+                    Text(
+                        stringResource(R.string.recipe_edit_steps_unavailable),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 errorMessage?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
@@ -527,6 +552,7 @@ fun RecipeEditSheet(
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
                                                 cookedWeight = cookedWeightVal,
+                                                steps = if (stepsAvailable) steps.toStepInputs() else null,
                                             ),
                                             cleared =
                                                 if (cookedWeightVal == null) setOf(RecipeField.COOKED_WEIGHT) else emptySet(),
@@ -564,6 +590,7 @@ fun RecipeEditSheet(
                                                 isFavorite = isFavorite,
                                                 imageUrl = imageUrl,
                                                 cookedWeight = cookedWeightVal,
+                                                steps = steps.toStepInputs(),
                                             ),
                                         )
                                     }

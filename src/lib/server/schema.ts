@@ -488,6 +488,23 @@ export const recipeIngredients = pgTable(
 	]
 );
 
+// Recipe Steps (optional cooking instructions, ordered)
+export const recipeSteps = pgTable(
+	'recipe_steps',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		recipeId: uuid('recipe_id')
+			.notNull()
+			.references(() => recipes.id, { onDelete: 'cascade' }),
+		sortOrder: integer('sort_order').notNull(),
+		text: text('text').notNull(),
+		imageUrl: text('image_url'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [index('idx_recipe_steps_recipe_id').on(table.recipeId)]
+);
+
 // Custom Meal Types
 export const customMealTypes = pgTable(
 	'custom_meal_types',
@@ -1081,6 +1098,8 @@ export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type NewRecipeIngredient = typeof recipeIngredients.$inferInsert;
+export type RecipeStep = typeof recipeSteps.$inferSelect;
+export type NewRecipeStep = typeof recipeSteps.$inferInsert;
 export type CustomMealType = typeof customMealTypes.$inferSelect;
 export type NewCustomMealType = typeof customMealTypes.$inferInsert;
 export type Supplement = typeof supplements.$inferSelect;
