@@ -120,4 +120,8 @@ async function reportTimeZone() {
 	}
 }
 
-export const preferencesService = { preferences, refresh, update, reportTimeZone };
+function fetchRemote() {
+	return api.GET('/api/preferences');
+}
+
+export const preferencesService = { preferences, refresh, update, reportTimeZone, fetchRemote };
