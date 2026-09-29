@@ -380,7 +380,11 @@ final class SupplementRepository {
             context.delete(row)
         }
         // Logs for a removed supplement are orphaned — drop them too.
-        try? context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.supplementId == id })
+        do {
+            try context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.supplementId == id })
+        } catch {
+            ErrorReporter.captureWarning("Deleting orphaned supplement logs failed", context: ["reason": ErrorReporter.reason(for: error)])
+        }
     }
 
     private func fetchLogs(date: String) -> [LocalSupplementLog] {
@@ -412,10 +416,14 @@ final class SupplementRepository {
 
     private func deleteLog(supplementId: String, date: String) {
         let key = LocalSupplementLog.key(supplementId: supplementId, date: date)
-        try? context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.id == key })
+        do {
+            try context.delete(model: LocalSupplementLog.self, where: #Predicate { $0.id == key })
+        } catch {
+            ErrorReporter.captureWarning("Deleting a supplement log failed", context: ["reason": ErrorReporter.reason(for: error)])
+        }
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("SupplementRepository.save")
     }
 }

@@ -867,7 +867,7 @@ final class FoodRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("FoodRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }

@@ -186,7 +186,7 @@ final class LocalDataMigrator {
         try? context.delete(model: LocalGoals.self)
         try? context.delete(model: LocalPreferences.self)
         try? context.delete(model: LocalDayProperties.self)
-        try? context.save()
+        context.saveReportingFailure("LocalDataMigrator.save")
         // Images live on the file system, not in SwiftData, so they survive the
         // deletes above — a sign-out that left them behind would carry one
         // account's photos into the next.
@@ -267,7 +267,7 @@ final class LocalDataMigrator {
                 LocalRemap.replaceReminder(id: row.id, with: patched, in: context)
             }
         }
-        try? context.save()
+        context.saveReportingFailure("LocalDataMigrator.save")
         defaults.set(true, forKey: Self.normalizedMarkerKey)
     }
 
@@ -420,7 +420,7 @@ final class LocalDataMigrator {
                 // them server-side — uploading them here as well would double
                 // every macro on those days.
                 context.delete(row)
-                try? context.save()
+                context.saveReportingFailure("LocalDataMigrator.save")
                 done += 1
                 progress(done, total, .entries)
                 continue
@@ -544,7 +544,7 @@ final class LocalDataMigrator {
             if LocalStore.isTempId(row.supplementId) {
                 // Orphan log (supplement deleted locally) — nothing to log it against.
                 context.delete(row)
-                try? context.save()
+                context.saveReportingFailure("LocalDataMigrator.save")
                 done += 1
                 progress(done, total, .supplementLogs)
                 continue
@@ -557,7 +557,7 @@ final class LocalDataMigrator {
             let uploaded = LocalSupplementLog(supplementId: row.supplementId, date: row.date, takenAt: row.takenAt)
             context.delete(row)
             context.insert(uploaded)
-            try? context.save()
+            context.saveReportingFailure("LocalDataMigrator.save")
             done += 1
             progress(done, total, .supplementLogs)
         }
@@ -626,7 +626,7 @@ final class LocalDataMigrator {
             )
             let server = try await api.setDayProperties(date: row.date, patch: patch)
             row.update(from: server)
-            try? context.save()
+            context.saveReportingFailure("LocalDataMigrator.save")
             done += 1
             progress(done, total, .dayProperties)
         }

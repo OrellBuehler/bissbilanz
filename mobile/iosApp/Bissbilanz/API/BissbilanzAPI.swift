@@ -436,8 +436,13 @@ final class BissbilanzAPI {
     }
 
     func getLatestWeight() async throws -> WeightEntry? {
-        let response: WeightLatestResponse? = try? await get("/api/weight/latest")
-        return response?.entry
+        do {
+            let response: WeightLatestResponse? = try await get("/api/weight/latest")
+            return response?.entry
+        } catch {
+            ErrorReporter.capture(error, context: ["endpoint": "/api/weight/latest"])
+            return nil
+        }
     }
 
     func createWeightEntry(
@@ -856,8 +861,15 @@ final class BissbilanzAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        guard let (data, httpResponse) = try? await executeRequestData(request),
-              httpResponse.statusCode == 200,
+        let result: (Data, HTTPURLResponse)
+        do {
+            result = try await executeRequestData(request)
+        } catch {
+            ErrorReporter.capture(error, context: ["endpoint": "/api/openfoodfacts/{barcode}"])
+            return nil
+        }
+        let (data, httpResponse) = result
+        guard httpResponse.statusCode == 200,
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               var product = root["product"] as? [String: Any]
         else { return nil }
@@ -879,7 +891,13 @@ final class BissbilanzAPI {
         if !(product["barcode"] is String) {
             product["barcode"] = barcode
         }
-        guard let food = try? JSONPatch.decode(Food.self, from: product) else { return nil }
+        let food: Food
+        do {
+            food = try JSONPatch.decode(Food.self, from: product)
+        } catch {
+            ErrorReporter.captureWarning("Open Food Facts proxy product decode failed", context: ["reason": ErrorReporter.reason(for: error)])
+            return nil
+        }
         return OpenFoodFactsHit(food: food, categoriesTags: product["categoriesTags"] as? [String])
     }
 

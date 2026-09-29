@@ -227,7 +227,11 @@ final class SyncManager {
     }
 
     func clearQueue() {
-        try? context.delete(model: PendingSyncOperation.self)
+        do {
+            try context.delete(model: PendingSyncOperation.self)
+        } catch {
+            ErrorReporter.captureWarning("Clearing the sync queue failed", context: ["reason": ErrorReporter.reason(for: error)])
+        }
         save()
         pendingCount = 0
         failedCount = 0
@@ -1052,7 +1056,7 @@ final class SyncManager {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("SyncManager.save")
     }
 
     /// Structured context for a permanent-drop Sentry warning so a "changes won't

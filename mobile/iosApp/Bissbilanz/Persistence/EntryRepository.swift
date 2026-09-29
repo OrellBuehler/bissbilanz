@@ -529,7 +529,7 @@ final class EntryRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("EntryRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }

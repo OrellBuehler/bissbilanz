@@ -36,6 +36,15 @@ enum HealthKitImporter {
         return max(fullWindow, lastSync.adding(days: incrementalOverlapDays))
     }
 
+    private static func attempt<T>(_ message: String, _ operation: () async throws -> T) async -> T? {
+        do {
+            return try await operation()
+        } catch {
+            ErrorReporter.captureWarning(message, context: ["reason": ErrorReporter.reason(for: error)])
+            return nil
+        }
+    }
+
     static func importAllIfEnabled(
         weightRepository: WeightRepository,
         sleepRepository: SleepRepository,
@@ -57,7 +66,9 @@ enum HealthKitImporter {
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return false }
         let since = importStart(kind: HealthKitService.weightReadSyncKind)
-        guard let samples = try? await healthKit.fetchWeights(since: since), !samples.isEmpty else { return false }
+        guard let samples = await attempt("HealthKit weight read failed", { try await healthKit.fetchWeights(since: since) }),
+              !samples.isEmpty
+        else { return false }
 
         let existingDates = repository.entryDates()
         // Latest sample per day wins
@@ -78,7 +89,7 @@ enum HealthKitImporter {
                 guard let sample = latestPerDay[day] else { continue }
                 let kg = (sample.weightKg * 100).rounded() / 100
                 let create = WeightCreate(weightKg: kg, entryDate: day, notes: nil)
-                if await (try? repository.createEntry(create)) != nil {
+                if await attempt("HealthKit weight import save failed", { try await repository.createEntry(create) }) != nil {
                     imported = true
                 }
             }
@@ -97,7 +108,9 @@ enum HealthKitImporter {
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return false }
         let since = importStart(kind: HealthKitService.sleepReadSyncKind)
-        guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return false }
+        guard let samples = await attempt("HealthKit sleep read failed", { try await healthKit.fetchSleepSamples(since: since) }),
+              !samples.isEmpty
+        else { return false }
 
         let existingDates = repository.entryDates()
         let newNights = HealthKitService.nights(from: samples)
@@ -115,7 +128,7 @@ enum HealthKitImporter {
                     wakeUps: night.wakeUps,
                     notes: nil
                 )
-                if await (try? repository.createEntry(create)) != nil {
+                if await attempt("HealthKit sleep import save failed", { try await repository.createEntry(create) }) != nil {
                     imported = true
                 }
             }
@@ -140,7 +153,7 @@ enum HealthKitImporter {
         guard healthKit.isAvailable else { return false }
         let isFirstRun = HealthKitService.lastSync(HealthKitService.activityReadSyncKind) == nil
         let start = isFirstRun ? Date().adding(days: importWindowDays) : Date().adding(days: -3)
-        guard let dailyKcal = try? await healthKit.fetchWorkoutActiveCalories(from: start, to: Date()),
+        guard let dailyKcal = await attempt("HealthKit workout calories read failed", { try await healthKit.fetchWorkoutActiveCalories(from: start, to: Date()) }),
               !dailyKcal.isEmpty
         else { return false }
 
@@ -158,7 +171,7 @@ enum HealthKitImporter {
                 activityCalories: .some(kcal),
                 activityCaloriesSource: .some("apple_health")
             )
-            if (try? await repository.setDayProperties(date: day, patch: patch)) != nil {
+            if await attempt("HealthKit activity import save failed", { try await repository.setDayProperties(date: day, patch: patch) }) != nil {
                 imported = true
             }
         }
@@ -177,7 +190,9 @@ enum HealthKitImporter {
         let healthKit = HealthKitService.shared
         guard healthKit.isAvailable else { return 0 }
         let since = Date().adding(days: importWindowDays)
-        guard let samples = try? await healthKit.fetchSleepSamples(since: since), !samples.isEmpty else { return 0 }
+        guard let samples = await attempt("HealthKit sleep read failed", { try await healthKit.fetchSleepSamples(since: since) }),
+              !samples.isEmpty
+        else { return 0 }
 
         let existing = Dictionary(
             repository.entries().map { ($0.entryDate, $0) },
@@ -201,7 +216,7 @@ enum HealthKitImporter {
                         wakeUps: night.wakeUps,
                         notes: nil
                     )
-                    if await (try? repository.createEntry(create)) != nil {
+                    if await attempt("HealthKit sleep reimport save failed", { try await repository.createEntry(create) }) != nil {
                         updated += 1
                     }
                     continue
@@ -223,7 +238,7 @@ enum HealthKitImporter {
                     wakeTime: .some(wakeTime),
                     wakeUps: .some(night.wakeUps)
                 )
-                if await (try? repository.updateEntry(id: entry.id, update)) != nil {
+                if await attempt("HealthKit sleep reimport save failed", { try await repository.updateEntry(id: entry.id, update) }) != nil {
                     updated += 1
                 }
             }

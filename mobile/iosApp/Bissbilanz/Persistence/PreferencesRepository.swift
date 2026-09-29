@@ -82,7 +82,7 @@ final class PreferencesRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("PreferencesRepository.save")
         // A preferences change can affect the widget snapshot directly (e.g.
         // `activityGoalAdjustment`/`activityCreditPercent` change the goal a
         // ring is drawn against), so refresh it like the other repositories do.

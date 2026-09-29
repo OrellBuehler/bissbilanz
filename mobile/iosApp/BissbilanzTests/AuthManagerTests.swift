@@ -146,6 +146,60 @@ struct AuthManagerLoginURLTests {
     }
 }
 
+@Suite("AuthManager PKCE Tests")
+struct AuthManagerPKCETests {
+    @Test("Challenge matches the RFC 7636 test vector")
+    func rfcVector() {
+        let challenge = AuthManager.codeChallenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+        #expect(challenge == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    }
+
+    @Test("Verifier is 64 unreserved characters and unique")
+    func verifierFormat() {
+        let verifier = AuthManager.generateCodeVerifier()
+        let allowed = Set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        #expect(verifier.count == 64)
+        #expect(verifier.allSatisfy { allowed.contains($0) })
+        #expect(verifier != AuthManager.generateCodeVerifier())
+    }
+
+    @Test("Login URL carries an S256 challenge")
+    @MainActor
+    func loginURLHasChallenge() throws {
+        let auth = AuthManager(baseURL: "https://test.example.com")
+        let url = try #require(auth.buildLoginURL())
+        let items = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+
+        let challenge = try #require(items.first { $0.name == "code_challenge" }?.value)
+        #expect(challenge.count == 43)
+        #expect(!challenge.contains("="))
+        #expect(items.first { $0.name == "code_challenge_method" }?.value == "S256")
+    }
+
+    @Test("Token request sends the verifier matching the login challenge")
+    @MainActor
+    func tokenRequestIncludesVerifier() async throws {
+        let baseURL = "https://stub-auth-\(UUID().uuidString.lowercased()).local"
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let auth = AuthManager(baseURL: baseURL, session: URLSession(configuration: configuration))
+        let loginURL = try #require(auth.buildLoginURL())
+        let items = try #require(URLComponents(url: loginURL, resolvingAgainstBaseURL: false)?.queryItems)
+        let state = try #require(items.first { $0.name == "state" }?.value)
+        let challenge = try #require(items.first { $0.name == "code_challenge" }?.value)
+        StubURLProtocol.stub("POST", "\(baseURL)/api/auth/mobile/token", status: 400, json: #"{"error":"invalid"}"#)
+
+        let callbackURL = try #require(URL(string: "bissbilanz://callback?code=abc123&state=\(state)"))
+        _ = await auth.handleCallback(url: callbackURL)
+
+        let sent = try #require(StubURLProtocol.recordedBodies("POST", "\(baseURL)/api/auth/mobile/token").first)
+        let body = try #require(try JSONSerialization.jsonObject(with: sent) as? [String: String])
+        #expect(body["code"] == "abc123")
+        let verifier = try #require(body["code_verifier"])
+        #expect(AuthManager.codeChallenge(for: verifier) == challenge)
+    }
+}
+
 @Suite("AuthManager Callback Parsing Tests")
 struct AuthManagerCallbackTests {
     @Test("Callback URL without code returns false")

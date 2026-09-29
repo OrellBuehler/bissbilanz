@@ -59,7 +59,7 @@ final class GoalsRepository {
     }
 
     private func save() {
-        try? context.save()
+        context.saveReportingFailure("GoalsRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
     }
 }

@@ -84,10 +84,14 @@ final class FastingTimerManager {
         history = FastingSessionStore.loadHistory()
         await endAllActivities()
         upload(current)
-        try? await entryRepository.setFastingDay(
-            date: DateFormatting.isoString(from: endDate),
-            isFastingDay: true
-        )
+        do {
+            try await entryRepository.setFastingDay(
+                date: DateFormatting.isoString(from: endDate),
+                isFastingDay: true
+            )
+        } catch {
+            ErrorReporter.captureWarning("Marking the fasting day failed", context: ["reason": ErrorReporter.reason(for: error)])
+        }
         ControlCenter.shared.reloadControls(ofKind: ControlKind.fasting)
     }
 
