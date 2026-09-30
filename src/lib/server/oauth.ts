@@ -22,6 +22,11 @@ export const REFRESH_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export const AUTH_CODE_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
 // Rotation extends a refresh token indefinitely; the family cap bounds the chain.
 export const REFRESH_FAMILY_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+// A just-rotated refresh token presented again within this window is a retry (lost
+// response, concurrent refresh), not reuse. Longer replays revoke the whole family.
+export const REFRESH_REUSE_GRACE_MS = 60 * 1000;
+// Consumed rows only serve reuse detection; older ones are pruned.
+export const CONSUMED_TOKEN_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 // First-party apps stay signed in much longer, so their chain is capped later.
 export const FIRST_PARTY_REFRESH_FAMILY_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -342,12 +347,14 @@ function hashAccessToken(token: string): string {
 	return createHash('sha256').update(token).digest('hex');
 }
 
+type Tx = Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0];
+
 type TokenFamily = { familyId: string; familyExpiresAt: Date };
 
 export async function createAccessToken(
 	userId: string,
 	clientId: string,
-	conn?: Parameters<Parameters<ReturnType<typeof getDB>['transaction']>[0]>[0],
+	conn?: Tx,
 	options?: { scopes?: string[]; family?: TokenFamily }
 ): Promise<{ accessToken: string; refreshToken: string }> {
 	const db = conn ?? getDB();
@@ -386,46 +393,96 @@ export async function createAccessToken(
 	return { accessToken, refreshToken };
 }
 
+type RefreshResult = { accessToken: string; refreshToken: string; userId: string };
+
+function familyIdOf(row: { id: string; familyId: string | null }): string {
+	return row.familyId ?? row.id;
+}
+
+async function revokeTokenFamily(tx: Tx, row: { id: string; familyId: string | null }) {
+	const familyId = familyIdOf(row);
+	await tx
+		.delete(oauthTokens)
+		.where(or(eq(oauthTokens.familyId, familyId), eq(oauthTokens.id, familyId)));
+}
+
+/**
+ * Rotates a refresh token. The presented token is marked consumed rather than deleted,
+ * so a later replay can be recognised:
+ * - within REFRESH_REUSE_GRACE_MS of the rotation it is treated as a lost response or a
+ *   racing refresh from the same client and answered with a fresh rotation of the same
+ *   family (the family expiry is unchanged, so this extends nothing);
+ * - after that it is treated as theft, the whole family (every refresh and access
+ *   token descending from the original grant) is revoked and undefined is returned.
+ */
 export async function refreshAccessToken(
 	refreshToken: string,
 	clientId: string
-): Promise<{ accessToken: string; refreshToken: string; userId: string } | undefined> {
+): Promise<RefreshResult | undefined> {
 	const db = getDB();
 	const tokenHash = hashAccessToken(refreshToken);
 	const now = new Date();
 
 	return db.transaction(async (tx) => {
 		// Claim the token atomically: of two concurrent refreshes with the same token
-		// exactly one gets the row back, the other blocks on it and then finds nothing.
+		// exactly one gets the row back, the other blocks on it and then sees it consumed.
 		const [claimed] = await tx
-			.delete(oauthTokens)
+			.update(oauthTokens)
+			.set({ refreshTokenConsumedAt: now })
 			.where(
 				and(
 					eq(oauthTokens.refreshTokenHash, tokenHash),
 					eq(oauthTokens.clientId, clientId),
+					isNull(oauthTokens.refreshTokenConsumedAt),
 					gt(oauthTokens.refreshTokenExpiresAt, now)
 				)
 			)
 			.returning();
 
-		if (!claimed) return undefined;
+		let row = claimed;
+		if (!row) {
+			const [previous] = await tx
+				.select()
+				.from(oauthTokens)
+				.where(
+					and(
+						eq(oauthTokens.refreshTokenHash, tokenHash),
+						eq(oauthTokens.clientId, clientId),
+						gt(oauthTokens.refreshTokenExpiresAt, now)
+					)
+				)
+				.limit(1);
+			if (!previous?.refreshTokenConsumedAt) return undefined;
+
+			const ageMs = now.getTime() - previous.refreshTokenConsumedAt.getTime();
+			if (ageMs > REFRESH_REUSE_GRACE_MS) {
+				await revokeTokenFamily(tx, previous);
+				Sentry.captureMessage('OAuth refresh token reuse detected, token family revoked', {
+					level: 'warning',
+					tags: { clientId },
+					extra: { familyId: familyIdOf(previous), userId: previous.userId, ageMs }
+				});
+				return undefined;
+			}
+			row = previous;
+		}
 
 		// Tokens issued before families existed get one now, capped from their issue time.
 		const familyExpiresAt =
-			claimed.familyExpiresAt ??
+			row.familyExpiresAt ??
 			new Date(
-				(claimed.createdAt ?? now).getTime() +
-					(claimed.scopes.includes(SCOPE_ACCOUNT_MANAGE)
+				(row.createdAt ?? now).getTime() +
+					(row.scopes.includes(SCOPE_ACCOUNT_MANAGE)
 						? FIRST_PARTY_REFRESH_FAMILY_LIFETIME_MS
 						: REFRESH_FAMILY_LIFETIME_MS)
 			);
 		if (familyExpiresAt <= now) return undefined;
 
-		const result = await createAccessToken(claimed.userId, clientId, tx, {
-			scopes: claimed.scopes,
-			family: { familyId: claimed.familyId ?? claimed.id, familyExpiresAt }
+		const result = await createAccessToken(row.userId, clientId, tx, {
+			scopes: row.scopes,
+			family: { familyId: familyIdOf(row), familyExpiresAt }
 		});
-		return { ...result, userId: claimed.userId };
+		return { ...result, userId: row.userId };
 	});
 }
 
@@ -438,7 +495,11 @@ export async function validateAccessToken(
 	const now = new Date();
 
 	const tokenRecord = await db.query.oauthTokens.findFirst({
-		where: and(eq(oauthTokens.accessTokenHash, tokenHash), gt(oauthTokens.expiresAt, now))
+		where: and(
+			eq(oauthTokens.accessTokenHash, tokenHash),
+			gt(oauthTokens.expiresAt, now),
+			isNull(oauthTokens.refreshTokenConsumedAt)
+		)
 	});
 
 	if (!tokenRecord) return undefined;
@@ -497,6 +558,11 @@ export async function cleanupExpiredOAuthData(): Promise<void> {
 				lt(oauthTokens.expiresAt, now),
 				or(isNull(oauthTokens.refreshTokenExpiresAt), lt(oauthTokens.refreshTokenExpiresAt, now))
 			)
+		);
+	await db
+		.delete(oauthTokens)
+		.where(
+			lt(oauthTokens.refreshTokenConsumedAt, new Date(now.getTime() - CONSUMED_TOKEN_RETENTION_MS))
 		);
 	await db.delete(oauthAuthorizationCodes).where(lt(oauthAuthorizationCodes.expiresAt, now));
 }

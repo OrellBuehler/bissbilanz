@@ -487,14 +487,15 @@ describe('oauth-db', () => {
 			}
 		});
 
-		test('claims the token with a single DELETE instead of a read-then-delete', async () => {
+		test('claims the token with a single UPDATE instead of a read-then-delete', async () => {
 			setResult([claimed()]);
 
 			await refreshAccessToken('refresh-token', 'test-client');
 
 			const methods = getCalls().map((c) => c.method);
-			expect(methods).toContain('delete');
+			expect(methods).toContain('update');
 			expect(methods).toContain('returning');
+			expect(methods).not.toContain('delete');
 			expect(methods).not.toContain('query.oauthTokens.findFirst');
 		});
 

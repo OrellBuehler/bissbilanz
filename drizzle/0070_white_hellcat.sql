@@ -1,0 +1,2 @@
+ALTER TABLE "oauth_tokens" ADD COLUMN "refresh_token_consumed_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "idx_oauth_tokens_family_id" ON "oauth_tokens" USING btree ("family_id");
