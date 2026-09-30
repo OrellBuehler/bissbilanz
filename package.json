@@ -14,6 +14,8 @@
 		"check:svelte": "bun run scripts/svelte-check.ts",
 		"check:update-baseline": "bun run scripts/svelte-check.ts --update",
 		"check:watch": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo --watch",
+		"verify": "bun run scripts/verify/full.ts",
+		"verify:changed": "bun run scripts/verify/changed.ts",
 		"format": "prettier --write .",
 		"lint": "eslint --concurrency=auto",
 		"lint:suppress": "eslint --concurrency=auto --suppress-all",
