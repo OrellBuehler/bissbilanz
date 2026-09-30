@@ -8,6 +8,8 @@ iOS builds require macOS with Xcode installed. The shared KMP framework is compi
 
 On Linux/WSL, don't try to compile Swift locally. The iOS build and iOS unit tests run in the CI/CD pipeline on every PR, and that run is the compile gate: push, then watch the iOS checks. Don't run swiftformat locally either.
 
+The workflow `mobile-ios.yml` reports the `ios-build` check first (shared framework plus simulator app build, the fastest compile signal). `ios-tests` (Kotlin/Native tests, device build, unit tests, App Intents tests) only starts once it passes, and `ios-gate` is the always-reporting required check. Read `ios-build` first when a run is red.
+
 If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 
 ### Release Signing
