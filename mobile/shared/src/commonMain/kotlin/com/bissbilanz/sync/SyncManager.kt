@@ -213,10 +213,28 @@ class SyncManager(
                     // without ever resolving. Catch this before spending a network
                     // round trip on a request that would otherwise fail (a temp id is
                     // never valid UUID shape) and get misreported as a remote delete.
+                    // An older change to the same record is still waiting (backed off after
+                    // a server error): running this one first would apply the edits out of
+                    // order, or hit a record that does not exist yet. Wait for it without
+                    // charging a retry.
+                    val blocker = olderPendingChangeToSameRecord(req, op)
+                    if (blocker != null) {
+                        syncQueue.setNextAttemptAt(
+                            req.id,
+                            maxOf(
+                                blocker.nextAttemptAt,
+                                Clock.System.now().toEpochMilliseconds() + BACKOFF_BASE_MS,
+                            ),
+                        )
+                        syncQueue.releaseForRetry(req.id)
+                        continue
+                    }
+
                     val unresolved = unresolvedReference(op)
                     if (unresolved != null) {
                         val (table, id) = unresolved
-                        if (syncQueue.findByAffected(table, id).isNotEmpty()) {
+                        val peers = syncQueue.findByAffected(table, id)
+                        if (peers.any { it.failedAt == null }) {
                             // The peer create hasn't drained yet. Wait for it without
                             // treating this as a failure of this operation.
                             val count = syncQueue.incrementAndGetRetryCount(req.id)
@@ -225,6 +243,13 @@ class SyncManager(
                                 Clock.System.now().toEpochMilliseconds() + backoffMs(count, req.id),
                             )
                             syncQueue.releaseForRetry(req.id)
+                            continue
+                        }
+                        // The peer create was rejected and parked: it will not resolve on
+                        // its own, so waiting would loop in backoff forever. Park this one
+                        // too; the user sees both and decides.
+                        if (peers.isNotEmpty()) {
+                            parkFailed(req, DEPENDS_ON_REJECTED_REASON)
                             continue
                         }
                         // Nothing will ever resolve this `temp_` id: the create it
@@ -297,6 +322,15 @@ class SyncManager(
                             parkFailed(req, "HTTP ${e.statusCode}")
                         }
 
+                        // 401 is the session, not this change: treat it like the auth-expired
+                        // path (release, stop, keep the queue) rather than parking it as rejected.
+                        e.statusCode == 401 -> {
+                            syncQueue.releaseForRetry(req.id)
+                            addError("Session expired. Please log in again to sync pending changes.")
+                            stoppedEarly = true
+                            break
+                        }
+
                         // 426: this build is too old for the server. Every other request
                         // would hit the same wall, so pause the whole drain — never
                         // dead-letter or count it as a failed attempt — and retry once
@@ -314,7 +348,18 @@ class SyncManager(
                             parkFailed(req, "HTTP ${e.statusCode}")
                         }
 
-                        // 5xx / 408 / 425 / 429 / network errors → capped exponential
+                        // A 5xx that is not an outage signal (a persistent 500 on one change) only
+                        // holds that change back: back it off and carry on with the rest of the
+                        // queue. Later changes to the same record wait behind it (see
+                        // olderPendingChangeToSameRecord).
+                        e.statusCode in 500..599 && e.statusCode !in OUTAGE_STATUSES -> {
+                            val count = syncQueue.incrementAndGetRetryCount(req.id)
+                            val delay = backoffMs(count, req.id)
+                            syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
+                            syncQueue.releaseForRetry(req.id)
+                        }
+
+                        // 502/503/504 / 408 / 425 / 429 / network errors → capped exponential
                         // backoff, retried indefinitely: a deploy restart or a long outage
                         // must never cost the user an offline-logged change.
                         else -> {
@@ -330,6 +375,17 @@ class SyncManager(
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
                     val count = syncQueue.incrementAndGetRetryCount(req.id)
+                    if (isPayloadFailure(e) && count >= PAYLOAD_RETRY_LIMIT) {
+                        // Retrying an unreadable payload cannot fix it; keep it for the user
+                        // instead of looping forever.
+                        parkFailed(req, "its data could not be processed by this app version")
+                        _state.value =
+                            _state.value.copy(
+                                pendingCount = syncQueue.pendingCount(),
+                                failedCount = syncQueue.failedCount(),
+                            )
+                        continue
+                    }
                     val delay = backoffMs(count, req.id)
                     syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds() + delay)
                     syncQueue.releaseForRetry(req.id)
@@ -669,6 +725,24 @@ class SyncManager(
             op is SyncOperation.CreateReminder
 
     /**
+     * An older, non-parked queued change to the same record as [req] — one that is
+     * still waiting (backed off), since anything older that finished is gone. Null when
+     * [op] is not keyed on a record or nothing older is pending.
+     */
+    private suspend fun olderPendingChangeToSameRecord(
+        req: QueuedRequest,
+        op: SyncOperation,
+    ): QueuedRequest? {
+        val table = op.affectedTable ?: return null
+        val id = op.affectedId ?: return null
+        return syncQueue.findByAffected(table, id).firstOrNull {
+            it.id != req.id &&
+                it.failedAt == null &&
+                (it.createdAt < req.createdAt || (it.createdAt == req.createdAt && it.id < req.id))
+        }
+    }
+
+    /**
      * The first still-`temp_` foodId/recipeId [op]'s payload references, paired with
      * the queue table it would have been created under, or null when every reference
      * is already a resolved server id (or the op carries none, or its body can no
@@ -903,6 +977,14 @@ class SyncManager(
     companion object {
         /** Client errors that are transient (timeout, too early, rate limited): retried, never parked. */
         private val TRANSIENT_CLIENT_STATUSES = setOf(408, 425, 429)
+
+        /** Gateway statuses that mean the server is unreachable: every upload would fail, so the drain stops. */
+        private val OUTAGE_STATUSES = setOf(502, 503, 504)
+
+        /** Failed attempts after which a payload this build cannot (de)serialize is parked. */
+        private const val PAYLOAD_RETRY_LIMIT = 5L
+
+        private const val DEPENDS_ON_REJECTED_REASON = "it depends on a change the server rejected"
 
         /** Caps how many 50-item pages a single [syncPendingQueue] call drains, so a
          * pathological queue can't loop forever within one call. */
