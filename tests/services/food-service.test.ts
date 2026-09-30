@@ -98,7 +98,9 @@ describe('foodService.setLabels', () => {
 
 	test('keeps the normalized local labels and queues the write when offline', async () => {
 		putResponse = async () => {
-			throw new TypeError('Failed to fetch');
+			throw Object.assign(new TypeError('Failed to fetch'), {
+				sentWrite: { idempotencyKey: 'key-1' }
+			});
 		};
 		const dropped = await foodService.setLabels('f2', ['Breads', 'toast']);
 		expect(dropped).toEqual([]);
@@ -107,7 +109,7 @@ describe('foodService.setLabels', () => {
 			'PUT',
 			'/api/foods/f2/labels',
 			{ labels: ['Breads', 'toast'] },
-			{ affectedTable: 'foods', affectedId: 'f2' }
+			{ affectedTable: 'foods', affectedId: 'f2', idempotencyKey: 'key-1' }
 		);
 		// The optimistic row is what search sees while the write waits.
 		const rows = await firstValue<DexieFood[]>(foodService.search('toast'));

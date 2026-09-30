@@ -135,7 +135,9 @@ describe('goalsService', () => {
 	});
 
 	test('save() enqueues exactly once when the request fails', async () => {
-		mockApi.POST.mockRejectedValue(new Error('Network error'));
+		mockApi.POST.mockRejectedValue(
+			Object.assign(new Error('Network error'), { sentWrite: { idempotencyKey: 'key-1' } })
+		);
 
 		Object.defineProperty(globalThis, 'navigator', {
 			value: { onLine: true },
