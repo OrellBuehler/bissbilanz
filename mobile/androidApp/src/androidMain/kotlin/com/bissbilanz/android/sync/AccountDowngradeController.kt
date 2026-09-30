@@ -51,8 +51,9 @@ class AccountDowngradeController(
         _state.value = State.Syncing
         scope.launch {
             try {
-                if (!drainSyncQueue()) {
-                    _state.value = State.Failed(R.string.settings_downgrade_error_pending)
+                val blocked = drainSyncQueue()
+                if (blocked != null) {
+                    _state.value = State.Failed(blocked)
                     return@launch
                 }
                 _state.value = State.Downloading
@@ -74,19 +75,24 @@ class AccountDowngradeController(
     }
 
     /**
-     * Empties the sync queue, or gives up. One pass uploads at most a drain's
-     * worth of operations (and skips ops still in backoff), so a device that was
-     * offline for a while needs several — but an op that never uploads must not
-     * spin here forever, hence "stop as soon as a pass makes no progress".
+     * Empties the sync queue, or returns the string to show for why it cannot. One pass
+     * uploads at most a drain's worth of operations (and skips ops still in backoff), so
+     * a device that was offline for a while needs several — but an op that never uploads
+     * must not spin here forever, hence "stop as soon as a pass makes no progress".
+     * Parked changes are never uploaded and finalize() deletes the queue, so they block
+     * the downgrade instead of counting as drained.
      */
-    private suspend fun drainSyncQueue(): Boolean {
+    @StringRes
+    private suspend fun drainSyncQueue(): Int? {
+        if (accountDowngrader.parkedOps() > 0L) return R.string.settings_downgrade_error_parked
         var pending = accountDowngrader.pendingOps()
         while (pending > 0L) {
             syncManager.syncPendingQueue()
+            if (accountDowngrader.parkedOps() > 0L) return R.string.settings_downgrade_error_parked
             val remaining = accountDowngrader.pendingOps()
-            if (remaining >= pending) return false
+            if (remaining >= pending) return R.string.settings_downgrade_error_pending
             pending = remaining
         }
-        return true
+        return null
     }
 }

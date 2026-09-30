@@ -57,6 +57,13 @@ class AccountDowngrader(
     suspend fun pendingOps(): Long = syncQueue.pendingCount()
 
     /**
+     * Changes the server rejected that were never uploaded. [pendingOps] does not count
+     * them, but [finalize] wipes the queue, so the downgrade must not proceed while any
+     * exist.
+     */
+    suspend fun parkedOps(): Long = syncQueue.failedCount()
+
+    /**
      * Downloads every collection into the local database. Idempotent — every
      * write is an upsert of canonical server state, so a failed run can simply
      * be retried. Must complete without throwing before [finalize] is called.
