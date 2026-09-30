@@ -6,7 +6,7 @@ import Foundation
 /// extension's `QuickAddFoodIntent`.
 enum EntryFactory {
     static func makeEntry(from create: EntryCreate, id: String, food: Food?, recipe: Recipe?) -> Entry {
-        let recipeServings = (recipe?.totalServings).map { max($0, 1) } ?? 1
+        let recipeServings = recipe?.perServingDivisor ?? 1
         return Entry(
             id: id,
             mealType: create.mealType,
