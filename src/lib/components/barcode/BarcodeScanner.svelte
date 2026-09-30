@@ -63,6 +63,8 @@
 			Sentry.captureException(err, {
 				tags: { feature: 'barcode', stage: 'detector-init' }
 			});
+			stopCamera(stream);
+			stream = null;
 			error = m.barcode_camera_error();
 			onError?.(error);
 		}

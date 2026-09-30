@@ -7,6 +7,7 @@
 	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
+	import { pendingIdsFor } from '$lib/stores/offline-queue';
 	import { requestQuickAction } from '$lib/stores/command-palette.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
@@ -103,7 +104,9 @@
 	$effect(() => {
 		if (!browser) return;
 		fetched = false;
-		void recipeService.refreshById(id).finally(() => (fetched = true));
+		void pendingIdsFor('recipes')
+			.then((pending) => (pending.has(id) ? undefined : recipeService.refreshById(id)))
+			.finally(() => (fetched = true));
 	});
 
 	$effect(() => {

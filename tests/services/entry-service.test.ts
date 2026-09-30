@@ -110,7 +110,9 @@ describe('entryService.update — moving an entry to a different date', () => {
 
 	test('keeps the optimistic move and queues the write when offline', async () => {
 		patchResponse = async () => {
-			throw new TypeError('Failed to fetch');
+			throw Object.assign(new TypeError('Failed to fetch'), {
+				sentWrite: { idempotencyKey: 'key-1' }
+			});
 		};
 
 		await entryService.update('e1', {
@@ -130,7 +132,7 @@ describe('entryService.update — moving an entry to a different date', () => {
 				date: '2026-01-05',
 				eatenAt: '2026-01-05T08:00:00.000Z'
 			},
-			{ affectedTable: 'foodEntries', affectedId: 'e1' }
+			{ affectedTable: 'foodEntries', affectedId: 'e1', idempotencyKey: 'key-1' }
 		);
 	});
 });

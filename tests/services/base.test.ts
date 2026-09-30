@@ -74,11 +74,14 @@ describe('withOfflineFallback', () => {
 		expect(mockEnqueue).not.toHaveBeenCalled();
 	});
 
-	test('enqueues exactly once when the apiCall throws', async () => {
+	test('enqueues exactly once when the request fails to reach the server', async () => {
 		const onSuccess = vi.fn();
+		const err = Object.assign(new TypeError('Failed to fetch'), {
+			sentWrite: { idempotencyKey: 'key-1', clientEditedAt: '2026-01-01T00:00:00.000Z' }
+		});
 		await withOfflineFallback(
 			async () => {
-				throw new Error('network down');
+				throw err;
 			},
 			{
 				method: 'POST',
@@ -98,9 +101,34 @@ describe('withOfflineFallback', () => {
 			{ a: 1 },
 			{
 				affectedTable: 'x',
-				affectedId: '1'
+				affectedId: '1',
+				idempotencyKey: 'key-1',
+				clientEditedAt: '2026-01-01T00:00:00.000Z'
 			}
 		);
+	});
+
+	test('does not enqueue when the error did not come from a failed request', async () => {
+		const result = await withOfflineFallback(
+			async () => {
+				throw new SyntaxError('Unexpected end of JSON input');
+			},
+			{ method: 'POST', url: '/api/x', body: {}, affectedTable: 'x' }
+		);
+
+		expect(result.status).toBe('error');
+		expect(mockEnqueue).not.toHaveBeenCalled();
+	});
+
+	test('a failing onSuccess neither enqueues a replay nor changes the applied result', async () => {
+		const onSuccess = vi.fn().mockRejectedValue(new Error('dexie write failed'));
+		const result = await withOfflineFallback(
+			async () => ({ data: { id: '1' }, response: new Response(null, { status: 201 }) }),
+			{ method: 'POST', url: '/api/x', body: {}, affectedTable: 'x', onSuccess }
+		);
+
+		expect(result.status).toBe('applied');
+		expect(mockEnqueue).not.toHaveBeenCalled();
 	});
 
 	test('queues the replay under the idempotency key the failed online request used', async () => {

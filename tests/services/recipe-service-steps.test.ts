@@ -170,6 +170,15 @@ describe('recipeService steps', () => {
 		expect(postBodies[0]).toMatchObject({ steps: [{ text: 'Fetched', imageUrl: null }] });
 	});
 
+	test('duplicate fails instead of dropping steps that cannot be fetched', async () => {
+		await db.recipes.put(recipe({ stepCount: 2 }));
+		getResponse = async () => ({ data: undefined, response: offline });
+
+		const result = await recipeService.duplicate('r1', 'Copy');
+		expect(result.status).toBe('failed');
+		expect(postBodies).toHaveLength(0);
+	});
+
 	test('cachedSteps is null when the mirror is incomplete', async () => {
 		const withCount = recipe({ stepCount: 2 });
 		await db.recipes.put(withCount);
