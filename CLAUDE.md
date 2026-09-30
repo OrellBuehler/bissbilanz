@@ -62,8 +62,15 @@ bun install
 # Start dev server
 bun run dev
 
-# Type checking
+# Type checking (no longer rewrites files; svelte-check warnings are ratcheted by scripts/svelte-check-baseline.json)
 bun run check
+bun run format                  # prettier --write .
+bun run lint                    # ESLint (type-aware); old violations live in eslint-suppressions.json
+
+# Verify before pushing
+bun run verify                  # CI Quality + api:check, no rewrites, per-step pass/fail summary
+bun run verify:changed          # fast path: changed files only (--base = vs origin/main); exits 0 if nothing relevant changed
+# Pre-commit (prettier, eslint) and pre-push (verify:changed --base, ktlint for changed mobile modules) run via prek
 
 # Database operations
 bun run db:generate    # Generate migrations from schema

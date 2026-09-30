@@ -1,0 +1,727 @@
+{
+	"scripts/generate-og-image.mjs": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/components/LanguageSwitcher.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/MacroSliders.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/Seo.svelte": {
+		"svelte/no-at-html-tags": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/CaloricLagCard.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/CalorieCyclingCard.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/MicronutrientGapsCard.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/PreSleepWindowCard.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/TEFCard.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/analytics/WeekdayWeekendCard.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/charts/ChartRangeSelector.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/charts/GoalProgressRings.svelte": {
+		"svelte/require-each-key": {
+			"count": 2
+		}
+	},
+	"src/lib/components/command/CommandPalette.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/lib/components/dashboard/MealBreakdownWidget.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/dashboard/PinnedInsights.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/dashboard/RecipeSuggestionsWidget.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/dashboard/TopFoodsWidget.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/AddFoodModal.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/lib/components/entries/AmountInput.svelte": {
+		"svelte/prefer-writable-derived": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/DateNavigator.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/DayActivityCard.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/lib/components/entries/DayLog.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 6
+		},
+		"@typescript-eslint/no-misused-promises": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/DayNotesCard.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/DayWaterCard.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/lib/components/entries/EditEntryModal.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/FoodPicker.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		},
+		"@typescript-eslint/no-misused-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/entries/SwipeableEntry.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/lib/components/favorites/FavoriteCard.svelte": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/components/favorites/FavoriteMealPicker.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/favorites/FavoritesWidget.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/lib/components/food-package/FoodPackageExportDialog.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"@typescript-eslint/no-misused-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/foods/FoodForm.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/foods/FoodList.svelte": {
+		"@typescript-eslint/await-thenable": {
+			"count": 1
+		},
+		"svelte/no-unused-svelte-ignore": {
+			"count": 1
+		}
+	},
+	"src/lib/components/foods/MergeFoodDialog.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/foods/NutrientCategoryInputs.svelte": {
+		"svelte/require-each-key": {
+			"count": 2
+		}
+	},
+	"src/lib/components/history/Calendar.svelte": {
+		"svelte/require-each-key": {
+			"count": 3
+		}
+	},
+	"src/lib/components/insights/AnalyticsGroupSection.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/insights/CalendarHeatmap.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 2
+		}
+	},
+	"src/lib/components/insights/DayOfWeekChart.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/insights/GoalAdherence.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/insights/MacroRadar.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 4
+		}
+	},
+	"src/lib/components/insights/MacroSourcesModal.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/insights/StreakInsight.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/insights/TrendsChart.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/label/LabelScanModal.svelte": {
+		"svelte/no-unused-svelte-ignore": {
+			"count": 1
+		}
+	},
+	"src/lib/components/navigation/app-sidebar.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/quality/AdditivesList.svelte": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/quality/NutriScoreBadge.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/quality/NutriScoreSelector.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/recipes/IngredientRow.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/recipes/RecipeForm.svelte": {
+		"svelte/no-unused-svelte-ignore": {
+			"count": 2
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/reminders/ReminderForm.svelte": {
+		"svelte/require-each-key": {
+			"count": 3
+		}
+	},
+	"src/lib/components/shared/FoodThumbnail.svelte": {
+		"@typescript-eslint/no-unused-expressions": {
+			"count": 1
+		}
+	},
+	"src/lib/components/shared/NumberInput.svelte": {
+		"svelte/no-unused-svelte-ignore": {
+			"count": 1
+		}
+	},
+	"src/lib/components/sleep/SleepLogForm.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/components/sleep/SleepTabContent.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/components/supplements/SupplementChecklist.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/supplements/SupplementForm.svelte": {
+		"svelte/prefer-writable-derived": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 6
+		}
+	},
+	"src/lib/components/ui/chart/chart-utils.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 2
+		}
+	},
+	"src/lib/components/ui/force-delete-dialog.svelte": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		},
+		"svelte/no-at-html-tags": {
+			"count": 1
+		}
+	},
+	"src/lib/components/ui/resizable/resizable-pane-group.svelte": {
+		"no-useless-assignment": {
+			"count": 1
+		}
+	},
+	"src/lib/components/ui/sidebar/sidebar-trigger.svelte": {
+		"no-useless-assignment": {
+			"count": 1
+		}
+	},
+	"src/lib/components/usage/WhereUsedDialog.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 4
+		}
+	},
+	"src/lib/components/weight/WeightChart.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/lib/components/weight/WeightLogForm.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/lib/server/analytics.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/server/nutrient-insights.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/server/oauth.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/server/upload.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/lib/services/ai-task-service.svelte.ts": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/services/supplement-service.svelte.ts": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		}
+	},
+	"src/lib/stores/fasting-timer.svelte.ts": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 3
+		}
+	},
+	"src/lib/stores/sync.ts": {
+		"@typescript-eslint/no-misused-promises": {
+			"count": 6
+		},
+		"no-useless-assignment": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/+layout.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/ai-tasks/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/favorites/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/foods/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 14
+		}
+	},
+	"src/routes/(app)/foods/[id]/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 5
+		}
+	},
+	"src/routes/(app)/foods/duplicates/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/routes/(app)/foods/recent/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/goals/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/history/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		}
+	},
+	"src/routes/(app)/history/[date]/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/home/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 9
+		}
+	},
+	"src/routes/(app)/insights/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 5
+		},
+		"svelte/require-each-key": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/maintenance/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/recipe-suggestions/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 7
+		}
+	},
+	"src/routes/(app)/recipes/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 8
+		},
+		"svelte/no-unused-svelte-ignore": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/recipes/[id]/cook/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		},
+		"svelte/no-unused-svelte-ignore": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/settings/+layout.svelte": {
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/settings/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 6
+		}
+	},
+	"src/routes/(app)/settings/AiTaskProcessorSelector.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/settings/ConnectedAccounts.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/settings/FavoriteMealTimeframeManager.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/settings/NutrientSelector.svelte": {
+		"svelte/prefer-svelte-reactivity": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 2
+		}
+	},
+	"src/routes/(app)/settings/WidgetOrderEditor.svelte": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		},
+		"svelte/prefer-writable-derived": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/settings/mcp/+page.svelte": {
+		"svelte/require-each-key": {
+			"count": 4
+		}
+	},
+	"src/routes/(app)/settings/reminders/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/supplements/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		}
+	},
+	"src/routes/(app)/supplements/history/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 1
+		},
+		"svelte/prefer-svelte-reactivity": {
+			"count": 3
+		},
+		"svelte/require-each-key": {
+			"count": 4
+		}
+	},
+	"src/routes/(app)/weight/+page.svelte": {
+		"@typescript-eslint/no-floating-promises": {
+			"count": 3
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"src/routes/+layout.svelte": {
+		"svelte/no-at-html-tags": {
+			"count": 1
+		}
+	},
+	"src/routes/oauth/consent/+page.svelte": {
+		"svelte/no-at-html-tags": {
+			"count": 1
+		},
+		"svelte/require-each-key": {
+			"count": 1
+		}
+	},
+	"tests/analytics/food-diversity.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/api/auth-security.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 6
+		}
+	},
+	"tests/api/foods-id.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/api/foods-recent.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/api/foods.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 6
+		}
+	},
+	"tests/api/goals.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 3
+		}
+	},
+	"tests/api/meal-types.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 3
+		}
+	},
+	"tests/api/sleep.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/api/stats-extended.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 2
+		}
+	},
+	"tests/api/weight.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/integration-db/isolation.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		},
+		"no-useless-assignment": {
+			"count": 1
+		}
+	},
+	"tests/integration/auth-callback.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/integration/auth-routes.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/server/db-error-handling.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/server/entries-db.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 2
+		}
+	},
+	"tests/server/food-duplicates.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/server/mcp-handlers.test.ts": {
+		"@typescript-eslint/no-unsafe-function-type": {
+			"count": 1
+		}
+	},
+	"tests/server/recipes-db.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 2
+		}
+	},
+	"tests/server/session-db.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/server/stats-db.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 3
+		}
+	},
+	"tests/utils/macro-calc.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/utils/offline-queue-enqueue.test.ts": {
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/utils/sync-listener.test.ts": {
+		"@typescript-eslint/no-misused-promises": {
+			"count": 2
+		},
+		"@typescript-eslint/no-unused-vars": {
+			"count": 1
+		}
+	},
+	"tests/utils/wake-lock.test.ts": {
+		"@typescript-eslint/no-misused-promises": {
+			"count": 2
+		}
+	}
+}
