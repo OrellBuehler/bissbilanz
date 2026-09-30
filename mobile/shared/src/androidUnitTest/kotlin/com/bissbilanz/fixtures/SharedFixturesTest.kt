@@ -17,6 +17,8 @@ import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.convertQuantityForMacros
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.gramsToServings
+import com.bissbilanz.util.mealForCurrentTime
+import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -27,6 +29,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -35,8 +38,9 @@ import kotlinx.serialization.json.put
 import kotlin.test.Test
 
 /**
- * Asserts tests/fixtures/shared/{goal-rules,recipe-math,label-parsing}.json against
- * the shared Kotlin implementation. The web and iOS suites assert the same files.
+ * Asserts tests/fixtures/shared/{goal-rules,recipe-math,label-parsing}.json and the
+ * generated-*.json grids (scripts/shared-fixtures) against the shared Kotlin
+ * implementation. The web and iOS suites assert the same files.
  */
 class SharedFixturesTest {
     @Test
@@ -47,6 +51,27 @@ class SharedFixturesTest {
 
     @Test
     fun labelParsing() = runFixture("label-parsing.json", ::runLabelParsing)
+
+    @Test
+    fun generatedGoalRules() = runFixture("generated-goal-rules.json", ::runGoalRules)
+
+    @Test
+    fun generatedRecipeMath() = runFixture("generated-recipe-math.json", ::runRecipeMath)
+
+    @Test
+    fun generatedUnitConversion() = runFixture("generated-unit-conversion.json", ::runRecipeMath)
+
+    @Test
+    fun generatedMealTypes() = runFixture("generated-meal-types.json", ::runMealTypes)
+
+    private fun runMealTypes(case: FixtureCase): JsonElement {
+        val i = case.input
+        return when (case.fn) {
+            "normalizeMealType" -> JsonPrimitive(normalizeMealType(i.string("value")))
+            "mealForHour" -> JsonPrimitive(mealForCurrentTime(i.getValue("hour").jsonPrimitive.int))
+            else -> error("no Kotlin harness for fn ${case.fn}")
+        }
+    }
 
     private fun runGoalRules(case: FixtureCase): JsonElement {
         val i = case.input
@@ -142,7 +167,7 @@ class SharedFixturesTest {
                         )
                     }
                 val totalServings = i.double("totalServings")
-                val perServing = computeRecipePerServingMacros(recipeIngredients, totalServings) { foods[it] }!!
+                val perServing = computeRecipePerServingMacros(recipeIngredients, totalServings) { foods[it] } ?: return JsonNull
                 // Kotlin only aggregates per serving, so `total` is derived here; it is really asserted on web and iOS.
                 buildJsonObject {
                     put("perServing", perServing.json())

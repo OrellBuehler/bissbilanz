@@ -48,6 +48,9 @@ jobs:
       - name: Analytics golden vectors up to date
         run: bun run analytics:check
 
+      - name: Shared cross-platform fixtures up to date
+        run: bun run shared:check
+
       - name: Unit tests with coverage
         run: bun run test:coverage
 

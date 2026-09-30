@@ -17,6 +17,25 @@ export const mergeMealTypes = (defaults: string[], custom: string[]) => {
 	return [...defaults, ...custom];
 };
 
+/**
+ * Display order of the meals in a day: the four defaults first, then the custom
+ * meal types found in the day's entries in the order they appear, then the user's
+ * own `mealOrder` preference applied on top (meals it does not name go last).
+ */
+export const orderMealTypes = (entryMealTypes: string[], mealOrder?: string[] | null): string[] => {
+	const custom = entryMealTypes.filter(
+		(mt) => !(DEFAULT_MEAL_TYPES as readonly string[]).includes(mt)
+	);
+	const all = [...DEFAULT_MEAL_TYPES, ...new Set(custom)] as string[];
+	if (!mealOrder || mealOrder.length === 0) return all;
+	const orderIndex = new Map(mealOrder.map((name, i) => [name, i]));
+	return all.sort((a, b) => {
+		const ai = orderIndex.get(a) ?? Infinity;
+		const bi = orderIndex.get(b) ?? Infinity;
+		return ai - bi;
+	});
+};
+
 export type FavoriteMealTimeframeInput = {
 	mealType: string;
 	startTime: string;

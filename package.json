@@ -38,6 +38,8 @@
 		"analytics:check": "bun run analytics-parity/generate.ts --check",
 		"constants:generate": "bun run analytics-parity/generate-constants.ts",
 		"constants:check": "bun run analytics-parity/generate-constants.ts --check",
+		"shared:generate": "bun run scripts/shared-fixtures/generate.ts",
+		"shared:check": "bun run scripts/shared-fixtures/generate.ts --check",
 		"test:seed": "bun run scripts/test-seed.ts",
 		"clients:versions": "bun run scripts/client-versions.ts",
 		"catalog:import": "bun run scripts/catalog.ts import",

@@ -12,9 +12,9 @@ import Testing
 struct SharedFixtureTests {
     // MARK: - Goal rules
 
-    @Test("Goal rules match the shared fixtures")
-    func goalRules() throws {
-        let failures = try SharedFixtures.check("goal-rules") { fixtureCase in
+    @Test("Goal rules match the shared fixtures", arguments: ["goal-rules", "generated-goal-rules"])
+    func goalRules(file: String) throws {
+        let failures = try SharedFixtures.check(file) { fixtureCase in
             let input = fixtureCase.input
             switch fixtureCase.fn {
             case "adjustGoalsForActivity":
@@ -44,9 +44,12 @@ struct SharedFixtureTests {
 
     // MARK: - Recipe math
 
-    @Test("Recipe math matches the shared fixtures")
-    func recipeMath() throws {
-        let failures = try SharedFixtures.check("recipe-math") { fixtureCase in
+    @Test(
+        "Recipe math matches the shared fixtures",
+        arguments: ["recipe-math", "generated-recipe-math", "generated-unit-conversion"]
+    )
+    func recipeMath(file: String) throws {
+        let failures = try SharedFixtures.check(file) { fixtureCase in
             let input = fixtureCase.input
             switch fixtureCase.fn {
             case "convertQuantityForMacros":
@@ -145,6 +148,38 @@ struct SharedFixtureTests {
         if let cookedWeight { dict["cookedWeight"] = cookedWeight }
         for (key, value) in macros { dict[key] = value }
         return try JSONPatch.decode(Recipe.self, from: dict)
+    }
+
+    // MARK: - Meal types
+
+    /// `normalizeMealType` is `MealGrouping.canonicalKey` on iOS (lowercase keys for the four
+    /// built-in meals, which the fixture spells the way the server does); the ordering is
+    /// `WidgetSnapshotWriter.mealPrecedes`, the order the day log and the watch use.
+    @Test("Meal types match the generated shared fixtures")
+    func mealTypes() throws {
+        let failures = try SharedFixtures.check("generated-meal-types") { fixtureCase in
+            let input = fixtureCase.input
+            switch fixtureCase.fn {
+            case "normalizeMealType":
+                let key = MealGrouping.canonicalKey(input["value"] as? String ?? "")
+                guard MealGrouping.order.contains(key) else { return key }
+                return key.prefix(1).uppercased() + key.dropFirst()
+
+            case "mealForHour":
+                let hour = (input["hour"] as? NSNumber)?.intValue ?? 0
+                let components = DateComponents(year: 2026, month: 1, day: 15, hour: hour, minute: 30)
+                let date = try #require(Calendar.current.date(from: components))
+                return MealTiming.mealForCurrentTime(date)
+
+            case "orderMealTypes":
+                let present = input["present"] as? [String] ?? []
+                return Array(Set(present)).sorted(by: WidgetSnapshotWriter.mealPrecedes)
+
+            default:
+                throw SharedFixtureError.malformed("no Swift harness for fn \(fixtureCase.fn)")
+            }
+        }
+        #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
     }
 
     // MARK: - Label parsing

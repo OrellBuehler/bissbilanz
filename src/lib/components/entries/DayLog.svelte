@@ -4,7 +4,7 @@
 	import EditEntryModal from '$lib/components/entries/EditEntryModal.svelte';
 	import BarcodeScanModal from '$lib/components/barcode/BarcodeScanModal.svelte';
 	import { sumEntries, type MacroTotals } from '$lib/utils/nutrition';
-	import { DEFAULT_MEAL_TYPES, getCurrentMealByTime } from '$lib/utils/meals';
+	import { getCurrentMealByTime, orderMealTypes } from '$lib/utils/meals';
 	import { goto } from '$app/navigation';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { api } from '$lib/api/client';
@@ -240,20 +240,12 @@
 
 	const totals = $derived(sumEntries(entries));
 
-	const mealTypes = $derived.by(() => {
-		const custom = entries
-			.map((e: { mealType: string }) => e.mealType)
-			.filter((mt: string) => !(DEFAULT_MEAL_TYPES as readonly string[]).includes(mt));
-		const all = [...DEFAULT_MEAL_TYPES, ...new Set(custom)] as string[];
-		const order = userPrefs?.mealOrder;
-		if (!order || order.length === 0) return all;
-		const orderIndex = new Map(order.map((name: string, i: number) => [name, i]));
-		return all.sort((a, b) => {
-			const ai = orderIndex.get(a) ?? Infinity;
-			const bi = orderIndex.get(b) ?? Infinity;
-			return ai - bi;
-		});
-	});
+	const mealTypes = $derived(
+		orderMealTypes(
+			entries.map((e: { mealType: string }) => e.mealType),
+			userPrefs?.mealOrder
+		)
+	);
 
 	$effect(() => {
 		onTotalsChange?.(totals);
