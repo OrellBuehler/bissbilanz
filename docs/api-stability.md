@@ -132,7 +132,7 @@ It fails with the operation, status and Zod issues when the shape doesn't match,
 status isn't documented for that operation at all, and for a status with no documented content
 (e.g. 204) checks the body is empty instead. Every API route test in `tests/api/*.test.ts` calls
 it for each documented response its test cases exercise, success and error alike; new or changed
-routes should do the same — see "API Routes" in `CLAUDE.md`.
+routes should do the same — see "API Routes" in `src/routes/api/CLAUDE.md`.
 
 ### Shipping an intentional break
 
