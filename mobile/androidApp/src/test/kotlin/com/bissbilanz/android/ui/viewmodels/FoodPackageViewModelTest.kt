@@ -168,6 +168,32 @@ class FoodPackageViewModelTest {
         }
 
     @Test
+    fun aNewerPackageSupersedesAPreviewStillRunning() =
+        runBlocking<Unit> {
+            val second = File.createTempFile("package2", ".pkg").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+            coEvery { local.preview(pkg.path) } coAnswers {
+                kotlinx.coroutines.delay(300)
+                preview("1".repeat(64))
+            }
+            coEvery { local.preview(second.path) } returns preview("2".repeat(64))
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyze("a.bissbilanz", pkg.path)
+            vm.analyze("b.bissbilanz", second.path)
+            awaitState(vm.importState) { !it.analyzing && it.preview != null }
+            // Outlast the slow first preview: its late result must not replace the second.
+            kotlinx.coroutines.delay(600)
+
+            assertEquals(
+                "2".repeat(64),
+                vm.importState.value.preview
+                    ?.packageHash,
+            )
+            assertEquals("b.bissbilanz", vm.importState.value.fileName)
+            second.delete()
+        }
+
+    @Test
     fun undoingAMappingSendsNone() =
         runBlocking<Unit> {
             coEvery { local.preview(pkg.path) } returns preview()
