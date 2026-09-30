@@ -71,7 +71,7 @@ object WearOutbox {
                     .putLong(KEY_NEXT_ID, nextId + 1)
                     .commit()
             if (stored) nextId else null
-        }.getOrNull()
+        }.onFailure(WearErrors::report).getOrNull()
 
     @Synchronized
     fun all(context: Context): List<WearOutboxItem> = read(context)
@@ -84,7 +84,7 @@ object WearOutbox {
         runCatching {
             val remaining = read(context).filterNot { it.id == id }
             prefs(context).edit().putString(KEY_ITEMS, json.encodeToString(remaining)).commit()
-        }
+        }.onFailure(WearErrors::report)
     }
 
     /** True while [id] is still waiting for the phone — how a send tells SENT from QUEUED. */
@@ -100,7 +100,7 @@ object WearOutbox {
     private fun read(context: Context): List<WearOutboxItem> =
         runCatching {
             prefs(context).getString(KEY_ITEMS, null)?.let { json.decodeFromString<List<WearOutboxItem>>(it) }
-        }.getOrNull() ?: emptyList()
+        }.onFailure(WearErrors::report).getOrNull() ?: emptyList()
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

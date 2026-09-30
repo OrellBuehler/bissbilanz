@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageClient
@@ -140,10 +141,11 @@ object WearStateRepository {
             } finally {
                 items.release()
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it else WearErrors.report(it) }
     }
 
-    fun decode(payload: String): WearState? = runCatching { json.decodeFromString<WearState>(payload) }.getOrNull()
+    fun decode(payload: String): WearState? =
+        runCatching { json.decodeFromString<WearState>(payload) }.onFailure(WearErrors::report).getOrNull()
 
     suspend fun logFood(
         context: Context,
@@ -283,6 +285,9 @@ object WearStateRepository {
             throw e
         } catch (e: Exception) {
             Log.w("WearStateRepository", "Data Layer call failed", e)
+            // Play services reports an absent or busy phone as an ApiException; that is
+            // connectivity, not a bug.
+            if (e !is ApiException) WearErrors.report(e)
             null
         }
 }

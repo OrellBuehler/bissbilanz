@@ -216,16 +216,16 @@
 			>.
 		</li>
 		<li>
-			<strong>Sentry (crash reporting):</strong> The web, Android and iOS apps use Sentry to collect
-			crash reports and error diagnostics, including device type, operating system version, and
-			stack traces. On the Android and iOS apps, crash reports are linked to a persistent internal
-			account identifier (not your name or email) so related reports can be grouped, and also
-			include an on-device screenshot and view hierarchy of the screen you were using, which may
-			show data such as your food log or weight. On the web app, crash reports are not linked to
-			your account, and a screen recording is only captured when an error actually occurs, with all
-			text, form inputs and images masked or blocked before it ever leaves your device. Sentry never
-			receives your food entries, recipes or account credentials directly, and this data is never
-			used for advertising. Their privacy policy is available at
+			<strong>Sentry (crash reporting):</strong> The web, Android, Wear OS and iOS apps use Sentry
+			to collect crash reports and error diagnostics, including device type, operating system
+			version, and stack traces. On the Android and iOS apps, crash reports are linked to a
+			persistent internal account identifier (not your name or email) so related reports can be
+			grouped, and also include an on-device screenshot and view hierarchy of the screen you were
+			using, which may show data such as your food log or weight. On the web app, crash reports are
+			not linked to your account, and a screen recording is only captured when an error actually
+			occurs, with all text, form inputs and images masked or blocked before it ever leaves your
+			device. Sentry never receives your food entries, recipes or account credentials directly, and
+			this data is never used for advertising. Their privacy policy is available at
 			<a href="https://sentry.io/privacy/" class="underline">sentry.io</a>.
 		</li>
 	</ul>
@@ -236,7 +236,7 @@
 		<a href="https://umami.is" class="underline">Umami</a> to count page visits. Umami is a privacy-focused
 		analytics tool: it sets no cookies, stores no personal identifiers, and does not track you across
 		sites. The aggregate data (page views, browser type, country) stays on the developer's own server
-		and is used only to understand how the app is used. The Android and iOS apps contain no analytics
+		and is used only to understand how the app is used. The Android, Wear OS and iOS apps contain no analytics
 		— crash reporting via Sentry is the only diagnostic data they send.
 	</p>
 	<p class="mb-6">
