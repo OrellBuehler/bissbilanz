@@ -25,7 +25,7 @@
 
 	let notesTimer: ReturnType<typeof setTimeout> | null = null;
 
-	const commitNotes = () => {
+	const commitNotes = (targetDate: string = date) => {
 		if (notesTimer) {
 			clearTimeout(notesTimer);
 			notesTimer = null;
@@ -33,14 +33,24 @@
 		const trimmed = notesDraft.trim();
 		notesDirty = false;
 		if (trimmed === (stored?.notes ?? '')) return;
-		dayPropertiesService.update(date, { notes: trimmed === '' ? null : trimmed.slice(0, 2000) });
+		dayPropertiesService.update(targetDate, {
+			notes: trimmed === '' ? null : trimmed.slice(0, 2000)
+		});
 	};
 
 	const onNotesInput = () => {
 		notesDirty = true;
 		if (notesTimer) clearTimeout(notesTimer);
-		notesTimer = setTimeout(commitNotes, 1200);
+		const armedDate = date;
+		notesTimer = setTimeout(() => commitNotes(armedDate), 1200);
 	};
+
+	$effect(() => {
+		const armedDate = date;
+		return () => {
+			if (notesTimer) commitNotes(armedDate);
+		};
+	});
 </script>
 
 <DashboardCard title={m.day_notes_title()} Icon={NotebookPen} tone="neutral">
@@ -52,6 +62,6 @@
 		placeholder={m.day_notes_placeholder()}
 		bind:value={notesDraft}
 		oninput={onNotesInput}
-		onblur={commitNotes}
+		onblur={() => commitNotes()}
 	/>
 </DashboardCard>
