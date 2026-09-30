@@ -116,9 +116,10 @@ class AuthManager(
 
     fun validateState(state: String?): Boolean {
         val expected = pendingState
-        pendingState = null
-        val valid = state != null && state == expected
-        if (!valid) pendingCodeVerifier = null
+        // Only a matching callback consumes the login attempt: a stray or forged
+        // callback URL must not cancel the login the user is in the middle of.
+        val valid = state != null && expected != null && state == expected
+        if (valid) pendingState = null
         return valid
     }
 
