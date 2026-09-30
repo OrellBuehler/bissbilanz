@@ -220,6 +220,22 @@ struct RepositoryTests {
         #expect(harness.recordedRequests.isEmpty)
     }
 
+    @Test("Copy entries moves the eaten time onto the target day")
+    func copyEntriesKeepsTimeOfDay() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.entryRepository
+        try harness.context.insert(LocalEntry(
+            entry: harness.entry(id: "e1", date: "2026-06-01", foodId: "f1", eatenAt: "2026-06-01T08:30:00Z"),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+
+        _ = try await repo.copyEntries(fromDate: "2026-06-01", toDate: "2026-06-03")
+
+        let copy = try #require(repo.entries(date: "2026-06-03").first)
+        #expect(copy.eatenAt == DateFormatting.eatenAt("2026-06-01T08:30:00Z", onDate: "2026-06-03"))
+    }
+
     @Test("Copy entries falls back to the server copy when the local source day is empty")
     func copyEntriesFallsBackToServerCopy() async throws {
         let harness = try RepositoryHarness()

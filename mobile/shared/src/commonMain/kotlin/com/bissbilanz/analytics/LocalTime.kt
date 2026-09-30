@@ -1,7 +1,10 @@
 package com.bissbilanz.analytics
 
 import com.bissbilanz.util.Failures
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -40,6 +43,31 @@ fun localMinutesOfDay(
     val tz = parseZone(timeZone) ?: return null
     val local = instant.toLocalDateTime(tz)
     return local.hour * 60 + local.minute
+}
+
+/**
+ * Puts the instant [eatenAt] on the calendar day [toDate] ("yyyy-MM-dd"), keeping its
+ * wall-clock time in [timeZone]. DST is resolved by the zone rules rather than by adding
+ * 24 hours per day, so 08:30 stays 08:30 across a clock change. Null stays null; an
+ * unparseable timestamp or date returns [eatenAt] unchanged. Mirrors the server's
+ * `copyEntries`.
+ */
+fun eatenAtOnDate(
+    eatenAt: String?,
+    toDate: String,
+    timeZone: TimeZone,
+): String? {
+    if (eatenAt == null) return null
+    val instant = parseInstant(eatenAt) ?: return eatenAt
+    val date =
+        try {
+            LocalDate.parse(toDate)
+        } catch (e: IllegalArgumentException) {
+            Failures.report(e)
+            return eatenAt
+        }
+    val time = instant.toLocalDateTime(timeZone).time
+    return LocalDateTime(date, time).toInstant(timeZone).toString()
 }
 
 /** An instant placed on its eating day; mirrors the web `EatingDayPoint`. */

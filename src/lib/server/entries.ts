@@ -1,7 +1,7 @@
 import { getDB } from '$lib/server/db';
 import { foodEntries, foods, recipes, customMealTypes } from '$lib/server/schema';
 import { entryCreateSchema, entryUpdateSchema } from '$lib/server/validation';
-import { and, count, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, gte, lte, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -152,6 +152,11 @@ const normalizeQuickNutrients = (rec: Record<string, number> | null | undefined)
 
 type EntryUpdateInput = typeof entryUpdateSchema._output;
 
+// Puts an instant on `date` keeping its wall-clock time in `timeZone`. Postgres
+// resolves DST, so a meal at 08:30 stays 08:30 across a clock change.
+const eatenAtOnDate = (eatenAt: SQL | Date | AnyColumn, date: string, timeZone: string) =>
+	sql<Date>`((${date}::date + (${eatenAt} AT TIME ZONE ${timeZone})::time) AT TIME ZONE ${timeZone})`;
+
 export const toEntryUpdate = (
 	input: EntryUpdateInput,
 	timeZone = 'UTC'
@@ -174,8 +179,7 @@ export const toEntryUpdate = (
 				? {
 						eatenAt: sql<Date>`CASE WHEN ${foodEntries.date} = ${input.date}::date
                     THEN ${foodEntries.eatenAt}
-                    ELSE ((${input.date}::date + (${foodEntries.eatenAt} AT TIME ZONE ${timeZone})::time)
-                        AT TIME ZONE ${timeZone}) END`
+                    ELSE ${eatenAtOnDate(foodEntries.eatenAt, input.date, timeZone)} END`
 					}
 				: {})
 	};
@@ -330,6 +334,7 @@ export const copyEntries = async (userId: string, fromDate: string, toDate: stri
 
 	if (!entries.length) return [];
 
+	const timeZone = await getUserTimeZone(userId);
 	const rows = entries.map((entry) => ({
 		userId,
 		foodId: entry.foodId,
@@ -338,6 +343,7 @@ export const copyEntries = async (userId: string, fromDate: string, toDate: stri
 		servings: entry.servings,
 		notes: entry.notes,
 		date: toDate,
+		eatenAt: eatenAtOnDate(sql`${entry.eatenAt.toISOString()}::timestamptz`, toDate, timeZone),
 		quickName: entry.quickName,
 		quickCalories: entry.quickCalories,
 		quickProtein: entry.quickProtein,

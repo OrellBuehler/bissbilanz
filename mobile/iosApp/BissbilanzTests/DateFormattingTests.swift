@@ -433,4 +433,24 @@ struct EatenAtStringTests {
         #expect(components.minute == 8)
         #expect(components.second == 0)
     }
+
+    private var zurich: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Zurich") ?? .gmt
+        return calendar
+    }
+
+    @Test("Copying keeps the local wall-clock time across a DST change")
+    func eatenAtKeepsLocalTimeAcrossDST() {
+        let forward = DateFormatting.eatenAt("2026-03-20T07:30:00Z", onDate: "2026-04-02", calendar: zurich)
+        #expect(forward == "2026-04-02T06:30:00Z")
+        let back = DateFormatting.eatenAt("2026-04-02T21:45:00Z", onDate: "2026-03-05", calendar: zurich)
+        #expect(back == "2026-03-05T22:45:00Z")
+    }
+
+    @Test("A missing eatenAt stays missing and garbage is left alone")
+    func eatenAtNilAndInvalid() {
+        #expect(DateFormatting.eatenAt(nil, onDate: "2026-04-02", calendar: zurich) == nil)
+        #expect(DateFormatting.eatenAt("nonsense", onDate: "2026-04-02", calendar: zurich) == "nonsense")
+    }
 }

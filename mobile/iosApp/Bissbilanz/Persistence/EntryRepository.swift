@@ -307,6 +307,7 @@ final class EntryRepository {
         }
         var copied = 0
         for entry in source {
+            let eatenAt = DateFormatting.eatenAt(entry.eatenAt, onDate: toDate)
             let create = EntryCreate(
                 foodId: entry.foodId,
                 recipeId: entry.recipeId,
@@ -321,16 +322,18 @@ final class EntryRepository {
                 quickFat: entry.quickFat,
                 quickFiber: entry.quickFiber,
                 quickNutrients: entry.quickNutrients,
-                eatenAt: entry.eatenAt
+                eatenAt: eatenAt
             )
             // Patch the source entry instead of rebuilding so resolved display
             // macros survive the copy.
             let tempId = LocalStore.makeTempId()
-            let copy = (try? JSONPatch.merged(Entry.self, base: entry, patch: [
+            var patch: [String: Any] = [
                 "id": tempId,
                 "date": toDate,
                 "createdAt": DateFormatting.isoDateTimeString(from: Date()),
-            ])) ?? Self.makeEntry(from: create, id: tempId, food: nil, recipe: nil)
+            ]
+            if let eatenAt { patch["eatenAt"] = eatenAt }
+            let copy = (try? JSONPatch.merged(Entry.self, base: entry, patch: patch)) ?? Self.makeEntry(from: create, id: tempId, food: nil, recipe: nil)
             upsert(copy, date: toDate)
             syncManager.enqueue(.createEntry(body: create, localId: copy.id))
             copied += 1
