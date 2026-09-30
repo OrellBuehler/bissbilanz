@@ -16,6 +16,7 @@ struct FoodDetailView: View {
     @State private var error: Error?
     @State private var showEditSheet = false
     @State private var showLogSheet = false
+    @State private var showShareSheet = false
     @State private var showDeleteConfirmation = false
     @State private var isTogglingFavorite = false
     @State private var isEnriching = false
@@ -94,6 +95,16 @@ struct FoodDetailView: View {
                             .disabled(isEnriching)
                         }
 
+                        // A food that hasn't synced yet has a `temp_` id the
+                        // server can't export.
+                        if appMode.isLocal || !LocalStore.isTempId(food.id) {
+                            Button {
+                                showShareSheet = true
+                            } label: {
+                                Label(L10n.foodPackageShare, systemImage: "square.and.arrow.up")
+                            }
+                        }
+
                         // Merging requires an account — there is no server to
                         // merge on in Local mode, same as every other
                         // account-only action (mirrors AIMealSheet's
@@ -125,6 +136,11 @@ struct FoodDetailView: View {
                 FoodEditSheet(food: food) { updated in
                     self.food = updated
                 }
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let food {
+                FoodPackageExportView(foodIds: [food.id])
             }
         }
         .sheet(isPresented: $showLogSheet) {
