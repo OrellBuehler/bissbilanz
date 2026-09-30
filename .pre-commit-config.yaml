@@ -1,3 +1,6 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
 repos:
   - repo: local
     hooks:
@@ -15,13 +18,13 @@ repos:
           - markdown
           - html
 
-      - id: svelte-check
-        name: svelte-check
-        entry: bash -c 'bun run paraglide:compile && bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --tsgo'
+      - id: eslint
+        name: eslint
+        entry: bunx eslint --no-warn-ignored
         language: system
-        pass_filenames: false
         types_or:
           - ts
+          - javascript
           - svelte
 
       - id: ktlint
@@ -65,3 +68,21 @@ repos:
           then echo "ERROR - catalog dataset files must not be committed (public repo)"; exit 1; fi'
         language: system
         pass_filenames: false
+
+      # Pre-push: whole-project checks live here so pre-commit stays fast. CI
+      # still typechecks everything.
+      - id: verify-changed
+        name: verify changed (prettier, eslint, related tests, svelte-check, api:check)
+        entry: bun run verify:changed --base
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: ktlint-gradle
+        name: ktlint (gradle, changed mobile modules)
+        entry: scripts/verify/pre-push-kotlin.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
