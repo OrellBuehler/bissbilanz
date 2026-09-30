@@ -5,6 +5,7 @@
 	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
+	import { getHelpGuide } from '$lib/help/guides';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -27,6 +28,7 @@
 		insights: () => m.nav_insights(),
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
+		help: () => m.nav_help(),
 		mcp: () => 'MCP'
 	};
 
@@ -36,7 +38,8 @@
 		const pathname = deLocalizeHref($page.url.pathname);
 		const segments = pathname.split('/').filter(Boolean);
 		const last = segments[segments.length - 1];
-		return labelMap[last]?.() ?? last ?? '';
+		const guide = segments[0] === 'help' && segments.length === 2 ? getHelpGuide(last) : undefined;
+		return guide?.title() ?? labelMap[last]?.() ?? last ?? '';
 	});
 
 	const tabPaths = new Set(['/home', '/favorites', '/foods', '/insights', '/settings']);
