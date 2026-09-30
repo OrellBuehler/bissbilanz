@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 import {
 	createTestDatabase,
 	dropTestDatabase,
@@ -56,7 +56,7 @@ beforeEach(async () => {
 });
 
 describe('refresh token rotation', () => {
-	it('lets exactly one of several concurrent refreshes win', async () => {
+	it('claims the token once when several refreshes race, and answers the losers in the grace window', async () => {
 		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
 		const { refreshToken } = await createAccessToken(userId, 'third-party');
 
@@ -64,19 +64,18 @@ describe('refresh token rotation', () => {
 			Array.from({ length: 8 }, () => refreshAccessToken(refreshToken, 'third-party'))
 		);
 
-		expect(results.filter(Boolean)).toHaveLength(1);
-		const db = getTestDB(dbUrl);
-		expect(await db.select().from(oauthTokens)).toHaveLength(1);
+		expect(results.every(Boolean)).toBe(true);
+		const rows = await getTestDB(dbUrl).select().from(oauthTokens);
+		expect(rows.filter((r) => r.refreshTokenConsumedAt)).toHaveLength(1);
+		expect(new Set(rows.map((r) => r.familyId)).size).toBe(1);
 	});
 
-	it('does not accept a rotated-away refresh token again', async () => {
+	it('rejects an unknown refresh token without touching anything', async () => {
 		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
-		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		await createAccessToken(userId, 'third-party');
 
-		const first = await refreshAccessToken(refreshToken, 'third-party');
-		expect(first).toBeTruthy();
-		expect(await refreshAccessToken(refreshToken, 'third-party')).toBeUndefined();
-		expect(await refreshAccessToken(first!.refreshToken, 'third-party')).toBeTruthy();
+		expect(await refreshAccessToken('nope', 'third-party')).toBeUndefined();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(1);
 	});
 
 	it('keeps the family and its absolute expiry through rotation', async () => {
@@ -87,7 +86,7 @@ describe('refresh token rotation', () => {
 
 		await refreshAccessToken(refreshToken, 'third-party');
 
-		const [after] = await db.select().from(oauthTokens);
+		const [after] = (await db.select().from(oauthTokens)).filter((r) => !r.refreshTokenConsumedAt);
 		expect(after.familyId).toBe(before.familyId);
 		expect(after.familyExpiresAt!.getTime()).toBe(before.familyExpiresAt!.getTime());
 		expect(after.id).not.toBe(before.id);
@@ -100,7 +99,9 @@ describe('refresh token rotation', () => {
 		await db.update(oauthTokens).set({ familyExpiresAt: new Date(Date.now() - 1000) });
 
 		expect(await refreshAccessToken(refreshToken, 'third-party')).toBeUndefined();
-		expect(await db.select().from(oauthTokens)).toHaveLength(0);
+		expect(
+			(await db.select().from(oauthTokens)).filter((r) => !r.refreshTokenConsumedAt)
+		).toHaveLength(0);
 	});
 
 	it('does not hand third-party tokens the account scope', async () => {
@@ -109,7 +110,7 @@ describe('refresh token rotation', () => {
 		await refreshAccessToken(refreshToken, 'third-party');
 
 		const db = getTestDB(dbUrl);
-		const [row] = await db.select().from(oauthTokens);
+		const [row] = (await db.select().from(oauthTokens)).filter((r) => !r.refreshTokenConsumedAt);
 		expect(row.scopes).toEqual(['mcp:access']);
 	});
 
@@ -122,8 +123,126 @@ describe('refresh token rotation', () => {
 		await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
 
 		const db = getTestDB(dbUrl);
-		const [row] = await db.select().from(oauthTokens);
+		const [row] = (await db.select().from(oauthTokens)).filter((r) => !r.refreshTokenConsumedAt);
 		expect(row.scopes).toEqual(['mcp:access', 'account:manage']);
+	});
+});
+
+describe('refresh token reuse detection', () => {
+	const ageConsumption = async (ms: number) => {
+		const db = getTestDB(dbUrl);
+		await db
+			.update(oauthTokens)
+			.set({ refreshTokenConsumedAt: new Date(Date.now() - ms) })
+			.where(isNotNull(oauthTokens.refreshTokenConsumedAt));
+	};
+
+	it('keeps the rotated row so a replay can be recognised', async () => {
+		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		await refreshAccessToken(refreshToken, 'third-party');
+
+		const rows = await getTestDB(dbUrl).select().from(oauthTokens);
+		expect(rows).toHaveLength(2);
+		expect(rows.filter((r) => r.refreshTokenConsumedAt)).toHaveLength(1);
+	});
+
+	// Grace-window decision: a token replayed within REFRESH_REUSE_GRACE_MS of its rotation
+	// is a lost response or a racing refresh from the legitimate client, so it gets a fresh
+	// rotation of the same family instead of a sign-out. The family expiry is unchanged.
+	it('answers a replay inside the grace window with a new rotation of the same family', async () => {
+		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		const first = await refreshAccessToken(refreshToken, 'third-party');
+		await ageConsumption(5_000);
+
+		const replay = await refreshAccessToken(refreshToken, 'third-party');
+
+		expect(replay).toBeTruthy();
+		expect(replay!.refreshToken).not.toBe(first!.refreshToken);
+		const rows = await getTestDB(dbUrl).select().from(oauthTokens);
+		expect(new Set(rows.map((r) => r.familyId)).size).toBe(1);
+		expect(await refreshAccessToken(replay!.refreshToken, 'third-party')).toBeTruthy();
+	});
+
+	it('does not sign anyone out when a racing refresh is retried with the old token', async () => {
+		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		const results = await Promise.all(
+			Array.from({ length: 5 }, () => refreshAccessToken(refreshToken, 'third-party'))
+		);
+		expect(results.every(Boolean)).toBe(true);
+	});
+
+	it('revokes the whole family when a token is replayed after the grace window', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		const first = await refreshAccessToken(refreshToken, 'third-party');
+		const second = await refreshAccessToken(first!.refreshToken, 'third-party');
+		await createAccessToken(userId, 'third-party');
+		await ageConsumption(120_000);
+
+		expect(await refreshAccessToken(refreshToken, 'third-party')).toBeUndefined();
+
+		expect(await validateAccessToken(second!.accessToken)).toBeUndefined();
+		expect(await refreshAccessToken(second!.refreshToken, 'third-party')).toBeUndefined();
+		// A different grant of the same user is untouched.
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(1);
+	});
+
+	it('reports the reuse without the token value', async () => {
+		const spy = vi.fn();
+		vi.doMock('@sentry/sveltekit', () => ({ captureMessage: spy, captureException: vi.fn() }));
+		vi.resetModules();
+		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		await refreshAccessToken(refreshToken, 'third-party');
+		await ageConsumption(120_000);
+		await refreshAccessToken(refreshToken, 'third-party');
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy.mock.calls[0][1]?.level).toBe('warning');
+		expect(JSON.stringify(spy.mock.calls[0])).not.toContain(refreshToken);
+		vi.doUnmock('@sentry/sveltekit');
+		vi.resetModules();
+	});
+
+	it('rejects the old access token once its refresh token was rotated', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { accessToken, refreshToken } = await createAccessToken(userId, 'third-party');
+		await refreshAccessToken(refreshToken, 'third-party');
+		expect(await validateAccessToken(accessToken)).toBeUndefined();
+	});
+
+	it('prunes consumed rows after the retention period', async () => {
+		const { createAccessToken, refreshAccessToken, cleanupExpiredOAuthData } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'third-party');
+		await refreshAccessToken(refreshToken, 'third-party');
+		await ageConsumption(8 * 24 * 60 * 60 * 1000);
+		await cleanupExpiredOAuthData();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(1);
+	});
+
+	it('upgrades a pre-family token and revokes it by its own id on reuse', async () => {
+		const { refreshAccessToken } = await import('$lib/server/oauth');
+		const { createHash } = await import('crypto');
+		const db = getTestDB(dbUrl);
+		const hash = (t: string) => createHash('sha256').update(t).digest('hex');
+		await db.insert(oauthTokens).values({
+			clientId: 'third-party',
+			userId,
+			accessTokenHash: hash('a'),
+			refreshTokenHash: hash('r'),
+			expiresAt: new Date(Date.now() + 1000),
+			refreshTokenExpiresAt: new Date(Date.now() + 100_000)
+		});
+		expect(await refreshAccessToken('r', 'third-party')).toBeTruthy();
+		await ageConsumption(120_000);
+		expect(await refreshAccessToken('r', 'third-party')).toBeUndefined();
+		expect(await db.select().from(oauthTokens)).toHaveLength(0);
 	});
 });
 

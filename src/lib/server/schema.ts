@@ -888,9 +888,13 @@ export const oauthTokens = pgTable(
 		// outlive familyExpiresAt. Null on tokens issued before this existed.
 		familyId: uuid('family_id'),
 		familyExpiresAt: timestamp('family_expires_at', { withTimezone: true }),
+		// Set when the refresh token was rotated. The row is kept so that presenting the
+		// token again can be told apart from an unknown one (reuse detection).
+		refreshTokenConsumedAt: timestamp('refresh_token_consumed_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
+		index('idx_oauth_tokens_family_id').on(table.familyId),
 		index('idx_oauth_tokens_client_id').on(table.clientId),
 		index('idx_oauth_tokens_user_id').on(table.userId),
 		index('idx_oauth_tokens_expires_at').on(table.expiresAt),
