@@ -2,13 +2,11 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
-	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import ListPagination from '$lib/components/shared/ListPagination.svelte';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { round2, formatKg } from '$lib/utils/number';
 	import { formatTime } from '$lib/utils/dates';
@@ -23,15 +21,9 @@
 
 	const PER_PAGE = 10;
 	let page = $state(1);
-	const paginated = $derived(limit == null && entries.length > PER_PAGE);
-	const totalPages = $derived(Math.max(1, Math.ceil(entries.length / PER_PAGE)));
 	const displayed = $derived(
 		limit != null ? entries.slice(0, limit) : entries.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 	);
-
-	$effect(() => {
-		if (page > totalPages) page = totalPages;
-	});
 
 	let editingId: string | null = $state(null);
 	let editWeight = $state<number | null>(null);
@@ -117,36 +109,6 @@
 	{/if}
 </div>
 
-{#if paginated}
-	<Pagination.Root count={entries.length} perPage={PER_PAGE} bind:page class="mt-4">
-		{#snippet children({ pages, currentPage })}
-			<Pagination.Content>
-				<Pagination.Item>
-					<Pagination.PrevButton>
-						<ChevronLeft class="size-4" />
-						<span class="hidden sm:block">{m.pagination_previous()}</span>
-					</Pagination.PrevButton>
-				</Pagination.Item>
-				{#each pages as p (p.key)}
-					{#if p.type === 'ellipsis'}
-						<Pagination.Item>
-							<Pagination.Ellipsis />
-						</Pagination.Item>
-					{:else}
-						<Pagination.Item>
-							<Pagination.Link page={p} isActive={currentPage === p.value}>
-								{p.value}
-							</Pagination.Link>
-						</Pagination.Item>
-					{/if}
-				{/each}
-				<Pagination.Item>
-					<Pagination.NextButton>
-						<span class="hidden sm:block">{m.pagination_next()}</span>
-						<ChevronRight class="size-4" />
-					</Pagination.NextButton>
-				</Pagination.Item>
-			</Pagination.Content>
-		{/snippet}
-	</Pagination.Root>
+{#if limit == null}
+	<ListPagination count={entries.length} perPage={PER_PAGE} bind:page />
 {/if}
