@@ -990,6 +990,20 @@ class SyncManagerTest {
             assertNotNull(queries.selectFoodById("real-food").executeAsOneOrNull())
         }
 
+    @Test
+    fun drainsDoNotRunWhileSyncIsPausedForAWipe() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry(any(), any(), any()) } returns Unit
+
+            var syncedWhilePaused = -1
+            manager.withSyncPaused { syncedWhilePaused = manager.syncPendingQueue() }
+
+            assertEquals(0, syncedWhilePaused)
+            coVerify(exactly = 0) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(1, manager.syncPendingQueue())
+        }
+
     private fun serverEntry(
         id: String,
         foodId: String? = null,

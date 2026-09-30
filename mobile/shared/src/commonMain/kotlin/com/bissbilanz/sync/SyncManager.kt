@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -937,6 +938,13 @@ class SyncManager(
         syncQueue.park(req.id, reason)
         addError("Could not sync ${req.operation.description} ($reason). It was kept so you can retry or discard it.")
     }
+
+    /**
+     * Runs [block] with no drain in flight and none able to start. Waits for a running
+     * drain to finish, then holds the drain lock (drains bail out when it is taken), so
+     * a wipe of local data cannot be followed by an in-flight upload writing rows back.
+     */
+    suspend fun withSyncPaused(block: suspend () -> Unit) = syncMutex.withLock { block() }
 
     /** Every change the server permanently rejected, oldest first. */
     suspend fun parkedChanges(): List<QueuedRequest> = syncQueue.all().filter { it.failedAt != null }

@@ -18,6 +18,7 @@ import com.bissbilanz.model.MealTypeCreate
 import com.bissbilanz.model.PreferencesUpdate
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.util.PreferencesField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,7 @@ class SettingsViewModel(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
     private val localDataWiper: LocalDataWiper,
+    private val syncManager: SyncManager,
     private val downgradeController: AccountDowngradeController,
 ) : ViewModel() {
     val mode: StateFlow<AppMode?> = appModeManager.mode
@@ -243,7 +245,7 @@ class SettingsViewModel(
             // BEFORE flipping the auth state. Leftover rows would leak into the next
             // account that signs in on this device (or be re-uploaded as "local data").
             try {
-                localDataWiper.wipeAll()
+                syncManager.withSyncPaused { localDataWiper.wipeAll() }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -310,7 +312,7 @@ class SettingsViewModel(
             }
             // Same teardown as logout: wipe local data before flipping auth state.
             try {
-                localDataWiper.wipeAll()
+                syncManager.withSyncPaused { localDataWiper.wipeAll() }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
