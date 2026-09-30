@@ -176,10 +176,11 @@ struct FoodSearchView: View {
         }
     }
 
-    /// Rows are logging buttons outside select mode, so the lists only take
-    /// selection writes while it is on.
-    private var selection: Binding<Set<String>> {
-        Binding(get: { selectedIds }, set: { if isSelecting { selectedIds = $0 } })
+    /// Rows are logging buttons outside select mode, so the lists only get a
+    /// selection binding while it is on; otherwise a long press would leave a
+    /// cell selected that the view never knew about.
+    private var selection: Binding<Set<String>>? {
+        isSelecting ? $selectedIds : nil
     }
 
     private var canMerge: Bool {
