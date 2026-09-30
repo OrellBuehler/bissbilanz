@@ -56,7 +56,6 @@ jobs:
     # step below) — it's the only image with an iOS 27 SDK at all, so there's
     # nowhere else to run this job.
     runs-on: xcode-27
-    runs-on: xcode-27
     timeout-minutes: 30
     defaults:
       run:
@@ -116,7 +115,6 @@ jobs:
     # Xcode 27.1/27.2 previews alongside the 27.0 GM (see the Xcode selection
     # step below) — it's the only image with an iOS 27 SDK at all, so there's
     # nowhere else to run this job.
-    runs-on: xcode-27
     runs-on: xcode-27
     timeout-minutes: 60
     defaults:
