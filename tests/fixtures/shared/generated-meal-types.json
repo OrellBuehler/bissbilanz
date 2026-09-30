@@ -325,14 +325,7 @@
 			"fn": "orderMealTypes",
 			"name": "duplicates",
 			"input": { "present": ["Lunch", "Lunch", "Brunch", "Brunch"] },
-			"expected": ["Lunch", "Brunch"],
-			"divergences": [
-				{
-					"platform": "swift",
-					"expected": ["Lunch", "Brunch", "Brunch"],
-					"reason": "web lists custom meals in the order they first appear in the day; iOS sorts them alphabetically (MealGrouping.group, WidgetSnapshotWriter.mealPrecedes)"
-				}
-			]
+			"expected": ["Lunch", "Brunch"]
 		},
 		{ "fn": "orderMealTypes", "name": "empty", "input": { "present": [] }, "expected": [] },
 		{

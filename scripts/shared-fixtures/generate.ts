@@ -280,7 +280,7 @@ const alphabetical = (meals: string[]) => {
 	const defaults = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 	return [
 		...defaults.filter((m) => meals.includes(m)),
-		...meals.filter((m) => !defaults.includes(m)).sort()
+		...[...new Set(meals.filter((m) => !defaults.includes(m)))].sort()
 	];
 };
 
