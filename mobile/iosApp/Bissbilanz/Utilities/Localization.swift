@@ -982,6 +982,10 @@ enum L10n {
         localized("unknown_ingredient", en: "Food", de: "Lebensmittel")
     }
 
+    static var ingredientOpenFoodHint: String {
+        localized("ingredient_open_food_hint", en: "Opens the food", de: "Öffnet das Lebensmittel")
+    }
+
     static var sortBy: String {
         localized("sort_by", en: "Sort by", de: "Sortieren nach")
     }
