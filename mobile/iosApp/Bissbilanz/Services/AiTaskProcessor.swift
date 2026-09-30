@@ -405,7 +405,12 @@ final class AiTaskProcessor {
                 let nutrition = try await scanner.scan(data)
                 results.append(PhotoScan(index: index, nutrition: nutrition))
             } catch {
-                ErrorReporter.capture(error, context: ["operation": "ai_task_label_scan"])
+                // A photo that is not a readable label is an expected outcome, not a
+                // bug: the task carries on with the other photos or the description.
+                ErrorReporter.captureWarning(
+                    "AI task label scan failed",
+                    context: ["operation": "ai_task_label_scan", "reason": ErrorReporter.reason(for: error)]
+                )
             }
         }
         return results
