@@ -950,7 +950,11 @@ class SyncManager(
 
     /** Deletes a parked change (or all of them, when [id] is null) on the user's say-so. */
     suspend fun discardParked(id: Long? = null) {
+        val parked = syncQueue.all().filter { it.failedAt != null && (id == null || it.id == id) }
         syncQueue.discardParked(id)
+        // A discarded create never reaches the server, so its optimistic `temp_` row would
+        // otherwise linger: refreshes deliberately keep every temp-id row.
+        for (req in parked) removeOptimisticRow(req.operation)
         _state.value = _state.value.copy(failedCount = syncQueue.failedCount())
         // Pull server state back so an optimistic local row for the discarded change goes away.
         try {
@@ -958,6 +962,58 @@ class SyncManager(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
+        }
+    }
+
+    private fun removeOptimisticRow(op: SyncOperation) {
+        val queries = db.userDataDatabaseQueries
+        val tempId =
+            when (op) {
+                is SyncOperation.CreateFood -> op.localId
+                is SyncOperation.CreateRecipe -> op.localId
+                is SyncOperation.CreateEntry -> op.localId
+                is SyncOperation.CreateWeight -> op.localId
+                is SyncOperation.CreateSleep -> op.localId
+                is SyncOperation.CreateSupplement -> op.localId
+                is SyncOperation.CreateReminder -> op.localId
+                else -> null
+            }?.takeIf { it.isTempId() } ?: return
+        queries.transaction {
+            when (op) {
+                is SyncOperation.CreateFood -> {
+                    queries.deleteFoodLabels(tempId)
+                    queries.deleteFood(tempId)
+                }
+
+                is SyncOperation.CreateRecipe -> {
+                    queries.deleteRecipe(tempId)
+                }
+
+                is SyncOperation.CreateEntry -> {
+                    queries.deleteEntry(tempId)
+                }
+
+                is SyncOperation.CreateWeight -> {
+                    queries.deleteWeightEntry(tempId)
+                }
+
+                is SyncOperation.CreateSleep -> {
+                    queries.deleteSleepEntry(tempId)
+                }
+
+                is SyncOperation.CreateSupplement -> {
+                    for (log in queries.selectSupplementLogsBySupplementId(tempId).executeAsList()) {
+                        queries.deleteSupplementLogById(log.id)
+                    }
+                    queries.deleteSupplement(tempId)
+                }
+
+                is SyncOperation.CreateReminder -> {
+                    queries.deleteReminder(tempId)
+                }
+
+                else -> {}
+            }
         }
     }
 

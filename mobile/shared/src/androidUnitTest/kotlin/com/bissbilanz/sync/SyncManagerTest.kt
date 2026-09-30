@@ -960,6 +960,36 @@ class SyncManagerTest {
             assertTrue(rows[1].nextAttemptAt >= rows[0].nextAttemptAt)
         }
 
+    @Test
+    fun discardingAParkedCreateRemovesItsOptimisticLocalRow() =
+        runTest {
+            val queries = userDb.userDataDatabaseQueries
+            listOf("temp_f1" to "Rice", "real-food" to "Oats").forEach { (id, name) ->
+                queries.insertFood(
+                    id = id,
+                    name = name,
+                    brand = null,
+                    calories = 130.0,
+                    protein = 2.7,
+                    carbs = 28.0,
+                    fat = 0.3,
+                    fiber = 0.4,
+                    isFavorite = 0L,
+                    barcode = null,
+                    jsonData = json.encodeToString(TestFixtures.food(id = id, name = name)),
+                )
+            }
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("invalid", 400)
+            manager.syncPendingQueue()
+            assertNotNull(queries.selectFoodById("temp_f1").executeAsOneOrNull())
+
+            manager.discardParked()
+
+            assertNull(queries.selectFoodById("temp_f1").executeAsOneOrNull())
+            assertNotNull(queries.selectFoodById("real-food").executeAsOneOrNull())
+        }
+
     private fun serverEntry(
         id: String,
         foodId: String? = null,
