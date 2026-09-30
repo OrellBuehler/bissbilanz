@@ -237,11 +237,11 @@ struct SyncManagerTests {
         #expect(gate.timeIntervalSinceNow <= 5 * 60 + 1)
     }
 
-    @Test("An undecodable response backs off only that op and drains the ones behind it")
-    func decodeMismatchSkipsOnlyThatOperation() async throws {
+    @Test("A 2xx create with an unreadable body is parked and does not stop the ops behind it")
+    func unreadableCreateResponseIsParked() async throws {
         let harness = try RepositoryHarness()
-        // 200 with a body this build cannot decode: a response-contract mismatch on one
-        // endpoint, which says nothing about whether the other ops would upload.
+        // 200 with a body this build cannot decode: the server already applied the create,
+        // so retrying would only replay the same response. Park it so it stays visible.
         harness.stub("POST", "/api/foods", json: #"{"food": {"id": "f-server"}}"#)
         harness.stub("POST", "/api/goals", json: "{}")
 
@@ -251,9 +251,21 @@ struct SyncManagerTests {
         let drained = await harness.syncManager.drainPendingQueue()
 
         #expect(drained == 1)
-        #expect(harness.syncManager.queuedRows().map(\.type) == ["create_food"])
-        #expect(harness.syncManager.queuedRows().first?.retryCount == 1)
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food"])
+        #expect(harness.syncManager.pendingCount == 0)
         #expect(harness.recordedRequests.contains("POST /api/goals"))
+    }
+
+    @Test("A 2xx non-create with an unreadable body counts as uploaded and leaves the queue")
+    func unreadableUpdateResponseIsDropped() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/goals", json: #"{"goals": "unreadable"}"#)
+
+        harness.syncManager.enqueue(.setGoals(body: .defaults))
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.syncManager.queuedRows().isEmpty)
     }
 
     @Test("A final 401 stops draining and keeps the queue")

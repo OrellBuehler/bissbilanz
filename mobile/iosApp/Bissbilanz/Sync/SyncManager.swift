@@ -422,6 +422,22 @@ final class SyncManager {
                         context: dropContext(operation, row, outcome: "parked_client_error", status: status)
                     )
 
+                case .appliedUnreadable:
+                    ErrorReporter.captureWarning(
+                        "Sync op applied but response unreadable",
+                        context: dropContext(operation, row, outcome: "applied_unreadable_response", status: nil)
+                    )
+                    if isCreateOperation(operation) {
+                        // Without the created row's id the local placeholder cannot be
+                        // remapped; keep the change visible instead of guessing.
+                        parkFailed(row, operation, reason: "the server accepted it but its response could not be read")
+                    } else {
+                        remove(row)
+                        processed += 1
+                        sawConflict = true
+                        conflictDates.formUnion(dayKeys(for: operation))
+                    }
+
                 case .offline:
                     break drain
 
@@ -843,6 +859,9 @@ final class SyncManager {
         /// The payload, not the server: this one operation is at fault and the rest
         /// of the queue is unaffected.
         case retryableOperation
+        /// A 2xx whose body this build cannot read: the server already applied the
+        /// change, so retrying can never help and only replays the same response.
+        case appliedUnreadable
         /// The server or the transport is failing, so every queued operation would
         /// fail the same way.
         case serverUnavailable
@@ -877,9 +896,11 @@ final class SyncManager {
             return status < 500 ? .clientError(status) : .serverUnavailable
         case let .networkError(underlying):
             return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .serverUnavailable
-        case .decodingError:
-            // A response this build cannot read is a contract mismatch on one endpoint,
-            // not an outage — the ops queued behind it may well upload fine.
+        case let .decodingError(_, statusCode, _):
+            // A 2xx we cannot read means the server accepted the change.
+            if (200..<300).contains(statusCode) { return .appliedUnreadable }
+            // Anything else is a contract mismatch on one endpoint, not an outage —
+            // the ops queued behind it may well upload fine.
             return .retryableOperation
         case .updateRequired:
             return .updateRequired
