@@ -6,7 +6,7 @@ import {
 	parseLcov,
 	parseUnifiedDiff,
 	renderSummary
-} from '../../scripts/coverage/diff-coverage';
+} from '../../scripts/diff-coverage/diff-coverage';
 
 const LCOV = `TN:
 SF:/repo/src/lib/a.ts
