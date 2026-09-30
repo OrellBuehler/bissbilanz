@@ -41,10 +41,13 @@ class LocalDataWiperTest {
         runTest {
             seedEverything()
 
+            assertEquals(1L, queries.countFoodLabels().executeAsOne())
+
             wiper.wipeAll()
 
             assertTrue(queries.selectAllEntries().executeAsList().isEmpty())
             assertTrue(queries.selectAllFoods().executeAsList().isEmpty())
+            assertEquals(0L, queries.countFoodLabels().executeAsOne())
             assertNull(queries.selectGoals().executeAsOneOrNull())
             assertTrue(queries.selectAllRecipes().executeAsList().isEmpty())
             assertTrue(queries.selectAllSupplements().executeAsList().isEmpty())
@@ -89,6 +92,7 @@ class LocalDataWiperTest {
             barcode = null,
             jsonData = "{}",
         )
+        queries.insertFoodLabel("f1", "vegan")
         queries.insertGoals(2000.0, 150.0, 250.0, 65.0, 30.0, null, null)
         queries.insertRecipe(
             id = "r1",

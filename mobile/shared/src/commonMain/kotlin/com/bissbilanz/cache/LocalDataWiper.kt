@@ -34,6 +34,7 @@ class LocalDataWiper(
             queries.transaction {
                 queries.clearAllData()
                 queries.clearAllFoods()
+                queries.clearAllFoodLabels()
                 queries.clearAllGoals()
                 queries.clearAllRecipes()
                 queries.clearAllSupplements()

@@ -234,6 +234,9 @@ INSERT OR IGNORE INTO CachedFoodLabel(foodId, label) VALUES (?, ?);
 deleteFoodLabels:
 DELETE FROM CachedFoodLabel WHERE foodId = ?;
 
+countFoodLabels:
+SELECT COUNT(*) FROM CachedFoodLabel;
+
 deleteAllFoods:
 DELETE FROM CachedFood;
 
@@ -397,6 +400,9 @@ DELETE FROM CachedEntry;
 
 clearAllFoods:
 DELETE FROM CachedFood;
+
+clearAllFoodLabels:
+DELETE FROM CachedFoodLabel;
 
 clearAllGoals:
 DELETE FROM CachedGoals;
