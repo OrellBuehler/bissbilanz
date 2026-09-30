@@ -53,6 +53,7 @@
 			quickFat?: number | null;
 			quickFiber?: number | null;
 			quickName?: string | null;
+			imageUrl?: string | null;
 		}) => void;
 		onDelete?: (id: string) => void;
 	};
@@ -97,7 +98,8 @@
 						quickCarbs: entry.quickCarbs,
 						quickFat: entry.quickFat,
 						quickFiber: entry.quickFiber,
-						quickName: entry.quickName
+						quickName: entry.quickName,
+						imageUrl: entry.imageUrl
 					})}
 				<SwipeableEntry
 					id="entry-{entry.id}"
