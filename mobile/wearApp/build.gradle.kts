@@ -31,6 +31,7 @@ android {
         targetSdk = 36
         versionCode = computedVersionCode
         versionName = appVersion
+        buildConfigField("String", "SENTRY_DSN", "\"${findProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: ""}\"")
     }
 
     signingConfigs {
@@ -66,6 +67,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -90,6 +92,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.sentry.android)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.kotlin.test)
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
