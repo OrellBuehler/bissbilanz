@@ -422,6 +422,28 @@ struct SettingsView: View {
                     }
                 }
 
+                // Enhance Foods: Open Food Facts scores and label details for
+                // barcode foods that lack them. No AI involved, so it sits
+                // outside the food-labels gate; hidden once nothing is left.
+                let unenrichedCount = foodRepository.unenrichedLocalFoods().count
+                if unenrichedCount > 0 {
+                    Section {
+                        NavigationLink {
+                            EnhanceFoodsView()
+                        } label: {
+                            HStack {
+                                Text(L10n.enhanceFoods)
+                                Spacer()
+                                Text(L10n.unlabeledFoodCount(unenrichedCount))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } footer: {
+                        Text(L10n.enhanceFoodsFooter)
+                    }
+                }
+
                 // Help
                 Section {
                     Button {
