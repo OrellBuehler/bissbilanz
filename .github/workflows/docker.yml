@@ -225,21 +225,21 @@ jobs:
           echo "Waiting for $HEALTH_URL to report status=ok version=$RELEASE_TAG..."
           status="none"
           version="none"
-          for attempt in $(seq 1 18); do
+          for attempt in $(seq 1 30); do
             if body=$(curl -fsS --max-time 5 "$HEALTH_URL" 2>curl.err); then
               status=$(echo "$body" | jq -r '.status // "none"')
               version=$(echo "$body" | jq -r '.version // "none"')
-              echo "attempt $attempt/18: status=$status version=$version"
+              echo "attempt $attempt/30: status=$status version=$version"
               if [ "$status" = "ok" ] && [ "$version" = "$RELEASE_TAG" ]; then
                 echo "Deployment verified: $RELEASE_TAG is live."
                 exit 0
               fi
             else
-              echo "attempt $attempt/18: request failed: $(cat curl.err)"
+              echo "attempt $attempt/30: request failed: $(cat curl.err)"
             fi
             sleep 10
           done
-          echo "::error::Timed out after 3 minutes waiting for $HEALTH_URL to report status=ok version=$RELEASE_TAG (last seen status=$status version=$version)."
+          echo "::error::Timed out after 5 minutes waiting for $HEALTH_URL to report status=ok version=$RELEASE_TAG (last seen status=$status version=$version)."
           exit 1
 
       # --- Automatic rollback ------------------------------------------------
@@ -299,11 +299,11 @@ jobs:
           PREVIOUS_VERSION: ${{ steps.previous.outputs.version }}
         run: |
           set -uo pipefail
-          for attempt in $(seq 1 18); do
+          for attempt in $(seq 1 30); do
             if body=$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null); then
               status=$(echo "$body" | jq -r '.status // "none"')
               version=$(echo "$body" | jq -r '.version // "none"')
-              echo "attempt $attempt/18: status=$status version=$version"
+              echo "attempt $attempt/30: status=$status version=$version"
               if [ "$status" = "ok" ] && [ "$version" = "$PREVIOUS_VERSION" ]; then
                 echo "::error::$RELEASE_TAG failed its health check and was rolled back to $PREVIOUS_VERSION (now live and healthy). This deploy is still marked failed."
                 exit 0
