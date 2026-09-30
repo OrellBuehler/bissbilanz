@@ -36,8 +36,34 @@ extension BissbilanzAPI {
             return nil
         }
         let (data, httpResponse) = result
-        guard httpResponse.statusCode == 200,
-              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+        guard httpResponse.statusCode == 200 else { return nil }
+        return Self.openFoodFactsHit(from: data, barcode: barcode)
+    }
+
+    /// Same lookup as `lookupBarcode`, but failures propagate instead of
+    /// collapsing into nil: a 404 (or an unparseable product) throws
+    /// `.notFound` and anything else non-200 — notably the proxy's 429 rate
+    /// limit — throws `.serverError`. The bulk "Enhance Foods" sweep needs the
+    /// difference to back off on a rate limit rather than report every
+    /// remaining food as unknown to Open Food Facts.
+    func lookupBarcodeOrThrow(_ barcode: String) async throws -> OpenFoodFactsHit {
+        guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
+              let url = URL(string: "\(baseURL)/api/openfoodfacts/\(encoded)")
+        else { throw APIError.notFound }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let (data, httpResponse) = try await executeRequestData(request)
+        if httpResponse.statusCode == 404 { throw APIError.notFound }
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
+        }
+        guard let hit = Self.openFoodFactsHit(from: data, barcode: barcode) else { throw APIError.notFound }
+        return hit
+    }
+
+    private static func openFoodFactsHit(from data: Data, barcode: String) -> OpenFoodFactsHit? {
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               var product = root["product"] as? [String: Any]
         else { return nil }
 

@@ -143,6 +143,23 @@ final class FoodRepository {
         return rows.filter { $0.labels.isEmpty }.compactMap { $0.toFood() }
     }
 
+    /// Local foods with a barcode that still lack a Nutri-Score, NOVA group or
+    /// ingredients text — never enriched, or only partly. The "Enhance Foods"
+    /// sweep's work list and the Settings row's count (`EnhanceFoodsView`).
+    func unenrichedLocalFoods() -> [Food] {
+        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.compactMap { $0.toFood() }.filter(Self.needsEnrichment)
+    }
+
+    static func needsEnrichment(_ food: Food) -> Bool {
+        guard let barcode = food.barcode?.trimmingCharacters(in: .whitespaces), !barcode.isEmpty else {
+            return false
+        }
+        let noIngredients = food.ingredientsText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
+        return food.nutriScore == nil || food.novaGroup == nil || noIngredients
+    }
+
     /// The most-used labels already in the local catalog, most-common first —
     /// handed to `FoodLabeler` so it reuses existing vocabulary instead of
     /// inventing near-synonyms, mirroring the MCP `label_foods` prompt's
@@ -422,13 +439,17 @@ final class FoodRepository {
     @discardableResult
     func enrichFood(id: String, barcode: String) async throws -> Food {
         guard let current = food(id: id) else { throw APIError.notFound }
-        let hit: BissbilanzAPI.OpenFoodFactsHit? = if appMode.isLocal {
-            try await OpenFoodFactsClient().lookupBarcode(barcode)
-                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
+        let hit: BissbilanzAPI.OpenFoodFactsHit
+        if appMode.isLocal {
+            guard let product = try await OpenFoodFactsClient().lookupBarcode(barcode) else {
+                throw APIError.notFound
+            }
+            hit = BissbilanzAPI.OpenFoodFactsHit(food: product, categoriesTags: nil)
         } else {
-            try await api.lookupBarcode(barcode)
+            // The throwing lookup keeps a rate limit or network failure
+            // distinguishable from "no such product" for the bulk sweep.
+            hit = try await api.lookupBarcodeOrThrow(barcode)
         }
-        guard let hit else { throw APIError.notFound }
         return try await updateFood(id: id, Self.enrichmentPayload(baseline: current, hit: hit))
     }
 
