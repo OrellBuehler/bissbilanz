@@ -538,6 +538,36 @@ describe('copying entries', () => {
 		expect((await status('2026-06-10')).entryCount).toBe(2);
 	});
 
+	it('copies keep the local time of day, across a DST change', async () => {
+		const { copyEntries } = await import('$lib/server/entries');
+		const db = getTestDB(dbUrl);
+		await db.insert(userPreferences).values({ userId, timeZone: 'Europe/Zurich' });
+		await log({
+			foodId: oatsId,
+			mealType: 'Breakfast',
+			servings: 1,
+			date: '2026-03-20',
+			eatenAt: '2026-03-20T08:30:00+01:00'
+		});
+		await log({
+			foodId: oatsId,
+			mealType: 'Dinner',
+			servings: 1,
+			date: '2026-03-20',
+			eatenAt: '2026-03-20T23:45:00+01:00'
+		});
+
+		const copied = await copyEntries(userId, '2026-03-20', '2026-04-02');
+		const times = copied.map((c) => c.eatenAt.toISOString()).sort();
+		expect(times).toEqual(['2026-04-02T06:30:00.000Z', '2026-04-02T21:45:00.000Z']);
+
+		const back = await copyEntries(userId, '2026-04-02', '2026-03-05');
+		expect(back.map((c) => c.eatenAt.toISOString()).sort()).toEqual([
+			'2026-03-05T07:30:00.000Z',
+			'2026-03-05T22:45:00.000Z'
+		]);
+	});
+
 	it('never copies another user’s entries', async () => {
 		const { copyEntries } = await import('$lib/server/entries');
 		const otherFood = await mkFood(otherUserId, { name: 'Rice', calories: 130 });

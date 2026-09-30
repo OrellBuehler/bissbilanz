@@ -153,6 +153,7 @@ export const TEST_ENTRY_2 = {
 	recipeId: null,
 	servings: 1.2,
 	notes: 'With yogurt',
+	eatenAt: new Date('2026-02-10T12:00:00Z'),
 	createdAt: new Date('2026-02-10T12:00:00Z'),
 	updatedAt: new Date('2026-02-10T12:00:00Z')
 };

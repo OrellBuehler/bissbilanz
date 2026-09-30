@@ -297,7 +297,8 @@ struct RepositoryHarness {
         date: String,
         mealType: String = "lunch",
         foodId: String? = nil,
-        recipeId: String? = nil
+        recipeId: String? = nil,
+        eatenAt: String? = nil
     ) throws -> Entry {
         var dict: [String: Any] = [
             "id": id,
@@ -309,6 +310,7 @@ struct RepositoryHarness {
         ]
         if let foodId { dict["foodId"] = foodId }
         if let recipeId { dict["recipeId"] = recipeId }
+        if let eatenAt { dict["eatenAt"] = eatenAt }
         return try JSONPatch.decode(Entry.self, from: dict)
     }
 

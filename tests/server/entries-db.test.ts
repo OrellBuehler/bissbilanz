@@ -420,6 +420,13 @@ describe('entries-db', () => {
 			// Since mock returns same result for both select and insert,
 			// we can't test the exact copied values, but we verify no error
 			expect(result).toBeDefined();
+
+			const insert = getCalls().find((c) => c.method === 'values');
+			const [row] = insert?.args[0] ?? [];
+			expect(row.date).toBe('2026-02-11');
+			// eatenAt is re-derived for the target day (SQL), never the source instant
+			expect(row.eatenAt).toBeDefined();
+			expect(row.eatenAt).not.toBeInstanceOf(Date);
 		});
 	});
 });

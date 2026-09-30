@@ -82,6 +82,26 @@ enum DateFormatting {
         return isoDateTimeString(from: combined)
     }
 
+    /// The instant `eatenAt` placed on `toDate` ("yyyy-MM-dd"), keeping its
+    /// wall-clock time in `calendar`'s zone. Built from components rather than by
+    /// adding whole days of seconds, so the time survives a DST change. `nil`
+    /// stays `nil`; unparseable input comes back unchanged.
+    static func eatenAt(_ eatenAt: String?, onDate toDate: String, calendar: Calendar = .current) -> String? {
+        guard let eatenAt else { return nil }
+        let parts = toDate.split(separator: "-").compactMap { Int($0) }
+        guard let instant = isoDateTime(from: eatenAt), parts.count == 3 else { return eatenAt }
+        let clock = calendar.dateComponents([.hour, .minute, .second], from: instant)
+        var components = DateComponents()
+        components.year = parts[0]
+        components.month = parts[1]
+        components.day = parts[2]
+        components.hour = clock.hour ?? 0
+        components.minute = clock.minute ?? 0
+        components.second = clock.second ?? 0
+        guard let combined = calendar.date(from: components) else { return eatenAt }
+        return isoDateTimeString(from: combined)
+    }
+
     static func date(from isoString: String) -> Date? {
         // ICU parsing is lenient about punctuation (e.g. "2026/03/12" matches
         // "yyyy-MM-dd"); round-trip to accept canonical ISO strings only.

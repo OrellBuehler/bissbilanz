@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.analytics.eatenAtOnDate
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesSet
@@ -24,6 +25,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -315,6 +317,7 @@ class EntryRepository(
     suspend fun copyEntries(
         fromDate: String,
         toDate: String,
+        timeZone: TimeZone = TimeZone.currentSystemDefault(),
     ): Int {
         val source = entriesByDateOnce(fromDate)
         var count = 0
@@ -334,7 +337,7 @@ class EntryRepository(
                     quickFat = entry.quickFat,
                     quickFiber = entry.quickFiber,
                     quickNutrients = entry.quickNutrients,
-                    eatenAt = entry.eatenAt,
+                    eatenAt = eatenAtOnDate(entry.eatenAt, toDate, timeZone),
                 )
             createEntry(create, food = entry.food, recipe = entry.recipe)
             count++
