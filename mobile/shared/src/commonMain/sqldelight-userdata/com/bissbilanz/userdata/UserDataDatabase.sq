@@ -6,6 +6,10 @@
 -- and changes must be additive-only. DatabaseDriverFactory re-runs Schema.create on
 -- every open to materialize tables added in app updates; that is only safe while
 -- this convention holds.
+--
+-- verifyMigrations is on: a schema change needs an N.sqm migration, the previous
+-- version's snapshot kept in databases/, and the new one added by running
+-- generateCommonMainUserDataDatabaseSchema. Additive tables need an .sqm too.
 
 CREATE TABLE IF NOT EXISTS CachedEntry (
     id TEXT NOT NULL PRIMARY KEY,

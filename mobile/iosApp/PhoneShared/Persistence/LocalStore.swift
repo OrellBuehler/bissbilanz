@@ -43,14 +43,17 @@ enum LocalStore {
     /// Full union of persisted models. Computed because `Schema` is not
     /// Sendable — a stored static would not be concurrency-safe under Swift 6.
     static var schema: Schema {
-        Schema(dataModels + [PendingSyncOperation.self])
+        Schema(versionedSchema: LocalSchemaV1.self)
     }
 
     /// Builds the container. `cloudKitEnabled` mirrors the data store to the
     /// user's private CloudKit database — pass `true` only in Local mode.
+    /// `useMigrationPlan` attaches `LocalMigrationPlan`; the fallback below turns it
+    /// off to retry with SwiftData's own inferred migration.
     static func makeContainer(
         inMemory: Bool = false,
         cloudKitEnabled: Bool = false,
+        useMigrationPlan: Bool = true,
         onError: (Error, [String: Any]) -> Void = { _, _ in }
     ) throws -> ModelContainer {
         // Single store. A multi-store split (queue in its own store) crashes
@@ -80,7 +83,29 @@ enum LocalStore {
                 )
             }
         }
+        if useMigrationPlan {
+            return try ModelContainer(
+                for: schema,
+                migrationPlan: LocalMigrationPlan.self,
+                configurations: [configuration]
+            )
+        }
         return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// `makeContainer` with the migration plan, then without it if that fails. A store
+    /// written by an older build can carry a model version the plan does not list;
+    /// SwiftData refuses those under a plan but still migrates them on its own.
+    private static func makeContainerPreferringPlan(
+        cloudKitEnabled: Bool,
+        onError: (Error, [String: Any]) -> Void
+    ) throws -> ModelContainer {
+        do {
+            return try makeContainer(cloudKitEnabled: cloudKitEnabled, onError: onError)
+        } catch {
+            onError(error, ["phase": "store_init_migration_plan"])
+            return try makeContainer(cloudKitEnabled: cloudKitEnabled, useMigrationPlan: false, onError: onError)
+        }
     }
 
     /// Builds the container with graceful fallback: CloudKit-mirrored (when
@@ -90,26 +115,90 @@ enum LocalStore {
     /// to memory. Each failure is reported via `onError`, tagged with a `"phase"`
     /// key so the caller (Sentry in the app, `QuickAddDiagnostics` in the widget
     /// extension) can distinguish container setup from store-migration failures.
+    ///
+    /// The in-memory step is only for callers that cannot show an error (the app
+    /// extensions). The app itself uses `openStore`, which also says when it got there.
     static func makeContainerWithFallback(
         cloudKitEnabled: Bool,
         onError: (Error, [String: Any]) -> Void
     ) -> ModelContainer {
+        openStore(cloudKitEnabled: cloudKitEnabled, onError: onError).container
+    }
+
+    /// What `openStore` produced. When `unavailable` is set, `container` is an
+    /// empty in-memory stand-in and the on-disk store was left exactly as it was.
+    struct StoreOpenResult {
+        let container: ModelContainer
+        let unavailable: StoreUnavailable?
+    }
+
+    /// The on-disk store could not be opened. Only reported for Local (anonymous)
+    /// mode, where the device holds the only copy of the user's data; Synced mode
+    /// re-downloads from the server, so it keeps the quiet in-memory fallback.
+    struct StoreUnavailable {
+        let error: Error
+        /// Copy of the store files taken before falling back, if one could be made.
+        let backupURL: URL?
+    }
+
+    /// Opens the store, never deleting or rewriting the file on failure. If the
+    /// store cannot be opened the files are copied aside once, the failure is
+    /// reported, and an empty in-memory container is returned so the app can still
+    /// launch. `cloudKitEnabled` is true exactly in Local mode.
+    static func openStore(
+        cloudKitEnabled: Bool,
+        onError: (Error, [String: Any]) -> Void
+    ) -> StoreOpenResult {
         if cloudKitEnabled {
             do {
-                return try makeContainer(cloudKitEnabled: true, onError: onError)
+                return StoreOpenResult(
+                    container: try makeContainerPreferringPlan(cloudKitEnabled: true, onError: onError),
+                    unavailable: nil
+                )
             } catch {
                 onError(error, ["phase": "store_init_cloudkit"])
             }
         }
         do {
-            return try makeContainer(cloudKitEnabled: false, onError: onError)
+            return StoreOpenResult(
+                container: try makeContainerPreferringPlan(cloudKitEnabled: false, onError: onError),
+                unavailable: nil
+            )
         } catch {
             onError(error, ["phase": "store_init"])
+            let backupURL = backUpStoreFiles(onError: onError)
             do {
-                return try makeContainer(inMemory: true)
+                return StoreOpenResult(
+                    container: try makeContainer(inMemory: true),
+                    unavailable: cloudKitEnabled ? StoreUnavailable(error: error, backupURL: backupURL) : nil
+                )
             } catch {
                 fatalError("Failed to create SwiftData container: \(error)")
             }
+        }
+    }
+
+    /// Copies the store (and its WAL companions) next to itself, once. The original
+    /// stays in place; an existing backup is never overwritten, so the first
+    /// failure's snapshot survives repeated launches.
+    static func backUpStoreFiles(onError: (Error, [String: Any]) -> Void) -> URL? {
+        guard let store = appGroupStoreURL ?? legacyStoreURL else { return nil }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: store.path) else { return nil }
+        let backup = store.deletingLastPathComponent()
+            .appendingPathComponent(store.lastPathComponent + ".unreadable-backup", isDirectory: true)
+        if fm.fileExists(atPath: backup.path) { return backup }
+        do {
+            try fm.createDirectory(at: backup, withIntermediateDirectories: true)
+            for suffix in ["", "-wal", "-shm"] {
+                let source = URL(fileURLWithPath: store.path + suffix)
+                guard fm.fileExists(atPath: source.path) else { continue }
+                try fm.copyItem(at: source, to: backup.appendingPathComponent(store.lastPathComponent + suffix))
+            }
+            return backup
+        } catch {
+            onError(error, ["phase": "store_backup"])
+            return nil
         }
     }
 

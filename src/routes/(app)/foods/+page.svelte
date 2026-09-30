@@ -2,10 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
-	import FoodForm from '$lib/components/foods/FoodForm.svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
-	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
-	import FoodQualityPanel from '$lib/components/quality/FoodQualityPanel.svelte';
+	import FoodsToolbar from '$lib/components/foods/FoodsToolbar.svelte';
+	import OffSearchResults from '$lib/components/foods/OffSearchResults.svelte';
+	import FoodFormModal from '$lib/components/foods/FoodFormModal.svelte';
+	import FoodDeleteConflictDialog, {
+		type FoodDeleteConflict
+	} from '$lib/components/foods/FoodDeleteConflictDialog.svelte';
+	import BulkDeleteDialogs from '$lib/components/foods/BulkDeleteDialogs.svelte';
 	import MergeFoodDialog from '$lib/components/foods/MergeFoodDialog.svelte';
 	import DuplicatesBanner from '$lib/components/foods/DuplicatesBanner.svelte';
 	import BulkActionBar from '$lib/components/foods/BulkActionBar.svelte';
@@ -13,25 +17,12 @@
 	import FoodImportDialog from '$lib/components/foods/FoodImportDialog.svelte';
 	import FoodPackageExportDialog from '$lib/components/food-package/FoodPackageExportDialog.svelte';
 	import FoodPackageImportDialog from '$lib/components/food-package/FoodPackageImportDialog.svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { BulkLabelMode } from '$lib/components/foods/bulkActions';
 	import type { FoodCsvFood } from '$lib/foods/csv';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
-	import ForceDeleteDialog from '$lib/components/ui/force-delete-dialog.svelte';
-	import WhereUsedDialog from '$lib/components/usage/WhereUsedDialog.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
-	import Clock from '@lucide/svelte/icons/clock';
-	import FileUp from '@lucide/svelte/icons/file-up';
-	import ListChecks from '@lucide/svelte/icons/list-checks';
-	import Share2 from '@lucide/svelte/icons/share-2';
-	import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
-	import FileArchive from '@lucide/svelte/icons/file-archive';
-	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/generated/schema';
 
 	import { toast } from 'svelte-sonner';
@@ -39,11 +30,10 @@
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
-	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients, pickNonNullNutrients } from '$lib/nutrients';
-	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import { DEFAULT_VISIBLE_NUTRIENTS, pickNutrients } from '$lib/nutrients';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
+	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { consumeQuickAction } from '$lib/stores/command-palette.svelte';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
@@ -67,14 +57,7 @@
 	let offSearchLoading = $state(false);
 	// Below this many local matches, offer Open Food Facts results to fill the gap.
 	const OFF_FALLBACK_THRESHOLD = 5;
-	let forceDeleteId: string | null = $state(null);
-	let forceDeleteEntryCount = $state(0);
-	let forceDeleteRecipeCount = $state(0);
-	let forceDeleteSupplementCount = $state(0);
-	let forceDeleteLastRecipes = $state<{ id: string; name: string }[]>([]);
-	let forceDeleteName = $state('');
-	let usageOpen = $state(false);
-	let usageFood = $state<{ id: string; name: string } | null>(null);
+	let deleteConflict = $state<FoodDeleteConflict | null>(null);
 	let qualityOpen = $state(false);
 
 	let selecting = $state(false);
@@ -95,7 +78,7 @@
 
 	const refreshDuplicates = async () => {
 		try {
-			const { data } = await api.GET('/api/foods/duplicates');
+			const { data } = await foodService.duplicates();
 			if (data) duplicateGroups = data.groups;
 		} catch (err) {
 			Sentry.captureException(err);
@@ -104,7 +87,7 @@
 	};
 
 	const openMergeFromMenu = async (id: string) => {
-		const { data } = await api.GET('/api/foods/{id}', { params: { path: { id } } });
+		const { data } = await foodService.fetchById(id);
 		if (!data) return;
 		mergeCandidates = [data.food];
 		mergeOpen = true;
@@ -129,10 +112,10 @@
 
 	$effect(() => {
 		const q = query;
-		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
 			debouncedQuery = q;
 		}, 300);
+		return () => clearTimeout(debounceTimer);
 	});
 
 	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
@@ -154,8 +137,8 @@
 		}
 		let cancelled = false;
 		offSearchLoading = true;
-		api
-			.GET('/api/openfoodfacts/search', { params: { query: { q } } })
+		foodService
+			.searchOff(q)
 			.then(({ data }) => {
 				if (!cancelled) offResults = data?.results ?? [];
 			})
@@ -192,13 +175,13 @@
 				}
 			: payload;
 		try {
-			const { error } = await api.POST('/api/foods', {
-				body: formImageCleared
+			const { error } = await foodService.createOnline(
+				formImageCleared
 					? { ...body, imageUrl: null }
 					: formImageUrl
 						? { ...body, imageUrl: formImageUrl }
 						: body
-			});
+			);
 			if (error) {
 				if (error.error === 'duplicate_barcode') {
 					toast.error(m.detail_duplicate_barcode());
@@ -220,9 +203,9 @@
 	const updateFood = async (payload: any) => {
 		if (!editingFood) return;
 		const { labels, ...fields } = payload as { labels?: string[] };
-		const { error } = await api.PATCH('/api/foods/{id}', {
-			params: { path: { id: editingFood.id } },
-			body: { ...fields, imageUrl: formImageUrl }
+		const { error } = await foodService.updateOnline(editingFood.id, {
+			...fields,
+			imageUrl: formImageUrl
 		});
 		if (error) {
 			if (error.error === 'duplicate_barcode') {
@@ -258,9 +241,7 @@
 	};
 
 	const deleteFood = async (id: string) => {
-		const { error, response } = await api.DELETE('/api/foods/{id}', {
-			params: { path: { id } }
-		});
+		const { error, response } = await foodService.deleteOnline(id);
 		if (response.status === 409 && error) {
 			const conflict = error as {
 				entryCount?: number;
@@ -268,88 +249,24 @@
 				supplementIngredientCount?: number;
 				lastIngredientRecipes?: { id: string; name: string }[];
 			};
-			forceDeleteId = id;
-			forceDeleteName = foods.find((food) => food.id === id)?.name ?? '';
-			forceDeleteEntryCount = conflict.entryCount ?? 0;
-			forceDeleteRecipeCount = conflict.recipeCount ?? 0;
-			forceDeleteSupplementCount = conflict.supplementIngredientCount ?? 0;
-			forceDeleteLastRecipes = conflict.lastIngredientRecipes ?? [];
+			deleteConflict = {
+				id,
+				name: foods.find((food) => food.id === id)?.name ?? '',
+				entryCount: conflict.entryCount ?? 0,
+				recipeCount: conflict.recipeCount ?? 0,
+				supplementCount: conflict.supplementIngredientCount ?? 0,
+				lastRecipes: conflict.lastIngredientRecipes ?? []
+			};
 			return;
 		}
 		foodService.refresh();
 	};
 
 	const confirmForceDelete = async () => {
-		if (!forceDeleteId) return;
-		await api.DELETE('/api/foods/{id}', {
-			params: { path: { id: forceDeleteId }, query: { force: true } }
-		});
-		forceDeleteId = null;
+		if (!deleteConflict) return;
+		await foodService.deleteOnline(deleteConflict.id, true);
+		deleteConflict = null;
 		foodService.refresh();
-	};
-
-	// Force cannot delete a food that is a recipe's only ingredient or that
-	// supplements still use; say why instead of offering a button that does nothing.
-	const forceUnavailable = $derived(
-		forceDeleteLastRecipes.length > 0 || forceDeleteSupplementCount > 0
-	);
-
-	const foodDeleteDescription = () => {
-		if (forceUnavailable) {
-			return m.foods_delete_blocked_summary({
-				entryCount: forceDeleteEntryCount,
-				recipeCount: forceDeleteRecipeCount,
-				supplementCount: forceDeleteSupplementCount
-			});
-		}
-		if (forceDeleteEntryCount > 0 && forceDeleteRecipeCount > 0) {
-			return m.foods_delete_has_entries_and_recipes({
-				entryCount: forceDeleteEntryCount,
-				recipeCount: forceDeleteRecipeCount
-			});
-		}
-		if (forceDeleteRecipeCount > 0) {
-			return m.foods_delete_has_recipes({ count: forceDeleteRecipeCount });
-		}
-		return m.foods_delete_has_entries({ count: forceDeleteEntryCount });
-	};
-
-	const foodDeleteNote = () => {
-		if (forceDeleteLastRecipes.length > 0) {
-			return m.foods_delete_last_ingredient({
-				recipes: forceDeleteLastRecipes.map((recipe) => `"${recipe.name}"`).join(', ')
-			});
-		}
-		if (forceDeleteSupplementCount > 0) {
-			return m.foods_delete_has_supplements({ count: forceDeleteSupplementCount });
-		}
-		return undefined;
-	};
-
-	const showFoodUsage = () => {
-		if (!forceDeleteId) return;
-		usageFood = { id: forceDeleteId, name: forceDeleteName };
-		usageOpen = true;
-	};
-
-	const enrichFood = async (id: string, barcode: string) => {
-		const { data, error } = await api.GET('/api/openfoodfacts/{barcode}', {
-			params: { path: { barcode } }
-		});
-		if (error || !data) return;
-		const { product } = data;
-		await api.PATCH('/api/foods/{id}', {
-			params: { path: { id } },
-			body: {
-				nutriScore: product.nutriScore,
-				novaGroup: product.novaGroup,
-				additives: product.additives,
-				ingredientsText: product.ingredientsText,
-				imageUrl: product.imageUrl,
-				...pickNonNullNutrients(product)
-			}
-		});
-		foodService.refreshById(id);
 	};
 
 	const toggleSelect = (id: string) => {
@@ -457,9 +374,7 @@
 	};
 
 	const openEdit = async (id: string) => {
-		const { data, error } = await api.GET('/api/foods/{id}', {
-			params: { path: { id } }
-		});
+		const { data, error } = await foodService.fetchById(id);
 		if (error || !data) return;
 		resetFormState();
 		editingFood = data.food;
@@ -517,9 +432,7 @@
 		offLoading = true;
 		offNotFound = false;
 		try {
-			const { data, error } = await api.GET('/api/openfoodfacts/{barcode}', {
-				params: { path: { barcode: code } }
-			});
+			const { data, error } = await foodService.fetchOffProduct(code);
 			if (error || !data) {
 				offNotFound = true;
 			} else {
@@ -543,8 +456,8 @@
 	// Load visible nutrients preference (once)
 	$effect(() => {
 		if (browser) {
-			api
-				.GET('/api/preferences')
+			preferencesService
+				.fetchRemote()
 				.then(({ data }) => {
 					if (data?.preferences?.visibleNutrients?.length) {
 						visibleNutrients = data.preferences.visibleNutrients;
@@ -636,56 +549,16 @@
 		/>
 	{/if}
 
-	<div class="flex flex-wrap items-center gap-2">
-		<Button variant="outline" size="sm" href="/foods/recent">
-			<Clock class="size-4 sm:mr-1" />
-			<span class="hidden sm:inline">{m.foods_recent_link()}</span>
-		</Button>
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button {...props} variant="outline" size="sm" aria-label={m.foods_import()}>
-						<FileUp class="size-4 sm:mr-1" />
-						<span class="hidden sm:inline">{m.foods_import()}</span>
-					</Button>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="start">
-				<DropdownMenu.Item onclick={() => (importOpen = true)}>
-					<FileSpreadsheet class="size-4" />
-					{m.food_package_import_csv()}
-				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => (packageImportOpen = true)}>
-					<FileArchive class="size-4" />
-					{m.food_package_import()}
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-		<Button
-			variant="outline"
-			size="sm"
-			aria-label={m.food_package_share()}
-			onclick={() => {
-				packageExportIds = [];
-				packageExportOpen = true;
-			}}
-		>
-			<Share2 class="size-4 sm:mr-1" />
-			<span class="hidden sm:inline">{m.food_package_share()}</span>
-		</Button>
-		<Button
-			variant={selecting ? 'default' : 'outline'}
-			size="sm"
-			class="ml-auto"
-			aria-pressed={selecting}
-			onclick={() => (selecting ? exitSelection() : (selecting = true))}
-		>
-			<ListChecks class="size-4 sm:mr-1" />
-			<span class="hidden sm:inline">
-				{selecting ? m.foods_select_done() : m.foods_select()}
-			</span>
-		</Button>
-	</div>
+	<FoodsToolbar
+		{selecting}
+		onImportCsv={() => (importOpen = true)}
+		onImportPackage={() => (packageImportOpen = true)}
+		onShare={() => {
+			packageExportIds = [];
+			packageExportOpen = true;
+		}}
+		onToggleSelecting={() => (selecting ? exitSelection() : (selecting = true))}
+	/>
 
 	<div class="relative">
 		<Search
@@ -705,7 +578,7 @@
 			{foods}
 			onEdit={openEdit}
 			onDelete={deleteFood}
-			onEnrich={enrichFood}
+			onEnrich={foodService.enrichFromOff}
 			onMerge={openMergeFromMenu}
 			{selecting}
 			{selectedIds}
@@ -714,36 +587,7 @@
 	{/if}
 
 	{#if debouncedQuery && (offSearchLoading || offResults.length > 0)}
-		<div class="space-y-2">
-			<p class="text-muted-foreground text-xs font-medium">{m.add_food_off_section()}</p>
-			{#if offSearchLoading}
-				<p class="text-muted-foreground text-sm">{m.add_food_off_searching()}</p>
-			{:else}
-				<ul class="space-y-2">
-					{#each offResults as product (product.barcode)}
-						<li class="flex min-w-0 items-center justify-between gap-2 rounded-md border p-2">
-							<FoodThumbnail name={product.name} imageUrl={product.imageUrl} size="sm" />
-							<span class="min-w-0 flex-1 truncate text-sm">
-								{product.name}
-								{#if product.brand}<span class="text-muted-foreground">
-										· {product.brand}</span
-									>{/if}
-							</span>
-							<Button
-								variant="outline"
-								size="sm"
-								class="shrink-0"
-								aria-label={m.add_food_add()}
-								onclick={() => prefillFromOff(product)}
-							>
-								<Plus class="size-4 sm:mr-1" />
-								<span class="hidden sm:inline">{m.add_food_add()}</span>
-							</Button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</div>
+		<OffSearchResults loading={offSearchLoading} results={offResults} onPick={prefillFromOff} />
 	{/if}
 </div>
 
@@ -784,116 +628,40 @@
 
 <FoodPackageExportDialog bind:open={packageExportOpen} foodIds={packageExportIds} />
 
-<AlertDialog.Root bind:open={bulkDeleteOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title class="text-left">
-				{m.foods_bulk_delete_title({ count: selectedIds.length })}
-			</AlertDialog.Title>
-			<AlertDialog.Description>{m.foods_bulk_delete_description()}</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>{m.cancel()}</AlertDialog.Cancel>
-			<AlertDialog.Action
-				class={buttonVariants({ variant: 'destructive' })}
-				onclick={() => bulkDelete(false)}
-			>
-				{m.foods_delete()}
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
-
-<ForceDeleteDialog
-	open={blockedIds.length > 0}
-	count={blockedIds.length}
-	description={m.foods_bulk_delete_blocked({ count: blockedIds.length })}
-	onConfirm={() => bulkDelete(true)}
-	onCancel={() => {
+<BulkDeleteDialogs
+	bind:open={bulkDeleteOpen}
+	selectedCount={selectedIds.length}
+	blockedCount={blockedIds.length}
+	onDelete={() => bulkDelete(false)}
+	onForceDelete={() => bulkDelete(true)}
+	onCancelBlocked={() => {
 		blockedIds = [];
 		exitSelection();
 	}}
 />
 
-<ResponsiveModal
+<FoodFormModal
 	bind:open={showForm}
-	title={editingFood ? m.food_form_name() : m.foods_new()}
-	description={editingFood ? editingFood.name : m.foods_new_description()}
->
-	{#if offLoading}
-		<p class="text-sm text-muted-foreground">{m.quality_off_loading()}</p>
-	{:else}
-		{#if offNotFound && activeBarcode}
-			<p class="mb-3 text-sm text-amber-600">{m.quality_off_not_found()}</p>
-		{:else if offData && !editingFood}
-			<p class="mb-3 text-sm text-green-600">{m.quality_off_prefilled()}</p>
-			<Collapsible.Root bind:open={qualityOpen}>
-				<Collapsible.Trigger
-					class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-				>
-					<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
-					{m.quality_title()}
-				</Collapsible.Trigger>
-				<Collapsible.Content>
-					<FoodQualityPanel
-						nutriScore={offData.nutriScore as 'a' | 'b' | 'c' | 'd' | 'e' | null}
-						novaGroup={offData.novaGroup as 1 | 2 | 3 | 4 | null}
-						additives={offData.additives}
-						ingredientsText={offData.ingredientsText}
-					/>
-				</Collapsible.Content>
-			</Collapsible.Root>
-		{:else if editingFood && (editingFood.novaGroup || (editingFood.additives?.length ?? 0) > 0 || editingFood.ingredientsText)}
-			<div class="mb-3">
-				<Collapsible.Root bind:open={qualityOpen}>
-					<Collapsible.Trigger
-						class="flex w-full items-center justify-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-					>
-						<ChevronDown class="size-4 transition-transform [[data-state=closed]_&]:-rotate-90" />
-						{m.quality_title()}
-					</Collapsible.Trigger>
-					<Collapsible.Content>
-						<FoodQualityPanel
-							novaGroup={editingFood.novaGroup as 1 | 2 | 3 | 4 | null}
-							additives={editingFood.additives}
-							ingredientsText={editingFood.ingredientsText}
-						/>
-					</Collapsible.Content>
-				</Collapsible.Root>
-			</div>
-		{/if}
-		{#key editingFood?.id ?? offData ?? activeBarcode}
-			<FoodForm
-				initial={formInitial}
-				onSave={editingFood ? updateFood : createFood}
-				onBarcodeScan={!editingFood ? handleBarcodeScan : undefined}
-				imageUrl={formImageCleared ? null : (formImageUrl ?? offData?.imageUrl ?? null)}
-				onImageUpload={handleImageUpload}
-				onImageRemove={handleImageRemove}
-				{uploading}
-				{visibleNutrients}
-			/>
-		{/key}
-	{/if}
-</ResponsiveModal>
-
-<ForceDeleteDialog
-	open={forceDeleteId !== null}
-	count={forceDeleteEntryCount + forceDeleteRecipeCount}
-	description={foodDeleteDescription()}
-	note={foodDeleteNote()}
-	forceDisabled={forceUnavailable}
-	usageLabel={m.usage_where_used()}
-	onShowUsage={showFoodUsage}
-	onConfirm={confirmForceDelete}
-	onCancel={() => (forceDeleteId = null)}
+	bind:qualityOpen
+	{editingFood}
+	{offData}
+	{offLoading}
+	{offNotFound}
+	{activeBarcode}
+	initial={formInitial}
+	imageUrl={formImageCleared ? null : (formImageUrl ?? offData?.imageUrl ?? null)}
+	{uploading}
+	{visibleNutrients}
+	onSave={editingFood ? updateFood : createFood}
+	onBarcodeScan={!editingFood ? handleBarcodeScan : undefined}
+	onImageUpload={handleImageUpload}
+	onImageRemove={handleImageRemove}
 />
 
-<WhereUsedDialog
-	bind:open={usageOpen}
-	kind="food"
-	id={usageFood?.id ?? null}
-	name={usageFood?.name ?? ''}
+<FoodDeleteConflictDialog
+	conflict={deleteConflict}
+	onConfirm={confirmForceDelete}
+	onCancel={() => (deleteConflict = null)}
 />
 
 <MergeFoodDialog

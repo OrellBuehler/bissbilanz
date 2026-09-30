@@ -175,23 +175,37 @@ final class LocalDataMigrator {
     /// session).
     func wipeLocalData() {
         syncManager.clearQueue()
-        try? context.delete(model: LocalEntry.self)
-        try? context.delete(model: LocalFood.self)
-        try? context.delete(model: LocalRecipe.self)
-        try? context.delete(model: LocalWeightEntry.self)
-        try? context.delete(model: LocalSleepEntry.self)
-        try? context.delete(model: LocalSupplement.self)
-        try? context.delete(model: LocalSupplementLog.self)
-        try? context.delete(model: LocalReminder.self)
-        try? context.delete(model: LocalGoals.self)
-        try? context.delete(model: LocalPreferences.self)
-        try? context.delete(model: LocalDayProperties.self)
+        deleteAll(LocalEntry.self)
+        deleteAll(LocalFood.self)
+        deleteAll(LocalRecipe.self)
+        deleteAll(LocalWeightEntry.self)
+        deleteAll(LocalSleepEntry.self)
+        deleteAll(LocalSupplement.self)
+        deleteAll(LocalSupplementLog.self)
+        deleteAll(LocalReminder.self)
+        deleteAll(LocalGoals.self)
+        deleteAll(LocalPreferences.self)
+        deleteAll(LocalDayProperties.self)
         context.saveReportingFailure("LocalDataMigrator.save")
         // Images live on the file system, not in SwiftData, so they survive the
         // deletes above — a sign-out that left them behind would carry one
         // account's photos into the next.
         LocalImageStore.clear()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
+    }
+
+    /// A failed delete is reported and the wipe carries on with the other models: a
+    /// sign-out must not leave one account's rows behind because an earlier delete
+    /// failed, and it must not fail without a trace either.
+    private func deleteAll<T: PersistentModel>(_ model: T.Type) {
+        do {
+            try context.delete(model: model)
+        } catch {
+            ErrorReporter.capture(
+                error,
+                context: ["operation": "LocalDataMigrator.wipe", "model": String(describing: model)]
+            )
+        }
     }
 
     /// The user abandoned a (possibly partially run) migration and stays in

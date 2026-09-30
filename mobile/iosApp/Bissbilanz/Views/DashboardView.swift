@@ -3,79 +3,41 @@ import Combine
 import SwiftUI
 import TipKit
 
-/// One day of the dashboard calorie trend.
-private struct DashboardTrendPoint: Identifiable {
-    let date: Date
-    let calories: Double
-    var id: Date {
-        date
-    }
-}
-
-/// One row of the dashboard "top foods" card, aggregated over the trend window.
-private struct DashboardTopFood: Identifiable {
-    let name: String
-    let count: Int
-    let calories: Double
-    var id: String {
-        name
-    }
-}
-
-/// One meal's share of the selected day's calories.
-private struct DashboardMealSlice: Identifiable {
-    let meal: String
-    let calories: Double
-    var id: String {
-        meal
-    }
-}
-
-/// A ranked recipe suggestion paired with the recipe it ranks, for the
-/// dashboard's compact card.
-private struct DashboardRecipeSuggestion: Identifiable {
-    let recipe: Recipe
-    let suggestion: LocalRecipeSuggestions.Suggestion
-    var id: String {
-        recipe.id
-    }
-}
-
 struct DashboardView: View {
-    @Environment(EntryRepository.self) private var entryRepository
-    @Environment(FoodRepository.self) private var foodRepository
-    @Environment(RecipeRepository.self) private var recipeRepository
-    @Environment(GoalsRepository.self) private var goalsRepository
-    @Environment(PreferencesRepository.self) private var preferencesRepository
-    @Environment(SupplementRepository.self) private var supplementRepository
-    @Environment(WeightRepository.self) private var weightRepository
-    @Environment(SleepRepository.self) private var sleepRepository
-    @Environment(FastingTimerManager.self) private var fastingManager
+    @Environment(EntryRepository.self) var entryRepository
+    @Environment(FoodRepository.self) var foodRepository
+    @Environment(RecipeRepository.self) var recipeRepository
+    @Environment(GoalsRepository.self) var goalsRepository
+    @Environment(PreferencesRepository.self) var preferencesRepository
+    @Environment(SupplementRepository.self) var supplementRepository
+    @Environment(WeightRepository.self) var weightRepository
+    @Environment(SleepRepository.self) var sleepRepository
+    @Environment(FastingTimerManager.self) var fastingManager
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
 
-    @State private var entries: [Entry] = []
-    @State private var goals: Goals = .defaults
-    @State private var preferences: Preferences = .defaults
-    @State private var selectedDate = Date()
-    @State private var isLoading = false
+    @State var entries: [Entry] = []
+    @State var goals: Goals = .defaults
+    @State var preferences: Preferences = .defaults
+    @State var selectedDate = Date()
+    @State var isLoading = false
     /// True when the last entries refresh failed and the day is empty — lets us
     /// show a retry affordance instead of a misleading "No entries yet" state
     /// (a swallowed refresh error looks identical to a genuinely empty day).
-    @State private var refreshFailed = false
+    @State var refreshFailed = false
     /// Bumped by each `loadData`; only the newest generation writes results back.
-    @State private var loadGeneration = 0
-    @State private var showFoodSearch = false
-    @State private var showScanner = false
-    @State private var showQuickEntry = false
-    @State private var showAIMeal = false
-    @State private var showCopyConfirmation = false
-    @State private var toastMessage: String?
-    @State private var isFastingDay = false
+    @State var loadGeneration = 0
+    @State var showFoodSearch = false
+    @State var showScanner = false
+    @State var showQuickEntry = false
+    @State var showAIMeal = false
+    @State var showCopyConfirmation = false
+    @State var toastMessage: String?
+    @State var isFastingDay = false
     /// Read from the local store in `loadFromStore` and kept fresh by
     /// `ActivityCard`; drives the "Activity: +N kcal" summary line and, when
     /// `preferences.activityGoalAdjustment` is on, the goal ring adjustment
     /// below (see `activityAdjustment`) — whether or not the card is shown.
-    @State private var dayActivityCalories: Int?
+    @State var dayActivityCalories: Int?
     /// Edge the incoming day content is pushed in from when the date changes.
     @State private var slideEdge: Edge = .trailing
     /// The calendar day that was "today" at last activation, so we can roll the
@@ -87,26 +49,26 @@ struct DashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
-    private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
+    func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
         AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
     }
 
     /// Widget data
-    @State private var supplementChecklist: [SupplementChecklist] = []
+    @State var supplementChecklist: [SupplementChecklist] = []
     /// Weight/sleep entries nearest the selected day, not simply the latest —
     /// browsing a past day must show that day's context, with each card
     /// captioned by the entry's own date.
-    @State private var closestWeight: WeightEntry?
-    @State private var closestSleep: SleepEntry?
+    @State var closestWeight: WeightEntry?
+    @State var closestSleep: SleepEntry?
     /// Everything below is derived from the local store, so the server-backed
     /// widgets keep working in Local mode and offline instead of erroring.
-    @State private var calorieTrend: [DashboardTrendPoint] = []
-    @State private var topFoods: [DashboardTopFood] = []
-    @State private var favoriteFoods: [Food] = []
-    @State private var selectedFavorite: Food?
+    @State var calorieTrend: [DashboardTrendPoint] = []
+    @State var topFoods: [DashboardTopFood] = []
+    @State var favoriteFoods: [Food] = []
+    @State var selectedFavorite: Food?
     /// Every recipe, used to compute the recipe-suggestions card. Loaded (and
     /// refreshed) only while the widget is on, like `favoriteFoods` above.
-    @State private var allRecipes: [Recipe] = []
+    @State var allRecipes: [Recipe] = []
 
     /// Widgets, then the watch app — only one shows at a time, and the watch
     /// nudge only appears once the widgets tip has been dismissed/invalidated.
@@ -114,37 +76,37 @@ struct DashboardView: View {
         WidgetsTip()
         WatchAppTip()
     }
-    private let scanningTip = ScanningTip()
+    let scanningTip = ScanningTip()
     private let dashboardLayoutTip = DashboardLayoutTip()
-    @State private var tipHelpSlug: HelpSlug = .mobileExtras
-    @State private var showTipHelp = false
+    @State var tipHelpSlug: HelpSlug = .mobileExtras
+    @State var showTipHelp = false
 
     /// Days the trend chart and the top-foods card look back over, ending on
     /// the selected day.
-    private static let trendWindowDays = 7
-    private static let topFoodsLimit = 5
+    static let trendWindowDays = 7
+    static let topFoodsLimit = 5
 
-    private var dateString: String {
+    var dateString: String {
         selectedDate.isoDateString
     }
 
-    private var totalCalories: Double {
+    var totalCalories: Double {
         entries.reduce(0) { $0 + $1.totalCalories }
     }
 
-    private var totalProtein: Double {
+    var totalProtein: Double {
         entries.reduce(0) { $0 + $1.totalProtein }
     }
 
-    private var totalCarbs: Double {
+    var totalCarbs: Double {
         entries.reduce(0) { $0 + $1.totalCarbs }
     }
 
-    private var totalFat: Double {
+    var totalFat: Double {
         entries.reduce(0) { $0 + $1.totalFat }
     }
 
-    private var totalFiber: Double {
+    var totalFiber: Double {
         entries.reduce(0) { $0 + $1.totalFiber }
     }
 
@@ -152,7 +114,7 @@ struct DashboardView: View {
     /// calories when `preferences.activityGoalAdjustment` is on — unchanged
     /// with a zero bonus otherwise. Drives both the macro rings below and the
     /// "+N kcal from workouts" caption.
-    private var activityAdjustment: ActivityAdjustedGoals {
+    var activityAdjustment: ActivityAdjustedGoals {
         adjustGoalsForActivity(
             goals: goals,
             activityCalories: dayActivityCalories,
@@ -167,7 +129,7 @@ struct DashboardView: View {
 
     /// Today's (activity-adjusted) goal minus what's already logged — the
     /// budget the recipe suggestions card scales recipes against.
-    private var remainingBudget: (calories: Double, protein: Double, carbs: Double, fat: Double) {
+    var remainingBudget: (calories: Double, protein: Double, carbs: Double, fat: Double) {
         let goals = activityAdjustment.goals
         return (
             calories: goals.calorieGoal - totalCalories,
@@ -181,7 +143,7 @@ struct DashboardView: View {
     /// `RecipeSuggestionsView`. Empty once the goal is reached or no recipe's
     /// scaled portion fits the remaining budget — the card's own copy explains
     /// which.
-    private var recipeSuggestionsPreview: [DashboardRecipeSuggestion] {
+    var recipeSuggestionsPreview: [DashboardRecipeSuggestion] {
         let byId = Dictionary(uniqueKeysWithValues: allRecipes.map { ($0.id, $0) })
         let suggestions = LocalRecipeSuggestions.suggest(remaining: remainingBudget, recipes: allRecipes, limit: 3)
         return suggestions.compactMap { suggestion in
@@ -191,7 +153,7 @@ struct DashboardView: View {
 
     /// Calories per meal for the selected day, largest first. Derived from the
     /// entries already on screen — no request, so it works in every mode.
-    private var mealCalories: [DashboardMealSlice] {
+    var mealCalories: [DashboardMealSlice] {
         mealGroups
             .map { DashboardMealSlice(meal: $0.0, calories: $0.1.reduce(0) { $0 + $1.totalCalories }) }
             .filter { $0.calories > 0 }
@@ -627,892 +589,5 @@ struct DashboardView: View {
             .accessibilityLabel(L10n.nextDay)
         }
         .padding(.horizontal)
-    }
-
-    // MARK: - Macro Rings
-
-    private var macroRings: some View {
-        let adjustedGoals = activityAdjustment.goals
-        return VStack(spacing: 4) {
-            HStack(spacing: 16) {
-                MacroRingView(
-                    label: "Cal",
-                    accessibilityName: L10n.calories,
-                    current: totalCalories,
-                    goal: adjustedGoals.calorieGoal,
-                    macro: .calories,
-                    showGoal: true
-                )
-                MacroRingView(
-                    label: "P",
-                    accessibilityName: L10n.protein,
-                    current: totalProtein,
-                    goal: adjustedGoals.proteinGoal,
-                    macro: .protein,
-                    showGoal: true,
-                    animationDelay: 0.05
-                )
-                MacroRingView(
-                    label: "C",
-                    accessibilityName: L10n.carbs,
-                    current: totalCarbs,
-                    goal: adjustedGoals.carbGoal,
-                    macro: .carbs,
-                    showGoal: true,
-                    animationDelay: 0.1
-                )
-                MacroRingView(
-                    label: "F",
-                    accessibilityName: L10n.fat,
-                    current: totalFat,
-                    goal: adjustedGoals.fatGoal,
-                    macro: .fat,
-                    showGoal: true,
-                    animationDelay: 0.15
-                )
-                MacroRingView(
-                    label: "Fb",
-                    accessibilityName: L10n.fiber,
-                    current: totalFiber,
-                    goal: adjustedGoals.fiberGoal,
-                    macro: .fiber,
-                    showGoal: true,
-                    animationDelay: 0.2
-                )
-            }
-            if activityAdjustment.activityBonus > 0 {
-                Text(L10n.daySummaryActivityBonus(activityAdjustment.activityBonus))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    /// Informational — activity calories are tracked for reference, and only
-    /// raise the calorie ring/goal above when `preferences.activityGoalAdjustment`
-    /// is on (see `activityAdjustment` and the caption under the rings).
-    private func activitySummaryLine(_ calories: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "flame.fill")
-                .foregroundStyle(.orange)
-                .font(.caption)
-                .accessibilityHidden(true)
-            Text(L10n.daySummaryActivity(calories))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    // MARK: - Fasting Card
-
-    /// Entry point to the fasting tracker; only rendered on today (a fast is
-    /// a "now" concept, not tied to the browsed date). Shows the live elapsed
-    /// timer while a fast is running.
-    private var fastingCard: some View {
-        NavigationLink {
-            FastingView()
-        } label: {
-            HStack {
-                Image(systemName: "timer")
-                    .foregroundStyle(MacroColors.fasting)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.fasting)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let session = fastingManager.session {
-                        Text(timerInterval: session.elapsedRange, countsDown: false)
-                            .font(.headline)
-                            .monospacedDigit()
-                            // Date-relative Text is greedy about width — cap it
-                            // so the trailing target label isn't squeezed out.
-                            .frame(maxWidth: 100, alignment: .leading)
-                    } else {
-                        Text(L10n.startFast)
-                            .font(.headline)
-                    }
-                }
-                Spacer()
-                if let session = fastingManager.session {
-                    Text(L10n.fastingTargetHours(session.targetHours))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Weight Widget
-
-    /// `fillHeight` stretches the card to its row partner's height when the
-    /// weight and sleep cards share a row; a lone card hugs its content.
-    private func weightWidget(_ entry: WeightEntry, fillHeight: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "scalemass")
-                    .foregroundStyle(.blue)
-                    .accessibilityHidden(true)
-                Text(L10n.weight)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            Text("\(entry.weightKg, specifier: "%.1f") kg")
-                .font(.headline)
-            Text(entryDateCaption(entry.entryDate))
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Sleep Widget
-
-    /// Sleep for the night nearest the selected day (a night is keyed by its
-    /// wake day), captioned with the entry's own date. On today the card keeps
-    /// the log prompt until last night is actually logged.
-    private func sleepWidget(fillHeight: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "bed.double")
-                    .foregroundStyle(.indigo)
-                    .accessibilityHidden(true)
-                Text(L10n.sleep)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            if let sleep = closestSleep, sleep.entryDate == dateString || !selectedDate.isToday {
-                Text(formatSleepDuration(sleep.durationMinutes))
-                    .font(.headline)
-                Text("\(formatSleepQuality(sleep.quality))/10 · \(entryDateCaption(sleep.entryDate))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            } else {
-                Text(L10n.logSleep)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: fillHeight ? .infinity : nil, alignment: .topLeading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Supplements Widget
-
-    private var supplementsWidget: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "pills")
-                    .foregroundStyle(.purple)
-                    .accessibilityHidden(true)
-                Text(L10n.supplements)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                let taken = supplementChecklist.count(where: \.taken)
-                Text("\(taken)/\(supplementChecklist.count)")
-                    .font(.caption)
-                    .foregroundStyle(taken == supplementChecklist.count ? .green : .secondary)
-            }
-
-            VStack(spacing: 0) {
-                ForEach(supplementChecklist) { item in
-                    Button {
-                        Task { await toggleSupplement(item) }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: item.taken ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
-                                .foregroundStyle(item.taken ? .green : .secondary)
-                                .accessibilityHidden(true)
-                            Text(item.supplement.name)
-                                .font(.subheadline)
-                                .foregroundStyle(item.taken ? .secondary : .primary)
-                            Spacer()
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(item.supplement.name)
-                    .accessibilityValue(item.taken ? L10n.markTaken : L10n.notTakenYet)
-                    .accessibilityAddTraits(item.taken ? .isSelected : [])
-                }
-            }
-        }
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    // MARK: - Calorie Trend Widget
-
-    /// Same line/goal-rule shape as the insights calorie chart, sized for a
-    /// dashboard card. Hidden until the window holds at least two logged days —
-    /// a single point is not a trend.
-    /// Read before a VoiceOver user swipes through each day's data point.
-    private var calorieTrendAccessibilitySummary: String {
-        let logged = calorieTrend.filter { $0.calories > 0 }
-        guard let first = logged.first, let last = logged.last else { return L10n.noEntries }
-        let average = logged.reduce(0.0) { $0 + $1.calories } / Double(logged.count)
-        var summary = L10n.chartAverageValue(MacroFormat.kcal(average), unit: L10n.calories)
-        if logged.count > 1 {
-            summary += ", " + (last.calories >= first.calories ? L10n.chartTrendingUp : L10n.chartTrendingDown)
-        }
-        return summary
-    }
-
-    @ViewBuilder
-    private var calorieTrendWidget: some View {
-        if calorieTrend.count(where: { $0.calories > 0 }) >= 2 {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.xyaxis.line")
-                        .foregroundStyle(MacroColors.calories)
-                        .accessibilityHidden(true)
-                    Text(L10n.caloriesTrend)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text(L10n.last7Days)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Chart(calorieTrend) { point in
-                    LineMark(
-                        x: .value("Date", point.date),
-                        y: .value("Calories", point.calories)
-                    )
-                    .foregroundStyle(MacroColors.calories)
-                    .interpolationMethod(.catmullRom)
-
-                    if goals.calorieGoal > 0 {
-                        RuleMark(y: .value("Goal", goals.calorieGoal))
-                            .foregroundStyle(.gray.opacity(0.5))
-                            .lineStyle(StrokeStyle(dash: [5, 5]))
-                            .accessibilityLabel(L10n.dailyGoals)
-                            .accessibilityValue(MacroFormat.kcal(goals.calorieGoal))
-                    }
-                }
-                .frame(height: 120)
-                .chartXAxis(.hidden)
-                .chartYAxis {
-                    AxisMarks(position: .leading)
-                }
-                .accessibilityLabel(L10n.caloriesTrend)
-                .accessibilityValue(calorieTrendAccessibilitySummary)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    // MARK: - Favorites Widget
-
-    /// A one-tap row of the user's favorites: the quick-log button logs one
-    /// serving at the meal the clock suggests, the card itself opens the full
-    /// log form. Reads the local store, so it works offline and in Local mode.
-    @ViewBuilder
-    private var favoritesWidget: some View {
-        if !favoriteFoods.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .foregroundStyle(.yellow)
-                        .accessibilityHidden(true)
-                    Text(L10n.favorites)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(favoriteFoods) { food in
-                            FavoriteCard(
-                                name: food.name,
-                                brand: food.brand,
-                                calories: Int(food.calories),
-                                protein: Int(food.protein),
-                                imageUrl: food.imageUrl,
-                                onTap: { selectedFavorite = food },
-                                onQuickLog: { Task { await quickLogFavorite(food) } }
-                            )
-                            .frame(width: 150)
-                        }
-                    }
-                    .padding(.horizontal, 2)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    // MARK: - Recipe Suggestions Widget
-
-    /// Top 3 recipes that fit the day's remaining budget, with a link to the
-    /// full ranking. Shown whenever the section is on (see `DashboardSection`),
-    /// even with no recipes yet — the empty states explain what's missing.
-    private var recipeSuggestionsWidget: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "fork.knife.circle")
-                    .foregroundStyle(MacroColors.protein)
-                    .accessibilityHidden(true)
-                Text(L10n.recipeSuggestionsCardTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                NavigationLink {
-                    RecipeSuggestionsView()
-                } label: {
-                    Text(L10n.showAll)
-                        .font(.caption)
-                }
-            }
-
-            if allRecipes.isEmpty {
-                Text(L10n.recipeSuggestionsNoRecipesDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if remainingBudget.calories < LocalRecipeSuggestions.minRemainingCalories {
-                Text(L10n.recipeSuggestionsGoalReachedDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if recipeSuggestionsPreview.isEmpty {
-                Text(L10n.recipeSuggestionsNoMatchesDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(spacing: 6) {
-                    ForEach(recipeSuggestionsPreview) { item in
-                        recipeSuggestionRow(item)
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func recipeSuggestionRow(_ item: DashboardRecipeSuggestion) -> some View {
-        HStack(spacing: 8) {
-            Text(item.recipe.name)
-                .font(.subheadline)
-                .lineLimit(1)
-            Spacer()
-            Text("\(MacroFormat.servings(item.suggestion.servings))\u{00D7}")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text("\(MacroFormat.kcal(item.suggestion.calories)) kcal")
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(accessibleColor(.calories))
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Meal Breakdown Widget
-
-    /// Where the day's calories went, meal by meal. Bars are proportional to
-    /// the biggest meal so the shape reads at a glance.
-    @ViewBuilder
-    private var mealBreakdownWidget: some View {
-        if mealCalories.count > 1 {
-            let peak = mealCalories.first?.calories ?? 0
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.pie")
-                        .foregroundStyle(MacroColors.calories)
-                        .accessibilityHidden(true)
-                    Text(L10n.mealBreakdown)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                }
-
-                ForEach(mealCalories) { item in
-                    HStack(spacing: 10) {
-                        Text(L10n.mealName(item.meal))
-                            .font(.caption)
-                            .lineLimit(1)
-                            .frame(width: 76, alignment: .leading)
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(.systemGray5))
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(MacroColors.calories)
-                                    .frame(width: geo.size.width * (peak > 0 ? item.calories / peak : 0))
-                            }
-                        }
-                        .frame(height: 10)
-                        .accessibilityHidden(true)
-                        Text("\(MacroFormat.kcal(item.calories)) kcal")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                            .frame(width: 74, alignment: .trailing)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    // MARK: - Top Foods Widget
-
-    /// What the user logs most over the trend window, counted from the local
-    /// entry log rather than the server's `/api/stats/top-foods`, so the card
-    /// renders the same in Local mode.
-    @ViewBuilder
-    private var topFoodsWidget: some View {
-        if !topFoods.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "trophy")
-                        .foregroundStyle(MacroColors.fat)
-                        .accessibilityHidden(true)
-                    Text(L10n.topFoods)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Text(L10n.last7Days)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                ForEach(Array(topFoods.enumerated()), id: \.element.id) { index, food in
-                    HStack(spacing: 8) {
-                        Text("\(index + 1).")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20, alignment: .leading)
-                        Text(food.name)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                        Spacer()
-                        Text("\(food.count)\u{00D7}")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                        Text("\(MacroFormat.kcal(food.calories)) kcal")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(accessibleColor(.calories))
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-    }
-
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label(L10n.noEntriesYet, systemImage: "fork.knife.circle")
-        } description: {
-            Text(L10n.tapToAdd)
-        } actions: {
-            if !selectedDate.isToday {
-                Button(L10n.copyYesterday) {
-                    showCopyConfirmation = true
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(.vertical, 24)
-    }
-
-    /// Shown when the live entries refresh failed and the local store is empty,
-    /// so a swallowed network error isn't mistaken for a day with no food. The
-    /// Retry button re-runs `loadData` directly — a reliable refresh path that
-    /// doesn't depend on the pull-to-refresh gesture.
-    private var refreshErrorState: some View {
-        ContentUnavailableView {
-            Label(L10n.somethingWentWrong, systemImage: "wifi.exclamationmark")
-        } description: {
-            Text(L10n.couldNotRefresh)
-        } actions: {
-            Button(L10n.retry) {
-                Task { await loadData() }
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(.vertical, 24)
-    }
-
-    // MARK: - FAB
-
-    /// One glass button that opens a system menu with the four ways to log.
-    /// Items are declared most-common-first; the menu flips them so the first
-    /// sits nearest the thumb when anchored at the bottom of the screen.
-    private var fab: some View {
-        FloatingControlGroup {
-            Menu {
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    showFoodSearch = true
-                } label: {
-                    Label(L10n.searchFood, systemImage: "magnifyingglass")
-                }
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showQuickEntry = true
-                } label: {
-                    Label(L10n.quickEntry, systemImage: "bolt")
-                }
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    scanningTip.invalidate(reason: .actionPerformed)
-                    showScanner = true
-                } label: {
-                    Label(L10n.scanBarcode, systemImage: "barcode.viewfinder")
-                }
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showAIMeal = true
-                } label: {
-                    Label(L10n.aiMealEstimate, systemImage: "sparkles")
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-            }
-            .buttonStyle(.plain)
-            .circularGlassBackground(tint: MacroColors.calories)
-            .accessibilityLabel(L10n.addFood)
-            .popoverTip(scanningTip) { action in
-                guard action.id == "learn_more" else { return }
-                scanningTip.invalidate(reason: .actionPerformed)
-                showHelp(for: .scanning)
-            }
-            .padding()
-        }
-    }
-
-    private func showHelp(for slug: HelpSlug) {
-        tipHelpSlug = slug
-        showTipHelp = true
-    }
-
-    // MARK: - Data Loading
-
-    /// Instant render from the local store; `loadData` refreshes from the API on top.
-    private func loadFromStore() {
-        goals = goalsRepository.goals() ?? .defaults
-        preferences = preferencesRepository.preferences() ?? .defaults
-        isFastingDay = entryRepository.isFastingDay(date: dateString)
-        dayActivityCalories = entryRepository.dayProperties(date: dateString)?.activityCalories
-        supplementChecklist = supplementRepository.localChecklist(date: dateString)
-        closestWeight = weightRepository.closest(to: dateString)
-        closestSleep = sleepRepository.closest(to: dateString)
-        favoriteFoods = preferences.showFavoritesWidget ? foodRepository.favorites() : []
-        allRecipes = preferences.showRecipeSuggestionsWidget ? recipeRepository.recipes() : []
-        loadEntriesFromStore()
-    }
-
-    /// Just the entry-derived state: the day's list and the two cards computed
-    /// from it. A local write that only touched entries (a favorite quick-log,
-    /// a copied day) re-reads this instead of the whole dashboard.
-    private func loadEntriesFromStore() {
-        let dayEntries = entryRepository.entries(date: dateString)
-        entries = dayEntries
-        loadTrendWindow(selectedDayEntries: dayEntries)
-    }
-
-    /// Walks the trend window once, building both the calorie series and the
-    /// most-logged tally. Skipped entirely when neither card is on.
-    ///
-    /// The window comes back in a single range fetch — it used to be one fetch
-    /// per day, on the main actor, on the app's most-used screen — and the
-    /// selected day reuses the list the caller just read rather than fetching
-    /// it again.
-    private func loadTrendWindow(selectedDayEntries: [Entry]) {
-        guard preferences.showChartWidget || preferences.showTopFoodsWidget else {
-            calorieTrend = []
-            topFoods = []
-            return
-        }
-        let selectedDay = dateString
-        let windowStart = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
-        let byDate = entryRepository.entriesByDate(from: windowStart, to: selectedDay)
-        var trend: [DashboardTrendPoint] = []
-        var tally: [String: (count: Int, calories: Double)] = [:]
-        for offset in stride(from: Self.trendWindowDays - 1, through: 0, by: -1) {
-            let day = selectedDate.adding(days: -offset)
-            let key = day.isoDateString
-            let dayEntries = key == selectedDay ? selectedDayEntries : (byDate[key] ?? [])
-            trend.append(DashboardTrendPoint(
-                date: day,
-                calories: dayEntries.reduce(0) { $0 + $1.totalCalories }
-            ))
-            for entry in dayEntries {
-                let name = entry.displayName
-                let running = tally[name] ?? (count: 0, calories: 0)
-                tally[name] = (count: running.count + 1, calories: running.calories + entry.totalCalories)
-            }
-        }
-        calorieTrend = trend
-        topFoods = Array(
-            tally
-                .map { DashboardTopFood(name: $0.key, count: $0.value.count, calories: $0.value.calories) }
-                .sorted { ($0.count, $0.calories) > ($1.count, $1.calories) }
-                .prefix(Self.topFoodsLimit)
-        )
-    }
-
-    private func entryDateCaption(_ isoDate: String) -> String {
-        guard let date = DateFormatting.date(from: isoDate) else { return isoDate }
-        return DateFormatting.displayString(from: date)
-    }
-
-    /// Every trigger — the day buttons, pull-to-refresh, each sheet's dismissal,
-    /// the retry button — starts its own task, so several loads can be in
-    /// flight at once with no ordering between them. A stale one finishing
-    /// last would apply a previous day's result to the day now on screen:
-    /// most visibly, turning on the "couldn't refresh" retry state for a day
-    /// that loaded fine, or clearing the spinner for a load still running.
-    /// Only the newest load writes back.
-    ///
-    /// `paintFromStore` is the read that renders the cached day before the
-    /// refreshes come back — a cold open, a day change or a sheet dismissal
-    /// (which leaves an optimistic write in the store) all need it. A
-    /// pull-to-refresh doesn't: the store hasn't changed under it and the
-    /// screen already shows it, so it skips straight to the network and lets
-    /// the single read at the end apply the result.
-    private func loadData(paintFromStore: Bool = true) async {
-        loadGeneration += 1
-        let generation = loadGeneration
-        let loadDate = dateString
-        if paintFromStore { loadFromStore() }
-        isLoading = true
-        defer {
-            if generation == loadGeneration { isLoading = false }
-        }
-
-        // Track the entries refresh outcome: a failure that leaves the day
-        // empty must surface (retry) rather than masquerade as "No entries yet".
-        // `refreshEntries` returns nil on success or a short failure reason.
-        async let entriesFailureReason: String? = refreshEntries()
-        async let goalsTask: Void? = try? goalsRepository.refresh()
-        async let prefsTask: Void? = try? preferencesRepository.refresh()
-        async let dayPropsTask: Void? = try? entryRepository.refreshDayProperties(date: dateString)
-        // Refresh the supplement list (definitions), not just the checklist
-        // (taken-logs): `localChecklist` reads the cached list, so without this
-        // the card stays empty — and hidden — until a live checklist call
-        // succeeds, which is why it appeared only intermittently.
-        async let suppListTask: Void? = try? supplementRepository.refresh()
-        async let supplementsTask = try? supplementRepository.refreshChecklist(date: dateString)
-        async let weightTask: Void? = try? weightRepository.refresh()
-        async let sleepTask: Void? = try? sleepRepository.refresh()
-        // Report the device timezone so server-side analytics/MCP use the user's tz.
-        async let tzTask: Void? = try? preferencesRepository.reportTimeZone(TimeZone.current.identifier)
-        // The trend/top-foods cards read the whole window from the store, so the
-        // window has to be cached — a day the user never opened would otherwise
-        // read as zero calories. The favorites card needs the same for its list.
-        async let trendTask: Void = refreshTrendWindow()
-        async let favoritesTask: Void = refreshFavoritesWidget()
-        async let recipeSuggestionsTask: Void = refreshRecipeSuggestionsWidget()
-
-        let (entriesFailReason, _, _, _, _, _, _, _) = await (
-            entriesFailureReason, goalsTask, prefsTask, dayPropsTask, suppListTask, weightTask, sleepTask, tzTask
-        )
-        await trendTask
-        await favoritesTask
-        await recipeSuggestionsTask
-        let checklist = await supplementsTask
-
-        guard generation == loadGeneration, dateString == loadDate else { return }
-        loadFromStore()
-        // Only flag the empty-day error case; a failed refresh that still has
-        // cached entries keeps showing them (stale beats blank).
-        refreshFailed = entriesFailReason != nil && entries.isEmpty
-        if refreshFailed, let entriesFailReason {
-            // Whenever the user actually sees the "couldn't refresh" state, log
-            // why — at warning level so it bypasses the API layer's noise filter
-            // (offline/401/404), which would otherwise leave the failure invisible.
-            ErrorReporter.captureWarning(
-                "Dashboard entries refresh failed — showing retry",
-                context: [
-                    "date": dateString,
-                    "endpoint": "/api/entries",
-                    "reason": entriesFailReason,
-                ]
-            )
-        }
-        if let checklist { supplementChecklist = checklist }
-    }
-
-    /// Pulls the day's entries. Returns `nil` on success, or a short failure
-    /// reason (offline / server_error_500 / decoding_error_200 …) so `loadData`
-    /// can distinguish "server says empty" from "couldn't reach server" and
-    /// report *why* when it surfaces the error state. A String (not the Error)
-    /// is returned so it crosses the `async let` boundary as a Sendable value.
-    private func refreshEntries() async -> String? {
-        do {
-            try await entryRepository.refresh(date: dateString)
-            return nil
-        } catch {
-            let reason = ErrorReporter.reason(for: error)
-            // Breadcrumb on every failure (even when stale entries still render),
-            // so any later event carries the trail that led to it.
-            ErrorReporter.addBreadcrumb(
-                "entries refresh failed",
-                category: "sync",
-                level: .warning,
-                data: ["date": dateString, "reason": reason]
-            )
-            return reason
-        }
-    }
-
-    /// Caches the trend window's entries. A no-op in Local mode (the store is
-    /// already the primary database) and silent on failure — the cards fall
-    /// back to whatever is cached rather than showing an error.
-    ///
-    /// Stops one day short of the selected day: `refreshEntries` owns that day
-    /// and both run concurrently. `refreshRange` deletes and re-inserts every
-    /// non-pending row in its window, so a slightly older range response that
-    /// predates a just-synced entry would drop it until the next refresh, and
-    /// whichever of the two landed last would win the row's contents.
-    private func refreshTrendWindow() async {
-        guard preferences.showChartWidget || preferences.showTopFoodsWidget else { return }
-        guard Self.trendWindowDays > 1 else { return }
-        let start = selectedDate.adding(days: -(Self.trendWindowDays - 1)).isoDateString
-        let end = selectedDate.adding(days: -1).isoDateString
-        try? await entryRepository.refreshRange(startDate: start, endDate: end)
-    }
-
-    private func refreshFavoritesWidget() async {
-        guard preferences.showFavoritesWidget else { return }
-        try? await foodRepository.refreshFavorites()
-    }
-
-    private func refreshRecipeSuggestionsWidget() async {
-        guard preferences.showRecipeSuggestionsWidget else { return }
-        try? await recipeRepository.refresh()
-    }
-
-    private func quickLogFavorite(_ food: Food) async {
-        let entry = EntryCreate(
-            foodId: food.id,
-            mealType: MealTiming.mealForCurrentTime(),
-            servings: 1,
-            date: dateString
-        )
-        do {
-            try await entryRepository.createEntry(entry, food: food)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            toastMessage = "\(food.name) \(L10n.logged)"
-            // Only the day's entries changed — no need to re-read goals,
-            // preferences, supplements, weight, sleep and favorites too.
-            loadEntriesFromStore()
-        } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            toastMessage = L10n.failedToLog
-        }
-    }
-
-    private func copyYesterday() async {
-        let yesterday = selectedDate.adding(days: -1).isoDateString
-        do {
-            let count = try await entryRepository.copyEntries(fromDate: yesterday, toDate: dateString)
-            // The copy lands on the selected day, so the trend/top-foods cards
-            // have to follow it — assigning `entries` alone left them stale.
-            loadEntriesFromStore()
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            toastMessage = L10n.entriesCopied(count)
-        } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            toastMessage = L10n.failedToCopy
-        }
-    }
-
-    private func toggleFastingDay() async {
-        let newValue = !isFastingDay
-        do {
-            // Only the flag changes — any notes/water/activity already stored
-            // for the day must survive the toggle, so this sets the field
-            // rather than deleting the whole row.
-            try await entryRepository.setFastingDay(date: dateString, isFastingDay: newValue)
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        } catch {
-            toastMessage = L10n.error
-        }
-        isFastingDay = entryRepository.isFastingDay(date: dateString)
-    }
-
-    private func toggleSupplement(_ item: SupplementChecklist) async {
-        let nowTaken = !item.taken
-        let previous = supplementChecklist
-        // Optimistic UI: flip the checkmark immediately so it feels instant.
-        // The repository write is local-first (SwiftData + a queued upload), so
-        // there's no need to block on a network checklist refresh — that round
-        // trip was the source of the visible lag. `loadData` reconciles with
-        // the server on the next appear / pull-to-refresh.
-        supplementChecklist = supplementChecklist.map { entry in
-            guard entry.supplement.id == item.supplement.id else { return entry }
-            return SupplementChecklist(
-                supplement: entry.supplement,
-                taken: nowTaken,
-                takenAt: nowTaken ? DateFormatting.isoDateTimeString(from: Date()) : nil
-            )
-        }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        do {
-            if nowTaken {
-                try await supplementRepository.logSupplement(id: item.supplement.id, date: dateString)
-            } else {
-                try await supplementRepository.unlogSupplement(id: item.supplement.id, date: dateString)
-            }
-        } catch {
-            supplementChecklist = previous
-            toastMessage = L10n.error
-        }
     }
 }

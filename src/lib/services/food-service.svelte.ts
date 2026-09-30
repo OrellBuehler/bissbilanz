@@ -7,6 +7,7 @@ import { api } from '$lib/api/client';
 import { refreshTable, withOfflineFallback } from './base';
 import { filterFoods } from '$lib/components/foods/foodFilters';
 import { normalizeLabels } from '$lib/labels';
+import { pickNonNullNutrients } from '$lib/nutrients';
 import type { paths } from '$lib/api/generated/schema';
 
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
@@ -318,6 +319,56 @@ async function saveFromOFF(barcode: string): Promise<DexieFood | null> {
 	return food;
 }
 
+/**
+ * Online-only calls for the foods page. They hand back the raw API result so the
+ * caller can react to specific error codes (duplicate barcode, in-use conflict)
+ * and they leave the Dexie mirror to the caller's refresh.
+ */
+function duplicates() {
+	return api.GET('/api/foods/duplicates');
+}
+
+function fetchById(id: string) {
+	return api.GET('/api/foods/{id}', { params: { path: { id } } });
+}
+
+function createOnline(body: FoodCreate) {
+	return api.POST('/api/foods', { body });
+}
+
+function updateOnline(id: string, body: FoodUpdate) {
+	return api.PATCH('/api/foods/{id}', { params: { path: { id } }, body });
+}
+
+function deleteOnline(id: string, force = false) {
+	return api.DELETE('/api/foods/{id}', {
+		params: force ? { path: { id }, query: { force: true } } : { path: { id } }
+	});
+}
+
+function fetchOffProduct(barcode: string) {
+	return api.GET('/api/openfoodfacts/{barcode}', { params: { path: { barcode } } });
+}
+
+function searchOff(q: string) {
+	return api.GET('/api/openfoodfacts/search', { params: { query: { q } } });
+}
+
+async function enrichFromOff(id: string, barcode: string) {
+	const { data, error } = await fetchOffProduct(barcode);
+	if (error || !data) return;
+	const { product } = data;
+	await updateOnline(id, {
+		nutriScore: product.nutriScore,
+		novaGroup: product.novaGroup,
+		additives: product.additives,
+		ingredientsText: product.ingredientsText,
+		imageUrl: product.imageUrl,
+		...pickNonNullNutrients(product)
+	});
+	await refreshById(id);
+}
+
 export const foodService = {
 	allFoods,
 	foodById,
@@ -333,5 +384,13 @@ export const foodService = {
 	delete: deleteFood,
 	findByBarcode,
 	saveFromCatalog,
-	saveFromOFF
+	saveFromOFF,
+	duplicates,
+	fetchById,
+	createOnline,
+	updateOnline,
+	deleteOnline,
+	fetchOffProduct,
+	searchOff,
+	enrichFromOff
 };

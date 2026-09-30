@@ -90,12 +90,17 @@ sqldelight {
         create("BissbilanzDatabase") {
             packageName.set("com.bissbilanz.cache")
             srcDirs.setFrom("src/commonMain/sqldelight")
+            // verifyMigrations stays off here: 1.sqm-3.sqm predate the user-data split and
+            // do not type-check against the current schema, and the snapshots before 4 still
+            // carry the legacy user tables that LegacyUserDataMigration copies out and drops.
         }
         // The user's own data. Lives in userdata.db, which IS backed up by
         // Android Auto Backup, so it must never share a file with the sync queue.
         create("UserDataDatabase") {
             packageName.set("com.bissbilanz.userdata")
             srcDirs.setFrom("src/commonMain/sqldelight-userdata")
+            schemaOutputDirectory.set(file("src/commonMain/sqldelight-userdata/databases"))
+            verifyMigrations.set(true)
         }
     }
 }

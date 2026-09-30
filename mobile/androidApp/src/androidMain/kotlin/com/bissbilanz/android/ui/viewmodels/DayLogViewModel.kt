@@ -74,6 +74,18 @@ class DayLogViewModel(
         }
     }
 
+    suspend fun copyEntries(
+        fromDate: String,
+        toDate: String,
+    ): Int? =
+        try {
+            entryRepo.copyEntries(fromDate, toDate)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            null
+        }
+
     fun clearError() {
         _error.value = null
     }

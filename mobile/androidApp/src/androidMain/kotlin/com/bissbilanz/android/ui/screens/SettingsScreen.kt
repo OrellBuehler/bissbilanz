@@ -1,56 +1,34 @@
 package com.bissbilanz.android.ui.screens
 
 import android.content.Context
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
-import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.TipStore
-import com.bissbilanz.android.tips.openHelp
-import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.AppTopBar
-import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
-import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
-import com.bissbilanz.auth.AuthState
 import com.bissbilanz.mode.AppMode
-import com.bissbilanz.model.Goals
 import com.bissbilanz.sync.SyncManager
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import kotlin.math.roundToInt
-import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +57,6 @@ fun SettingsScreen(navController: NavController) {
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val tipStore: TipStore = koinInject()
     val scope = rememberCoroutineScope()
     val tipsResetMessage = stringResource(R.string.settings_tips_reset_message)
@@ -124,145 +101,35 @@ fun SettingsScreen(navController: NavController) {
     }
 
     if (showMealTypeDialog) {
-        var newMealName by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showMealTypeDialog = false },
-            title = { Text(stringResource(R.string.settings_add_meal_type_title)) },
-            text = {
-                OutlinedTextField(
-                    value = newMealName,
-                    onValueChange = { newMealName = it },
-                    label = { Text(stringResource(R.string.settings_meal_type_name)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newMealName.isNotBlank()) {
-                        viewModel.addMealType(newMealName.trim())
-                    }
-                    showMealTypeDialog = false
-                }) { Text(stringResource(R.string.action_add)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMealTypeDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
-            },
+        AddMealTypeDialog(
+            onAdd = { viewModel.addMealType(it) },
+            onDismiss = { showMealTypeDialog = false },
         )
     }
 
     if (showDeleteAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text(stringResource(R.string.settings_delete_account_title)) },
-            text = {
-                Column {
-                    Text(stringResource(R.string.settings_delete_account_message))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = {
-                            showDeleteAccountDialog = false
-                            showDowngradeDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.settings_downgrade_option))
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { viewModel.exportData(context.cacheDir) },
-                        enabled = !exportingData,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.settings_export_first))
-                    }
-                }
+        DeleteAccountDialog(
+            exportingData = exportingData,
+            onDowngrade = {
+                showDeleteAccountDialog = false
+                showDowngradeDialog = true
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteAccountDialog = false
-                    viewModel.deleteAccount()
-                }) {
-                    Text(
-                        stringResource(R.string.settings_delete_account_confirm),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+            onExportData = { viewModel.exportData(context.cacheDir) },
+            onConfirmDelete = {
+                showDeleteAccountDialog = false
+                viewModel.deleteAccount()
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
-            },
+            onDismiss = { showDeleteAccountDialog = false },
         )
     }
 
     if (showDowngradeDialog) {
-        val downgradeInProgress =
-            downgradeState == AccountDowngradeController.State.Syncing ||
-                downgradeState == AccountDowngradeController.State.Downloading ||
-                downgradeState == AccountDowngradeController.State.Deleting
-        AlertDialog(
-            onDismissRequest = {
-                if (!downgradeInProgress) {
-                    showDowngradeDialog = false
-                    viewModel.resetDowngrade()
-                }
-            },
-            title = { Text(stringResource(R.string.settings_downgrade_title)) },
-            text = {
-                Column {
-                    when (val state = downgradeState) {
-                        AccountDowngradeController.State.Idle ->
-                            Text(stringResource(R.string.settings_downgrade_message))
-                        is AccountDowngradeController.State.Failed -> {
-                            Text(stringResource(R.string.settings_downgrade_message))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(stringResource(state.messageRes), color = MaterialTheme.colorScheme.error)
-                        }
-                        AccountDowngradeController.State.Done ->
-                            Text(stringResource(R.string.settings_downgrade_done))
-                        else ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    stringResource(
-                                        when (downgradeState) {
-                                            AccountDowngradeController.State.Syncing ->
-                                                R.string.settings_downgrade_progress_sync
-                                            AccountDowngradeController.State.Deleting ->
-                                                R.string.settings_downgrade_progress_delete
-                                            else -> R.string.settings_downgrade_progress_download
-                                        },
-                                    ),
-                                )
-                            }
-                    }
-                }
-            },
-            confirmButton = {
-                when {
-                    downgradeState == AccountDowngradeController.State.Done ->
-                        TextButton(onClick = {
-                            showDowngradeDialog = false
-                            viewModel.resetDowngrade()
-                        }) { Text(stringResource(R.string.settings_downgrade_close)) }
-                    downgradeInProgress -> {}
-                    else ->
-                        TextButton(onClick = { viewModel.downgradeToLocal() }) {
-                            Text(stringResource(R.string.settings_downgrade_confirm))
-                        }
-                }
-            },
-            dismissButton = {
-                if (!downgradeInProgress && downgradeState != AccountDowngradeController.State.Done) {
-                    TextButton(onClick = {
-                        showDowngradeDialog = false
-                        viewModel.resetDowngrade()
-                    }) { Text(stringResource(R.string.dialog_cancel)) }
-                }
+        DowngradeDialog(
+            downgradeState = downgradeState,
+            onConfirm = { viewModel.downgradeToLocal() },
+            onClose = {
+                showDowngradeDialog = false
+                viewModel.resetDowngrade()
             },
         )
     }
@@ -285,490 +152,45 @@ fun SettingsScreen(navController: NavController) {
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
             ) {
-                // Navigation items
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        SettingsNavItem(stringResource(R.string.weight_screen_title), Icons.Default.MonitorWeight) {
-                            if ("weight" in selectedTabs) {
-                                navController.navigate("weight") {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            } else {
-                                navController.navigate("weight")
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.chart_supplements), Icons.Default.Medication) {
-                            if ("supplements" in selectedTabs) {
-                                navController.navigate("supplements") {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            } else {
-                                navController.navigate("supplements")
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) {
-                            navController.navigate("sleep")
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
-                            navController.navigate("fasting")
-                        }
-                        if (healthAvailable) {
-                            HorizontalDivider()
-                            SettingsNavItem(stringResource(R.string.health_connect_title), Icons.Default.Favorite) {
-                                navController.navigate("health")
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.AutoMirrored.Filled.MenuBook) {
-                            navController.navigate("recipes")
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.recipe_suggestions_title), Icons.Default.Lightbulb) {
-                            if ("recipe-suggestions" in selectedTabs) {
-                                navController.navigate("recipe-suggestions") {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            } else {
-                                navController.navigate("recipe-suggestions")
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) {
-                            navController.navigate("calendar")
-                        }
-                        if (!isLocalMode) {
-                            HorizontalDivider()
-                            SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
-                                navController.navigate("maintenance")
-                            }
-                            // The queue only exists server-side — the assistant reaches it
-                            // over MCP — so it has no meaning in Local mode.
-                            HorizontalDivider()
-                            SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) {
-                                navController.navigate("ai-tasks")
-                            }
-                            HorizontalDivider()
-                            SettingsNavItem(stringResource(R.string.connect_claude_title), Icons.Default.SmartToy) {
-                                navController.navigate("connect-claude")
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) {
-                            if ("insights" in selectedTabs) {
-                                navController.navigate("insights") {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            } else {
-                                navController.navigate("insights")
-                            }
-                        }
-                    }
-                }
+                SettingsNavigationCard(navController, selectedTabs, isLocalMode, healthAvailable)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Navigation Tabs
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_nav_tabs),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.settings_nav_tabs_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        val tabOptions =
-                            listOf(
-                                "foods" to stringResource(R.string.settings_tab_foods),
-                                "favorites" to stringResource(R.string.favorites_title),
-                                "insights" to stringResource(R.string.settings_nav_insights),
-                                "weight" to stringResource(R.string.weight_widget_title),
-                                "supplements" to stringResource(R.string.chart_supplements),
-                                "recipe-suggestions" to stringResource(R.string.recipe_suggestions_title),
-                            )
-
-                        tabOptions.forEach { (route, label) ->
-                            val isSelected = route in selectedTabs
-                            CheckboxRow(
-                                label = label,
-                                checked = isSelected,
-                                enabled = if (isSelected) selectedTabs.size >= 3 else selectedTabs.size < 3,
-                                onCheckedChange = { checked ->
-                                    val updated = if (checked) selectedTabs + route else selectedTabs - route
-                                    if (updated.size in 1..5) {
-                                        selectedTabs = updated
-                                        if (updated.size == 3) {
-                                            tabPrefs.edit().putStringSet("selected_tabs", updated).apply()
-                                        }
-                                    }
-                                },
-                            )
-                        }
-                        if (selectedTabs.size != 3) {
-                            Text(
-                                stringResource(R.string.settings_select_exactly_3_tabs, selectedTabs.size),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                }
+                NavigationTabsCard(
+                    selectedTabs = selectedTabs,
+                    onSelectedTabsChange = { selectedTabs = it },
+                    tabPrefs = tabPrefs,
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Goals section
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_daily_goals),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        fun calcGrams(
-                            pct: Int,
-                            cals: Int,
-                            calsPerGram: Int,
-                        ): Int = ((pct / 100.0) * cals / calsPerGram).roundToInt()
-
-                        fun calcPct(
-                            grams: Double,
-                            cals: Double,
-                            calsPerGram: Int,
-                        ): Int = if (cals <= 0) 0 else ((grams * calsPerGram) / cals * 100).roundToInt()
-
-                        var editCalories by remember(goals) {
-                            mutableStateOf(goals?.calorieGoal?.toInt()?.toString() ?: "2000")
-                        }
-                        var editProteinPct by remember(goals) {
-                            mutableStateOf(
-                                goals?.let { g -> calcPct(g.proteinGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 30,
-                            )
-                        }
-                        var editCarbsPct by remember(goals) {
-                            mutableStateOf(
-                                goals?.let { g -> calcPct(g.carbGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 40,
-                            )
-                        }
-                        var editFiberG by remember(goals) {
-                            mutableStateOf(goals?.fiberGoal?.toInt() ?: 30)
-                        }
-
-                        val cals = editCalories.toIntOrNull() ?: 2000
-                        val fatPct = (100 - editProteinPct - editCarbsPct).coerceAtLeast(0)
-                        val totalPct = editProteinPct + editCarbsPct + fatPct
-                        val isValid = totalPct == 100
-
-                        val proteinG = calcGrams(editProteinPct, cals, 4)
-                        val carbsG = calcGrams(editCarbsPct, cals, 4)
-                        val fatG = calcGrams(fatPct, cals, 9)
-                        val maxFiberG = carbsG.coerceAtLeast(1)
-
-                        OutlinedTextField(
-                            value = editCalories,
-                            onValueChange = { editCalories = it },
-                            label = { Text(stringResource(R.string.settings_calories_kcal)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            stringResource(R.string.settings_protein_pct_grams, editProteinPct, proteinG),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Slider(
-                            value = editProteinPct.toFloat(),
-                            onValueChange = { editProteinPct = it.roundToInt() },
-                            valueRange = 5f..80f,
-                            steps = 74,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            stringResource(R.string.settings_carbs_pct_grams, editCarbsPct, carbsG),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Slider(
-                            value = editCarbsPct.toFloat(),
-                            onValueChange = { editCarbsPct = it.roundToInt() },
-                            valueRange = 5f..80f,
-                            steps = 74,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        GoalRow(
-                            stringResource(R.string.settings_fat_auto),
-                            fatG.toDouble(),
-                            stringResource(R.string.settings_fat_unit_pct, fatPct),
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(stringResource(R.string.settings_fiber_grams, editFiberG), style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = editFiberG.toFloat(),
-                            onValueChange = { editFiberG = it.roundToInt() },
-                            valueRange = 0f..maxFiberG.toFloat(),
-                            steps = (maxFiberG - 1).coerceAtLeast(0),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isValid) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                                    contentDescription = null,
-                                    tint = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    stringResource(R.string.settings_total_pct, totalPct),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    viewModel.setGoals(
-                                        Goals(
-                                            calorieGoal = cals.toDouble(),
-                                            proteinGoal = proteinG.toDouble(),
-                                            carbGoal = carbsG.toDouble(),
-                                            fatGoal = fatG.toDouble(),
-                                            fiberGoal = editFiberG.toDouble(),
-                                            // Preserved: this form only edits calories/macros, but Goals is
-                                            // saved as a whole object — omitting these would silently wipe
-                                            // the sodium/sugar/weight-target goals set elsewhere.
-                                            sodiumGoal = goals?.sodiumGoal,
-                                            sugarGoal = goals?.sugarGoal,
-                                            targetWeightKg = goals?.targetWeightKg,
-                                            targetDate = goals?.targetDate,
-                                        ),
-                                    )
-                                },
-                                enabled = isValid,
-                            ) {
-                                Text(stringResource(R.string.weight_save))
-                            }
-                        }
-                    }
-                }
+                DailyGoalsCard(goals = goals, onSave = { viewModel.setGoals(it) })
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Biological sex — sits with the goals because that is what it feeds:
-                // the nutrient-gap analytics pick sex-specific reference intakes.
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_biological_sex),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.settings_biological_sex_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val sexOptions =
-                            listOf(
-                                stringResource(R.string.settings_biological_sex_unset) to null,
-                                stringResource(R.string.settings_biological_sex_male) to
-                                    GenPreferencesUpdate.BiologicalSex.male,
-                                stringResource(R.string.settings_biological_sex_female) to
-                                    GenPreferencesUpdate.BiologicalSex.female,
-                            )
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            sexOptions.forEachIndexed { index, (label, value) ->
-                                SegmentedButton(
-                                    shape = SegmentedButtonDefaults.itemShape(index, sexOptions.size),
-                                    onClick = { viewModel.updateBiologicalSex(value) },
-                                    selected = prefs?.biologicalSex?.value == value?.value,
-                                ) {
-                                    Text(label)
-                                }
-                            }
-                        }
-                    }
-                }
+                BiologicalSexCard(prefs = prefs, onSelect = { viewModel.updateBiologicalSex(it) })
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Workout goal adjustment — raises the day's calorie/macro goals by a
-                // share of activityCalories, whether logged manually or imported from
-                // Health Connect.
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_activity_goal_adjustment_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        ToggleRow(
-                            label = stringResource(R.string.settings_activity_goal_adjustment),
-                            supportingText = stringResource(R.string.settings_activity_goal_adjustment_desc),
-                            checked = prefs?.activityGoalAdjustment ?: false,
-                            onCheckedChange = { viewModel.updateActivityGoalAdjustment(it) },
-                        )
-                        if (prefs?.activityGoalAdjustment == true) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            var creditDraft by
-                                remember(prefs?.activityCreditPercent) {
-                                    mutableIntStateOf(prefs?.activityCreditPercent ?: 100)
-                                }
-                            Text(
-                                stringResource(R.string.settings_activity_credit_percent, creditDraft),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Slider(
-                                value = creditDraft.toFloat(),
-                                onValueChange = { creditDraft = it.roundToInt() },
-                                onValueChangeFinished = { viewModel.updateActivityCreditPercent(creditDraft) },
-                                valueRange = 0f..100f,
-                                steps = 19,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
+                ActivityGoalAdjustmentCard(
+                    prefs = prefs,
+                    onAdjustmentChange = { viewModel.updateActivityGoalAdjustment(it) },
+                    onCreditPercentChange = { viewModel.updateActivityCreditPercent(it) },
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // AI task processor — who resolves the meal-logging tasks queued from
-                // the AI meal sheet: the MCP assistant, or the user's own iPhone
-                // running Foundation Models on-device (or Private Cloud Compute).
                 if (!isLocalMode) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                stringResource(R.string.settings_ai_task_processor_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                stringResource(R.string.settings_ai_task_processor_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val processorOptions =
-                                listOf(
-                                    stringResource(R.string.settings_ai_task_processor_assistant) to
-                                        GenPreferencesUpdate.AiTaskProcessor.assistant,
-                                    stringResource(R.string.settings_ai_task_processor_device) to
-                                        GenPreferencesUpdate.AiTaskProcessor.device,
-                                )
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                processorOptions.forEachIndexed { index, (label, value) ->
-                                    SegmentedButton(
-                                        shape = SegmentedButtonDefaults.itemShape(index, processorOptions.size),
-                                        onClick = { viewModel.updateAiTaskProcessor(value) },
-                                        selected = prefs?.aiTaskProcessor?.value == value.value,
-                                    ) {
-                                        Text(label)
-                                    }
-                                }
-                            }
-                            if (prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                // The server has no reliable way to tell whether this
-                                // account actually has an iPhone — no APNs/device
-                                // registration exists to check — so the option stays
-                                // selectable unconditionally and this hint carries the
-                                // warning instead of a disabled state.
-                                Text(
-                                    stringResource(R.string.settings_ai_task_processor_device_hint),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                ToggleRow(
-                                    label = stringResource(R.string.settings_ai_task_auto_log_label),
-                                    supportingText = stringResource(R.string.settings_ai_task_auto_log_hint),
-                                    checked = prefs?.aiTaskAutoLog ?: false,
-                                    onCheckedChange = { viewModel.updateAiTaskAutoLog(it) },
-                                )
-                            }
-                        }
-                    }
+                    AiTaskProcessorCard(
+                        prefs = prefs,
+                        onProcessorChange = { viewModel.updateAiTaskProcessor(it) },
+                        onAutoLogChange = { viewModel.updateAiTaskAutoLog(it) },
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // Water goal — daily target shown as a progress bar on the day log.
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_water_goal),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.settings_water_goal_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        var waterGoalDraft by
-                            remember(prefs?.waterGoalMl) {
-                                mutableStateOf((prefs?.waterGoalMl ?: 2000).toString())
-                            }
-                        OutlinedTextField(
-                            value = waterGoalDraft,
-                            onValueChange = { waterGoalDraft = it },
-                            label = { Text(stringResource(R.string.settings_water_goal_ml)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier =
-                                Modifier.fillMaxWidth().onFocusChanged { focus ->
-                                    if (!focus.isFocused) {
-                                        waterGoalDraft.toIntOrNull()?.coerceIn(250, 10000)?.let {
-                                            viewModel.updateWaterGoal(it)
-                                            waterGoalDraft = it.toString()
-                                        }
-                                    }
-                                },
-                        )
-                    }
-                }
+                WaterGoalCard(waterGoalMl = prefs?.waterGoalMl, onUpdate = { viewModel.updateWaterGoal(it) })
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -778,44 +200,14 @@ fun SettingsScreen(navController: NavController) {
 
                 // Custom meal types (server-only, hidden in Local mode)
                 if (!isLocalMode) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    stringResource(R.string.settings_custom_meal_types),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                IconButton(onClick = { showMealTypeDialog = true }) {
-                                    Icon(Icons.Default.Add, stringResource(R.string.settings_add_meal_type))
-                                }
-                            }
-                            if (customMealTypes.isEmpty()) {
-                                Text(
-                                    stringResource(R.string.settings_default_meals_only),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            } else {
-                                customMealTypes.forEach { mealType ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Text(mealType.name)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    CustomMealTypesCard(
+                        customMealTypes = customMealTypes,
+                        onAddClick = { showMealTypeDialog = true },
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // Dashboard layout
                 prefs?.let { p ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         SettingsNavItem(stringResource(R.string.dashboard_layout_title), Icons.Outlined.Tune) {
@@ -833,454 +225,47 @@ fun SettingsScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Favorite Logging
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                stringResource(R.string.settings_favorite_logging),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(
-                                    selected = p.favoriteMealAssignmentMode == "time_based",
-                                    onClick = {
-                                        viewModel.updateFavoriteMealAssignmentMode(
-                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.time_based,
-                                        )
-                                    },
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.settings_auto_assign_by_time))
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(
-                                    selected = p.favoriteMealAssignmentMode == "ask_meal",
-                                    onClick = {
-                                        viewModel.updateFavoriteMealAssignmentMode(
-                                            GenPreferencesUpdate.FavoriteMealAssignmentMode.ask_meal,
-                                        )
-                                    },
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.settings_always_ask))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Visible Nutrients
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                stringResource(R.string.settings_visible_nutrients),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                stringResource(R.string.settings_visible_nutrients_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        editedNutrients = ALL_NUTRIENT_KEYS.toSet()
-                                        nutrientsDirty = true
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) { Text(stringResource(R.string.settings_select_all)) }
-                                OutlinedButton(
-                                    onClick = {
-                                        editedNutrients = emptySet()
-                                        nutrientsDirty = true
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) { Text(stringResource(R.string.settings_deselect_all)) }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            editedNutrients?.let { selected ->
-                                nutrientCategories().forEach { (category, nutrients) ->
-                                    Text(
-                                        category,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                    )
-                                    nutrients.forEach { (key, label) ->
-                                        CheckboxRow(
-                                            label = label,
-                                            checked = key in selected,
-                                            onCheckedChange = { checked ->
-                                                editedNutrients = if (checked) selected + key else selected - key
-                                                nutrientsDirty = true
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                            if (nutrientsDirty) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(
-                                    onClick = {
-                                        viewModel.updateVisibleNutrients(editedNutrients?.toList() ?: emptyList())
-                                        nutrientsDirty = false
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(stringResource(R.string.weight_save)) }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                // Account
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.settings_account),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        if (isLocalMode) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                stringResource(R.string.settings_local_mode_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = { launchLoginFlow(context, authManager) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.settings_sign_in_to_sync))
-                            }
-                        } else {
-                            // A dead session leaves the app fully usable on cached data,
-                            // so it is stated here rather than only as a passing toast —
-                            // the same warning row plus sign-in action iOS shows. Keyed on
-                            // "not signed in" rather than on SessionExpired alone: the
-                            // refresh already deleted both tokens, so after a restart the
-                            // same stranded user reads as Unauthenticated with a Synced
-                            // mode, and would otherwise have no way back in.
-                            if (authState !is AuthState.Authenticated && authState !is AuthState.Refreshing) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.Top) {
-                                    Icon(
-                                        Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        stringResource(R.string.session_expired_message),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = { launchLoginFlow(context, authManager) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(stringResource(R.string.settings_sign_in_again))
-                                }
-                            }
-                            // Queued offline writes: surfaced here (and only when
-                            // there are any) so a stalled upload is visible instead
-                            // of silently sitting in the queue.
-                            if (pendingSyncCount > 0) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SettingsNavItem(
-                                    stringResource(R.string.pending_sync_row, pendingSyncCount),
-                                    Icons.Default.Sync,
-                                ) {
-                                    navController.navigate("pending-sync")
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(
-                                onClick = { viewModel.exportData(context.cacheDir) },
-                                enabled = !exportingData,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                if (exportingData) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Text(stringResource(R.string.settings_export_data))
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedButton(
-                                onClick = { viewModel.logout() },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            ) {
-                                Text(stringResource(R.string.settings_sign_out))
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = { showDeleteAccountDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            ) {
-                                Text(stringResource(R.string.settings_delete_account))
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                )
-                TextButton(
-                    onClick = { openHelp(context) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_help_guides),
-                        style = MaterialTheme.typography.bodySmall,
+                    FavoriteLoggingCard(
+                        mode = p.favoriteMealAssignmentMode,
+                        onModeChange = { viewModel.updateFavoriteMealAssignmentMode(it) },
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    VisibleNutrientsCard(
+                        selected = editedNutrients,
+                        dirty = nutrientsDirty,
+                        onSelectionChange = {
+                            editedNutrients = it
+                            nutrientsDirty = true
+                        },
+                        onSave = {
+                            viewModel.updateVisibleNutrients(editedNutrients?.toList() ?: emptyList())
+                            nutrientsDirty = false
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
-                TextButton(
-                    onClick = {
+
+                AccountCard(
+                    navController = navController,
+                    isLocalMode = isLocalMode,
+                    authState = authState,
+                    pendingSyncCount = pendingSyncCount,
+                    exportingData = exportingData,
+                    onSignIn = { launchLoginFlow(context, authManager) },
+                    onExportData = { viewModel.exportData(context.cacheDir) },
+                    onSignOut = { viewModel.logout() },
+                    onDeleteAccount = { showDeleteAccountDialog = true },
+                )
+
+                SettingsFooter(
+                    onShowTipsAgain = {
                         tipStore.resetAll()
                         scope.launch { snackbarHostState.showSnackbar(tipsResetMessage) }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_show_tips_again),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                TextButton(
-                    onClick = { uriHandler.openUri("https://bissbilanz.orellbuehler.ch/privacy") },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_privacy_policy),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun GoalRow(
-    label: String,
-    value: Double,
-    unit: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurface)
-        Text("${value.toInt()} $unit", fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-fun SettingsNavItem(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(title) },
-        // Both icons only restate the row's own label, so they stay decorative
-        // rather than making TalkBack announce every row three times.
-        leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
-        trailingContent = {
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-val ALL_NUTRIENT_KEYS =
-    listOf(
-        "saturatedFat",
-        "monounsaturatedFat",
-        "polyunsaturatedFat",
-        "transFat",
-        "cholesterol",
-        "omega3",
-        "omega6",
-        "sugar",
-        "addedSugars",
-        "sugarAlcohols",
-        "starch",
-        "sodium",
-        "potassium",
-        "calcium",
-        "iron",
-        "magnesium",
-        "phosphorus",
-        "zinc",
-        "copper",
-        "manganese",
-        "selenium",
-        "iodine",
-        "fluoride",
-        "chromium",
-        "molybdenum",
-        "chloride",
-        "vitaminA",
-        "vitaminC",
-        "vitaminD",
-        "vitaminE",
-        "vitaminK",
-        "vitaminB1",
-        "vitaminB2",
-        "vitaminB3",
-        "vitaminB5",
-        "vitaminB6",
-        "vitaminB7",
-        "vitaminB9",
-        "vitaminB12",
-        "caffeine",
-        "alcohol",
-        "water",
-        "salt",
-    )
-
-@Composable
-fun nutrientCategories() =
-    listOf(
-        stringResource(R.string.nutrient_category_fat_breakdown) to
-            listOf(
-                "saturatedFat" to stringResource(R.string.nutrient_saturated_fat),
-                "monounsaturatedFat" to stringResource(R.string.nutrient_monounsaturated_fat_full),
-                "polyunsaturatedFat" to stringResource(R.string.nutrient_polyunsaturated_fat_full),
-                "transFat" to stringResource(R.string.nutrient_trans_fat),
-                "cholesterol" to stringResource(R.string.nutrient_cholesterol),
-                "omega3" to stringResource(R.string.nutrient_omega3),
-                "omega6" to stringResource(R.string.nutrient_omega6),
-            ),
-        stringResource(R.string.nutrient_category_sugar_carb) to
-            listOf(
-                "sugar" to stringResource(R.string.nutrient_sugar),
-                "addedSugars" to stringResource(R.string.nutrient_added_sugars),
-                "sugarAlcohols" to stringResource(R.string.nutrient_sugar_alcohols),
-                "starch" to stringResource(R.string.nutrient_starch),
-            ),
-        stringResource(R.string.nutrient_category_mineral) to
-            listOf(
-                "sodium" to stringResource(R.string.nutrient_sodium),
-                "potassium" to stringResource(R.string.nutrient_potassium),
-                "calcium" to stringResource(R.string.nutrient_calcium),
-                "iron" to stringResource(R.string.nutrient_iron),
-                "magnesium" to stringResource(R.string.nutrient_magnesium),
-                "phosphorus" to stringResource(R.string.nutrient_phosphorus),
-                "zinc" to stringResource(R.string.nutrient_zinc),
-                "copper" to stringResource(R.string.nutrient_copper),
-                "manganese" to stringResource(R.string.nutrient_manganese),
-                "selenium" to stringResource(R.string.nutrient_selenium),
-                "iodine" to stringResource(R.string.nutrient_iodine),
-                "fluoride" to stringResource(R.string.nutrient_fluoride),
-                "chromium" to stringResource(R.string.nutrient_chromium),
-                "molybdenum" to stringResource(R.string.nutrient_molybdenum),
-                "chloride" to stringResource(R.string.nutrient_chloride),
-            ),
-        stringResource(R.string.nutrient_category_vitamin) to
-            listOf(
-                "vitaminA" to stringResource(R.string.nutrient_vitamin_a),
-                "vitaminC" to stringResource(R.string.nutrient_vitamin_c),
-                "vitaminD" to stringResource(R.string.nutrient_vitamin_d),
-                "vitaminE" to stringResource(R.string.nutrient_vitamin_e),
-                "vitaminK" to stringResource(R.string.nutrient_vitamin_k),
-                "vitaminB1" to stringResource(R.string.nutrient_vitamin_b1),
-                "vitaminB2" to stringResource(R.string.nutrient_vitamin_b2),
-                "vitaminB3" to stringResource(R.string.nutrient_vitamin_b3),
-                "vitaminB5" to stringResource(R.string.nutrient_vitamin_b5),
-                "vitaminB6" to stringResource(R.string.nutrient_vitamin_b6),
-                "vitaminB7" to stringResource(R.string.nutrient_vitamin_b7),
-                "vitaminB9" to stringResource(R.string.nutrient_vitamin_b9),
-                "vitaminB12" to stringResource(R.string.nutrient_vitamin_b12),
-            ),
-        stringResource(R.string.nutrient_category_other) to
-            listOf(
-                "caffeine" to stringResource(R.string.nutrient_caffeine),
-                "alcohol" to stringResource(R.string.nutrient_alcohol),
-                "water" to stringResource(R.string.nutrient_water),
-                "salt" to stringResource(R.string.nutrient_salt),
-            ),
-    )
-
-/**
- * In-app language override, the Android counterpart of the iOS English/Deutsch picker.
- *
- * Device-local, not a server preference: which language the phone speaks is a property of
- * the phone. On API 33+ the choice is handed to the platform's per-app language and also
- * appears in Android's own app settings; below that it is stored locally and applied by
- * rebuilding the activity, which is why picking a language restarts this screen there.
- */
-@Composable
-private fun LanguageCard() {
-    val context = LocalContext.current
-    var selected by remember { mutableStateOf(AppLanguage.stored(context)) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                stringResource(R.string.settings_language),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            val options =
-                listOf(
-                    AppLanguage.SYSTEM to stringResource(R.string.settings_language_system),
-                    "en" to stringResource(R.string.settings_language_english),
-                    "de" to stringResource(R.string.settings_language_german),
                 )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { index, (tag, label) ->
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                        onClick = {
-                            if (tag == selected) return@SegmentedButton
-                            selected = tag
-                            AppLanguage.applyAndRefresh(context, tag)
-                        },
-                        selected = selected == tag,
-                    ) {
-                        Text(label)
-                    }
-                }
             }
         }
     }
