@@ -802,6 +802,7 @@ struct LogFoodSheet: View {
 /// and one body stays correct in both modes.
 struct LogFoodForm: View {
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(AppModeManager.self) private var appMode
     @Environment(\.modelContext) private var modelContext
 
     let food: Food
@@ -826,6 +827,7 @@ struct LogFoodForm: View {
     @State private var eatenTime = Date()
     @State private var notes = ""
     @State private var isLogging = false
+    @State private var showShareSheet = false
     @State private var errorMessage: String?
 
     init(food: Food, date: String, showsDetailsLink: Bool = false, onLogged: @escaping () -> Void = {}) {
@@ -837,6 +839,10 @@ struct LogFoodForm: View {
         // to "Lunch" regardless, so the two disagreed about the meal at 8 a.m.
         _mealType = State(initialValue: MealTiming.mealForCurrentTime())
     }
+
+    /// A food that hasn't synced yet has a `temp_` id the server can't export;
+    /// on-device export works off the local store whatever the id looks like.
+    private var canShare: Bool { appMode.isLocal || !LocalStore.isTempId(food.id) }
 
     /// "2 × 100 g = 200 g" — without the total there is no way to tell what a
     /// multiplier actually amounts to.
@@ -935,8 +941,9 @@ struct LogFoodForm: View {
             }
             // Logging is the fast path, but the full detail — and the edit
             // action on it — stays one tap away. Logging from the detail page
-            // completes this flow the same way logging here does.
-            ToolbarItem(placement: .topBarTrailing) {
+            // completes this flow the same way logging here does. Share sits
+            // last in the group so it lands directly beside Log.
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if showsDetailsLink {
                     NavigationLink {
                         FoodDetailView(foodId: food.id, onLogged: onLogged)
@@ -945,7 +952,18 @@ struct LogFoodForm: View {
                     }
                     .accessibilityLabel(L10n.details)
                 }
+                if canShare {
+                    Button {
+                        showShareSheet = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel(L10n.foodPackageShare)
+                }
             }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            FoodPackageExportView(foodIds: [food.id])
         }
         .alert(
             L10n.error,
