@@ -79,6 +79,7 @@
 		quickFiber?: number | null;
 		quickNutrients?: Record<string, number> | null;
 		quickName?: string | null;
+		imageUrl?: string | null;
 	} | null = $state(null);
 
 	let pendingBarcodeAction: (() => void) | null = $state(null);
@@ -201,6 +202,7 @@
 		quickFiber?: number | null;
 		quickNutrients?: Record<string, number> | null;
 		quickName?: string | null;
+		imageUrl?: string | null;
 	}) => {
 		editingEntry = entry;
 		editModalOpen = true;

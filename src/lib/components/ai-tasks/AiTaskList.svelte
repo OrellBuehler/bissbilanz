@@ -5,6 +5,7 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import type { AiTask } from '$lib/services/ai-task-service.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import ListPagination from '$lib/components/shared/ListPagination.svelte';
 
 	type Props = {
 		tasks: AiTask[];
@@ -19,6 +20,13 @@
 	const dismissed = $derived(tasks.filter((t) => t.status === 'dismissed'));
 	const completed = $derived(tasks.filter((t) => t.status === 'completed'));
 	const hasUnread = $derived(dismissed.some((t) => !t.acknowledgedAt));
+
+	const PER_PAGE = 10;
+	let pendingPage = $state(1);
+	let dismissedPage = $state(1);
+	let completedPage = $state(1);
+	const pageOf = (list: AiTask[], page: number) =>
+		list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
 	let completedOpen = $state(false);
 	// A dismissal is news; it should not be hidden behind a closed section.
@@ -47,9 +55,15 @@
 				</p>
 			{:else}
 				<div class="space-y-2">
-					{#each pending as task (task.id)}
+					{#each pageOf(pending, pendingPage) as task (task.id)}
 						<AiTaskCard {task} {onEdit} {onDismiss} {onDelete} />
 					{/each}
+					<ListPagination
+						count={pending.length}
+						perPage={PER_PAGE}
+						bind:page={pendingPage}
+						class="mt-2"
+					/>
 				</div>
 			{/if}
 		</div>
@@ -65,9 +79,15 @@
 					{m.ai_tasks_dismissed_title({ count: String(dismissed.length) })}
 				</Collapsible.Trigger>
 				<Collapsible.Content class="space-y-2 pt-2">
-					{#each dismissed as task (task.id)}
+					{#each pageOf(dismissed, dismissedPage) as task (task.id)}
 						<AiTaskCard {task} {onDelete} />
 					{/each}
+					<ListPagination
+						count={dismissed.length}
+						perPage={PER_PAGE}
+						bind:page={dismissedPage}
+						class="mt-2"
+					/>
 				</Collapsible.Content>
 			</Collapsible.Root>
 		{/if}
@@ -81,9 +101,15 @@
 					{m.ai_tasks_completed_title({ count: String(completed.length) })}
 				</Collapsible.Trigger>
 				<Collapsible.Content class="space-y-2 pt-2">
-					{#each completed as task (task.id)}
+					{#each pageOf(completed, completedPage) as task (task.id)}
 						<AiTaskCard {task} {onDelete} />
 					{/each}
+					<ListPagination
+						count={completed.length}
+						perPage={PER_PAGE}
+						bind:page={completedPage}
+						class="mt-2"
+					/>
 				</Collapsible.Content>
 			</Collapsible.Root>
 		{/if}

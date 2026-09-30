@@ -16,6 +16,7 @@
 	import { round2 } from '$lib/utils/number';
 	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
+	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
@@ -42,6 +43,7 @@
 			quickFiber?: number | null;
 			quickNutrients?: Record<string, number> | null;
 			quickName?: string | null;
+			imageUrl?: string | null;
 		} | null;
 		onClose: () => void;
 		onSave: (payload: {
@@ -175,6 +177,11 @@
 
 <ResponsiveModal bind:open title={m.edit_entry_title()} description={entry?.foodName} openFull>
 	<div class="grid gap-4">
+		{#if !isQuickEntry && entry?.imageUrl}
+			<div class="mx-auto size-32 overflow-hidden rounded-xl">
+				<FoodThumbnail name={entry.foodName ?? ''} imageUrl={entry.imageUrl} size="fill" />
+			</div>
+		{/if}
 		{#if isQuickEntry}
 			<div class="grid gap-3">
 				<div class="grid gap-1.5">

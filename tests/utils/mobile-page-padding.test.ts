@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 const APP_ROUTES_DIR = join(process.cwd(), 'src/routes/(app)');
 const APP_LAYOUT_FILE = join(APP_ROUTES_DIR, '+layout.svelte');
+const APP_SHELL_FILE = join(process.cwd(), 'src/lib/components/navigation/AppShell.svelte');
 
 function collectPageFiles(dir: string): string[] {
 	const entries = readdirSync(dir);
@@ -27,12 +28,12 @@ function collectPageFiles(dir: string): string[] {
 
 describe('mobile page padding', () => {
 	test('app layout uses compact mobile padding in the shared content container', () => {
-		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
+		const layout = readFileSync(APP_SHELL_FILE, 'utf8');
 		expect(layout).toMatch(/class="\s*min-h-0 flex-1 px-3 py-3\b/);
 	});
 
 	test('mobile main padding accounts for safe-area-inset-bottom', () => {
-		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
+		const layout = readFileSync(APP_SHELL_FILE, 'utf8');
 		expect(layout).toContain('safe-area-inset-bottom');
 	});
 
@@ -52,10 +53,12 @@ describe('mobile page padding', () => {
 
 describe('app layout structure', () => {
 	test('renders its children exactly once', () => {
-		const layout = readFileSync(APP_LAYOUT_FILE, 'utf8');
 		// Two breakpoint branches each rendering `children` mounts every page
 		// component twice, so all of its effects and onMount work run twice.
-		const renders = layout.match(/\{@render children\(\)\}/g) ?? [];
-		expect(renders).toHaveLength(1);
+		for (const file of [APP_LAYOUT_FILE, APP_SHELL_FILE]) {
+			const source = readFileSync(file, 'utf8');
+			const renders = source.match(/\{@render children\(\)\}/g) ?? [];
+			expect(renders).toHaveLength(1);
+		}
 	});
 });

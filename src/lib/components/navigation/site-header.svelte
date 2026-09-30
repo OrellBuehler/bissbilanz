@@ -12,6 +12,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { getHelpGuide } from '$lib/help/guides';
 	import { deLocalizeHref } from '$lib/paraglide/runtime';
 	const user = $derived(getUser());
 	const userInitial = $derived((user?.name || user?.email || '?').charAt(0).toUpperCase());
@@ -51,6 +52,7 @@
 		sleep: () => m.nav_sleep(),
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
+		help: () => m.nav_help(),
 		mcp: () => 'MCP',
 		'ai-tasks': () => m.nav_ai_tasks(),
 		reminders: () => m.nav_reminders()
@@ -72,7 +74,8 @@
 			const segment = segments[i];
 			const href = '/' + segments.slice(0, i + 1).join('/');
 			const isId = UUID_RE.test(segment);
-			const label = isId ? '...' : labelMap[segment]?.() || segment;
+			const guide = segments[0] === 'help' && i === 1 ? getHelpGuide(segment) : undefined;
+			const label = isId ? '...' : guide?.title() || labelMap[segment]?.() || segment;
 			crumbs.push({ label, href, isId });
 		}
 

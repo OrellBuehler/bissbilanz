@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
+	import ListPagination from '$lib/components/shared/ListPagination.svelte';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Check from '@lucide/svelte/icons/check';
@@ -18,7 +19,11 @@
 		limit
 	}: { entries: DexieWeightEntry[]; onChanged?: () => void; limit?: number } = $props();
 
-	const displayed = $derived(limit != null ? entries.slice(0, limit) : entries);
+	const PER_PAGE = 10;
+	let page = $state(1);
+	const displayed = $derived(
+		limit != null ? entries.slice(0, limit) : entries.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+	);
 
 	let editingId: string | null = $state(null);
 	let editWeight = $state<number | null>(null);
@@ -103,3 +108,7 @@
 		{/each}
 	{/if}
 </div>
+
+{#if limit == null}
+	<ListPagination count={entries.length} perPage={PER_PAGE} bind:page />
+{/if}
