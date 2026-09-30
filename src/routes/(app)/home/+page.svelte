@@ -28,6 +28,7 @@
 	import { goalsService } from '$lib/services/goals-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { dayPropertiesService } from '$lib/services/day-properties-service.svelte';
+	import { normalizeSectionOrder } from '$lib/utils/widget-order';
 	import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 	import { weightService } from '$lib/services/weight-service.svelte';
 	import { supplementService } from '$lib/services/supplement-service.svelte';
@@ -76,19 +77,21 @@
 
 	const isToday = $derived(activeDate === today());
 	const order = $derived(
-		userPrefs?.widgetOrder ?? [
-			'fasting',
-			'water',
-			'activity',
-			'notes',
-			'chart',
-			'streaks',
-			'favorites',
-			'recipe-suggestions',
-			'supplements',
-			'weight',
-			'daylog'
-		]
+		normalizeSectionOrder(
+			userPrefs?.widgetOrder ?? [
+				'fasting',
+				'water',
+				'activity',
+				'notes',
+				'chart',
+				'streaks',
+				'favorites',
+				'recipe-suggestions',
+				'supplements',
+				'weight',
+				'daylog'
+			]
+		)
 	);
 
 	const SIDEBAR_WIDGETS = new Set(['streaks', 'favorites', 'sleep', 'supplements', 'weight']);
