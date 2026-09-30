@@ -286,6 +286,7 @@ class FoodPackageViewModel(
     val importState: StateFlow<ImportState> = _importState.asStateFlow()
 
     fun resetImport() {
+        previewJob?.cancel()
         IncomingPackageFiles.delete(_importState.value.path)
         _importState.value = ImportState()
     }
@@ -325,41 +326,47 @@ class FoodPackageViewModel(
         _messageRes.value = messageRes
     }
 
+    private var previewJob: Job? = null
+
     private fun runPreview() {
         val state = _importState.value
         val path = state.path ?: return
         val fileName = state.fileName ?: IncomingPackageFiles.DEFAULT_NAME
-        viewModelScope.launch {
-            _importState.update { it.copy(analyzing = true, error = null, errorRes = null) }
-            try {
-                val preview =
-                    withContext(Dispatchers.IO) {
-                        // Every file is checked on the device first, so a stray zip gets a clear
-                        // message instead of an upload that fails.
-                        if (!isLocalMode) archive.read(path)
-                        if (isLocalMode) localPackages.preview(path) else api.previewFoodPackage(fileName, File(path).readBytes())
+        // A newer package supersedes the one still being analyzed; its late result must not
+        // land on the new import.
+        previewJob?.cancel()
+        _importState.update { it.copy(analyzing = true, error = null, errorRes = null) }
+        previewJob =
+            viewModelScope.launch {
+                try {
+                    val preview =
+                        withContext(Dispatchers.IO) {
+                            // Every file is checked on the device first, so a stray zip gets a clear
+                            // message instead of an upload that fails.
+                            if (!isLocalMode) archive.read(path)
+                            if (isLocalMode) localPackages.preview(path) else api.previewFoodPackage(fileName, File(path).readBytes())
+                        }
+                    _importState.update {
+                        it.copy(
+                            preview = preview,
+                            foods = FoodPackageResolutionState.initial(preview.conflicts.foods.map { c -> c.resolvable() }),
+                            recipes = FoodPackageResolutionState.initial(preview.conflicts.recipes.map { c -> c.resolvable() }),
+                            mappings = emptyMap(),
+                        )
                     }
-                _importState.update {
-                    it.copy(
-                        preview = preview,
-                        foods = FoodPackageResolutionState.initial(preview.conflicts.foods.map { c -> c.resolvable() }),
-                        recipes = FoodPackageResolutionState.initial(preview.conflicts.recipes.map { c -> c.resolvable() }),
-                        mappings = emptyMap(),
-                    )
+                } catch (e: FoodPackageException) {
+                    _importState.update { it.copy(preview = null, errorRes = openErrorRes(e)) }
+                } catch (e: ApiException) {
+                    errorReporter.captureException(e)
+                    _importState.update { it.copy(preview = null, error = serverError(e)) }
+                    if (serverError(e) == null) _messageRes.value = R.string.food_package_import_failed
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _messageRes.value = R.string.food_package_import_failed
                 }
-            } catch (e: FoodPackageException) {
-                _importState.update { it.copy(preview = null, errorRes = openErrorRes(e)) }
-            } catch (e: ApiException) {
-                errorReporter.captureException(e)
-                _importState.update { it.copy(preview = null, error = serverError(e)) }
-                if (serverError(e) == null) _messageRes.value = R.string.food_package_import_failed
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _messageRes.value = R.string.food_package_import_failed
+                _importState.update { it.copy(analyzing = false) }
             }
-            _importState.update { it.copy(analyzing = false) }
-        }
     }
 
     private fun openErrorRes(e: FoodPackageException): Int =

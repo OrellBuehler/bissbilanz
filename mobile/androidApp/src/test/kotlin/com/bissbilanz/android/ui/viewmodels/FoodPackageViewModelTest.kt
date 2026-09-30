@@ -155,7 +155,7 @@ class FoodPackageViewModelTest {
             assertNotNull(vm.importState.value.preview)
             vm.mapFood("f1", mine())
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertEquals(result, vm.importState.value.result)
             assertEquals(listOf("f1" to "temp_9"), sent.captured.mappings?.map { it.ref to it.foodId })
@@ -165,6 +165,32 @@ class FoodPackageViewModelTest {
             // Lists that are already loaded reload.
             withTimeout(5_000) { while (imported.isEmpty()) kotlinx.coroutines.yield() }
             listener.cancel()
+        }
+
+    @Test
+    fun aNewerPackageSupersedesAPreviewStillRunning() =
+        runBlocking<Unit> {
+            val second = File.createTempFile("package2", ".pkg").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+            coEvery { local.preview(pkg.path) } coAnswers {
+                kotlinx.coroutines.delay(300)
+                preview("1".repeat(64))
+            }
+            coEvery { local.preview(second.path) } returns preview("2".repeat(64))
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyze("a.bissbilanz", pkg.path)
+            vm.analyze("b.bissbilanz", second.path)
+            awaitState(vm.importState) { !it.analyzing && it.preview != null }
+            // Outlast the slow first preview: its late result must not replace the second.
+            kotlinx.coroutines.delay(600)
+
+            assertEquals(
+                "2".repeat(64),
+                vm.importState.value.preview
+                    ?.packageHash,
+            )
+            assertEquals("b.bissbilanz", vm.importState.value.fileName)
+            second.delete()
         }
 
     @Test
@@ -179,7 +205,7 @@ class FoodPackageViewModelTest {
             vm.mapFood("f1", mine())
             vm.unmapFood("f1")
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertTrue(
                 sent.captured.mappings
@@ -225,7 +251,7 @@ class FoodPackageViewModelTest {
             vm.analyzed()
             vm.mapFood("f1", mine())
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertEquals(listOf("f1" to "temp_9"), sent.captured.mappings?.map { it.ref to it.foodId })
             coVerify(exactly = 0) { local.preview(any()) }

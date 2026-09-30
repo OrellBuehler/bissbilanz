@@ -961,6 +961,7 @@
     <string name="settings_downgrade_confirm">Herunterladen &amp; Konto löschen</string>
     <string name="settings_downgrade_close">Schliessen</string>
     <string name="settings_downgrade_error_pending">Einige Änderungen konnten noch nicht hochgeladen werden. Prüfe die ausstehenden Änderungen und versuche es erneut.</string>
+    <string name="settings_downgrade_error_parked">Einige Änderungen wurden vom Server abgelehnt und nicht hochgeladen. Öffne die ausstehenden Änderungen und versuche sie erneut oder verwirf sie zuerst, sonst gingen sie verloren.</string>
     <string name="settings_downgrade_error_failed">Der Wechsel zum lokalen Modus ist fehlgeschlagen. Dein Konto wurde nicht gelöscht.</string>
     <string name="settings_delete_account">Konto löschen</string>
     <string name="settings_delete_account_title">Konto wirklich löschen?</string>

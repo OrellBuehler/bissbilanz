@@ -74,6 +74,14 @@ class AuthManagerTest {
     }
 
     @Test
+    fun strayCallbackDoesNotCancelTheLoginInProgress() {
+        authManager.buildLoginUrl("expected-state")
+        assertFalse(authManager.validateState("stray-state"))
+        assertFalse(authManager.validateState(null))
+        assertTrue(authManager.validateState("expected-state"))
+    }
+
+    @Test
     fun logoutClearsTokensAndSetsUnauthenticated() {
         every { secureStorage.load("access_token") } returns "token"
         authManager.initialize()

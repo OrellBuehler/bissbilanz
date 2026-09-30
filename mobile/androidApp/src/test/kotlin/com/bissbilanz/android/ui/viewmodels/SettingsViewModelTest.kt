@@ -76,7 +76,10 @@ class SettingsViewModelTest {
         appModeManager = AppModeManager(InMemoryKeyValueStore())
         localDataWiper = mockk(relaxed = true)
         accountDowngrader = mockk(relaxed = true)
-        syncManager = mockk(relaxed = true)
+        syncManager =
+            mockk(relaxed = true) {
+                coEvery { withSyncPaused(any()) } coAnswers { firstArg<suspend () -> Unit>().invoke() }
+            }
         goalsRepo =
             mockk(relaxed = true) {
                 every { goals() } returns MutableStateFlow(null)
@@ -102,6 +105,7 @@ class SettingsViewModelTest {
             errorReporter,
             appModeManager,
             localDataWiper,
+            syncManager,
             AccountDowngradeController(
                 accountDowngrader = accountDowngrader,
                 syncManager = syncManager,

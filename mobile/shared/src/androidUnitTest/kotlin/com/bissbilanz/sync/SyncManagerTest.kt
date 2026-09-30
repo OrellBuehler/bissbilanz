@@ -815,7 +815,7 @@ class SyncManagerTest {
         }
 
     @Test
-    fun chainedEntryCreateWaitsBehindAParkedFoodCreateAndIsParkedOnceItIsDiscarded() =
+    fun chainedEntryCreateIsParkedWhenItsFoodCreateIsParked() =
         runTest {
             enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
             enqueueAt(
@@ -831,22 +831,177 @@ class SyncManagerTest {
             // No stub for api.createEntry: its referenced food was never created, so
             // it must never be attempted.
 
-            // The food create 400s and is parked; the entry create behind it sees its
-            // parent still exists in the queue and waits, without hitting the network.
             assertEquals(0, manager.syncPendingQueue())
-            assertEquals(1, syncQueue.pendingCount())
-            assertEquals(1, syncQueue.failedCount())
-            coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
 
-            // Once the user discards the food create nothing can resolve the reference:
-            // the entry create is parked (kept for review), still never sent.
-            manager.discardParked(manager.parkedChanges().single().id)
-            syncQueue.setNextAttemptAt(syncQueue.all().single().id, 0)
+            // The food create is parked, so nothing can ever resolve the entry's reference:
+            // it is parked too instead of looping in backoff.
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(2, syncQueue.failedCount())
+            assertEquals(
+                listOf("HTTP 400", "it depends on a change the server rejected"),
+                manager.parkedChanges().map { it.failureReason },
+            )
+            coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
+        }
+
+    @Test
+    fun chainedEntryCreateIsParkedOnceItsFoodCreateIsGone() =
+        runTest {
+            enqueueAt(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(
+                        EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1"),
+                    ),
+                    localId = "temp_e1",
+                ),
+                createdAt = 1,
+            )
+
             assertEquals(0, manager.syncPendingQueue())
 
             assertEquals(0, syncQueue.pendingCount())
             assertEquals("the food or recipe it depended on was never created", manager.parkedChanges().single().failureReason)
             coVerify(exactly = 0) { api.createEntry(any(), any(), any()) }
+        }
+
+    @Test
+    fun unauthorizedApiExceptionReleasesOperationsInsteadOfParkingThem() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws ApiException("unauthorized", 401)
+
+            assertEquals(0, manager.syncPendingQueue())
+
+            assertEquals(2, syncQueue.pendingCount())
+            assertEquals(0, syncQueue.failedCount())
+            coVerify(exactly = 1) { api.deleteEntry(any(), any(), any()) }
+            assertTrue(
+                manager.state.value.errors
+                    .single()
+                    .contains("Session expired"),
+            )
+        }
+
+    @Test
+    fun persistentPayloadFailureIsParkedAfterTheRetryLimit() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry(any(), any(), any()) } throws SerializationException("unreadable payload")
+            val id = syncQueue.all().single().id
+
+            repeat(4) {
+                syncQueue.setNextAttemptAt(id, 0)
+                manager.syncPendingQueue()
+                assertEquals(0, syncQueue.failedCount())
+            }
+            syncQueue.setNextAttemptAt(id, 0)
+            manager.syncPendingQueue()
+
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(1, syncQueue.failedCount())
+            assertEquals(
+                "its data could not be processed by this app version",
+                manager.parkedChanges().single().failureReason,
+            )
+            coVerify(exactly = 5) { api.deleteEntry(any(), any(), any()) }
+        }
+
+    @Test
+    fun persistentServerErrorOnOneChangeDoesNotBlockTheRestOfTheQueue() =
+        runTest {
+            enqueueAt(SyncOperation.DeleteEntry("e1"), createdAt = 1)
+            enqueueAt(SyncOperation.DeleteEntry("e2"), createdAt = 2)
+            coEvery { api.deleteEntry("e1", any(), any()) } throws ApiException("server error", 500)
+            coEvery { api.deleteEntry("e2", any(), any()) } returns Unit
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(1, synced)
+            val remaining = syncQueue.all().single()
+            assertEquals(SyncOperation.DeleteEntry("e1"), remaining.operation)
+            assertEquals(1L, remaining.retryCount)
+            assertTrue(remaining.nextAttemptAt > Clock.System.now().toEpochMilliseconds())
+        }
+
+    @Test
+    fun gatewayOutageStatusesStillStopTheDrain() =
+        runTest {
+            listOf(502, 503, 504).forEach { status ->
+                syncQueue.clear()
+                syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+                syncQueue.enqueue(SyncOperation.DeleteEntry("e2"))
+                coEvery { api.deleteEntry(any(), any(), any()) } throws ApiException("outage", status)
+
+                manager.syncPendingQueue()
+
+                assertEquals(listOf(0L, 1L), syncQueue.all().map { it.retryCount }.sorted(), "status $status")
+            }
+        }
+
+    @Test
+    fun laterChangeToARecordWaitsBehindAnEarlierBackedOffOne() =
+        runTest {
+            enqueueAt(SyncOperation.UpdateFood("f1", json.encodeToString(foodCreate(name = "A"))), createdAt = 1)
+            enqueueAt(SyncOperation.UpdateFood("f1", json.encodeToString(foodCreate(name = "B"))), createdAt = 2)
+            enqueueAt(SyncOperation.DeleteEntry("e1"), createdAt = 3)
+            coEvery { api.updateFood(any(), any(), any(), any()) } throws ApiException("server error", 500)
+            coEvery { api.deleteEntry(any(), any(), any()) } returns Unit
+
+            val synced = manager.syncPendingQueue()
+
+            // The unrelated change still uploads; the second edit of f1 is not sent ahead of
+            // the first and is not charged a retry for waiting.
+            assertEquals(1, synced)
+            coVerify(exactly = 1) { api.updateFood(any(), any(), any(), any()) }
+            val rows = syncQueue.all()
+            assertEquals(2, rows.size)
+            assertEquals(listOf(1L, 0L), rows.map { it.retryCount })
+            assertTrue(rows[1].nextAttemptAt >= rows[0].nextAttemptAt)
+        }
+
+    @Test
+    fun discardingAParkedCreateRemovesItsOptimisticLocalRow() =
+        runTest {
+            val queries = userDb.userDataDatabaseQueries
+            listOf("temp_f1" to "Rice", "real-food" to "Oats").forEach { (id, name) ->
+                queries.insertFood(
+                    id = id,
+                    name = name,
+                    brand = null,
+                    calories = 130.0,
+                    protein = 2.7,
+                    carbs = 28.0,
+                    fat = 0.3,
+                    fiber = 0.4,
+                    isFavorite = 0L,
+                    barcode = null,
+                    jsonData = json.encodeToString(TestFixtures.food(id = id, name = name)),
+                )
+            }
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("invalid", 400)
+            manager.syncPendingQueue()
+            assertNotNull(queries.selectFoodById("temp_f1").executeAsOneOrNull())
+
+            manager.discardParked()
+
+            assertNull(queries.selectFoodById("temp_f1").executeAsOneOrNull())
+            assertNotNull(queries.selectFoodById("real-food").executeAsOneOrNull())
+        }
+
+    @Test
+    fun drainsDoNotRunWhileSyncIsPausedForAWipe() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.DeleteEntry("e1"))
+            coEvery { api.deleteEntry(any(), any(), any()) } returns Unit
+
+            var syncedWhilePaused = -1
+            manager.withSyncPaused { syncedWhilePaused = manager.syncPendingQueue() }
+
+            assertEquals(0, syncedWhilePaused)
+            coVerify(exactly = 0) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(1, manager.syncPendingQueue())
         }
 
     private fun serverEntry(
