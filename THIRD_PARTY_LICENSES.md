@@ -6,7 +6,7 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                          | Count |
 | -------------------------------- | ----- |
-| MIT                              | 256   |
+| MIT                              | 252   |
 | Apache-2.0                       | 26    |
 | ISC                              | 15    |
 | (Apache-2.0 WITH LLVM-exception) | 7     |
@@ -846,39 +846,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 </details>
 
-### @hono/node-server@2.1.0
-
-- **License:** MIT
-- **Repository:** https://github.com/honojs/node-server
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2022 - present, Yusuke Wada and Hono contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
 ### @hono/node-server@2.1.1
 
 - **License:** MIT
@@ -1457,7 +1424,7 @@ SOFTWARE.
 - **License:** MIT
 - **Repository:** https://github.com/opral/lix
 
-### @modelcontextprotocol/sdk@1.30.0
+### @modelcontextprotocol/sdk@1.30.1
 
 - **License:** MIT
 - **Repository:** https://github.com/modelcontextprotocol/typescript-sdk
@@ -1575,7 +1542,7 @@ This is the **x86_64-unknown-linux-musl** binary for `@oxc-minify/binding`
 
 </details>
 
-### @oxc-project/types@0.144.0
+### @oxc-project/types@0.151.0
 
 - **License:** MIT
 - **Repository:** https://github.com/oxc-project/oxc
@@ -1726,7 +1693,7 @@ SOFTWARE.
 
 </details>
 
-### @rolldown/binding-linux-x64-gnu@1.2.4
+### @rolldown/binding-linux-x64-gnu@1.2.11
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -1743,7 +1710,7 @@ This is the **x86_64-unknown-linux-gnu** binary for `@rolldown/binding`
 
 </details>
 
-### @rolldown/binding-linux-x64-musl@1.2.4
+### @rolldown/binding-linux-x64-musl@1.2.11
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -3389,7 +3356,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### brace-expansion@5.0.9
+### brace-expansion@5.0.12
 
 - **License:** MIT
 - **Repository:** https://github.com/juliangruber/brace-expansion
@@ -4980,38 +4947,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### express-rate-limit@8.6.2
-
-- **License:** MIT
-- **Repository:** https://github.com/express-rate-limit/express-rate-limit
-
-<details><summary>License Text</summary>
-
-```
-# MIT License
-
-Copyright 2023 Nathan Friedly, Vedant K
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-</details>
-
 ### express-rate-limit@8.7.0
 
 - **License:** MIT
@@ -5688,40 +5623,7 @@ SOFTWARE.
 
 </details>
 
-### hono@4.13.2
-
-- **License:** MIT
-- **Repository:** https://github.com/honojs/hono
-
-<details><summary>License Text</summary>
-
-```
-MIT License
-
-Copyright (c) 2021 - present, Yusuke Wada and Hono contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-</details>
-
-### hono@4.13.8
+### hono@4.13.9
 
 - **License:** MIT
 - **Repository:** https://github.com/honojs/hono
@@ -6380,41 +6282,6 @@ SOFTWARE.
 </details>
 
 ### jose@6.2.12
-
-- **License:** MIT
-- **Repository:** https://github.com/panva/jose
-
-<details><summary>License Text</summary>
-
-```
-
-The MIT License (MIT)
-
-Copyright (c) 2018 Filip Skokan
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-```
-
-</details>
-
-### jose@6.2.8
 
 - **License:** MIT
 - **Repository:** https://github.com/panva/jose
@@ -8404,7 +8271,7 @@ SOFTWARE.
 
 </details>
 
-### postcss@8.5.26
+### postcss@8.5.28
 
 - **License:** MIT
 - **Repository:** https://github.com/postcss/postcss
@@ -8772,7 +8639,7 @@ SOFTWARE.
 
 </details>
 
-### rolldown@1.2.4
+### rolldown@1.2.11
 
 - **License:** MIT
 - **Repository:** https://github.com/rolldown/rolldown
@@ -10234,7 +10101,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### vite@8.2.2
+### vite@8.3.1
 
 - **License:** MIT
 - **Repository:** https://github.com/vitejs/vite
