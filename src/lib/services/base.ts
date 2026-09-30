@@ -94,16 +94,30 @@ export async function withOfflineFallback<T>(
 		// response.ok (not `data`) is the success signal — some endpoints (e.g. a
 		// 204 DELETE) succeed with no body, so onSuccess must still run for those.
 		if (response.ok) {
-			if (opts.onSuccess) await opts.onSuccess(data as T);
+			if (opts.onSuccess) {
+				try {
+					await opts.onSuccess(data as T);
+				} catch (err) {
+					Sentry.captureException(err, { extra: { url: opts.url } });
+				}
+			}
 			return { status: 'applied', data, response };
 		}
 		return { status: 'error', response };
 	} catch (err) {
-		// Reuse the key the failed online request was sent with (see sentWriteHeaders).
+		// Only a failed fetch carries the key the request was sent with. Any other
+		// error (e.g. an unreadable response body) means the server may already
+		// have accepted the write, so replaying it under a fresh key would
+		// duplicate it.
+		const sent = sentWriteHeaders(err);
+		if (!sent.idempotencyKey) {
+			Sentry.captureException(err, { extra: { url: opts.url } });
+			return { status: 'error', response: new Response(null, { status: 500 }) };
+		}
 		await enqueue(opts.method, opts.url, opts.body, {
 			affectedTable: opts.affectedTable,
 			affectedId: opts.affectedId,
-			...sentWriteHeaders(err)
+			...sent
 		});
 		return { status: 'queued' };
 	}
