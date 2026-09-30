@@ -155,7 +155,7 @@ class FoodPackageViewModelTest {
             assertNotNull(vm.importState.value.preview)
             vm.mapFood("f1", mine())
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertEquals(result, vm.importState.value.result)
             assertEquals(listOf("f1" to "temp_9"), sent.captured.mappings?.map { it.ref to it.foodId })
@@ -205,7 +205,7 @@ class FoodPackageViewModelTest {
             vm.mapFood("f1", mine())
             vm.unmapFood("f1")
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertTrue(
                 sent.captured.mappings
@@ -251,7 +251,7 @@ class FoodPackageViewModelTest {
             vm.analyzed()
             vm.mapFood("f1", mine())
             vm.commit()
-            awaitState(vm.importState) { it.result != null }
+            awaitState(vm.importState) { it.result != null && !it.importing }
 
             assertEquals(listOf("f1" to "temp_9"), sent.captured.mappings?.map { it.ref to it.foodId })
             coVerify(exactly = 0) { local.preview(any()) }

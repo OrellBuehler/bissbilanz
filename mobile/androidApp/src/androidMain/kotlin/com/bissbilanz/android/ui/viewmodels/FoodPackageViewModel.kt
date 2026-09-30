@@ -335,9 +335,9 @@ class FoodPackageViewModel(
         // A newer package supersedes the one still being analyzed; its late result must not
         // land on the new import.
         previewJob?.cancel()
+        _importState.update { it.copy(analyzing = true, error = null, errorRes = null) }
         previewJob =
             viewModelScope.launch {
-                _importState.update { it.copy(analyzing = true, error = null, errorRes = null) }
                 try {
                     val preview =
                         withContext(Dispatchers.IO) {
