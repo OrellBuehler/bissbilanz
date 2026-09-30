@@ -19,6 +19,7 @@
 		"push:vapid": "bun run scripts/generate-vapid-keys.ts",
 		"test": "bun run paraglide:compile && bun --bun vitest run",
 		"test:coverage": "bun run paraglide:compile && bun --bun vitest run --coverage",
+		"test:coverage:diff": "bun run scripts/coverage/diff-coverage.ts",
 		"test:watch": "bun run paraglide:compile && bun --bun vitest",
 		"test:mobile": "bunx playwright test --reporter=list",
 		"store:screenshots": "bun store/promo/render.ts",
