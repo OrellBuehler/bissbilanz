@@ -119,7 +119,7 @@ enum WidgetSnapshotWriter {
                     name: $0.name,
                     // Whole-recipe total (like the server) — divide down to one
                     // serving, guarding a non-positive totalServings.
-                    calories: $0.calories / max($0.totalServings, 1),
+                    calories: $0.calories / ($0.totalServings > 0 ? $0.totalServings : 1),
                     imageUrl: $0.toRecipe()?.imageUrl,
                     isRecipe: true
                 )

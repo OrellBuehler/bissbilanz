@@ -14,7 +14,7 @@ struct RecipeEntity: AppEntity, IndexedEntity {
     init(recipe: Recipe) {
         id = recipe.id
         name = recipe.name
-        let servings = max(recipe.totalServings, 1)
+        let servings = recipe.perServingDivisor
         caloriesPerServing = recipe.calories.map { $0 / servings }
         imageUrl = recipe.imageUrl
     }

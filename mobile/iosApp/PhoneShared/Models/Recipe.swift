@@ -30,12 +30,14 @@ struct Recipe: Codable, Identifiable, Hashable {
 
     /// `calories`/`protein`/etc. are whole-recipe totals (matching the server and the
     /// list/detail endpoints) — divide by `totalServings` for a one-serving preview.
-    /// Guards a non-positive `totalServings`, matching `EntryFactory.makeEntry`.
-    var caloriesPerServing: Double? { calories.map { $0 / max(totalServings, 1) } }
-    var proteinPerServing: Double? { protein.map { $0 / max(totalServings, 1) } }
-    var carbsPerServing: Double? { carbs.map { $0 / max(totalServings, 1) } }
-    var fatPerServing: Double? { fat.map { $0 / max(totalServings, 1) } }
-    var fiberPerServing: Double? { fiber.map { $0 / max(totalServings, 1) } }
+    /// Fractional `totalServings` (e.g. 0.5) divide as-is, matching the server and Kotlin; only a
+    /// non-positive value falls back to 1.
+    var perServingDivisor: Double { totalServings > 0 ? totalServings : 1 }
+    var caloriesPerServing: Double? { calories.map { $0 / perServingDivisor } }
+    var proteinPerServing: Double? { protein.map { $0 / perServingDivisor } }
+    var carbsPerServing: Double? { carbs.map { $0 / perServingDivisor } }
+    var fatPerServing: Double? { fat.map { $0 / perServingDivisor } }
+    var fiberPerServing: Double? { fiber.map { $0 / perServingDivisor } }
 
     /// True when every ingredient row is this food, so removing the food would
     /// leave the recipe without an ingredient.
