@@ -82,7 +82,6 @@ class AccountDowngradeController(
      * Parked changes are never uploaded and finalize() deletes the queue, so they block
      * the downgrade instead of counting as drained.
      */
-    @StringRes
     private suspend fun drainSyncQueue(): Int? {
         if (accountDowngrader.parkedOps() > 0L) return R.string.settings_downgrade_error_parked
         var pending = accountDowngrader.pendingOps()
