@@ -34,8 +34,8 @@ jobs:
       - name: Compile i18n and sync SvelteKit
         run: bun run paraglide:compile && bunx svelte-kit sync
 
-      - name: Typecheck (svelte-check)
-        run: bunx svelte-check --tsconfig ./tsconfig.json --tsgo
+      - name: Typecheck (svelte-check, warnings ratcheted)
+        run: bun run check:svelte
 
       - name: Format check (prettier)
         run: bunx prettier --check .
