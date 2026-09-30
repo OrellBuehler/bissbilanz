@@ -644,8 +644,8 @@ final class FoodRepository {
             if localUsage(foodId: id).conflict?.forceUnavailable == true {
                 throw APIError.conflict(serverNewer: false, body: nil)
             }
-            if appMode.isLocal { removeFromLocalRecipes(foodId: id) }
             try await deleteFood(id: id)
+            if appMode.isLocal { removeFromLocalRecipes(foodId: id) }
             return
         }
         let imageUrl = food(id: id)?.imageUrl

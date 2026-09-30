@@ -334,20 +334,21 @@ final class RecipeRepository {
     /// A list-endpoint copy carries neither `ingredients` nor `steps` (only
     /// `stepCount`), and must not wipe what a detail fetch cached: the list
     /// refresh runs on every launch and the detail may be opened offline
-    /// afterwards (cooking mode needs both). Cached ingredients are kept as is;
-    /// cached steps only while the count still matches — a different count means
-    /// the steps changed elsewhere and the cached ones are stale, so they go
-    /// until the next detail refresh. A count of zero is itself an answer: no
-    /// steps.
+    /// afterwards (cooking mode needs both). The cached detail is only kept while
+    /// `updatedAt` is unchanged: a newer stamp means the recipe was edited
+    /// elsewhere, so the cached ingredients and steps are stale and go until the
+    /// next detail refresh. Cached steps must also still match the count. A count
+    /// of zero is itself an answer: no steps.
     static func preservingDetail(_ incoming: Recipe, existing: Recipe?) -> Recipe {
         var merged = incoming
-        if merged.ingredients == nil {
+        let unchanged = existing?.updatedAt == incoming.updatedAt
+        if merged.ingredients == nil, unchanged {
             merged.ingredients = existing?.ingredients
         }
         guard incoming.steps == nil else { return merged }
         if incoming.stepCount == 0 {
             merged.steps = []
-        } else if let kept = existing?.steps, kept.count == incoming.stepCount {
+        } else if unchanged, let kept = existing?.steps, kept.count == incoming.stepCount {
             merged.steps = kept
         }
         return merged

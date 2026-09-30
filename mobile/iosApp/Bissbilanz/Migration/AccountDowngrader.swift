@@ -157,16 +157,20 @@ final class AccountDowngrader {
         try await finalizeDowngrade()
     }
 
-    /// Empties the sync queue, or throws. A single drain uploads only the
+    /// Empties the sync queue, or throws. Parked changes block the downgrade:
+    /// they exist only in the queue, and finalizing clears it. A single drain uploads only the
     /// operations that are due, so a device that was offline for a while needs
     /// several passes — but an operation that never uploads must not spin here
     /// forever, hence "stop as soon as a pass makes no progress".
     private func drainPendingQueue() async throws {
+        if syncManager.failedCount > 0 {
+            throw DowngradeError.pendingChanges
+        }
         var pending = syncManager.pendingCount
         while pending > 0 {
             _ = await syncManager.drainPendingQueue()
             let remaining = syncManager.pendingCount
-            if remaining >= pending {
+            if remaining >= pending || syncManager.failedCount > 0 {
                 throw DowngradeError.pendingChanges
             }
             pending = remaining

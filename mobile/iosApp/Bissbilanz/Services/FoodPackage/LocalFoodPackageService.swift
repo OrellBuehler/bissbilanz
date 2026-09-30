@@ -744,7 +744,7 @@ final class LocalFoodPackageService {
             )
         }
         let macros = RecipeRepository.recipeMacros(of: ingredients)
-        return Recipe(
+        var built = Recipe(
             id: id,
             userId: base?.userId ?? "",
             name: recipe.name,
@@ -761,27 +761,13 @@ final class LocalFoodPackageService {
             updatedAt: stamp,
             ingredients: ingredients
         )
+        built.steps = base?.steps
+        built.stepCount = base?.stepCount
+        return built
     }
 
     private static func recipe(_ recipe: Recipe, replacing ingredients: [RecipeIngredient]) -> Recipe {
-        let macros = RecipeRepository.recipeMacros(of: ingredients)
-        return Recipe(
-            id: recipe.id,
-            userId: recipe.userId,
-            name: recipe.name,
-            totalServings: recipe.totalServings,
-            isFavorite: recipe.isFavorite,
-            imageUrl: recipe.imageUrl,
-            calories: macros.calories,
-            protein: macros.protein,
-            carbs: macros.carbs,
-            fat: macros.fat,
-            fiber: macros.fiber,
-            cookedWeight: recipe.cookedWeight,
-            createdAt: recipe.createdAt,
-            updatedAt: recipe.updatedAt,
-            ingredients: ingredients
-        )
+        RecipeRepository.applying(ingredients: ingredients, to: recipe)
     }
 
     // MARK: - Store helpers

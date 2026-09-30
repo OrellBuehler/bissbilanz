@@ -133,10 +133,12 @@ final class SyncManager {
 
     /// Affected ids that still have an un-uploaded queued write for `table`. A
     /// refresh uses this to avoid overwriting optimistic local rows with stale
-    /// server state while their edit is still waiting in the queue.
+    /// server state while their edit is still waiting in the queue. Parked rows
+    /// don't count: they are out of the drain until the user acts, and holding
+    /// refreshes back for them would freeze the row or table indefinitely.
     func pendingAffectedIds(table: String) -> Set<String> {
         let descriptor = FetchDescriptor<PendingSyncOperation>(
-            predicate: #Predicate { $0.affectedTable == table }
+            predicate: #Predicate { $0.affectedTable == table && $0.failedAt == nil }
         )
         return Set(((try? context.fetch(descriptor)) ?? []).compactMap(\.affectedId))
     }
@@ -144,10 +146,10 @@ final class SyncManager {
     /// Whether any un-uploaded write is queued for `table`. The singleton
     /// tables ("goals", "preferences") carry a nil `affectedId`, so
     /// `pendingAffectedIds` can't speak for them — their refresh guards on
-    /// presence instead.
+    /// presence instead. Parked rows don't count (see `pendingAffectedIds`).
     func hasPending(table: String) -> Bool {
         let descriptor = FetchDescriptor<PendingSyncOperation>(
-            predicate: #Predicate { $0.affectedTable == table }
+            predicate: #Predicate { $0.affectedTable == table && $0.failedAt == nil }
         )
         return ((try? context.fetchCount(descriptor)) ?? 0) > 0
     }
@@ -309,12 +311,24 @@ final class SyncManager {
             // round trip on a request that would otherwise fail (a temp id
             // is never valid UUID shape) and get misreported.
             if let unresolved = unresolvedReference(operation) {
-                if !queuedOperations(table: unresolved.table, affectedId: unresolved.id).isEmpty {
+                let peers = queuedOperations(table: unresolved.table, affectedId: unresolved.id)
+                if peers.contains(where: { $0.failedAt == nil }) {
                     // The peer create hasn't drained yet. Wait for it without
                     // treating this as a failure of this operation.
                     row.retryCount += 1
                     row.nextAttemptAt = backoffDate(retryCount: row.retryCount, id: row.id)
                     save()
+                    continue
+                }
+                if !peers.isEmpty {
+                    // The create it depends on is parked, so it will not resolve
+                    // until the user retries it. Park this row too instead of
+                    // waiting on it forever.
+                    parkFailed(row, operation, reason: "the food or recipe it depended on could not be uploaded")
+                    ErrorReporter.captureWarning(
+                        "Sync op parked: referenced create is parked",
+                        context: dropContext(operation, row, outcome: "parked_reference_parked", status: nil)
+                    )
                     continue
                 }
                 // Nothing will ever resolve this `temp_` id (the user discarded the
@@ -407,6 +421,22 @@ final class SyncManager {
                         "Sync op parked: client error",
                         context: dropContext(operation, row, outcome: "parked_client_error", status: status)
                     )
+
+                case .appliedUnreadable:
+                    ErrorReporter.captureWarning(
+                        "Sync op applied but response unreadable",
+                        context: dropContext(operation, row, outcome: "applied_unreadable_response", status: nil)
+                    )
+                    if isCreateOperation(operation) {
+                        // Without the created row's id the local placeholder cannot be
+                        // remapped; keep the change visible instead of guessing.
+                        parkFailed(row, operation, reason: "the server accepted it but its response could not be read")
+                    } else {
+                        remove(row)
+                        processed += 1
+                        sawConflict = true
+                        conflictDates.formUnion(dayKeys(for: operation))
+                    }
 
                 case .offline:
                     break drain
@@ -829,6 +859,9 @@ final class SyncManager {
         /// The payload, not the server: this one operation is at fault and the rest
         /// of the queue is unaffected.
         case retryableOperation
+        /// A 2xx whose body this build cannot read: the server already applied the
+        /// change, so retrying can never help and only replays the same response.
+        case appliedUnreadable
         /// The server or the transport is failing, so every queued operation would
         /// fail the same way.
         case serverUnavailable
@@ -863,9 +896,11 @@ final class SyncManager {
             return status < 500 ? .clientError(status) : .serverUnavailable
         case let .networkError(underlying):
             return isConnectivityError(underlying, isOnline: isOnline) ? .offline : .serverUnavailable
-        case .decodingError:
-            // A response this build cannot read is a contract mismatch on one endpoint,
-            // not an outage — the ops queued behind it may well upload fine.
+        case let .decodingError(_, statusCode, _):
+            // A 2xx we cannot read means the server accepted the change.
+            if (200..<300).contains(statusCode) { return .appliedUnreadable }
+            // Anything else is a contract mismatch on one endpoint, not an outage —
+            // the ops queued behind it may well upload fine.
             return .retryableOperation
         case .updateRequired:
             return .updateRequired
