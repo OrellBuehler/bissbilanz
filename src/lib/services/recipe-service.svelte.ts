@@ -234,7 +234,8 @@ async function duplicate(id: string, name: string): Promise<DuplicateRecipeResul
 	if (!sourceSteps) {
 		await refreshById(id);
 		const reloaded = await db.recipes.get(id);
-		sourceSteps = (reloaded && (await cachedSteps(reloaded))) || [];
+		sourceSteps = reloaded ? await cachedSteps(reloaded) : null;
+		if (!sourceSteps) return { status: 'failed' };
 	}
 
 	const now = new Date().toISOString();
