@@ -271,7 +271,11 @@ struct LocalFoodPackageServiceTests {
     func replaceRefreshesRecipes() async throws {
         let s = try setup()
         let tomatoes = try await addFood(s, "tomaten", calories: 50, labels: ["fruit"])
-        let salad = try await addRecipe(s, "Salat", [(tomatoes, 100, .g)])
+        let salad = try await s.harness.recipeRepository.createRecipe(RecipeCreate(
+            name: "Salat", totalServings: 2,
+            ingredients: [RecipeIngredientInput(foodId: tomatoes.id, quantity: 100, servingUnit: .g)],
+            steps: [RecipeStepInput(text: "Chop"), RecipeStepInput(text: "Toss")]
+        ))
         #expect(salad.calories == 50)
 
         let data = try fixturePackage()
@@ -296,6 +300,8 @@ struct LocalFoodPackageServiceTests {
         let refreshed = try #require(s.harness.recipeRepository.recipe(id: salad.id))
         #expect(abs((refreshed.calories ?? 0) - 18) < 0.001)
         #expect(refreshed.ingredients?.first?.food?.name == "Tomaten")
+        #expect(refreshed.steps?.map(\.text) == ["Chop", "Toss"])
+        #expect(refreshed.stepCount == 2)
     }
 
     @Test("A new food can be swapped for one of the user's own; recipes use it")
