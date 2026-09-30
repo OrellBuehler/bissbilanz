@@ -15,6 +15,15 @@ repos:
           - markdown
           - html
 
+      - id: eslint
+        name: eslint
+        entry: bunx eslint --no-warn-ignored
+        language: system
+        types_or:
+          - ts
+          - javascript
+          - svelte
+
       - id: svelte-check
         name: svelte-check
         entry: bash -c 'bun run paraglide:compile && bunx svelte-kit sync && bunx svelte-check --tsconfig ./tsconfig.json --tsgo'
