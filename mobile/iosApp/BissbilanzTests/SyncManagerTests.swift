@@ -426,8 +426,8 @@ struct SyncManagerTests {
         #expect(harness.syncManager.conflictNotices.isEmpty)
     }
 
-    @Test("A chained entry create waits behind a parked food create and is parked once that is discarded")
-    func chainedEntryCreateParksAfterFoodCreateDiscarded() async throws {
+    @Test("A chained entry create is parked along with the parked food create it depends on")
+    func chainedEntryCreateParksWithParkedFoodCreate() async throws {
         let harness = try RepositoryHarness()
         harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
         // No /api/entries stub: the entry create must never be attempted —
@@ -441,23 +441,37 @@ struct SyncManagerTests {
         ))
 
         // The food create 400s and is parked; the entry create right behind it
-        // sees its parent still exists in the store and waits, without ever
-        // hitting the network.
+        // depends on a create that will not resolve until the user retries it,
+        // so it is parked too instead of waiting forever, and never hits the network.
         let drained = await harness.syncManager.drainPendingQueue()
         #expect(drained == 0)
-        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food"])
-        #expect(harness.syncManager.pendingCount == 1)
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food", "create_entry"])
+        #expect(harness.syncManager.pendingCount == 0)
         #expect(harness.recordedRequests == ["POST /api/foods"])
+        #expect(harness.syncManager.hasPending(table: "foods") == false)
+        #expect(harness.syncManager.pendingAffectedIds(table: "foods").isEmpty)
 
-        // Once the user discards the food create nothing can resolve the
-        // reference: the entry create is parked too (kept for review), still
-        // never sent.
+        // Discarding the food create leaves nothing to resolve the reference.
         harness.syncManager.discardParked(try #require(harness.syncManager.parkedRows().first))
+        harness.syncManager.retryParked(try #require(harness.syncManager.parkedRows().first))
         harness.syncManager.resetBackoffForTesting()
         await harness.syncManager.drainPendingQueue()
         #expect(harness.syncManager.parkedRows().map(\.type) == ["create_entry"])
         #expect(harness.syncManager.pendingCount == 0)
         #expect(harness.recordedRequests == ["POST /api/foods"])
+    }
+
+    @Test("A parked update does not hold back server refreshes for its table")
+    func parkedUpdateDoesNotBlockRefresh() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/goals", status: 400, json: #"{"error": "invalid"}"#)
+
+        harness.syncManager.enqueue(.setGoals(body: .defaults))
+        #expect(harness.syncManager.hasPending(table: "goals"))
+
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.syncManager.parkedRows().count == 1)
+        #expect(harness.syncManager.hasPending(table: "goals") == false)
     }
 
     @Test("Connectivity failures stop draining without consuming the retry budget")
