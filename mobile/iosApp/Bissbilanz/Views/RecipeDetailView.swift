@@ -249,15 +249,17 @@ struct RecipeDetailView: View {
             if let ingredients = recipe.ingredients, !ingredients.isEmpty {
                 Section(L10n.ingredients) {
                     ForEach(ingredients) { ingredient in
-                        HStack {
-                            Text(ingredient.food?.name ?? foodNames[ingredient.foodId] ?? L10n.unknownIngredient)
-                                .lineLimit(1)
-                            Spacer()
-                            Text("\(ingredient.quantity, specifier: "%.1f") \(ingredient.servingUnit.displayName)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        // Only a resolved food can be opened; an unknown ingredient stays a plain row.
+                        if let name = ingredient.food?.name ?? foodNames[ingredient.foodId] {
+                            NavigationLink {
+                                FoodDetailView(foodId: ingredient.foodId)
+                            } label: {
+                                ingredientRow(name: name, ingredient: ingredient)
+                            }
+                            .accessibilityHint(L10n.ingredientOpenFoodHint)
+                        } else {
+                            ingredientRow(name: L10n.unknownIngredient, ingredient: ingredient)
                         }
-                        .accessibilityElement(children: .combine)
                     }
                 }
             }
@@ -289,6 +291,18 @@ struct RecipeDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func ingredientRow(name: String, ingredient: RecipeIngredient) -> some View {
+        HStack {
+            Text(name)
+                .lineLimit(1)
+            Spacer()
+            Text("\(ingredient.quantity, specifier: "%.1f") \(ingredient.servingUnit.displayName)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func stepRow(_ step: RecipeStep, number: Int) -> some View {

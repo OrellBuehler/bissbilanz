@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -396,7 +397,16 @@ fun RecipeDetailScreen(
                                     ingredients.sortedBy { it.sortOrder }.forEach { ing ->
                                         val qty = ing.quantity.toDisplayString()
                                         Row(
-                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .then(
+                                                        if (foodNames.containsKey(ing.foodId)) {
+                                                            Modifier.clickable { navController.navigate("food/${ing.foodId}") }
+                                                        } else {
+                                                            Modifier
+                                                        },
+                                                    ).padding(vertical = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
                                             Text(
