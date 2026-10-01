@@ -98,6 +98,15 @@ targets:
             LSHandlerRank: Owner
             LSItemContentTypes:
               - com.bissbilanz.food-package
+          # The package travels as `application/zip`, and WhatsApp, Mail and others
+          # hand a received attachment over as a plain zip rather than by its file
+          # extension — without this Bissbilanz is missing from their "Open in…"
+          # list. The import tells the user when a zip is not a food package.
+          - CFBundleTypeName: Zip archive
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.zip-archive
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: com.bissbilanz.food-package
             UTTypeDescription: Bissbilanz food package
