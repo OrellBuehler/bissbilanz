@@ -40,7 +40,7 @@ enum HealthKitImporter {
         do {
             return try await operation()
         } catch {
-            ErrorReporter.captureWarning(message, context: ["reason": ErrorReporter.reason(for: error)])
+            HealthKitService.reportFailure(message, error)
             return nil
         }
     }

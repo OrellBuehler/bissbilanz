@@ -22,6 +22,20 @@ final class HealthKitService {
     /// activity calories. Off by default and independent of the other toggles.
     static let readActivityEnabledKey = "healthkit_read_activity_enabled"
 
+    /// Health data is encrypted while the device is locked, so a background
+    /// read or write fails with `errorDatabaseInaccessible`. That is expected
+    /// and retried on the next run — not worth a Sentry event.
+    nonisolated static func isProtectedDataInaccessible(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == HKError.errorDomain && nsError.code == HKError.Code.errorDatabaseInaccessible.rawValue
+    }
+
+    /// Reports a failed Health call, except the expected locked-device case.
+    nonisolated static func reportFailure(_ message: String, _ error: Error) {
+        guard !isProtectedDataInaccessible(error) else { return }
+        ErrorReporter.captureWarning(message, context: ["reason": ErrorReporter.reason(for: error)])
+    }
+
     private let healthStore = HKHealthStore()
     var isAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
@@ -162,7 +176,7 @@ final class HealthKitService {
             do {
                 try await saveWeight(weightKg, date: date)
             } catch {
-                ErrorReporter.captureWarning("HealthKit weight write-back failed", context: ["reason": ErrorReporter.reason(for: error)])
+                Self.reportFailure("HealthKit weight write-back failed", error)
                 return
             }
         }
@@ -187,7 +201,7 @@ final class HealthKitService {
             do {
                 try await saveSleep(bedtime: bedtime, wakeTime: wakeTime)
             } catch {
-                ErrorReporter.captureWarning("HealthKit sleep write-back failed", context: ["reason": ErrorReporter.reason(for: error)])
+                Self.reportFailure("HealthKit sleep write-back failed", error)
                 return
             }
         }
@@ -275,7 +289,7 @@ final class HealthKitService {
             // Permission denied or Health unavailable — silent by design. The
             // day's samples were already deleted, so drop any stored marker to
             // force a full rewrite on the next sync.
-            ErrorReporter.captureWarning("HealthKit nutrition sync failed", context: ["reason": ErrorReporter.reason(for: error)])
+            Self.reportFailure("HealthKit nutrition sync failed", error)
             UserDefaults.standard.removeObject(forKey: markerKey)
         }
     }

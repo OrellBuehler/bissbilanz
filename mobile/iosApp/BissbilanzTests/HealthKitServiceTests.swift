@@ -537,3 +537,25 @@ private func makeNutrientEntry(
         date: "2026-06-11", eatenAt: nil, createdAt: nil, updatedAt: nil
     )
 }
+
+@Suite("HealthKit Locked Device Error Tests")
+struct HealthKitLockedDeviceErrorTests {
+    @Test("Database inaccessible is recognised as expected")
+    func databaseInaccessible() {
+        let error = NSError(domain: HKError.errorDomain, code: HKError.Code.errorDatabaseInaccessible.rawValue)
+        #expect(HealthKitService.isProtectedDataInaccessible(error))
+        #expect(HealthKitService.isProtectedDataInaccessible(HKError(.errorDatabaseInaccessible)))
+    }
+
+    @Test("Other HealthKit errors are still reported")
+    func otherHealthKitError() {
+        let error = NSError(domain: HKError.errorDomain, code: HKError.Code.errorAuthorizationDenied.rawValue)
+        #expect(!HealthKitService.isProtectedDataInaccessible(error))
+    }
+
+    @Test("Same code in another domain is still reported")
+    func otherDomain() {
+        let error = NSError(domain: NSCocoaErrorDomain, code: HKError.Code.errorDatabaseInaccessible.rawValue)
+        #expect(!HealthKitService.isProtectedDataInaccessible(error))
+    }
+}
