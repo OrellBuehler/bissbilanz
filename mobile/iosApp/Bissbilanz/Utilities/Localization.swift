@@ -2540,6 +2540,22 @@ enum L10n {
         localized("sign_in_with_google", en: "Continue with Google", de: "Mit Google fortfahren")
     }
 
+    static var appleSignInUnavailable: String {
+        localized(
+            "apple_sign_in_unavailable",
+            en: "Sign in with Apple isn't available. Make sure you're signed in to your Apple Account in Settings, or use another sign-in option or continue without an account.",
+            de: "Anmelden mit Apple ist nicht verfügbar. Stelle sicher, dass du in den Einstellungen bei deinem Apple-Account angemeldet bist, oder nutze eine andere Anmeldeoption oder fahre ohne Konto fort."
+        )
+    }
+
+    static var appleSignInFailed: String {
+        localized(
+            "apple_sign_in_failed",
+            en: "Sign in with Apple failed. Please try again, use another sign-in option or continue without an account.",
+            de: "Anmelden mit Apple ist fehlgeschlagen. Versuche es erneut, nutze eine andere Anmeldeoption oder fahre ohne Konto fort."
+        )
+    }
+
     static var continueWithoutAccount: String {
         localized(
             "continue_without_account",
