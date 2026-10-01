@@ -46,6 +46,7 @@ struct FoodEditForm: View {
     @State private var name = ""
     @State private var brand = ""
     @State private var barcode = ""
+    @State private var showBarcodeScanner = false
     @State private var servingSize = "100"
     @State private var servingUnit: ServingUnit = .g
     @State private var calories = ""
@@ -114,8 +115,17 @@ struct FoodEditForm: View {
             Section {
                 TextField(L10n.name, text: $name)
                 TextField(L10n.brand, text: $brand)
-                TextField(L10n.barcode, text: $barcode)
-                    .keyboardType(.numberPad)
+                HStack {
+                    TextField(L10n.barcode, text: $barcode)
+                        .keyboardType(.numberPad)
+                    Button {
+                        showBarcodeScanner = true
+                    } label: {
+                        Image(systemName: "barcode.viewfinder")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(L10n.scanBarcode)
+                }
             }
 
             Section(L10n.servingSize) {
@@ -278,6 +288,11 @@ struct FoodEditForm: View {
             }
         }
         .onAppear { prefill() }
+        .sheet(isPresented: $showBarcodeScanner) {
+            BarcodeCaptureView { scanned in
+                barcode = scanned
+            }
+        }
     }
 
     private func macroField(_ label: String, text: Binding<String>, unit: String) -> some View {

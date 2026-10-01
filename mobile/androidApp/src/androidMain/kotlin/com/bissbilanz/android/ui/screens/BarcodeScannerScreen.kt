@@ -391,7 +391,7 @@ fun BarcodeScannerScreen(navController: NavController) {
 @SuppressLint("ClickableViewAccessibility")
 @ExperimentalGetImage
 @Composable
-private fun CameraPreview(
+internal fun CameraPreview(
     lifecycleOwner: androidx.lifecycle.LifecycleOwner,
     isScanning: () -> Boolean,
     onCameraReady: (Camera) -> Unit,
