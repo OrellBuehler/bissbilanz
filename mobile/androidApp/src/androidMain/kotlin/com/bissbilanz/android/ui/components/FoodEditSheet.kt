@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,6 +71,7 @@ fun FoodEditSheet(
     var fat by remember { mutableStateOf("") }
     var fiber by remember { mutableStateOf("") }
     var barcode by remember { mutableStateOf(initialBarcode ?: "") }
+    var showBarcodeScanner by remember { mutableStateOf(false) }
     var isFavorite by remember { mutableStateOf(false) }
     var imageUrl by remember { mutableStateOf<String?>(null) }
     var originalImageUrl by remember { mutableStateOf<String?>(null) }
@@ -400,7 +402,18 @@ fun FoodEditSheet(
                     label = { Text(stringResource(R.string.food_form_barcode)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { showBarcodeScanner = true }) {
+                            Icon(Icons.Default.QrCodeScanner, stringResource(R.string.scan_barcode_title))
+                        }
+                    },
                 )
+                if (showBarcodeScanner) {
+                    BarcodeCaptureDialog(
+                        onDismiss = { showBarcodeScanner = false },
+                        onScanned = { barcode = it },
+                    )
+                }
                 FoodLabelsInput(
                     labels = labels,
                     input = labelInput,
