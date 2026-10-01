@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // Generates example payloads from docs/openapi.json for the response schemas
 // the iOS app decodes, so `BissbilanzTests/APIContractDecodingTests.swift` can
-// catch a server change that breaks Swift decoding. See CLAUDE.md ("Mobile
-// Development") and the operation -> Swift type table in that test file.
+// catch a server change that breaks Swift decoding. See mobile/iosApp/CLAUDE.md ("iOS
+// Conventions") and the operation -> Swift type table in that test file.
 //
 // For each schema in SCHEMA_NAMES below, emits two fixtures under
 // `mobile/iosApp/BissbilanzTests/Fixtures/API/`:

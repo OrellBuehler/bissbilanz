@@ -120,29 +120,9 @@ scripts/api/verify.sh           # Full API stability gate, same as CI (needs Doc
 - **Only workflow:** Edit schema → `bun run db:generate` → verify generated SQL → let `runMigrations()` apply on dev server start (or `bun run db:migrate` manually).
 - **Always verify** the dev server starts cleanly (`bun run dev`) after any schema change — migration errors surface as 500s on every page.
 
-### API Routes
+### API & MCP contract
 
-- Validate inputs with Zod schemas
-- Validation schemas are in `src/lib/server/validation/` (one file per domain)
-- Return consistent error format: `{ error: string }`
-- Always check user authentication/authorization
-- Use HTTP status codes correctly (200, 201, 400, 401, 404, 500)
-- The OpenAPI spec (`docs/openapi.json`) and TS/Kotlin clients are generated from the Zod schemas via `bun run api:generate` — rerun and commit the output after changing API routes or validation schemas (the API Contract workflow fails otherwise)
-- Every new route goes into `src/lib/server/openapi.ts`; `tests/contract/openapi-coverage.test.ts` fails otherwise
-- Every new or changed endpoint needs an `expectResponseContract(method, path, response)` assertion (`tests/helpers/contract.ts`) in its `tests/api/*.test.ts` test, for each documented status it exercises — `tests/contract/response-contract-coverage.test.ts` fails on a documented 2xx JSON operation with none
-
-### API Stability (CRITICAL)
-
-`/api/*` and the MCP tools are a public contract: shipped Android/iOS builds, offline queues replaying old requests, and MCP clients all depend on them. There is no URL versioning; the API evolves additively. Full policy: `docs/api-stability.md`.
-
-- **Additive only:** new endpoints, new optional request fields, new response fields. Never remove/rename a field, endpoint, tool or parameter; never add a required request field; never make a response field optional/nullable; never tighten validation on existing input.
-- **No new values in response enums** unless the field is marked `x-extensible-enum` and every client decodes unknown values — iOS `Codable` enums fail on them and sync drops the change silently.
-- **Semantic changes are breaking** even when the shape is identical (units, per-serving vs. total, defaults when a field is omitted). Add a new field instead of changing the meaning of an old one.
-- **Changing a contract:** expand (add new beside old) → migrate clients → deprecate (`deprecated: true` + `x-sunset`) → remove after the support window in a separate PR labelled `api-breaking-change`. Never add that label to get a feature through CI; ask the user first.
-- **Deploy order:** server before the mobile builds that use a new field or endpoint.
-- **Forcing updates:** clients send `X-Client-Platform`/`X-Client-Version`; raising `MIN_CLIENT_VERSIONS` in `src/lib/server/client-version.ts` makes older builds get 426 and an update screen. Check `bun run clients:versions` first, and never make any client treat 426 as a failure that drops queued changes or signs the user out.
-- **Migrations are expand/contract too:** no `DROP`/`RENAME`/type change in the release that stops using the column. A reviewed destructive migration needs a `-- destructive-ok: <reason>` line.
-- Run `scripts/api/verify.sh` before opening a PR that touches routes, validation schemas, MCP tools or migrations.
+Routes under `src/routes/api/`, `src/lib/server/validation/` and the MCP tools are a public contract: additive changes only, never remove/rename/tighten, semantic changes are breaking, and migrations are expand/contract (no `DROP`/`RENAME`/type change in the release that stops using the column). Validate inputs with Zod, regenerate with `bun run api:generate`, and run `scripts/api/verify.sh` before a PR that touches routes, schemas, MCP tools or migrations. Full rules (route conventions, response contracts, deprecation flow, deploy order, forced updates): `src/routes/api/CLAUDE.md`, `src/lib/server/CLAUDE.md` and `docs/api-stability.md`.
 
 ### Styling
 
@@ -180,50 +160,7 @@ To also scan the Docker image:
 
 ## Mobile Development
 
-The `mobile/` directory contains a Kotlin Multiplatform project with an Android app (Jetpack Compose), a Wear OS app, and an iOS app (SwiftUI) with a companion Apple Watch app.
-
-### Build Commands
-
-```bash
-# Android debug build (requires SDKMAN + Android SDK)
-source ~/.sdkman/bin/sdkman-init.sh && export ANDROID_HOME=~/android-sdk && cd mobile && ./gradlew androidApp:assembleDebug
-
-# Kotlin lint check
-cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
-```
-
-### Conventions
-
-- **Shared module** (`mobile/shared/`): KMP code shared between Android and iOS — models, API client, repositories, auth, DI
-- **Android app** (`mobile/androidApp/`): Jetpack Compose UI with Material 3
-- **Wear OS app** (`mobile/wearApp/`): Compose for Wear OS, talks to `mobile/wearProtocol` for phone communication
-- **iOS app** (`mobile/iosApp/`): SwiftUI, project generated with XcodeGen (`project.yml`); includes widgets and an Apple Watch app target
-- Use `expect`/`actual` for platform-specific implementations (HTTP engine, secure storage, SHA-256)
-- Use Koin for dependency injection
-- Use Ktor for HTTP client, kotlinx.serialization for JSON
-- Use SQLDelight for local database on Android/shared; the iOS app uses SwiftData for its local store instead (with CloudKit mirroring in anonymous/local mode)
-- Kotlin formatting enforced by ktlint via pre-commit hook
-- Swift formatting enforced by swiftformat (macOS only)
-- iOS's hand-written Swift `Codable` models are checked against `docs/openapi.json` in CI: `bun run api:fixtures:ios` (chained into `bun run api:generate`, and diffed for staleness by `bun run api:check`) generates minimal/full example payloads per response schema under `mobile/iosApp/BissbilanzTests/Fixtures/API/`, and `mobile/iosApp/BissbilanzTests/APIContractDecodingTests.swift` decodes each one with the same `JSONDecoder` `BissbilanzAPI` uses. After changing an API route or validation schema, run `bun run api:generate` and, if you touched a decoded response shape, update the matching Swift model and the schema → Swift type table in that test file.
-
-### iOS Builds
-
-iOS builds require macOS with Xcode installed. The shared KMP framework is compiled to a static framework for iOS targets (x64, arm64, simulator arm64).
-
-On Linux/WSL, don't try to compile Swift locally. The iOS build and iOS unit tests run in the CI/CD pipeline on every PR, and that run is the compile gate: push, then watch the iOS checks. Don't run swiftformat locally either.
-
-If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
-
-#### Release Signing
-
-The release job exports with manual signing against App Store provisioning profiles held in GitHub secrets (`IOS_PROFILE_*_BASE64`). Enabling any capability on an App ID (Sign In with Apple, iCloud, App Groups, …) invalidates those profiles, and the export step then fails with `doesn't include the <entitlement> entitlement`. Regenerate them — no Developer portal clicking needed:
-
-```bash
-ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_PRIVATE_KEY_PATH=... \
-  node scripts/ios/refresh-provisioning-profiles.mjs --apply
-```
-
-The job's first step checks each profile against its target's entitlements, so this failure surfaces in a minute rather than after the ~25-minute archive.
+`mobile/` is a Kotlin Multiplatform project (Android, Wear OS, iOS, Apple Watch). Rules live next to the code: `mobile/CLAUDE.md` for shared/Android/Wear, `mobile/iosApp/CLAUDE.md` for iOS (no local Swift compile on Linux, CI is the compile gate; Swift 6 concurrency rules; release signing).
 
 ## Git Workflow
 

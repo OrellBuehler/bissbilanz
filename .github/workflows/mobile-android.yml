@@ -4,7 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-    paths: [mobile/**, tests/fixtures/shared/**, analytics-parity/**]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -17,8 +16,31 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # Path detection happens here instead of a workflow-level `paths:` filter: a
+  # required check from a workflow that never starts stays "expected" forever
+  # and blocks the PR. The gate job below always reports.
+  changes:
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            relevant:
+              - 'mobile/**'
+              - 'tests/fixtures/shared/**'
+              - 'analytics-parity/**'
+
+  build:
+    needs: changes
+    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -74,7 +96,8 @@ jobs:
           retention-days: 14
 
   lint:
-    if: github.event.pull_request.draft == false
+    needs: changes
+    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -136,7 +159,8 @@ jobs:
           retention-days: 7
 
   coverage:
-    if: github.event.pull_request.draft == false
+    needs: changes
+    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -217,3 +241,21 @@ jobs:
             mobile/shared/build/reports/kover/
             mobile/androidApp/build/reports/kover/
           retention-days: 14
+
+  # Always-reporting required check. Skipped jobs (draft PR, no relevant paths)
+  # count as passing; a failed or cancelled one fails the gate.
+  android-gate:
+    if: always()
+    permissions: {}
+    needs: [changes, build, lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require Android jobs to have passed or been skipped
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE 'failure|cancelled'; then
+            exit 1
+          fi

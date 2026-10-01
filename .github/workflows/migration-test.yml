@@ -3,15 +3,35 @@ name: Migration Tests
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-    paths:
-      - 'drizzle/**'
-      - 'src/lib/server/schema.ts'
-      - 'scripts/test-migrations.ts'
-      - 'scripts/seed-migration-test.ts'
 
 jobs:
-  migration-test:
+  # Path detection happens here instead of a workflow-level `paths:` filter: a
+  # required check from a workflow that never starts stays "expected" forever
+  # and blocks the PR. The gate job below always reports.
+  changes:
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            relevant:
+              - 'drizzle/**'
+              - 'src/lib/server/schema.ts'
+              - 'scripts/test-migrations.ts'
+              - 'scripts/seed-migration-test.ts'
+              - '.github/workflows/migration-test.yml'
+
+  migration-test:
+    needs: changes
+    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -54,3 +74,21 @@ jobs:
           DATABASE_URL: postgres://test:test@localhost:5432/migration_test
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bun scripts/test-migrations.ts
+
+  # Always-reporting required check. Skipped jobs (draft PR, no relevant paths)
+  # count as passing; a failed or cancelled one fails the gate.
+  migration-gate:
+    if: always()
+    permissions: {}
+    needs: [changes, migration-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require migration jobs to have passed or been skipped
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE 'failure|cancelled'; then
+            exit 1
+          fi

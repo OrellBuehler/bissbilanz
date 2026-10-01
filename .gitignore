@@ -31,8 +31,10 @@ vite.config.ts.timestamp-*
 # Worktrees
 .worktrees/
 
-# Claude Code
-.claude/
+# Claude Code: only the shared project settings and agents are tracked
+.claude/*
+!.claude/settings.json
+!.claude/agents/
 
 # Superpowers
 .superpowers/
