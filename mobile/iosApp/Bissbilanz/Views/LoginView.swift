@@ -61,6 +61,7 @@ struct LoginView: View {
     @Environment(AppModeManager.self) private var appModeManager
     @State private var authSession: ASWebAuthenticationSession?
     @State private var appleRawNonce = ""
+    @State private var appleErrorMessage: String?
     @State private var enabledProviders = LoginView.defaultEnabledProviders
     @ScaledMetric(relativeTo: .largeTitle) private var brandIconSize = 72.0
 
@@ -96,6 +97,7 @@ struct LoginView: View {
                         request.requestedScopes = [.fullName, .email]
                         // Apple embeds the SHA256 of this in the identity token; the raw
                         // value travels separately so the server can compare the two.
+                        appleErrorMessage = nil
                         let nonce = Self.randomNonce()
                         appleRawNonce = nonce
                         request.nonce = Self.sha256(nonce)
@@ -104,6 +106,13 @@ struct LoginView: View {
                     }
                     .signInWithAppleButtonStyle(.black)
                     .frame(height: 50)
+
+                    if let appleErrorMessage {
+                        Text(appleErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 VStack(spacing: 8) {
@@ -158,12 +167,26 @@ struct LoginView: View {
                 // The description of these errors reaches Sentry as "[Filtered]",
                 // so only the codes are sent.
                 let nsError = appleError as NSError
-                var context: [String: Any] = ["apple_error_code": nsError.code]
+                var context: [String: Any] = [
+                    "apple_error_code": nsError.code,
+                    "has_underlying": false,
+                ]
                 if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    context["has_underlying"] = true
                     context["underlying_code"] = underlying.code
+                    context["underlying_domain"] = underlying.domain
+                }
+                // .unknown (1000) is what a device without a signed-in Apple Account
+                // reports; point the user at that and at the other sign-in options.
+                switch appleError.code {
+                case .unknown, .notInteractive:
+                    appleErrorMessage = L10n.appleSignInUnavailable
+                default:
+                    appleErrorMessage = L10n.appleSignInFailed
                 }
                 ErrorReporter.captureWarning("Sign in with Apple failed", context: context)
             } else {
+                appleErrorMessage = L10n.appleSignInFailed
                 ErrorReporter.captureWarning("Sign in with Apple failed", context: ["reason": ErrorReporter.reason(for: error)])
             }
             return
@@ -174,6 +197,7 @@ struct LoginView: View {
               let identityToken = String(data: tokenData, encoding: .utf8)
         else {
             appleRawNonce = ""
+            appleErrorMessage = L10n.appleSignInFailed
             ErrorReporter.captureWarning("Sign in with Apple returned no identity token")
             return
         }
