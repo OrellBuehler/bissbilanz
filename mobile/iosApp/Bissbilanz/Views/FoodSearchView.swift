@@ -2,6 +2,14 @@ import SwiftData
 import SwiftUI
 
 struct FoodSearchView: View {
+    /// Presented with `sheet(item:)` so the export sheet is built with the
+    /// picked ids; an `isPresented` sheet captured the empty list and its
+    /// state stuck on "All".
+    struct ShareSelection: Identifiable {
+        let id = UUID()
+        let foodIds: [String]
+    }
+
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(AppModeManager.self) private var appMode
@@ -33,8 +41,7 @@ struct FoodSearchView: View {
     @State private var showCreateFood = false
     @State private var showCreateRecipe = false
     @State private var showShareFoods = false
-    @State private var shareSelectedFoodIds: [String] = []
-    @State private var showShareSelected = false
+    @State private var shareSelection: ShareSelection?
     @State private var showImportPackage = false
     @State private var showDuplicates = false
     @State private var searchTask: Task<Void, Never>?
@@ -154,8 +161,8 @@ struct FoodSearchView: View {
         .sheet(isPresented: $showShareFoods) {
             FoodPackageExportView()
         }
-        .sheet(isPresented: $showShareSelected) {
-            FoodPackageExportView(foodIds: shareSelectedFoodIds)
+        .sheet(item: $shareSelection) { selection in
+            FoodPackageExportView(foodIds: selection.foodIds)
         }
         .navigationDestination(isPresented: $showImportPackage) {
             FoodPackageImportView()
@@ -264,8 +271,7 @@ struct FoodSearchView: View {
             }
             HStack(spacing: 12) {
                 Button {
-                    shareSelectedFoodIds = selectedIds.sorted()
-                    showShareSelected = true
+                    shareSelection = ShareSelection(foodIds: selectedIds.sorted())
                 } label: {
                     Label(L10n.foodPackageShare, systemImage: "square.and.arrow.up")
                 }
