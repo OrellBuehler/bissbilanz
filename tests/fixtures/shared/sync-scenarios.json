@@ -1,0 +1,304 @@
+{
+	"$comment": "Shared offline-sync scenarios: a queue of changes, a scripted server, and what the drain loop did (requests sent, what became of each row). Run through the real queue on web (tests/shared-fixtures/sync-scenarios.test.ts), Android (SharedSyncScenariosTest, real SyncManager with a scripted API) and iOS (SharedFixtureTests.syncScenarios, real SyncManager over a stubbed URLProtocol). See tests/fixtures/shared/README.md for the schema.",
+	"implementations": { "syncScenario": ["web", "kotlin", "swift"] },
+	"cases": [
+		{
+			"fn": "syncScenario",
+			"name": "rejected_create_parks_the_entry_that_depends_on_it",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "entry", "op": "createEntry", "food": "food" }
+				],
+				"server": { "POST /api/foods": [{ "status": 409 }] },
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods"],
+				"rows": { "food": "parked", "entry": "parked" }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "parked_change_is_not_sent_again_on_the_next_drain",
+			"input": {
+				"queue": [{ "ref": "food", "op": "createFood" }],
+				"server": { "POST /api/foods": [{ "status": 400 }] },
+				"drains": 2,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": { "requests": ["POST /api/foods"], "rows": { "food": "parked" } }
+		},
+		{
+			"fn": "syncScenario",
+			"name": "parked_create_does_not_hold_back_independent_changes",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "del", "op": "deleteEntry", "id": "e1" }
+				],
+				"server": {
+					"POST /api/foods": [{ "status": 422 }],
+					"DELETE /api/entries/e1": [{ "status": 204 }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods", "DELETE /api/entries/e1"],
+				"rows": { "food": "parked", "del": "removed" }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "server_error_backs_off_the_row_and_leaves_the_queue_behind_it_untouched",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "del", "op": "deleteEntry", "id": "e1" }
+				],
+				"server": {
+					"POST /api/foods": [{ "status": 500 }],
+					"DELETE /api/entries/e1": [{ "status": 204 }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods"],
+				"rows": { "food": "live", "del": "live" },
+				"retryCounts": { "food": 1, "del": 0 }
+			},
+			"divergences": [
+				{
+					"platform": "kotlin",
+					"expected": {
+						"requests": ["POST /api/foods", "DELETE /api/entries/e1"],
+						"rows": { "food": "live", "del": "removed" },
+						"retryCounts": { "food": 1 }
+					},
+					"reason": "Kotlin treats a persistent 500 (not 502/503/504) as a problem of that one change: it backs it off and carries on with the rest of the queue; web and iOS end the drain"
+				}
+			]
+		},
+		{
+			"fn": "syncScenario",
+			"name": "server_error_keeps_being_retried_past_five_attempts",
+			"input": {
+				"queue": [{ "ref": "food", "op": "createFood" }],
+				"server": { "POST /api/foods": [{ "status": 500 }] },
+				"drains": 6,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": [
+					"POST /api/foods",
+					"POST /api/foods",
+					"POST /api/foods",
+					"POST /api/foods",
+					"POST /api/foods",
+					"POST /api/foods"
+				],
+				"rows": { "food": "live" },
+				"retryCounts": { "food": 6 }
+			},
+			"divergences": [
+				{
+					"platform": "web",
+					"expected": {
+						"requests": [
+							"POST /api/foods",
+							"POST /api/foods",
+							"POST /api/foods",
+							"POST /api/foods",
+							"POST /api/foods"
+						],
+						"rows": { "food": "parked" }
+					},
+					"reason": "web dead-letters a change after MAX_RETRIES (5) transient failures (src/lib/stores/sync.ts); Android and iOS retry indefinitely with capped backoff"
+				}
+			]
+		},
+		{
+			"fn": "syncScenario",
+			"name": "rate_limited_change_is_retried_not_parked",
+			"input": {
+				"queue": [{ "ref": "food", "op": "createFood" }],
+				"server": {
+					"POST /api/foods": [
+						{ "status": 429 },
+						{ "status": 201, "result": "created:server-food-1" }
+					]
+				},
+				"drains": 2,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods", "POST /api/foods"],
+				"rows": { "food": "removed" }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "idempotency_key_is_stable_across_retries",
+			"input": {
+				"queue": [{ "ref": "food", "op": "createFood" }],
+				"server": {
+					"POST /api/foods": [
+						{ "status": 500 },
+						{ "status": 500 },
+						{ "status": 201, "result": "created:server-food-1" }
+					]
+				},
+				"drains": 3,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods", "POST /api/foods", "POST /api/foods"],
+				"rows": { "food": "removed" },
+				"stableKeys": true
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "unreadable_success_response_is_not_retried",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "del", "op": "deleteEntry", "id": "e1" }
+				],
+				"server": {
+					"POST /api/foods": [{ "status": 200, "result": "unreadable" }],
+					"DELETE /api/entries/e1": [{ "status": 204 }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods", "DELETE /api/entries/e1"],
+				"rows": { "food": "parked", "del": "removed" }
+			},
+			"divergences": [
+				{
+					"platform": "web",
+					"expected": {
+						"requests": ["POST /api/foods", "DELETE /api/entries/e1"],
+						"rows": { "food": "removed", "del": "removed" }
+					},
+					"reason": "web drops the row without remapping the temp id when the created id cannot be read (adoptServerId returns early), so the optimistic local row keeps its temp id"
+				},
+				{
+					"platform": "kotlin",
+					"expected": {
+						"requests": ["POST /api/foods", "DELETE /api/entries/e1"],
+						"rows": { "food": "live", "del": "removed" },
+						"retryCounts": { "food": 1 }
+					},
+					"reason": "Kotlin treats an unreadable body as a payload failure and replays the create (same idempotency key) until PAYLOAD_RETRY_LIMIT (5) before parking it"
+				}
+			]
+		},
+		{
+			"fn": "syncScenario",
+			"name": "update_required_pauses_the_drain_and_keeps_every_change",
+			"input": {
+				"queue": [
+					{ "ref": "del", "op": "deleteEntry", "id": "e1" },
+					{ "ref": "del2", "op": "deleteEntry", "id": "e2" }
+				],
+				"server": {
+					"DELETE /api/entries/e1": [{ "status": 426 }],
+					"DELETE /api/entries/e2": [{ "status": 204 }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["DELETE /api/entries/e1"],
+				"rows": { "del": "live", "del2": "live" },
+				"retryCounts": { "del": 0, "del2": 0 }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "session_expiry_stops_the_drain_and_keeps_every_change",
+			"input": {
+				"queue": [
+					{ "ref": "del", "op": "deleteEntry", "id": "e1" },
+					{ "ref": "del2", "op": "deleteEntry", "id": "e2" }
+				],
+				"server": {
+					"DELETE /api/entries/e1": [{ "status": 401 }],
+					"DELETE /api/entries/e2": [{ "status": 204 }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["DELETE /api/entries/e1"],
+				"rows": { "del": "live", "del2": "live" },
+				"retryCounts": { "del": 0, "del2": 0 }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "created_food_id_replaces_the_temp_id_in_the_queued_entry",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "entry", "op": "createEntry", "food": "food" }
+				],
+				"server": {
+					"POST /api/foods": [{ "status": 201, "result": "created:server-food-1" }],
+					"POST /api/entries": [{ "status": 201, "result": "created:server-entry-1" }]
+				},
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": {
+				"requests": ["POST /api/foods", "POST /api/entries"],
+				"rows": { "food": "removed", "entry": "removed" },
+				"entryFoodIds": ["server-food-1"]
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "backed_off_create_holds_back_the_entry_that_depends_on_it",
+			"input": {
+				"queue": [
+					{ "ref": "food", "op": "createFood" },
+					{ "ref": "entry", "op": "createEntry", "food": "food" }
+				],
+				"server": { "POST /api/foods": [{ "status": 500 }] },
+				"drains": 2,
+				"resetBackoffBetweenDrains": false
+			},
+			"expected": {
+				"requests": ["POST /api/foods"],
+				"rows": { "food": "live", "entry": "live" },
+				"retryCounts": { "food": 1 }
+			}
+		},
+		{
+			"fn": "syncScenario",
+			"name": "create_referencing_a_missing_food_is_parked",
+			"input": {
+				"queue": [
+					{ "ref": "entry", "op": "createEntry", "foodId": "11111111-1111-4111-8111-111111111111" }
+				],
+				"server": { "POST /api/entries": [{ "status": 404 }] },
+				"drains": 1,
+				"resetBackoffBetweenDrains": true
+			},
+			"expected": { "requests": ["POST /api/entries"], "rows": { "entry": "parked" } },
+			"divergences": [
+				{
+					"platform": "web",
+					"expected": { "requests": ["POST /api/entries"], "rows": { "entry": "removed" } },
+					"reason": "web treats a 404 on a create like a 404 on an update (record deleted elsewhere): it drops the row with a notice instead of parking it"
+				}
+			]
+		}
+	]
+}

@@ -12,9 +12,9 @@ import Testing
 struct SharedFixtureTests {
     // MARK: - Goal rules
 
-    @Test("Goal rules match the shared fixtures")
-    func goalRules() throws {
-        let failures = try SharedFixtures.check("goal-rules") { fixtureCase in
+    @Test("Goal rules match the shared fixtures", arguments: ["goal-rules", "generated-goal-rules"])
+    func goalRules(file: String) throws {
+        let failures = try SharedFixtures.check(file) { fixtureCase in
             let input = fixtureCase.input
             switch fixtureCase.fn {
             case "adjustGoalsForActivity":
@@ -44,9 +44,12 @@ struct SharedFixtureTests {
 
     // MARK: - Recipe math
 
-    @Test("Recipe math matches the shared fixtures")
-    func recipeMath() throws {
-        let failures = try SharedFixtures.check("recipe-math") { fixtureCase in
+    @Test(
+        "Recipe math matches the shared fixtures",
+        arguments: ["recipe-math", "generated-recipe-math", "generated-unit-conversion"]
+    )
+    func recipeMath(file: String) throws {
+        let failures = try SharedFixtures.check(file) { fixtureCase in
             let input = fixtureCase.input
             switch fixtureCase.fn {
             case "convertQuantityForMacros":
@@ -147,6 +150,38 @@ struct SharedFixtureTests {
         return try JSONPatch.decode(Recipe.self, from: dict)
     }
 
+    // MARK: - Meal types
+
+    /// `normalizeMealType` is `MealGrouping.canonicalKey` on iOS (lowercase keys for the four
+    /// built-in meals, which the fixture spells the way the server does); the ordering is
+    /// `WidgetSnapshotWriter.mealPrecedes`, the order the day log and the watch use.
+    @Test("Meal types match the generated shared fixtures")
+    func mealTypes() throws {
+        let failures = try SharedFixtures.check("generated-meal-types") { fixtureCase in
+            let input = fixtureCase.input
+            switch fixtureCase.fn {
+            case "normalizeMealType":
+                let key = MealGrouping.canonicalKey(input["value"] as? String ?? "")
+                guard MealGrouping.order.contains(key) else { return key }
+                return key.prefix(1).uppercased() + key.dropFirst()
+
+            case "mealForHour":
+                let hour = (input["hour"] as? NSNumber)?.intValue ?? 0
+                let components = DateComponents(year: 2026, month: 1, day: 15, hour: hour, minute: 30)
+                let date = try #require(Calendar.current.date(from: components))
+                return MealTiming.mealForCurrentTime(date)
+
+            case "orderMealTypes":
+                let present = input["present"] as? [String] ?? []
+                return Array(Set(present)).sorted(by: WidgetSnapshotWriter.mealPrecedes)
+
+            default:
+                throw SharedFixtureError.malformed("no Swift harness for fn \(fixtureCase.fn)")
+            }
+        }
+        #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    }
+
     // MARK: - Label parsing
 
     @Test("Label parsing matches the shared fixtures")
@@ -186,6 +221,151 @@ struct SharedFixtureTests {
             }
         }
         #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    }
+
+    // MARK: - Sync scenarios
+
+    /// Every case queues a few changes, scripts the server's answers over the stubbed
+    /// `URLProtocol` and checks what the real `SyncManager` drain did: the requests it sent and
+    /// what became of each row (removed, parked, or still queued with its retry count).
+    @Test("Sync scenarios match the shared fixtures")
+    func syncScenarios() async throws {
+        let fixture = try SharedFixtures.load("sync-scenarios")
+        var failures: [String] = []
+        for fixtureCase in fixture.cases {
+            do {
+                let actual = try await Self.runSyncScenario(fixtureCase.input)
+                failures += SharedFixtures.diff(
+                    actual, fixtureCase.expected, tolerance: fixture.tolerance, path: fixtureCase.label
+                ).map { "sync-scenarios \($0)" }
+            } catch {
+                failures.append("sync-scenarios \(fixtureCase.label): threw \(error)")
+            }
+        }
+        #expect(!fixture.cases.isEmpty)
+        #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    }
+
+    private static func runSyncScenario(_ input: [String: Any]) async throws -> [String: Any] {
+        // Offline while the queue is built, so the repositories enqueue instead of uploading.
+        let harness = try RepositoryHarness(online: false)
+        let server = input["server"] as? [String: [[String: Any]]] ?? [:]
+        for (signature, script) in server {
+            let parts = signature.split(separator: " ", maxSplits: 1).map(String.init)
+            let responses = script.map { stubbedResponse($0, signature: signature) }
+            guard let last = responses.last else { continue }
+            harness.stub(parts[0], parts[1], status: last.status, json: last.json, headers: last.headers)
+            if responses.count > 1 {
+                harness.stubSequence(parts[0], parts[1], Array(responses.dropLast()))
+            }
+        }
+
+        let steps = input["queue"] as? [[String: Any]] ?? []
+        var foods: [String: Food] = [:]
+        for step in steps {
+            let ref = step["ref"] as? String ?? ""
+            switch step["op"] as? String ?? "" {
+            case "createFood":
+                foods[ref] = try await harness.foodRepository.createFood(scenarioFoodCreate())
+
+            case "createEntry":
+                if let foodRef = step["food"] as? String, let food = foods[foodRef] {
+                    let body = EntryCreate(foodId: food.id, mealType: "lunch", servings: 1, date: "2026-06-01")
+                    _ = try await harness.entryRepository.createEntry(body, food: food)
+                } else {
+                    let body = EntryCreate(
+                        foodId: step["foodId"] as? String, mealType: "lunch", servings: 1, date: "2026-06-01"
+                    )
+                    harness.syncManager.enqueue(.createEntry(body: body, localId: LocalStore.makeTempId()))
+                }
+
+            case "deleteEntry":
+                harness.syncManager.enqueue(.deleteEntry(id: step["id"] as? String ?? ""))
+
+            default:
+                throw SharedFixtureError.malformed("unknown op in \(step)")
+            }
+        }
+        // Rows come back in enqueue order; ref i is the i-th row.
+        let rowIds = harness.syncManager.queuedRows().map(\.id)
+        guard rowIds.count == steps.count else {
+            throw SharedFixtureError.malformed("queued \(rowIds.count) rows for \(steps.count) steps")
+        }
+
+        harness.connectivity.isOnline = true
+        let drains = (input["drains"] as? NSNumber)?.intValue ?? 1
+        let reset = (input["resetBackoffBetweenDrains"] as? Bool) ?? true
+        for n in 0 ..< drains {
+            if n > 0, reset { harness.syncManager.resetBackoffForTesting() }
+            await harness.syncManager.drainPendingQueue()
+        }
+
+        var remaining: [UUID: PendingSyncOperation] = [:]
+        for row in harness.syncManager.queuedRows() { remaining[row.id] = row }
+        var rows: [String: Any] = [:]
+        var retryCounts: [String: Any] = [:]
+        for (index, step) in steps.enumerated() {
+            let ref = step["ref"] as? String ?? ""
+            let row = remaining[rowIds[index]]
+            if let row {
+                rows[ref] = row.failedAt == nil ? "live" : "parked"
+            } else {
+                rows[ref] = "removed"
+            }
+            retryCounts[ref] = row?.retryCount ?? 0
+        }
+
+        let requests = harness.recordedRequests
+        var stableKeys = true
+        for signature in Set(requests) {
+            let parts = signature.split(separator: " ", maxSplits: 1).map(String.init)
+            let keys = harness.recordedHeaders(parts[0], parts[1]).map { $0["Idempotency-Key"] ?? "" }
+            if Set(keys).count > 1 { stableKeys = false }
+        }
+        let entryFoodIds = try harness.recordedBodies("POST", "/api/entries").map {
+            try JSONDecoder().decode(EntryCreate.self, from: $0).foodId ?? ""
+        }
+        return [
+            "requests": requests,
+            "rows": rows,
+            "retryCounts": retryCounts,
+            "entryFoodIds": entryFoodIds,
+            "stableKeys": stableKeys,
+        ]
+    }
+
+    private static func scenarioFoodCreate() -> FoodCreate {
+        FoodCreate(
+            name: "Skyr", servingSize: 150, servingUnit: .g,
+            calories: 98, protein: 16, carbs: 6, fat: 0.2, fiber: 0
+        )
+    }
+
+    private static func stubbedResponse(
+        _ raw: [String: Any], signature: String
+    ) -> (status: Int, json: String, headers: [String: String]) {
+        let status = (raw["status"] as? NSNumber)?.intValue ?? 200
+        let headers = raw["headers"] as? [String: String] ?? [:]
+        let result = raw["result"] as? String
+        if status == 204 { return (status, "", headers) }
+        if result == "unreadable" {
+            return (status, #"{"food": {"id": "f-server"}}"#, headers)
+        }
+        if let result, result.hasPrefix("created:") {
+            let id = String(result.dropFirst("created:".count))
+            if signature.contains("/api/entries") {
+                return (status, """
+                {"entry": {"id": "\(id)", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
+                """, headers)
+            }
+            return (status, """
+            {"food": {
+                "id": "\(id)", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
+                "calories": 98, "protein": 16, "carbs": 6, "fat": 0.2, "fiber": 0, "isFavorite": false
+            }}
+            """, headers)
+        }
+        return (status, #"{"error": "x"}"#, headers)
     }
 
     // MARK: - Sync conflict handling

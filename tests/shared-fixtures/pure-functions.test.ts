@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { classifyGoalOutcome, summarizeGoalAdherence } from '$lib/analytics/goal-adherence';
 import { adjustGoalsForActivity } from '$lib/utils/activity-goals';
 import { convertQuantityForMacros, type ServingUnit } from '$lib/units';
-import { aggregateDailyNutrientTotals } from '$lib/analytics/aggregation';
 import {
 	caloriesPerHundredGrams,
 	cookedWeightServingSize,
@@ -18,6 +17,7 @@ import {
 	type FixtureCase,
 	type FixtureFile
 } from './helpers';
+import { runRecipeMacros } from './runners';
 
 /**
  * Cross-platform consistency for goal rules, recipe math and label parsing. The
@@ -26,7 +26,6 @@ import {
  * implementations cannot drift apart unnoticed.
  */
 
-const macroKeys = ['calories', 'protein', 'carbs', 'fat', 'fiber'] as const;
 const labelKeys = [
 	'calories',
 	'protein',
@@ -38,29 +37,6 @@ const labelKeys = [
 	'salt',
 	'sodium'
 ] as const;
-
-function runRecipeMacros(input: any) {
-	const foods = input.ingredients.map((ing: any, i: number) => ({ id: `f${i}`, ...ing.food }));
-	const recipes = [
-		{
-			id: 'r',
-			totalServings: input.totalServings,
-			ingredients: input.ingredients.map((ing: any, i: number) => ({
-				foodId: `f${i}`,
-				quantity: ing.quantity,
-				servingUnit: ing.servingUnit
-			}))
-		}
-	];
-	const [day] = aggregateDailyNutrientTotals(
-		[{ date: '2026-01-01', mealType: 'Lunch', servings: 1, recipeId: 'r' }],
-		foods,
-		recipes
-	);
-	const perServing = Object.fromEntries(macroKeys.map((k) => [k, day[k]]));
-	const total = Object.fromEntries(macroKeys.map((k) => [k, day[k] * input.totalServings]));
-	return { perServing, total };
-}
 
 function run(c: FixtureCase): unknown {
 	const i = c.input;

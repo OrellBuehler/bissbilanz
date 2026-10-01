@@ -81,7 +81,7 @@ jobs:
       - name: Update screenshot baselines
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/e2e_test
-        run: scripts/e2e/run-in-docker.sh --update-snapshots --project='visual-*'
+        run: scripts/e2e/run-in-docker.sh --update-snapshots --project='visual-*' --project=flows
 
       - name: Commit updated baselines
         run: |

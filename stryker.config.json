@@ -1,0 +1,36 @@
+{
+	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"testRunner": "vitest",
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"vitest": { "configFile": "vitest.config.ts" },
+	"mutate": [
+		"src/lib/nutrients.ts",
+		"src/lib/units.ts",
+		"src/lib/utils/recipe-yield.ts",
+		"src/lib/utils/recipe-builder.ts",
+		"src/lib/utils/recipe-entry.ts",
+		"src/lib/stores/offline-queue.ts",
+		"src/lib/stores/sync.ts",
+		"src/lib/sync/temp-ids.ts"
+	],
+	"ignorePatterns": [
+		"mobile/**/build",
+		"mobile/**/.gradle",
+		"mobile/.kotlin",
+		"build",
+		"coverage",
+		"playwright-report",
+		"test-results",
+		"store",
+		"crawler",
+		".svelte-kit"
+	],
+	"buildCommand": "bunx svelte-kit sync",
+	"coverageAnalysis": "perTest",
+	"ignoreStatic": true,
+	"reporters": ["html", "clear-text", "progress"],
+	"htmlReporter": { "fileName": "coverage/mutation/index.html" },
+	"concurrency": 2,
+	"timeoutMS": 30000,
+	"thresholds": { "high": 80, "low": 60, "break": null }
+}
