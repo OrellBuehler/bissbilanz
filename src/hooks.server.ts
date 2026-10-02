@@ -32,7 +32,7 @@ if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
 		dsn: env.PUBLIC_SENTRY_DSN,
 		environment: env.PUBLIC_SENTRY_ENVIRONMENT,
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
-		enableLogs: import.meta.env.DEV
+		beforeSendLog: (log) => (import.meta.env.DEV ? log : null)
 	});
 }
 
