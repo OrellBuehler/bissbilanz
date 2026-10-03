@@ -9,7 +9,7 @@ if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
 		replaysSessionSampleRate: 0,
 		replaysOnErrorSampleRate: 1.0,
-		enableLogs: import.meta.env.DEV,
+		beforeSendLog: (log) => (import.meta.env.DEV ? log : null),
 		integrations: [
 			Sentry.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true })
 		]
