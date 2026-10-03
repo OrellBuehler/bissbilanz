@@ -19,6 +19,9 @@
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Flame from '@lucide/svelte/icons/flame';
 	import GlassWater from '@lucide/svelte/icons/glass-water';
+	import Share2 from '@lucide/svelte/icons/share-2';
+	import Bell from '@lucide/svelte/icons/bell';
+	import CopyCheck from '@lucide/svelte/icons/copy-check';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Seo from '$lib/components/Seo.svelte';
 	import StripeBuyButton from '$lib/components/StripeBuyButton.svelte';
@@ -65,9 +68,24 @@
 			desc: m.landing_feature_suggestions_desc
 		},
 		{
+			icon: Share2,
+			title: m.landing_feature_sharing_title,
+			desc: m.landing_feature_sharing_desc
+		},
+		{
+			icon: CopyCheck,
+			title: m.landing_feature_database_title,
+			desc: m.landing_feature_database_desc
+		},
+		{
 			icon: Pill,
 			title: m.landing_feature_supplements_title,
 			desc: m.landing_feature_supplements_desc
+		},
+		{
+			icon: Bell,
+			title: m.landing_feature_reminders_title,
+			desc: m.landing_feature_reminders_desc
 		},
 		{ icon: Scale, title: m.landing_feature_weight_title, desc: m.landing_feature_weight_desc },
 		{
@@ -350,6 +368,13 @@
 				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
 			>
 				{m.landing_footer_privacy()}
+			</Button>
+			<Button
+				variant="link"
+				href="/help"
+				class="h-auto p-0 text-sm text-muted-foreground hover:text-foreground"
+			>
+				{m.landing_footer_help()}
 			</Button>
 			<Button
 				variant="link"
