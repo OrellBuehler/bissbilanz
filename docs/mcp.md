@@ -63,12 +63,12 @@ tool follows — dates as `YYYY-MM-DD` in your timezone (omit for "today"), capi
 types (`Breakfast`, `Lunch`, `Dinner`, `Snacks`), search-before-create, amounts in servings,
 supplement logging semantics. Clients pass these to the model once.
 
-### Tools (68)
+### Tools (70)
 
 | Area               | Tools                                                                                                                                                                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Diary              | `get_daily_status`, `list_entries`, `log_food`, `update_entry`, `delete_entry`, `copy_entries`                                                                                                                                                                          |
-| Foods              | `search_foods`, `get_food`, `create_food`, `update_food`, `delete_food`, `list_recent_foods`, `find_food_by_barcode`, `search_openfoodfacts`                                                                                                                            |
+| Foods              | `search_foods`, `get_food`, `create_food`, `update_food`, `delete_food`, `list_recent_foods`, `find_food_by_barcode`, `search_openfoodfacts`, `find_duplicate_foods`, `merge_foods`                                                                                     |
 | Recipes            | `list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`                                                                                                                                                                                         |
 | Goals              | `get_goals`, `update_goals`, `list_favorites`, `list_meal_types`                                                                                                                                                                                                        |
 | Supplements        | `get_supplement_status`, `log_supplement`, `unlog_supplement`, `list_supplements`, `create_supplement`, `update_supplement`, `delete_supplement`, `get_supplement_history`                                                                                              |
