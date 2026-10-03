@@ -68,14 +68,18 @@ enum AppleSignInFailure: Equatable {
         }
     }
 
+    static func underlyingError(of error: ASAuthorizationError) -> NSError? {
+        (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError
+    }
+
     /// A bare `.unknown` with no underlying error is the expected result on a
     /// device without an Apple Account (App Review's devices hit it on every
-    /// submission, BISSBILANZ-3M), so only the other failures reach Sentry.
-    static func shouldReport(_ code: ASAuthorizationError.Code, hasUnderlying: Bool) -> Bool {
-        switch code {
-        case .canceled: false
-        case .unknown: hasUnderlying
-        default: true
+    /// submission, BISSBILANZ-3M), so it only leaves a breadcrumb.
+    static func shouldReport(_ error: ASAuthorizationError) -> Bool {
+        switch classify(error.code) {
+        case .cancelled: false
+        case .unavailable: error.code != .unknown || underlyingError(of: error) != nil
+        case .failed: true
         }
     }
 }
@@ -197,11 +201,14 @@ struct LoginView: View {
                 appleErrorMessage = failure == .unavailable ? L10n.appleSignInUnavailable : L10n.appleSignInFailed
                 // The description of these errors reaches Sentry as "[Filtered]",
                 // so only the codes are sent.
-                let nsError = appleError as NSError
-                let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
-                guard AppleSignInFailure.shouldReport(appleError.code, hasUnderlying: underlying != nil) else { return }
+                let code = (appleError as NSError).code
+                guard AppleSignInFailure.shouldReport(appleError) else {
+                    ErrorReporter.addBreadcrumb("Sign in with Apple unavailable", category: "auth", data: ["apple_error_code": code])
+                    return
+                }
+                let underlying = AppleSignInFailure.underlyingError(of: appleError)
                 var context: [String: Any] = [
-                    "apple_error_code": nsError.code,
+                    "apple_error_code": code,
                     "has_underlying": underlying != nil,
                 ]
                 if let underlying {
