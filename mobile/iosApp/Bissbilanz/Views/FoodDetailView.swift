@@ -10,6 +10,10 @@ struct FoodDetailView: View {
     /// Forwarded to `LogFoodSheet` — set by flows (barcode scanner) that
     /// should collapse entirely once a log succeeds.
     var onLogged: (() -> Void)?
+    /// The food the caller already holds. A just-scanned food carries a
+    /// `temp_` id whose row the sync drain replaces with the server record
+    /// while the log form is still open, so the id can stop resolving locally.
+    var initialFood: Food?
 
     @State private var food: Food?
     @State private var isLoading = true
@@ -315,7 +319,7 @@ struct FoodDetailView: View {
     }
 
     private func loadFood() async {
-        food = foodRepository.food(id: foodId)
+        food = foodRepository.food(id: foodId) ?? initialFood
         isLoading = food == nil
         error = nil
         do {
@@ -324,6 +328,7 @@ struct FoodDetailView: View {
         } catch {
             if food == nil { self.error = error }
         }
+        if food == nil, self.error == nil { self.error = APIError.notFound }
         isLoading = false
     }
 
