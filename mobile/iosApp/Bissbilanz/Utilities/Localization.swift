@@ -3574,99 +3574,206 @@ enum L10n {
         )
     }
 
-    // MARK: - Connect Claude
+    // MARK: - Connect an assistant
 
-    static var connectClaudeTitle: String {
-        localized("connect_claude_title", en: "Connect Claude", de: "Claude verbinden")
+    static var connectAssistantTitle: String {
+        localized("connect_assistant_title", en: "Connect an assistant", de: "KI-Assistent verbinden")
     }
 
-    static var connectClaudeIntro: String {
+    static var connectAssistantIntro: String {
         localized(
-            "connect_claude_intro",
-            en: "Connecting Claude lets you log meals by chatting, get daily and weekly reviews, "
-                + "and build meal plans — right from Claude.",
-            de: "Wenn du Claude verbindest, kannst du Mahlzeiten im Chat erfassen, dir tägliche und "
-                + "wöchentliche Rückblicke geben lassen und Essenspläne erstellen lassen — direkt in Claude."
+            "connect_assistant_intro",
+            en: "Connect an AI assistant to log meals by chatting, get daily and weekly reviews, "
+                + "and build meal plans — right from the assistant you already use.",
+            de: "Verbinde einen KI-Assistenten, um Mahlzeiten im Chat zu erfassen, tägliche und "
+                + "wöchentliche Rückblicke zu erhalten und Essenspläne zu erstellen — direkt in dem "
+                + "Assistenten, den du schon nutzt."
         )
     }
 
-    static var connectClaudeServerUrlTitle: String {
-        localized("connect_claude_server_url_title", en: "Server URL", de: "Server-URL")
+    static var connectAssistantStatusTitle: String {
+        localized("connect_assistant_status_title", en: "Status", de: "Status")
     }
 
-    static var connectClaudeCopy: String {
-        localized("connect_claude_copy", en: "Copy", de: "Kopieren")
+    static func connectAssistantConnected(_ names: [String]) -> String {
+        let list = names.joined(separator: ", ")
+        switch currentLocale {
+        case .en: return list.isEmpty ? "Connected" : "Connected: \(list)"
+        case .de: return list.isEmpty ? "Verbunden" : "Verbunden: \(list)"
+        }
     }
 
-    static var connectClaudeCopied: String {
-        localized("connect_claude_copied", en: "Copied", de: "Kopiert")
+    static var connectAssistantNotConnected: String {
+        localized("connect_assistant_not_connected", en: "Not connected", de: "Nicht verbunden")
     }
 
-    static var connectClaudeCopyUrl: String {
-        localized("connect_claude_copy_url", en: "Copy URL", de: "URL kopieren")
+    static var connectAssistantClaudeTitle: String {
+        localized("connect_assistant_claude_title", en: "Claude", de: "Claude")
     }
 
-    static var connectClaudeAppTitle: String {
-        localized("connect_claude_app_title", en: "Claude app / claude.ai", de: "Claude-App / claude.ai")
+    static var connectAssistantClaudeButton: String {
+        localized("connect_assistant_claude_button", en: "Connect to Claude", de: "Mit Claude verbinden")
     }
 
-    static var connectClaudeStep1: String {
+    static var connectAssistantClaudeNote: String {
         localized(
-            "connect_claude_step_1",
-            en: "Open Claude, then go to Settings → Connectors (Customize → Connectors on the web).",
-            de: "Öffne Claude und gehe zu Einstellungen → Connectors (im Web: Anpassen → Connectors)."
+            "connect_assistant_claude_note",
+            en: "Opens Claude with Bissbilanz ready to add. Once added, it also works in the Claude app.",
+            de: "Öffnet Claude mit vorbereitetem Bissbilanz-Connector. Nach dem Hinzufügen funktioniert er "
+                + "auch in der Claude-App."
         )
     }
 
-    static var connectClaudeStep2: String {
+    static var connectAssistantOpensInBrowser: String {
+        localized("connect_assistant_opens_in_browser", en: "Opens in your browser", de: "Öffnet im Browser")
+    }
+
+    static var connectAssistantChatGptTitle: String {
+        localized("connect_assistant_chatgpt_title", en: "ChatGPT", de: "ChatGPT")
+    }
+
+    static var connectAssistantChatGptIntro: String {
         localized(
-            "connect_claude_step_2",
-            en: "Tap \"Add custom connector\".",
-            de: "Tippe auf \"Benutzerdefinierten Connector hinzufügen\"."
+            "connect_assistant_chatgpt_intro",
+            en: "Works on the web with ChatGPT Plus and Pro. Set it up once on chatgpt.com:",
+            de: "Funktioniert im Web mit ChatGPT Plus und Pro. Einmalig auf chatgpt.com einrichten:"
         )
     }
 
-    static var connectClaudeStep3: String {
+    static var connectAssistantChatGptStep1: String {
         localized(
-            "connect_claude_step_3",
-            en: "Paste the server URL, keep \"Use Claude's published identity\" selected "
-                + "(the default), then tap Add.",
-            de: "Füge die Server-URL ein, lass \"Claudes veröffentlichte Identität verwenden\" "
-                + "ausgewählt (Standardeinstellung) und tippe auf Hinzufügen."
+            "connect_assistant_chatgpt_step_1",
+            en: "Open chatgpt.com, go to Settings → Security and login and turn on Developer mode.",
+            de: "Öffne chatgpt.com, gehe zu Einstellungen → Sicherheit und Anmeldung und aktiviere den "
+                + "Entwicklermodus."
         )
     }
 
-    static var connectClaudeStep4: String {
+    static var connectAssistantChatGptStep2: String {
         localized(
-            "connect_claude_step_4",
-            en: "Tap Connect and approve access on the Bissbilanz page that opens.",
-            de: "Tippe auf Verbinden und bestätige den Zugriff auf der Bissbilanz-Seite, die sich öffnet."
+            "connect_assistant_chatgpt_step_2",
+            en: "Open chatgpt.com/plugins and tap \"+\".",
+            de: "Öffne chatgpt.com/plugins und tippe auf \"+\"."
         )
     }
 
-    static var connectClaudeOpenClaude: String {
-        localized("connect_claude_open_claude", en: "Open Claude", de: "Claude öffnen")
-    }
-
-    static var connectClaudeCodeTitle: String {
-        localized("connect_claude_code_title", en: "Claude Code", de: "Claude Code")
-    }
-
-    static var connectClaudeCodeThenMcp: String {
+    static var connectAssistantChatGptStep3: String {
         localized(
-            "connect_claude_code_then_mcp",
+            "connect_assistant_chatgpt_step_3",
+            en: "Paste the server URL and choose OAuth with CIMD as the authentication.",
+            de: "Füge die Server-URL ein und wähle OAuth mit CIMD als Authentifizierung."
+        )
+    }
+
+    static var connectAssistantChatGptStep4: String {
+        localized(
+            "connect_assistant_chatgpt_step_4",
+            en: "Create the connector and approve access on the Bissbilanz page that opens.",
+            de: "Erstelle den Connector und bestätige den Zugriff auf der Bissbilanz-Seite, die sich öffnet."
+        )
+    }
+
+    static var connectAssistantChatGptStep5: String {
+        localized(
+            "connect_assistant_chatgpt_step_5",
+            en: "In a chat, turn on Bissbilanz from the \"+\" menu next to the message field.",
+            de: "Aktiviere Bissbilanz in einem Chat über das \"+\"-Menü neben dem Nachrichtenfeld."
+        )
+    }
+
+    static var connectAssistantChatGptOpen: String {
+        localized("connect_assistant_chatgpt_open", en: "Open ChatGPT", de: "ChatGPT öffnen")
+    }
+
+    static var connectAssistantChatGptNote: String {
+        localized(
+            "connect_assistant_chatgpt_note",
+            en: "Not available in the ChatGPT iPhone app yet.",
+            de: "In der ChatGPT-iPhone-App noch nicht verfügbar."
+        )
+    }
+
+    static var connectAssistantGeminiTitle: String {
+        localized("connect_assistant_gemini_title", en: "Gemini", de: "Gemini")
+    }
+
+    static var connectAssistantGeminiNote: String {
+        localized(
+            "connect_assistant_gemini_note",
+            en: "Not available in Switzerland yet.",
+            de: "In der Schweiz noch nicht verfügbar."
+        )
+    }
+
+    static var connectAssistantDesktopTitle: String {
+        localized("connect_assistant_desktop_title", en: "Set up on a computer", de: "Am Computer einrichten")
+    }
+
+    static var connectAssistantDesktopBody: String {
+        localized(
+            "connect_assistant_desktop_body",
+            en: "Scan the code or copy the link to finish connecting Claude on a computer. "
+                + "Other assistants need the server URL.",
+            de: "Scanne den Code oder kopiere den Link, um Claude am Computer zu verbinden. "
+                + "Andere Assistenten brauchen die Server-URL."
+        )
+    }
+
+    static var connectAssistantQrLabel: String {
+        localized(
+            "connect_assistant_qr_label",
+            en: "QR code that opens the Claude connector setup for Bissbilanz",
+            de: "QR-Code, der die Claude-Connector-Einrichtung für Bissbilanz öffnet"
+        )
+    }
+
+    static var connectAssistantCopyLink: String {
+        localized("connect_assistant_copy_link", en: "Copy link", de: "Link kopieren")
+    }
+
+    static var connectAssistantServerUrlTitle: String {
+        localized("connect_assistant_server_url_title", en: "Server URL", de: "Server-URL")
+    }
+
+    static var connectAssistantCopy: String {
+        localized("connect_assistant_copy", en: "Copy", de: "Kopieren")
+    }
+
+    static var connectAssistantCopied: String {
+        localized("connect_assistant_copied", en: "Copied", de: "Kopiert")
+    }
+
+    static var connectAssistantCopyUrl: String {
+        localized("connect_assistant_copy_url", en: "Copy URL", de: "URL kopieren")
+    }
+
+    static var connectAssistantMoreTitle: String {
+        localized(
+            "connect_assistant_more_title",
+            en: "Claude Code and other clients",
+            de: "Claude Code und andere Clients"
+        )
+    }
+
+    static var connectAssistantClaudeCodeTitle: String {
+        localized("connect_assistant_claude_code_title", en: "Claude Code", de: "Claude Code")
+    }
+
+    static var connectAssistantClaudeCodeThenMcp: String {
+        localized(
+            "connect_assistant_claude_code_then_mcp",
             en: "Then run /mcp to sign in.",
             de: "Führe danach /mcp aus, um dich anzumelden."
         )
     }
 
-    static var connectClaudeOtherClientsTitle: String {
-        localized("connect_claude_other_clients_title", en: "Other MCP clients", de: "Andere MCP-Clients")
+    static var connectAssistantOtherClientsTitle: String {
+        localized("connect_assistant_other_clients_title", en: "Other MCP clients", de: "Andere MCP-Clients")
     }
 
-    static var connectClaudeOtherClientsBody: String {
+    static var connectAssistantOtherClientsBody: String {
         localized(
-            "connect_claude_other_clients_body",
+            "connect_assistant_other_clients_body",
             en: "Any client that supports remote Streamable HTTP with OAuth works the same way — "
                 + "advanced options, like using your own OAuth client, are on the website under "
                 + "Settings → MCP.",

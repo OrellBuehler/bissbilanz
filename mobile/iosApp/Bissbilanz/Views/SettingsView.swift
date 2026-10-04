@@ -256,8 +256,8 @@ struct SettingsView: View {
                         }
                         if !appModeManager.isLocal {
                             // MCP is a server-only feature — hidden in Local mode.
-                            NavigationLink { ConnectClaudeView() } label: {
-                                Label(L10n.connectClaudeTitle, systemImage: "link")
+                            NavigationLink { ConnectAssistantView() } label: {
+                                Label(L10n.connectAssistantTitle, systemImage: "link")
                             }
                             // The queue only exists server-side — the assistant reaches it
                             // over MCP — so it has no meaning in Local mode.

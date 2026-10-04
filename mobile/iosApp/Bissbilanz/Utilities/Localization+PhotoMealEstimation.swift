@@ -7,8 +7,8 @@ import Foundation
 extension L10n {
     static var aiTaskNoAssistantConnected: String {
         localizedPhotoMeal(
-            en: "No assistant connected — connect one in Settings → MCP on the web app.",
-            de: "Kein Assistent verbunden – verbinde einen unter Einstellungen → MCP in der Web-App."
+            en: "No assistant connected — connect Claude or ChatGPT to send meals to it.",
+            de: "Kein Assistent verbunden – verbinde Claude oder ChatGPT, um Mahlzeiten an ihn zu senden."
         )
     }
 
