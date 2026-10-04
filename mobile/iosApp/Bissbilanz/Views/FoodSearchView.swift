@@ -72,15 +72,17 @@ struct FoodSearchView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            TabView(selection: $selectedTab) {
-                allTab
-                    .tag(0)
-                recentTab
-                    .tag(1)
-                favoritesTab
-                    .tag(2)
+            // A paged TabView wrapped the lists in a horizontal scroll view whose
+            // pan competed with row taps; the segmented picker switches tabs.
+            Group {
+                switch selectedTab {
+                case 1: recentTab
+                case 2: favoritesTab
+                default: allTab
+                }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollDismissesKeyboard(.immediately)
             .environment(\.editMode, .constant(isSelecting ? .active : .inactive))
         }
         .safeAreaInset(edge: .bottom) {
@@ -354,7 +356,9 @@ struct FoodSearchView: View {
                     }
                     .listStyle(.plain)
                 }
-            } else if isSearching {
+            } else if isSearching, searchResults.isEmpty, offResults.isEmpty {
+                // Results for the previous query stay up while the next one
+                // loads, so the list isn't torn down under a finger mid-typing.
                 LoadingView(message: L10n.loading)
             } else if searchResults.isEmpty, offResults.isEmpty, !isSearchingOff {
                 ContentUnavailableView(
@@ -572,16 +576,22 @@ struct FoodSearchView: View {
         }
     }
 
+    /// The log button and its context menu are one view with a full-width hit
+    /// shape: a plain-style label only hit-tests its drawn pixels, so taps on
+    /// the gap left by the Spacer went nowhere, and a menu on the enclosing
+    /// HStack competed with the button inside it for the same touch.
     private func actionableFoodRow(_ food: Food) -> some View {
         HStack {
             Button {
                 selectedFood = food
             } label: {
                 foodRowContent(food)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(foodAccessibilityLabel(food))
+            .contextMenu { foodContextMenu(food) }
 
             if date != nil {
                 Button {
@@ -591,39 +601,43 @@ struct FoodSearchView: View {
                         .font(.title3)
                         .foregroundStyle(Color.accentColor)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .accessibilityLabel(L10n.quickLogFoodAccessibility(food.name))
             }
         }
-        // A bare long-press used to jump straight into editing, which gave no
-        // hint that tap and long-press did different things. A context menu
-        // names both actions instead, leaving tap as the fast path to logging.
-        .contextMenu {
+    }
+
+    /// A bare long-press used to jump straight into editing, which gave no
+    /// hint that tap and long-press did different things. A context menu
+    /// names both actions instead, leaving tap as the fast path to logging.
+    /// Sheets open on the next main-actor turn: the action runs while the menu
+    /// is still animating away, and a presentation started then can be dropped.
+    @ViewBuilder
+    private func foodContextMenu(_ food: Food) -> some View {
+        Button {
+            Task { selectedFood = food }
+        } label: {
+            Label(L10n.logFood, systemImage: "plus.circle")
+        }
+        Button {
+            Task { editingFood = food }
+        } label: {
+            Label(L10n.editFood, systemImage: "pencil")
+        }
+        Button {
+            Task { await toggleFavorite(food) }
+        } label: {
+            Label(
+                food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites,
+                systemImage: food.isFavorite ? "star.slash" : "star"
+            )
+        }
+        if canMerge {
             Button {
-                selectedFood = food
+                selectedIds = [food.id]
+                isSelecting = true
             } label: {
-                Label(L10n.logFood, systemImage: "plus.circle")
-            }
-            Button {
-                editingFood = food
-            } label: {
-                Label(L10n.editFood, systemImage: "pencil")
-            }
-            Button {
-                Task { await toggleFavorite(food) }
-            } label: {
-                Label(
-                    food.isFavorite ? L10n.removeFromFavorites : L10n.addToFavorites,
-                    systemImage: food.isFavorite ? "star.slash" : "star"
-                )
-            }
-            if canMerge {
-                Button {
-                    selectedIds = [food.id]
-                    isSelecting = true
-                } label: {
-                    Label(L10n.foodsSelect, systemImage: "checkmark.circle")
-                }
+                Label(L10n.foodsSelect, systemImage: "checkmark.circle")
             }
         }
     }
@@ -703,12 +717,17 @@ struct FoodSearchView: View {
 
     private static let allPageSize = 50
 
+    /// Swaps the first page in once it has loaded instead of emptying the list
+    /// first, which tore every row down (and any tap in flight) on a refresh.
     private func loadAll() async {
         allFoodsTask?.cancel()
-        allFoodsOffset = 0
-        canLoadMoreAll = true
-        allFoods = []
-        await fetchNextAllPage()
+        isLoadingMoreAll = true
+        defer { isLoadingMoreAll = false }
+        let page = await foodRepository.foodsPage(limit: Self.allPageSize, offset: 0)
+        guard !Task.isCancelled else { return }
+        allFoods = page
+        allFoodsOffset = page.count
+        canLoadMoreAll = page.count == Self.allPageSize
     }
 
     private func loadMoreAll() {
