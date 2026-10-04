@@ -18,6 +18,7 @@ let mockCreateResult: any = null;
 let mockGetByIdResult: any = null;
 let mockUpdateResult: any = null;
 let mockLogResult: any = null;
+let unlogCalls: any[][] = [];
 
 const mockValidationError = new ZodError([
 	{ code: 'invalid_type', expected: 'string', path: ['name'], message: 'Required' } as any
@@ -42,7 +43,9 @@ vi.mock('$lib/server/supplements', () => ({
 	getLogsForDate: async () => [],
 	getSupplementIngredients: async () => [],
 	getIngredientsForSupplements: async () => [],
-	unlogSupplement: async () => {},
+	unlogSupplement: async (...args: any[]) => {
+		unlogCalls.push(args);
+	},
 	getLogsForRange: async () => [],
 	getSupplementChecklist: async () =>
 		mockListResult.map((s: any) => ({ supplement: s, taken: false, takenAt: null }))
@@ -77,6 +80,8 @@ vi.mock('$lib/server/validation', () => ({
 const supplementsModule = await import('../../src/routes/api/supplements/+server');
 const supplementIdModule = await import('../../src/routes/api/supplements/[id]/+server');
 const supplementLogModule = await import('../../src/routes/api/supplements/[id]/log/+server');
+const supplementUnlogDateModule =
+	await import('../../src/routes/api/supplements/[id]/log/[date]/+server');
 const supplementTodayModule = await import('../../src/routes/api/supplements/today/+server');
 const supplementHistoryModule = await import('../../src/routes/api/supplements/history/+server');
 const supplementChecklistModule =
@@ -89,6 +94,7 @@ describe('api/supplements', () => {
 		mockGetByIdResult = null;
 		mockUpdateResult = undefined;
 		mockLogResult = null;
+		unlogCalls = [];
 	});
 
 	describe('GET /api/supplements', () => {
@@ -294,6 +300,74 @@ describe('api/supplements', () => {
 			const data = await response.json();
 			expect(response.status).toBe(404);
 			expect(data.error).toBe('Supplement not found');
+		});
+	});
+
+	describe('DELETE /api/supplements/:id/log?date=', () => {
+		const unlogEvent = (options: { user?: typeof TEST_USER | null; date?: string }) =>
+			createMockEvent({
+				user: options.user === undefined ? TEST_USER : options.user,
+				params: { id: TEST_SUPPLEMENT.id },
+				method: 'DELETE',
+				searchParams: options.date ? { date: options.date } : {}
+			});
+
+		test('returns 401 when not authenticated', async () => {
+			const response = await supplementLogModule.DELETE(
+				unlogEvent({ user: null, date: '2026-02-17' })
+			);
+			await expectResponseContract('DELETE', '/api/supplements/{id}/log', response);
+			expect(response.status).toBe(401);
+			expect(unlogCalls).toEqual([]);
+		});
+
+		test('removes the log for the given date', async () => {
+			const response = await supplementLogModule.DELETE(unlogEvent({ date: '2026-02-17' }));
+			await expectResponseContract('DELETE', '/api/supplements/{id}/log', response);
+			expect(response.status).toBe(204);
+			expect(await response.text()).toBe('');
+			expect(unlogCalls).toEqual([[TEST_USER.id, TEST_SUPPLEMENT.id, '2026-02-17']]);
+		});
+
+		test('returns 400 when the date is missing', async () => {
+			const response = await supplementLogModule.DELETE(unlogEvent({}));
+			await expectResponseContract('DELETE', '/api/supplements/{id}/log', response);
+			expect(response.status).toBe(400);
+			expect(unlogCalls).toEqual([]);
+		});
+
+		test('returns 400 when the date is malformed', async () => {
+			const response = await supplementLogModule.DELETE(unlogEvent({ date: '17.02.2026' }));
+			await expectResponseContract('DELETE', '/api/supplements/{id}/log', response);
+			expect(response.status).toBe(400);
+			expect(unlogCalls).toEqual([]);
+		});
+	});
+
+	describe('DELETE /api/supplements/:id/log/:date', () => {
+		test('removes the log for the date in the path, matching the query form', async () => {
+			const response = await supplementUnlogDateModule.DELETE(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_SUPPLEMENT.id, date: '2026-02-17' },
+					method: 'DELETE'
+				})
+			);
+			await expectResponseContract('DELETE', '/api/supplements/{id}/log/{date}', response);
+			expect(response.status).toBe(204);
+			expect(unlogCalls).toEqual([[TEST_USER.id, TEST_SUPPLEMENT.id, '2026-02-17']]);
+		});
+
+		test('returns 400 when the date is malformed', async () => {
+			const response = await supplementUnlogDateModule.DELETE(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_SUPPLEMENT.id, date: 'tomorrow' },
+					method: 'DELETE'
+				})
+			);
+			expect(response.status).toBe(400);
+			expect(unlogCalls).toEqual([]);
 		});
 	});
 

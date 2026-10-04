@@ -9,6 +9,8 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -162,6 +164,44 @@ class SyncQueueTest {
             assertEquals(1, queue.pendingCount())
             val remaining = queue.drain().single().operation as SyncOperation.CreateFood
             assertEquals("temp_2", remaining.localId)
+        }
+
+    @Test
+    fun unparkGivesTheChangeAFreshIdempotencyKeyAndKeepsItsEditTime() =
+        runTest {
+            queue.enqueue(SyncOperation.DeleteEntry("e1"))
+            queue.enqueue(SyncOperation.DeleteEntry("e2"))
+            val (first, second) = queue.drain()
+            queue.park(first.id, "HTTP 405")
+            queue.park(second.id, "HTTP 405")
+
+            queue.unpark(first.id)
+
+            val afterOne = queue.all().associateBy { it.id }
+            assertNull(afterOne.getValue(first.id).failedAt)
+            assertNotEquals(first.idempotencyKey, afterOne.getValue(first.id).idempotencyKey)
+            assertEquals(first.clientEditedAt, afterOne.getValue(first.id).clientEditedAt)
+            assertEquals(second.idempotencyKey, afterOne.getValue(second.id).idempotencyKey)
+            assertNotNull(afterOne.getValue(second.id).failedAt)
+
+            queue.unpark()
+
+            val afterAll = queue.all().associateBy { it.id }
+            assertTrue(afterAll.values.all { it.failedAt == null })
+            assertNotEquals(second.idempotencyKey, afterAll.getValue(second.id).idempotencyKey)
+            assertEquals(second.clientEditedAt, afterAll.getValue(second.id).clientEditedAt)
+            assertNotEquals(afterAll.getValue(first.id).idempotencyKey, afterAll.getValue(second.id).idempotencyKey)
+        }
+
+    @Test
+    fun unparkLeavesAPendingChangeAlone() =
+        runTest {
+            queue.enqueue(SyncOperation.DeleteEntry("e1"))
+            val pending = queue.all().single()
+
+            queue.unpark(pending.id)
+
+            assertEquals(pending.idempotencyKey, queue.all().single().idempotencyKey)
         }
 
     @Test

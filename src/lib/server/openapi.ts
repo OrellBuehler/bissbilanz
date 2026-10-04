@@ -1070,6 +1070,21 @@ export const apiPaths = {
 				'401': res401,
 				'404': res404
 			}
+		},
+		delete: {
+			operationId: 'unlogSupplement',
+			tags: ['Supplements'],
+			description:
+				'Remove a supplement log entry for the date given in the date query parameter. Same operation as DELETE /api/supplements/{id}/log/{date}.',
+			requestParams: {
+				path: uuidPathId,
+				query: z.object({ date: z.string().date() })
+			},
+			responses: {
+				'204': res204,
+				'400': res400,
+				'401': res401
+			}
 		}
 	},
 	'/api/supplements/{id}/log/{date}': {

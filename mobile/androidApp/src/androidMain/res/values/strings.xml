@@ -801,6 +801,9 @@
     <string name="settings_snooze_minutes">%1$d min</string>
     <string name="settings_snooze_hours">%1$d h</string>
     <string name="settings_reminders_delay_note">Reminders may arrive up to about 10 minutes late while your phone is idle, and are silenced by Do Not Disturb.</string>
+    <string name="settings_reminders_on_time_note">Reminders arrive on time and are silenced by Do Not Disturb.</string>
+    <string name="settings_reminders_exact_missing">Your phone may hold reminders back by several minutes while it is idle. Allow exact alarms so they arrive on time.</string>
+    <string name="settings_reminders_exact_grant">Allow exact alarms</string>
     <string name="settings_reminders_permission_missing">Notifications are turned off, so reminders won\'t appear.</string>
     <string name="settings_reminders_permission_grant">Open notification settings</string>
     <string name="reminders_title">Reminders</string>

@@ -22,6 +22,13 @@ const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
  */
 const CLAIM_STALE_MS = 60_000;
 
+/**
+ * "Method not allowed": the route did not exist yet for this verb, so nothing ran and
+ * nothing was decided. Caching it would pin the key to that answer after the route is
+ * added, and the client's retry would replay the 405 forever.
+ */
+const METHOD_NOT_ALLOWED = 405;
+
 type ResolveFn = (event: RequestEvent) => Response | Promise<Response>;
 
 /**
@@ -92,6 +99,21 @@ export async function withIdempotency(
 			.where(and(eq(idempotencyKeys.userId, userId), eq(idempotencyKeys.key, key)))
 			.limit(1);
 
+		// A 405 recorded by a server that lacked the route is not an outcome: drop it and
+		// run the request for real (also covers a retry on a corrected path).
+		if (existing?.statusCode === METHOD_NOT_ALLOWED) {
+			await db
+				.delete(idempotencyKeys)
+				.where(
+					and(
+						eq(idempotencyKeys.userId, userId),
+						eq(idempotencyKeys.key, key),
+						eq(idempotencyKeys.statusCode, METHOD_NOT_ALLOWED)
+					)
+				);
+			return withIdempotency(event, resolve, userId, key);
+		}
+
 		// A key identifies one logical mutation. Reusing it for a different target
 		// would replay an unrelated response body as if it were this request's, so
 		// refuse rather than answer with someone else's result (RFC 9110 §8.8.3).
@@ -144,10 +166,15 @@ export async function withIdempotency(
 
 	// Don't cache responses we can't faithfully replay or that are transient:
 	//  - 5xx are transient; let the retry run for real.
+	//  - 405 means no handler ran, see {@link METHOD_NOT_ALLOWED}.
 	//  - A last-write-wins conflict (X-Sync-Conflict) carries a header replay
 	//    can't reconstruct, and it means the write was rejected (no mutation), so
 	//    re-running deterministically re-derives the same conflict + header.
-	if (response.status >= 500 || response.headers.has(SYNC_CONFLICT_HEADER)) {
+	if (
+		response.status >= 500 ||
+		response.status === METHOD_NOT_ALLOWED ||
+		response.headers.has(SYNC_CONFLICT_HEADER)
+	) {
 		await release();
 		return response;
 	}

@@ -539,7 +539,8 @@ export interface paths {
 		put?: never;
 		/** @description Log a supplement as taken today. */
 		post: operations['logSupplement'];
-		delete?: never;
+		/** @description Remove a supplement log entry for the date given in the date query parameter. Same operation as DELETE /api/supplements/{id}/log/{date}. */
+		delete: operations['unlogSupplement'];
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -4525,6 +4526,24 @@ export interface operations {
 			};
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	unlogSupplement: {
+		parameters: {
+			query: {
+				date: string;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
 	unlogSupplementForDate: {

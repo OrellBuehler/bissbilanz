@@ -31,6 +31,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
@@ -40,6 +41,7 @@ import java.io.IOException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -176,6 +178,31 @@ class SyncManagerTest {
             manager.retryParked(manager.parkedChanges().single().id)
 
             coVerify(exactly = 2) { api.deleteEntry(any(), any(), any()) }
+            assertEquals(0, syncQueue.all().size)
+            assertEquals(0, manager.state.value.failedCount)
+        }
+
+    @Test
+    fun retryingAParkedUnlogSendsItAgainUnderAFreshKeyWithTheOriginalEditTime() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UnlogSupplement("s1", "2026-10-04"))
+            val firstKey = slot<String>()
+            val firstEditedAt = slot<String>()
+            coEvery {
+                api.unlogSupplement("s1", "2026-10-04", capture(firstKey), capture(firstEditedAt))
+            } throws ApiException("method not allowed", 405)
+            manager.syncPendingQueue()
+            assertEquals("HTTP 405", manager.parkedChanges().single().failureReason)
+
+            val retryKey = slot<String>()
+            val retryEditedAt = slot<String>()
+            coEvery {
+                api.unlogSupplement("s1", "2026-10-04", capture(retryKey), capture(retryEditedAt))
+            } returns Unit
+            manager.retryParked(manager.parkedChanges().single().id)
+
+            assertNotEquals(firstKey.captured, retryKey.captured)
+            assertEquals(firstEditedAt.captured, retryEditedAt.captured)
             assertEquals(0, syncQueue.all().size)
             assertEquals(0, manager.state.value.failedCount)
         }

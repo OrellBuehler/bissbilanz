@@ -10,14 +10,13 @@ import com.bissbilanz.util.ReminderSchedule
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
 /**
  * Arms one AlarmManager alarm per reminder, for that reminder's next due occurrence
  * only; the receiver re-arms its own slot after firing. Parallel to
- * [SupplementReminderScheduler] — same `setAndAllowWhileIdle` approach and request-code
+ * [SupplementReminderScheduler] — same [ReminderAlarms] arming and request-code
  * hashing, but its own armed registry ([ReminderPreferences]) and its own slot-key
  * namespace (the `"reminder:"` prefix in [slotKey]) so the two schedulers can never
  * collide, even incidentally.
@@ -80,8 +79,8 @@ object ReminderScheduler {
     ) {
         val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
         val triggerAt = System.currentTimeMillis() + delayMinutes * 60_000L
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        ReminderAlarms.set(
+            alarmManager,
             triggerAt,
             alarmPendingIntent(context, reminderId, hhmm, isSnooze = true, occurrenceDate = occurrenceDate),
         )
@@ -95,15 +94,16 @@ object ReminderScheduler {
         at: LocalDateTime,
         zone: TimeZone,
     ) {
-        alarmManager.setAndAllowWhileIdle(
-            // RTC_WAKEUP is wall-clock, so a corrected device clock or a timezone change
-            // moves the alarm with it rather than firing at a stale elapsed offset.
-            AlarmManager.RTC_WAKEUP,
-            at.toInstant(zone).toEpochMilliseconds(),
-            // The date this alarm is *for*: the alarm is inexact and can drift past
-            // midnight, and the notification can sit unacted-on even longer, so every
-            // downstream consumer must use this rather than "today" at its own run time.
-            alarmPendingIntent(context, reminderId, hhmm, isSnooze = false, occurrenceDate = at.date.toString()),
+        val trigger = ReminderAlarms.trigger(at, zone)
+        ReminderAlarms.set(
+            alarmManager,
+            // Wall-clock, so a corrected device clock or a timezone change moves the
+            // alarm with it rather than firing at a stale elapsed offset.
+            trigger.atMillis,
+            // The date this alarm is *for*: an inexact alarm can drift past midnight,
+            // and the notification can sit unacted-on even longer, so every downstream
+            // consumer must use this rather than "today" at its own run time.
+            alarmPendingIntent(context, reminderId, hhmm, isSnooze = false, occurrenceDate = trigger.date.toString()),
         )
     }
 

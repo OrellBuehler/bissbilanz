@@ -9,6 +9,7 @@ import com.bissbilanz.util.SupplementSchedule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -61,17 +62,20 @@ class SupplementReminderReceiver : BroadcastReceiver() {
                         SupplementReminderScheduler.armNext(context, supplement, hhmm)
                     }
 
-                    // Deleted, or deactivated after the alarm was armed.
-                    if (supplement == null || !supplement.isActive) return@withTimeout
+                    if (supplement == null) {
+                        // The alarm outlived its supplement (deleted, or re-keyed when its
+                        // create synced). Nothing re-armed this slot, so sweep the alarms
+                        // now instead of leaving the stale one to the next app start.
+                        RescheduleRemindersWorker.enqueue(context)
+                        return@withTimeout
+                    }
+                    // Deactivated after the alarm was armed.
+                    if (!supplement.isActive) return@withTimeout
                     // The schedule may have changed under the armed alarm.
                     if (!SupplementSchedule.isDueOn(supplement, date)) return@withTimeout
                     // Already ticked off — on the checklist, from a widget, or on another
                     // device whose log has since synced down.
-                    val taken =
-                        repository
-                            .getChecklist(date.toString())
-                            .any { it.supplementId == supplementId }
-                    if (taken) return@withTimeout
+                    if (repository.isTaken(supplementId, date.toString())) return@withTimeout
                     if (preferences.isSkipped(supplementId, date)) return@withTimeout
 
                     SupplementReminderNotifier.show(
@@ -84,6 +88,10 @@ class SupplementReminderReceiver : BroadcastReceiver() {
                         occurrenceDate = date.toString(),
                     )
                 }
+            } catch (e: TimeoutCancellationException) {
+                // The network check is bounded on its own, so running out of the whole
+                // budget means something local is stuck: worth knowing, not worth hiding.
+                koin.get<ErrorReporter>().captureException(e)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 koin.get<ErrorReporter>().captureException(e)

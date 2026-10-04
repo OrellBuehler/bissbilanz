@@ -311,6 +311,8 @@ fun ReminderEditSheet(
                     }
                 }
 
+                ExactAlarmPrompt()
+
                 errorMessage?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }

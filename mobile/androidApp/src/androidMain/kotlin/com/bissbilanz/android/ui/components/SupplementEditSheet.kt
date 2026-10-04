@@ -662,5 +662,7 @@ private fun ReminderTimesSection(
                 Text(stringResource(R.string.settings_reminders_permission_grant))
             }
         }
+
+        ExactAlarmPrompt()
     }
 }
