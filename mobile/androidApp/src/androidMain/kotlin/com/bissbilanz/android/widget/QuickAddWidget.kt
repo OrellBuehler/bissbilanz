@@ -21,6 +21,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -107,12 +108,14 @@ class QuickAddWidget : GlanceAppWidget() {
             (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
 
+        val askForMeal = tilesAlwaysAskForMeal(db, json)
+
         val plusProvider = ImageProvider(PlusPlaceholderRenderer.render(iconPx, isDark))
         val checkProvider = ImageProvider(CheckmarkRenderer.render(iconPx))
 
         provideContent {
             GlanceTheme {
-                QuickAddContent(rows, plusProvider, checkProvider)
+                QuickAddContent(rows, plusProvider, checkProvider, askForMeal)
             }
         }
     }
@@ -131,6 +134,7 @@ private fun QuickAddContent(
     rows: List<QuickAddRow>,
     plusProvider: ImageProvider,
     checkProvider: ImageProvider,
+    askForMeal: Boolean,
 ) {
     val context = LocalContext.current
     val height = LocalSize.current.height
@@ -174,7 +178,7 @@ private fun QuickAddContent(
     ) {
         rows.take(visible).forEachIndexed { index, row ->
             if (index > 0) Spacer(modifier = GlanceModifier.height(4.dp))
-            QuickAddRowItem(row, plusProvider, checkProvider, context)
+            QuickAddRowItem(row, plusProvider, checkProvider, askForMeal, context)
         }
     }
 }
@@ -184,6 +188,7 @@ private fun QuickAddRowItem(
     row: QuickAddRow,
     plusProvider: ImageProvider,
     checkProvider: ImageProvider,
+    askForMeal: Boolean,
     context: Context,
 ) {
     val logged = LogFavoriteFoodAction.isRecentlyLogged(row.id)
@@ -194,13 +199,17 @@ private fun QuickAddRowItem(
                 .cornerRadius(10.dp)
                 .background(GlanceTheme.colors.surfaceVariant)
                 .clickable(
-                    actionRunCallback<LogFavoriteFoodAction>(
-                        actionParametersOf(
-                            FoodIdKey to row.id,
-                            FoodNameKey to row.name,
-                            FallbackRouteKey to "food/${row.id}",
-                        ),
-                    ),
+                    if (askForMeal) {
+                        actionStartActivity(openAppIntent(context, "food/${row.id}"))
+                    } else {
+                        actionRunCallback<LogFavoriteFoodAction>(
+                            actionParametersOf(
+                                FoodIdKey to row.id,
+                                FoodNameKey to row.name,
+                                FallbackRouteKey to "food/${row.id}",
+                            ),
+                        )
+                    },
                 ).padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

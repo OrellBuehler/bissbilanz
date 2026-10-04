@@ -1,7 +1,6 @@
 package com.bissbilanz.android.widget
 
 import android.content.Context
-import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -12,14 +11,12 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
-import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -141,22 +138,6 @@ internal fun mealBreakdown(entries: List<Entry>): List<MealCalories> {
     return standard + custom
 }
 
-/** Opens the food list, which is where a log starts. */
-class OpenLogFoodAction : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        val intent =
-            Intent(context, MainActivity::class.java).apply {
-                putExtra(MainActivity.EXTRA_NAVIGATE_TO, "foods")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-        context.startActivity(intent)
-    }
-}
-
 @Composable
 private fun DayOverviewContent(
     meals: List<MealCalories>,
@@ -188,6 +169,7 @@ private fun DayOverviewContent(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                     ),
+                maxLines = 1,
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
@@ -258,7 +240,7 @@ private fun DayOverviewContent(
                     .fillMaxWidth()
                     .cornerRadius(12.dp)
                     .background(GlanceTheme.colors.primaryContainer)
-                    .clickable(actionRunCallback<OpenLogFoodAction>())
+                    .clickable(actionStartActivity(openAppIntent(context, WidgetRoutes.FOODS)))
                     .padding(vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically,
@@ -271,6 +253,7 @@ private fun DayOverviewContent(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                     ),
+                maxLines = 1,
             )
         }
     }
