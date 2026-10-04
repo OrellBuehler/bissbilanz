@@ -14,9 +14,11 @@ import com.bissbilanz.util.normalizeMealType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -64,8 +66,15 @@ class ReminderReceiver : BroadcastReceiver() {
                         ReminderScheduler.armNext(context, reminder)
                     }
 
-                    // Deleted, or disabled after the alarm was armed.
-                    if (reminder == null || !reminder.enabled) return@withTimeout
+                    if (reminder == null) {
+                        // The alarm outlived its reminder (deleted, or re-keyed when its
+                        // create synced). Nothing re-armed this slot, so sweep the alarms
+                        // now instead of leaving the stale one to the next app start.
+                        RescheduleGeneralRemindersWorker.enqueue(context)
+                        return@withTimeout
+                    }
+                    // Disabled after the alarm was armed.
+                    if (!reminder.enabled) return@withTimeout
                     // The weekdays may have changed under the armed alarm.
                     if (!ReminderSchedule.isDueOn(reminder, date)) return@withTimeout
                     // Already logged — from the app, a widget, or another device whose
@@ -83,6 +92,10 @@ class ReminderReceiver : BroadcastReceiver() {
                         occurrenceDate = date.toString(),
                     )
                 }
+            } catch (e: TimeoutCancellationException) {
+                // Each refresh is bounded on its own, so running out of the whole budget
+                // means something local is stuck: worth knowing, not worth hiding.
+                koin.get<ErrorReporter>().captureException(e)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 koin.get<ErrorReporter>().captureException(e)
@@ -95,8 +108,10 @@ class ReminderReceiver : BroadcastReceiver() {
     /**
      * Best-effort refreshes the relevant repository before checking the cache — a stale
      * local cache would otherwise nag about a meal, weight or sleep entry logged from
-     * another device. A refresh failure (offline, timeout) is swallowed; the cached
-     * value is still a reasonable answer.
+     * another device. Each refresh is bounded by [REFRESH_BUDGET_MS]: the alarm often
+     * fires while the phone is dozing and the network is blocked, and waiting out the HTTP
+     * timeout would eat the receiver's whole budget and drop the reminder. When the server
+     * does not answer in time the cached value is the answer.
      */
     private suspend fun alreadyLogged(
         koin: Koin,
@@ -104,26 +119,38 @@ class ReminderReceiver : BroadcastReceiver() {
         date: LocalDate,
     ): Boolean {
         val dateStr = date.toString()
+        val errorReporter = koin.get<ErrorReporter>()
         return when (reminder.kind) {
             Reminder.Kind.weight -> {
                 val repo = koin.get<WeightRepository>()
-                runCatching { repo.refresh() }
+                refreshBounded(errorReporter) { repo.refresh() }
                 repo.entries().first().any { it.entryDate == dateStr }
             }
 
             Reminder.Kind.sleep -> {
                 val repo = koin.get<SleepRepository>()
-                // SleepRepository.refresh() already swallows its own failures.
-                repo.refresh()
+                refreshBounded(errorReporter) { repo.refresh() }
                 repo.entries().first().any { it.entryDate == dateStr }
             }
 
             Reminder.Kind.meal -> {
                 val mealType = reminder.mealType ?: return false
                 val repo = koin.get<EntryRepository>()
-                runCatching { repo.refresh(dateStr) }
+                refreshBounded(errorReporter) { repo.refresh(dateStr) }
                 repo.entriesByDateOnce(dateStr).any { normalizeMealType(it.mealType) == normalizeMealType(mealType) }
             }
+        }
+    }
+
+    private suspend fun refreshBounded(
+        errorReporter: ErrorReporter,
+        refresh: suspend () -> Unit,
+    ) {
+        try {
+            withTimeoutOrNull(REFRESH_BUDGET_MS) { refresh() }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 
@@ -135,5 +162,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         /** Comfortably under the ~10s a goAsync receiver gets. */
         private const val TIMEOUT_MS = 8_000L
+
+        private const val REFRESH_BUDGET_MS = 3_000L
     }
 }
