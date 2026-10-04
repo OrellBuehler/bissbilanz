@@ -48,6 +48,7 @@ fun NutrientAdequacyCard(adequacy: List<NutrientAdequacyItem>) {
                     nutrientDisplayName(rda.nutrientKey),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     "${(pct * 100).roundToInt()}%",

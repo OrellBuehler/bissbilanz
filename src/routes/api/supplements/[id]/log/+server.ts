@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logSupplement } from '$lib/server/supplements';
+import { unlogSupplementOnDate } from '$lib/server/supplement-unlog';
 import { supplementLogSchema } from '$lib/server/validation';
 import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone } from '$lib/server/preferences';
@@ -26,3 +27,7 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id, requ
 
 	return json({ log: result.data }, { status: 201 });
 });
+
+export const DELETE: RequestHandler = withAuthedResource(({ userId, id, url }) =>
+	unlogSupplementOnDate(userId, id, url.searchParams.get('date'))
+);

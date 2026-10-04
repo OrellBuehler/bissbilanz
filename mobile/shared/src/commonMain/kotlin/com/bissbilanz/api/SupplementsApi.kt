@@ -67,7 +67,7 @@ interface SupplementsApi : ApiTransport {
     ) {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        delete("/api/supplements/$supplementId/log?date=$date", key, editedAt)
+        delete("/api/supplements/$supplementId/log/$date", key, editedAt)
     }
 
     /** See [updateEntry] for what [clearedKeys] does. */

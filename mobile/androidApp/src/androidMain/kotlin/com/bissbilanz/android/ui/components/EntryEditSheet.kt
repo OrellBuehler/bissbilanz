@@ -282,22 +282,12 @@ fun EntryEditSheet(
             }
 
             // Meal type
-            Text(stringResource(R.string.entry_edit_meal_type_label), style = MaterialTheme.typography.labelLarge)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                mealTypes.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        shape =
-                            SegmentedButtonDefaults.itemShape(
-                                index,
-                                mealTypes.size,
-                            ),
-                        onClick = { mealType = option },
-                        selected = mealType == option,
-                    ) {
-                        Text(mealTypeDisplayName(option))
-                    }
-                }
-            }
+            ChoiceDropdown(
+                label = stringResource(R.string.entry_edit_meal_type_label),
+                selectedLabel = mealTypeDisplayName(mealType),
+                options = mealTypes.map { mealTypeDisplayName(it) to it },
+                onSelect = { mealType = it },
+            )
 
             // Servings (edit mode)
             if (isEditing) {

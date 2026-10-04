@@ -10,7 +10,6 @@ import com.bissbilanz.util.SupplementSchedule
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
@@ -18,12 +17,11 @@ import kotlin.time.Clock
  * Arms one AlarmManager alarm per (supplement, reminder time), for that slot's next due
  * occurrence only; the receiver re-arms its own slot after firing.
  *
- * Uses `setAndAllowWhileIdle` rather than an exact alarm. Exact alarms need
- * SCHEDULE_EXACT_ALARM, which is denied by default at our targetSdk and would bounce the
- * user to a system settings page, and USE_EXACT_ALARM is restricted by Play policy to
- * alarm-clock and calendar apps — which this is not. Inexact costs us up to ~10 minutes
- * of drift while the phone is idle, which is fine for a supplement nudge and is stated in
- * the Settings copy.
+ * Alarms are exact when the user has allowed "Alarms & reminders" for the app and
+ * `setAndAllowWhileIdle` otherwise (see [ReminderAlarms]). `USE_EXACT_ALARM` is not an
+ * option: Play policy restricts it to alarm-clock and calendar apps. Without the access an
+ * idle phone can deliver a reminder many minutes late, so the app asks for it where the
+ * user sets reminders up.
  */
 object SupplementReminderScheduler {
     /**
@@ -85,8 +83,8 @@ object SupplementReminderScheduler {
     ) {
         val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
         val triggerAt = System.currentTimeMillis() + delayMinutes * 60_000L
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        ReminderAlarms.set(
+            alarmManager,
             triggerAt,
             alarmPendingIntent(context, supplementId, hhmm, isSnooze = true, occurrenceDate = occurrenceDate),
         )
@@ -100,15 +98,16 @@ object SupplementReminderScheduler {
         at: LocalDateTime,
         zone: TimeZone,
     ) {
-        alarmManager.setAndAllowWhileIdle(
-            // RTC_WAKEUP is wall-clock, so a corrected device clock or a timezone change
-            // moves the alarm with it rather than firing at a stale elapsed offset.
-            AlarmManager.RTC_WAKEUP,
-            at.toInstant(zone).toEpochMilliseconds(),
-            // The date this alarm is *for*: the alarm is inexact and can drift past
-            // midnight, and the notification can sit unacted-on even longer, so every
-            // downstream consumer must use this rather than "today" at its own run time.
-            alarmPendingIntent(context, supplementId, hhmm, isSnooze = false, occurrenceDate = at.date.toString()),
+        val trigger = ReminderAlarms.trigger(at, zone)
+        ReminderAlarms.set(
+            alarmManager,
+            // Wall-clock, so a corrected device clock or a timezone change moves the
+            // alarm with it rather than firing at a stale elapsed offset.
+            trigger.atMillis,
+            // The date this alarm is *for*: an inexact alarm can drift past midnight,
+            // and the notification can sit unacted-on even longer, so every downstream
+            // consumer must use this rather than "today" at its own run time.
+            alarmPendingIntent(context, supplementId, hhmm, isSnooze = false, occurrenceDate = trigger.date.toString()),
         )
     }
 

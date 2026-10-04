@@ -103,7 +103,7 @@ fun MaintenanceScreen(navController: NavController) {
                                 onClick = { selectedRange = days },
                                 selected = selectedRange == days,
                             ) {
-                                Text(stringResource(R.string.maintenance_range_weeks, days / 7))
+                                Text((days / 7).toString())
                             }
                         }
                     }
@@ -298,7 +298,7 @@ private fun MaintenanceRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, fontWeight = FontWeight.Medium)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 8.dp))
     }
 }

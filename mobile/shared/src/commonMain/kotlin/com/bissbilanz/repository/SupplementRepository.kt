@@ -159,6 +159,9 @@ class SupplementRepository(
         }
     }
 
+    /** The logs this device already knows for [date], without asking the server. */
+    fun cachedChecklist(date: String): List<SupplementLog> = checklistFromCache(date)
+
     private fun checklistFromCache(date: String): List<SupplementLog> =
         db.userDataDatabaseQueries
             .selectSupplementLogsByDate(date)

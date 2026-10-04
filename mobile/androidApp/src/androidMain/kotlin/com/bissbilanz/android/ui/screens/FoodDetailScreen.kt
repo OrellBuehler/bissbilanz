@@ -641,10 +641,11 @@ fun MacroRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = color)
+        Text(label, color = color, modifier = Modifier.weight(1f))
         Text(
             "${value.formatNutrient()} $unit",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp),
         )
     }
 }

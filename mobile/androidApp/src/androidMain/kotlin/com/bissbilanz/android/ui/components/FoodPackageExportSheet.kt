@@ -25,9 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -98,28 +95,23 @@ fun FoodPackageExportSheet(
                     if (state.hasSelection) add(ExportMode.SELECTED)
                 }
             if (modes.size > 1) {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    modes.forEachIndexed { index, mode ->
-                        SegmentedButton(
-                            selected = state.mode == mode,
-                            onClick = { viewModel.setMode(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                        ) {
-                            Text(
-                                when (mode) {
-                                    ExportMode.ALL -> stringResource(R.string.food_package_mode_all)
-                                    ExportMode.FILTER -> stringResource(R.string.food_package_mode_filter)
-                                    ExportMode.SELECTED ->
-                                        stringResource(
-                                            R.string.food_package_mode_selected,
-                                            state.foodIds.size + state.recipeIds.size,
-                                        )
-                                },
-                                maxLines = 1,
-                            )
-                        }
+                val modeOptions =
+                    modes.map { mode ->
+                        when (mode) {
+                            ExportMode.ALL -> stringResource(R.string.food_package_mode_all)
+                            ExportMode.FILTER -> stringResource(R.string.food_package_mode_filter)
+                            ExportMode.SELECTED ->
+                                stringResource(
+                                    R.string.food_package_mode_selected,
+                                    state.foodIds.size + state.recipeIds.size,
+                                )
+                        } to mode
                     }
-                }
+                ChoiceDropdown(
+                    selectedLabel = modeOptions.firstOrNull { it.second == state.mode }?.first ?: modeOptions.first().first,
+                    options = modeOptions,
+                    onSelect = { viewModel.setMode(it) },
+                )
             }
 
             if (state.mode == ExportMode.FILTER) {

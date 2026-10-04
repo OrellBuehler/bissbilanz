@@ -20,6 +20,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -92,6 +93,8 @@ class FavoritesWidget : GlanceAppWidget() {
                 FavoriteTile(food.id, food.name, ImageProvider(bitmap))
             }
 
+        val askForMeal = tilesAlwaysAskForMeal(db, json)
+
         val plusBitmap = PlusPlaceholderRenderer.render(tilePx, isDark)
         val plusProvider = ImageProvider(plusBitmap)
 
@@ -100,7 +103,7 @@ class FavoritesWidget : GlanceAppWidget() {
 
         provideContent {
             GlanceTheme {
-                FavoritesContent(tiles, plusProvider, checkProvider)
+                FavoritesContent(tiles, plusProvider, checkProvider, askForMeal)
             }
         }
     }
@@ -119,6 +122,7 @@ private fun FavoritesContent(
     tiles: List<FavoriteTile>,
     plusProvider: ImageProvider,
     checkProvider: ImageProvider,
+    askForMeal: Boolean,
 ) {
     val context = LocalContext.current
     val size = LocalSize.current
@@ -183,12 +187,16 @@ private fun FavoritesContent(
                                     .size(tileSize)
                                     .cornerRadius(12.dp)
                                     .clickable(
-                                        actionRunCallback<LogFavoriteFoodAction>(
-                                            actionParametersOf(
-                                                FoodIdKey to tile.id,
-                                                FoodNameKey to tile.name,
-                                            ),
-                                        ),
+                                        if (askForMeal) {
+                                            actionStartActivity(openAppIntent(context, WidgetRoutes.FAVORITES))
+                                        } else {
+                                            actionRunCallback<LogFavoriteFoodAction>(
+                                                actionParametersOf(
+                                                    FoodIdKey to tile.id,
+                                                    FoodNameKey to tile.name,
+                                                ),
+                                            )
+                                        },
                                     ),
                         )
                     } else if (index < totalSlots) {

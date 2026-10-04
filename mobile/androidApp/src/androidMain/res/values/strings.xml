@@ -218,6 +218,8 @@
     <string name="ai_task_time_on_day_hint">The meal is logged at this time on %1$s.</string>
     <string name="ai_task_clear_time">Clear time</string>
     <string name="ai_task_remove_photo">Remove photo</string>
+    <string name="ai_task_photo_camera">Camera</string>
+    <string name="ai_task_photo_gallery">Gallery</string>
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
     <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
@@ -326,6 +328,7 @@
     <string name="recipe_image_label">Recipe photo</string>
     <string name="food_image_remove">Remove photo</string>
     <string name="food_image_upload_failed">Couldn\'t save the photo.</string>
+    <string name="photo_read_failed">Couldn\'t read the photo. Please take it again.</string>
     <string name="food_image_save_failed">Saved, but the photo couldn\'t be updated.</string>
     <string name="food_image_crop_cancel">Cancel</string>
     <string name="food_image_crop_confirm">Use photo</string>
@@ -392,8 +395,7 @@
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Maintenance Calculator</string>
-    <string name="maintenance_range_weeks">%1$d Weeks</string>
-    <string name="maintenance_analysis_period">Analysis Period</string>
+    <string name="maintenance_analysis_period">Analysis Period (weeks)</string>
     <string name="maintenance_body_composition">Body Composition</string>
     <string name="maintenance_muscle_fat_ratio">Muscle/Fat ratio: %1$d%% muscle / %2$d%% fat</string>
     <string name="maintenance_ratio_hint">Adjusts how weight change is split between muscle and fat gain/loss</string>
@@ -798,6 +800,9 @@
     <string name="settings_snooze_minutes">%1$d min</string>
     <string name="settings_snooze_hours">%1$d h</string>
     <string name="settings_reminders_delay_note">Reminders may arrive up to about 10 minutes late while your phone is idle, and are silenced by Do Not Disturb.</string>
+    <string name="settings_reminders_on_time_note">Reminders arrive on time and are silenced by Do Not Disturb.</string>
+    <string name="settings_reminders_exact_missing">Your phone may hold reminders back by several minutes while it is idle. Allow exact alarms so they arrive on time.</string>
+    <string name="settings_reminders_exact_grant">Allow exact alarms</string>
     <string name="settings_reminders_permission_missing">Notifications are turned off, so reminders won\'t appear.</string>
     <string name="settings_reminders_permission_grant">Open notification settings</string>
     <string name="reminders_title">Reminders</string>

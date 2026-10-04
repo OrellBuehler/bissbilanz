@@ -965,6 +965,13 @@ const resources: Resource[] = [
 					params: { id: w.a.supp, date: D1 }
 				}),
 				expect: [204, 404]
+			},
+			{
+				name: 'unlog by query date',
+				attack: idCall('api/supplements/[id]/log', 'DELETE', (w) => w.a.supp, {
+					query: { date: D1 }
+				}),
+				expect: [204, 404]
 			}
 		]
 	},

@@ -226,6 +226,79 @@ describe('idempotency (withIdempotency)', () => {
 		expect(second.headers.get('x-idempotent-replay')).not.toBe('true');
 	});
 
+	it('does not cache a 405 — the route may exist by the time the client retries', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const db = getTestDB(dbUrl);
+		let calls = 0;
+		const resolve = async () => {
+			calls += 1;
+			return calls === 1
+				? new Response(null, { status: 405 })
+				: new Response(null, { status: 204 });
+		};
+
+		const first = await withIdempotency(
+			fakeEvent('DELETE', '/api/supplements/s/log'),
+			resolve,
+			userId,
+			'key-405'
+		);
+		expect(first.status).toBe(405);
+		const afterFirst = await db
+			.select()
+			.from(idempotencyKeys)
+			.where(and(eq(idempotencyKeys.userId, userId), eq(idempotencyKeys.key, 'key-405')));
+		expect(afterFirst).toEqual([]);
+
+		const second = await withIdempotency(
+			fakeEvent('DELETE', '/api/supplements/s/log/2026-02-17'),
+			resolve,
+			userId,
+			'key-405'
+		);
+		expect(second.status).toBe(204);
+		expect(calls).toBe(2);
+	});
+
+	it('runs a request for real when its key holds a 405 stored by an earlier server', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const db = getTestDB(dbUrl);
+		await db.insert(idempotencyKeys).values({
+			userId,
+			key: 'key-legacy-405',
+			method: 'DELETE',
+			path: '/api/supplements/s/log',
+			statusCode: 405,
+			responseBody: ''
+		});
+
+		let calls = 0;
+		const resolve = async () => {
+			calls += 1;
+			return new Response(null, { status: 204 });
+		};
+
+		const retriedOnNewPath = await withIdempotency(
+			fakeEvent('DELETE', '/api/supplements/s/log/2026-02-17'),
+			resolve,
+			userId,
+			'key-legacy-405'
+		);
+		expect(retriedOnNewPath.status).toBe(204);
+		expect(retriedOnNewPath.status).not.toBe(422);
+		expect(calls).toBe(1);
+
+		const replay = await withIdempotency(
+			fakeEvent('DELETE', '/api/supplements/s/log/2026-02-17'),
+			resolve,
+			userId,
+			'key-legacy-405'
+		);
+		expect(replay.status).toBe(204);
+		expect(replay.headers.get('x-idempotent-replay')).toBe('true');
+		expect(calls).toBe(1);
+	});
+
 	it('answers a retryable 503 while an earlier attempt is genuinely still in flight', async () => {
 		const { withIdempotency } = await import('$lib/server/sync/idempotency');
 		const db = getTestDB(dbUrl);

@@ -28,6 +28,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.formatShortDate
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.model.SupplementHistoryEntry
 import com.bissbilanz.repository.SupplementRepository
@@ -333,7 +334,7 @@ private fun DayAdherenceCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    day.date,
+                    formatShortDate(LocalDate.parse(day.date)),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                 )

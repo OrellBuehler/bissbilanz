@@ -93,11 +93,13 @@ SELECT COUNT(*) FROM SyncQueue WHERE failedAt IS NOT NULL;
 parkSyncQueueItem:
 UPDATE SyncQueue SET failedAt = ?, failureReason = ? WHERE id = ?;
 
+-- A rejected request is recorded server-side under its Idempotency-Key and replayed
+-- verbatim, so a retry only reaches the handler again under a fresh key.
 unparkSyncQueueItem:
-UPDATE SyncQueue SET failedAt = NULL, failureReason = NULL, retryCount = 0, nextAttemptAt = 0 WHERE id = ?;
+UPDATE SyncQueue SET failedAt = NULL, failureReason = NULL, retryCount = 0, nextAttemptAt = 0, idempotencyKey = ? WHERE id = ? AND failedAt IS NOT NULL;
 
-unparkAllSyncQueue:
-UPDATE SyncQueue SET failedAt = NULL, failureReason = NULL, retryCount = 0, nextAttemptAt = 0 WHERE failedAt IS NOT NULL;
+selectParkedSyncQueueIds:
+SELECT id FROM SyncQueue WHERE failedAt IS NOT NULL;
 
 deleteFailedSyncQueueItem:
 DELETE FROM SyncQueue WHERE id = ? AND failedAt IS NOT NULL;

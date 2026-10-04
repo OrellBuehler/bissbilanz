@@ -16,6 +16,7 @@ import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.navigation.PendingPackageImport
+import com.bissbilanz.android.navigation.takeNavigateRoute
 import com.bissbilanz.android.reminders.RescheduleGeneralRemindersWorker
 import com.bissbilanz.android.reminders.RescheduleRemindersWorker
 import com.bissbilanz.android.ui.AppLanguage
@@ -78,10 +79,8 @@ class MainActivity : ComponentActivity() {
         intent: Intent,
         isFreshLaunch: Boolean,
     ) {
-        val navigateTo = intent.getStringExtra(EXTRA_NAVIGATE_TO)
-        if (navigateTo != null) {
-            intent.removeExtra(EXTRA_NAVIGATE_TO)
-            PendingNavigation.request(navigateTo)
+        if (intent.hasExtra(EXTRA_NAVIGATE_TO)) {
+            intent.takeNavigateRoute(isFreshLaunch)?.let { PendingNavigation.request(it) }
             return
         }
 

@@ -27,8 +27,10 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.ui.components.ExactAlarmPrompt
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ReminderEditSheet
+import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
@@ -55,6 +57,7 @@ fun RemindersScreen(navController: NavController) {
     var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
     var snoozeMenuExpanded by remember { mutableStateOf(false) }
     val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    val exactAlarmsAllowed = rememberExactAlarmsAllowed()
 
     var showForm by remember { mutableStateOf(false) }
     var editingReminderId by remember { mutableStateOf<String?>(null) }
@@ -184,9 +187,17 @@ fun RemindersScreen(navController: NavController) {
                             }
                         }
 
+                        ExactAlarmPrompt()
+
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            stringResource(R.string.settings_reminders_delay_note),
+                            stringResource(
+                                if (exactAlarmsAllowed) {
+                                    R.string.settings_reminders_on_time_note
+                                } else {
+                                    R.string.settings_reminders_delay_note
+                                },
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -292,9 +303,10 @@ private fun SupplementReminderRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(supplement.name, style = MaterialTheme.typography.bodyMedium)
+        Text(supplement.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(
             supplement.reminderTimes.orEmpty().joinToString(", "),
+            modifier = Modifier.padding(start = 8.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
