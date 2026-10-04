@@ -37,8 +37,8 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ocr.NutritionLabelScanner
 import com.bissbilanz.android.util.createImageUri
-import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
+import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.label.ParsedNutrition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -100,13 +100,13 @@ fun NutritionLabelScanDialog(
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) process { decodeUprightBitmap(context, uri) }
+            if (uri != null) process { requireUprightBitmap(context, uri) }
         }
 
     val takePicture =
         rememberCameraCaptureLauncher { success ->
             val uri = cameraUri
-            if (success && uri != null) process { decodeUprightBitmap(context, uri) }
+            if (success && uri != null) process { requireUprightBitmap(context, uri) }
         }
 
     AlertDialog(

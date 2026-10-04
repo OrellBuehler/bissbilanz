@@ -37,8 +37,8 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.util.createImageUri
-import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
+import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -78,11 +78,19 @@ fun FoodImageField(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val uploadFailed = stringResource(R.string.food_image_upload_failed)
+    val readFailed = stringResource(R.string.photo_read_failed)
 
     fun load(uri: Uri) {
+        errorMessage = null
         scope.launch {
-            val bitmap = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) }
-            if (bitmap == null) errorMessage = uploadFailed else cropCandidate = bitmap
+            try {
+                cropCandidate = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorReporter.captureException(e)
+                errorMessage = readFailed
+            }
         }
     }
 

@@ -36,9 +36,10 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
+import com.bissbilanz.android.util.ImageDecodeException
 import com.bissbilanz.android.util.createImageUri
-import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
+import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +79,7 @@ fun RecipeStepPhotoField(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val uploadFailed = stringResource(R.string.recipe_edit_step_photo_failed)
+    val readFailed = stringResource(R.string.photo_read_failed)
 
     fun upload(uri: Uri) {
         isUploading = true
@@ -86,16 +88,15 @@ fun RecipeStepPhotoField(
             try {
                 val bytes =
                     withContext(Dispatchers.IO) {
-                        decodeUprightBitmap(context, uri)
-                            ?.toJpegBytes(maxDimension = STEP_MAX_DIMENSION, quality = STEP_UPLOAD_QUALITY)
+                        requireUprightBitmap(context, uri)
+                            .toJpegBytes(maxDimension = STEP_MAX_DIMENSION, quality = STEP_UPLOAD_QUALITY)
                     }
-                if (bytes == null) {
-                    errorMessage = uploadFailed
-                } else {
-                    currentOnImageUrlChange(uploader.store(bytes, purpose = RECIPE_STEP_PURPOSE))
-                }
+                currentOnImageUrlChange(uploader.store(bytes, purpose = RECIPE_STEP_PURPOSE))
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ImageDecodeException) {
+                errorReporter.captureException(e)
+                errorMessage = readFailed
             } catch (e: Exception) {
                 errorReporter.captureException(e)
                 errorMessage = uploadFailed
