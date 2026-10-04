@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.CheckboxRow
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.model.MealType
 import com.bissbilanz.model.Preferences
@@ -22,7 +23,7 @@ import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpd
 /**
  * AI task processor: who resolves the meal-logging tasks queued from the AI meal sheet,
  * the MCP assistant or the user's own iPhone running Foundation Models on-device (or
- * Private Cloud Compute).
+ * Private Cloud Compute). Only the assistant can be chosen here; see the dropdown below.
  */
 @Composable
 internal fun AiTaskProcessorCard(
@@ -44,31 +45,27 @@ internal fun AiTaskProcessorCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(8.dp))
+            // The device processor is iPhone-only, so Android never offers it. An account
+            // that already has it set still lists it, so the stored value stays visible
+            // and is only replaced by an explicit pick of the assistant.
+            val deviceSelected = prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value
+            val assistantOption =
+                stringResource(R.string.settings_ai_task_processor_assistant) to
+                    GenPreferencesUpdate.AiTaskProcessor.assistant
+            val deviceOption =
+                stringResource(R.string.settings_ai_task_processor_device) to
+                    GenPreferencesUpdate.AiTaskProcessor.device
             val processorOptions =
-                listOf(
-                    stringResource(R.string.settings_ai_task_processor_assistant) to
-                        GenPreferencesUpdate.AiTaskProcessor.assistant,
-                    stringResource(R.string.settings_ai_task_processor_device) to
-                        GenPreferencesUpdate.AiTaskProcessor.device,
-                )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                processorOptions.forEachIndexed { index, (label, value) ->
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index, processorOptions.size),
-                        onClick = { onProcessorChange(value) },
-                        selected = prefs?.aiTaskProcessor?.value == value.value,
-                    ) {
-                        Text(label)
-                    }
-                }
-            }
-            if (prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value) {
+                if (deviceSelected) listOf(assistantOption, deviceOption) else listOf(assistantOption)
+            ChoiceDropdown(
+                selectedLabel = if (deviceSelected) deviceOption.first else assistantOption.first,
+                options = processorOptions,
+                onSelect = { if (it.value != prefs?.aiTaskProcessor?.value) onProcessorChange(it) },
+            )
+            if (deviceSelected) {
                 Spacer(modifier = Modifier.height(8.dp))
-                // The server has no reliable way to tell whether this
-                // account actually has an iPhone — no APNs/device
-                // registration exists to check — so the option stays
-                // selectable unconditionally and this hint carries the
-                // warning instead of a disabled state.
+                // The server cannot tell whether this account has an iPhone, so
+                // this hint carries the warning that tasks wait for that app.
                 Text(
                     stringResource(R.string.settings_ai_task_processor_device_hint),
                     style = MaterialTheme.typography.bodySmall,
