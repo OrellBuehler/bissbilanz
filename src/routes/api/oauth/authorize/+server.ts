@@ -12,6 +12,7 @@ import {
 import { resolveOAuthClient } from '$lib/server/oauth-cimd';
 import { rateLimit } from '$lib/server/rate-limit';
 import { getRequestIp } from '$lib/server/client-ip';
+import { getIssuer } from '$lib/server/oauth-metadata';
 
 function oauthError(code: string, detail?: string): never {
 	const errorUrl = new URL('/oauth/error', 'http://localhost');
@@ -103,6 +104,7 @@ export const GET: RequestHandler = async (event) => {
 	const callbackUrl = new URL(redirectUri);
 	callbackUrl.searchParams.set('code', code);
 	callbackUrl.searchParams.set('state', state);
+	callbackUrl.searchParams.set('iss', getIssuer(url));
 
 	throw redirect(302, callbackUrl.toString());
 };

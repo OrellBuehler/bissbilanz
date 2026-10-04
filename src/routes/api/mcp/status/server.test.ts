@@ -24,14 +24,17 @@ describe('GET /api/mcp/status', () => {
 		]);
 		const res = await call();
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ connected: true });
+		expect(await res.json()).toEqual({
+			connected: true,
+			clients: [{ name: 'Some Assistant', host: 'client.example' }]
+		});
 	});
 
 	it('reports not connected when the user has no authorized clients', async () => {
 		listAuthorizedClients.mockResolvedValueOnce([]);
 		const res = await call();
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ connected: false });
+		expect(await res.json()).toEqual({ connected: false, clients: [] });
 	});
 
 	it('401s when unauthenticated', async () => {

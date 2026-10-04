@@ -36,7 +36,7 @@ later sign in.
 
 ## What makes it different
 
-**Your food log is an MCP server.** Point Claude (or any MCP client) at it and just say
+**Your food log is an MCP server.** Connect Claude, ChatGPT or any MCP client and just say
 what you ate. **70 tools** cover logging, foods, recipes, goals, weight, sleep,
 supplements, analytics and the AI task queue — OAuth-protected, so the agent only ever sees your data.
 
@@ -102,8 +102,8 @@ Android and iOS clients can't silently drift from the server.
 
 ## Talk to your food log
 
-Bissbilanz exposes a remote MCP server at `/api/mcp` (streamable HTTP; OAuth 2.1 with PKCE; clients are provisioned in Settings → MCP,
-scope `mcp:access`):
+Bissbilanz exposes a remote MCP server at `/api/mcp` (streamable HTTP; OAuth 2.1 with PKCE; connect an assistant from Settings → MCP on the web or
+Settings → Connect an assistant in the mobile apps, scope `mcp:access`):
 
 ```json
 {
@@ -120,7 +120,7 @@ Then:
 
 > **You:** I had a chicken bowl with rice and avocado for lunch, and a flat white.
 >
-> **Claude:** Logged 4 items to Lunch — 812 kcal, 47 g protein. You're at 1,340 / 2,200 kcal
+> **Assistant:** Logged 4 items to Lunch — 812 kcal, 47 g protein. You're at 1,340 / 2,200 kcal
 > and 89 / 160 g protein for the day.
 
 Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,

@@ -1,17 +1,17 @@
 # Bissbilanz MCP server
 
 Bissbilanz exposes your food, weight, sleep and supplement diary as a remote
-[Model Context Protocol](https://modelcontextprotocol.io) server, so Claude (or any MCP
-client) can log and review your data in natural language.
+[Model Context Protocol](https://modelcontextprotocol.io) server, so Claude, ChatGPT (or any
+MCP client) can log and review your data in natural language.
 
-| Endpoint         | `https://bissbilanz.orellbuehler.ch/api/mcp`                                               |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| Transport        | Streamable HTTP (POST/GET/DELETE, `Mcp-Session-Id` sessions)                               |
-| Protocol version | Negotiated by the SDK; supports `2025-11-25` down to `2024-11-05`                          |
-| Auth             | OAuth 2.1 authorization code + PKCE (S256), refresh tokens; Client ID Metadata Documents   |
-| Scope            | `mcp:access`                                                                               |
-| Discovery        | `/.well-known/oauth-protected-resource/api/mcp`, `/.well-known/oauth-authorization-server` |
-| Sessions         | 1 h idle TTL, max 5 concurrent per user (least recently used is evicted)                   |
+| Endpoint         | `https://bissbilanz.orellbuehler.ch/api/mcp`                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| Transport        | Streamable HTTP (POST/GET/DELETE, `Mcp-Session-Id` sessions)                                 |
+| Protocol version | Negotiated by the SDK; supports `2025-11-25` down to `2024-11-05`                            |
+| Auth             | OAuth 2.1 authorization code + PKCE (S256), refresh tokens; Client ID Metadata Documents     |
+| Scope            | `mcp:access` (`offline_access` is accepted; refresh tokens are always issued)                |
+| Discovery        | `/.well-known/oauth-protected-resource[/api/mcp]`, `/.well-known/oauth-authorization-server` |
+| Sessions         | 1 h idle TTL, max 5 concurrent per user (least recently used is evicted)                     |
 
 ## Connecting
 
@@ -19,16 +19,37 @@ The authorization server accepts [Client ID Metadata Documents](https://modelcon
 (CIMD): a client identifies itself with an HTTPS URL it controls, the server fetches that
 document, takes the client name and redirect URIs from it and treats the client as a
 public PKCE client. Nothing is registered ahead of time and there is no secret, so
-connecting from Claude is: paste the URL, approve once in the browser. Dynamic client
-registration (RFC 7591) is intentionally not offered.
+connecting an assistant is: paste the URL, approve once in the browser. Dynamic client
+registration (RFC 7591) is intentionally not offered. Every authorization response
+(approval and denial) carries the RFC 9207 `iss` parameter, advertised through
+`authorization_response_iss_parameter_supported`.
 
-### claude.ai (web / desktop / mobile)
+The web settings page (**Settings → MCP**) and the mobile apps (**Settings → Connect an
+assistant**) walk through the options below and show which assistants are connected.
 
-Settings → Connectors (Customize → Connectors on the web) → **Add custom connector** →
-URL `https://bissbilanz.orellbuehler.ch/api/mcp`. Leave the OAuth client on _Use
-Claude's published identity_ (the default), add the connector, click **Connect** and
-approve on the Bissbilanz consent page. The same page is shown in the apps under
-Settings → Connect Claude.
+### Claude (web / desktop / mobile)
+
+**Connect to Claude** opens
+`https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Bissbilanz&connectorUrl=<percent-encoded server URL>`,
+which shows the _Add custom connector_ dialog already filled in. Confirm it, click
+**Connect** and approve on the Bissbilanz consent page. Connectors added on the web are
+also usable in the Claude mobile apps. Manually: Settings → Connectors (Customize →
+Connectors on the web) → **Add custom connector** → URL
+`https://bissbilanz.orellbuehler.ch/api/mcp`, leaving the OAuth client on _Use Claude's
+published identity_.
+
+### ChatGPT (web only)
+
+ChatGPT has no prefill link and does not offer custom connectors in its phone app yet; it
+needs a Plus or Pro plan. On chatgpt.com: Settings → Security and login → turn on
+**Developer mode** → open chatgpt.com/plugins → **+** → paste the server URL → choose
+**CIMD** as the OAuth method → create → approve on the Bissbilanz consent page, then enable
+Bissbilanz from the **+** menu in the message box.
+
+### Gemini
+
+Not available in Switzerland yet (custom apps are US-only and need a manual client
+ID and secret, which this server does not offer).
 
 ### Claude Code
 
@@ -92,13 +113,14 @@ with a stable object contract (`get_daily_status`, `log_food`, `delete_entry`,
 
 ### Prompts
 
-| Prompt          | Arguments                           | What it does                                                                       |
-| --------------- | ----------------------------------- | ---------------------------------------------------------------------------------- |
-| `log_meal`      | `description`, `mealType?`, `date?` | Free-text meal → search / create / `log_food` → summary with remaining budget      |
-| `daily_review`  | `date?`                             | Totals vs goals, gaps, untaken supplements, one or two foods to close the gap      |
-| `weekly_review` | `endDate?`                          | Seven-day averages, consistency, weight trend, top foods, one change for next week |
-| `label_foods`   | `limit?`, `minLabels?`              | Sweep the food database and label every unlabelled or thinly labelled food         |
-| `meal_plan`     | `startDate?`, `days?`, `focus?`     | Context → gaps → sources → a multi-day plan built around existing habits           |
+| Prompt             | Arguments                           | What it does                                                                                                 |
+| ------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `log_meal`         | `description`, `mealType?`, `date?` | Free-text meal → search / `log_food` (quick entry when nothing matches) → summary                            |
+| `daily_review`     | `date?`                             | Totals vs goals, gaps, untaken supplements, one or two foods to close the gap                                |
+| `weekly_review`    | `endDate?`                          | Seven-day averages, consistency, weight trend, top foods, one change for next week                           |
+| `label_foods`      | `limit?`, `minLabels?`              | Sweep the food database and label every unlabelled or thinly labelled food                                   |
+| `process_ai_tasks` | none                                | Work through every pending AI task: identify foods, `log_food`, then `complete_ai_task` or `dismiss_ai_task` |
+| `meal_plan`        | `startDate?`, `days?`, `focus?`     | Context → gaps → sources → a multi-day plan built around existing habits                                     |
 
 Claude Desktop and Claude Code surface these as slash commands (`/bissbilanz:log_meal …`).
 `mealType` offers completions for the default meal types.
