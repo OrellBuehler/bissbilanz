@@ -12,8 +12,9 @@ private let stepPhotoQuality: CGFloat = 0.85
 /// photo library.
 ///
 /// Unlike `FoodImageField` there is no square crop — a step photo is shown
-/// whole in cooking mode. The photo is stored the moment it is picked, the same
-/// way a food's is: uploaded with `purpose=recipe_step` when signed in, written
+/// whole in cooking mode. A picked photo goes through `PhotoReviewSheet` (a
+/// look at the whole picture and the "Remove background" switch), then is
+/// stored the way a food's is: uploaded with `purpose=recipe_step` when signed in, written
 /// into `LocalImageStore` as a `file://` URL in Local mode (which is what lets
 /// `LocalDataMigrator` re-upload it on sign-in). The new URL, or nil once the
 /// photo is removed, goes out through `onChange`; the field holds no copy of it,
@@ -31,6 +32,7 @@ struct RecipeStepPhotoField: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showLibrary = false
     @State private var showCamera = false
+    @State private var reviewCandidate: ReviewCandidate?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -79,11 +81,21 @@ struct RecipeStepPhotoField: View {
             CameraPicker(
                 onImage: { image in
                     showCamera = false
-                    Task { await store(image.uprightened()) }
+                    reviewCandidate = ReviewCandidate(image: image.uprightened())
                 },
                 onCancel: { showCamera = false }
             )
             .ignoresSafeArea()
+        }
+        .fullScreenCover(item: $reviewCandidate) { candidate in
+            PhotoReviewSheet(
+                image: candidate.image,
+                onCancel: { reviewCandidate = nil },
+                onConfirm: { photo, transparent in
+                    reviewCandidate = nil
+                    Task { await store(photo, transparent: transparent) }
+                }
+            )
         }
     }
 
@@ -130,23 +142,24 @@ struct RecipeStepPhotoField: View {
             errorMessage = L10n.photoSaveFailed
             return
         }
-        await store(image)
+        reviewCandidate = ReviewCandidate(image: image.uprightened())
     }
 
-    private func store(_ image: UIImage) async {
+    private func store(_ image: UIImage, transparent: Bool) async {
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }
 
-        guard let data = image.downscaledJPEGData(
-            maxDimension: maxStepPhotoDimension, quality: stepPhotoQuality
+        guard let photo = image.downscaledEncodedPhoto(
+            maxDimension: maxStepPhotoDimension, quality: stepPhotoQuality, transparent: transparent
         ) else {
             errorMessage = L10n.photoSaveFailed
             return
         }
+        let data = photo.data
 
         if appMode.isLocal {
-            guard let url = LocalImageStore.writeLocalPhoto(data) else {
+            guard let url = LocalImageStore.writeLocalPhoto(data, fileExtension: photo.fileExtension) else {
                 errorMessage = L10n.photoSaveFailed
                 return
             }
@@ -155,7 +168,7 @@ struct RecipeStepPhotoField: View {
         }
 
         do {
-            let url = try await api.uploadImage(data, purpose: "recipe_step")
+            let url = try await api.uploadImage(data, filename: photo.filename, purpose: "recipe_step")
             // Seed the cache with the bytes already in hand so the thumbnail
             // (and cooking mode, offline) needs no round trip.
             imageLoader.seed(data, for: url)
@@ -168,4 +181,10 @@ struct RecipeStepPhotoField: View {
             errorMessage = L10n.photoSaveFailed
         }
     }
+}
+
+/// `fullScreenCover(item:)` needs an Identifiable, and UIImage is not one.
+private struct ReviewCandidate: Identifiable {
+    let id = UUID()
+    let image: UIImage
 }

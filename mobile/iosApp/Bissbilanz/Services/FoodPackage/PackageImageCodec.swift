@@ -75,10 +75,25 @@ enum PackageImageCodec {
             guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
                 return nil
             }
-            return UIImage(cgImage: image).jpegData(compressionQuality: quality)
+            return flattenedJPEG(UIImage(cgImage: image), quality: quality)
         }
         guard let image = UIImage(data: data) else { return nil }
-        return image.jpegData(compressionQuality: quality)
+        return flattenedJPEG(image, quality: quality)
+    }
+
+    /// JPEG has no alpha, so a transparent cut-out would come out black.
+    /// Composites onto white first, the colour a food photo's background
+    /// usually is.
+    static func flattenedJPEG(_ image: UIImage, quality: CGFloat) -> Data? {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = image.scale
+        format.opaque = true
+        let flattened = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: image.size))
+            image.draw(at: .zero)
+        }
+        return flattened.jpegData(compressionQuality: quality)
     }
 
     /// A small inline `data:` URL for the preview, like the server's thumbnails.

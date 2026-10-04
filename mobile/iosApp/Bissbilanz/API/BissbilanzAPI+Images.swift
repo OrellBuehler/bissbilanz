@@ -10,12 +10,20 @@ extension BissbilanzAPI {
     /// `purpose` is the route's optional extra form field: `recipe_step` keeps a
     /// cooking-step photo's aspect ratio (up to 1280 px) instead of the square
     /// thumbnail a food or recipe cover gets.
+    ///
+    /// The MIME type follows the filename's extension: a transparent cut-out is
+    /// a `.png`, everything else a JPEG.
     func uploadImage(_ data: Data, filename: String = "food.jpg", purpose: String? = nil) async throws -> String {
         let response: ImageUploadResponse = try await postMultipart(
             "/api/images/upload", data: data, fieldName: "image", filename: filename,
+            mimeType: Self.imageMimeType(forFilename: filename),
             fields: purpose.map { ["purpose": $0] } ?? [:]
         )
         return response.imageUrl
+    }
+
+    nonisolated static func imageMimeType(forFilename filename: String) -> String {
+        filename.lowercased().hasSuffix(".png") ? "image/png" : "image/jpeg"
     }
 
     /// Attaches or, with a nil `imageUrl`, removes a food's image.

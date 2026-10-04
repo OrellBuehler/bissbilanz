@@ -2466,6 +2466,26 @@ enum L10n {
         )
     }
 
+    static var removeBackground: String {
+        localized("remove_background", en: "Remove background", de: "Hintergrund entfernen")
+    }
+
+    static var noSubjectFound: String {
+        localized("no_subject_found", en: "No subject found", de: "Kein Motiv gefunden")
+    }
+
+    static var removeBackgroundFailed: String {
+        localized(
+            "remove_background_failed",
+            en: "Couldn't remove the background.",
+            de: "Der Hintergrund konnte nicht entfernt werden."
+        )
+    }
+
+    static var reviewPhoto: String {
+        localized("review_photo", en: "Review photo", de: "Foto prüfen")
+    }
+
     static var photoSaveFailed: String {
         localized(
             "photo_save_failed",

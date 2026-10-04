@@ -60,9 +60,9 @@ struct FoodImageField: View {
             ImageCropSheet(
                 image: candidate.image,
                 onCancel: { cropCandidate = nil },
-                onCropped: { cropped in
+                onCropped: { cropped, transparent in
                     cropCandidate = nil
-                    Task { await store(cropped) }
+                    Task { await store(cropped, transparent: transparent) }
                 }
             )
         }
@@ -159,24 +159,26 @@ struct FoodImageField: View {
         cropCandidate = CropCandidate(image: image.uprightened())
     }
 
-    /// In Local mode there is no server, so the JPEG is written into
+    /// In Local mode there is no server, so the photo is written into
     /// `LocalImageStore` and referenced by a `file://` URL — the same shape the
     /// account downgrade produces, which is what lets `LocalDataMigrator`
-    /// re-upload it if the user later signs in.
-    private func store(_ cropped: UIImage) async {
+    /// re-upload it if the user later signs in. A transparent cut-out is a
+    /// PNG, anything else a JPEG.
+    private func store(_ cropped: UIImage, transparent: Bool) async {
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }
 
-        guard let data = cropped.downscaledJPEGData(
-            maxDimension: maxUploadDimension, quality: uploadQuality
+        guard let photo = cropped.downscaledEncodedPhoto(
+            maxDimension: maxUploadDimension, quality: uploadQuality, transparent: transparent
         ) else {
             errorMessage = L10n.photoSaveFailed
             return
         }
+        let data = photo.data
 
         if appMode.isLocal {
-            guard let url = LocalImageStore.writeLocalPhoto(data) else {
+            guard let url = LocalImageStore.writeLocalPhoto(data, fileExtension: photo.fileExtension) else {
                 errorMessage = L10n.photoSaveFailed
                 return
             }
@@ -185,7 +187,7 @@ struct FoodImageField: View {
         }
 
         do {
-            let url = try await api.uploadImage(data)
+            let url = try await api.uploadImage(data, filename: photo.filename)
             // Seed the cache with the bytes we already hold, so the image
             // renders straight away instead of after a round trip.
             imageLoader.seed(data, for: url)
