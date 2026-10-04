@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
@@ -455,7 +456,7 @@ fun AiMealSheet(
                     ) {
                         Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.scan_label_take_photo))
+                        Text(stringResource(R.string.ai_task_photo_camera), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     OutlinedButton(
                         onClick = {
@@ -467,7 +468,7 @@ fun AiMealSheet(
                     ) {
                         Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.scan_label_choose_photo))
+                        Text(stringResource(R.string.ai_task_photo_gallery), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
