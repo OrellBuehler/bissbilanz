@@ -18,9 +18,9 @@ final class MemoryImageStore: PackageImageStore {
         files[imageUrl]?.count
     }
 
-    func save(jpeg: Data) -> String? {
-        let url = "file:///memory/local-\(UUID().uuidString).jpg"
-        files[url] = jpeg
+    func save(_ data: Data, fileExtension: String) -> String? {
+        let url = "file:///memory/local-\(UUID().uuidString).\(fileExtension)"
+        files[url] = data
         return url
     }
 
@@ -439,7 +439,7 @@ struct LocalFoodPackageServiceTests {
             PackageIngredient(food: "f1", quantity: 1, servingUnit: .tbsp),
         ])
         let pastaPhoto = try #require(file.manifest.foods[1].image)
-        #expect(pastaPhoto == "images/f2.jpg")
+        #expect(pastaPhoto == "images/f2.webp")
         #expect(file.readImages([pastaPhoto])[pastaPhoto]?.isEmpty == false)
     }
 
@@ -562,7 +562,7 @@ struct LocalFoodPackageServiceTests {
 
         let reader = try ZipReader(data: export.data, maxEntries: 100)
         #expect(reader.entries.map(\.name) == [
-            "README.txt", "bissbilanz-foods.json", "images/f4.jpg",
+            "README.txt", "bissbilanz-foods.json", "images/f4.webp",
         ])
         #expect(reader.entries[0].method == 8)
         #expect(reader.entries[1].method == 8)

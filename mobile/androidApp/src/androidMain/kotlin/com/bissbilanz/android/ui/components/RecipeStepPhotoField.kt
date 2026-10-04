@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -36,11 +37,10 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
-import com.bissbilanz.android.util.ImageDecodeException
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.requireUprightBitmap
-import com.bissbilanz.android.util.toJpegBytes
+import com.bissbilanz.android.util.toUploadBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,8 +56,8 @@ const val RECIPE_STEP_PURPOSE = "recipe_step"
 
 /**
  * The photo row of one recipe step: thumbnail, camera, library and removal. Unlike
- * [FoodImageField] there is no square crop, because a step photo is shown in full
- * while cooking; [onImageUrlChange] receives the stored URL (null on removal).
+ * [FoodImageField] there is no square crop (a [PhotoReviewDialog] stands in, because a
+ * step photo is shown in full while cooking); [onImageUrlChange] receives the stored URL (null on removal).
  */
 @Composable
 fun RecipeStepPhotoField(
@@ -75,28 +75,45 @@ fun RecipeStepPhotoField(
     // steps as they are now, so text typed meanwhile is not overwritten.
     val currentOnImageUrlChange by rememberUpdatedState(onImageUrlChange)
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var reviewCandidate by remember { mutableStateOf<Bitmap?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val uploadFailed = stringResource(R.string.recipe_edit_step_photo_failed)
     val readFailed = stringResource(R.string.photo_read_failed)
 
-    fun upload(uri: Uri) {
+    fun load(uri: Uri) {
+        errorMessage = null
+        scope.launch {
+            try {
+                reviewCandidate = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorReporter.captureException(e)
+                errorMessage = readFailed
+            }
+        }
+    }
+
+    fun upload(
+        photo: Bitmap,
+        transparent: Boolean,
+    ) {
+        reviewCandidate = null
         isUploading = true
         errorMessage = null
         scope.launch {
             try {
-                val bytes =
+                val encoded =
                     withContext(Dispatchers.IO) {
-                        requireUprightBitmap(context, uri)
-                            .toJpegBytes(maxDimension = STEP_MAX_DIMENSION, quality = STEP_UPLOAD_QUALITY)
+                        photo.toUploadBytes(STEP_MAX_DIMENSION, STEP_UPLOAD_QUALITY, transparent)
                     }
-                currentOnImageUrlChange(uploader.store(bytes, purpose = RECIPE_STEP_PURPOSE))
+                currentOnImageUrlChange(
+                    uploader.store(encoded.bytes, purpose = RECIPE_STEP_PURPOSE, format = encoded.format),
+                )
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: ImageDecodeException) {
-                errorReporter.captureException(e)
-                errorMessage = readFailed
             } catch (e: Exception) {
                 errorReporter.captureException(e)
                 errorMessage = uploadFailed
@@ -107,11 +124,11 @@ fun RecipeStepPhotoField(
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) upload(uri)
+            if (uri != null) load(uri)
         }
     val takePicture =
         rememberCameraCaptureLauncher { success ->
-            cameraUri?.takeIf { success }?.let { upload(it) }
+            cameraUri?.takeIf { success }?.let { load(it) }
         }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -157,5 +174,12 @@ fun RecipeStepPhotoField(
         errorMessage?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
+    }
+    reviewCandidate?.let { photo ->
+        PhotoReviewDialog(
+            bitmap = photo,
+            onCancel = { reviewCandidate = null },
+            onConfirm = { reviewed, transparent -> upload(reviewed, transparent) },
+        )
     }
 }

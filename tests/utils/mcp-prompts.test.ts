@@ -123,6 +123,20 @@ describe('MCP prompts', () => {
 		expect(text).toContain('find_food_by_barcode');
 	});
 
+	test('log_meal falls back to a quick entry instead of creating a food for plain descriptions', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({
+			name: 'log_meal',
+			arguments: { description: 'two eggs and toast' }
+		});
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('search_foods');
+		expect(text).toContain('nutrition-label photo');
+		expect(text).toContain('never create a food');
+		expect(text).toContain('quick entry');
+		expect(text).not.toContain('otherwise create_food');
+	});
+
 	test('mealType completes from the default meal types', async () => {
 		const client = await connect();
 		const result = await client.complete({

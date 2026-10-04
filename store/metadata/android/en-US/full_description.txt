@@ -16,7 +16,7 @@ LOG FAST
 • Your own food database, favorites and recently used entries — repeat meals with one tap
 • Recipe builder — combine ingredients once, then log a serving with automatically calculated nutrition
 • Home-screen widgets and a Wear OS app for logging with one tap
-• AI-assisted logging — connect Claude or another MCP client to your diary and just say what you ate: foods are found, portions estimated and logged for you
+• AI-assisted logging — connect Claude, ChatGPT or another MCP client to your diary and just say what you ate: foods are found, portions estimated and logged for you
 
 INSIGHTS THAT ACTUALLY HELP
 • Weekly and monthly statistics

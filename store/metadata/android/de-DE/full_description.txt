@@ -16,7 +16,7 @@ SCHNELL EINTRAGEN
 • Eigene Lebensmitteldatenbank, Favoriten und zuletzt genutzte Einträge – wiederkehrende Mahlzeiten mit einem Tipp
 • Rezept-Baukasten – Zutaten einmal kombinieren, danach eine Portion mit automatisch berechneten Nährwerten eintragen
 • Homescreen-Widgets und eine Wear OS App zum Eintragen mit einem Tipp
-• KI-gestütztes Eintragen – verbinde Claude oder einen anderen MCP-Client mit deinem Tagebuch und sag einfach, was du gegessen hast: Lebensmittel werden gefunden, Portionen geschätzt und eingetragen
+• KI-gestütztes Eintragen – verbinde Claude, ChatGPT oder einen anderen MCP-Client mit deinem Tagebuch und sag einfach, was du gegessen hast: Lebensmittel werden gefunden, Portionen geschätzt und eingetragen
 
 AUSWERTUNGEN, DIE WIRKLICH HELFEN
 • Wochen- und Monatsstatistiken

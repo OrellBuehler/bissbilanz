@@ -2,28 +2,39 @@
 <p class="mb-6">
 	Bissbilanz exposes your diary as a remote MCP server, so an AI assistant can log and review your
 	data in plain language — search or create foods, log entries, check your progress, log weight or
-	supplements, and more. Open <strong>Settings → MCP</strong> to connect one.
+	supplements, and more. Open <strong>Settings → Connect an assistant</strong> in the app (or
+	<strong>Settings → MCP</strong> on the web) to connect one.
 </p>
-<p class="mb-3">Depending on the client you use:</p>
+<p class="mb-3">Depending on the assistant you use:</p>
 <ul class="mb-6 list-disc space-y-1 pl-6">
 	<li>
-		<strong>claude.ai</strong> (web, desktop or mobile) — Settings → Connectors → Add custom connector,
-		paste the server URL shown on the MCP settings page, connect and approve.
+		<strong>Claude</strong> (web, desktop or mobile) — tap <strong>Connect to Claude</strong>.
+		Claude opens with the Bissbilanz connector already filled in; confirm it, then approve access on
+		the Bissbilanz page. Once added, it also works in the Claude mobile apps.
 	</li>
 	<li>
-		<strong>Claude Code</strong> — copy the command shown on the MCP settings page, run it, then run
+		<strong>ChatGPT</strong> — web only for now, not in the ChatGPT phone app yet, and it needs a Plus
+		or Pro plan. On chatgpt.com open Settings → Security and login and turn on Developer mode, go to chatgpt.com/plugins,
+		click “+”, paste the server URL, choose CIMD as the OAuth method and create it. Approve access on
+		the Bissbilanz page, then enable Bissbilanz from the “+” menu in the message box.
+	</li>
+	<li>
+		<strong>Gemini</strong> — not available in Switzerland yet.
+	</li>
+	<li>
+		<strong>Claude Code</strong> — copy the command shown on the connect page, run it, then run
 		<code>/mcp</code> to sign in.
 	</li>
 	<li>
 		<strong>Other MCP clients</strong> — most support pasting the server URL directly. A client that
 		can't discover it that way can use the pre-registered client ID and secret under
-		<strong>Advanced</strong> on the same page.
+		<strong>Advanced</strong> on the web settings page.
 	</li>
 </ul>
 <p class="mb-6">
-	You approve each client once on a consent screen that names it and where it came from. Revoke
+	You approve each assistant once on a consent screen that names it and where it came from. Revoke
 	access at any time from <strong>Settings → MCP → Connected Applications</strong> — that drops every
-	token the client holds immediately.
+	token the assistant holds immediately.
 </p>
 
 <h2 class="mb-3 mt-8 text-xl font-semibold">What it can do</h2>

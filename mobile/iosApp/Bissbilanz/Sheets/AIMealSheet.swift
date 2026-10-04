@@ -48,6 +48,7 @@ struct AIMealSheet: View {
     @State private var showCamera = false
     @State private var isSendingToAssistant = false
     @State private var pendingTaskCount: Int?
+    @State private var showConnectAssistant = false
     @State private var detent: PresentationDetent = .medium
     /// Floor for both action labels, so a one-line title still fills the same
     /// box as a title that wraps. Scales with Dynamic Type because the wrapped
@@ -131,6 +132,15 @@ struct AIMealSheet: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button {
+                                detent = .large
+                                showConnectAssistant = true
+                            } label: {
+                                Label(L10n.connectAssistantTitle, systemImage: "link")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
 
                         HStack(spacing: 8) {
@@ -185,6 +195,9 @@ struct AIMealSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .navigationDestination(isPresented: $showConnectAssistant) {
+                ConnectAssistantView()
             }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker(

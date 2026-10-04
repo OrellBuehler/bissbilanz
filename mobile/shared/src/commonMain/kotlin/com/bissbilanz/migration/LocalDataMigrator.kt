@@ -982,7 +982,7 @@ class LocalDataMigrator(
         if (alreadyValid) return imageUrl
         val photo = localPhotoReader?.read(imageUrl) ?: return null
         return try {
-            api.uploadImage(photo.first, photo.second, purpose = purpose)
+            api.uploadImage(photo.first, photo.second, contentTypeFor(photo.first), purpose)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             // The photo is a nice-to-have; the food/recipe row is not.
@@ -990,6 +990,13 @@ class LocalDataMigrator(
             null
         }
     }
+
+    private fun contentTypeFor(fileName: String): String =
+        when (fileName.substringAfterLast('.', "").lowercase()) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            else -> "image/jpeg"
+        }
 
     private fun Food.toFoodCreate(): FoodCreate =
         FoodCreate(

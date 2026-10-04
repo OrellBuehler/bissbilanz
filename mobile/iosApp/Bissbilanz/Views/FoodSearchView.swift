@@ -972,7 +972,7 @@ struct LogFoodForm: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if showsDetailsLink {
                     NavigationLink {
-                        FoodDetailView(foodId: food.id, onLogged: onLogged)
+                        FoodDetailView(foodId: food.id, onLogged: onLogged, initialFood: food)
                     } label: {
                         Image(systemName: "info.circle")
                     }

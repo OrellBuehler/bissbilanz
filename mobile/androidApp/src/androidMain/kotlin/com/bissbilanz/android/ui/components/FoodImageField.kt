@@ -39,7 +39,7 @@ import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.requireUprightBitmap
-import com.bissbilanz.android.util.toJpegBytes
+import com.bissbilanz.android.util.toUploadBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -103,17 +103,20 @@ fun FoodImageField(
             cameraUri?.takeIf { success }?.let { load(it) }
         }
 
-    fun upload(cropped: Bitmap) {
+    fun upload(
+        cropped: Bitmap,
+        transparent: Boolean,
+    ) {
         cropCandidate = null
         isUploading = true
         errorMessage = null
         scope.launch {
             try {
-                val bytes =
+                val encoded =
                     withContext(Dispatchers.IO) {
-                        cropped.toJpegBytes(maxDimension = MAX_UPLOAD_DIMENSION, quality = UPLOAD_QUALITY)
+                        cropped.toUploadBytes(MAX_UPLOAD_DIMENSION, UPLOAD_QUALITY, transparent)
                     }
-                onImageUrlChange(uploader.store(bytes))
+                onImageUrlChange(uploader.store(encoded.bytes, format = encoded.format))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -188,7 +191,7 @@ fun FoodImageField(
         ImageCropDialog(
             bitmap = bitmap,
             onCancel = { cropCandidate = null },
-            onCropped = { upload(it) },
+            onCropped = { cropped, transparent -> upload(cropped, transparent) },
         )
     }
 }

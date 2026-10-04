@@ -2,10 +2,13 @@
 	import { onMount } from 'svelte';
 	import * as Sentry from '@sentry/sveltekit';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Alert from '$lib/components/ui/alert/index.js';
 	import AiTaskCaptureModal from '$lib/components/ai-tasks/AiTaskCaptureModal.svelte';
 	import AiTaskList from '$lib/components/ai-tasks/AiTaskList.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Bell from '@lucide/svelte/icons/bell';
+	import Plug from '@lucide/svelte/icons/plug';
+	import { api } from '$lib/api/client';
 	import { aiTaskService, type AiTask } from '$lib/services/ai-task-service.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -22,6 +25,7 @@
 		editingTask = task;
 		editOpen = true;
 	};
+	let mcpConnected = $state<boolean | null>(null);
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
@@ -33,6 +37,17 @@
 			? m.ai_tasks_page_description_device()
 			: m.ai_tasks_page_description()
 	);
+
+	const loadMcpStatus = async () => {
+		try {
+			const { data } = await api.GET('/api/mcp/status');
+			if (data) mcpConnected = data.connected;
+		} catch (err) {
+			if (!(typeof navigator !== 'undefined' && !navigator.onLine)) {
+				Sentry.captureException(err, { extra: { context: 'ai-tasks.mcp-status' } });
+			}
+		}
+	};
 
 	const requestNotifications = async () => {
 		try {
@@ -65,6 +80,7 @@
 		notificationPermission =
 			typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
 		preferencesService.refresh();
+		void loadMcpStatus();
 		await aiTaskService.refresh();
 		// Opening the list is what counts as reading it — posting a notification
 		// does not, so other devices still get to announce the same dismissal.
@@ -80,6 +96,19 @@
 			text={m.hint_ai_assistant_body()}
 			href="/help/ai-assistant"
 		/>
+	{/if}
+
+	{#if aiTaskProcessor === 'assistant' && mcpConnected === false}
+		<Alert.Root class="border-amber-500/40 bg-amber-500/5" data-testid="ai-tasks-not-connected">
+			<Plug class="text-amber-600 dark:text-amber-400" />
+			<Alert.Title>{m.ai_tasks_not_connected_title()}</Alert.Title>
+			<Alert.Description>
+				<p>{m.ai_tasks_not_connected_body()}</p>
+				<Button href="/settings/mcp" size="sm" variant="outline" class="mt-2">
+					{m.ai_tasks_not_connected_action()}
+				</Button>
+			</Alert.Description>
+		</Alert.Root>
 	{/if}
 
 	<div class="flex items-center justify-between gap-2">
