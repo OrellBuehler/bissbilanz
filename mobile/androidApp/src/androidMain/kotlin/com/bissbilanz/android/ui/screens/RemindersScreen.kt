@@ -292,9 +292,10 @@ private fun SupplementReminderRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(supplement.name, style = MaterialTheme.typography.bodyMedium)
+        Text(supplement.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(
             supplement.reminderTimes.orEmpty().joinToString(", "),
+            modifier = Modifier.padding(start = 8.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

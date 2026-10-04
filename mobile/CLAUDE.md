@@ -23,6 +23,8 @@ cd mobile && ./gradlew :shared:ktlintCheck :androidApp:ktlintCheck
 - Use Ktor for HTTP client, kotlinx.serialization for JSON
 - Use SQLDelight for local database on Android/shared; the iOS app uses SwiftData for its local store instead (with CloudKit mirroring in anonymous/local mode)
 - Kotlin formatting enforced by ktlint via pre-commit hook
+- Android UI must hold up in German on a ~411dp screen: a choice with long or translatable labels uses a dropdown (`ChoiceDropdown` in `ui/components/SettingRows.kt`), not segmented buttons or tabs; segmented buttons are for short, fixed labels (numbers, "7d", "Aus"). Labels in button rows must be single line (`maxLines = 1`, short wording), paired buttons must stay the same height, and in a row of label + value the label gets `weight(1f)` so it never squeezes the value
+- Dates on Android are numeric and localized (`formatShortDate` / `formatIsoDate` / `dayLabel` in `util/DateFormatUtils.kt`); never print an ISO `yyyy-MM-dd` string or a long month name in a button or header
 - Every feature ships on Android and iOS (and Wear OS / Apple Watch where relevant): implement both or say explicitly in the PR which one is deferred
 - The API is additive-only and the server deploys before the mobile builds that use a new field or endpoint — see `src/routes/api/CLAUDE.md`
 
