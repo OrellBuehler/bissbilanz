@@ -35,12 +35,12 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.FoodPickerSheet
 import com.bissbilanz.android.ui.components.ForceDeleteDialog
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.MergeConfirmDialog
-import com.bissbilanz.android.ui.components.MergeTargetSearchDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.theme.*
@@ -236,10 +236,12 @@ fun FoodDetailScreen(
     }
 
     if (showMergeTargetPicker && food != null) {
-        MergeTargetSearchDialog(
-            excludeId = foodId,
+        FoodPickerSheet(
+            title = stringResource(R.string.food_merge_pick_keeper),
+            excludeIds = setOf(foodId),
+            allowOpenFoodFacts = false,
             onDismiss = { showMergeTargetPicker = false },
-            onSelected = { target ->
+            onFoodSelected = { target ->
                 showMergeTargetPicker = false
                 mergeTarget = target
             },

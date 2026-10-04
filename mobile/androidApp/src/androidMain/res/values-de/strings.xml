@@ -645,8 +645,6 @@
 
     <!-- Food merge (shared by the food detail screen and the duplicates screen) -->
     <string name="food_merge_pick_keeper">Behaltenes Lebensmittel wählen</string>
-    <string name="food_merge_search_placeholder">Lebensmittel zum Zusammenführen suchen…</string>
-    <string name="food_merge_no_results">Keine passenden Lebensmittel.</string>
     <string name="food_merge_confirm_title">Lebensmittel zusammenführen</string>
     <string name="food_merge_confirm_message">Dadurch wird «%1$s» mit «%2$s» zusammengeführt. «%1$s» wird dauerhaft gelöscht, und alle Tagebucheinträge, Rezepte oder Labels, die darauf verweisen, werden zu «%2$s» verschoben. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="food_merge_confirm">Zusammenführen</string>
@@ -720,7 +718,6 @@
     <string name="recipe_edit_load_failed">Rezept konnte nicht geladen werden</string>
     <string name="recipe_edit_save_failed">Rezept konnte nicht gespeichert werden</string>
     <string name="recipe_edit_add_ingredient">Zutat hinzufügen</string>
-    <string name="recipe_edit_search_food">Lebensmittel suchen</string>
     <string name="recipe_edit_edit_title">Rezept bearbeiten</string>
     <string name="recipe_edit_create_title">Rezept erstellen</string>
     <string name="recipe_edit_name">Rezeptname *</string>
@@ -1289,7 +1286,6 @@
     <string name="food_form_macro_basis_footer">Werte pro 100 werden beim Speichern auf eine Portion umgerechnet.</string>
 
     <!-- Open Food Facts import failure (food search and recipe ingredients) -->
-    <string name="food_search_off_add_failed">Hinzufügen von Open Food Facts fehlgeschlagen</string>
 
     <!-- Dashboard widgets -->
     <string name="dashboard_calorie_trend_title">Kalorienverlauf</string>
@@ -1394,10 +1390,7 @@
     <string name="food_package_using">Nutze %1$s</string>
     <string name="food_package_using_note">Wird nicht hinzugefügt, stattdessen kommt dein Lebensmittel zum Einsatz.</string>
     <string name="food_package_undo_mapping">Rückgängig</string>
-    <string name="food_package_search_own">Deine Lebensmittel durchsuchen</string>
     <string name="food_package_search_own_hint">Es werden nur Lebensmittel mit kompatibler Einheit (z. B. %1$s) gezeigt.</string>
-    <string name="food_package_search_own_empty">Kein passendes Lebensmittel mit kompatibler Einheit.</string>
-    <string name="food_package_search_cancel">Abbrechen</string>
     <string name="food_package_show_more">Mehr anzeigen</string>
     <string name="food_package_error_not_a_package">Das ist kein Bissbilanz-Lebensmittelpaket.</string>
     <string name="food_package_error_account_export">Das ist ein vollständiger Konto-Export und kein Lebensmittelpaket. Importiere ihn im Web unter Einstellungen → Daten importieren.</string>

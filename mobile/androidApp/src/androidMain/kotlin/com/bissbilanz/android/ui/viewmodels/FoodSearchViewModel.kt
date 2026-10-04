@@ -63,6 +63,12 @@ class FoodSearchViewModel(
     private val _isResolvingOff = MutableStateFlow(false)
     val isResolvingOff: StateFlow<Boolean> = _isResolvingOff.asStateFlow()
 
+    /**
+     * False for pickers whose result must already be one of the user's own foods
+     * (merge keeper, package mapping): an Open Food Facts hit would create a food.
+     */
+    var openFoodFactsFallback = true
+
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
@@ -136,7 +142,7 @@ class FoodSearchViewModel(
                     _isSearching.value = false
                     // Mirrors the web FoodPicker: only fall back to Open Food Facts
                     // when the user's own database has few matches.
-                    if (results.size < OFF_FALLBACK_THRESHOLD) {
+                    if (openFoodFactsFallback && results.size < OFF_FALLBACK_THRESHOLD) {
                         _isSearchingOff.value = true
                         try {
                             _offResults.value = foodRepo.searchOpenFoodFacts(newQuery)
@@ -149,6 +155,18 @@ class FoodSearchViewModel(
                     _offResults.value = emptyList()
                 }
             }
+    }
+
+    /** Back to an empty search on the All tab, for a picker sheet reopened on a kept instance. */
+    fun resetSearch() {
+        searchJob?.cancel()
+        _query.value = ""
+        _searchResults.value = emptyList()
+        _offResults.value = emptyList()
+        _isSearching.value = false
+        _isSearchingOff.value = false
+        _selectedTab.value = TAB_ALL
+        loadAllFoods()
     }
 
     fun selectTab(index: Int) {
