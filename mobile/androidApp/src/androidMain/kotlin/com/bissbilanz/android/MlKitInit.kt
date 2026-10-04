@@ -6,6 +6,7 @@ import com.google.mlkit.common.internal.CommonComponentRegistrar
 import com.google.mlkit.common.sdkinternal.MlKitContext
 import com.google.mlkit.vision.barcode.internal.BarcodeRegistrar
 import com.google.mlkit.vision.common.internal.VisionCommonRegistrar
+import com.google.mlkit.vision.segmentation.subject.internal.SubjectSegmentationRegistrar
 import com.google.mlkit.vision.text.internal.TextRegistrar
 
 /**
@@ -35,11 +36,12 @@ object MlKitInit {
                     VisionCommonRegistrar(),
                     BarcodeRegistrar(),
                     TextRegistrar(),
+                    SubjectSegmentationRegistrar(),
                 ),
             )
         } catch (e: Exception) {
-            // Without this the scanner and label OCR throw "MlKitContext has not been
-            // initialized" at getClient(), which their screens already show and report.
+            // Without this the scanner, label OCR and background removal throw "MlKitContext
+            // has not been initialized" at getClient(), which their screens already show and report.
             Failures.report(e)
         }
     }

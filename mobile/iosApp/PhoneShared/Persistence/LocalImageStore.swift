@@ -79,8 +79,12 @@ enum LocalImageStore {
     /// Stores a locally-captured photo and returns the `file://` URL to put on
     /// the row — the same shape the account downgrade produces, which is what
     /// lets `LocalDataMigrator` re-upload it if the user later signs in.
-    static func writeLocalPhoto(_ data: Data) -> String? {
-        guard let url = write(data, named: "local-\(UUID().uuidString).jpg") else { return nil }
+    ///
+    /// `fileExtension` is `png` for a transparent cut-out and `jpg` otherwise;
+    /// re-upload reads it back from the filename to pick the MIME type.
+    static func writeLocalPhoto(_ data: Data, fileExtension: String = "jpg") -> String? {
+        let ext = fileExtension.isEmpty ? "jpg" : fileExtension
+        guard let url = write(data, named: "local-\(UUID().uuidString).\(ext)") else { return nil }
         return url.absoluteString
     }
 

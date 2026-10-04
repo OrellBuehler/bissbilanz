@@ -333,6 +333,10 @@
     <string name="food_image_crop_cancel">Cancel</string>
     <string name="food_image_crop_confirm">Use photo</string>
     <string name="food_image_crop_hint">Pinch to zoom, drag to reposition. The square area is what gets saved.</string>
+    <string name="cutout_remove_background">Remove background</string>
+    <string name="cutout_no_subject">No subject found</string>
+    <string name="cutout_downloading">Downloading model…</string>
+    <string name="cutout_failed">Couldn\'t remove the background</string>
 
     <!-- Nutrition label scanner -->
     <string name="scan_label">Scan Label</string>

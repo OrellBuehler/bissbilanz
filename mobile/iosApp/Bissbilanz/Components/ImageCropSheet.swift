@@ -11,14 +11,24 @@ private let cropWindowInset: CGFloat = 16
 /// user's framing would not survive. Locking the ratio makes what they see what
 /// they get. The Android `ImageCropDialog` is the same interaction.
 struct ImageCropSheet: View {
-    let image: UIImage
     let onCancel: () -> Void
-    let onCropped: (UIImage) -> Void
+    /// The cropped square, and whether it is a transparent cut-out (which has
+    /// to be encoded as PNG: JPEG would turn the transparency black).
+    let onCropped: (UIImage, Bool) -> Void
 
+    @State private var removal: BackgroundRemoval
     @State private var scale: CGFloat = 1
     @State private var committedScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var committedOffset: CGSize = .zero
+
+    init(image: UIImage, onCancel: @escaping () -> Void, onCropped: @escaping (UIImage, Bool) -> Void) {
+        _removal = State(initialValue: BackgroundRemoval(original: image))
+        self.onCancel = onCancel
+        self.onCropped = onCropped
+    }
+
+    private var image: UIImage { removal.displayed }
 
     var body: some View {
         NavigationStack {
@@ -29,7 +39,11 @@ struct ImageCropSheet: View {
                 let baseScale = max(window / image.size.width, window / image.size.height)
 
                 ZStack {
-                    Color.black
+                    if removal.isShowingCutout {
+                        CutoutCheckerboard()
+                    } else {
+                        Color.black
+                    }
                     // Unclipped, so the part of the photo that falls outside
                     // the square stays visible under the dimming — the user
                     // sees what they are cutting away, not just what remains.
@@ -84,15 +98,34 @@ struct ImageCropSheet: View {
                             .onEnded { _ in committedOffset = offset }
                     )
                 )
+                .onChange(of: removal.isShowingCutout) {
+                    scale = 1
+                    committedScale = 1
+                    offset = .zero
+                    committedOffset = .zero
+                }
+                .overlay {
+                    if removal.isWorking {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                            .padding(20)
+                            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
                 .overlay(alignment: .bottom) {
-                    Label(L10n.cropPhotoHint, systemImage: "hand.draw")
-                        .font(.footnote)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.black.opacity(0.6), in: Capsule())
-                        .padding(.bottom, 16)
-                        .allowsHitTesting(false)
+                    VStack(spacing: 8) {
+                        BackgroundRemovalMessage(removal: removal)
+                        BackgroundRemovalToggle(removal: removal)
+                        Label(L10n.cropPhotoHint, systemImage: "hand.draw")
+                            .font(.footnote)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.black.opacity(0.6), in: Capsule())
+                            .allowsHitTesting(false)
+                    }
+                    .padding(.bottom, 16)
                 }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -100,8 +133,12 @@ struct ImageCropSheet: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.useThisPhoto) {
-                            onCropped(crop(window: window, baseScale: baseScale))
+                            onCropped(
+                                crop(window: window, baseScale: baseScale),
+                                removal.isShowingCutout
+                            )
                         }
+                        .disabled(removal.isWorking)
                     }
                 }
             }

@@ -328,7 +328,9 @@ final class RecipeRepository {
     private static func duplicatedStepPhoto(_ imageUrl: String?) -> String? {
         guard let imageUrl, imageUrl.hasPrefix("file://") else { return imageUrl }
         guard let photo = LocalImageStore.localPhoto(for: imageUrl) else { return nil }
-        return LocalImageStore.writeLocalPhoto(photo.data)
+        return LocalImageStore.writeLocalPhoto(
+            photo.data, fileExtension: (photo.filename as NSString).pathExtension
+        )
     }
 
     /// A list-endpoint copy carries neither `ingredients` nor `steps` (only

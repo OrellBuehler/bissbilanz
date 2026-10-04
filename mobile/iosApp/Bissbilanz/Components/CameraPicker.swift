@@ -60,6 +60,7 @@ extension UIImage {
     func uprightened() -> UIImage {
         guard imageOrientation != .up else { return self }
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = scale
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: size))
@@ -67,14 +68,46 @@ extension UIImage {
     }
 
     func downscaledJPEGData(maxDimension: CGFloat, quality: CGFloat) -> Data? {
+        downscaledRendering(maxDimension: maxDimension, opaque: true).jpegData(compressionQuality: quality)
+    }
+
+    /// Same downscale as `downscaledJPEGData`, but lossless and with the
+    /// alpha channel kept, for a cut-out whose transparent surroundings JPEG
+    /// would turn black.
+    func downscaledPNGData(maxDimension: CGFloat) -> Data? {
+        downscaledRendering(maxDimension: maxDimension, opaque: false).pngData()
+    }
+
+    /// PNG when the photo carries a transparent cut-out, JPEG otherwise.
+    /// Decided by the caller rather than sniffed from the pixels: every image
+    /// redrawn through a renderer has an alpha channel, opaque or not.
+    func downscaledEncodedPhoto(maxDimension: CGFloat, quality: CGFloat, transparent: Bool) -> EncodedPhoto? {
+        if transparent {
+            return downscaledPNGData(maxDimension: maxDimension).map { EncodedPhoto(data: $0, isPNG: true) }
+        }
+        return downscaledJPEGData(maxDimension: maxDimension, quality: quality)
+            .map { EncodedPhoto(data: $0, isPNG: false) }
+    }
+
+    private func downscaledRendering(maxDimension: CGFloat, opaque: Bool) -> UIImage {
         let longestSide = max(size.width, size.height)
         let scale = longestSide > maxDimension ? maxDimension / longestSide : 1
         let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = 1
-        let rendered = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+        format.opaque = opaque
+        return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: targetSize))
         }
-        return rendered.jpegData(compressionQuality: quality)
     }
+}
+
+/// An encoded photo plus the filename and MIME type its upload needs.
+struct EncodedPhoto {
+    let data: Data
+    let isPNG: Bool
+
+    var fileExtension: String { isPNG ? "png" : "jpg" }
+    var filename: String { "food.\(fileExtension)" }
 }
