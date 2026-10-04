@@ -111,6 +111,7 @@ class SettingsViewModelTest {
                 syncManager = syncManager,
                 errorReporter = errorReporter,
                 scope = CoroutineScope(testDispatcher),
+                mcpConnectionStore = mockk(relaxed = true),
             ),
         )
 

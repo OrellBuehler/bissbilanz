@@ -98,6 +98,21 @@ class McpConnectionStoreTest {
         }
 
     @Test
+    fun clearForgetsTheCachedAnswerForTheNextAccount() =
+        runTest {
+            val store = store()
+            store.refresh { McpConnection(true, listOf(McpClientInfo("Claude", null))) }
+
+            store.clear()
+
+            assertFalse(store.state.value.connected)
+            assertEquals(emptyList(), store.state.value.clientNames)
+            val restarted = McpConnectionStore(context).state.value
+            assertFalse(restarted.connected)
+            assertEquals(emptyList(), restarted.clientNames)
+        }
+
+    @Test
     fun aRefreshReportingDisconnectedClearsTheCache() =
         runTest {
             val store = store()

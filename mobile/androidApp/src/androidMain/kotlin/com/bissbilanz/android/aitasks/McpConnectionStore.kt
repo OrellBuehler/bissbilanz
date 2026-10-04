@@ -54,6 +54,16 @@ class McpConnectionStore(
         _state.value = updated
     }
 
+    /**
+     * Forgets the cached answer, back to the fail-closed default. Called wherever the
+     * account's other local data goes (sign-out, account deletion, switching to Local
+     * mode) so a different account never sees the previous one's assistants.
+     */
+    fun clear() {
+        prefs.edit().clear().apply()
+        _state.value = McpConnectionState()
+    }
+
     private companion object {
         const val KEY_CONNECTED = "connected"
         const val KEY_CLIENTS = "client_names"

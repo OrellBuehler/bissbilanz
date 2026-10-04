@@ -154,6 +154,7 @@ class BissbilanzApplication :
                         syncManager = get(),
                         errorReporter = get(),
                         scope = get(),
+                        mcpConnectionStore = get(),
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }
@@ -240,8 +241,10 @@ class BissbilanzApplication :
         }
         koin.get<FoodRepository>().onImageOrphaned = evictImage
         koin.get<RecipeRepository>().onImageOrphaned = evictImage
+        val mcpConnectionStore = koin.get<McpConnectionStore>()
         koin.get<LocalDataWiper>().onWiped = {
             LocalImageStore.clear(this@BissbilanzApplication)
+            mcpConnectionStore.clear()
         }
 
         koin.get<FoodRepository>().onFoodChanged = {
