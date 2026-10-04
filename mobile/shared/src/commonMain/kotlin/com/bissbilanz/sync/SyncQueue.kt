@@ -216,13 +216,20 @@ class SyncQueue(
         }
     }
 
-    /** Puts a parked change back in line for the next drain; null retries every parked change. */
+    /**
+     * Puts a parked change back in line for the next drain; null retries every parked change.
+     * Each gets a fresh idempotency key (the server replays a rejection stored under the old
+     * one) and keeps its client edit time, so last-write-wins still compares the original edit.
+     */
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun unpark(id: Long? = null) {
         mutex.withLock {
-            if (id == null) {
-                db.bissbilanzDatabaseQueries.unparkAllSyncQueue()
-            } else {
-                db.bissbilanzDatabaseQueries.unparkSyncQueueItem(id)
+            val queries = db.bissbilanzDatabaseQueries
+            queries.transaction {
+                val ids = if (id == null) queries.selectParkedSyncQueueIds().executeAsList() else listOf(id)
+                for (parkedId in ids) {
+                    queries.unparkSyncQueueItem(Uuid.random().toString(), parkedId)
+                }
             }
         }
         _enqueueSignal.tryEmit(Unit)
