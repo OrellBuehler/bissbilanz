@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ChartColumn from '@lucide/svelte/icons/chart-column';
 	import ScanBarcode from '@lucide/svelte/icons/scan-barcode';
-	import ScanText from '@lucide/svelte/icons/scan-text';
 	import Bot from '@lucide/svelte/icons/bot';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
 	import CookingPot from '@lucide/svelte/icons/cooking-pot';
@@ -22,6 +21,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import Bell from '@lucide/svelte/icons/bell';
 	import CopyCheck from '@lucide/svelte/icons/copy-check';
+	import Scissors from '@lucide/svelte/icons/scissors';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Seo from '$lib/components/Seo.svelte';
 	import StripeBuyButton from '$lib/components/StripeBuyButton.svelte';
@@ -52,9 +52,10 @@
 			desc: m.landing_feature_barcode_desc
 		},
 		{
-			icon: ScanText,
-			title: m.landing_feature_label_title,
-			desc: m.landing_feature_label_desc
+			icon: Scissors,
+			title: m.landing_feature_cutout_title,
+			desc: m.landing_feature_cutout_desc,
+			platform: m.landing_platform_mobile
 		},
 		{ icon: Bot, title: m.landing_feature_ai_title, desc: m.landing_feature_ai_desc },
 		{
