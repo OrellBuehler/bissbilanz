@@ -9,10 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -181,26 +178,18 @@ fun ReminderEditSheet(
                     }
                 }
 
-                Text(stringResource(R.string.reminders_kind), style = MaterialTheme.typography.labelLarge)
                 val kindOptions =
                     listOf(
-                        Triple(Reminder.Kind.weight, R.string.reminders_kind_weight, Icons.Default.MonitorWeight),
-                        Triple(Reminder.Kind.meal, R.string.reminders_kind_meal, Icons.Default.Restaurant),
-                        Triple(Reminder.Kind.sleep, R.string.reminders_kind_sleep, Icons.Default.Bedtime),
+                        stringResource(R.string.reminders_kind_weight) to Reminder.Kind.weight,
+                        stringResource(R.string.reminders_kind_meal) to Reminder.Kind.meal,
+                        stringResource(R.string.reminders_kind_sleep) to Reminder.Kind.sleep,
                     )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    kindOptions.forEachIndexed { index, (option, labelRes, icon) ->
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index, kindOptions.size),
-                            onClick = { kind = option },
-                            selected = kind == option,
-                        ) {
-                            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(labelRes), style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    label = stringResource(R.string.reminders_kind),
+                    selectedLabel = kindOptions.first { it.second == kind }.first,
+                    options = kindOptions,
+                    onSelect = { kind = it },
+                )
 
                 if (kind == Reminder.Kind.weight && healthPrefs.readWeight) {
                     Text(
