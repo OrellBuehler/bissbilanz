@@ -47,6 +47,7 @@ extension UIImage {
         if imageOrientation == .up, factor == 1, scale == 1 { return self }
         let target = CGSize(width: (size.width * factor).rounded(), height: (size.height * factor).rounded())
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = 1
         return UIGraphicsImageRenderer(size: target, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: target))
@@ -72,6 +73,7 @@ extension UIImage {
     nonisolated func paddedToSquare(margin: CGFloat) -> UIImage {
         let canvas = Self.squareCanvas(for: size, margin: margin)
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = scale
         format.opaque = false
         let side = CGSize(width: canvas.side, height: canvas.side)

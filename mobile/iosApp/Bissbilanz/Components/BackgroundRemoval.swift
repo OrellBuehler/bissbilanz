@@ -58,7 +58,7 @@ struct BackgroundRemovalToggle: View {
 
     var body: some View {
         Toggle(isOn: Binding(
-            get: { removal.isShowingCutout },
+            get: { removal.isWorking || removal.isShowingCutout },
             set: { show in Task { await removal.setShowingCutout(show) } }
         )) {
             Label(L10n.removeBackground, systemImage: "wand.and.stars")

@@ -60,6 +60,7 @@ extension UIImage {
     func uprightened() -> UIImage {
         guard imageOrientation != .up else { return self }
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = scale
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: size))
@@ -93,6 +94,7 @@ extension UIImage {
         let scale = longestSide > maxDimension ? maxDimension / longestSide : 1
         let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = 1
         format.opaque = opaque
         return UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in

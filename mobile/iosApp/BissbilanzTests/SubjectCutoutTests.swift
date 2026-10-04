@@ -113,6 +113,7 @@ struct SubjectCutoutTests {
         #expect(BissbilanzAPI.imageMimeType(forFilename: "food.png") == "image/png")
         #expect(BissbilanzAPI.imageMimeType(forFilename: "local-1.PNG") == "image/png")
         #expect(BissbilanzAPI.imageMimeType(forFilename: "food.jpg") == "image/jpeg")
+        #expect(BissbilanzAPI.imageMimeType(forFilename: "local-1.webp") == "image/webp")
         #expect(BissbilanzAPI.imageMimeType(forFilename: "photo") == "image/jpeg")
     }
 
@@ -123,5 +124,35 @@ struct SubjectCutoutTests {
         let decoded = try #require(UIImage(data: data))
         let corner = try pixel(of: decoded, x: 0, y: 0)
         #expect(corner[0] > 240 && corner[1] > 240 && corner[2] > 240)
+    }
+
+    @Test("Importing a package photo keeps a PNG cut-out's bytes and transparency")
+    func importKeepsPNG() throws {
+        let cutout = solidImage(width: 40, height: 40).paddedToSquare(margin: 0.5)
+        let png = try #require(cutout.pngData())
+        let imported = try #require(PackageImageCodec.importable(png))
+        #expect(imported.ext == "png")
+        #expect(imported.data == png)
+        let decoded = try #require(UIImage(data: imported.data))
+        #expect(try pixel(of: decoded, x: 0, y: 0)[3] == 0)
+    }
+
+    @Test("Importing a package photo keeps a JPEG as is and rejects non-images")
+    func importKeepsJPEGAndRejectsGarbage() throws {
+        let jpeg = try #require(solidImage(width: 40, height: 40).jpegData(compressionQuality: 0.9))
+        let imported = try #require(PackageImageCodec.importable(jpeg))
+        #expect(imported.ext == "jpg")
+        #expect(imported.data == jpeg)
+        #expect(PackageImageCodec.importable(Data("not an image".utf8)) == nil)
+    }
+
+    @Test("Importing an oversized package photo downscales it to a JPEG")
+    func importDownscalesOversized() throws {
+        let png = try #require(solidImage(width: 5000, height: 100).pngData())
+        let imported = try #require(PackageImageCodec.importable(png))
+        #expect(imported.ext == "jpg")
+        let decoded = try #require(UIImage(data: imported.data))
+        let longest = max(decoded.size.width * decoded.scale, decoded.size.height * decoded.scale)
+        #expect(longest <= 4096)
     }
 }

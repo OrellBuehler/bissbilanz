@@ -8,8 +8,9 @@ import UIKit
 protocol PackageImageStore {
     func data(forImageUrl imageUrl: String) -> Data?
     func size(forImageUrl imageUrl: String) -> Int?
-    /// Stores a JPEG and returns the image URL to put on the food or recipe row.
-    func save(jpeg: Data) -> String?
+    /// Stores an image under its own extension and returns the image URL to put on
+    /// the food or recipe row.
+    func save(_ data: Data, fileExtension: String) -> String?
     func remove(_ imageUrl: String)
 }
 
@@ -24,8 +25,8 @@ struct LocalPackageImageStore: PackageImageStore {
         return try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize
     }
 
-    func save(jpeg: Data) -> String? {
-        LocalImageStore.writeLocalPhoto(jpeg)
+    func save(_ data: Data, fileExtension: String) -> String? {
+        LocalImageStore.writeLocalPhoto(data, fileExtension: fileExtension)
     }
 
     func remove(_ imageUrl: String) {
@@ -36,6 +37,8 @@ struct LocalPackageImageStore: PackageImageStore {
 enum PackageImageCodec {
     private static let maxExportDimension = 1600
     private static let thumbnailDimension = 96
+    private static let maxImportPixels = 25_000_000
+    private static let maxImportDimension = 4096
 
     /// The file extension of a format a package may carry (`webp`, `jpg`, `png`),
     /// sniffed from the bytes rather than trusted from a name.
@@ -63,7 +66,27 @@ enum PackageImageCodec {
         return ("jpg", scaled)
     }
 
-    /// A JPEG for the local store, whatever format the package carried it in.
+    /// A package photo for the local store: the original bytes when they are a known,
+    /// decodable format of a sane size (so a cut-out keeps its transparency), otherwise
+    /// a downscaled JPEG. Nil when the bytes are not an image.
+    static func importable(_ data: Data) -> (ext: String, data: Data)? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0
+        else { return nil }
+        if let ext = format(of: data), width * height <= maxImportPixels,
+           max(width, height) <= maxImportDimension
+        {
+            return (ext, data)
+        }
+        guard let scaled = jpeg(from: data, maxDimension: maxImportDimension) else { return nil }
+        return ("jpg", scaled)
+    }
+
+    /// A JPEG, flattened onto white, whatever format the package carried it in.
     static func jpeg(from data: Data, maxDimension: Int? = nil, quality: CGFloat = 0.85) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         if let maxDimension {
@@ -86,6 +109,7 @@ enum PackageImageCodec {
     /// usually is.
     static func flattenedJPEG(_ image: UIImage, quality: CGFloat) -> Data? {
         let format = UIGraphicsImageRendererFormat.default()
+        format.preferredRange = .standard
         format.scale = image.scale
         format.opaque = true
         let flattened = UIGraphicsImageRenderer(size: image.size, format: format).image { context in

@@ -23,7 +23,10 @@ extension BissbilanzAPI {
     }
 
     nonisolated static func imageMimeType(forFilename filename: String) -> String {
-        filename.lowercased().hasSuffix(".png") ? "image/png" : "image/jpeg"
+        let name = filename.lowercased()
+        if name.hasSuffix(".png") { return "image/png" }
+        if name.hasSuffix(".webp") { return "image/webp" }
+        return "image/jpeg"
     }
 
     /// Attaches or, with a nil `imageUrl`, removes a food's image.

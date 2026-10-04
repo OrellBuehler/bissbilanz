@@ -196,7 +196,10 @@ fun ImageCropDialog(
                 TextButton(onClick = onCancel) {
                     Text(stringResource(R.string.food_image_crop_cancel), color = Color.White)
                 }
-                Button(onClick = { onCropped(cropSquare(shown, window, baseScale, scale, offsetX, offsetY), cutout.transparent) }) {
+                Button(
+                    onClick = { onCropped(cropSquare(shown, window, baseScale, scale, offsetX, offsetY), cutout.transparent) },
+                    enabled = !cutout.busy,
+                ) {
                     Text(stringResource(R.string.food_image_crop_confirm))
                 }
             }

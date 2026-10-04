@@ -3,9 +3,12 @@ package com.bissbilanz.android.ui.components
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,8 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
-import com.bissbilanz.android.util.cutOutSubject
+import com.bissbilanz.android.util.ensureSubjectModel
 import com.bissbilanz.android.util.isSubjectCutoutSupported
+import com.bissbilanz.android.util.segmentSubject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -83,7 +87,9 @@ class CutoutState(
         scope.launch {
             phase = CutoutPhase.Segmenting
             try {
-                val result = cutOutSubject(context, source) { phase = CutoutPhase.Downloading }
+                ensureSubjectModel(context) { phase = CutoutPhase.Downloading }
+                phase = CutoutPhase.Segmenting
+                val result = segmentSubject(source)
                 if (result == null) {
                     noSubject = true
                 } else {
@@ -145,7 +151,16 @@ fun CutoutToggle(
                 else -> null
             }
         status?.let { (text, color) ->
-            Text(text, style = MaterialTheme.typography.bodySmall, color = color, textAlign = TextAlign.Center)
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+            )
         }
     }
 }

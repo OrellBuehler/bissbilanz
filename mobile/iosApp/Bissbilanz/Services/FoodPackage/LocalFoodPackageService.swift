@@ -533,7 +533,9 @@ final class LocalFoodPackageService {
                 issues.append(PackageIssue(ref: job.ref, message: "\"\(job.name)\": image missing from the package"))
                 continue
             }
-            guard let jpeg = PackageImageCodec.jpeg(from: bytes), let url = images.save(jpeg: jpeg) else {
+            guard let image = PackageImageCodec.importable(bytes),
+                  let url = images.save(image.data, fileExtension: image.ext)
+            else {
                 issues.append(PackageIssue(ref: job.ref, message: "\"\(job.name)\": image could not be read"))
                 continue
             }

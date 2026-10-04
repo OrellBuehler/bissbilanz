@@ -16,12 +16,15 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmenter
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 const val CUTOUT_MARGIN_FRACTION = 0.06f
+private const val MODEL_INSTALL_TIMEOUT_MS = 60_000L
 private const val ALPHA_THRESHOLD = 8
 
 data class PixelBounds(
@@ -146,7 +149,11 @@ private suspend fun installAndAwait(
     try {
         val response = installClient.installModules(request).await()
         if (response.areModulesAlreadyInstalled()) return
-        finished.await()
+        try {
+            withTimeout(MODEL_INSTALL_TIMEOUT_MS) { finished.await() }
+        } catch (e: TimeoutCancellationException) {
+            throw IllegalStateException("Subject segmentation model install timed out", e)
+        }
     } finally {
         installClient.unregisterListener(listener)
     }
@@ -154,15 +161,10 @@ private suspend fun installAndAwait(
 
 /**
  * The foreground subject of [bitmap] cropped to its bounds and centred on a transparent
- * square with a margin, or null when no subject was found. Installs the model first if
- * needed, calling [onDownloading] when that takes a download.
+ * square with a margin, or null when no subject was found. The model must already be
+ * installed, see [ensureSubjectModel].
  */
-suspend fun cutOutSubject(
-    context: Context,
-    bitmap: Bitmap,
-    onDownloading: () -> Unit = {},
-): Bitmap? {
-    ensureSubjectModel(context, onDownloading)
+suspend fun segmentSubject(bitmap: Bitmap): Bitmap? {
     val segmenter: SubjectSegmenter = SubjectSegmentation.getClient(segmenterOptions())
     val foreground =
         try {
