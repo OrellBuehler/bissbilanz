@@ -1711,6 +1711,44 @@
 						"$ref": "#/components/responses/NotFoundResponse"
 					}
 				}
+			},
+			"delete": {
+				"operationId": "unlogSupplement",
+				"tags": ["Supplements"],
+				"description": "Remove a supplement log entry for the date given in the date query parameter. Same operation as DELETE /api/supplements/{id}/log/{date}.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					},
+					{
+						"in": "query",
+						"name": "date",
+						"schema": {
+							"type": "string",
+							"format": "date",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
 			}
 		},
 		"/api/supplements/{id}/log/{date}": {
