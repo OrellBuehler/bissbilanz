@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -155,7 +157,15 @@ fun AppNavigation() {
                                     Icon(screen.icon, contentDescription = null)
                                 }
                             },
-                            label = { Text(stringResource(screen.titleRes)) },
+                            label = {
+                                // Five equal slots leave ~80dp each, which "Einstellungen" and
+                                // "Auswertungen" overflow in German; shrink instead of wrapping.
+                                Text(
+                                    stringResource(screen.titleRes),
+                                    maxLines = 1,
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 12.sp),
+                                )
+                            },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
                                 navController.navigate(screen.route) {
