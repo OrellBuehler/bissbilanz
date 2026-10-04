@@ -5,12 +5,16 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.moduleinstall.InstallStatusListener
 import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.common.moduleinstall.ModuleInstallClient
 import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
+import com.google.android.gms.common.moduleinstall.ModuleInstallStatusUpdate.InstallState
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenter
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -107,10 +111,44 @@ suspend fun ensureSubjectModel(
         val installClient = ModuleInstall.getClient(context)
         if (installClient.areModulesAvailable(segmenter).await().areModulesAvailable()) return
         onDownloading()
-        val request = ModuleInstallRequest.newBuilder().addApi(segmenter).build()
-        installClient.installModules(request).await()
+        installAndAwait(installClient, segmenter)
     } finally {
         segmenter.close()
+    }
+}
+
+/**
+ * `installModules` completes once Play services accepts the request, not when the model is on
+ * the device, so wait for the listener to report the install finished before segmenting.
+ */
+private suspend fun installAndAwait(
+    installClient: ModuleInstallClient,
+    segmenter: SubjectSegmenter,
+) {
+    val finished = CompletableDeferred<Unit>()
+    val listener =
+        InstallStatusListener { update ->
+            when (update.installState) {
+                InstallState.STATE_COMPLETED -> finished.complete(Unit)
+                InstallState.STATE_FAILED, InstallState.STATE_CANCELED ->
+                    finished.completeExceptionally(
+                        IllegalStateException("Subject segmentation model install ended in state ${update.installState}"),
+                    )
+                else -> Unit
+            }
+        }
+    val request =
+        ModuleInstallRequest
+            .newBuilder()
+            .addApi(segmenter)
+            .setListener(listener)
+            .build()
+    try {
+        val response = installClient.installModules(request).await()
+        if (response.areModulesAlreadyInstalled()) return
+        finished.await()
+    } finally {
+        installClient.unregisterListener(listener)
     }
 }
 
