@@ -672,6 +672,7 @@
     <string name="food_search_remove_from_favorites">Aus Favoriten entfernen</string>
     <string name="food_search_placeholder">Lebensmittel suchen…</string>
     <string name="food_search_icon_desc">Suchen</string>
+    <string name="food_search_off_add_failed">Hinzufügen von Open Food Facts fehlgeschlagen</string>
     <string name="food_search_no_results">Keine Lebensmittel für \"%1$s\" gefunden</string>
     <string name="food_search_off_section">Open Food Facts</string>
     <string name="food_search_off_searching">Open Food Facts wird durchsucht…</string>

@@ -1,8 +1,10 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodsListResponse
+import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import io.mockk.coEvery
@@ -22,6 +24,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FoodSearchViewModelTest {
@@ -128,5 +131,54 @@ class FoodSearchViewModelTest {
             advanceUntilIdle()
 
             coVerify(atLeast = 2) { foodRepo.fetchFoodsPaginated(any(), 0) }
+        }
+
+    private fun offProduct() =
+        OpenFoodFactsProduct(
+            id = "4000000000001",
+            name = "OFF Apple Juice",
+            brand = null,
+            barcode = "4000000000001",
+            imageUrl = null,
+            nutriScore = null,
+            novaGroup = null,
+            servingSize = 100.0,
+            servingUnit = "g",
+            calories = 45.0,
+            protein = 0.1,
+            carbs = 10.0,
+            fat = 0.0,
+            fiber = 0.2,
+            additives = null,
+            ingredientsText = null,
+        )
+
+    @Test
+    fun unknownOpenFoodFactsBarcodeSetsLocalizedMessage() =
+        runTest {
+            coEvery { foodRepo.findOrCreateByBarcode(any()) } returns null
+
+            val vm = viewModel()
+            vm.selectOffProduct(offProduct()) {}
+            advanceUntilIdle()
+
+            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
+            assertNull(vm.snackbarMessage.value)
+
+            vm.clearSnackbarRes()
+            assertNull(vm.snackbarMessageRes.value)
+        }
+
+    @Test
+    fun failedOpenFoodFactsImportSetsLocalizedMessage() =
+        runTest {
+            coEvery { foodRepo.findOrCreateByBarcode(any()) } throws RuntimeException("boom")
+
+            val vm = viewModel()
+            vm.selectOffProduct(offProduct()) {}
+            advanceUntilIdle()
+
+            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
+            assertEquals(false, vm.isResolvingOff.value)
         }
 }

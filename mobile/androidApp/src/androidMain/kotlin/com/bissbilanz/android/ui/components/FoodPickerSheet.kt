@@ -89,6 +89,7 @@ fun FoodPickerSheet(
     val isSearchingOff by viewModel.isSearchingOff.collectAsStateWithLifecycle()
     val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.openFoodFactsFallback = allowOpenFoodFacts
@@ -100,6 +101,14 @@ fun FoodPickerSheet(
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbarRes()
         }
     }
 

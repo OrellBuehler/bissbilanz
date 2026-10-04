@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
@@ -74,6 +75,9 @@ class FoodSearchViewModel(
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
+    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
 
     init {
         loadAllFoods()
@@ -229,12 +233,12 @@ class FoodSearchViewModel(
                 if (food != null) {
                     onResolved(food)
                 } else {
-                    _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                    _snackbarMessageRes.value = R.string.food_search_off_add_failed
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                _snackbarMessageRes.value = R.string.food_search_off_add_failed
             } finally {
                 _isResolvingOff.value = false
             }
@@ -243,6 +247,10 @@ class FoodSearchViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    fun clearSnackbarRes() {
+        _snackbarMessageRes.value = null
     }
 
     fun refresh() {

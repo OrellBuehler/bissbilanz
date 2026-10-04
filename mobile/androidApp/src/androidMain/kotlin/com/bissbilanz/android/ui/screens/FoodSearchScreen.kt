@@ -77,6 +77,7 @@ fun FoodSearchScreen(navController: NavController) {
     val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var foodToLog by remember { mutableStateOf<Food?>(null) }
@@ -93,6 +94,14 @@ fun FoodSearchScreen(navController: NavController) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbarRes()
         }
     }
 
