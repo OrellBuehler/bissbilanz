@@ -77,6 +77,7 @@ fun FoodSearchScreen(navController: NavController) {
     val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var foodToLog by remember { mutableStateOf<Food?>(null) }
@@ -93,6 +94,14 @@ fun FoodSearchScreen(navController: NavController) {
         snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbarRes()
         }
     }
 
@@ -386,110 +395,112 @@ fun FoodListItem(
     // so tap (log) and long-press (manage) are both discoverable.
     var showMenu by remember { mutableStateOf(false) }
 
-    ListItem(
-        headlineContent = { Text(food.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingContent =
-            food.imageUrl?.let { url ->
-                {
-                    FoodImage(
-                        imageUrl = url,
-                        contentDescription = food.name,
-                        modifier =
-                            Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                    )
-                }
-            },
-        supportingContent = {
-            Column {
-                Text(
-                    stringResource(
-                        R.string.food_search_item_summary,
-                        food.calories.roundToInt(),
-                        stringResource(R.string.macro_chip_protein),
-                        food.protein.roundToInt(),
-                        stringResource(R.string.macro_chip_carbs),
-                        food.carbs.roundToInt(),
-                        stringResource(R.string.macro_chip_fat),
-                        food.fat.roundToInt(),
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                food.brand?.let {
+    Box(modifier = modifier) {
+        ListItem(
+            headlineContent = { Text(food.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            leadingContent =
+                food.imageUrl?.let { url ->
+                    {
+                        FoodImage(
+                            imageUrl = url,
+                            contentDescription = food.name,
+                            modifier =
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                        )
+                    }
+                },
+            supportingContent = {
+                Column {
                     Text(
-                        it,
-                        style = MaterialTheme.typography.labelSmall,
+                        stringResource(
+                            R.string.food_search_item_summary,
+                            food.calories.roundToInt(),
+                            stringResource(R.string.macro_chip_protein),
+                            food.protein.roundToInt(),
+                            stringResource(R.string.macro_chip_carbs),
+                            food.carbs.roundToInt(),
+                            stringResource(R.string.macro_chip_fat),
+                            food.fat.roundToInt(),
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    food.brand?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-            }
-        },
-        trailingContent = {
-            if (onQuickLog != null) {
-                IconButton(onClick = onQuickLog) {
-                    Icon(Icons.Default.Add, stringResource(R.string.food_search_quick_log), tint = MaterialTheme.colorScheme.primary)
+            },
+            trailingContent = {
+                if (onQuickLog != null) {
+                    IconButton(onClick = onQuickLog) {
+                        Icon(Icons.Default.Add, stringResource(R.string.food_search_quick_log), tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
-            }
-        },
-        modifier =
-            modifier.combinedClickable(
-                onClick = onClick,
-                onLongClick =
-                    if (onEdit != null || onToggleFavorite != null) {
-                        { showMenu = true }
-                    } else {
-                        null
-                    },
-            ),
-    )
+            },
+            modifier =
+                Modifier.fillMaxWidth().combinedClickable(
+                    onClick = onClick,
+                    onLongClick =
+                        if (onEdit != null || onToggleFavorite != null) {
+                            { showMenu = true }
+                        } else {
+                            null
+                        },
+                ),
+        )
 
-    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-        if (onQuickLog != null) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.food_detail_log)) },
-                leadingIcon = { Icon(Icons.Default.Add, null) },
-                onClick = {
-                    showMenu = false
-                    onQuickLog()
-                },
-            )
-        }
-        if (onEdit != null) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.food_search_edit_food)) },
-                leadingIcon = { Icon(Icons.Default.Edit, null) },
-                onClick = {
-                    showMenu = false
-                    onEdit()
-                },
-            )
-        }
-        if (onToggleFavorite != null) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(
-                            if (food.isFavorite) {
-                                R.string.food_search_remove_from_favorites
-                            } else {
-                                R.string.food_search_add_to_favorites
-                            },
-                        ),
-                    )
-                },
-                leadingIcon = {
-                    Icon(if (food.isFavorite) Icons.Default.StarBorder else Icons.Default.Star, null)
-                },
-                onClick = {
-                    showMenu = false
-                    onToggleFavorite()
-                },
-            )
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            if (onQuickLog != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.food_detail_log)) },
+                    leadingIcon = { Icon(Icons.Default.Add, null) },
+                    onClick = {
+                        showMenu = false
+                        onQuickLog()
+                    },
+                )
+            }
+            if (onEdit != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.food_search_edit_food)) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    onClick = {
+                        showMenu = false
+                        onEdit()
+                    },
+                )
+            }
+            if (onToggleFavorite != null) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (food.isFavorite) {
+                                    R.string.food_search_remove_from_favorites
+                                } else {
+                                    R.string.food_search_add_to_favorites
+                                },
+                            ),
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(if (food.isFavorite) Icons.Default.StarBorder else Icons.Default.Star, null)
+                    },
+                    onClick = {
+                        showMenu = false
+                        onToggleFavorite()
+                    },
+                )
+            }
         }
     }
 }

@@ -649,8 +649,6 @@
 
     <!-- Food merge (shared by the food detail screen and the duplicates screen) -->
     <string name="food_merge_pick_keeper">Choose keeper</string>
-    <string name="food_merge_search_placeholder">Search foods to merge into…</string>
-    <string name="food_merge_no_results">No matching foods.</string>
     <string name="food_merge_confirm_title">Merge foods</string>
     <string name="food_merge_confirm_message">This will merge \"%1$s\" into \"%2$s\". \"%1$s\" will be permanently deleted, and any diary entries, recipes, or labels referencing it will move to \"%2$s\". This cannot be undone.</string>
     <string name="food_merge_confirm">Merge</string>
@@ -678,6 +676,7 @@
     <string name="food_search_remove_from_favorites">Remove from favorites</string>
     <string name="food_search_placeholder">Search foods…</string>
     <string name="food_search_icon_desc">Search</string>
+    <string name="food_search_off_add_failed">Couldn\'t add from Open Food Facts</string>
     <string name="food_search_no_results">No foods found for \"%1$s\"</string>
     <string name="food_search_off_section">Open Food Facts</string>
     <string name="food_search_off_searching">Searching Open Food Facts…</string>
@@ -724,7 +723,6 @@
     <string name="recipe_edit_load_failed">Failed to load recipe</string>
     <string name="recipe_edit_save_failed">Failed to save recipe</string>
     <string name="recipe_edit_add_ingredient">Add Ingredient</string>
-    <string name="recipe_edit_search_food">Search food</string>
     <string name="recipe_edit_edit_title">Edit Recipe</string>
     <string name="recipe_edit_create_title">Create Recipe</string>
     <string name="recipe_edit_name">Recipe name *</string>
@@ -1296,7 +1294,6 @@
     <string name="food_form_macro_basis_footer">Per-100 values are scaled to one serving when you save.</string>
 
     <!-- Open Food Facts import failure (food search and recipe ingredients) -->
-    <string name="food_search_off_add_failed">Couldn\'t add from Open Food Facts</string>
 
     <!-- Dashboard widgets -->
     <string name="dashboard_calorie_trend_title">Calorie Trend</string>
@@ -1401,10 +1398,7 @@
     <string name="food_package_using">Using %1$s</string>
     <string name="food_package_using_note">Not added, your food is used instead.</string>
     <string name="food_package_undo_mapping">Undo</string>
-    <string name="food_package_search_own">Search your foods</string>
     <string name="food_package_search_own_hint">Only foods with a compatible unit (like %1$s) are shown.</string>
-    <string name="food_package_search_own_empty">No matching food with a compatible unit.</string>
-    <string name="food_package_search_cancel">Cancel</string>
     <string name="food_package_show_more">Show more</string>
     <string name="food_package_error_not_a_package">This is not a Bissbilanz food package.</string>
     <string name="food_package_error_account_export">This is a full account export, not a food package. Import it on the web under Settings → Import data.</string>

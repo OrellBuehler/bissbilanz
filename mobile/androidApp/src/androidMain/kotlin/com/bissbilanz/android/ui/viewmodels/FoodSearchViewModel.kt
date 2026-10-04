@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
@@ -63,11 +64,20 @@ class FoodSearchViewModel(
     private val _isResolvingOff = MutableStateFlow(false)
     val isResolvingOff: StateFlow<Boolean> = _isResolvingOff.asStateFlow()
 
+    /**
+     * False for pickers whose result must already be one of the user's own foods
+     * (merge keeper, package mapping): an Open Food Facts hit would create a food.
+     */
+    var openFoodFactsFallback = true
+
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
+    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
 
     init {
         loadAllFoods()
@@ -136,7 +146,7 @@ class FoodSearchViewModel(
                     _isSearching.value = false
                     // Mirrors the web FoodPicker: only fall back to Open Food Facts
                     // when the user's own database has few matches.
-                    if (results.size < OFF_FALLBACK_THRESHOLD) {
+                    if (openFoodFactsFallback && results.size < OFF_FALLBACK_THRESHOLD) {
                         _isSearchingOff.value = true
                         try {
                             _offResults.value = foodRepo.searchOpenFoodFacts(newQuery)
@@ -149,6 +159,18 @@ class FoodSearchViewModel(
                     _offResults.value = emptyList()
                 }
             }
+    }
+
+    /** Back to an empty search on the All tab, for a picker sheet reopened on a kept instance. */
+    fun resetSearch() {
+        searchJob?.cancel()
+        _query.value = ""
+        _searchResults.value = emptyList()
+        _offResults.value = emptyList()
+        _isSearching.value = false
+        _isSearchingOff.value = false
+        _selectedTab.value = TAB_ALL
+        loadAllFoods()
     }
 
     fun selectTab(index: Int) {
@@ -211,12 +233,12 @@ class FoodSearchViewModel(
                 if (food != null) {
                     onResolved(food)
                 } else {
-                    _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                    _snackbarMessageRes.value = R.string.food_search_off_add_failed
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                _snackbarMessageRes.value = R.string.food_search_off_add_failed
             } finally {
                 _isResolvingOff.value = false
             }
@@ -225,6 +247,10 @@ class FoodSearchViewModel(
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    fun clearSnackbarRes() {
+        _snackbarMessageRes.value = null
     }
 
     fun refresh() {

@@ -434,26 +434,6 @@ class FoodPackageViewModel(
         _importState.update { it.copy(mappings = FoodPackageMappingState.clear(it.mappings, ref)) }
     }
 
-    /** The user's own foods matching [query], for "Use one of my foods". */
-    suspend fun searchOwnFoods(query: String): List<MappedFood> {
-        val trimmed = query.trim()
-        val foods =
-            try {
-                if (trimmed.length <
-                    2
-                ) {
-                    foodRepository.fetchFoodsPaginated(limit = 50, offset = 0).foods
-                } else {
-                    foodRepository.searchFoods(trimmed)
-                }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                emptyList()
-            }
-        return foods.map { MappedFood(it.id, it.name, it.brand, it.servingSize, it.servingUnit.value, it.imageUrl) }
-    }
-
     fun commit() {
         val state = _importState.value
         val preview = state.preview ?: return

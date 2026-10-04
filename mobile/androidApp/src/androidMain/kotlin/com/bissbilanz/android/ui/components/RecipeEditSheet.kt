@@ -8,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +18,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
-import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
@@ -31,8 +29,6 @@ import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toStepInputs
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -79,17 +75,9 @@ fun RecipeEditSheet(
     var stepsAvailable by remember { mutableStateOf(true) }
     var openUnitDropdownIndex by remember { mutableStateOf<Int?>(null) }
     var showFoodPicker by remember { mutableStateOf(false) }
-    var foodSearchQuery by remember { mutableStateOf("") }
-    var foodSearchResults by remember { mutableStateOf<List<Food>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
-    var offResults by remember { mutableStateOf<List<OpenFoodFactsProduct>>(emptyList()) }
-    var isSearchingOff by remember { mutableStateOf(false) }
-    var isResolvingOff by remember { mutableStateOf(false) }
 
     val loadFailedMessage = stringResource(R.string.recipe_edit_load_failed)
     val saveFailedMessage = stringResource(R.string.recipe_edit_save_failed)
-    val offFailedMessage = stringResource(R.string.food_search_off_add_failed)
     val imageSaveFailedMessage = stringResource(R.string.food_image_save_failed)
 
     fun close() {
@@ -145,146 +133,18 @@ fun RecipeEditSheet(
     }
 
     if (showFoodPicker) {
-        fun addIngredient(food: Food) {
-            ingredients = ingredients +
-                RecipeIngredientRow(
-                    food = food,
-                    foodId = food.id,
-                    quantity = food.servingSize.toDisplayString(),
-                    unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
-                )
-            showFoodPicker = false
-            searchJob?.cancel()
-            isSearching = false
-            isSearchingOff = false
-            foodSearchQuery = ""
-            foodSearchResults = emptyList()
-            offResults = emptyList()
-        }
-
-        AlertDialog(
-            onDismissRequest = { showFoodPicker = false },
-            title = { Text(stringResource(R.string.recipe_edit_add_ingredient)) },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    OutlinedTextField(
-                        value = foodSearchQuery,
-                        onValueChange = { query ->
-                            foodSearchQuery = query
-                            searchJob?.cancel()
-                            if (query.length >= 2) {
-                                isSearching = true
-                                offResults = emptyList()
-                                searchJob =
-                                    scope.launch {
-                                        delay(300)
-                                        val results =
-                                            try {
-                                                foodRepo.searchFoods(query)
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                Log.e("RecipeEditSheet", "Food search failed", e)
-                                                errorReporter.captureException(e)
-                                                emptyList()
-                                            }
-                                        foodSearchResults = results
-                                        isSearching = false
-                                        // Same rule as the main food search: only reach for
-                                        // Open Food Facts when the user's own database is thin.
-                                        if (results.size < OFF_FALLBACK_THRESHOLD) {
-                                            isSearchingOff = true
-                                            try {
-                                                offResults = foodRepo.searchOpenFoodFacts(query)
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                errorReporter.captureException(e)
-                                                offResults = emptyList()
-                                            } finally {
-                                                isSearchingOff = false
-                                            }
-                                        }
-                                    }
-                            } else {
-                                // The cancelled job never reaches its own `isSearching =
-                                // false`, so backspacing from "ab" to "a" left the
-                                // spinner up for good.
-                                isSearching = false
-                                isSearchingOff = false
-                                foodSearchResults = emptyList()
-                                offResults = emptyList()
-                            }
-                        },
-                        label = { Text(stringResource(R.string.recipe_edit_search_food)) },
-                        leadingIcon = { Icon(Icons.Default.Search, stringResource(R.string.food_search_icon_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
+        FoodPickerSheet(
+            title = stringResource(R.string.recipe_edit_add_ingredient),
+            onDismiss = { showFoodPicker = false },
+            onFoodSelected = { food ->
+                ingredients = ingredients +
+                    RecipeIngredientRow(
+                        food = food,
+                        foodId = food.id,
+                        quantity = food.servingSize.toDisplayString(),
+                        unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                        )
-                    } else {
-                        foodSearchResults.take(5).forEach { food ->
-                            TextButton(
-                                onClick = { addIngredient(food) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    "${food.name}${food.brand?.let { " ($it)" } ?: ""}",
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                        if (isSearchingOff || offResults.isNotEmpty()) {
-                            Text(
-                                stringResource(R.string.food_search_off_section),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp),
-                            )
-                        }
-                        if (isSearchingOff) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.CenterHorizontally).size(20.dp),
-                            )
-                        } else {
-                            // Copy-on-use: the product becomes a food in the user's own
-                            // database (or resolves to the one already on that barcode)
-                            // before it can be an ingredient.
-                            offResults.take(5).forEach { product ->
-                                OpenFoodFactsListItem(
-                                    product = product,
-                                    enabled = !isResolvingOff,
-                                    onClick = {
-                                        if (isResolvingOff) return@OpenFoodFactsListItem
-                                        isResolvingOff = true
-                                        scope.launch {
-                                            try {
-                                                val food = foodRepo.findOrCreateByBarcode(product.barcode)
-                                                if (food != null) {
-                                                    addIngredient(food)
-                                                } else {
-                                                    errorMessage = offFailedMessage
-                                                }
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                Log.e("RecipeEditSheet", "Open Food Facts import failed", e)
-                                                errorReporter.captureException(e)
-                                                errorMessage = offFailedMessage
-                                            } finally {
-                                                isResolvingOff = false
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showFoodPicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
+                showFoodPicker = false
             },
         )
     }
@@ -621,6 +481,3 @@ fun RecipeEditSheet(
         }
     }
 }
-
-/** Below this many own-database hits the ingredient picker falls back to Open Food Facts. */
-private const val OFF_FALLBACK_THRESHOLD = 5

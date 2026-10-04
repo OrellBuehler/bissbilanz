@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FileOpen
@@ -41,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -74,7 +69,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -85,6 +79,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.ui.components.FoodImage
+import com.bissbilanz.android.ui.components.FoodPickerSheet
 import com.bissbilanz.android.ui.theme.MacroColors
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.api.generated.model.FoodPackageAction
@@ -96,8 +91,8 @@ import com.bissbilanz.api.generated.model.FoodPackageNewFoodItem
 import com.bissbilanz.api.generated.model.FoodPackageRecipeConflict
 import com.bissbilanz.foodpackage.FoodPackageMappingState
 import com.bissbilanz.foodpackage.MappedFood
+import com.bissbilanz.model.Food
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
@@ -380,7 +375,6 @@ private fun ReviewList(
 }
 
 private const val NEW_FOODS_PAGE = 20
-private const val OWN_FOOD_LIMIT = 8
 
 /**
  * Every food the import would create, each with the option to use one of the user's own foods
@@ -415,7 +409,6 @@ private fun NewFoodsSection(
                         item = item,
                         mapped = state.mappings[item.ref],
                         searching = searching == item.ref,
-                        viewModel = viewModel,
                         onStartSearch = { searching = item.ref },
                         onCancelSearch = { searching = null },
                         onSelect = {
@@ -440,7 +433,6 @@ private fun NewFoodCard(
     item: FoodPackageNewFoodItem,
     mapped: MappedFood?,
     searching: Boolean,
-    viewModel: FoodPackageViewModel,
     onStartSearch: () -> Unit,
     onCancelSearch: () -> Unit,
     onSelect: (MappedFood) -> Unit,
@@ -448,6 +440,17 @@ private fun NewFoodCard(
 ) {
     val colors = MacroColors.current
     val unit = item.servingUnit.value.replace('_', ' ')
+    if (searching) {
+        FoodPickerSheet(
+            title = stringResource(R.string.food_package_use_own),
+            hint = stringResource(R.string.food_package_search_own_hint, unit),
+            initialQuery = FoodPackageMappingState.suggestedQuery(item.name),
+            allowOpenFoodFacts = false,
+            foodFilter = { FoodPackageMappingState.isCompatible(item, it.toMappedFood()) },
+            onDismiss = onCancelSearch,
+            onFoodSelected = { onSelect(it.toMappedFood()) },
+        )
+    }
     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
@@ -522,7 +525,6 @@ private fun NewFoodCard(
                             Text(stringResource(R.string.food_package_undo_mapping), modifier = Modifier.padding(start = 4.dp))
                         }
                     }
-                searching -> OwnFoodSearch(item, viewModel, onSelect, onCancelSearch)
                 else ->
                     OutlinedButton(onClick = onStartSearch, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -533,77 +535,7 @@ private fun NewFoodCard(
     }
 }
 
-/** A search over the user's own foods, limited to those whose unit fits the incoming food's. */
-@Composable
-private fun OwnFoodSearch(
-    item: FoodPackageNewFoodItem,
-    viewModel: FoodPackageViewModel,
-    onSelect: (MappedFood) -> Unit,
-    onCancel: () -> Unit,
-) {
-    var query by rememberSaveable(item.ref) { mutableStateOf(FoodPackageMappingState.suggestedQuery(item.name)) }
-    var results by remember { mutableStateOf<List<MappedFood>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(query) {
-        loading = true
-        delay(250)
-        results = FoodPackageMappingState.candidates(viewModel.searchOwnFoods(query), item, OWN_FOOD_LIMIT)
-        loading = false
-    }
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text(stringResource(R.string.food_package_search_own)) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            )
-            IconButton(onClick = onCancel) {
-                Icon(Icons.Filled.Close, stringResource(R.string.food_package_search_cancel))
-            }
-        }
-        SmallText(stringResource(R.string.food_package_search_own_hint, item.servingUnit.value.replace('_', ' ')))
-        when {
-            loading -> CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            results.isEmpty() -> SmallText(stringResource(R.string.food_package_search_own_empty))
-            else ->
-                results.forEach { food ->
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onSelect(food) }
-                                .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FoodImage(
-                            imageUrl = food.imageUrl,
-                            contentDescription = food.name,
-                            modifier = Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)),
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(food.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            food.brand?.let { SmallText(it) }
-                        }
-                        SmallText("${fmt(food.servingSize)} ${food.servingUnit.replace('_', ' ')}")
-                    }
-                }
-        }
-    }
-}
+private fun Food.toMappedFood() = MappedFood(id, name, brand, servingSize, servingUnit.value, imageUrl)
 
 @Composable
 private fun SmallText(text: String) {
