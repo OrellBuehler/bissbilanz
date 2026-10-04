@@ -402,30 +402,37 @@ fun FoodListItem(
                 }
             },
         supportingContent = {
-            Text(
-                stringResource(
-                    R.string.food_search_item_summary,
-                    food.calories.roundToInt(),
-                    stringResource(R.string.macro_chip_protein),
-                    food.protein.roundToInt(),
-                    stringResource(R.string.macro_chip_carbs),
-                    food.carbs.roundToInt(),
-                    stringResource(R.string.macro_chip_fat),
-                    food.fat.roundToInt(),
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column {
+                Text(
+                    stringResource(
+                        R.string.food_search_item_summary,
+                        food.calories.roundToInt(),
+                        stringResource(R.string.macro_chip_protein),
+                        food.protein.roundToInt(),
+                        stringResource(R.string.macro_chip_carbs),
+                        food.carbs.roundToInt(),
+                        stringResource(R.string.macro_chip_fat),
+                        food.fat.roundToInt(),
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                food.brand?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         },
         trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                food.brand?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                if (onQuickLog != null) {
-                    IconButton(onClick = onQuickLog) {
-                        Icon(Icons.Default.Add, stringResource(R.string.food_search_quick_log), tint = MaterialTheme.colorScheme.primary)
-                    }
+            if (onQuickLog != null) {
+                IconButton(onClick = onQuickLog) {
+                    Icon(Icons.Default.Add, stringResource(R.string.food_search_quick_log), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         },
