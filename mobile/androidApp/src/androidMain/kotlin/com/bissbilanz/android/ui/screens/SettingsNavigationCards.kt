@@ -97,7 +97,7 @@ internal fun SettingsNavigationCard(
                     navController.navigate("ai-tasks")
                 }
                 HorizontalDivider()
-                SettingsNavItem(stringResource(R.string.connect_claude_title), Icons.Default.SmartToy) {
+                SettingsNavItem(stringResource(R.string.connect_assistant_title), Icons.Default.SmartToy) {
                     navController.navigate("connect-claude")
                 }
             }

@@ -139,6 +139,7 @@ android {
         implementation(libs.camerax.view)
         implementation(libs.mlkit.barcode)
         implementation(libs.mlkit.text)
+        implementation(libs.zxing.core)
         implementation(libs.browser)
         // Per-app languages: AppCompatDelegate.setApplicationLocales is the platform
         // LocaleManager on API 33+ and a backport below it (minSdk is 26).

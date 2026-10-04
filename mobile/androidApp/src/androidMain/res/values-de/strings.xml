@@ -204,6 +204,7 @@
     <string name="ai_task_subtitle">Diese Mahlzeit für den KI-Assistenten zum Erfassen einreihen.</string>
     <string name="ai_task_subtitle_device">Diese Mahlzeit einreihen — dein iPhone verarbeitet sie, sobald Bissbilanz das nächste Mal geöffnet wird.</string>
     <string name="ai_task_mcp_not_connected">Verbinde einen KI-Assistenten in den Einstellungen, um eingereihte Mahlzeiten zu verarbeiten.</string>
+    <string name="ai_task_mcp_connect">Assistent verbinden</string>
     <string name="ai_task_what_did_you_eat">Was hast du gegessen?</string>
     <string name="ai_task_description_placeholder">z. B. eine Schüssel Porridge mit Banane und Honig</string>
     <string name="ai_task_send">Senden</string>
@@ -261,23 +262,40 @@
     <string name="ai_tasks_upload_failed_body">Prüfe deine Verbindung und sende sie erneut.</string>
     <string name="ai_task_upload_sending">Wird an deinen Assistenten gesendet…</string>
 
-    <!-- Connect Claude -->
-    <string name="connect_claude_title">Claude verbinden</string>
-    <string name="connect_claude_intro">Verbinde Bissbilanz mit Claude, um Mahlzeiten per Chat zu erfassen, dir tägliche oder wöchentliche Auswertungen erstellen zu lassen und Essenspläne zu bekommen, die zu deinen Zielen passen.</string>
-    <string name="connect_claude_server_url_title">Server-URL</string>
-    <string name="connect_claude_copy">Kopieren</string>
-    <string name="connect_claude_copy_url">URL kopieren</string>
-    <string name="connect_claude_copied">In die Zwischenablage kopiert</string>
-    <string name="connect_claude_claude_app_title">Claude-App / claude.ai</string>
-    <string name="connect_claude_step_1">Öffne Claude, gehe zu Einstellungen → Connectors (im Web: Anpassen → Connectors).</string>
-    <string name="connect_claude_step_2">Tippe auf \"Benutzerdefinierten Connector hinzufügen\".</string>
-    <string name="connect_claude_step_3">Füge die Server-URL ein, lasse \"Claudes veröffentlichte Identität verwenden\" ausgewählt (Standard) und tippe auf Hinzufügen.</string>
-    <string name="connect_claude_step_4">Tippe auf Verbinden und bestätige den Zugriff auf der sich öffnenden Bissbilanz-Seite.</string>
-    <string name="connect_claude_open_claude">Claude öffnen</string>
-    <string name="connect_claude_claude_code_title">Claude Code</string>
-    <string name="connect_claude_claude_code_hint">Führe danach /mcp aus, um dich anzumelden.</string>
-    <string name="connect_claude_other_clients_title">Andere MCP-Clients</string>
-    <string name="connect_claude_other_clients_body">Jeder Client, der Remote-MCP über Streamable HTTP mit OAuth unterstützt, funktioniert. Erweiterte Optionen wie ein eigener OAuth-Client findest du auf der Website unter Einstellungen → MCP.</string>
+    <!-- Connect an assistant -->
+    <string name="connect_assistant_title">KI-Assistent verbinden</string>
+    <string name="connect_assistant_intro">Erfasse Mahlzeiten per Chat, lass dir tägliche oder wöchentliche Auswertungen erstellen und erhalte Essenspläne, die zu deinen Zielen passen – mit dem KI-Assistenten, den du schon nutzt.</string>
+    <string name="connect_assistant_status_connected_clients">Verbunden: %1$s</string>
+    <string name="connect_assistant_status_connected">Verbunden</string>
+    <string name="connect_assistant_status_not_connected">Nicht verbunden</string>
+    <string name="connect_assistant_claude_title">Claude</string>
+    <string name="connect_assistant_claude_body">Fügt Bissbilanz in Claude als Connector hinzu. Du bestätigst dort einmal und gibst danach den Zugriff bei Bissbilanz frei.</string>
+    <string name="connect_assistant_claude_connect">Mit Claude verbinden</string>
+    <string name="connect_assistant_claude_note">Einmal hinzugefügt, funktioniert Bissbilanz auch in der Claude-App.</string>
+    <string name="connect_assistant_chatgpt_title">ChatGPT</string>
+    <string name="connect_assistant_chatgpt_requirements">Funktioniert auf der ChatGPT-Website mit einem Plus- oder Pro-Abo.</string>
+    <string name="connect_assistant_chatgpt_step_1">Öffne chatgpt.com und gehe zu Einstellungen → Sicherheit und Anmeldung.</string>
+    <string name="connect_assistant_chatgpt_step_2">Aktiviere den Entwicklermodus.</string>
+    <string name="connect_assistant_chatgpt_step_3">Öffne chatgpt.com/plugins und tippe auf \"+\".</string>
+    <string name="connect_assistant_chatgpt_step_4">Füge die Server-URL ein, wähle als Authentifizierung OAuth: CIMD und erstelle den Eintrag.</string>
+    <string name="connect_assistant_chatgpt_step_5">Aktiviere Bissbilanz in einem Chat über das \"+\"-Menü neben dem Eingabefeld.</string>
+    <string name="connect_assistant_chatgpt_open">ChatGPT öffnen</string>
+    <string name="connect_assistant_copy_url">URL kopieren</string>
+    <string name="connect_assistant_chatgpt_note">In der ChatGPT-Android-App noch nicht verfügbar.</string>
+    <string name="connect_assistant_gemini_title">Gemini</string>
+    <string name="connect_assistant_gemini_body">In der Schweiz noch nicht verfügbar.</string>
+    <string name="connect_assistant_desktop_title">Am Computer fertigstellen</string>
+    <string name="connect_assistant_desktop_body">Scanne den Code mit einem anderen Gerät, um dort den Claude-Verbindungslink zu öffnen, oder kopiere unten die Server-URL für jeden anderen Assistenten.</string>
+    <string name="connect_assistant_qr_description">QR-Code für den Claude-Verbindungslink</string>
+    <string name="connect_assistant_server_url_title">Server-URL</string>
+    <string name="connect_assistant_copy_server_url">Server-URL kopieren</string>
+    <string name="connect_assistant_copy_command">Befehl kopieren</string>
+    <string name="connect_assistant_copied">In die Zwischenablage kopiert</string>
+    <string name="connect_assistant_advanced_title">Claude Code und weitere Clients</string>
+    <string name="connect_assistant_claude_code_title">Claude Code</string>
+    <string name="connect_assistant_claude_code_hint">Führe danach /mcp aus, um dich anzumelden.</string>
+    <string name="connect_assistant_other_clients_title">Andere MCP-Clients</string>
+    <string name="connect_assistant_other_clients_body">Jeder Client, der Remote-MCP über Streamable HTTP mit OAuth unterstützt, funktioniert. Erweiterte Optionen wie ein eigener OAuth-Client findest du auf der Website unter Einstellungen → MCP.</string>
 
     <!-- Health Connect -->
     <string name="health_connect_title">Health Connect</string>

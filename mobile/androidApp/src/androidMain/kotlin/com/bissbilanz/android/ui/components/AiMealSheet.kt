@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
+import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.hasPermission
@@ -89,6 +90,7 @@ fun AiMealSheet(
     onDismiss: () -> Unit,
     onQueued: () -> Unit = {},
     onSaved: () -> Unit = {},
+    onConnectAssistant: (() -> Unit)? = null,
 ) {
     val errorReporter: ErrorReporter = koinInject()
     val aiTaskRepo: AiTaskRepository = koinInject()
@@ -101,13 +103,16 @@ fun AiMealSheet(
 
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
     val processorIsDevice = prefs?.aiTaskProcessor?.value == "device"
-    // Unknown while the check is in flight, or if it fails — fail open rather than
-    // block sending over a transient network hiccup; only a definite "not
-    // connected" answer disables the button.
-    var mcpConnected by remember { mutableStateOf(true) }
+    // Fails closed: the last known answer (default "not connected") is used until the
+    // refresh below succeeds, so an unreachable server never enables sending.
+    val connectionStore: McpConnectionStore = koinInject()
+    val mcpConnected =
+        connectionStore.state
+            .collectAsStateWithLifecycle()
+            .value.connected
     LaunchedEffect(Unit) {
         try {
-            mcpConnected = api.getMcpStatus()
+            connectionStore.refresh { api.getMcpConnection() }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -299,6 +304,15 @@ fun AiMealSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
+                if (onConnectAssistant != null) {
+                    OutlinedButton(onClick = onConnectAssistant, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            stringResource(R.string.ai_task_mcp_connect),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
 
             val noSpecificMeal = stringResource(R.string.ai_task_meal_none)
