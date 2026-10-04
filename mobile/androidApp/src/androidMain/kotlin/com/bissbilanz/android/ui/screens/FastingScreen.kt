@@ -39,6 +39,7 @@ import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.util.formatShortDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
@@ -847,4 +848,4 @@ private fun formatTime(instant: Instant): String {
     return "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
 }
 
-private fun formatDate(instant: Instant): String = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+private fun formatDate(instant: Instant): String = formatShortDate(instant.toLocalDateTime(TimeZone.currentSystemDefault()).date)

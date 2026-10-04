@@ -108,7 +108,7 @@ class WeightScreenDeleteTest {
 
         composeTestRule.onNodeWithContentDescription("Delete weight entry").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Delete entry from 2024-01-15?").assertExists()
+        composeTestRule.onNodeWithText("Delete entry from 1/15/2024?").assertExists()
 
         composeTestRule.onNodeWithText("Delete").performClick()
         composeTestRule.waitForIdle()

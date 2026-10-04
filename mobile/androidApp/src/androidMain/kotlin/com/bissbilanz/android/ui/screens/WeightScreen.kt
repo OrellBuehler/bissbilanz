@@ -45,6 +45,7 @@ import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
@@ -164,7 +165,7 @@ fun WeightScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
             title = { Text(stringResource(R.string.weight_delete_title)) },
-            text = { Text(stringResource(R.string.weight_delete_text, entry.entryDate)) },
+            text = { Text(stringResource(R.string.weight_delete_text, formatIsoDate(entry.entryDate))) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -319,7 +320,7 @@ fun WeightScreen(navController: NavController) {
                                     },
                                     supportingContent = {
                                         Column {
-                                            Text(entry.entryDate)
+                                            Text(formatIsoDate(entry.entryDate))
                                             entry.notes?.let {
                                                 Text(
                                                     it,
@@ -376,7 +377,7 @@ private fun WeightTargetCard(
                 if (targetWeightKg != null) {
                     Text(
                         if (targetDate != null) {
-                            stringResource(R.string.weight_target_line, targetWeightKg.formatDecimal1(), targetDate)
+                            stringResource(R.string.weight_target_line, targetWeightKg.formatDecimal1(), formatIsoDate(targetDate))
                         } else {
                             stringResource(R.string.weight_target_line_no_date, targetWeightKg.formatDecimal1())
                         },
@@ -463,7 +464,7 @@ private fun WeightTargetDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 AssistChip(
                     onClick = { showDatePicker = true },
-                    label = { Text(dateDraft ?: stringResource(R.string.weight_target_date_label)) },
+                    label = { Text(dateDraft?.let { formatIsoDate(it) } ?: stringResource(R.string.weight_target_date_label)) },
                 )
             }
         },

@@ -74,6 +74,7 @@ import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.MealBreakdownEntry
@@ -666,7 +667,7 @@ fun InsightsScreen(navController: NavController) {
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Column {
-                                                Text(entry.entryDate, style = MaterialTheme.typography.bodySmall)
+                                                Text(formatIsoDate(entry.entryDate), style = MaterialTheme.typography.bodySmall)
                                                 Text(
                                                     stringResource(
                                                         R.string.insights_sleep_entry_summary,
@@ -821,7 +822,7 @@ fun InsightsScreen(navController: NavController) {
                             AlertDialog(
                                 onDismissRequest = { sleepEntryToDelete = null },
                                 title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
-                                text = { Text(stringResource(R.string.sleep_delete_dialog_text, entry.entryDate)) },
+                                text = { Text(stringResource(R.string.sleep_delete_dialog_text, formatIsoDate(entry.entryDate))) },
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
