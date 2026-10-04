@@ -40,9 +40,11 @@ later sign in.
 what you ate. **70 tools** cover logging, foods, recipes, goals, weight, sleep,
 supplements, analytics and the AI task queue — OAuth-protected, so the agent only ever sees your data.
 
-**On-device label OCR.** No barcode? Point the camera at the nutrition table. A shared
+**On-device label OCR and photo cut-outs.** No barcode? Point the camera at the nutrition table. A shared
 Kotlin parser plus ML Kit reads it on Android, a native Vision-based parser on iOS —
 nothing leaves the phone either way.
+Food photos get the same treatment: one toggle cuts the food out of its background
+(ML Kit subject segmentation on Android, Vision on iOS), sticker-style.
 
 **Offline-first, for real.** Every client writes optimistically to a local store
 (Dexie on web, SQLDelight on Android, SwiftData on iOS) and drains a sync queue with
@@ -61,7 +63,7 @@ Health Connect / Apple Health integration.
 |                 |                                                                                                                                                                            |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Track**       | Calories, protein, carbs, fat, fiber + 43 extended nutrients, per meal and per day                                                                                         |
-| **Log fast**    | Barcode scanner, camera label OCR, food photos, favorites, recent foods, one-tap widgets                                                                                   |
+| **Log fast**    | Barcode scanner, camera label OCR, food photos with on-device background removal, favorites, recent foods, one-tap widgets                                                 |
 | **Recipes**     | Multi-ingredient recipes with automatic per-serving nutrition, cooking steps with a hands-free cooking mode, logging by cooked weight                                      |
 | **Beyond food** | Weight trend, sleep, water intake, activity calories, supplements, fasting timer with Live Activity, meal/weight/sleep reminders                                           |
 | **Insights**    | Maintenance-calorie estimate from weight trend + intake, streaks, meal timing, food diversity, sleep/food correlation, customizable dashboard layout                       |
