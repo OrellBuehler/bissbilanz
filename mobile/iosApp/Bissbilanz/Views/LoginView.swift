@@ -51,6 +51,39 @@ enum SignInFlow {
     }
 }
 
+/// How the login screen treats a failed native Sign in with Apple request.
+enum AppleSignInFailure: Equatable {
+    /// The user dismissed the sheet: nothing to show or report.
+    case cancelled
+    /// `.unknown` (1000) or `.notInteractive`: what a device without a signed-in
+    /// Apple Account reports. The user is pointed at the other sign-in options.
+    case unavailable
+    case failed
+
+    static func classify(_ code: ASAuthorizationError.Code) -> AppleSignInFailure {
+        switch code {
+        case .canceled: .cancelled
+        case .unknown, .notInteractive: .unavailable
+        default: .failed
+        }
+    }
+
+    static func underlyingError(of error: ASAuthorizationError) -> NSError? {
+        (error as NSError).userInfo[NSUnderlyingErrorKey] as? NSError
+    }
+
+    /// A bare `.unknown` with no underlying error is the expected result on a
+    /// device without an Apple Account (App Review's devices hit it on every
+    /// submission, BISSBILANZ-3M), so it only leaves a breadcrumb.
+    static func shouldReport(_ error: ASAuthorizationError) -> Bool {
+        switch classify(error.code) {
+        case .cancelled: false
+        case .unavailable: error.code != .unknown || underlyingError(of: error) != nil
+        case .failed: true
+        }
+    }
+}
+
 struct LoginView: View {
     /// Shown until /api/auth/providers answers (or when it fails): the providers
     /// known to be configured in production. A failed fetch must never hide a
@@ -163,26 +196,24 @@ struct LoginView: View {
         if case let .failure(error) = result {
             appleRawNonce = ""
             if let appleError = error as? ASAuthorizationError {
-                guard appleError.code != .canceled else { return }
+                let failure = AppleSignInFailure.classify(appleError.code)
+                guard failure != .cancelled else { return }
+                appleErrorMessage = failure == .unavailable ? L10n.appleSignInUnavailable : L10n.appleSignInFailed
                 // The description of these errors reaches Sentry as "[Filtered]",
                 // so only the codes are sent.
-                let nsError = appleError as NSError
+                let code = (appleError as NSError).code
+                guard AppleSignInFailure.shouldReport(appleError) else {
+                    ErrorReporter.addBreadcrumb("Sign in with Apple unavailable", category: "auth", data: ["apple_error_code": code])
+                    return
+                }
+                let underlying = AppleSignInFailure.underlyingError(of: appleError)
                 var context: [String: Any] = [
-                    "apple_error_code": nsError.code,
-                    "has_underlying": false,
+                    "apple_error_code": code,
+                    "has_underlying": underlying != nil,
                 ]
-                if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
-                    context["has_underlying"] = true
+                if let underlying {
                     context["underlying_code"] = underlying.code
                     context["underlying_domain"] = underlying.domain
-                }
-                // .unknown (1000) is what a device without a signed-in Apple Account
-                // reports; point the user at that and at the other sign-in options.
-                switch appleError.code {
-                case .unknown, .notInteractive:
-                    appleErrorMessage = L10n.appleSignInUnavailable
-                default:
-                    appleErrorMessage = L10n.appleSignInFailed
                 }
                 ErrorReporter.captureWarning("Sign in with Apple failed", context: context)
             } else {
