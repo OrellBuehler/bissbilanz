@@ -3064,6 +3064,11 @@ export interface components {
 		};
 		McpStatusResponse: {
 			connected: boolean;
+			clients?: components['schemas']['McpClient'][];
+		};
+		McpClient: {
+			name: string;
+			host: string | null;
 		};
 		SleepEntriesResponse: {
 			entries: components['schemas']['SleepEntry'][];

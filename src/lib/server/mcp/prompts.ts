@@ -47,8 +47,8 @@ export function registerPrompts(server: McpServer) {
 					'',
 					'Steps:',
 					'1. Split the description into individual foods and drinks with estimated quantities.',
-					'2. For each item call search_foods first. If nothing matches, try search_openfoodfacts for packaged products; otherwise create_food with your best per-serving nutrition estimate and state your assumptions.',
-					'3. Log each item with log_food (foodId + servings). Use quickName/quickCalories only for one-off items I am unlikely to eat again.',
+					'2. For each item call search_foods first. If nothing matches, try find_food_by_barcode or search_openfoodfacts for packaged products. Create a food with create_food only when I gave you a nutrition-label photo, a specific product description with nutrition facts, or a web link carrying them; for a plain meal description never create a food.',
+					'3. Log each item with log_food (foodId + servings). When nothing matches, log a quick entry (quickName/quickCalories and the macros you can estimate) and state your assumptions.',
 					'4. Finish with a short summary: what you logged, the meal total in kcal and protein, and my remaining daily budget from the returned dailyStatus.',
 					'',
 					'Ask me before logging only if a quantity is genuinely ambiguous.'

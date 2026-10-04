@@ -10,6 +10,7 @@ import {
 	isLoopbackRedirectUri
 } from '$lib/server/oauth';
 import { resolveOAuthClient, isClientIdMetadataUrl } from '$lib/server/oauth-cimd';
+import { getIssuer } from '$lib/server/oauth-metadata';
 
 export const load: PageServerLoad = async ({ url, request }) => {
 	const clientId = url.searchParams.get('client_id');
@@ -73,7 +74,7 @@ export const load: PageServerLoad = async ({ url, request }) => {
 };
 
 export const actions = {
-	approve: async ({ request }) => {
+	approve: async ({ request, url }) => {
 		const formData = await request.formData();
 		const clientId = formData.get('client_id')?.toString();
 		const redirectUri = formData.get('redirect_uri')?.toString();
@@ -122,6 +123,7 @@ export const actions = {
 			const callbackUrl = new URL(redirectUri);
 			callbackUrl.searchParams.set('code', code);
 			callbackUrl.searchParams.set('state', state);
+			callbackUrl.searchParams.set('iss', getIssuer(url));
 
 			throw redirect(302, callbackUrl.toString());
 		} catch (error) {
@@ -132,7 +134,7 @@ export const actions = {
 		}
 	},
 
-	deny: async ({ request }) => {
+	deny: async ({ request, url }) => {
 		const formData = await request.formData();
 		const clientId = formData.get('client_id')?.toString();
 		const redirectUri = formData.get('redirect_uri')?.toString();
@@ -145,6 +147,7 @@ export const actions = {
 				callbackUrl.searchParams.set('error', 'access_denied');
 				callbackUrl.searchParams.set('error_description', 'User denied authorization');
 				callbackUrl.searchParams.set('state', state);
+				callbackUrl.searchParams.set('iss', getIssuer(url));
 
 				throw redirect(302, callbackUrl.toString());
 			}

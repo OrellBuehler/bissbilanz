@@ -102,7 +102,8 @@ function isMcpRoute(pathname: string): boolean {
 	return (
 		pathname.startsWith('/api/mcp') ||
 		pathname.startsWith('/api/oauth/') ||
-		pathname.startsWith('/.well-known/oauth-authorization-server')
+		pathname.startsWith('/.well-known/oauth-authorization-server') ||
+		pathname.startsWith('/.well-known/oauth-protected-resource')
 	);
 }
 

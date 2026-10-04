@@ -15,7 +15,6 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.McpClient
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,11 +22,11 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param connected
- * @param clients
+ * @param name
+ * @param host
  */
 @Serializable
-data class McpStatusResponse(
-    @SerialName(value = "connected") @Required val connected: kotlin.Boolean,
-    @SerialName(value = "clients") val clients: kotlin.collections.List<McpClient>? = null,
+data class McpClient(
+    @SerialName(value = "name") @Required val name: kotlin.String,
+    @SerialName(value = "host") @Required val host: kotlin.String?,
 )

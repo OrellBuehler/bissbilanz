@@ -131,6 +131,13 @@
 		with a token you can revoke at any time. What the assistant's provider does with data it reads
 		is governed by that provider's own privacy policy.
 	</p>
+	<p class="mb-6">
+		When you connect Claude or ChatGPT, the data the connector requests for your conversation (for
+		example your food log, goals, weight, sleep or supplements, and meal photos you queued for the
+		assistant) is processed by that provider, Anthropic or OpenAI respectively, under its own terms
+		and privacy policy. Bissbilanz only sends what the assistant asks for through the tools you
+		authorized, and stops as soon as you revoke the connection.
+	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>
 	<p class="mb-3">

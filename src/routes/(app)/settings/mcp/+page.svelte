@@ -9,18 +9,30 @@
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Copy from '@lucide/svelte/icons/copy';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Plug from '@lucide/svelte/icons/plug';
+	import QrCode from '$lib/components/shared/QrCode.svelte';
+	import { CHATGPT_URL, claudeInstallUrl } from '$lib/mcp-connect';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	type CopyField = 'clientId' | 'clientSecret' | 'serverUrl' | 'codeCommand';
+	type CopyField = 'clientId' | 'clientSecret' | 'serverUrl' | 'chatgptUrl' | 'codeCommand';
 	let copiedField: CopyField | null = $state(null);
 	let newRedirectUri = $state('');
 	let advancedOpen = $state(false);
+	let clientsOpen = $state(false);
 
 	let activeClientSecret = $derived(form?.clientSecret || data.clientSecret);
 	let codeCommand = $derived(`claude mcp add --transport http bissbilanz ${data.serverUrl}`);
+	let claudeLink = $derived(claudeInstallUrl(data.serverUrl ?? ''));
+	let connectedNames = $derived(
+		(data.authorizedClients ?? []).map(
+			(client) => client.clientName ?? m.mcp_client_name_fallback()
+		)
+	);
 
 	async function copyToClipboard(text: string, field: CopyField) {
 		try {
@@ -34,11 +46,11 @@
 		}
 	}
 
-	const claudeSteps = [
-		m.mcp_connect_claude_step_1,
-		m.mcp_connect_claude_step_2,
-		m.mcp_connect_claude_step_3,
-		m.mcp_connect_claude_step_4
+	const chatgptSteps = [
+		m.mcp_chatgpt_step_1,
+		m.mcp_chatgpt_step_2,
+		m.mcp_chatgpt_step_3,
+		m.mcp_chatgpt_step_4
 	];
 
 	const capabilities = [
@@ -64,13 +76,73 @@
 		</p>
 	</div>
 
-	<!-- Connect Claude -->
+	<!-- Status -->
+	<div
+		class="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm"
+		role="status"
+		data-testid="mcp-status"
+	>
+		{#if connectedNames.length > 0}
+			<CircleCheck class="size-5 shrink-0 text-green-600" />
+			<span class="font-medium">{m.mcp_status_connected({ names: connectedNames.join(', ') })}</span
+			>
+		{:else}
+			<Plug class="size-5 shrink-0 text-muted-foreground" />
+			<span class="text-muted-foreground">{m.mcp_status_none()}</span>
+		{/if}
+	</div>
+
+	<!-- Claude -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>{m.mcp_connect_title()}</Card.Title>
-			<Card.Description>{m.mcp_connect_desc()}</Card.Description>
+			<Card.Title>{m.mcp_claude_title()}</Card.Title>
+			<Card.Description>{m.mcp_claude_desc()}</Card.Description>
 		</Card.Header>
+		<Card.Content>
+			<Button href={claudeLink} target="_blank" rel="noopener" class="w-full md:w-auto">
+				<ExternalLink class="size-4" />
+				{m.mcp_claude_button()}
+			</Button>
+		</Card.Content>
+	</Card.Root>
 
+	<!-- ChatGPT -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.mcp_chatgpt_title()}</Card.Title>
+			<Card.Description>{m.mcp_chatgpt_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			<ol class="space-y-2 list-decimal list-inside">
+				{#each chatgptSteps as step}
+					<li class="text-sm text-muted-foreground">{step()}</li>
+				{/each}
+			</ol>
+			<div class="flex flex-col gap-2 sm:flex-row">
+				<Button href={CHATGPT_URL} target="_blank" rel="noopener" class="w-full sm:w-auto">
+					<ExternalLink class="size-4" />
+					{m.mcp_chatgpt_open()}
+				</Button>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => data.serverUrl && copyToClipboard(data.serverUrl, 'chatgptUrl')}
+				>
+					<Copy class="size-4" />
+					{copiedField === 'chatgptUrl' ? m.mcp_copied() : m.mcp_copy_server_url()}
+				</Button>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<p class="text-sm text-muted-foreground px-1">{m.mcp_gemini_unavailable()}</p>
+
+	<!-- Server URL and QR handoff -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.mcp_desktop_title()}</Card.Title>
+			<Card.Description>{m.mcp_desktop_desc()}</Card.Description>
+		</Card.Header>
 		<Card.Content class="space-y-6">
 			<div class="space-y-2">
 				<Label for="serverUrl">{m.mcp_server_url_label()}</Label>
@@ -92,52 +164,59 @@
 				</div>
 			</div>
 
-			<div class="space-y-3">
-				<h4 class="font-medium">{m.mcp_connect_claude_heading()}</h4>
-				<ol class="space-y-2 list-decimal list-inside">
-					{#each claudeSteps as step}
-						<li class="text-sm text-muted-foreground">{step()}</li>
-					{/each}
-				</ol>
-				<Button
-					href="https://claude.ai/settings/connectors"
-					target="_blank"
-					rel="noopener"
-					variant="outline"
-					class="w-full md:w-auto"
-				>
-					<ExternalLink class="size-4" />
-					{m.mcp_connect_open_claude()}
-				</Button>
-			</div>
-
-			<div class="space-y-2 pt-4 border-t">
-				<h4 class="font-medium">{m.mcp_connect_code_heading()}</h4>
-				<div class="flex gap-2">
-					<Input
-						id="codeCommand"
-						type="text"
-						readonly
-						value={codeCommand}
-						class="font-mono text-sm flex-1"
-					/>
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => copyToClipboard(codeCommand, 'codeCommand')}
-					>
-						{copiedField === 'codeCommand' ? m.mcp_copied() : m.mcp_copy()}
-					</Button>
-				</div>
-				<p class="text-sm text-muted-foreground">{m.mcp_connect_code_desc()}</p>
-			</div>
-
-			<div class="space-y-2 pt-4 border-t">
-				<h4 class="font-medium">{m.mcp_connect_other_heading()}</h4>
-				<p class="text-sm text-muted-foreground">{m.mcp_connect_other_desc()}</p>
-			</div>
+			<QrCode
+				value={claudeLink}
+				label={m.mcp_qr_label()}
+				class="mx-auto size-48 rounded-md border"
+			/>
 		</Card.Content>
 	</Card.Root>
+
+	<!-- Claude Code and other MCP clients -->
+	<Collapsible.Root bind:open={clientsOpen}>
+		<Card.Root>
+			<Collapsible.Trigger class="w-full text-left">
+				<Card.Header>
+					<div class="flex items-center gap-2">
+						<ChevronDown
+							class="size-4 shrink-0 transition-transform [[data-state=closed]_&]:-rotate-90"
+						/>
+						<Card.Title>{m.mcp_clients_toggle()}</Card.Title>
+					</div>
+				</Card.Header>
+			</Collapsible.Trigger>
+
+			<Collapsible.Content>
+				<Card.Content class="space-y-6">
+					<div class="space-y-2">
+						<h4 class="font-medium">{m.mcp_connect_code_heading()}</h4>
+						<div class="flex gap-2">
+							<Input
+								id="codeCommand"
+								type="text"
+								readonly
+								value={codeCommand}
+								class="font-mono text-sm flex-1"
+							/>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => copyToClipboard(codeCommand, 'codeCommand')}
+							>
+								{copiedField === 'codeCommand' ? m.mcp_copied() : m.mcp_copy()}
+							</Button>
+						</div>
+						<p class="text-sm text-muted-foreground">{m.mcp_connect_code_desc()}</p>
+					</div>
+
+					<div class="space-y-2 pt-4 border-t">
+						<h4 class="font-medium">{m.mcp_connect_other_heading()}</h4>
+						<p class="text-sm text-muted-foreground">{m.mcp_connect_other_desc()}</p>
+					</div>
+				</Card.Content>
+			</Collapsible.Content>
+		</Card.Root>
+	</Collapsible.Root>
 
 	<!-- Connected Applications Card -->
 	<Card.Root>
