@@ -12,6 +12,7 @@ datetime = "0.8.0"
 skie = "0.10.15"
 mlkit-barcode = "17.3.0"
 mlkit-text = "16.0.1"
+zxing-core = "3.5.4"
 mlkit-subject-segmentation = "16.0.0-beta1"
 camerax = "1.6.1"
 ktlint = "14.2.0"
@@ -84,6 +85,7 @@ camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", vers
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
 mlkit-text = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkit-text" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing-core" }
 mlkit-subject-segmentation = { group = "com.google.android.gms", name = "play-services-mlkit-subject-segmentation", version.ref = "mlkit-subject-segmentation" }
 
 # Security

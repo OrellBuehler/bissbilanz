@@ -335,7 +335,7 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     }
     composable("connect-claude") {
         com.bissbilanz.android.ui.screens
-            .ConnectClaudeScreen(navController)
+            .ConnectAssistantScreen(navController)
     }
     composable("reminders") {
         com.bissbilanz.android.ui.screens

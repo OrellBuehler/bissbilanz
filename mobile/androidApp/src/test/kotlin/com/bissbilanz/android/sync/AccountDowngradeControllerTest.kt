@@ -2,10 +2,12 @@ package com.bissbilanz.android.sync
 
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.sync.SyncManager
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,20 +21,48 @@ import kotlin.test.assertEquals
 class AccountDowngradeControllerTest {
     private lateinit var downgrader: AccountDowngrader
     private lateinit var syncManager: SyncManager
+    private lateinit var mcpConnectionStore: McpConnectionStore
     private lateinit var controller: AccountDowngradeController
 
     @BeforeTest
     fun setup() {
         downgrader = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
+        mcpConnectionStore = mockk(relaxed = true)
         controller =
             AccountDowngradeController(
                 downgrader,
                 syncManager,
                 mockk<ErrorReporter>(relaxed = true),
                 CoroutineScope(UnconfinedTestDispatcher()),
+                mcpConnectionStore,
             )
     }
+
+    @Test
+    fun clearsTheCachedAssistantConnectionOnceTheAccountIsDeleted() =
+        runTest {
+            coEvery { downgrader.pendingOps() } returns 0L
+            coEvery { downgrader.parkedOps() } returns 0L
+
+            controller.start()
+
+            coVerifyOrder {
+                downgrader.finalize()
+                mcpConnectionStore.clear()
+            }
+        }
+
+    @Test
+    fun keepsTheCachedAssistantConnectionWhenTheDowngradeIsRefused() =
+        runTest {
+            coEvery { downgrader.pendingOps() } returns 0L
+            coEvery { downgrader.parkedOps() } returns 2L
+
+            controller.start()
+
+            coVerify(exactly = 0) { mcpConnectionStore.clear() }
+        }
 
     @Test
     fun refusesWhenParkedChangesExistBeforeTouchingTheServerAccount() =

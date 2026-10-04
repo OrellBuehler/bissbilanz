@@ -296,6 +296,10 @@ fun DashboardScreen(navController: NavController) {
                     showAiMealSheet = false
                     scope.launch { snackbarHostState.showSnackbar(aiQueuedMessage) }
                 },
+                onConnectAssistant = {
+                    showAiMealSheet = false
+                    navController.navigate("connect-claude")
+                },
             )
         }
 

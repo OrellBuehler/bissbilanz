@@ -8,7 +8,6 @@ import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
 import com.bissbilanz.api.generated.model.AiTaskResponse
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
-import com.bissbilanz.api.generated.model.McpStatusResponse
 import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
@@ -128,13 +127,10 @@ interface AiTasksApi : ApiTransport {
     }
 
     /**
-     * Whether the signed-in account has at least one MCP client (Claude.ai, Claude
-     * Code, ...) authorized. Queued AI tasks are only ever picked up by such a
-     * client, so this is what gates "send to assistant" when the processor
-     * preference is 'assistant' rather than the user's own iPhone.
+     * Whether the signed-in account has at least one MCP client (Claude, ChatGPT,
+     * Claude Code, ...) authorized, and which ones. Queued AI tasks are only ever
+     * picked up by such a client, so this is what gates "send to assistant" when the
+     * processor preference is 'assistant' rather than the user's own iPhone.
      */
-    suspend fun getMcpStatus(): Boolean {
-        val response: McpStatusResponse = get("/api/mcp/status")
-        return response.connected
-    }
+    suspend fun getMcpConnection(): McpConnection = get("/api/mcp/status")
 }

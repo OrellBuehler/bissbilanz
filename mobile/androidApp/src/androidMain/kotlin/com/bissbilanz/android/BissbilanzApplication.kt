@@ -10,6 +10,7 @@ import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskPollWorker
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
+import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -153,6 +154,7 @@ class BissbilanzApplication :
                         syncManager = get(),
                         errorReporter = get(),
                         scope = get(),
+                        mcpConnectionStore = get(),
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }
@@ -164,6 +166,7 @@ class BissbilanzApplication :
                 single { ReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
                 single { AiTaskUploadQueue(androidContext()) }
+                single { McpConnectionStore(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get(), get()) }
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
@@ -238,8 +241,10 @@ class BissbilanzApplication :
         }
         koin.get<FoodRepository>().onImageOrphaned = evictImage
         koin.get<RecipeRepository>().onImageOrphaned = evictImage
+        val mcpConnectionStore = koin.get<McpConnectionStore>()
         koin.get<LocalDataWiper>().onWiped = {
             LocalImageStore.clear(this@BissbilanzApplication)
+            mcpConnectionStore.clear()
         }
 
         koin.get<FoodRepository>().onFoodChanged = {
