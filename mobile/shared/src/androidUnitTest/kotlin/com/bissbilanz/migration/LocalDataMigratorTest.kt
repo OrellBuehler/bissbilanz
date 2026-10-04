@@ -632,6 +632,18 @@ class LocalDataMigratorTest {
         }
 
     @Test
+    fun migrateReuploadsALocalPngPhotoWithItsOwnContentType() =
+        runTest {
+            insertFood(TestFixtures.food(id = "temp_food-a", name = "Apple").copy(imageUrl = "file:///photos/local-a.png"))
+            stubHappyApi()
+            coEvery { api.uploadImage(any(), any(), any(), any()) } returns "/uploads/srv-a.webp"
+
+            migrator.migrate()
+
+            coVerify { api.uploadImage("local-a.png", byteArrayOf(1, 2, 3), "image/png", any()) }
+        }
+
+    @Test
     fun migrateDropsAnUnreadableLocalPhotoInsteadOfStrandingTheFood() =
         runTest {
             migrator = migratorFor(db, localPhotoReader = { null })

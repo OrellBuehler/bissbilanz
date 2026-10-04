@@ -101,6 +101,44 @@ private fun byteCount(
 fun Bitmap.toJpegBytes(
     maxDimension: Int = 1024,
     quality: Int = 75,
+): ByteArray = encode(Bitmap.CompressFormat.JPEG, maxDimension, quality)
+
+/** PNG bytes with the longest side capped at [maxDimension]; keeps transparency. */
+fun Bitmap.toPngBytes(maxDimension: Int = 1024): ByteArray = encode(Bitmap.CompressFormat.PNG, maxDimension, 100)
+
+enum class ImageFormat(
+    val extension: String,
+    val mimeType: String,
+) {
+    Jpeg("jpg", "image/jpeg"),
+    Png("png", "image/png"),
+}
+
+class EncodedImage(
+    val bytes: ByteArray,
+    val format: ImageFormat,
+)
+
+/**
+ * PNG when [transparent] (a background was cut out, so alpha has to survive), JPEG otherwise.
+ * Not decided by [Bitmap.hasAlpha]: an ARGB_8888 bitmap reports alpha even when every pixel
+ * is opaque, which would turn every ordinary photo into a PNG.
+ */
+fun Bitmap.toUploadBytes(
+    maxDimension: Int,
+    quality: Int,
+    transparent: Boolean,
+): EncodedImage =
+    if (transparent) {
+        EncodedImage(toPngBytes(maxDimension), ImageFormat.Png)
+    } else {
+        EncodedImage(toJpegBytes(maxDimension, quality), ImageFormat.Jpeg)
+    }
+
+private fun Bitmap.encode(
+    format: Bitmap.CompressFormat,
+    maxDimension: Int,
+    quality: Int,
 ): ByteArray {
     val longest = maxOf(width, height)
     val scaled =
@@ -111,7 +149,7 @@ fun Bitmap.toJpegBytes(
             this
         }
     return ByteArrayOutputStream().use { out ->
-        scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        scaled.compress(format, quality, out)
         out.toByteArray()
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -59,20 +61,31 @@ import kotlin.math.roundToInt
  *
  * The part of the photo outside the square stays visible under a dimming, so
  * the user sees what they are cutting away, not just what remains.
+ *
+ * "Remove background" swaps the photo for its transparent cut-out (zoom and pan start over)
+ * and [onCropped] then reports `true` for the transparent flag, so the caller encodes PNG.
  */
 @Composable
 fun ImageCropDialog(
     bitmap: Bitmap,
     onCancel: () -> Unit,
-    onCropped: (Bitmap) -> Unit,
+    onCropped: (Bitmap, Boolean) -> Unit,
 ) {
     Dialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        val cutout = rememberCutoutState(bitmap)
+        val shown = cutout.shown
         var scale by remember { mutableFloatStateOf(1f) }
         var offsetX by remember { mutableFloatStateOf(0f) }
         var offsetY by remember { mutableFloatStateOf(0f) }
+
+        LaunchedEffect(shown) {
+            scale = 1f
+            offsetX = 0f
+            offsetY = 0f
+        }
 
         BoxWithConstraints(
             modifier =
@@ -87,8 +100,8 @@ fun ImageCropDialog(
             val window = with(density) { windowDp.toPx() }
             // Scale that makes the photo cover the square window, so there is
             // never a gap inside the crop area at rest.
-            val baseScale = max(window / bitmap.width, window / bitmap.height)
-            val displayed = { s: Float -> Pair(bitmap.width * baseScale * s, bitmap.height * baseScale * s) }
+            val baseScale = max(window / shown.width, window / shown.height)
+            val displayed = { s: Float -> Pair(shown.width * baseScale * s, shown.height * baseScale * s) }
 
             fun clamp() {
                 val (w, h) = displayed(scale)
@@ -105,7 +118,7 @@ fun ImageCropDialog(
                     Modifier
                         .fillMaxSize()
                         .clipToBounds()
-                        .pointerInput(bitmap) {
+                        .pointerInput(shown) {
                             detectTransformGestures { _, pan, zoom, _ ->
                                 scale = (scale * zoom).coerceIn(1f, 6f)
                                 offsetX += pan.x
@@ -116,14 +129,11 @@ fun ImageCropDialog(
                 contentAlignment = Alignment.Center,
             ) {
                 val (w, h) = displayed(1f)
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillBounds,
-                    // `requiredSize`, not `size`: the photo is larger than the
-                    // square on one axis, and `size` would let the parent's
-                    // constraints shrink it back to fit — the crop math assumes
-                    // it is drawn at exactly this size.
+                // `requiredSize`, not `size`: the photo is larger than the
+                // square on one axis, and `size` would let the parent's
+                // constraints shrink it back to fit — the crop math assumes
+                // it is drawn at exactly this size.
+                Box(
                     modifier =
                         Modifier
                             .requiredSize(
@@ -135,7 +145,15 @@ fun ImageCropDialog(
                                 translationX = offsetX,
                                 translationY = offsetY,
                             ),
-                )
+                ) {
+                    if (cutout.transparent) Checkerboard(Modifier.fillMaxSize())
+                    Image(
+                        bitmap = shown.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val crop =
                         Rect(
@@ -178,24 +196,32 @@ fun ImageCropDialog(
                 TextButton(onClick = onCancel) {
                     Text(stringResource(R.string.food_image_crop_cancel), color = Color.White)
                 }
-                Button(onClick = { onCropped(cropSquare(bitmap, window, baseScale, scale, offsetX, offsetY)) }) {
+                Button(onClick = { onCropped(cropSquare(shown, window, baseScale, scale, offsetX, offsetY), cutout.transparent) }) {
                     Text(stringResource(R.string.food_image_crop_confirm))
                 }
             }
 
-            Text(
-                stringResource(R.string.food_image_crop_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White,
-                textAlign = TextAlign.Center,
+            Column(
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
                         .safeDrawingPadding()
-                        .padding(24.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
+                        .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CutoutToggle(cutout)
+                Text(
+                    stringResource(R.string.food_image_crop_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier =
+                        Modifier
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

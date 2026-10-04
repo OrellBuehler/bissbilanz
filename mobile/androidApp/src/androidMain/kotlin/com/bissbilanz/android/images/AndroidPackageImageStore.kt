@@ -3,6 +3,8 @@ package com.bissbilanz.android.images
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.util.Base64
 import com.bissbilanz.foodpackage.PackageImageStore
 import kotlinx.coroutines.Dispatchers
@@ -36,9 +38,16 @@ class AndroidPackageImageStore(
                     inSampleSize = sampleSizeFor(bounds.first, bounds.second, THUMBNAIL_PX)
                 }
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return@withContext null
-            val out = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, THUMBNAIL_QUALITY, out)
+            // JPEG has no alpha: a cut-out photo would come out black, so it is flattened onto white.
+            val flat = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+            Canvas(flat).apply {
+                drawColor(Color.WHITE)
+                drawBitmap(bitmap, 0f, 0f, null)
+            }
             bitmap.recycle()
+            val out = ByteArrayOutputStream()
+            flat.compress(Bitmap.CompressFormat.JPEG, THUMBNAIL_QUALITY, out)
+            flat.recycle()
             "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
         }
 
