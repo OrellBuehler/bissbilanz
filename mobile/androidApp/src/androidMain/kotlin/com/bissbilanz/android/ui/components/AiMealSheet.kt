@@ -37,11 +37,11 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
-import com.bissbilanz.android.util.decodeUprightBitmap
 import com.bissbilanz.android.util.hasPermission
 import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
+import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.android.util.toJpegBytes
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
@@ -141,6 +141,7 @@ fun AiMealSheet(
 
     val sendFailed = stringResource(R.string.ai_task_send_failed)
     val saveFailed = stringResource(R.string.ai_task_save_failed)
+    val photoReadFailed = stringResource(R.string.photo_read_failed)
     val totalPhotoCount = existingPhotoUrls.size + attached.size
 
     val pickMedia =
@@ -150,11 +151,18 @@ fun AiMealSheet(
             if (uris.isNotEmpty()) {
                 scope.launch {
                     val room = MAX_AI_TASK_PHOTOS - totalPhotoCount
-                    val decoded =
-                        withContext(Dispatchers.IO) {
-                            uris.take(room).mapNotNull { decodeUprightBitmap(context, it) }
-                        }
-                    attached.addAll(decoded)
+                    try {
+                        val decoded =
+                            withContext(Dispatchers.IO) {
+                                uris.take(room).map { requireUprightBitmap(context, it) }
+                            }
+                        attached.addAll(decoded)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        errorReporter.captureException(e)
+                        errorMessage = photoReadFailed
+                    }
                 }
             }
         }
@@ -172,8 +180,15 @@ fun AiMealSheet(
             if (success && uri != null) {
                 cameraPermanentlyDenied = false
                 scope.launch {
-                    val decoded = withContext(Dispatchers.IO) { decodeUprightBitmap(context, uri) }
-                    if (decoded != null && totalPhotoCount < MAX_AI_TASK_PHOTOS) attached.add(decoded)
+                    try {
+                        val decoded = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
+                        if (totalPhotoCount < MAX_AI_TASK_PHOTOS) attached.add(decoded)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        errorReporter.captureException(e)
+                        errorMessage = photoReadFailed
+                    }
                 }
             } else {
                 cameraPermanentlyDenied =
