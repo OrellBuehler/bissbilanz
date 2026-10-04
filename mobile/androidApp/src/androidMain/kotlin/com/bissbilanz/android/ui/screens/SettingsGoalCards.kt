@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.Preferences
@@ -209,17 +210,11 @@ internal fun BiologicalSexCard(
                     stringResource(R.string.settings_biological_sex_female) to
                         GenPreferencesUpdate.BiologicalSex.female,
                 )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                sexOptions.forEachIndexed { index, (label, value) ->
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index, sexOptions.size),
-                        onClick = { onSelect(value) },
-                        selected = prefs?.biologicalSex?.value == value?.value,
-                    ) {
-                        Text(label)
-                    }
-                }
-            }
+            ChoiceDropdown(
+                selectedLabel = (sexOptions.firstOrNull { it.second?.value == prefs?.biologicalSex?.value } ?: sexOptions.first()).first,
+                options = sexOptions,
+                onSelect = onSelect,
+            )
         }
     }
 }
@@ -325,7 +320,7 @@ fun GoalRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurface)
-        Text("${value.toInt()} $unit", fontWeight = FontWeight.Medium)
+        Text(label, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Text("${value.toInt()} $unit", fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 8.dp))
     }
 }

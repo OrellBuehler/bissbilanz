@@ -50,6 +50,7 @@ fun NutrientSleepCard(correlations: List<NutrientCorrelation>) {
                     label,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Row {
                     Text(

@@ -218,6 +218,8 @@
     <string name="ai_task_time_on_day_hint">The meal is logged at this time on %1$s.</string>
     <string name="ai_task_clear_time">Clear time</string>
     <string name="ai_task_remove_photo">Remove photo</string>
+    <string name="ai_task_photo_camera">Camera</string>
+    <string name="ai_task_photo_gallery">Gallery</string>
     <string name="ai_task_photo_hint">Add up to %1$d photos — the dish, the packaging, a nutrition label.</string>
     <string name="ai_task_content_desc">Send a meal to the assistant</string>
     <string name="ai_task_camera_permission_required">Camera permission required to take a photo</string>
@@ -393,8 +395,7 @@
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Maintenance Calculator</string>
-    <string name="maintenance_range_weeks">%1$d Weeks</string>
-    <string name="maintenance_analysis_period">Analysis Period</string>
+    <string name="maintenance_analysis_period">Analysis Period (weeks)</string>
     <string name="maintenance_body_composition">Body Composition</string>
     <string name="maintenance_muscle_fat_ratio">Muscle/Fat ratio: %1$d%% muscle / %2$d%% fat</string>
     <string name="maintenance_ratio_hint">Adjusts how weight change is split between muscle and fat gain/loss</string>

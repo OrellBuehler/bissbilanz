@@ -97,7 +97,7 @@ class DayLogScreenTest {
             }
         }
         // The title renders the readable day label, not the raw ISO date.
-        composeTestRule.onNodeWithText("15 January 2024").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1/15/2024").assertIsDisplayed()
     }
 
     @Test

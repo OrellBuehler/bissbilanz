@@ -43,6 +43,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SimpleLineChart
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
@@ -146,7 +147,7 @@ fun SleepScreen(navController: NavController) {
         AlertDialog(
             onDismissRequest = { entryToDelete = null },
             title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
-            text = { Text(stringResource(R.string.sleep_delete_dialog_text, entry.entryDate)) },
+            text = { Text(stringResource(R.string.sleep_delete_dialog_text, formatIsoDate(entry.entryDate))) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -291,7 +292,7 @@ fun SleepScreen(navController: NavController) {
                                     },
                                     supportingContent = {
                                         Column {
-                                            Text(entry.entryDate)
+                                            Text(formatIsoDate(entry.entryDate))
                                             val bed = entry.bedtime?.let { formatTimeOfDay(it) }
                                             val wake = entry.wakeTime?.let { formatTimeOfDay(it) }
                                             if (bed != null && wake != null) {
@@ -507,7 +508,7 @@ private fun SleepEditSheet(
             )
 
             OutlinedTextField(
-                value = date,
+                value = formatIsoDate(date),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text(stringResource(R.string.insights_sleep_date_label)) },

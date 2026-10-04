@@ -274,22 +274,12 @@ fun SupplementEditSheet(
                     }
                 }
 
-                Text(stringResource(R.string.supplement_edit_time_of_day), style = MaterialTheme.typography.labelLarge)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    timeOptions.forEachIndexed { index, option ->
-                        SegmentedButton(
-                            shape =
-                                SegmentedButtonDefaults.itemShape(
-                                    index,
-                                    timeOptions.size,
-                                ),
-                            onClick = { timeOfDay = option },
-                            selected = timeOfDay == option,
-                        ) {
-                            Text(timeOfDayDisplayName(option))
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    label = stringResource(R.string.supplement_edit_time_of_day),
+                    selectedLabel = timeOfDayDisplayName(timeOfDay),
+                    options = timeOptions.map { timeOfDayDisplayName(it) to it },
+                    onSelect = { timeOfDay = it },
+                )
 
                 ReminderTimesSection(
                     times = reminderTimes,
