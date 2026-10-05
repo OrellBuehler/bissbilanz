@@ -28,6 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param ingredientOnly
  * @param samples
  * @param items
+ * @param itemsTruncated
  */
 @Serializable
 data class FoodPackageNewFoods(
@@ -35,4 +36,5 @@ data class FoodPackageNewFoods(
     @SerialName(value = "ingredientOnly") @Required val ingredientOnly: kotlin.Int,
     @SerialName(value = "samples") @Required val samples: kotlin.collections.List<FoodPackageNewFood>,
     @SerialName(value = "items") @Required val items: kotlin.collections.List<FoodPackageNewFoodItem>,
+    @SerialName(value = "itemsTruncated") val itemsTruncated: kotlin.Boolean? = null,
 )

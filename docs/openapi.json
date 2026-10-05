@@ -5741,7 +5741,7 @@
 						"type": "boolean"
 					},
 					"foodIds": {
-						"maxItems": 5000,
+						"maxItems": 25000,
 						"type": "array",
 						"items": {
 							"type": "string",
@@ -5794,7 +5794,7 @@
 					},
 					"foods": {
 						"default": [],
-						"maxItems": 5000,
+						"maxItems": 25000,
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/FoodPackageResolution"
@@ -5810,7 +5810,7 @@
 					},
 					"mappings": {
 						"default": [],
-						"maxItems": 5000,
+						"maxItems": 25000,
 						"type": "array",
 						"items": {
 							"$ref": "#/components/schemas/FoodPackageMapping"
@@ -9423,6 +9423,9 @@
 						"items": {
 							"$ref": "#/components/schemas/FoodPackageNewFoodItem"
 						}
+					},
+					"itemsTruncated": {
+						"type": "boolean"
 					}
 				},
 				"required": ["count", "ingredientOnly", "samples", "items"],

@@ -1376,7 +1376,7 @@
     <string name="food_package_import_title">Lebensmittelpaket importieren</string>
     <string name="food_package_import_description">Füge Lebensmittel und Rezepte hinzu, die jemand mit dir geteilt hat. Du entscheidest, was mit bereits vorhandenen passiert.</string>
     <string name="food_package_choose_file">Paketdatei wählen</string>
-    <string name="food_package_file_too_large">Die Datei ist grösser als 50 MB.</string>
+    <string name="food_package_file_too_large">Die Datei ist grösser als 200 MB.</string>
     <string name="food_package_analyzing">Paket wird analysiert…</string>
     <string name="food_package_new_counts">%1$d neue Lebensmittel · %2$d neue Rezepte</string>
     <string name="food_package_ingredient_only">davon %1$d nur als Rezeptzutaten</string>

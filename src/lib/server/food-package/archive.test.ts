@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { readFoodPackage, WRONG_FILE_ACCOUNT_EXPORT } from './archive';
-import { MANIFEST_NAME, MAX_IMAGE_ENTRY_BYTES } from './format';
+import {
+	MANIFEST_NAME,
+	MAX_IMAGE_ENTRY_BYTES,
+	MAX_MANIFEST_BYTES,
+	MAX_PACKAGE_BYTES,
+	MAX_PACKAGE_FOODS,
+	MAX_ZIP_ENTRIES
+} from './format';
 
 const baseFood = {
 	ref: 'f1',
@@ -153,3 +160,68 @@ describe('readFoodPackage', () => {
 		expect(images.get('images/f1.webp')?.length ?? 0).toBeLessThanOrEqual(16);
 	});
 });
+
+describe('big packages', () => {
+	it('raises the limits the web import accepts', () => {
+		expect(MAX_PACKAGE_FOODS).toBe(25000);
+		expect(MAX_PACKAGE_BYTES).toBe(200 * 1024 * 1024);
+		expect(MAX_MANIFEST_BYTES).toBe(40 * 1024 * 1024);
+		expect(MAX_ZIP_ENTRIES).toBe(25000 + 1000 * 51 + 16);
+	});
+
+	it('reads a package with far more foods than the old 5000 cap', () => {
+		const foods = Array.from({ length: 12000 }, (_, index) => ({
+			...baseFood,
+			ref: `f${index + 1}`,
+			name: `Food ${index + 1}`,
+			image: null
+		}));
+		const pkg = readFoodPackage(pack({ [MANIFEST_NAME]: json(manifest({ foods })) }));
+		expect(pkg.manifest.foods).toHaveLength(12000);
+	});
+
+	it('refuses more foods than the cap', () => {
+		const foods = Array.from({ length: MAX_PACKAGE_FOODS + 1 }, (_, index) => ({
+			...baseFood,
+			ref: `f${index + 1}`,
+			image: null
+		}));
+		expectError(() => readFoodPackage(json(manifest({ foods }))), /Invalid food package: foods/);
+	});
+
+	it('reads a package with more entries than the old cap, inflating only the asked batch', () => {
+		const files: Zippable = { [MANIFEST_NAME]: json(manifest({ foods: [] })) };
+		for (let index = 0; index < 7000; index++) files[`images/i${index}.webp`] = new Uint8Array([1]);
+		const pkg = readFoodPackage(pack(files));
+		const images = pkg.readImages(['images/i0.webp', 'images/i6999.webp']);
+		expect([...images.keys()].sort()).toEqual(['images/i0.webp', 'images/i6999.webp']);
+	});
+
+	it('reads a zip64 archive written by another tool', () => {
+		const bytes = Uint8Array.from(atob(ZIP64_MANIFEST_ONLY), (char) => char.charCodeAt(0));
+		const pkg = readFoodPackage(bytes);
+		expect(pkg.manifest.foods).toEqual([]);
+	});
+
+	it('answers a too-large file with a coded 400 the web can recognise', () => {
+		const big = { length: MAX_PACKAGE_BYTES + 1 } as Uint8Array;
+		expect(() => readFoodPackage(big)).toThrowError(
+			expect.objectContaining({
+				status: 400,
+				message: 'File must be 200MB or smaller',
+				details: { code: ['package_too_large'], maxBytes: [String(MAX_PACKAGE_BYTES)] }
+			})
+		);
+	});
+
+	it('answers a truncated zip64 archive with a clean 400, not a crash', () => {
+		const bytes = Uint8Array.from(atob(ZIP64_MANIFEST_ONLY), (char) => char.charCodeAt(0));
+		expectError(
+			() => readFoodPackage(bytes.subarray(0, bytes.length - 30)),
+			/damaged|does not contain/
+		);
+	});
+});
+
+const ZIP64_MANIFEST_ONLY =
+	'UEsDBBQAAAAIAAAAIQBnL78VRwAAAFUAAAAVABQAYmlzc2JpbGFuei1mb29kcy5qc29uAQAQAFUAAAAAAAAARwAAAAAAAACrVkrLL8pNLFGyUlBKyiwuTsrMScyr0kvLz0/RLUhMzk5MT1XSUYAqCkstKs7MzwOqNQSL5acUA9nRsUBOUWpyZkEqhFsLAFBLAQIUAxQAAAAIAAAAIQBnL78VRwAAAFUAAAAVAAAAAAAAAAAAAACAAQAAAABiaXNzYmlsYW56LWZvb2RzLmpzb25QSwUGAAAAAAEAAQBDAAAAjgAAAAAA';

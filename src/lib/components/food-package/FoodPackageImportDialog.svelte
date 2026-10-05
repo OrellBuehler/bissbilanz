@@ -23,7 +23,10 @@
 		foodsToCreate,
 		groupNewFoods,
 		initialResolutions,
+		isPackageTooLarge,
+		MAX_PACKAGE_LABEL,
 		responseError,
+		responseErrorInfo,
 		setMapping,
 		setResolution,
 		type FoodPackageImportResult,
@@ -84,7 +87,12 @@
 			body.append('file', selected);
 			const response = await fetch('/api/foods/package/preview', { method: 'POST', body });
 			if (!response.ok) {
-				toast.error((await responseError(response)) ?? m.food_package_import_failed());
+				const info = await responseErrorInfo(response);
+				toast.error(
+					info.tooLarge
+						? m.food_package_import_too_large({ size: MAX_PACKAGE_LABEL })
+						: (info.message ?? m.food_package_import_failed())
+				);
 				file = null;
 				return;
 			}
@@ -113,6 +121,10 @@
 		const selected = input.files?.[0] ?? null;
 		input.value = '';
 		if (!selected) return;
+		if (isPackageTooLarge(selected)) {
+			toast.error(m.food_package_import_too_large({ size: MAX_PACKAGE_LABEL }));
+			return;
+		}
 		file = selected;
 		preview = null;
 		await analyze(selected);
@@ -264,6 +276,7 @@
 					<NewFoodsList
 						items={listedItems}
 						count={createdItems.length}
+						truncated={preview.newFoods.itemsTruncated === true}
 						{mappings}
 						onMap={(ref, food) => (mappings = setMapping(mappings, ref, food))}
 						onUnmap={(ref) => (mappings = clearMapping(mappings, ref))}

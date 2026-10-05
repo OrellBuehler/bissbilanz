@@ -5012,7 +5012,7 @@ enum L10n {
     }
 
     static var foodPackageFileTooLarge: String {
-        localized("food_package_file_too_large", en: "The file is larger than 50 MB.", de: "Die Datei ist grösser als 50 MB.")
+        localized("food_package_file_too_large", en: "The file is larger than 200 MB.", de: "Die Datei ist grösser als 200 MB.")
     }
 
     static var foodPackageAnalyzing: String {

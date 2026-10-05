@@ -99,6 +99,7 @@
 				"servingUnit": "g"
 			}
 		],
+		"itemsTruncated": true,
 		"samples": [
 			{
 				"brand": "sample-brand",

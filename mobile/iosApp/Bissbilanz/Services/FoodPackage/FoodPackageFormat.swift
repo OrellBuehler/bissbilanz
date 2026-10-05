@@ -10,14 +10,16 @@ enum FoodPackageFormat {
     static let manifestName = "bissbilanz-foods.json"
     static let fileExtension = "bissbilanz"
 
-    static let maxPackageBytes = 50 * 1024 * 1024
-    static let maxFoods = 5000
+    static let maxPackageBytes = 200 * 1024 * 1024
+    static let maxExportBytes = 50 * 1024 * 1024
+    static let maxFoods = 25000
     static let maxRecipes = 1000
     static let maxRecipeIngredients = 100
-    static let maxManifestBytes = 10 * 1024 * 1024
+    static let maxRecipeSteps = 50
+    static let maxManifestBytes = 40 * 1024 * 1024
     static let maxImageEntryBytes = 5 * 1024 * 1024
-    static let maxTotalInflatedBytes = 150 * 1024 * 1024
-    static let maxZipEntries = maxFoods + maxRecipes + 16
+    static let maxTotalInflatedBytes = 300 * 1024 * 1024
+    static let maxZipEntries = maxFoods + maxRecipes * (1 + maxRecipeSteps) + 16
     static let maxPreviewThumbnails = 300
     static let maxIssues = 100
     static let maxLabelsPerFood = LabelNormalizer.maxLabelsPerFood

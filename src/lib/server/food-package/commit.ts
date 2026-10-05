@@ -29,7 +29,7 @@ import type {
 import type { FoodPackageFile } from './archive';
 import { matchPackage, resolveOperations, type PackageIssue } from './match';
 import { loadImportContext, packageImageUrl } from './plan';
-import { MAX_ISSUES } from './format';
+import { MAX_IMAGE_ENTRY_BYTES, MAX_ISSUES, MAX_TOTAL_INFLATED_BYTES } from './format';
 
 export type ImportCounts = { foods: number; recipes: number };
 
@@ -44,6 +44,7 @@ export type FoodPackageImportResult = {
 
 export const PACKAGE_CHANGED = 'package_changed';
 const IMAGE_CONCURRENCY = 4;
+const IMAGE_BATCH_SIZE = 200;
 
 const stepImageKey = (recipeRef: string, index: number) => `${recipeRef}s${index + 1}`;
 
@@ -132,29 +133,44 @@ export async function commitFoodPackageImport(
 			});
 		}
 	}
-	const imageBytes = pkg.readImages([...new Set(imageJobs.map((job) => job.path))]);
 	const imageByRef = new Map<string, string>();
 	const written: string[] = [];
 	const writtenBytes = new Map<string, number>();
+	const jobsByPath = Map.groupBy(imageJobs, (job) => job.path);
+	const imagePaths = [...jobsByPath.keys()];
+	const processJob = async (job: (typeof imageJobs)[number], bytes: Uint8Array | undefined) => {
+		if (!bytes) {
+			issues.push({ ref: job.ref, message: `"${job.name}": image missing from the package` });
+			return;
+		}
+		let rendered: Buffer;
+		try {
+			rendered = await renderThumbnail(bytes);
+		} catch {
+			issues.push({ ref: job.ref, message: `"${job.name}": image could not be read` });
+			return;
+		}
+		const filename = await writeUploadFile(rendered);
+		written.push(filename);
+		writtenBytes.set(filename, rendered.byteLength);
+		imageByRef.set(job.key, `/uploads/${filename}`);
+	};
 	try {
-		await mapLimit(imageJobs, IMAGE_CONCURRENCY, async (job) => {
-			const bytes = imageBytes.get(job.path);
-			if (!bytes) {
-				issues.push({ ref: job.ref, message: `"${job.name}": image missing from the package` });
-				return;
+		for (let offset = 0; offset < imagePaths.length; offset += IMAGE_BATCH_SIZE) {
+			let pending = imagePaths.slice(offset, offset + IMAGE_BATCH_SIZE);
+			while (pending.length > 0) {
+				const batch = pkg.readImages(pending);
+				const inflated = [...batch.values()].reduce((sum, bytes) => sum + bytes.length, 0);
+				const capReached = inflated > MAX_TOTAL_INFLATED_BYTES - MAX_IMAGE_ENTRY_BYTES;
+				const answered = capReached ? pending.filter((path) => batch.has(path)) : pending;
+				await mapLimit(
+					answered.flatMap((path) => jobsByPath.get(path) ?? []),
+					IMAGE_CONCURRENCY,
+					(job) => processJob(job, batch.get(job.path))
+				);
+				pending = capReached ? pending.filter((path) => !batch.has(path)) : [];
 			}
-			let rendered: Buffer;
-			try {
-				rendered = await renderThumbnail(bytes);
-			} catch {
-				issues.push({ ref: job.ref, message: `"${job.name}": image could not be read` });
-				return;
-			}
-			const filename = await writeUploadFile(rendered);
-			written.push(filename);
-			writtenBytes.set(filename, rendered.byteLength);
-			imageByRef.set(job.key, `/uploads/${filename}`);
-		});
+		}
 	} catch (error) {
 		await dropUploadFiles(written);
 		throw error;

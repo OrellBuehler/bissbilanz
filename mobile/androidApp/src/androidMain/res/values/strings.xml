@@ -1378,7 +1378,7 @@
     <string name="food_package_import_title">Import food package</string>
     <string name="food_package_import_description">Add foods and recipes someone shared with you. You decide what happens with items you already have.</string>
     <string name="food_package_choose_file">Choose package file</string>
-    <string name="food_package_file_too_large">The file is larger than 50 MB.</string>
+    <string name="food_package_file_too_large">The file is larger than 200 MB.</string>
     <string name="food_package_analyzing">Analyzing package…</string>
     <string name="food_package_new_counts">%1$d new foods · %2$d new recipes</string>
     <string name="food_package_ingredient_only">%1$d of them only as recipe ingredients</string>

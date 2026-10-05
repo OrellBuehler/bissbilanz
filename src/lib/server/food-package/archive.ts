@@ -14,7 +14,8 @@ import {
 	MAX_MANIFEST_BYTES,
 	MAX_PACKAGE_BYTES,
 	MAX_TOTAL_INFLATED_BYTES,
-	MAX_ZIP_ENTRIES
+	MAX_ZIP_ENTRIES,
+	packageTooLarge
 } from './format';
 
 export type FoodPackageFile = {
@@ -81,7 +82,7 @@ const parseManifest = (text: string): FoodPackageManifest => {
 export function readFoodPackage(bytes: Uint8Array): FoodPackageFile {
 	if (bytes.length === 0) throw new ApiError(400, 'The file is empty');
 	if (bytes.length > MAX_PACKAGE_BYTES) {
-		throw new ApiError(400, `File must be ${MAX_PACKAGE_BYTES / 1024 / 1024}MB or smaller`);
+		throw packageTooLarge();
 	}
 	const packageHash = createHash('sha256').update(bytes).digest('hex');
 

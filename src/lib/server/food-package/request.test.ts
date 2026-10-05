@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
-import { FOOD_PACKAGE_EXTENSION, MANIFEST_NAME } from './format';
+import { FOOD_PACKAGE_EXTENSION, MANIFEST_NAME, MAX_PACKAGE_BYTES } from './format';
 import { readPackageUpload } from './request';
 
 const manifest = JSON.stringify({
@@ -49,5 +49,14 @@ describe('readPackageUpload', () => {
 		await expect(
 			readPackageUpload(upload(strToU8('not a package'), `x${FOOD_PACKAGE_EXTENSION}`))
 		).rejects.toMatchObject({ status: 400 });
+	});
+
+	it('rejects a declared size over the limit with the too-large code, before reading the body', async () => {
+		const request = upload(zipped(), 'big.bissbilanz');
+		request.headers.set('content-length', String(MAX_PACKAGE_BYTES + 128 * 1024));
+		await expect(readPackageUpload(request)).rejects.toMatchObject({
+			status: 400,
+			details: { code: ['package_too_large'] }
+		});
 	});
 });
