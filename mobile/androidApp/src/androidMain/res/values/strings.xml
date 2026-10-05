@@ -745,6 +745,16 @@
     <string name="recipe_edit_load_failed">Failed to load recipe</string>
     <string name="recipe_edit_save_failed">Failed to save recipe</string>
     <string name="recipe_edit_add_ingredient">Add Ingredient</string>
+    <string name="recipe_edit_add_from_recipe">Add from recipe</string>
+    <string name="recipe_source_mode_label">Amount in</string>
+    <string name="recipe_source_grams_label">Grams</string>
+    <string name="recipe_source_of_servings">of %1$s servings</string>
+    <string name="recipe_source_of_grams">of %1$s g cooked weight</string>
+    <string name="recipe_source_preview_kcal">≈ %1$d kcal</string>
+    <string name="recipe_source_snapshot_hint">The ingredients are copied into this recipe and scaled. Later changes to the source recipe don\'t carry over.</string>
+    <string name="recipe_source_load_failed">Couldn\'t load that recipe\'s ingredients. Check your connection and try again.</string>
+    <string name="recipe_source_no_ingredients">That recipe has no ingredients.</string>
+    <string name="recipe_source_too_many">A recipe can have at most %1$d ingredients.</string>
     <string name="recipe_edit_edit_title">Edit Recipe</string>
     <string name="recipe_edit_create_title">Create Recipe</string>
     <string name="recipe_edit_name">Recipe name *</string>

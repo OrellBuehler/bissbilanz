@@ -12,6 +12,7 @@ import com.bissbilanz.api.generated.model.MacroSummary
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.label.NutritionLabelParser
+import com.bissbilanz.util.RecipeScaleMode
 import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.convertQuantityForMacros
@@ -19,6 +20,8 @@ import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.gramsToServings
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.normalizeMealType
+import com.bissbilanz.util.recipeScaleFactor
+import com.bissbilanz.util.scaleIngredients
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -191,6 +194,37 @@ class SharedFixturesTest {
             "caloriesPerHundredGrams" -> {
                 val totalServings = i.double("totalServings")
                 caloriesPerHundredGrams(i.double("calories") / totalServings, i.doubleOrNull("cookedWeight"), totalServings).json()
+            }
+
+            "recipeScaleFactor" ->
+                recipeScaleFactor(
+                    i.double("totalServings"),
+                    i.doubleOrNull("cookedWeight"),
+                    i.double("amount"),
+                    if (i.string("mode") == "grams") RecipeScaleMode.Grams else RecipeScaleMode.Servings,
+                ).json()
+
+            "scaleIngredients" -> {
+                val ingredients =
+                    i.getValue("ingredients").jsonArray.mapIndexed { index, element ->
+                        fixtureJson.decodeFromJsonElement<RecipeIngredient>(
+                            buildJsonObject {
+                                for ((key, value) in element.jsonObject) put(key, value)
+                                put("sortOrder", index)
+                            },
+                        )
+                    }
+                buildJsonArray {
+                    for (ing in scaleIngredients(ingredients, i.double("factor"))) {
+                        add(
+                            buildJsonObject {
+                                put("foodId", ing.foodId)
+                                put("quantity", ing.quantity)
+                                put("servingUnit", ing.servingUnit.value)
+                            },
+                        )
+                    }
+                }
             }
 
             "wholeToPerServing" -> {

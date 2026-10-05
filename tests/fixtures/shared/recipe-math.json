@@ -7,7 +7,9 @@
 		"cookedWeightServingSize": ["web", "kotlin", "swift"],
 		"gramsToServings": ["web", "kotlin"],
 		"caloriesPerHundredGrams": ["web", "kotlin", "swift"],
-		"wholeToPerServing": ["kotlin", "swift"]
+		"wholeToPerServing": ["kotlin", "swift"],
+		"recipeScaleFactor": ["kotlin"],
+		"scaleIngredients": ["kotlin"]
 	},
 	"cases": [
 		{
@@ -732,6 +734,83 @@
 				"fat": 20,
 				"fiber": 4
 			}
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "one_of_three_servings",
+			"input": { "totalServings": 3, "cookedWeight": null, "amount": 1, "mode": "servings" },
+			"expected": 0.3333333333333333
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "whole_batch",
+			"input": { "totalServings": 3, "cookedWeight": null, "amount": 3, "mode": "servings" },
+			"expected": 1
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "more_than_batch",
+			"input": { "totalServings": 2, "cookedWeight": null, "amount": 4, "mode": "servings" },
+			"expected": 2
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "grams_of_cooked_weight",
+			"input": { "totalServings": 4, "cookedWeight": 1200, "amount": 300, "mode": "grams" },
+			"expected": 0.25
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "grams_without_cooked_weight_is_null",
+			"input": { "totalServings": 4, "cookedWeight": null, "amount": 300, "mode": "grams" },
+			"expected": null
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "zero_amount_is_null",
+			"input": { "totalServings": 3, "cookedWeight": null, "amount": 0, "mode": "servings" },
+			"expected": null
+		},
+		{
+			"fn": "recipeScaleFactor",
+			"name": "zero_total_servings_is_null",
+			"input": { "totalServings": 0, "cookedWeight": null, "amount": 1, "mode": "servings" },
+			"expected": null
+		},
+		{
+			"fn": "scaleIngredients",
+			"name": "third_rounds_to_two_decimals",
+			"input": {
+				"factor": 0.3333333333333333,
+				"ingredients": [
+					{ "foodId": "a", "quantity": 300, "servingUnit": "g" },
+					{ "foodId": "b", "quantity": 1, "servingUnit": "tbsp" },
+					{ "foodId": "c", "quantity": 0.4, "servingUnit": "l" }
+				]
+			},
+			"expected": [
+				{ "foodId": "a", "quantity": 100, "servingUnit": "g" },
+				{ "foodId": "b", "quantity": 0.33, "servingUnit": "tbsp" },
+				{ "foodId": "c", "quantity": 0.13, "servingUnit": "l" }
+			]
+		},
+		{
+			"fn": "scaleIngredients",
+			"name": "double",
+			"input": {
+				"factor": 2,
+				"ingredients": [{ "foodId": "rice", "quantity": 150, "servingUnit": "g" }]
+			},
+			"expected": [{ "foodId": "rice", "quantity": 300, "servingUnit": "g" }]
+		},
+		{
+			"fn": "scaleIngredients",
+			"name": "tiny_quantity_clamps_to_minimum",
+			"input": {
+				"factor": 0.25,
+				"ingredients": [{ "foodId": "salt", "quantity": 0.01, "servingUnit": "tsp" }]
+			},
+			"expected": [{ "foodId": "salt", "quantity": 0.01, "servingUnit": "tsp" }]
 		}
 	]
 }
