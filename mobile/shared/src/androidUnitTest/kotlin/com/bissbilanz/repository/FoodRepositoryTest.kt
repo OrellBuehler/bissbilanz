@@ -105,6 +105,59 @@ class FoodRepositoryTest {
         }
 
     @Test
+    fun refreshFoodsNeverPrunesWhenThePageCapIsHit() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "beyond-cap", name = "Beyond The Cap"))
+            coEvery { api.getFoods(1, any()) } answers {
+                listOf(TestFixtures.food(id = "food-${secondArg<Int>()}", name = "Food"))
+            }
+
+            repository.refreshFoods(pageSize = 1)
+
+            val cachedIds =
+                db.userDataDatabaseQueries
+                    .selectAllFoods()
+                    .executeAsList()
+                    .map { it.id }
+                    .toSet()
+            assertTrue("beyond-cap" in cachedIds)
+            assertEquals(101, cachedIds.size)
+            coVerify(exactly = 100) { api.getFoods(1, any()) }
+        }
+
+    @Test
+    fun refreshFoodsReportsTruncationWhenThePageCapIsHit() =
+        runTest {
+            val reported = mutableListOf<Throwable>()
+            val reporter =
+                object : com.bissbilanz.ErrorReporter {
+                    override fun captureException(e: Throwable) {
+                        reported.add(e)
+                    }
+                }
+            val capped =
+                FoodRepository(
+                    api,
+                    db,
+                    cacheDb,
+                    syncQueue,
+                    json,
+                    reporter,
+                    appModeManager(),
+                    mockk<OpenFoodFactsClient>(relaxed = true),
+                    mockk<ConnectivityProvider>(relaxed = true),
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                )
+            coEvery { api.getFoods(1, any()) } answers {
+                listOf(TestFixtures.food(id = "food-${secondArg<Int>()}", name = "Food"))
+            }
+
+            capped.refreshFoods(pageSize = 1)
+
+            assertEquals(1, reported.size)
+        }
+
+    @Test
     fun refreshFoodsKeepsTempAndPendingFoodsWhenPruning() =
         runTest {
             seedFoodInCache(TestFixtures.food(id = "temp_offline", name = "Not Yet Uploaded"))

@@ -8,8 +8,8 @@
 		"gramsToServings": ["web", "kotlin"],
 		"caloriesPerHundredGrams": ["web", "kotlin", "swift"],
 		"wholeToPerServing": ["kotlin", "swift"],
-		"recipeScaleFactor": ["web"],
-		"scaleIngredients": ["web"]
+		"recipeScaleFactor": ["web", "swift"],
+		"scaleIngredients": ["web", "swift"]
 	},
 	"cases": [
 		{

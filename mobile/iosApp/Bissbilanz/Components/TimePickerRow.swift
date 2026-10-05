@@ -3,14 +3,11 @@ import SwiftUI
 /// A form row that edits a time — optionally a date and time — with the wheels
 /// laid out inside the form instead of the system's compact popover.
 ///
-/// The compact `DatePicker` hands its wheels to a floating overlay and only
-/// writes the binding once a wheel has come to rest. Dismissing that overlay the
-/// way everybody dismisses it — a tap outside — tears it down straight away, so
-/// a minute the user had just spun onto but not yet let settle is dropped and the
-/// row snaps back to the time it showed before. Minutes are the wheel people
-/// flick hardest, which is why they lose those most often. Keeping the wheels in
-/// the form removes the overlay, and with it the window in which a selection can
-/// go missing: every stop writes straight through to the binding, in view.
+/// The hour and minute wheels are plain integer `Picker`s, each writing only its
+/// own field straight into the binding the moment it changes. The system
+/// `DatePicker` wheel, compact or inline, reports a value only when its UIKit
+/// control fires, and that was observed to leave the binding (and the row's
+/// label) on the old time while the wheel showed the new one.
 struct TimePickerRow: View {
     private let label: String?
     @Binding private var selection: Date
@@ -68,10 +65,13 @@ struct TimePickerRow: View {
         .accessibilityValue(valueText)
 
         if isExpanded {
-            picker
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 0) {
+                if components.contains(.date) {
+                    dayPicker
+                }
+                clockWheels
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -88,12 +88,78 @@ struct TimePickerRow: View {
             )
     }
 
-    @ViewBuilder
-    private var picker: some View {
-        if let range {
-            DatePicker(label ?? "", selection: $selection, in: range, displayedComponents: components)
-        } else {
-            DatePicker(label ?? "", selection: $selection, displayedComponents: components)
+    private var clock: DateComponents {
+        Calendar.current.dateComponents([.hour, .minute], from: selection)
+    }
+
+    private func commit(_ value: Date) {
+        guard let range else {
+            selection = value
+            return
         }
+        selection = min(max(value, range.lowerBound), range.upperBound)
+    }
+
+    private var hourBinding: Binding<Int> {
+        Binding(
+            get: { clock.hour ?? 0 },
+            set: { commit(DateFormatting.replacingClock(of: selection, hour: $0)) }
+        )
+    }
+
+    private var minuteBinding: Binding<Int> {
+        Binding(
+            get: { clock.minute ?? 0 },
+            set: { commit(DateFormatting.replacingClock(of: selection, minute: $0)) }
+        )
+    }
+
+    private var dayBinding: Binding<Date> {
+        Binding(
+            get: { selection },
+            set: { commit(DateFormatting.replacingDay(of: selection, with: $0)) }
+        )
+    }
+
+    @ViewBuilder
+    private var dayPicker: some View {
+        Group {
+            if let range {
+                DatePicker("", selection: dayBinding, in: range, displayedComponents: .date)
+            } else {
+                DatePicker("", selection: dayBinding, displayedComponents: .date)
+            }
+        }
+        .datePickerStyle(.wheel)
+        .labelsHidden()
+    }
+
+    private var clockWheels: some View {
+        HStack(spacing: 0) {
+            Picker("", selection: hourBinding) {
+                ForEach(0 ..< 24, id: \.self) { hour in
+                    Text(String(format: "%02d", hour)).monospacedDigit().tag(hour)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+            .clipped()
+
+            Text(":")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Picker("", selection: minuteBinding) {
+                ForEach(0 ..< 60, id: \.self) { minute in
+                    Text(String(format: "%02d", minute)).monospacedDigit().tag(minute)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+            .clipped()
+        }
+        .frame(height: 150)
     }
 }

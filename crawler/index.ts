@@ -1,84 +1,209 @@
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { readDumpLines } from './lib/jsonl-stream';
 import { crawlOffDump } from './adapters/off/crawl-off';
 import { crawlMigros } from './adapters/migros/crawl-migros';
 import { createMigrosClient } from './adapters/migros/client';
-import { DatasetWriter } from './lib/jsonl-writer';
+import { crawlBlv, loadBlvWorkbook } from './adapters/blv/crawl-blv';
+import { downloadBlvXlsx } from './adapters/blv/download';
+import { PackageWriter, type PackageResult } from './lib/package-writer';
+import { toPackageFood } from './lib/to-package-food';
+import { createPoliteClient } from './lib/http';
+import { createDiskCache, createImageFetcher, type ImageFetcher } from './lib/images';
+import { mapOrdered } from './lib/map-ordered';
 import { readCheckpoint, writeCheckpoint } from './lib/checkpoint';
-import { newStats, type CrawlStats } from './types';
+import { newStats, type CrawledFood, type CrawlStats } from './types';
 
 // Root "food" category id(s) in the Migros taxonomy; refine on the host during a real crawl.
 const MIGROS_FOOD_CATEGORIES = ['7494731'];
 const MIGROS_CHECKPOINT = 'data/catalog/.migros-checkpoint.json';
+const CACHE_DIR = 'data/catalog/.cache';
+
+type Source = { label: string; name: string; attribution: string };
+
+const OFF_SOURCE: Source = {
+	label: 'Open Food Facts',
+	name: 'Open Food Facts (Switzerland)',
+	attribution: `Product data from Open Food Facts (https://world.openfoodfacts.org), available under the Open Database License (ODbL 1.0); individual contents under the Database Contents License (DbCL 1.0).
+Product images are licensed under CC BY-SA 3.0 (see the image pages on openfoodfacts.org for the contributors).
+Attribution is required, and derivative databases must be shared under the same license.`
+};
+
+const MIGROS_SOURCE: Source = {
+	label: 'Migros',
+	name: 'Migros (Switzerland)',
+	attribution: `Product data and images from migros.ch (Migros-Genossenschafts-Bund).
+For private use only. Do not redistribute this package.`
+};
+
+const BLV_SOURCE: Source = {
+	label: 'BLV',
+	name: 'Swiss Food Composition Database (Schweizer Nährwertdatenbank)',
+	attribution: `Source: Swiss Food Composition Database, Federal Food Safety and Veterinary Office FSVO (BLV), https://naehrwertdaten.ch.
+The data is free to use with source attribution.`
+};
+
+type WriteOpts = {
+	source: Source;
+	items: AsyncIterable<CrawledFood>;
+	outPath: string;
+	images: boolean;
+	keepSpoolOnError?: boolean;
+	fetchImage?: ImageFetcher;
+	imageConcurrency?: number;
+	imageDelayMs?: number;
+	resume?: boolean;
+	onProgress?: (written: number) => void;
+};
+
+export type PackageRun = PackageResult & { imageDrops: Record<string, number> };
+
+async function writePackage(opts: WriteOpts): Promise<PackageRun> {
+	const writer = new PackageWriter(opts.outPath, {
+		sourceName: opts.source.name,
+		attribution: opts.source.attribution
+	});
+	await writer.open({ resume: opts.resume });
+	const imageDrops: Record<string, number> = {};
+	const fetchImage: ImageFetcher | null = opts.images
+		? (opts.fetchImage ??
+			createImageFetcher({
+				client: createPoliteClient({
+					minDelayMs: opts.imageDelayMs ?? 250,
+					cache: createDiskCache(CACHE_DIR)
+				})
+			}))
+		: null;
+
+	const prepared = mapOrdered(
+		opts.items,
+		async (item) => {
+			const food = toPackageFood(item.product, {
+				sourceLabel: opts.source.label,
+				categories: item.categories
+			});
+			if (!fetchImage || !food.imageUrl) return { food, image: null };
+			const result = await fetchImage(food.imageUrl);
+			if (result.ok) return { food, image: result.bytes };
+			const key = result.reason.split(':')[0];
+			imageDrops[key] = (imageDrops[key] ?? 0) + 1;
+			return { food, image: null };
+		},
+		fetchImage ? (opts.imageConcurrency ?? 4) : 1
+	);
+
+	try {
+		for await (const { food, image } of prepared) {
+			await writer.addFood(food, image);
+			if (opts.onProgress && writer.count % 500 === 0) opts.onProgress(writer.count);
+		}
+		return { ...(await writer.close()), imageDrops };
+	} catch (err) {
+		if (opts.keepSpoolOnError) await writer.suspend();
+		else await writer.abort();
+		throw err;
+	}
+}
+
+function report(tag: string, stats: CrawlStats, run: PackageRun, outPath: string) {
+	console.error(
+		`[${tag}] done: ${run.foods} foods, ${run.images} images, ${(run.bytes / 1024 / 1024).toFixed(1)} MB → ${outPath}`
+	);
+	console.error(`[${tag}] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
+	console.error(`[${tag}] image drops: ${JSON.stringify(run.imageDrops)}`);
+}
 
 export async function runOff(opts: {
 	dumpPath: string;
 	outPath: string;
 	limit?: number;
+	images?: boolean;
+	fetchImage?: ImageFetcher;
 }): Promise<CrawlStats> {
 	const stats = newStats();
-	const writer = new DatasetWriter(opts.outPath, {
-		key: 'off-ch',
-		name: 'Open Food Facts (Switzerland)',
-		source: 'off',
-		priority: 20
+	const products = crawlOffDump(readDumpLines(opts.dumpPath), {
+		stats,
+		limit: opts.limit,
+		onProgress: (s) =>
+			console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
 	});
-	await writer.open();
-	try {
-		for await (const product of crawlOffDump(readDumpLines(opts.dumpPath), {
-			stats,
-			limit: opts.limit,
-			onProgress: (s) =>
-				console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
-		})) {
-			await writer.write(product);
-		}
-	} finally {
-		await writer.close();
-	}
-	console.error(`[off] done: ${stats.emitted} products → ${opts.outPath}`);
-	console.error(`[off] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
+	const items = (async function* () {
+		for await (const product of products) yield { product };
+	})();
+	const run = await writePackage({
+		source: OFF_SOURCE,
+		items,
+		outPath: opts.outPath,
+		images: opts.images ?? true,
+		fetchImage: opts.fetchImage,
+		imageDelayMs: 200,
+		imageConcurrency: 4,
+		onProgress: (n) => console.error(`[off] written=${n}`)
+	});
+	report('off', stats, run, opts.outPath);
 	return stats;
 }
 
 export async function runMigros(opts: {
-	outPath: string;
+	outPath?: string;
 	checkpointPath?: string;
 	limit?: number;
+	images?: boolean;
+	fetchImage?: ImageFetcher;
 }): Promise<CrawlStats> {
 	const stats = newStats();
 	const checkpointPath = opts.checkpointPath ?? MIGROS_CHECKPOINT;
-	const resume = await readCheckpoint<{ category: string; page: number }>(checkpointPath);
+	const resume = await readCheckpoint<{ category: string; page: number; outPath?: string }>(
+		checkpointPath
+	);
+	const outPath =
+		opts.outPath ?? resume?.outPath ?? `data/catalog/migros-${dateStamp()}.bissbilanz`;
 	if (resume)
 		console.error(`[migros] resuming from category ${resume.category} page ${resume.page}`);
 
 	const client = await createMigrosClient({ categories: MIGROS_FOOD_CATEGORIES });
-	const writer = new DatasetWriter(opts.outPath, {
-		key: 'migros',
-		name: 'Migros (Switzerland)',
-		source: 'migros',
-		priority: 10
+	const products = crawlMigros(client, {
+		stats,
+		throttleMs: 600,
+		limit: opts.limit,
+		resume,
+		onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, { ...cursor, outPath }),
+		onProgress: (s) =>
+			console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
 	});
-	await writer.open();
-	try {
-		for await (const product of crawlMigros(client, {
-			stats,
-			throttleMs: 600,
-			limit: opts.limit,
-			resume,
-			onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, cursor),
-			onProgress: (s) =>
-				console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
-		})) {
-			await writer.write(product);
-		}
-	} finally {
-		await writer.close();
-	}
-	// Completed cleanly → drop the checkpoint so the next run starts fresh.
+	const items = (async function* () {
+		for await (const product of products) yield { product };
+	})();
+	// The package spool is kept on failure so a resumed crawl continues where the checkpoint is.
+	const run = await writePackage({
+		source: MIGROS_SOURCE,
+		items,
+		outPath,
+		images: opts.images ?? true,
+		fetchImage: opts.fetchImage,
+		imageDelayMs: 300,
+		imageConcurrency: 1,
+		resume: !!resume,
+		keepSpoolOnError: true
+	});
 	rmSync(checkpointPath, { force: true });
-	console.error(`[migros] done: ${stats.emitted} products → ${opts.outPath}`);
-	console.error(`[migros] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
+	report('migros', stats, run, outPath);
+	return stats;
+}
+
+export async function runBlv(opts: {
+	xlsxPath?: string;
+	outPath: string;
+	limit?: number;
+}): Promise<CrawlStats> {
+	const stats = newStats();
+	const workbook = await loadBlvWorkbook(opts.xlsxPath ?? (await downloadBlvXlsx()));
+	const run = await writePackage({
+		source: BLV_SOURCE,
+		items: crawlBlv(workbook, { stats, limit: opts.limit }),
+		outPath: opts.outPath,
+		images: false
+	});
+	report('blv', stats, run, opts.outPath);
 	return stats;
 }
 
@@ -86,11 +211,20 @@ function dateStamp(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
-function parseArgs(argv: string[]): { positional: string[]; limit?: number } {
+export function parseArgs(argv: string[]): {
+	positional: string[];
+	limit?: number;
+	images: boolean;
+} {
 	const positional: string[] = [];
 	let limit: number | undefined;
+	let images = true;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
+		if (arg === '--no-images') {
+			images = false;
+			continue;
+		}
 		const raw =
 			arg === '--limit' ? argv[++i] : arg.startsWith('--limit=') ? arg.slice(8) : undefined;
 		if (raw !== undefined) {
@@ -101,27 +235,33 @@ function parseArgs(argv: string[]): { positional: string[]; limit?: number } {
 			positional.push(arg);
 		}
 	}
-	return { positional, limit };
+	return { positional, limit, images };
 }
 
 async function main() {
 	const [cmd, ...rest] = process.argv.slice(2);
-	const { positional, limit } = parseArgs(rest);
+	const { positional, limit, images } = parseArgs(rest);
+	mkdirSync('data/catalog', { recursive: true });
 	if (cmd === 'off') {
 		const dumpPath = positional[0];
-		if (!dumpPath) throw new Error('Usage: crawl off <dumpPath.jsonl[.gz]> [outPath] [--limit N]');
+		if (!dumpPath)
+			throw new Error('Usage: crawl off <dumpPath.jsonl[.gz]> [--limit N] [--no-images]');
 		await runOff({
 			dumpPath,
-			outPath: positional[1] ?? `data/catalog/off-ch-${dateStamp()}.jsonl`,
-			limit
+			outPath: `data/catalog/off-${dateStamp()}.bissbilanz`,
+			limit,
+			images
 		});
 	} else if (cmd === 'migros') {
-		await runMigros({
-			outPath: positional[0] ?? `data/catalog/migros-${dateStamp()}.jsonl`,
+		await runMigros({ limit, images });
+	} else if (cmd === 'blv') {
+		await runBlv({
+			xlsxPath: positional[0],
+			outPath: `data/catalog/blv-${dateStamp()}.bissbilanz`,
 			limit
 		});
 	} else {
-		throw new Error(`Unknown command: ${cmd ?? '(none)'}. Expected: off | migros`);
+		throw new Error(`Unknown command: ${cmd ?? '(none)'}. Expected: off | migros | blv`);
 	}
 }
 
