@@ -14,7 +14,8 @@ import {
 	updateRecipe,
 	deleteRecipe,
 	listRecipes,
-	getRecipe
+	getRecipe,
+	expandIncludedRecipes
 } from '$lib/server/recipes';
 import {
 	createEntry,
@@ -184,6 +185,7 @@ export const {
 	deleteRecipe,
 	listRecipes,
 	getRecipe,
+	expandIncludedRecipes,
 	createEntry,
 	listEntriesByDate,
 	updateEntry,

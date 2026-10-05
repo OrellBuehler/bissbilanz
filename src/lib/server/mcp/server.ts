@@ -88,6 +88,7 @@ import {
 	handleDismissAiTask
 } from './handlers';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
+import { INCLUDE_RECIPES_DOC, includeRecipesSchema } from './include-recipes';
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
@@ -250,7 +251,8 @@ export function createMcpServer(userId: string): McpServer {
 			'imageUrl may be an external https image link: the server downloads it and stores it as a normal upload, ' +
 			'and the whole call fails with an error if a link cannot be fetched (no silent drops). Only JPEG, PNG, WebP or GIF up to 10MB ' +
 			'on a public https host are accepted. Steps returned by get_recipe carry /uploads/... image paths that can be passed back unchanged. ' +
-			'On update, a provided list REPLACES all steps (send [] to clear them); omit it to keep the existing steps.'
+			'On update, a provided list REPLACES all steps (send [] to clear them); omit it to keep the existing steps.',
+		includeRecipes: INCLUDE_RECIPES_DOC
 	};
 
 	server.registerTool(
@@ -263,8 +265,16 @@ export function createMcpServer(userId: string): McpServer {
 				'and reuse the existing food. Create a missing ingredient food with create_food only from real nutrition data ' +
 				'(a label photo, a specific product with its nutrition facts, or a web link carrying them) — never guess nutrition values. ' +
 				'A recipe is a list of ingredient foods with quantities; never create a single food that represents the whole dish. ' +
-				'Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link).',
-			inputSchema: describeShape(recipeCreateSchema.shape, RECIPE_FIELD_DOCS),
+				'Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link). ' +
+				'To build a meal-prep box or combined dish from an existing recipe plus extras, pass the extras in ingredients and the existing recipe in includeRecipes (servings of it, or grams of its cooked weight) instead of copying its ingredients by hand; ingredients may then be omitted if includeRecipes covers the whole list.',
+			inputSchema: describeShape(
+				{
+					...recipeCreateSchema.shape,
+					ingredients: recipeCreateSchema.shape.ingredients.optional(),
+					includeRecipes: includeRecipesSchema.optional()
+				},
+				RECIPE_FIELD_DOCS
+			),
 			annotations: WRITE
 		},
 		safe((args) => handleCreateRecipe(userId, args))
@@ -684,10 +694,14 @@ export function createMcpServer(userId: string): McpServer {
 			title: 'Update Recipe',
 			description:
 				'Update an existing recipe. Can change name, servings, cooking steps, or replace all ingredients. ' +
-				'ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted.',
+				'ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted. ' +
+				"includeRecipes appends scaled copies of other recipes to the recipe's current ingredients (or to the ingredients you pass), as a snapshot.",
 			inputSchema: {
 				recipeId: z.string().uuid().describe('The recipe ID to update'),
-				...describeShape(recipeUpdateSchema.shape, RECIPE_FIELD_DOCS)
+				...describeShape(
+					{ ...recipeUpdateSchema.shape, includeRecipes: includeRecipesSchema.optional() },
+					RECIPE_FIELD_DOCS
+				)
 			},
 			annotations: UPDATE
 		},

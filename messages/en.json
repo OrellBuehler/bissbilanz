@@ -1661,5 +1661,20 @@
 	"mcp_clients_toggle": "Claude Code and other MCP clients",
 	"ai_tasks_not_connected_title": "No assistant connected yet",
 	"ai_tasks_not_connected_body": "Connect Claude or ChatGPT so it can pick up the meals you queue here.",
-	"ai_tasks_not_connected_action": "Connect an assistant"
+	"ai_tasks_not_connected_action": "Connect an assistant",
+	"recipe_form_add_from_recipe": "Add from recipe",
+	"add_from_recipe_title": "Add from recipe",
+	"add_from_recipe_description": "Copy a recipe's ingredients into this one, scaled to the amount you choose.",
+	"add_from_recipe_amount": "Amount",
+	"add_from_recipe_mode_servings": "Servings",
+	"add_from_recipe_mode_grams": "Grams",
+	"add_from_recipe_servings_hint": "of {count} servings",
+	"add_from_recipe_grams_hint": "of {grams} g cooked weight",
+	"add_from_recipe_preview": "About {kcal} kcal in total",
+	"add_from_recipe_confirm": "Add ingredients",
+	"add_from_recipe_loading": "Loading ingredients...",
+	"add_from_recipe_load_failed": "Couldn't load this recipe's ingredients. Check your connection and try again.",
+	"add_from_recipe_no_ingredients": "This recipe has no ingredients.",
+	"add_from_recipe_too_many": "A recipe can have at most {max} ingredients. Adding these would make {count}.",
+	"add_from_recipe_invalid_amount": "Enter an amount greater than zero."
 }
