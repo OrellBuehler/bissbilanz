@@ -1,76 +1,100 @@
-# Bissbilanz Catalog Crawler
+# Bissbilanz Food Package Crawler
 
-Offline tool that builds **catalog datasets** (normalized JSONL) for the access-gated
-base food catalog. It is **not part of the SvelteKit app**, its build, or `bun run security`
-scope — nothing under `src/` imports it.
+Offline tool that builds **`.bissbilanz` food packages** from public food sources. It is
+**not part of the SvelteKit app**, its build, or `bun run security` scope — nothing under
+`src/` imports it at runtime (tests import the app's package reader to prove the output is
+readable).
 
-## Legal posture
+Each run writes **one big package per source** (never split), with the product photos embedded.
+Packages of 30k–100k foods and 0.5–2 GB are expected. The phone apps import these packages
+natively (with background sync; being built in parallel PRs) — the web importer's 50 MB / 5000
+food limits do not apply to packages produced here.
 
-- **Private use, no redistribution.** Crawler _code_ ships in this repo; crawled _data_ never
-  does. Datasets are written under `data/catalog/` which is git-ignored and rejected by a
-  pre-commit hook (`no-catalog-data`).
-- Output is imported only into this app's database and surfaced only to its authenticated,
-  individually access-granted users. It is not rehosted or redistributed.
-- Retailer images are referenced by source URL only — never rehosted.
-- Sources are accessed politely: fixed-delay throttling, on-disk response caching, descriptive
-  User-Agent, exponential-backoff retry.
+The server-side catalog import (`scripts/catalog.ts`, `catalog:import`, `catalog:grant`) is **no
+longer fed by the crawler**. The old catalog-dataset JSONL output was removed.
 
-## Dataset format
+## Sources and licensing
 
-One JSONL file per dataset. Line 1 is a `{ "_dataset": { ... } }` header; lines 2..n are one
-product per line. The contract is the shared Zod schema
-`src/lib/server/catalog/dataset-schema.ts` — the crawler validates every emitted row against it,
-so a produced file always imports cleanly (`catalog:import` is fail-closed).
+| Source                           | Command  | License / terms                                                                                                                                                      |
+| -------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open Food Facts (Swiss products) | `off`    | Data: ODbL 1.0, contents: DbCL 1.0. Images: CC BY-SA 3.0. Attribution required, share-alike for derived databases. The package `README.txt` carries the attribution. |
+| BLV Swiss Food Composition DB    | `blv`    | Free to use with source attribution ("Swiss Food Composition Database, FSVO", <https://naehrwertdaten.ch>). Attribution is in the package `README.txt`.              |
+| Migros                           | `migros` | **Private use, no redistribution.** The package contains Migros product data and images; keep it to yourself and never publish it.                                   |
+
+Crawler _code_ ships in this repo; crawled _data_ never does. Output goes to `data/catalog/`
+(relative to where you run it, i.e. `crawler/data/catalog/`), which is git-ignored, along with
+the image cache, and rejected by the `no-catalog-data` pre-commit hook.
+
+Sources are accessed politely: throttled requests, on-disk caching, descriptive User-Agent,
+exponential-backoff retry.
+
+## Package format
+
+A zip file (ZIP64 when it has more than 65,535 entries) named `<source>-<YYYY-MM-DD>.bissbilanz`:
+
+- `README.txt` — source name, date, food count, attribution and license text.
+- `bissbilanz-foods.json` — manifest `{ format: "bissbilanz.food-package", formatVersion: 1, exportedAt, foods, recipes: [] }`.
+  Foods are `f1..fN`, role `selected`, per 100 g/ml values (`servingSize: 100`), labels = the source
+  name plus category labels where the source has categories (BLV).
+- `images/<ref>.webp` — 400×400 WebP (cover crop, quality 80, same as the app's thumbnails),
+  stored uncompressed. A food whose image could not be fetched or decoded is still emitted,
+  keeping its `imageUrl`; the failure reasons are printed at the end of the run.
+
+The contract is the app's `foodPackageManifestSchema` (`src/lib/server/validation/food-package.ts`).
+The crawler does not import it at runtime (it drags in the database layer); the few constants are
+copied into `lib/package-writer.ts` and the tests round-trip the output through the app's real
+reader (`readFoodPackage`).
+
+Memory stays flat: foods are spooled to a temp NDJSON file (`<package>.parts/`) as they are
+crawled, then the manifest is streamed into the zip and images are added one at a time.
 
 ## Usage
 
 ```bash
 cd crawler
-bun install            # installs migros-api-wrapper (Migros source only)
+bun install
 
 # Open Food Facts — from a downloaded ODbL bulk dump (.jsonl or .jsonl.gz):
 #   download once from https://world.openfoodfacts.org/data (openfoodfacts-products.jsonl.gz)
 bun run crawl off /path/to/openfoodfacts-products.jsonl.gz
-#   → writes data/catalog/off-ch-<date>.jsonl (Swiss products with full core macros)
+#   → data/catalog/off-<date>.bissbilanz (Swiss products with full core macros, with images)
 
-# Migros — live API (polite, throttled):
+# BLV Swiss Food Composition Database (~1,250 foods, German names, no images):
+bun run crawl blv                 # downloads the current xlsx from naehrwertdaten.ch
+bun run crawl blv /path/to/Schweizer_Nahrwertdatenbank.xlsx   # or use a local copy
+#   → data/catalog/blv-<date>.bissbilanz
+
+# Migros — live API (polite, throttled, resumable):
 bun run crawl migros
-#   → writes data/catalog/migros-<date>.jsonl
+#   → data/catalog/migros-<date>.bissbilanz
 
-# Validate first: cap either source to N products to confirm field-paths
-# against a live response before committing to a full multi-hour crawl.
-bun run crawl migros --limit 5
+# Flags
+bun run crawl migros --limit 5    # cap the number of foods (use it to validate a source first)
+bun run crawl off dump.jsonl.gz --no-images   # skip downloading and embedding images
 ```
-
-On the first real Migros crawl, validate with `--limit 5` and inspect the output before a
-full run — the food category id (`MIGROS_FOOD_CATEGORIES` in `index.ts`) and the
-product-detail field paths in `adapters/migros/client.ts` are confirmed against a live
-response at that point (design spec §13).
 
 The OFF dump is large (tens of GB uncompressed); the crawler streams it (gunzip + line split),
-never loading it into memory. The Migros crawl is live and rate-limited — expect it to take a
-while; it checkpoints progress.
+never loading it into memory. Image downloads are cached in `data/catalog/.cache/` so a re-run
+does not refetch. The Migros crawl is live and rate-limited and checkpoints progress
+(`data/catalog/.migros-checkpoint.json`); an interrupted run resumes with the same command and
+keeps the foods already collected.
 
-## Importing on the server host
+The Migros food category id (`MIGROS_FOOD_CATEGORIES` in `index.ts`) and the product-detail field
+paths in `adapters/migros/client.ts` still need confirming against a live response on a machine
+that can reach the API (the guest-token request returned HTTP 401 on the last attempt); validate with `--limit 5 --no-images` before a full run.
 
-The CLI that loads a dataset into Postgres runs **on the server host** (production Postgres is
-Docker-internal), not from the crawler:
-
-```bash
-scp data/catalog/migros-<date>.jsonl  server:/tmp/
-ssh server
-docker compose exec -T app bun run catalog:import /tmp/migros-<date>.jsonl
-docker compose exec -T app bun run catalog:grant <userEmail> migros
-```
-
-Re-importing the same dataset `key` fully replaces its rows and preserves access grants.
+BLV column mapping: BLV values are per 100 g in g/mg/µg, the same units the app stores, so they
+carry over 1:1. Calories fall back to kJ / 4.184. `Sp.` (traces) and `<x` count as 0, `k.A.` as
+unknown. omega-3 is the sum of alpha-linolenic acid, EPA and DHA; omega-6 is linoleic acid;
+vitamin A is RAE; vitamin B3 is niacin.
 
 ## Testing
 
 ```bash
 cd crawler && bun test
+cd crawler && bunx tsc --noEmit
 ```
 
 All tests are fixture-driven — no live network. Adapters split a pure, tested normalizer from
-thin live-fetch glue; the glue (`createMigrosClient`, dump download) is exercised only by the
-maintainer during a real crawl.
+thin live-fetch glue; the glue (`createMigrosClient`, the OFF dump and BLV download) is exercised
+only by the maintainer during a real crawl.
