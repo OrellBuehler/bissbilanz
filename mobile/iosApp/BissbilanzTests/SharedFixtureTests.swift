@@ -111,6 +111,30 @@ struct SharedFixtureTests {
                     "fiber": SharedFixtures.orNull(recipe.fiberPerServing),
                 ] as [String: Any]
 
+            case "recipeScaleFactor":
+                let mode: RecipeScaleMode = (input["mode"] as? String) == "grams" ? .grams : .servings
+                let factor = recipeScaleFactor(
+                    totalServings: SharedFixtures.number(input["totalServings"]) ?? 0,
+                    cookedWeight: SharedFixtures.number(input["cookedWeight"]),
+                    amount: SharedFixtures.number(input["amount"]) ?? 0,
+                    mode: mode
+                )
+                return SharedFixtures.orNull(factor)
+
+            case "scaleIngredients":
+                let rawIngredients = input["ingredients"] as? [[String: Any]] ?? []
+                let ingredients = try rawIngredients.map { raw in
+                    try SharedFixtures.decode(RecipeIngredientInput.self, from: raw)
+                }
+                let scaled = scaleIngredients(ingredients, factor: SharedFixtures.number(input["factor"]) ?? 1)
+                return scaled.map { ingredient -> [String: Any] in
+                    var row: [String: Any] = [:]
+                    row["foodId"] = ingredient.foodId
+                    row["quantity"] = ingredient.quantity
+                    row["servingUnit"] = ingredient.servingUnit.rawValue
+                    return row
+                }
+
             default:
                 throw SharedFixtureError.malformed("no Swift harness for fn \(fixtureCase.fn)")
             }
