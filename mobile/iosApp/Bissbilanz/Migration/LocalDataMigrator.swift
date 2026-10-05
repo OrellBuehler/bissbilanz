@@ -192,6 +192,7 @@ final class LocalDataMigrator {
         // account's photos into the next.
         LocalImageStore.clear()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
+        FoodMirrorState.reset(defaults)
     }
 
     /// A failed delete is reported and the wipe carries on with the other models: a

@@ -63,8 +63,10 @@ struct QuickAddFoodEntityQuery: EntityQuery {
             lastDateByFood[foodId] = entry.date
         }
         let recentIds = lastDateByFood.sorted { $0.value > $1.value }.prefix(20).map(\.key)
-        let allFoods = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
-        let foodsById = Dictionary(uniqueKeysWithValues: allFoods.map { ($0.id, $0) })
+        let recentRows = (try? context.fetch(FetchDescriptor<LocalFood>(
+            predicate: #Predicate<LocalFood> { recentIds.contains($0.id) }
+        ))) ?? []
+        let foodsById = Dictionary(recentRows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let recents = recentIds.compactMap { foodsById[$0] }
 
         var seenIds = Set<String>()

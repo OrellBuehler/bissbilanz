@@ -59,7 +59,7 @@ struct ServerFoodPackageBackend: FoodPackageBackend {
         let result = try await api.importFoodPackage(data, filename: filename, resolutions: resolutions)
         // Pull the new and replaced rows into the local store.
         do {
-            try await foodRepository.mirrorAll()
+            try await foodRepository.mirrorAll(reconcileDeletions: true)
             try await recipeRepository.refresh()
         } catch {
             ErrorReporter.capture(error)

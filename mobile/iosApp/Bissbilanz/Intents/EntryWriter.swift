@@ -56,11 +56,12 @@ final class EntryWriter {
         ids.compactMap { foodRepository.food(id: $0) }
     }
 
-    /// The whole local catalog — used by the iOS 27 full-reindex hook
+    /// The Spotlight-worthy slice of the local catalog (capped, see
+    /// `FoodRepository.spotlightFoods`) — used by the iOS 27 full-reindex hook
     /// (`SiriIOS27.swift`) when the system reports a problem with the
     /// Spotlight index and asks for everything again.
     func allFoods() -> [Food] {
-        foodRepository.allLocalFoods()
+        foodRepository.spotlightFoods()
     }
 
     /// Favorites first, then recently logged foods — what Siri / Shortcuts show

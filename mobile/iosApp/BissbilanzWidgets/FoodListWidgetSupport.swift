@@ -26,7 +26,7 @@ enum FoodListWidgetSupport {
         mealType: MealTypeAppEnum?
     ) -> FoodListSnapshotEntry {
         let snapshot = WidgetSnapshotStore.currentSnapshot(at: date)
-        let available = WidgetFoodEntityQuery.currentFoodsById()
+        let available = WidgetFoodEntityQuery.currentFoodsById(ids: (configuredFoods ?? []).map(\.id))
         let foods = WidgetFoodSelection.resolve(configuredFoods: configuredFoods, available: available, fallback: snapshot.favorites)
         return FoodListSnapshotEntry(date: date, snapshot: snapshot, foods: foods, mealType: mealType)
     }
