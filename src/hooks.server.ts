@@ -5,7 +5,7 @@ import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/server/session';
 import { validateAccessToken, cleanupExpiredOAuthData } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
-import { rateLimitApi, rateLimitUpload } from '$lib/server/rate-limit';
+import { rateLimitWrite } from '$lib/server/rate-limit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
@@ -217,14 +217,7 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 		const userId = event.locals.user.id;
 		try {
 			if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-				if (
-					pathname.startsWith('/api/images/upload') ||
-					pathname.startsWith('/api/ai-tasks/photo')
-				) {
-					rateLimitUpload(userId);
-				} else {
-					rateLimitApi(userId);
-				}
+				rateLimitWrite(userId, pathname);
 			}
 		} catch {
 			return json({ error: 'Rate limit exceeded' }, { status: 429 });

@@ -214,12 +214,30 @@
 					},
 					{
 						"in": "query",
+						"name": "after",
+						"schema": {
+							"description": "Delta mode: opaque cursor, the `nextCursor` of the previous page. Foods come back ordered by when the server last wrote them, `total` is the page size, and `offset` is ignored.",
+							"type": "string"
+						},
+						"description": "Delta mode: opaque cursor, the `nextCursor` of the previous page. Foods come back ordered by when the server last wrote them, `total` is the page size, and `offset` is ignored."
+					},
+					{
+						"in": "query",
+						"name": "modifiedSince",
+						"schema": {
+							"description": "Delta mode: ISO 8601 timestamp (with offset); only foods the server wrote after it. Combinable with `after`.",
+							"type": "string"
+						},
+						"description": "Delta mode: ISO 8601 timestamp (with offset); only foods the server wrote after it. Combinable with `after`."
+					},
+					{
+						"in": "query",
 						"name": "limit",
 						"schema": {
 							"default": 100,
 							"type": "integer",
 							"minimum": 1,
-							"maximum": 200
+							"maximum": 1000
 						}
 					},
 					{
@@ -330,6 +348,77 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/components/schemas/FoodBatchResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/ids": {
+			"get": {
+				"operationId": "listFoodIds",
+				"tags": ["Foods"],
+				"description": "Ids of every regular food in the personal database (supplements excluded), so a client mirroring the foods can reconcile deletions: foods are hard-deleted and leave no tombstone.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodIdsResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/bulk": {
+			"post": {
+				"operationId": "bulkCreateFoods",
+				"tags": ["Foods"],
+				"description": "Create up to 200 foods with client-chosen ids in one multipart request. The `foods` part is a JSON array of food-create objects plus `id` (uuid) and optional `labels`; an optional file part named `image.<id>` (any image type, at most 200 KB) carries that food's photo. Results are per food and the request is idempotent: `created`, `exists` (the id is already this account's food, e.g. a retry), `id_conflict` (the id belongs to another account), `duplicate_barcode` (barcode already used by another food of the account, or earlier in the same request) or `invalid` (with `message`). An image that cannot be stored (`image_too_large`, `image_invalid`, `quota_exceeded`) does not fail the food: it is `created` without `imageUrl` and the reason in `message`. A malformed request is 400; a missing or non-uuid id fails the whole request. Rate limited separately (30 requests per minute).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foods": {
+										"type": "array",
+										"items": {
+											"$ref": "#/components/schemas/FoodBulkItem"
+										}
+									}
+								},
+								"required": ["foods"]
+							},
+							"encoding": {
+								"foods": {
+									"contentType": "application/json"
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Per-food results",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodBulkResponse"
 								}
 							}
 						}
@@ -5003,6 +5092,634 @@
 				"type": "string",
 				"enum": ["delete", "favorite", "unfavorite", "add_labels", "remove_labels", "set_labels"]
 			},
+			"FoodBulkItem": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 200
+					},
+					"brand": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 200
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servingSize": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"servingUnit": {
+						"$ref": "#/components/schemas/ServingUnit"
+					},
+					"calories": {
+						"type": "number",
+						"minimum": 0
+					},
+					"protein": {
+						"type": "number",
+						"minimum": 0
+					},
+					"carbs": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fat": {
+						"type": "number",
+						"minimum": 0
+					},
+					"fiber": {
+						"type": "number",
+						"minimum": 0
+					},
+					"saturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"monounsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"polyunsaturatedFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"transFat": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"cholesterol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"omega6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugar": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"addedSugars": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sugarAlcohols": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"starch": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sodium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"potassium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"calcium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iron": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"magnesium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"phosphorus": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"zinc": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"copper": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"manganese": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"selenium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"iodine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"fluoride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chromium": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"molybdenum": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"chloride": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminA": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminC": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminD": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminE": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminK": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB1": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB2": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB3": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB5": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB6": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB7": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB9": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"vitaminB12": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"caffeine": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"alcohol": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"water": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"salt": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"barcode": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 64
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"isFavorite": {
+						"type": "boolean"
+					},
+					"nutriScore": {
+						"anyOf": [
+							{
+								"type": "string",
+								"enum": ["a", "b", "c", "d", "e"]
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"novaGroup": {
+						"anyOf": [
+							{
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 4
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"additives": {
+						"anyOf": [
+							{
+								"maxItems": 100,
+								"type": "array",
+								"items": {
+									"type": "string",
+									"maxLength": 100
+								}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"ingredientsText": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 10000
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"imageUrl": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 2048
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"categoriesTags": {
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"maxLength": 200
+						}
+					},
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"labels": {
+						"maxItems": 20,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					}
+				},
+				"required": [
+					"name",
+					"servingSize",
+					"servingUnit",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber",
+					"id"
+				]
+			},
 			"FoodImport": {
 				"type": "object",
 				"properties": {
@@ -8027,6 +8744,9 @@
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
+					},
+					"nextCursor": {
+						"type": ["string", "null"]
 					}
 				},
 				"required": ["foods", "total"],
@@ -8261,6 +8981,9 @@
 					},
 					"updatedAt": {
 						"type": "string"
+					},
+					"serverModifiedAt": {
+						"type": "string"
 					}
 				},
 				"required": [
@@ -8441,6 +9164,53 @@
 					}
 				},
 				"required": ["id", "ok"],
+				"additionalProperties": false
+			},
+			"FoodIdsResponse": {
+				"type": "object",
+				"properties": {
+					"ids": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					}
+				},
+				"required": ["ids"],
+				"additionalProperties": false
+			},
+			"FoodBulkResponse": {
+				"type": "object",
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodBulkResult"
+						}
+					}
+				},
+				"required": ["results"],
+				"additionalProperties": false
+			},
+			"FoodBulkResult": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"imageUrl": {
+						"type": "string"
+					},
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": ["id", "status"],
 				"additionalProperties": false
 			},
 			"FoodImportResponse": {
@@ -11824,6 +12594,9 @@
 						"type": "string"
 					},
 					"updatedAt": {
+						"type": "string"
+					},
+					"serverModifiedAt": {
 						"type": "string"
 					},
 					"logCount": {

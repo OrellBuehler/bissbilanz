@@ -49,6 +49,12 @@ export const foodCreateSchema = z
 	})
 	.meta({ id: 'FoodCreate' });
 
+/** Delta-sync query: `after` is an opaque cursor from a previous page's `nextCursor`. */
+export const foodDeltaQuerySchema = z.object({
+	after: z.string().min(1).max(200).optional(),
+	modifiedSince: z.iso.datetime({ offset: true }).optional()
+});
+
 export const foodUpdateSchema = foodCreateSchema.partial().meta({ id: 'FoodUpdate' });
 
 export const foodMergeSchema = z
@@ -90,6 +96,33 @@ export const foodBatchSchema = z
 		{ message: 'payload.labels is required for label actions', path: ['payload', 'labels'] }
 	)
 	.meta({ id: 'FoodBatch' });
+
+/** One bulk create request carries this many foods. */
+export const MAX_BULK_CREATE_FOODS = 200;
+/** Largest image part (`image.<id>`) a bulk create request accepts, in bytes. */
+export const MAX_BULK_IMAGE_BYTES = 200 * 1024;
+
+export const foodBulkItemSchema = foodCreateSchema
+	.extend({
+		/** Client-chosen id, so a retried request is idempotent and offline-created ids stay stable. */
+		id: z.string().uuid(),
+		labels: z.array(z.string().min(1).max(120)).max(MAX_LABELS_PER_FOOD).optional()
+	})
+	.meta({ id: 'FoodBulkItem' });
+
+export const foodBulkRequestSchema = z
+	.object({
+		foods: z.array(foodBulkItemSchema).min(1).max(MAX_BULK_CREATE_FOODS)
+	})
+	.meta({ id: 'FoodBulkRequest' });
+
+export const foodBulkStatusValues = [
+	'created',
+	'exists',
+	'id_conflict',
+	'duplicate_barcode',
+	'invalid'
+] as const;
 
 export const foodImportSchema = z
 	.object({

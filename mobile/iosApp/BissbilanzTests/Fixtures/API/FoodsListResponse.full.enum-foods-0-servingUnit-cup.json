@@ -41,6 +41,7 @@
 			"salt": 12.5,
 			"saturatedFat": 12.5,
 			"selenium": 12.5,
+			"serverModifiedAt": "sample-serverModifiedAt",
 			"servingSize": 100,
 			"servingUnit": "cup",
 			"sodium": 200,
@@ -67,5 +68,6 @@
 			"zinc": 12.5
 		}
 	],
+	"nextCursor": "sample-nextCursor",
 	"total": 3
 }

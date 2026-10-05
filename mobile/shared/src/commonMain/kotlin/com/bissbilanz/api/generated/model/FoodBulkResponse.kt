@@ -15,7 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
-import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodBulkResult
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -23,13 +23,9 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param foods
- * @param total
- * @param nextCursor
+ * @param results
  */
 @Serializable
-data class FoodsListResponse(
-    @SerialName(value = "foods") @Required val foods: kotlin.collections.List<Food>,
-    @SerialName(value = "total") @Required val total: kotlin.Int,
-    @SerialName(value = "nextCursor") val nextCursor: kotlin.String? = null,
+data class FoodBulkResponse(
+    @SerialName(value = "results") @Required val results: kotlin.collections.List<FoodBulkResult>,
 )

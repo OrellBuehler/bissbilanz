@@ -125,6 +125,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/ids': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Ids of every regular food in the personal database (supplements excluded), so a client mirroring the foods can reconcile deletions: foods are hard-deleted and leave no tombstone. */
+		get: operations['listFoodIds'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/bulk': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Create up to 200 foods with client-chosen ids in one multipart request. The `foods` part is a JSON array of food-create objects plus `id` (uuid) and optional `labels`; an optional file part named `image.<id>` (any image type, at most 200 KB) carries that food's photo. Results are per food and the request is idempotent: `created`, `exists` (the id is already this account's food, e.g. a retry), `id_conflict` (the id belongs to another account), `duplicate_barcode` (barcode already used by another food of the account, or earlier in the same request) or `invalid` (with `message`). An image that cannot be stored (`image_too_large`, `image_invalid`, `quota_exceeded`) does not fail the food: it is `created` without `imageUrl` and the reason in `message`. A malformed request is 400; a missing or non-uuid id fails the whole request. Rate limited separately (30 requests per minute). */
+		post: operations['bulkCreateFoods'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/import': {
 		parameters: {
 			query?: never;
@@ -1448,6 +1482,71 @@ export interface components {
 		/** @enum {string} */
 		FoodBatchAction:
 			'delete' | 'favorite' | 'unfavorite' | 'add_labels' | 'remove_labels' | 'set_labels';
+		FoodBulkItem: {
+			name: string;
+			brand?: string | null;
+			servingSize: number;
+			servingUnit: components['schemas']['ServingUnit'];
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
+			saturatedFat?: number | null;
+			monounsaturatedFat?: number | null;
+			polyunsaturatedFat?: number | null;
+			transFat?: number | null;
+			cholesterol?: number | null;
+			omega3?: number | null;
+			omega6?: number | null;
+			sugar?: number | null;
+			addedSugars?: number | null;
+			sugarAlcohols?: number | null;
+			starch?: number | null;
+			sodium?: number | null;
+			potassium?: number | null;
+			calcium?: number | null;
+			iron?: number | null;
+			magnesium?: number | null;
+			phosphorus?: number | null;
+			zinc?: number | null;
+			copper?: number | null;
+			manganese?: number | null;
+			selenium?: number | null;
+			iodine?: number | null;
+			fluoride?: number | null;
+			chromium?: number | null;
+			molybdenum?: number | null;
+			chloride?: number | null;
+			vitaminA?: number | null;
+			vitaminC?: number | null;
+			vitaminD?: number | null;
+			vitaminE?: number | null;
+			vitaminK?: number | null;
+			vitaminB1?: number | null;
+			vitaminB2?: number | null;
+			vitaminB3?: number | null;
+			vitaminB5?: number | null;
+			vitaminB6?: number | null;
+			vitaminB7?: number | null;
+			vitaminB9?: number | null;
+			vitaminB12?: number | null;
+			caffeine?: number | null;
+			alcohol?: number | null;
+			water?: number | null;
+			salt?: number | null;
+			barcode?: string | null;
+			isFavorite?: boolean;
+			nutriScore?: ('a' | 'b' | 'c' | 'd' | 'e') | null;
+			novaGroup?: number | null;
+			additives?: string[] | null;
+			ingredientsText?: string | null;
+			imageUrl?: string | null;
+			categoriesTags?: string[];
+			/** Format: uuid */
+			id: string;
+			labels?: string[];
+		};
 		FoodImport: {
 			foods: components['schemas']['FoodCreate'][];
 		};
@@ -1977,6 +2076,7 @@ export interface components {
 		FoodsListResponse: {
 			foods: components['schemas']['Food'][];
 			total: number;
+			nextCursor?: string | null;
 		};
 		Food: {
 			/** Format: uuid */
@@ -2047,6 +2147,7 @@ export interface components {
 			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
+			serverModifiedAt?: string;
 		};
 		FoodResponse: {
 			food: components['schemas']['Food'];
@@ -2089,6 +2190,18 @@ export interface components {
 			ok: boolean;
 			error?: string;
 			entryCount?: number;
+		};
+		FoodIdsResponse: {
+			ids: string[];
+		};
+		FoodBulkResponse: {
+			results: components['schemas']['FoodBulkResult'][];
+		};
+		FoodBulkResult: {
+			id: string;
+			status: string;
+			imageUrl?: string;
+			message?: string;
 		};
 		FoodImportResponse: {
 			foods: components['schemas']['Food'][];
@@ -2940,6 +3053,7 @@ export interface components {
 			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
+			serverModifiedAt?: string;
 			logCount: number;
 			/** @constant */
 			type: 'food';
@@ -3542,6 +3656,10 @@ export interface operations {
 				minLabels?: number;
 				/** @description Deprecated: same as minLabels=1. */
 				unlabeled?: boolean;
+				/** @description Delta mode: opaque cursor, the `nextCursor` of the previous page. Foods come back ordered by when the server last wrote them, `total` is the page size, and `offset` is ignored. */
+				after?: string;
+				/** @description Delta mode: ISO 8601 timestamp (with offset); only foods the server wrote after it. Combinable with `after`. */
+				modifiedSince?: string;
 				limit?: number;
 				offset?: number;
 			};
@@ -3631,6 +3749,55 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['FoodBatchResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	listFoodIds: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodIdsResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	bulkCreateFoods: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'multipart/form-data': {
+					foods: components['schemas']['FoodBulkItem'][];
+				};
+			};
+		};
+		responses: {
+			/** @description Per-food results */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodBulkResponse'];
 				};
 			};
 			400: components['responses']['ValidationErrorResponse'];

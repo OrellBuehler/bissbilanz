@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	rateLimit,
 	rateLimitApi,
+	rateLimitBulk,
 	rateLimitMcp,
-	rateLimitUpload
+	rateLimitUpload,
+	rateLimitWrite
 } from '../../src/lib/server/rate-limit';
 
 describe('rateLimit', () => {
@@ -147,5 +149,48 @@ describe('cleanup of stale buckets', () => {
 		expect(() => {
 			for (let i = 0; i < 5; i++) rateLimit(expiredKey, 5, 60_000);
 		}).not.toThrow();
+	});
+});
+
+describe('rateLimitWrite buckets', () => {
+	const exhaust = (userId: string, pathname: string, calls: number) => {
+		for (let i = 0; i < calls; i++) rateLimitWrite(userId, pathname);
+	};
+
+	test('bulk food creates get their own 30/min bucket', () => {
+		const userId = `bulk-own-${Date.now()}`;
+		exhaust(userId, '/api/foods/bulk', 30);
+		expect(() => rateLimitWrite(userId, '/api/foods/bulk')).toThrow('Rate limit exceeded');
+		expect(() => rateLimitBulk(userId)).toThrow('Rate limit exceeded');
+	});
+
+	test('bulk calls leave the general write and image buckets alone', () => {
+		const userId = `bulk-isolated-${Date.now()}`;
+		exhaust(userId, '/api/foods/bulk', 30);
+		expect(() => exhaust(userId, '/api/foods', 120)).not.toThrow();
+		expect(() => exhaust(userId, '/api/images/upload', 30)).not.toThrow();
+	});
+
+	test('general writes and image uploads do not eat the bulk bucket', () => {
+		const userId = `bulk-untouched-${Date.now()}`;
+		exhaust(userId, '/api/foods', 120);
+		expect(() => rateLimitWrite(userId, '/api/foods')).toThrow('Rate limit exceeded');
+		exhaust(userId, '/api/ai-tasks/photo', 30);
+		expect(() => exhaust(userId, '/api/foods/bulk', 30)).not.toThrow();
+	});
+
+	test('only the exact bulk path uses the bulk bucket', () => {
+		const userId = `bulk-exact-${Date.now()}`;
+		exhaust(userId, '/api/foods/bulk', 30);
+		expect(() => rateLimitWrite(userId, '/api/foods/batch')).not.toThrow();
+		expect(() => rateLimitWrite(userId, '/api/foods/bulk/')).toThrow();
+	});
+
+	test('image uploads keep their 30/min bucket', () => {
+		const userId = `upload-bucket-${Date.now()}`;
+		exhaust(userId, '/api/images/upload', 30);
+		expect(() => rateLimitWrite(userId, '/api/images/upload')).toThrow();
+		expect(() => rateLimitWrite(userId, '/api/ai-tasks/photo')).toThrow();
+		expect(() => rateLimitUpload(userId)).toThrow();
 	});
 });

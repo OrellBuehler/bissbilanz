@@ -498,6 +498,13 @@
       "when": 1790753572409,
       "tag": "0070_white_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1791235146805,
+      "tag": "0071_magenta_texas_twister",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,8 @@ import {
 	ne,
 	notExists,
 	or,
-	sql
+	sql,
+	type SQL
 } from 'drizzle-orm';
 import { normalizeLabel } from '$lib/server/labels';
 import { ApiError, withValidation } from '$lib/server/errors';
@@ -33,6 +34,7 @@ import { pickNutrients } from '$lib/nutrients';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
+import { encodeFoodCursor, type FoodCursor } from '$lib/server/food-cursor';
 import type { TxOrDb } from '$lib/server/ownership';
 import { unlinkUpload } from '$lib/server/images';
 
@@ -97,6 +99,59 @@ export const getFood = async (userId: string, id: string) => {
 	return food ? roundNutrition(food) : null;
 };
 
+/** Every regular food id of the user, for clients to reconcile deletions (foods are hard-deleted). */
+export const listFoodIds = async (userId: string): Promise<string[]> => {
+	const rows = await getDB()
+		.select({ id: foods.id })
+		.from(foods)
+		.where(and(eq(foods.userId, userId), eq(foods.kind, 'food')))
+		.orderBy(foods.id);
+	return rows.map((row) => row.id);
+};
+
+const DELTA_DEFAULT_LIMIT = 100;
+
+/**
+ * Foods in the order they were last written, resumable by cursor. Keyed on
+ * `server_modified_at` (set by a trigger on every write), never on `updated_at`,
+ * which is the client's own last-write-wins stamp: an offline edit made last week
+ * and synced just now carries an old `updated_at` but is a new change here.
+ *
+ * Reads one row past the page to know whether another page exists, so no
+ * `count(*)` is needed.
+ */
+const listFoodsDelta = async (
+	db: ReturnType<typeof getDB>,
+	whereClause: SQL | undefined,
+	after: FoodCursor | undefined,
+	modifiedSince: string | undefined,
+	limit = DELTA_DEFAULT_LIMIT
+) => {
+	const keyset = after
+		? sql`(${foods.serverModifiedAt}, ${foods.id}) > (${after.timestamp}::timestamptz, ${after.id}::uuid)`
+		: undefined;
+	const since = modifiedSince
+		? sql`${foods.serverModifiedAt} > ${modifiedSince}::timestamptz`
+		: undefined;
+	const rows = await db
+		.select({
+			...foodColumnsWithLabels,
+			cursorTimestamp: sql<string>`to_char(${foods.serverModifiedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+		})
+		.from(foods)
+		.where(and(whereClause, keyset, since))
+		.orderBy(foods.serverModifiedAt, foods.id)
+		.limit(limit + 1);
+	const page = rows.slice(0, limit);
+	const last = page.at(-1);
+	const nextCursor =
+		rows.length > limit && last
+			? encodeFoodCursor({ timestamp: last.cursorTimestamp, id: last.id })
+			: null;
+	const items = page.map(({ cursorTimestamp, ...food }) => food);
+	return roundNutrition({ items, total: items.length, nextCursor });
+};
+
 /** Shorter queries trigram-match too much; substring and label matching cover them. */
 const FUZZY_MIN_QUERY_LENGTH = 4;
 
@@ -111,8 +166,12 @@ export const listFoods = async (
 		minLabels?: number;
 		/** @deprecated alias for `minLabels: 1` */
 		unlabeled?: boolean;
+		/** Delta mode: only foods written after this (server_modified_at, id) position. */
+		after?: FoodCursor;
+		/** Delta mode: only foods written after this ISO timestamp. */
+		modifiedSince?: string;
 	}
-) => {
+): Promise<{ items: FoodWithLabels[]; total: number; nextCursor?: string | null }> => {
 	const db = getDB();
 	const offset = options?.offset ?? 0;
 	const query = options?.query?.trim() || undefined;
@@ -152,6 +211,10 @@ export const listFoods = async (
 			? sql`(SELECT count(*) FROM ${foodLabels} fl WHERE fl.food_id = ${foods.id}) < ${minLabels}`
 			: undefined;
 	const whereClause = and(eq(foods.userId, userId), matchClause, kindFilter, labelCountFilter);
+
+	if (options?.after || options?.modifiedSince) {
+		return listFoodsDelta(db, whereClause, options.after, options.modifiedSince, options.limit);
+	}
 
 	// `foods.id` is the tiebreaker, not decoration: names are not unique, and an
 	// offset-paginated client (the account download) skips or repeats rows when

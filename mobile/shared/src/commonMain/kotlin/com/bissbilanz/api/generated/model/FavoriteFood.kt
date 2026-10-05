@@ -88,6 +88,7 @@ import kotlinx.serialization.encoding.*
  * @param labels
  * @param createdAt
  * @param updatedAt
+ * @param serverModifiedAt
  */
 @Serializable
 data class FavoriteFood(
@@ -157,6 +158,7 @@ data class FavoriteFood(
     @SerialName(value = "labels") val labels: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
+    @SerialName(value = "serverModifiedAt") val serverModifiedAt: kotlin.String? = null,
 ) {
     /**
      *

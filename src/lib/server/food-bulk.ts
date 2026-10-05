@@ -1,11 +1,22 @@
 import { getDB } from '$lib/server/db';
-import { foods } from '$lib/server/schema';
-import { and, eq, inArray, isNotNull } from 'drizzle-orm';
+import { foodLabels, foods, uploads } from '$lib/server/schema';
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { deleteFood, toFoodInsert, type FoodWithLabels } from '$lib/server/foods';
 import { foodColumnsWithLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
-import { normalizeLabels } from '$lib/server/labels';
+import { MAX_LABELS_PER_FOOD, normalizeLabels } from '$lib/server/labels';
+import { labelsFromCategoriesTags } from '$lib/server/openfoodfacts-labels';
+import { collect, inChunks } from '$lib/server/db-chunks';
+import { ApiError } from '$lib/server/errors';
+import { dropUploadFiles, renderThumbnail, writeUploadFile } from '$lib/server/images';
+import { lwwStamp } from '$lib/server/sync/conflict';
 import { roundNutrition } from '$lib/utils/round-nutrition';
-import type { foodBatchSchema, foodCreateSchema } from '$lib/server/validation/foods';
+import {
+	MAX_BULK_CREATE_FOODS,
+	MAX_BULK_IMAGE_BYTES,
+	foodBulkItemSchema,
+	type foodBatchSchema,
+	type foodCreateSchema
+} from '$lib/server/validation/foods';
 
 export type FoodBatchInput = typeof foodBatchSchema._output;
 
@@ -200,4 +211,261 @@ export async function importFoods(
 	});
 
 	return { foods: roundNutrition(created), skipped };
+}
+
+export type FoodBulkStatus = 'created' | 'exists' | 'id_conflict' | 'duplicate_barcode' | 'invalid';
+
+export type FoodBulkResult = {
+	id: string;
+	status: FoodBulkStatus;
+	imageUrl?: string;
+	message?: string;
+};
+
+const DEFAULT_UPLOAD_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
+const BULK_IMAGE_CONCURRENCY = 4;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Per-user cap on stored upload bytes (`UPLOAD_QUOTA_BYTES`, default 5 GB). */
+export const uploadQuotaBytes = (env: Record<string, string | undefined> = process.env) => {
+	const configured = Number(env.UPLOAD_QUOTA_BYTES);
+	return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_UPLOAD_QUOTA_BYTES;
+};
+
+const issueMessage = (error: { issues: { path: PropertyKey[]; message: string }[] }) =>
+	error.issues
+		.slice(0, 3)
+		.map((issue) =>
+			issue.path.length ? `${issue.path.join('.')}: ${issue.message}` : issue.message
+		)
+		.join('; ');
+
+const usedUploadBytes = async (userId: string) => {
+	const [row] = await getDB()
+		.select({ total: sql<string>`coalesce(sum(${uploads.sizeBytes}), 0)` })
+		.from(uploads)
+		.where(eq(uploads.userId, userId));
+	return Number(row?.total ?? 0);
+};
+
+async function mapLimit<T>(items: T[], limit: number, run: (item: T) => Promise<void>) {
+	let next = 0;
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, async () => {
+			while (next < items.length) await run(items[next++]);
+		})
+	);
+}
+
+type BulkItem = typeof foodBulkItemSchema._output;
+type StoredImage = { filename: string; size: number };
+
+/**
+ * Create many foods with client-chosen ids, reporting per item.
+ *
+ * Built for a phone pushing a 100k-food import in the background, so it is
+ * idempotent: an id that is already this user's food is `exists`, never an
+ * error, and a half-delivered batch can simply be sent again. Nothing here reads
+ * the whole table; every lookup is by the ids and barcodes of this one request.
+ *
+ * Images are rendered and written before the transaction and their `uploads`
+ * rows go in inside it, so a failure leaves only bare files, which are unlinked.
+ * An image that cannot be stored never fails its food.
+ */
+export async function bulkCreateFoods(
+	userId: string,
+	rawItems: unknown[],
+	images: Map<string, File>,
+	clientEditedAt?: Date | null
+): Promise<FoodBulkResult[]> {
+	if (rawItems.length === 0 || rawItems.length > MAX_BULK_CREATE_FOODS) {
+		throw new ApiError(400, `foods must hold between 1 and ${MAX_BULK_CREATE_FOODS} items`);
+	}
+	const db = getDB();
+	const results: FoodBulkResult[] = new Array(rawItems.length);
+	const pending: { index: number; item: BulkItem; sent: string }[] = [];
+	const seenIds = new Set<string>();
+
+	rawItems.forEach((raw, index) => {
+		const id = (raw as { id?: unknown } | null)?.id;
+		if (typeof id !== 'string' || !UUID_PATTERN.test(id)) {
+			throw new ApiError(400, `foods[${index}].id must be a uuid`);
+		}
+		const parsed = foodBulkItemSchema.safeParse(raw);
+		if (!parsed.success) {
+			results[index] = { id, status: 'invalid', message: issueMessage(parsed.error) };
+		} else if (seenIds.has(id.toLowerCase())) {
+			results[index] = { id, status: 'invalid', message: 'Duplicate id in request' };
+		} else {
+			seenIds.add(id.toLowerCase());
+			pending.push({ index, sent: id, item: { ...parsed.data, id: id.toLowerCase() } });
+		}
+	});
+
+	const lookupOwners = async (ids: string[]) =>
+		new Map(
+			(
+				await collect(ids, (part) =>
+					db
+						.select({ id: foods.id, userId: foods.userId })
+						.from(foods)
+						.where(inArray(foods.id, part))
+				)
+			).map((row) => [row.id, row.userId])
+		);
+
+	const owners = await lookupOwners(pending.map(({ item }) => item.id));
+	const candidates: typeof pending = [];
+	for (const entry of pending) {
+		const owner = owners.get(entry.item.id);
+		if (owner === userId) results[entry.index] = { id: entry.sent, status: 'exists' };
+		else if (owner) results[entry.index] = { id: entry.sent, status: 'id_conflict' };
+		else candidates.push(entry);
+	}
+
+	const requested = candidates.flatMap(({ item }) => (item.barcode ? [item.barcode] : []));
+	const takenBarcodes = new Set(
+		(
+			await collect(requested, (part) =>
+				db
+					.select({ barcode: foods.barcode })
+					.from(foods)
+					.where(and(eq(foods.userId, userId), inArray(foods.barcode, part)))
+			)
+		).map((row) => row.barcode)
+	);
+	const toCreate: typeof pending = [];
+	for (const entry of candidates) {
+		const barcode = entry.item.barcode || null;
+		if (barcode && takenBarcodes.has(barcode)) {
+			results[entry.index] = { id: entry.sent, status: 'duplicate_barcode' };
+			continue;
+		}
+		if (barcode) takenBarcodes.add(barcode);
+		toCreate.push(entry);
+	}
+
+	const imageNotes = new Map<string, string>();
+	const stored = new Map<string, StoredImage>();
+	const written: string[] = [];
+	const withImage = toCreate.filter(({ item }) => images.has(item.id));
+	if (withImage.length) {
+		const rendered = new Map<string, Buffer>();
+		await mapLimit(withImage, BULK_IMAGE_CONCURRENCY, async ({ item }) => {
+			const file = images.get(item.id)!;
+			if (!file.type.startsWith('image/')) {
+				imageNotes.set(item.id, 'image_invalid');
+			} else if (file.size > MAX_BULK_IMAGE_BYTES) {
+				imageNotes.set(item.id, 'image_too_large');
+			} else {
+				try {
+					rendered.set(item.id, await renderThumbnail(new Uint8Array(await file.arrayBuffer())));
+				} catch (error) {
+					if (!(error instanceof ApiError)) throw error;
+					imageNotes.set(item.id, 'image_invalid');
+				}
+			}
+		});
+		let used = rendered.size ? await usedUploadBytes(userId) : 0;
+		const quota = uploadQuotaBytes();
+		try {
+			for (const { item } of withImage) {
+				const bytes = rendered.get(item.id);
+				if (!bytes) continue;
+				if (used + bytes.byteLength > quota) {
+					imageNotes.set(item.id, 'quota_exceeded');
+					continue;
+				}
+				used += bytes.byteLength;
+				const filename = await writeUploadFile(bytes);
+				written.push(filename);
+				stored.set(item.id, { filename, size: bytes.byteLength });
+			}
+		} catch (error) {
+			await dropUploadFiles(written);
+			throw error;
+		}
+	}
+
+	if (toCreate.length === 0) return results;
+
+	const now = lwwStamp(clientEditedAt);
+	let inserted: Set<string>;
+	try {
+		inserted = await db.transaction(async (tx) => {
+			const created = new Set<string>();
+			const rows = toCreate.map(({ item }) => ({
+				...toFoodInsert(userId, item),
+				id: item.id,
+				imageUrl: stored.has(item.id)
+					? `/uploads/${stored.get(item.id)!.filename}`
+					: (item.imageUrl ?? null),
+				updatedAt: now
+			}));
+			await inChunks(rows, async (part) => {
+				const returned = await tx
+					.insert(foods)
+					.values(part)
+					.onConflictDoNothing()
+					.returning({ id: foods.id });
+				for (const row of returned) created.add(row.id);
+			});
+
+			// Explicit labels are the client's own (source `external`, as in a package
+			// import); Open Food Facts category tags seed `catalog` labels after them.
+			const labelRows = toCreate
+				.filter(({ item }) => created.has(item.id))
+				.flatMap(({ item }) => {
+					const external = normalizeLabels(item.labels ?? []);
+					const catalog = labelsFromCategoriesTags(item.categoriesTags ?? [])
+						.filter((label) => !external.includes(label))
+						.slice(0, Math.max(0, MAX_LABELS_PER_FOOD - external.length));
+					return [
+						...external.map((label) => ({ label, source: 'external' as const })),
+						...catalog.map((label) => ({ label, source: 'catalog' as const }))
+					].map((row) => ({ foodId: item.id, userId, ...row }));
+				});
+			await inChunks(labelRows, (part) => tx.insert(foodLabels).values(part).onConflictDoNothing());
+
+			const uploadRows = [...stored.entries()]
+				.filter(([id]) => created.has(id))
+				.map(([, image]) => ({ filename: image.filename, userId, sizeBytes: image.size }));
+			await inChunks(uploadRows, (part) => tx.insert(uploads).values(part));
+			return created;
+		});
+	} catch (error) {
+		await dropUploadFiles(written);
+		throw error;
+	}
+
+	const lost = toCreate.filter(({ item }) => !inserted.has(item.id));
+	if (lost.length) {
+		// Another request took the id or the barcode between the pre-check and the insert.
+		const lostOwners = await lookupOwners(lost.map(({ item }) => item.id));
+		const unusedFiles: string[] = [];
+		for (const { index, item, sent } of lost) {
+			const owner = lostOwners.get(item.id);
+			results[index] = {
+				id: sent,
+				status: owner === userId ? 'exists' : owner ? 'id_conflict' : 'duplicate_barcode'
+			};
+			const image = stored.get(item.id);
+			if (image) unusedFiles.push(image.filename);
+		}
+		await dropUploadFiles(unusedFiles);
+	}
+
+	for (const { index, item, sent } of toCreate) {
+		if (!inserted.has(item.id)) continue;
+		const image = stored.get(item.id);
+		const note = imageNotes.get(item.id);
+		results[index] = {
+			id: sent,
+			status: 'created',
+			...(image ? { imageUrl: `/uploads/${image.filename}` } : {}),
+			...(note ? { message: note } : {})
+		};
+	}
+
+	return results;
 }

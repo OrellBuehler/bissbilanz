@@ -6,7 +6,8 @@ import {
 	foodUpdateSchema,
 	foodMergeSchema,
 	foodBatchSchema,
-	foodImportSchema
+	foodImportSchema,
+	foodBulkItemSchema
 } from './validation/foods';
 import { entryCreateSchema, entryUpdateSchema } from './validation/entries';
 import { recipeCreateSchema, recipeUpdateSchema } from './validation/recipes';
@@ -34,6 +35,8 @@ import {
 	foodsRecentResponseSchema,
 	foodBatchResponseSchema,
 	foodImportResponseSchema,
+	foodIdsResponseSchema,
+	foodBulkResponseSchema,
 	foodDuplicatesResponseSchema,
 	foodLabelsResponseSchema,
 	foodLabelsSetResponseSchema,
@@ -125,7 +128,7 @@ import {
 	dateRangeShape,
 	nutrientGapsQuerySchema
 } from './validation/analytics';
-import { paginationSchema } from './validation/pagination';
+import { paginationSchema, foodsPaginationSchema } from './validation/pagination';
 import {
 	aiTaskCreateSchema,
 	aiTaskUpdateSchema,
@@ -330,7 +333,19 @@ export const apiPaths = {
 						.optional()
 						.describe('Only foods carrying fewer than this many labels.'),
 					unlabeled: z.boolean().optional().describe('Deprecated: same as minLabels=1.'),
-					...paginationSchema.shape
+					after: z
+						.string()
+						.optional()
+						.describe(
+							'Delta mode: opaque cursor, the `nextCursor` of the previous page. Foods come back ordered by when the server last wrote them, `total` is the page size, and `offset` is ignored.'
+						),
+					modifiedSince: z
+						.string()
+						.optional()
+						.describe(
+							'Delta mode: ISO 8601 timestamp (with offset); only foods the server wrote after it. Combinable with `after`.'
+						),
+					...foodsPaginationSchema.shape
 				})
 			},
 			responses: {
@@ -388,6 +403,48 @@ export const apiPaths = {
 				'200': {
 					description: 'Success',
 					content: { 'application/json': { schema: foodBatchResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/ids': {
+		get: {
+			operationId: 'listFoodIds',
+			tags: ['Foods'],
+			description:
+				'Ids of every regular food in the personal database (supplements excluded), so a client mirroring the foods can reconcile deletions: foods are hard-deleted and leave no tombstone.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodIdsResponseSchema } }
+				},
+				'401': res401
+			}
+		}
+	},
+	'/api/foods/bulk': {
+		post: {
+			operationId: 'bulkCreateFoods',
+			tags: ['Foods'],
+			description:
+				"Create up to 200 foods with client-chosen ids in one multipart request. The `foods` part is a JSON array of food-create objects plus `id` (uuid) and optional `labels`; an optional file part named `image.<id>` (any image type, at most 200 KB) carries that food's photo. Results are per food and the request is idempotent: `created`, `exists` (the id is already this account's food, e.g. a retry), `id_conflict` (the id belongs to another account), `duplicate_barcode` (barcode already used by another food of the account, or earlier in the same request) or `invalid` (with `message`). An image that cannot be stored (`image_too_large`, `image_invalid`, `quota_exceeded`) does not fail the food: it is `created` without `imageUrl` and the reason in `message`. A malformed request is 400; a missing or non-uuid id fails the whole request. Rate limited separately (30 requests per minute).",
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: z.object({
+							foods: z.array(foodBulkItemSchema)
+						}),
+						encoding: { foods: { contentType: 'application/json' } }
+					}
+				}
+			},
+			responses: {
+				'200': {
+					description: 'Per-food results',
+					content: { 'application/json': { schema: foodBulkResponseSchema } }
 				},
 				'400': res400,
 				'401': res401

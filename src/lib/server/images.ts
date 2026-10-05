@@ -60,6 +60,16 @@ export const writeUploadFile = async (bytes: Uint8Array): Promise<string> => {
 	return filename;
 };
 
+/** Best-effort removal of files written ahead of a transaction that then failed. */
+export const dropUploadFiles = (filenames: string[]): Promise<unknown> =>
+	Promise.all(
+		filenames.map((filename) =>
+			unlink(join(UPLOAD_DIR, filename)).catch((err) => {
+				if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
+			})
+		)
+	);
+
 export const processImage = async (
 	file: File,
 	userId: string,
@@ -77,7 +87,7 @@ export const processImageBytes = async (
 	let filename: string | null = null;
 	try {
 		filename = await writeUploadFile(processed);
-		await getDB().insert(uploads).values({ filename, userId });
+		await getDB().insert(uploads).values({ filename, userId, sizeBytes: processed.byteLength });
 	} catch (err) {
 		if (filename) {
 			await unlink(join(UPLOAD_DIR, filename)).catch((unlinkErr) => {

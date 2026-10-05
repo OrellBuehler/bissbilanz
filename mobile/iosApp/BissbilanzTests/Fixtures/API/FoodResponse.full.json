@@ -40,6 +40,7 @@
 		"salt": 12.5,
 		"saturatedFat": 12.5,
 		"selenium": 12.5,
+		"serverModifiedAt": "sample-serverModifiedAt",
 		"servingSize": 100,
 		"servingUnit": "g",
 		"sodium": 200,
