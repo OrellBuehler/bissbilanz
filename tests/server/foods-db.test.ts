@@ -69,6 +69,61 @@ describe('foods-db', () => {
 		});
 	});
 
+	describe('listFoods delta mode', () => {
+		const row = (id: string, cursorTimestamp: string) => ({
+			...TEST_FOOD,
+			id,
+			cursorTimestamp
+		});
+		const A = '10000000-0000-4000-8000-00000000000a';
+		const B = '10000000-0000-4000-8000-00000000000b';
+		const C = '10000000-0000-4000-8000-00000000000c';
+
+		test('returns a page, hides the cursor column and links to the next page', async () => {
+			setResult([
+				row(A, '2026-10-05T10:00:00.000001Z'),
+				row(B, '2026-10-05T10:00:00.000002Z'),
+				row(C, '2026-10-05T10:00:00.000003Z')
+			]);
+			const page = await listFoods(TEST_USER.id, {
+				limit: 2,
+				modifiedSince: '1970-01-01T00:00:00Z'
+			});
+			expect(page.items.map((food) => food.id)).toEqual([A, B]);
+			expect(page.items[0]).not.toHaveProperty('cursorTimestamp');
+			expect(page.total).toBe(2);
+			const { decodeFoodCursor } = await import('$lib/server/food-cursor');
+			expect(decodeFoodCursor(page.nextCursor!)).toEqual({
+				timestamp: '2026-10-05T10:00:00.000002Z',
+				id: B
+			});
+		});
+
+		test('ends with a null cursor when the page is the last one', async () => {
+			setResult([row(A, '2026-10-05T10:00:00.000001Z')]);
+			const page = await listFoods(TEST_USER.id, {
+				limit: 2,
+				after: { timestamp: '2026-10-05T09:00:00.000000Z', id: C }
+			});
+			expect(page.items).toHaveLength(1);
+			expect(page.nextCursor).toBeNull();
+		});
+
+		test('defaults to 100 foods and handles an empty feed', async () => {
+			setResult([]);
+			const page = await listFoods(TEST_USER.id, { modifiedSince: '2026-10-05T09:00:00Z' });
+			expect(page).toEqual({ items: [], total: 0, nextCursor: null });
+		});
+	});
+
+	describe('listFoodIds', () => {
+		test('returns just the ids', async () => {
+			const { listFoodIds } = await import('$lib/server/foods');
+			setResult([{ id: 'a' }, { id: 'b' }]);
+			expect(await listFoodIds(TEST_USER.id)).toEqual(['a', 'b']);
+		});
+	});
+
 	describe('toFoodUpdate', () => {
 		test('strips the input-only categoriesTags so it never reaches the foods row', async () => {
 			const { toFoodUpdate } = await import('$lib/server/foods');
