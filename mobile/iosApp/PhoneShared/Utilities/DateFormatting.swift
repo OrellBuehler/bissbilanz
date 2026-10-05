@@ -82,6 +82,29 @@ enum DateFormatting {
         return isoDateTimeString(from: combined)
     }
 
+    /// `date` with its wall-clock hour and/or minute swapped, the day and the
+    /// other clock field kept and seconds zeroed. Used by the time wheels so each
+    /// wheel writes only its own field instead of round-tripping a whole `Date`.
+    static func replacingClock(
+        of date: Date, hour: Int? = nil, minute: Int? = nil, calendar: Calendar = .current
+    ) -> Date {
+        var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        if let hour { components.hour = hour }
+        if let minute { components.minute = minute }
+        components.second = 0
+        return calendar.date(from: components) ?? date
+    }
+
+    /// `date` moved onto the calendar day of `day`, keeping its wall-clock time.
+    static func replacingDay(of date: Date, with day: Date, calendar: Calendar = .current) -> Date {
+        let picked = calendar.dateComponents([.year, .month, .day], from: day)
+        var components = calendar.dateComponents([.hour, .minute, .second], from: date)
+        components.year = picked.year
+        components.month = picked.month
+        components.day = picked.day
+        return calendar.date(from: components) ?? date
+    }
+
     /// The instant `eatenAt` placed on `toDate` ("yyyy-MM-dd"), keeping its
     /// wall-clock time in `calendar`'s zone. Built from components rather than by
     /// adding whole days of seconds, so the time survives a DST change. `nil`

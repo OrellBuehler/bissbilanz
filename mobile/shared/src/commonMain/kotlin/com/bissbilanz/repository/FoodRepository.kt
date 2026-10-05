@@ -116,19 +116,31 @@ class FoodRepository(
      * stayed cached forever and a later create against it 404ed. [pageSize] is capped
      * by the server at 200 (`paginationSchema` in `src/lib/server/validation/
      * pagination.ts`); bounded to [MAX_REFRESH_PAGES] pages per call as a defensive
-     * cap against a runaway loop.
+     * cap against a runaway loop; if the cap is hit the fetch is incomplete, so the
+     * cache is only upserted and never pruned.
      */
     suspend fun refreshFoods(pageSize: Int = 200) {
         if (appModeManager.isLocal) return
         val allFoods = mutableListOf<Food>()
         var offset = 0
         var pages = 0
+        var complete = false
         while (pages < MAX_REFRESH_PAGES) {
             pages++
             val page = api.getFoods(pageSize, offset)
             allFoods.addAll(page)
-            if (page.size < pageSize) break
+            if (page.size < pageSize) {
+                complete = true
+                break
+            }
             offset += pageSize
+        }
+        if (!complete) {
+            errorReporter.captureException(
+                IllegalStateException("refreshFoods hit the $MAX_REFRESH_PAGES page cap; cache upserted without pruning"),
+            )
+            withContext(ioDispatcher) { cacheFoods(allFoods) }
+            return
         }
         val protectedIds = pendingFoodIds()
         withContext(ioDispatcher) { cacheAllFoods(allFoods, protectedIds) }

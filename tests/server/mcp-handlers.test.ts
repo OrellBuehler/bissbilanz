@@ -9,6 +9,7 @@ import {
 	TEST_MEAL_TYPE
 } from '../helpers/fixtures';
 import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
+import { ApiError } from '../../src/lib/server/errors';
 import { foodCreateSchema } from '../../src/lib/server/validation/foods';
 
 // Mock state
@@ -28,6 +29,9 @@ let mockUpsertGoalsResult: any = null;
 let mockFood: any = null;
 let mockRecipe: any = null;
 const recipeWrites: any[] = [];
+const expandCalls: any[] = [];
+let mockExpanded: any[] = [];
+let mockExpandError: Error | null = null;
 const importedLinks: string[] = [];
 const discarded: string[] = [];
 const failingLinks = new Set<string>();
@@ -140,6 +144,11 @@ const mockDeps = {
 			: { success: false, error: new Error('Validation failed') };
 	},
 	getRecipe: async () => mockRecipe,
+	expandIncludedRecipes: async (_userId: string, includes: unknown) => {
+		expandCalls.push(includes);
+		if (mockExpandError) throw mockExpandError;
+		return mockExpanded;
+	},
 	updateRecipe: async (_userId: string, _id: string, payload: unknown) => {
 		recipeWrites.push(payload);
 		return mockUpdateRecipeResult
@@ -400,6 +409,9 @@ describe('MCP handlers', () => {
 		mockFood = null;
 		mockRecipe = null;
 		recipeWrites.length = 0;
+		expandCalls.length = 0;
+		mockExpanded = [];
+		mockExpandError = null;
 		importedLinks.length = 0;
 		discarded.length = 0;
 		failingLinks.clear();
@@ -539,6 +551,168 @@ describe('MCP handlers', () => {
 			mockCreateRecipeResult = null;
 			const result: any = await handleCreateRecipe(TEST_USER.id, {});
 			expect(result.error).toBeDefined();
+		});
+	});
+
+	describe('includeRecipes', () => {
+		const SOURCE = '10000000-0000-4000-8000-0000000000aa';
+		const box = (n: number) =>
+			Array.from({ length: n }, (_, i) => ({
+				foodId: `10000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+				quantity: 1,
+				servingUnit: 'g'
+			}));
+		const own = { foodId: TEST_FOOD.id, quantity: 100, servingUnit: 'g' };
+		const expanded = [
+			{ foodId: '10000000-0000-4000-8000-0000000000bb', quantity: 33.33, servingUnit: 'g' }
+		];
+
+		test('create appends expanded rows after the given ingredients and drops includeRecipes', async () => {
+			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'r1' };
+			mockExpanded = expanded;
+			const includeRecipes = [{ recipeId: SOURCE, servings: 1 }];
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				name: 'Box',
+				totalServings: 1,
+				ingredients: [own],
+				includeRecipes
+			});
+			expect(result.success).toBe(true);
+			expect(expandCalls).toEqual([includeRecipes]);
+			expect(recipeWrites[0].ingredients).toEqual([own, ...expanded]);
+			expect(recipeWrites[0].includeRecipes).toBeUndefined();
+		});
+
+		test('create works with includeRecipes alone', async () => {
+			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'r1' };
+			mockExpanded = expanded;
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				name: 'Box',
+				totalServings: 1,
+				includeRecipes: [{ recipeId: SOURCE, grams: 300 }]
+			});
+			expect(result.success).toBe(true);
+			expect(recipeWrites[0].ingredients).toEqual(expanded);
+		});
+
+		test('create without any ingredients is rejected', async () => {
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				name: 'Box',
+				totalServings: 1
+			});
+			expect(result.error).toMatch(/at least one ingredient/);
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('create with includeRecipes that expand to nothing is rejected', async () => {
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				name: 'Box',
+				totalServings: 1,
+				includeRecipes: [{ recipeId: SOURCE, servings: 1 }]
+			});
+			expect(result.error).toMatch(/at least one ingredient/);
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('create rejects more than 100 combined ingredients', async () => {
+			mockExpanded = box(60);
+			await expect(
+				handleCreateRecipe(TEST_USER.id, {
+					name: 'Box',
+					totalServings: 1,
+					ingredients: box(41),
+					includeRecipes: [{ recipeId: SOURCE, servings: 1 }]
+				})
+			).rejects.toThrow(/at most 100 ingredients; the combined list has 101/);
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('create allows exactly 100 combined ingredients', async () => {
+			mockCreateRecipeResult = { ...TEST_RECIPE, id: 'r1' };
+			mockExpanded = box(60);
+			const result: any = await handleCreateRecipe(TEST_USER.id, {
+				name: 'Box',
+				totalServings: 1,
+				ingredients: box(40),
+				includeRecipes: [{ recipeId: SOURCE, servings: 1 }]
+			});
+			expect(result.success).toBe(true);
+			expect(recipeWrites[0].ingredients).toHaveLength(100);
+		});
+
+		test('an unowned recipe surfaces the not-found error and writes nothing', async () => {
+			mockExpandError = new ApiError(404, 'Recipe not found');
+			await expect(
+				handleCreateRecipe(TEST_USER.id, {
+					name: 'Box',
+					totalServings: 1,
+					ingredients: [own],
+					includeRecipes: [{ recipeId: SOURCE, servings: 1 }]
+				})
+			).rejects.toThrow('Failed to create recipe: Recipe not found');
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('grams without a cookedWeight surfaces the 400 message', async () => {
+			mockExpandError = new ApiError(400, 'Recipe has no cookedWeight');
+			await expect(
+				handleCreateRecipe(TEST_USER.id, {
+					name: 'Box',
+					totalServings: 1,
+					ingredients: [own],
+					includeRecipes: [{ recipeId: SOURCE, grams: 300 }]
+				})
+			).rejects.toThrow('Recipe has no cookedWeight');
+		});
+
+		test('update appends to the current ingredients when ingredients are omitted', async () => {
+			mockRecipe = {
+				...TEST_RECIPE,
+				ingredients: [{ id: 'row', recipeId: TEST_RECIPE.id, sortOrder: 0, ...own }],
+				steps: []
+			};
+			mockUpdateRecipeResult = TEST_RECIPE;
+			mockExpanded = expanded;
+			const result: any = await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				includeRecipes: [{ recipeId: SOURCE, servings: 2 }]
+			});
+			expect(result.success).toBe(true);
+			expect(recipeWrites[0].ingredients).toEqual([own, ...expanded]);
+			expect(recipeWrites[0].includeRecipes).toBeUndefined();
+		});
+
+		test('update appends to the given ingredients when both are provided', async () => {
+			mockUpdateRecipeResult = TEST_RECIPE;
+			mockExpanded = expanded;
+			await handleUpdateRecipe(TEST_USER.id, {
+				recipeId: TEST_RECIPE.id,
+				ingredients: [own],
+				includeRecipes: [{ recipeId: SOURCE, servings: 2 }]
+			});
+			expect(recipeWrites[0].ingredients).toEqual([own, ...expanded]);
+		});
+
+		test('update of an unknown recipe with includeRecipes reports not found', async () => {
+			mockRecipe = null;
+			await expect(
+				handleUpdateRecipe(TEST_USER.id, {
+					recipeId: TEST_RECIPE.id,
+					includeRecipes: [{ recipeId: SOURCE, servings: 2 }]
+				})
+			).rejects.toThrow('Recipe not found');
+			expect(recipeWrites).toHaveLength(0);
+		});
+
+		test('update rejects more than 100 combined ingredients', async () => {
+			mockExpanded = box(60);
+			await expect(
+				handleUpdateRecipe(TEST_USER.id, {
+					recipeId: TEST_RECIPE.id,
+					ingredients: box(41),
+					includeRecipes: [{ recipeId: SOURCE, servings: 1 }]
+				})
+			).rejects.toThrow(/at most 100 ingredients/);
 		});
 	});
 

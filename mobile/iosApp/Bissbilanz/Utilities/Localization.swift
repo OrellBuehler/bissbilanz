@@ -976,6 +976,70 @@ enum L10n {
         localized("add_ingredient", en: "Add Ingredient", de: "Zutat hinzufügen")
     }
 
+    static var addFromRecipe: String {
+        localized("add_from_recipe", en: "Add from Recipe", de: "Aus Rezept hinzufügen")
+    }
+
+    static var addFromRecipeSelectTitle: String {
+        localized("add_from_recipe_select_title", en: "Select Recipe", de: "Rezept auswählen")
+    }
+
+    static var addFromRecipeSearchPrompt: String {
+        localized("add_from_recipe_search_prompt", en: "Search recipes", de: "Rezepte suchen")
+    }
+
+    static func addFromRecipeOfServings(_ servings: String) -> String {
+        localized("add_from_recipe_of_servings", en: "of \(servings) servings", de: "von \(servings) Portionen")
+    }
+
+    static func addFromRecipeOfGrams(_ grams: String) -> String {
+        localized("add_from_recipe_of_grams", en: "of \(grams) g", de: "von \(grams) g")
+    }
+
+    static func addFromRecipePreview(_ kcal: Int) -> String {
+        localized(
+            "add_from_recipe_preview",
+            en: "About \(kcal) kcal will be added",
+            de: "Etwa \(kcal) kcal werden hinzugefügt"
+        )
+    }
+
+    static var addFromRecipeConfirm: String {
+        localized("add_from_recipe_confirm", en: "Add Ingredients", de: "Zutaten hinzufügen")
+    }
+
+    static var addFromRecipeSnapshotFooter: String {
+        localized(
+            "add_from_recipe_snapshot_footer",
+            en: "The ingredients are copied once. Later changes to the source recipe don't affect this one.",
+            de: "Die Zutaten werden einmalig kopiert. Spätere Änderungen am Quellrezept wirken sich nicht auf dieses aus."
+        )
+    }
+
+    static var addFromRecipeNoIngredients: String {
+        localized(
+            "add_from_recipe_no_ingredients",
+            en: "This recipe has no ingredients to copy.",
+            de: "Dieses Rezept hat keine Zutaten zum Kopieren."
+        )
+    }
+
+    static var addFromRecipeFailed: String {
+        localized(
+            "add_from_recipe_failed",
+            en: "Couldn't load the recipe's ingredients",
+            de: "Die Zutaten des Rezepts konnten nicht geladen werden"
+        )
+    }
+
+    static func addFromRecipeTooMany(_ max: Int) -> String {
+        localized(
+            "add_from_recipe_too_many",
+            en: "A recipe can have at most \(max) ingredients.",
+            de: "Ein Rezept kann höchstens \(max) Zutaten haben."
+        )
+    }
+
     /// Shown for a recipe ingredient whose food couldn't be resolved (deleted, or
     /// offline with nothing cached) — the ingredient is never dropped, only its name.
     static var unknownIngredient: String {
@@ -1899,6 +1963,32 @@ enum L10n {
 
     static func syncParkedReason(_ reason: String) -> String {
         localized("sync_parked_reason", en: "Rejected: \(reason)", de: "Abgelehnt: \(reason)")
+    }
+
+    static func syncBarcodeInUse(by name: String) -> String {
+        localized(
+            "sync_barcode_in_use_by",
+            en: "This barcode is already used by \"\(name)\". Merge the two foods or remove the barcode.",
+            de: "Dieser Barcode wird bereits von \"\(name)\" verwendet. " +
+                "Führe die beiden Lebensmittel zusammen oder entferne den Barcode."
+        )
+    }
+
+    static var syncBarcodeInUse: String {
+        localized(
+            "sync_barcode_in_use",
+            en: "This barcode is already used by another food. Merge the two foods or remove the barcode.",
+            de: "Dieser Barcode wird bereits von einem anderen Lebensmittel verwendet. " +
+                "Führe die beiden Lebensmittel zusammen oder entferne den Barcode."
+        )
+    }
+
+    static var syncConflictGeneric: String {
+        localized(
+            "sync_conflict_generic",
+            en: "The server found a conflict with existing data",
+            de: "Der Server hat einen Konflikt mit bestehenden Daten festgestellt"
+        )
     }
 
     /// Human-readable title for a queued sync operation, keyed by its stored

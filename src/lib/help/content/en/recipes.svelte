@@ -6,6 +6,12 @@
 	the right share automatically.
 </p>
 <p class="mb-6">
+	To build on a dish you already made, such as a meal-prep box from last night's curry, tap <strong
+		>Add from recipe</strong
+	>, pick the recipe and an amount in servings (or in grams if it has a cooked weight), and its
+	ingredients are copied in, scaled to that amount.
+</p>
+<p class="mb-6">
 	Tap a recipe to edit its name, servings, photo or favorite status, or to delete it. To change the
 	ingredients themselves, delete the recipe and rebuild it — there's no ingredient editor on an
 	existing recipe yet.

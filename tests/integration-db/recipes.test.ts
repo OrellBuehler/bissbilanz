@@ -554,3 +554,51 @@ describe('favorite recipe preview math (integration)', () => {
 		expect(favorites[0].calories / favorites[0].totalServings).toBeCloseTo(200, 5);
 	});
 });
+
+describe('expandIncludedRecipes (integration)', () => {
+	it('scales a cooked recipe by servings and grams and rejects a foreign recipe', async () => {
+		const db = getTestDB(dbUrl);
+		const { createRecipe, expandIncludedRecipes } = await import('$lib/server/recipes');
+
+		const [food] = await db
+			.insert(foods)
+			.values({
+				userId,
+				name: 'Curry base',
+				servingSize: 100,
+				servingUnit: 'g',
+				calories: 100,
+				protein: 1,
+				carbs: 1,
+				fat: 1,
+				fiber: 1
+			})
+			.returning();
+		const created = await createRecipe(userId, {
+			name: 'Curry',
+			totalServings: 3,
+			cookedWeight: 1200,
+			ingredients: [{ foodId: food.id, quantity: 900, servingUnit: 'g' }]
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+
+		const byServings = await expandIncludedRecipes(userId, [
+			{ recipeId: created.data.id, servings: 2 }
+		]);
+		expect(byServings).toEqual([{ foodId: food.id, quantity: 600, servingUnit: 'g' }]);
+
+		const byGrams = await expandIncludedRecipes(userId, [
+			{ recipeId: created.data.id, grams: 400 }
+		]);
+		expect(byGrams).toEqual([{ foodId: food.id, quantity: 300, servingUnit: 'g' }]);
+
+		const [other] = await db
+			.insert(users)
+			.values({ infomaniakSub: `recipes-other-${Date.now()}` })
+			.returning();
+		await expect(
+			expandIncludedRecipes(other.id, [{ recipeId: created.data.id, servings: 1 }])
+		).rejects.toMatchObject({ status: 404 });
+	});
+});
