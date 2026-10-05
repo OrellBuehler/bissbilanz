@@ -4,6 +4,7 @@ import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
+import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.ConnectivityProvider
@@ -25,6 +26,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -58,6 +60,29 @@ class FoodRepositoryTest {
             )
     }
 
+    private fun deltaPage(
+        foods: List<Food>,
+        nextCursor: String? = null,
+    ) = FoodsListResponse(foods = foods, total = foods.size, nextCursor = nextCursor)
+
+    private fun cachedIds() =
+        db.userDataDatabaseQueries
+            .selectAllFoods()
+            .executeAsList()
+            .map { it.id }
+            .toSet()
+
+    private fun pendingUpdate(id: String) =
+        QueuedRequest(
+            id = 1L,
+            operation = SyncOperation.UpdateFood(id, "{}"),
+            createdAt = 0L,
+            retryCount = 0L,
+            idempotencyKey = "k",
+            clientEditedAt = "t",
+            nextAttemptAt = 0L,
+        )
+
     @Test
     fun refreshFoodsCachesDataOnSuccess() =
         runTest {
@@ -66,42 +91,83 @@ class FoodRepositoryTest {
                     TestFixtures.food(id = "1", name = "Apple"),
                     TestFixtures.food(id = "2", name = "Banana"),
                 )
-            coEvery { api.getFoods(200, 0) } returns foods
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(foods)
+            coEvery { api.getFoodIds() } returns listOf("1", "2")
 
             repository.refreshFoods()
 
-            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
-            assertEquals(2, cached.size)
+            assertEquals(setOf("1", "2"), cachedIds())
         }
 
     @Test
-    fun refreshFoodsPagesThroughEveryServerFood() =
+    fun refreshFoodsFollowsTheCursorThroughEveryPage() =
         runTest {
-            val firstPage = (1..200).map { TestFixtures.food(id = "food-$it", name = "Food $it") }
-            val secondPage = listOf(TestFixtures.food(id = "food-201", name = "Food 201"))
-            coEvery { api.getFoods(200, 0) } returns firstPage
-            coEvery { api.getFoods(200, 200) } returns secondPage
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returnsMany
+                listOf(
+                    deltaPage(listOf(TestFixtures.food(id = "a", name = "A")), nextCursor = "c1"),
+                    deltaPage(listOf(TestFixtures.food(id = "b", name = "B")), nextCursor = "c2"),
+                    deltaPage(listOf(TestFixtures.food(id = "c", name = "C"))),
+                )
+            coEvery { api.getFoodIds() } returns listOf("a", "b", "c")
+
+            repository.refreshFoods(pageSize = 1)
+
+            assertEquals(setOf("a", "b", "c"), cachedIds())
+            coVerify(exactly = 1) { api.getFoodsDelta("1970-01-01T00:00:00Z", null, 1) }
+            coVerify(exactly = 1) { api.getFoodsDelta(null, "c1", 1) }
+            coVerify(exactly = 1) { api.getFoodsDelta(null, "c2", 1) }
+        }
+
+    @Test
+    fun refreshFoodsStoresTheNewestServerWriteAndResumesWithOverlap() =
+        runTest {
+            val older = TestFixtures.food(id = "1", name = "Old").copy(serverModifiedAt = "2026-10-05T10:00:00.000Z")
+            val newer = TestFixtures.food(id = "2", name = "New").copy(serverModifiedAt = "2026-10-05T10:05:00.000Z")
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(older, newer))
+            coEvery { api.getFoodIds() } returns listOf("1", "2")
 
             repository.refreshFoods()
 
-            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
-            assertEquals(201, cached.size)
-            coVerify { api.getFoods(200, 200) }
+            val stored = cacheDb.bissbilanzDatabaseQueries.selectSyncMeta("foods_delta_checkpoint").executeAsOne()
+            assertEquals("2026-10-05T10:05:00Z", stored)
+
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(emptyList())
+            coEvery { api.getFoodsPaginated(1, 0) } returns FoodsListResponse(foods = emptyList(), total = 2)
+
+            repository.refreshFoods()
+
+            coVerify(exactly = 1) { api.getFoodsDelta("2026-10-05T10:04:00Z", null, 1000) }
+        }
+
+    @Test
+    fun refreshFoodsKeepsTheCheckpointWhenAnInterruptedSyncResumes() =
+        runTest {
+            val first = TestFixtures.food(id = "1", name = "One").copy(serverModifiedAt = "2026-10-05T10:00:00Z")
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returnsMany
+                listOf(deltaPage(listOf(first), nextCursor = "c1")) andThenThrows RuntimeException("offline")
+
+            assertFailsWith<RuntimeException> { repository.refreshFoods(pageSize = 1) }
+
+            assertEquals(
+                "2026-10-05T10:00:00Z",
+                cacheDb.bissbilanzDatabaseQueries.selectSyncMeta("foods_delta_checkpoint").executeAsOne(),
+            )
+            assertEquals(setOf("1"), cachedIds())
         }
 
     @Test
     fun refreshFoodsPrunesACacheFoodTheServerNoLongerHas() =
         runTest {
             // Simulates the duplicate-merge case (src/lib/server/food-merge.ts deletes
-            // the losing food rows): a food that used to exist server-side is gone from
-            // the full refresh and must not linger in the cache forever.
+            // the losing food rows): the change feed cannot report a hard delete, so the
+            // id diff against /api/foods/ids has to remove it.
             seedFoodInCache(TestFixtures.food(id = "merged-away", name = "Stale Duplicate"))
-            coEvery { api.getFoods(200, 0) } returns listOf(TestFixtures.food(id = "1", name = "Survivor"))
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(TestFixtures.food(id = "1", name = "Survivor")))
+            coEvery { api.getFoodIds() } returns listOf("1")
 
             repository.refreshFoods()
 
-            val cached = db.userDataDatabaseQueries.selectAllFoods().executeAsList()
-            assertEquals(listOf("1"), cached.map { it.id })
+            assertEquals(setOf("1"), cachedIds())
         }
 
     @Test
@@ -109,29 +175,55 @@ class FoodRepositoryTest {
         runTest {
             seedFoodInCache(TestFixtures.food(id = "temp_offline", name = "Not Yet Uploaded"))
             seedFoodInCache(TestFixtures.food(id = "pending-edit", name = "Edited Offline"))
-            coEvery { api.getFoods(200, 0) } returns emptyList()
-            coEvery { syncQueue.all() } returns
-                listOf(
-                    QueuedRequest(
-                        id = 1L,
-                        operation = SyncOperation.UpdateFood("pending-edit", "{}"),
-                        createdAt = 0L,
-                        retryCount = 0L,
-                        idempotencyKey = "k",
-                        clientEditedAt = "t",
-                        nextAttemptAt = 0L,
-                    ),
-                )
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(emptyList())
+            coEvery { api.getFoodIds() } returns emptyList()
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("pending-edit"))
 
             repository.refreshFoods()
 
-            val cachedIds =
-                db.userDataDatabaseQueries
-                    .selectAllFoods()
-                    .executeAsList()
-                    .map { it.id }
-                    .toSet()
-            assertEquals(setOf("temp_offline", "pending-edit"), cachedIds)
+            assertEquals(setOf("temp_offline", "pending-edit"), cachedIds())
+        }
+
+    @Test
+    fun refreshFoodsNeverPrunesAfterATruncatedFetch() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "not-fetched-yet", name = "Still There"))
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns
+                deltaPage(listOf(TestFixtures.food(id = "1", name = "One")), nextCursor = "more")
+            coEvery { api.getFoodIds() } returns listOf("1")
+
+            repository.refreshFoods(pageSize = 1, maxPages = 1)
+
+            assertEquals(setOf("not-fetched-yet", "1"), cachedIds())
+            coVerify(exactly = 0) { api.getFoodIds() }
+        }
+
+    @Test
+    fun refreshFoodsSkipsTheIdListWhileCountsMatchAndPruneIsRecent() =
+        runTest {
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(TestFixtures.food(id = "1", name = "One")))
+            coEvery { api.getFoodIds() } returns listOf("1")
+            coEvery { api.getFoodsPaginated(1, 0) } returns FoodsListResponse(foods = emptyList(), total = 1)
+
+            repository.refreshFoods()
+            repository.refreshFoods()
+
+            coVerify(exactly = 1) { api.getFoodIds() }
+        }
+
+    @Test
+    fun refreshFoodsReconcilesIdsEarlyWhenTheServerCountDiffers() =
+        runTest {
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(TestFixtures.food(id = "1", name = "One")))
+            coEvery { api.getFoodIds() } returns listOf("1")
+
+            repository.refreshFoods()
+            seedFoodInCache(TestFixtures.food(id = "2", name = "Merged Away"))
+            coEvery { api.getFoodsPaginated(1, 0) } returns FoodsListResponse(foods = emptyList(), total = 1)
+            repository.refreshFoods()
+
+            assertEquals(setOf("1"), cachedIds())
+            coVerify(exactly = 2) { api.getFoodIds() }
         }
 
     @Test

@@ -33,7 +33,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -170,21 +169,8 @@ class FoodPackageViewModel(
         viewModelScope.launch {
             try {
                 if (isLocalMode) {
-                    val foods = foodRepository.allFoods().first()
-                    val brands =
-                        foods
-                            .mapNotNull { it.brand?.trim()?.takeIf { brand -> brand.isNotEmpty() } }
-                            .groupingBy { it }
-                            .eachCount()
-                            .map { (brand, count) -> FoodBrandStat(brand, count) }
-                            .sortedBy { it.brand.lowercase() }
-                    val labels =
-                        foods
-                            .flatMap { it.labels.orEmpty() }
-                            .groupingBy { it }
-                            .eachCount()
-                            .map { (label, count) -> FoodLabelStat(label, count) }
-                            .sortedBy { it.label }
+                    val brands = foodRepository.localBrandStats()
+                    val labels = foodRepository.localLabelStats()
                     _exportState.update { it.copy(brandOptions = brands, labelOptions = labels) }
                 } else {
                     val brands = api.getFoodBrands()

@@ -38,8 +38,13 @@ CREATE TABLE IF NOT EXISTS CachedFood (
     fiber REAL NOT NULL DEFAULT 0,
     isFavorite INTEGER NOT NULL DEFAULT 0,
     barcode TEXT,
-    jsonData TEXT NOT NULL
+    jsonData TEXT NOT NULL,
+    servingUnit TEXT,
+    updatedAt TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_cached_food_name ON CachedFood(name, id);
+CREATE INDEX IF NOT EXISTS idx_cached_food_barcode ON CachedFood(barcode);
 
 -- One row per (food, label), mirrored from Food.labels on every cache write so
 -- the offline search can match "bread" against a food named "Vollkornbrot"
@@ -182,8 +187,42 @@ DELETE FROM CachedEntry WHERE date = ?;
 selectAllFoods:
 SELECT * FROM CachedFood ORDER BY name;
 
+selectFoodsPage:
+SELECT * FROM CachedFood ORDER BY name, id LIMIT :limit OFFSET :offset;
+
+selectFoodsAfterId:
+SELECT * FROM CachedFood WHERE id > :afterId ORDER BY id LIMIT :limit;
+
+selectFoodsByIds:
+SELECT * FROM CachedFood WHERE id IN :ids;
+
+countFoods:
+SELECT COUNT(*) FROM CachedFood;
+
 selectAllFoodIds:
 SELECT id FROM CachedFood;
+
+-- Lightweight columns for matching and name lookups, so a large mirror never has to decode jsonData.
+selectFoodKeys:
+SELECT id, name, brand, barcode, servingUnit, updatedAt FROM CachedFood;
+
+selectFoodNames:
+SELECT id, name FROM CachedFood ORDER BY name, id;
+
+selectFoodBrands:
+SELECT id, brand FROM CachedFood WHERE brand IS NOT NULL;
+
+selectFoodIdsByLabels:
+SELECT DISTINCT foodId FROM CachedFoodLabel WHERE label IN :labels;
+
+countFoodsPerBrand:
+SELECT TRIM(brand) AS brand, COUNT(*) AS foodCount FROM CachedFood WHERE brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY TRIM(brand);
+
+countFoodsPerLabel:
+SELECT label, COUNT(*) AS foodCount FROM CachedFoodLabel GROUP BY label;
+
+updateFoodKeys:
+UPDATE CachedFood SET servingUnit = :servingUnit, updatedAt = :updatedAt WHERE id = :id;
 
 selectFoodById:
 SELECT * FROM CachedFood WHERE id = ?;
@@ -194,20 +233,31 @@ SELECT * FROM CachedFood WHERE barcode = ? LIMIT 1;
 selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
--- Same tiers as the server: name, then English label, then brand.
+-- Same tiers as the server: name, then English label, then brand. The inner query ranks
+-- and limits on id/name only so a broad pattern never sorts whole rows (jsonData included).
 searchFoods:
 SELECT * FROM CachedFood
-WHERE name LIKE :pattern
-   OR brand LIKE :pattern
-   OR EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label)
+WHERE id IN (
+    SELECT f.id FROM CachedFood f
+    WHERE f.name LIKE :pattern
+       OR f.brand LIKE :pattern
+       OR EXISTS (SELECT 1 FROM CachedFoodLabel l WHERE l.foodId = f.id AND l.label = :label)
+    ORDER BY
+        CASE
+            WHEN f.name LIKE :pattern THEN 0
+            WHEN EXISTS (SELECT 1 FROM CachedFoodLabel l WHERE l.foodId = f.id AND l.label = :label) THEN 1
+            ELSE 2
+        END,
+        f.name
+    LIMIT :limit
+)
 ORDER BY
     CASE
         WHEN name LIKE :pattern THEN 0
         WHEN EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label) THEN 1
         ELSE 2
     END,
-    name
-LIMIT :limit;
+    name;
 
 -- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
 selectRecentFoods:

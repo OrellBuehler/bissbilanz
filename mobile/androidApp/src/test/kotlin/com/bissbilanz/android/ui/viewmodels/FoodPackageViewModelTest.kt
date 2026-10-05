@@ -37,7 +37,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -78,7 +77,7 @@ class FoodPackageViewModelTest {
         refreshManager = mockk(relaxed = true)
         local = mockk(relaxed = true)
         archive = mockk(relaxed = true)
-        foodRepo = mockk(relaxed = true) { every { allFoods() } returns flowOf(emptyList()) }
+        foodRepo = mockk(relaxed = true)
         pkg = File.createTempFile("package", ".pkg").apply { writeBytes(byteArrayOf(1, 2, 3)) }
     }
 
