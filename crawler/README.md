@@ -79,9 +79,19 @@ does not refetch. The Migros crawl is live and rate-limited and checkpoints prog
 (`data/catalog/.migros-checkpoint.json`); an interrupted run resumes with the same command and
 keeps the foods already collected.
 
-The Migros food category id (`MIGROS_FOOD_CATEGORIES` in `index.ts`) and the product-detail field
-paths in `adapters/migros/client.ts` still need confirming against a live response on a machine
-that can reach the API (the guest-token request returned HTTP 401 on the last attempt); validate with `--limit 5 --no-images` before a full run.
+The Migros crawl needs a guest OAuth2 token (public, no login): `GET /authentication/public/v1/api/guest`
+returns it in the `leshopch` response header, and every product call sends it back as a `leshopch`
+request header (the client renews it on a 401). Requests also need a User-Agent; one without it is
+answered with a Cloudflare 403. There is no category browse endpoint (search requires a query), so
+the crawler scans the product id space `100000000..~100230000` through
+`product-display/public/v2/product-detail` (100 ids per call, one call per 600 ms, ~2,300 calls)
+and keeps products whose root category (`breadcrumb[0]`, `MIGROS_FOOD_ROOTS` in `index.ts`) is a
+food or drink category. Each food gets the source label plus a short German root-category label.
+The checkpoint cursor is the next id to scan, so a resumed run does not duplicate foods.
+Nutrition comes from the German `nutrientsTable` (first column, `100 g` or `100 ml`; kcal read
+from `287 kJ (69 kcal)`, kJ / 4.184 as fallback). Products without a nutrition table, with a
+prepared/portion basis, or with a missing energy/protein/carbs/fat value are dropped; a missing
+fibre row counts as 0.
 
 BLV column mapping: BLV values are per 100 g in g/mg/µg, the same units the app stores, so they
 carry over 1:1. Calories fall back to kJ / 4.184. `Sp.` (traces) and `<x` count as 0, `k.A.` as

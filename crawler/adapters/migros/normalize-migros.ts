@@ -3,7 +3,7 @@ import type { BuildResult } from '../../types';
 import type { MigrosProductDetail } from './types';
 
 function gramsBasis(basis: string | undefined): number | null {
-	if (!basis) return 100; // assume per-100g when unspecified
+	if (!basis) return 100;
 	const m = basis
 		.trim()
 		.toLowerCase()
@@ -37,8 +37,11 @@ export function migrosToDataset(d: MigrosProductDetail, crawledAt?: string): Bui
 		protein: scale(d.nutrition.protein),
 		carbs: scale(d.nutrition.carbohydrate),
 		fat: scale(d.nutrition.fat),
-		fiber: scale(d.nutrition.fiber),
+		fiber: scale(d.nutrition.fiber) ?? 0,
 		nutrients: {
+			...Object.fromEntries(
+				Object.entries(d.nutrition.other ?? {}).map(([key, value]) => [key, scale(value)])
+			),
 			sugar: scale(d.nutrition.sugar),
 			saturatedFat: scale(d.nutrition.saturatedFat),
 			salt: scale(d.nutrition.salt)

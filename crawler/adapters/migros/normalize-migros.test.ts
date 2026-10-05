@@ -55,6 +55,40 @@ test('rescales per-serving nutrition to per-100g when basis is grams', () => {
 	if (r.ok) expect(r.product.calories).toBe(64);
 });
 
+test('maps extended nutrients, rescaling them to per-100g, and defaults missing fiber to zero', () => {
+	const r = migrosToDataset({
+		...detail,
+		nutrition: {
+			basis: '200 g',
+			energyKcal: 128,
+			protein: 6.6,
+			carbohydrate: 9.6,
+			fat: 7,
+			other: { calcium: 248, cholesterol: 20 }
+		}
+	});
+	expect(r.ok).toBe(true);
+	if (r.ok) {
+		expect(r.product.calcium).toBe(124);
+		expect(r.product.cholesterol).toBe(10);
+		expect(r.product.fiber).toBe(0);
+	}
+});
+
+test('accepts the basis the API reports, with a space', () => {
+	const r = migrosToDataset({ ...detail, nutrition: { ...detail.nutrition, basis: '100 ml' } });
+	expect(r.ok).toBe(true);
+	if (r.ok) expect(r.product.servingUnit).toBe('ml');
+});
+
+test('drops a product whose nutrition basis is not per g or ml', () => {
+	const r = migrosToDataset({
+		...detail,
+		nutrition: { ...detail.nutrition, basis: '1 Portion (45 g)' }
+	});
+	expect(r.ok).toBe(false);
+});
+
 test('drops a product with no GTIN', () => {
 	const r = migrosToDataset({ ...detail, gtins: [] });
 	expect(r.ok).toBe(false);

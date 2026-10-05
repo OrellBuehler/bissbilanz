@@ -1,21 +1,233 @@
 {
-	"productId": "100001",
-	"name": "M-Classic Vollmilch UHT",
-	"brand": "M-Classic",
-	"gtins": ["7610200000001"],
-	"productUrls": { "de": "https://www.migros.ch/de/product/100001" },
-	"image": { "original": "https://image.migros.ch/100001.jpg" },
-	"nutrients": {
-		"referenceValue": "100g",
-		"values": [
-			{ "code": "energy_kcal", "value": 64 },
-			{ "code": "protein", "value": 3.3 },
-			{ "code": "carbohydrate", "value": 4.8 },
-			{ "code": "of_which_sugars", "value": 4.8 },
-			{ "code": "fat", "value": 3.5 },
-			{ "code": "of_which_saturated", "value": 2.1 },
-			{ "code": "dietary_fiber", "value": 0 },
-			{ "code": "salt", "value": 0.1 }
-		]
-	}
+	"brand": "Farmer",
+	"brandLine": "Classic",
+	"breadcrumb": [
+		{
+			"id": "7494733",
+			"name": "Brot, Backwaren & Frühstück",
+			"slugs": ["brot-backwaren-fruhstuck"]
+		},
+		{
+			"id": "7494767",
+			"name": "Cerealien & Müesli",
+			"slugs": ["brot-backwaren-fruhstuck", "cerealien-muesli"]
+		},
+		{
+			"id": "7494943",
+			"name": "Müesli",
+			"slugs": ["brot-backwaren-fruhstuck", "cerealien-muesli", "muesli"]
+		},
+		{
+			"id": "7495413",
+			"name": "Müesli mit Schokolade",
+			"slugs": ["brot-backwaren-fruhstuck", "cerealien-muesli", "muesli", "muesli-mit-schokolade"]
+		}
+	],
+	"description": "Farmer Classic · Müesli · Schokolade · Geeignet als Snack!",
+	"gtins": ["7613312519127", "7610200085047"],
+	"imageTransparent": {
+		"cdn": "rokka",
+		"url": "https://image.migros.ch/d/{stack}/97d448ac1b032ff6d73b02ad3033ca3fcf3f6456/farmer-classic-mueesli-schokolade.png"
+	},
+	"images": [
+		{
+			"cdn": "rokka",
+			"url": "https://image.migros.ch/d/{stack}/o-af-1-t.clr-fff/97d448ac1b032ff6d73b02ad3033ca3fcf3f6456/farmer-classic-mueesli-schokolade.jpg"
+		}
+	],
+	"isConsignmentProduct": false,
+	"isMgbCompatible": true,
+	"migrosId": "104217000000",
+	"migrosOnlineId": "52671",
+	"name": "Müesli",
+	"offer": {
+		"channel": {
+			"offerType": "OFFLINE",
+			"region": "national"
+		},
+		"displayPrice": true,
+		"isNewOffer": false,
+		"isNotMorningDeliverable": false,
+		"isVariableWeight": false,
+		"maxOrderableQuantityV2": 96,
+		"price": {
+			"advertisedDisplayValue": "4.50",
+			"advertisedValue": 4.5,
+			"displayUnitPrice": true,
+			"effectiveDisplayValue": "4.50",
+			"effectiveValue": 4.5,
+			"multiplier": 1,
+			"unitPrice": {
+				"unit": "100g",
+				"value": 0.9
+			}
+		},
+		"quantity": "500g",
+		"quantityPrice": "0.90/100g",
+		"type": "STANDARD"
+	},
+	"productAvailability": "ONLINE_AND_INSTORE",
+	"productInformation": {
+		"mainInformation": {
+			"allergenIndication": "Kann enthalten: Sesamsamen, Soja, Milchprotein, Haselnüsse, Mandeln, Cashewnüsse, Pecannüsse.",
+			"allergens": "Hafer und daraus gewonnene Erzeugnisse, Gerste und daraus gewonnene Erzeugnisse, Weizen und daraus gewonnene Erzeugnisse",
+			"brand": {
+				"cdn": "rokka",
+				"imagePath": "https://image.migros.ch/d/{stack}/ba1aac53368e5facb3656cbeedbfb76216de1865.png",
+				"name": "Farmer",
+				"slug": "farmer"
+			},
+			"ingredients": "<strong>Hafer</strong>flocken 35%, Schokoladenplättchen 10% (Zucker, Kakaopulver **, Kakaobutter **), Zucker, <strong>Weizen</strong>flocken, Getreidecrispies 9% (Mais, Reis, Zucker, <strong>Weizen</strong>mehl, <strong>Gersten</strong>malz, Kakaopulver fettarm **, Meersalz), Sonnenblumenöl, Kokosflocken 7%, Maisstärke, Reismehl, Honig, Kakaopulver fettarm **, Meersalz, natürliche Aromen. \n** Rainforest Alliance-zertifiziert. www.ra.org",
+			"mcheck": {
+				"carbonFootprint": {
+					"co2CarKmEquivalent": 3,
+					"co2KgRange": "0 - 0.9 kg CO₂eq / kg",
+					"contentUrl": "https://www.migros.ch/de/content/m-check-klima",
+					"image": "https://image.migros.ch/d/original/4731c2757790ba49e5ae67bc0490e79ec86fab65.png",
+					"packagingRatio": 28,
+					"productionRatio": 64,
+					"rating": 5,
+					"stackImage": "https://image.migros.ch/d/{stack}/4731c2757790ba49e5ae67bc0490e79ec86fab65.png",
+					"transportRatio": 7
+				}
+			},
+			"migipediaUrl": "https://migipedia.migros.ch/de/products/104217000000",
+			"origin": "Die Herkunftsangabe findest du auf der Verpackung in der Filiale.",
+			"rating": {
+				"nbReviews": 465,
+				"nbStars": 4.5
+			}
+		},
+		"nutrientsInformation": {
+			"isAnalyticalConstituents": false,
+			"nutrientsTable": {
+				"headers": ["100 g", "1 Portion (45 g)"],
+				"rows": [
+					{
+						"label": "Energie",
+						"values": ["1915 kJ (457 kcal)", "856 kJ (204 kcal)", "10 %"]
+					},
+					{
+						"fsaLevel": "HIGH",
+						"label": "Fett",
+						"values": ["18 g", "8.1 g", "12 %"]
+					},
+					{
+						"fsaLevel": "HIGH",
+						"label": "davon gesättigte Fettsäuren",
+						"values": ["6.8 g", "3.1 g", "16 %"]
+					},
+					{
+						"label": "Kohlenhydrate",
+						"values": ["63 g", "28 g", "11 %"]
+					},
+					{
+						"fsaLevel": "MEDIUM",
+						"label": "davon Zucker",
+						"values": ["20 g", "9 g", "10 %"]
+					},
+					{
+						"label": "Ballaststoffe",
+						"values": ["6.3 g", "2.8 g", ""]
+					},
+					{
+						"label": "Eiweiss",
+						"values": ["7.5 g", "3.4 g", "7 %"]
+					},
+					{
+						"fsaLevel": "MEDIUM",
+						"label": "Salz",
+						"values": ["0.53 g", "0.24 g", "4 %"]
+					}
+				]
+			},
+			"nutrientsTableV2": {
+				"headers": [
+					{
+						"value": "100 g"
+					},
+					{
+						"value": "1 Portion (45 g)"
+					},
+					{
+						"infoText": "% der Referenzmenge für einen durchschnittlichen Erwachsenen (8400kj/2000kcal)",
+						"value": "Referenzmenge"
+					}
+				],
+				"rows": [
+					{
+						"label": "Energie",
+						"values": ["1915 kJ (457 kcal)", "856 kJ (204 kcal)", "10 %"]
+					},
+					{
+						"fsaLevel": "HIGH",
+						"label": "Fett",
+						"values": ["18 g", "8.1 g", "12 %"]
+					},
+					{
+						"fsaLevel": "HIGH",
+						"label": "davon gesättigte Fettsäuren",
+						"values": ["6.8 g", "3.1 g", "16 %"]
+					},
+					{
+						"label": "Kohlenhydrate",
+						"values": ["63 g", "28 g", "11 %"]
+					},
+					{
+						"fsaLevel": "MEDIUM",
+						"label": "davon Zucker",
+						"values": ["20 g", "9 g", "10 %"]
+					},
+					{
+						"label": "Ballaststoffe",
+						"values": ["6.3 g", "2.8 g", ""]
+					},
+					{
+						"label": "Eiweiss",
+						"values": ["7.5 g", "3.4 g", "7 %"]
+					},
+					{
+						"fsaLevel": "MEDIUM",
+						"label": "Salz",
+						"values": ["0.53 g", "0.24 g", "4 %"]
+					}
+				]
+			},
+			"portionSentence": "1 Packung ≈ 11 Portionen"
+		},
+		"otherInformation": {
+			"articleNumber": "104217000000",
+			"distributorName": "Migros-Genossenschafts-Bund",
+			"distributorStreetAndNumber": "CH-8031 Zürich",
+			"legalDesignation": "Getreidemischung gebacken mit Schokolade und Kokosnuss",
+			"mainSpecificities": [
+				{
+					"code": "Verpackungsart",
+					"value": "Beutel/Sack"
+				},
+				{
+					"code": "Hinweise für die Zubereitung",
+					"value": "Milch hinzugeben"
+				}
+			],
+			"remarks": [
+				{
+					"code": "Kühlhinweis / Aufbewahrungshinweis",
+					"value": "Bei Raumtemperatur aufbewahren."
+				},
+				{
+					"code": "Produktionshinweis",
+					"value": "Unter Schutzatmosphäre verpackt."
+				}
+			]
+		},
+		"usageInformation": {
+			"usage": "Die knusprigen Getreide- und Schokoladenflocken mit kalter Milch übergiessen und fertig ist Ihr gluschtiges Frühstück, schnelles Mittagessen oder süsser Znacht"
+		}
+	},
+	"productRange": "STANDARD",
+	"productUrls": "https://www.migros.ch/de/product/104217000000",
+	"title": "Farmer Classic · Müesli · Schokolade",
+	"uid": 100005309,
+	"versioning": "Schokolade"
 }
