@@ -138,12 +138,17 @@ struct FoodSearchView: View {
             // The search field's keyboard survives the sheet's presentation and
             // pops back up over the results when it closes — drop first
             // responder so the list (and the field itself) stays readable.
-            UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil,
-                from: nil,
-                for: nil
-            )
+            // Deferred a tick: resigning inside onDismiss forces a layout pass
+            // while SwiftUI is still updating the presentation, which trips
+            // the exclusivity check (BISSBILANZ-47).
+            DispatchQueue.main.async {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil,
+                    from: nil,
+                    for: nil
+                )
+            }
         }) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
         }
