@@ -1661,5 +1661,20 @@
 	"mcp_clients_toggle": "Claude Code und andere MCP-Clients",
 	"ai_tasks_not_connected_title": "Noch kein Assistent verbunden",
 	"ai_tasks_not_connected_body": "Verbinde Claude oder ChatGPT, damit er die Mahlzeiten übernimmt, die du hier einreihst.",
-	"ai_tasks_not_connected_action": "Assistent verbinden"
+	"ai_tasks_not_connected_action": "Assistent verbinden",
+	"recipe_form_add_from_recipe": "Aus Rezept hinzufügen",
+	"add_from_recipe_title": "Aus Rezept hinzufügen",
+	"add_from_recipe_description": "Übernimm die Zutaten eines Rezepts, skaliert auf die gewählte Menge.",
+	"add_from_recipe_amount": "Menge",
+	"add_from_recipe_mode_servings": "Portionen",
+	"add_from_recipe_mode_grams": "Gramm",
+	"add_from_recipe_servings_hint": "von {count} Portionen",
+	"add_from_recipe_grams_hint": "von {grams} g Kochgewicht",
+	"add_from_recipe_preview": "Insgesamt ca. {kcal} kcal",
+	"add_from_recipe_confirm": "Zutaten hinzufügen",
+	"add_from_recipe_loading": "Zutaten werden geladen...",
+	"add_from_recipe_load_failed": "Die Zutaten dieses Rezepts konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
+	"add_from_recipe_no_ingredients": "Dieses Rezept hat keine Zutaten.",
+	"add_from_recipe_too_many": "Ein Rezept kann höchstens {max} Zutaten haben. Mit diesen wären es {count}.",
+	"add_from_recipe_invalid_amount": "Gib eine Menge grösser als null ein."
 }

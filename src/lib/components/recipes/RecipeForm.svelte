@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IngredientRow from './IngredientRow.svelte';
+	import AddFromRecipeDialog from './AddFromRecipeDialog.svelte';
 	import RecipeStepsEditor from './RecipeStepsEditor.svelte';
 	import { buildRecipePayload, type RecipeFormState } from '$lib/utils/recipe-builder';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -8,6 +9,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import NumberInput from '$lib/components/shared/NumberInput.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
+	import BookCopy from '@lucide/svelte/icons/book-copy';
 	import Check from '@lucide/svelte/icons/check';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import ImageUploadField from '$lib/components/shared/ImageUploadField.svelte';
@@ -96,9 +98,21 @@
 	// svelte-ignore state_referenced_locally
 	const hadSteps = (recipe?.steps?.length ?? 0) > 0;
 	let saving = $state(false);
+	let addFromRecipeOpen = $state(false);
 
 	const addIngredient = () => {
 		formState.ingredients = [...formState.ingredients, emptyIngredient()];
+	};
+
+	const filledIngredients = $derived(formState.ingredients.filter((i) => i.foodId !== ''));
+
+	const addFromRecipe = (
+		added: Array<{ foodId: string; quantity: number; servingUnit: string }>
+	) => {
+		formState.ingredients = [
+			...filledIngredients,
+			...added.map((i) => ({ ...i, servingUnit: i.servingUnit as ServingUnit }))
+		];
 	};
 
 	const removeIngredient = (index: number) => {
@@ -185,10 +199,16 @@
 		{#each formState.ingredients as ingredient, i}
 			<IngredientRow {ingredient} {foods} onRemove={() => removeIngredient(i)} />
 		{/each}
-		<Button variant="outline" size="sm" type="button" onclick={addIngredient}>
-			<Plus class="size-4" />
-			{m.recipe_form_add_ingredient()}
-		</Button>
+		<div class="flex flex-wrap gap-2">
+			<Button variant="outline" size="sm" type="button" onclick={addIngredient}>
+				<Plus class="size-4" />
+				{m.recipe_form_add_ingredient()}
+			</Button>
+			<Button variant="outline" size="sm" type="button" onclick={() => (addFromRecipeOpen = true)}>
+				<BookCopy class="size-4" />
+				{m.recipe_form_add_from_recipe()}
+			</Button>
+		</div>
 	</div>
 	<div class="space-y-2">
 		<div class="flex items-center justify-between gap-2">
@@ -218,3 +238,9 @@
 		{saving ? m.detail_saving() : m.recipe_form_save()}
 	</Button>
 </form>
+
+<AddFromRecipeDialog
+	bind:open={addFromRecipeOpen}
+	existingCount={filledIngredients.length}
+	onAdd={addFromRecipe}
+/>
