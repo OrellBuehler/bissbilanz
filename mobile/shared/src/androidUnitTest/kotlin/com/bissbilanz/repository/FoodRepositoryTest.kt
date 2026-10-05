@@ -171,6 +171,37 @@ class FoodRepositoryTest {
         }
 
     @Test
+    fun refreshFoodsReportsTruncationWhenThePageCapIsHit() =
+        runTest {
+            val reported = mutableListOf<Throwable>()
+            val reporter =
+                object : com.bissbilanz.ErrorReporter {
+                    override fun captureException(e: Throwable) {
+                        reported.add(e)
+                    }
+                }
+            val capped =
+                FoodRepository(
+                    api,
+                    db,
+                    cacheDb,
+                    syncQueue,
+                    json,
+                    reporter,
+                    appModeManager(),
+                    mockk<OpenFoodFactsClient>(relaxed = true),
+                    mockk<ConnectivityProvider>(relaxed = true),
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                )
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns
+                deltaPage(listOf(TestFixtures.food(id = "1", name = "One")), nextCursor = "more")
+
+            capped.refreshFoods(pageSize = 1, maxPages = 3)
+
+            assertEquals(1, reported.size)
+        }
+
+    @Test
     fun refreshFoodsKeepsTempAndPendingFoodsWhenPruning() =
         runTest {
             seedFoodInCache(TestFixtures.food(id = "temp_offline", name = "Not Yet Uploaded"))

@@ -157,7 +157,13 @@ class FoodRepository(
                 break
             }
         }
-        if (exhausted) pruneDeletedFoods()
+        if (!exhausted) {
+            errorReporter.captureException(
+                IllegalStateException("refreshFoods hit the $maxPages page cap; cache upserted without pruning"),
+            )
+            return
+        }
+        pruneDeletedFoods()
     }
 
     private fun readFoodsMeta(key: String): String? = cacheDb.bissbilanzDatabaseQueries.selectSyncMeta(key).executeAsOneOrNull()

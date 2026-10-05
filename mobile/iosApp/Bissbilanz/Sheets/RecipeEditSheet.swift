@@ -28,6 +28,7 @@ struct RecipeEditSheet: View {
     @FocusState private var focusedStep: UUID?
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showRecipePicker = false
 
     /// `food` is nil when the server-shaped recipe's ingredient couldn't be resolved
     /// against the local food store or the API (e.g. offline with nothing cached) —
@@ -128,6 +129,12 @@ struct RecipeEditSheet: View {
                     } label: {
                         Label(L10n.addIngredient, systemImage: "plus")
                     }
+
+                    Button {
+                        showRecipePicker = true
+                    } label: {
+                        Label(L10n.addFromRecipe, systemImage: "book.closed")
+                    }
                 }
 
                 stepsSection
@@ -142,6 +149,11 @@ struct RecipeEditSheet: View {
             }
             .environment(\.editMode, $editMode)
             .keyboardDismissable()
+            .navigationDestination(isPresented: $showRecipePicker) {
+                RecipeSourcePicker(currentIngredientCount: ingredients.count) { source, factor in
+                    await addFromRecipe(source, factor: factor)
+                }
+            }
             .navigationTitle(existingRecipe != nil ? L10n.editRecipe : L10n.createRecipe)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -319,16 +331,66 @@ struct RecipeEditSheet: View {
         guard let recipeIngredients = recipe.ingredients else { return [] }
         var rows: [IngredientRow] = []
         for ing in recipeIngredients {
-            var food = ing.food ?? foodRepository.food(id: ing.foodId)
-            if food == nil {
-                try? await foodRepository.refreshFood(id: ing.foodId)
-                food = foodRepository.food(id: ing.foodId)
-            }
+            let food = await resolvedFood(id: ing.foodId, embedded: ing.food, foodRepository: foodRepository)
             rows.append(
                 IngredientRow(foodId: ing.foodId, food: food, quantity: "\(ing.quantity)", unit: ing.servingUnit)
             )
         }
         return rows
+    }
+
+    /// Rows for a source recipe's ingredients scaled by `factor` (see `scaleIngredients`),
+    /// food resolved like `resolvedIngredientRows`. Internal so it is testable.
+    @MainActor
+    static func scaledIngredientRows(
+        from source: [RecipeIngredient],
+        factor: Double,
+        foodRepository: FoodRepository
+    ) async -> [IngredientRow] {
+        let inputs = source.map { ingredient in
+            RecipeIngredientInput(
+                foodId: ingredient.foodId,
+                quantity: ingredient.quantity,
+                servingUnit: ingredient.servingUnit
+            )
+        }
+        var rows: [IngredientRow] = []
+        for (original, scaled) in zip(source, scaleIngredients(inputs, factor: factor)) {
+            let food = await resolvedFood(id: scaled.foodId, embedded: original.food, foodRepository: foodRepository)
+            rows.append(
+                IngredientRow(
+                    foodId: scaled.foodId,
+                    food: food,
+                    quantity: "\(scaled.quantity)",
+                    unit: scaled.servingUnit
+                )
+            )
+        }
+        return rows
+    }
+
+    /// The embedded food, else the local cache, else the API. A failed fetch is
+    /// reported and leaves the row showing `L10n.unknownIngredient`.
+    @MainActor
+    private static func resolvedFood(id: String, embedded: Food?, foodRepository: FoodRepository) async -> Food? {
+        if let food = embedded ?? foodRepository.food(id: id) { return food }
+        do {
+            try await foodRepository.refreshFood(id: id)
+        } catch {
+            ErrorReporter.captureWarning(
+                "Ingredient food resolution failed",
+                context: ["reason": ErrorReporter.reason(for: error)]
+            )
+        }
+        return foodRepository.food(id: id)
+    }
+
+    /// Appends the scaled copy after the existing rows (never merged into them) and
+    /// pops the recipe picker back to the ingredient list.
+    private func addFromRecipe(_ source: [RecipeIngredient], factor: Double) async {
+        let rows = await Self.scaledIngredientRows(from: source, factor: factor, foodRepository: foodRepository)
+        ingredients.append(contentsOf: rows)
+        showRecipePicker = false
     }
 
     private func save() async {

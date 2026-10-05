@@ -311,6 +311,23 @@ final class SyncManager {
             // round trip on a request that would otherwise fail (a temp id
             // is never valid UUID shape) and get misreported.
             if let unresolved = unresolvedReference(operation) {
+                // The peer create may already have drained (its temp row was
+                // swapped for the server record) before this op captured the
+                // temp id, e.g. a log started on a screen that still held it.
+                // The durable mapping says which server id it became, so
+                // rewrite the op instead of parking it as "never created".
+                if let serverId = TempIdMap.lookup(unresolved.id),
+                   let remapped = operation.remappingReferences(from: unresolved.id, to: serverId)
+                {
+                    row.replaceOperation(remapped)
+                    if unresolved.table == "recipes" {
+                        LocalRemap.remapRecipeReferences(from: unresolved.id, to: serverId, in: context)
+                    } else {
+                        LocalRemap.remapFoodReferences(from: unresolved.id, to: serverId, in: context)
+                    }
+                    save()
+                    continue
+                }
                 let peers = queuedOperations(table: unresolved.table, affectedId: unresolved.id)
                 if peers.contains(where: { $0.failedAt == nil }) {
                     // The peer create hasn't drained yet. Wait for it without
@@ -355,6 +372,10 @@ final class SyncManager {
                 processed += 1
             } catch {
                 let kind = Self.classify(error, isOnline: connectivity.isOnline)
+                var conflictBody: Data?
+                if let apiError = error as? APIError, case let .conflict(_, body) = apiError {
+                    conflictBody = body
+                }
                 switch kind {
                 case .unauthorized:
                     errors.append("Session expired. Please log in again to sync pending changes.")
@@ -370,7 +391,7 @@ final class SyncManager {
                     )
 
                 case .conflict(serverNewer: false):
-                    parkFailed(row, operation, reason: "HTTP 409")
+                    parkFailed(row, operation, reason: Self.conflictReason(body: conflictBody))
                     ErrorReporter.captureWarning(
                         "Sync op parked: validation conflict",
                         context: dropContext(operation, row, outcome: "parked_validation_conflict", status: 409)
@@ -1038,7 +1059,45 @@ final class SyncManager {
 
     private func parkFailed(_ row: PendingSyncOperation, _ operation: SyncOperation, reason: String) {
         park(row, reason: reason)
-        errors.append("Could not sync \(operation.summary) (\(reason)). It was kept so you can retry or discard it.")
+        errors.append("Could not sync \(describe(operation)) (\(reason)). It was kept so you can retry or discard it.")
+    }
+
+    /// `operation.summary`, with the food's name in place of its raw id where
+    /// the local mirror (or the queued body) knows it.
+    private func describe(_ operation: SyncOperation) -> String {
+        switch operation {
+        case let .createFood(body, _):
+            return "create food \"\(body.name)\""
+        case let .updateFood(id, body):
+            let name = localFoodName(id: id) ?? body.name
+            return "update food \"\(name)\""
+        case let .deleteFood(id, _):
+            guard let name = localFoodName(id: id) else { return operation.summary }
+            return "delete food \"\(name)\""
+        default:
+            return operation.summary
+        }
+    }
+
+    /// The parked reason for an `X-Sync-Conflict`-less 409, read from the
+    /// server's `{error}` body. `foods.ts` answers a duplicate barcode with
+    /// `A food with barcode X already exists: "Name"`, and `errors.ts` with the
+    /// bare `duplicate_barcode` code when the name lookup was not available.
+    static func conflictReason(body: Data?) -> String {
+        guard let body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let message = (json["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty
+        else { return L10n.syncConflictGeneric }
+        if message == "duplicate_barcode" { return L10n.syncBarcodeInUse }
+        if message.hasPrefix("A food with barcode"), message.contains("already exists") {
+            if let open = message.firstIndex(of: "\""), let close = message.lastIndex(of: "\""), open < close {
+                let name = String(message[message.index(after: open) ..< close])
+                if !name.isEmpty, name != "unknown" { return L10n.syncBarcodeInUse(by: name) }
+            }
+            return L10n.syncBarcodeInUse
+        }
+        return message.contains(" ") ? message : L10n.syncConflictGeneric
     }
 
     /// Puts a parked change back in line for the next drain.

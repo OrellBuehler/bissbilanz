@@ -210,6 +210,11 @@ final class EntryRepository {
 
     @discardableResult
     func createEntry(_ create: EntryCreate, food: Food? = nil, recipe: Recipe? = nil) async throws -> Entry {
+        var create = create
+        if let foodId = create.foodId { create.foodId = TempIdMap.resolved(foodId) }
+        if let recipeId = create.recipeId { create.recipeId = TempIdMap.resolved(recipeId) }
+        let food = food.map { resolvedFood($0) }
+        let recipe = recipe.map { resolvedRecipe($0) }
         let temp = Self.makeEntry(from: create, id: LocalStore.makeTempId(), food: food, recipe: recipe)
         upsert(temp, date: create.date)
         save()
@@ -383,6 +388,18 @@ final class EntryRepository {
         Task {
             await healthKit.syncNutrition(date: date, entries: dayEntries, foods: foods)
         }
+    }
+
+    private func resolvedFood(_ food: Food) -> Food {
+        let id = TempIdMap.resolved(food.id)
+        guard id != food.id else { return food }
+        return fetchFoodRow(id: id)?.toFood() ?? food
+    }
+
+    private func resolvedRecipe(_ recipe: Recipe) -> Recipe {
+        let id = TempIdMap.resolved(recipe.id)
+        guard id != recipe.id else { return recipe }
+        return LocalRemap.recipeRow(id: id, in: context)?.toRecipe() ?? recipe
     }
 
     private func fetchFoodRow(id: String) -> LocalFood? {

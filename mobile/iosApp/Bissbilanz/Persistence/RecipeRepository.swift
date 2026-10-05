@@ -42,7 +42,7 @@ final class RecipeRepository {
     }
 
     func recipe(id: String) -> Recipe? {
-        fetchRow(id: id)?.toRecipe()
+        fetchRow(id: TempIdMap.resolved(id))?.toRecipe()
     }
 
     // MARK: - Refresh (API → store)
@@ -69,6 +69,7 @@ final class RecipeRepository {
     }
 
     func refreshRecipe(id: String) async throws {
+        let id = TempIdMap.resolved(id)
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         let recipe = try await api.getRecipe(id: id)
         guard !syncManager.pendingAffectedIds(table: "recipes").contains(id) else { return }
@@ -99,6 +100,7 @@ final class RecipeRepository {
     /// way.
     @discardableResult
     func duplicateRecipe(id: String, name: String) async throws -> Recipe {
+        let id = TempIdMap.resolved(id)
         guard let source = recipe(id: id) else { throw APIError.notFound }
         let inputs = (source.ingredients ?? []).map { ingredient in
             RecipeIngredientInput(
@@ -126,6 +128,7 @@ final class RecipeRepository {
     /// failure without also queueing an upload the caller was just told failed.
     @discardableResult
     func updateRecipe(id: String, _ update: RecipeUpdate) async throws -> Recipe {
+        let id = TempIdMap.resolved(id)
         guard let row = fetchRow(id: id), let existing = row.toRecipe() else {
             throw APIError.notFound
         }
@@ -177,6 +180,7 @@ final class RecipeRepository {
     /// there is.
     @discardableResult
     func setImage(id: String, imageUrl: String?) async throws -> Recipe {
+        let id = TempIdMap.resolved(id)
         // NSNull, not a nil Optional: JSONSerialization rejects the latter, and
         // an omitted key would read as "leave the image alone" rather than
         // "remove it".
@@ -202,6 +206,7 @@ final class RecipeRepository {
     }
 
     func deleteRecipe(id: String) async throws {
+        let id = TempIdMap.resolved(id)
         let doomed = recipe(id: id)
         LocalImageStore.evict(doomed?.imageUrl)
         Self.evictLocalPhotos(of: doomed?.orderedSteps ?? [], keeping: [])
@@ -221,6 +226,7 @@ final class RecipeRepository {
     /// uploaded temp id) there is no server to ask, so diary entries referencing it
     /// are counted locally instead.
     func deleteRecipeChecked(id: String) async throws -> DeleteOutcome {
+        let id = TempIdMap.resolved(id)
         if appMode.isLocal || LocalStore.isTempId(id) {
             let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId == id })
             let entryCount = (try? context.fetch(descriptor))?.count ?? 0
@@ -255,6 +261,7 @@ final class RecipeRepository {
     /// can point the user at the entries to remove or change. Local mode (or a
     /// not-yet-uploaded temp id) has no server to ask and reads the local store.
     func whereUsed(id: String) async throws -> WhereUsed {
+        let id = TempIdMap.resolved(id)
         if appMode.isLocal || LocalStore.isTempId(id) {
             let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId == id })
             let rows = (try? context.fetch(descriptor)) ?? []

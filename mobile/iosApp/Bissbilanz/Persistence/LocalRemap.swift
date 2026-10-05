@@ -16,6 +16,7 @@ enum LocalRemap {
         }
         upsertFood(food, in: context)
         remapFoodReferences(from: oldId, to: food.id, in: context)
+        TempIdMap.record(from: oldId, to: food.id)
         context.saveReportingFailure("LocalRemap.save")
     }
 
@@ -25,6 +26,7 @@ enum LocalRemap {
         }
         upsertRecipe(recipe, in: context)
         remapRecipeReferences(from: oldId, to: recipe.id, in: context)
+        TempIdMap.record(from: oldId, to: recipe.id)
         context.saveReportingFailure("LocalRemap.save")
     }
 
