@@ -65,6 +65,48 @@ struct SyncManagerTests {
         #expect(harness.recordedRequests.contains("POST /api/goals"))
     }
 
+    @Test("A duplicate-barcode 409 parks the edit with the other food's name")
+    func duplicateBarcodeConflictParksWithReadableReason() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub(
+            "PATCH", "/api/foods/f1", status: 409,
+            json: #"{"error": "A food with barcode 5449000169327 already exists: \"Coca-Cola Zero Zero\""}"#
+        )
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Cola")))
+        try harness.context.save()
+
+        harness.syncManager.enqueue(.updateFood(id: "f1", body: makeFoodCreate(name: "Cola")))
+        await harness.syncManager.drainPendingQueue()
+
+        let reason = L10n.syncBarcodeInUse(by: "Coca-Cola Zero Zero")
+        #expect(harness.syncManager.parkedRows().first?.failureReason == reason)
+        let banner = try #require(harness.syncManager.errors.first)
+        #expect(banner.contains(reason))
+        #expect(banner.contains("update food \"Cola\""))
+        #expect(banner.contains("f1") == false)
+    }
+
+    @Test("409 bodies map to readable parked reasons")
+    func conflictReasonMapping() {
+        func body(_ json: String) -> Data? { json.data(using: .utf8) }
+        #expect(SyncManager.conflictReason(body: body(#"{"error": "duplicate_barcode"}"#)) == L10n.syncBarcodeInUse)
+        #expect(
+            SyncManager.conflictReason(
+                body: body(#"{"error": "A food with barcode 1 already exists: \"unknown\""}"#)
+            ) == L10n.syncBarcodeInUse
+        )
+        #expect(
+            SyncManager.conflictReason(body: body(#"{"error": "A food with barcode 1 already exists: \"Skyr\""}"#))
+                == L10n.syncBarcodeInUse(by: "Skyr")
+        )
+        #expect(
+            SyncManager.conflictReason(body: body(#"{"error": "Name already taken"}"#)) == "Name already taken"
+        )
+        #expect(SyncManager.conflictReason(body: body(#"{"error": "duplicate_entry"}"#)) == L10n.syncConflictGeneric)
+        #expect(SyncManager.conflictReason(body: body("not json")) == L10n.syncConflictGeneric)
+        #expect(SyncManager.conflictReason(body: nil) == L10n.syncConflictGeneric)
+    }
+
     @Test("A parked op is not sent again until retried, and uploads once the server accepts it")
     func parkedOperationWaitsForRetry() async throws {
         let harness = try RepositoryHarness()
