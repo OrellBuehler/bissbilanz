@@ -25,16 +25,21 @@ export function createPoliteClient(opts: PoliteClientOpts = {}) {
 	let lastAt = 0;
 
 	async function throttle() {
-		const wait = Math.max(0, lastAt + minDelayMs - now());
+		const slot = Math.max(now(), lastAt + minDelayMs);
+		const wait = slot - now();
+		lastAt = slot;
 		if (wait > 0) await sleep(wait);
-		lastAt = now();
 	}
 
-	async function getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T | null> {
-		const cacheKey = Object.keys(headers).length > 0 ? `${url}|${JSON.stringify(headers)}` : url;
+	async function fetchCached(
+		url: string,
+		headers: Record<string, string>,
+		cacheKey: string,
+		read: (res: Response) => Promise<string>
+	): Promise<string | null> {
 		if (opts.cache) {
 			const hit = await opts.cache.get(cacheKey);
-			if (hit != null) return JSON.parse(hit) as T;
+			if (hit != null) return hit;
 		}
 		let attempt = 0;
 		for (;;) {
@@ -43,9 +48,9 @@ export function createPoliteClient(opts: PoliteClientOpts = {}) {
 				const res = await doFetch(url, { headers: { 'User-Agent': ua, ...headers } });
 				if (res.status === 404 || res.status === 410) return null;
 				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				const text = await res.text();
+				const text = await read(res);
 				if (opts.cache) await opts.cache.set(cacheKey, text);
-				return JSON.parse(text) as T;
+				return text;
 			} catch (err) {
 				attempt++;
 				if (attempt >= maxRetries) throw err;
@@ -54,5 +59,18 @@ export function createPoliteClient(opts: PoliteClientOpts = {}) {
 		}
 	}
 
-	return { getJson };
+	async function getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T | null> {
+		const cacheKey = Object.keys(headers).length > 0 ? `${url}|${JSON.stringify(headers)}` : url;
+		const text = await fetchCached(url, headers, cacheKey, (res) => res.text());
+		return text == null ? null : (JSON.parse(text) as T);
+	}
+
+	async function getBytes(url: string): Promise<Uint8Array | null> {
+		const base64 = await fetchCached(url, {}, `bytes:${url}`, async (res) =>
+			Buffer.from(await res.arrayBuffer()).toString('base64')
+		);
+		return base64 == null ? null : new Uint8Array(Buffer.from(base64, 'base64'));
+	}
+
+	return { getJson, getBytes };
 }
