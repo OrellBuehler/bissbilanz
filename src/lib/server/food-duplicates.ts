@@ -163,6 +163,17 @@ function nearlyEqual(a: number, b: number): boolean {
 	return diff <= tolerance;
 }
 
+type Profile = NonNullable<ReturnType<typeof perBaseUnitMacros>>;
+
+function profilesSimilar(pa: Profile, pb: Profile): boolean {
+	return (
+		nearlyEqual(pa.calories, pb.calories) &&
+		nearlyEqual(pa.protein, pb.protein) &&
+		nearlyEqual(pa.carbs, pb.carbs) &&
+		nearlyEqual(pa.fat, pb.fat)
+	);
+}
+
 /**
  * Whether two foods have near-identical macros per serving, normalized to a
  * common base unit. Foods with servings in different dimensions (mass vs.
@@ -176,13 +187,35 @@ export function macrosSimilar(
 	const pa = perBaseUnitMacros(a);
 	const pb = perBaseUnitMacros(b);
 	if (!pa || !pb) return false;
-	return (
-		nearlyEqual(pa.calories, pb.calories) &&
-		nearlyEqual(pa.protein, pb.protein) &&
-		nearlyEqual(pa.carbs, pb.carbs) &&
-		nearlyEqual(pa.fat, pb.fat)
-	);
+	return profilesSimilar(pa, pb);
 }
+
+// Blocking for the pairwise scan. `nearlyEqual` is absolute (0.05) below 0.5
+// per base unit and relative (10%) above it, so a value maps to a position on a
+// line that is linear below 0.5 and logarithmic above, where "nearly equal"
+// always means a distance of at most ~1. Cells 1.25 wide therefore hold every
+// nearly-equal pair in the same or an adjacent cell: the grid skips pairs that
+// could never match without changing which pairs do.
+const GRID_CELL = 1.25;
+const GRID_MAX = 250;
+const LOG_STEP = Math.log(1 / (1 - MACRO_RELATIVE_TOLERANCE));
+const LINEAR_LIMIT = 0.5;
+const LINEAR_UNITS = LINEAR_LIMIT / MACRO_ABSOLUTE_TOLERANCE;
+
+function gridCell(value: number): number {
+	const position =
+		value < LINEAR_LIMIT
+			? value / MACRO_ABSOLUTE_TOLERANCE
+			: LINEAR_UNITS + Math.log(value / LINEAR_LIMIT) / LOG_STEP;
+	return Math.min(GRID_MAX, Math.max(0, Math.floor(position / GRID_CELL)));
+}
+
+const GRID_BASE = GRID_MAX + 3;
+const cellKey = (dimension: number, c: number, p: number, h: number, f: number): number =>
+	(((dimension * GRID_BASE + c) * GRID_BASE + p) * GRID_BASE + h) * GRID_BASE + f;
+
+/** Wall-clock limit for the pairwise scan; groups found so far are returned when it runs out. */
+export const SIMILAR_SCAN_BUDGET_MS = 5000;
 
 /** Minimal union-find so mutually-similar foods cluster into one group. */
 class DisjointSet {
@@ -213,20 +246,66 @@ class DisjointSet {
  * clusters, in insertion order. Exported standalone (independent of the DB)
  * so it's directly unit-testable.
  */
-export function groupBySimilarNameAndMacros(rows: MacroRow[]): DuplicateGroup[] {
+export function groupBySimilarNameAndMacros(
+	rows: MacroRow[],
+	options: { budgetMs?: number } = {}
+): DuplicateGroup[] {
+	const budgetMs = options.budgetMs ?? SIMILAR_SCAN_BUDGET_MS;
 	const normalizedNames = rows.map((r) => normalize(r.name));
+	const profiles = rows.map((r, index) =>
+		normalizedNames[index] === '' ? null : perBaseUnitMacros(r)
+	);
 	const dsu = new DisjointSet();
 
+	const cells = new Map<number, number[]>();
+	const coordsOf: (number[] | undefined)[] = new Array(rows.length);
 	for (let i = 0; i < rows.length; i++) {
-		if (normalizedNames[i] === '') continue;
-		for (let j = i + 1; j < rows.length; j++) {
-			if (normalizedNames[j] === '') continue;
-			if (!couldMeetThreshold(normalizedNames[i], normalizedNames[j], SIMILAR_NAME_THRESHOLD)) {
-				continue;
+		const profile = profiles[i];
+		if (!profile) continue;
+		const coords = [
+			unitDimension(rows[i].servingUnit) === 'mass' ? 0 : 1,
+			gridCell(profile.calories),
+			gridCell(profile.protein),
+			gridCell(profile.carbs),
+			gridCell(profile.fat)
+		];
+		coordsOf[i] = coords;
+		const key = cellKey(coords[0], coords[1] + 1, coords[2] + 1, coords[3] + 1, coords[4] + 1);
+		const list = cells.get(key);
+		if (list) list.push(i);
+		else cells.set(key, [i]);
+	}
+
+	const deadline = performance.now() + budgetMs;
+	for (let i = 0; i < rows.length; i++) {
+		const coords = coordsOf[i];
+		const profileI = profiles[i];
+		if (!coords || !profileI) continue;
+		if (i % 64 === 0 && performance.now() > deadline) {
+			console.warn(`[food-duplicates] similar-name scan stopped at row ${i} of ${rows.length}`);
+			break;
+		}
+		const nameI = normalizedNames[i];
+		for (let dc = 0; dc <= 2; dc++) {
+			for (let dp = 0; dp <= 2; dp++) {
+				for (let dh = 0; dh <= 2; dh++) {
+					for (let df = 0; df <= 2; df++) {
+						const list = cells.get(
+							cellKey(coords[0], coords[1] + dc, coords[2] + dp, coords[3] + dh, coords[4] + df)
+						);
+						if (!list) continue;
+						for (const j of list) {
+							if (j <= i) continue;
+							const nameJ = normalizedNames[j];
+							if (!couldMeetThreshold(nameI, nameJ, SIMILAR_NAME_THRESHOLD)) continue;
+							if (!profilesSimilar(profileI, profiles[j]!)) continue;
+							const maxLen = Math.max(nameI.length, nameJ.length);
+							if (1 - levenshtein(nameI, nameJ) / maxLen < SIMILAR_NAME_THRESHOLD) continue;
+							dsu.union(rows[i].id, rows[j].id);
+						}
+					}
+				}
 			}
-			if (similarity(rows[i].name, rows[j].name) < SIMILAR_NAME_THRESHOLD) continue;
-			if (!macrosSimilar(rows[i], rows[j])) continue;
-			dsu.union(rows[i].id, rows[j].id);
 		}
 	}
 
