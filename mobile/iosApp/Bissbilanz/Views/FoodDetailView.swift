@@ -159,7 +159,7 @@ struct FoodDetailView: View {
             mergeTarget = nil
         }) {
             NavigationStack {
-                FoodPicker(onPicked: { picked in mergeTarget = picked }, excludingIds: [foodId])
+                FoodPicker(onPicked: { picked in mergeTarget = picked }, excludingIds: [food?.id ?? foodId])
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(L10n.cancel) { showMergePicker = false }
@@ -177,7 +177,7 @@ struct FoodDetailView: View {
             FoodMergeSheet(candidates: candidates) { merged in
                 // Kept this food: stay and show the merged values. Merged it
                 // away: it no longer exists, so go back to the list.
-                if merged.id == foodId {
+                if merged.id == (food?.id ?? foodId) {
                     food = merged
                     toastMessage = L10n.foodsMergeSuccess
                 } else {

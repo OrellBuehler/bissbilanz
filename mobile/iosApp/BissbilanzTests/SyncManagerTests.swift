@@ -345,6 +345,85 @@ struct SyncManagerTests {
         #expect(harness.syncManager.queuedRows().isEmpty)
     }
 
+    @Test("A temp food id held across a drain is resolved by the repositories")
+    func staleTempFoodIdResolvesAfterDrain() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", json: """
+        {"food": {
+            "id": "f-server-stale", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
+            "calories": 98, "protein": 16, "carbs": 6, "fat": 0.2, "fiber": 0, "isFavorite": false
+        }}
+        """)
+        harness.stub("POST", "/api/entries", json: """
+        {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
+        """)
+        harness.stub("PUT", "/api/foods/f-server-stale/labels", json: #"{"labels": [], "dropped": []}"#)
+
+        let stale = try await harness.foodRepository.createFood(makeFoodCreate())
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.foodRepository.food(id: stale.id)?.id == "f-server-stale")
+
+        _ = try await harness.entryRepository.createEntry(
+            EntryCreate(foodId: stale.id, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            food: stale
+        )
+        let labelled = try await harness.foodRepository.addGeneratedLabels(id: stale.id, labels: ["yogurt"])
+        #expect(labelled.id == "f-server-stale")
+
+        await harness.syncManager.drainPendingQueue()
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        #expect(try JSONDecoder().decode(EntryCreate.self, from: entryBody).foodId == "f-server-stale")
+        #expect(harness.entryRepository.entries(date: "2026-06-01").first?.foodId == "f-server-stale")
+        #expect(harness.recordedRequests.contains("PUT /api/foods/f-server-stale/labels"))
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A queued entry create for an already drained temp food is rewritten, not parked")
+    func drainRewritesDrainedTempReference() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: """
+        {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
+        """)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01")
+        harness.context.insert(LocalEntry(
+            entry: EntryFactory.makeEntry(from: create, id: localEntryId, food: nil, recipe: nil),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_entry"])
+        #expect(harness.recordedRequests.isEmpty)
+
+        TempIdMap.record(from: tempFoodId, to: "f-server-parked")
+        harness.syncManager.retryAllParked()
+        harness.syncManager.resetBackoffForTesting()
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        #expect(try JSONDecoder().decode(EntryCreate.self, from: entryBody).foodId == "f-server-parked")
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("Temp id resolutions only record temp ids and fall back to the id itself")
+    func tempIdMapRecordsAndResolves() {
+        let tempId = LocalStore.makeTempId()
+        #expect(TempIdMap.resolved(tempId) == tempId)
+        TempIdMap.record(from: tempId, to: "srv-1")
+        TempIdMap.record(from: "plain-id", to: "srv-2")
+        #expect(TempIdMap.lookup(tempId) == "srv-1")
+        #expect(TempIdMap.resolved(tempId) == "srv-1")
+        #expect(TempIdMap.lookup("plain-id") == nil)
+        #expect(TempIdMap.resolved("plain-id") == "plain-id")
+    }
+
     @Test("Offline create chain: queued recipe ingredients remap to the server food id")
     func offlineCreateChainRemapsQueuedRecipeIngredients() async throws {
         let harness = try RepositoryHarness(online: false)

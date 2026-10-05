@@ -311,6 +311,23 @@ final class SyncManager {
             // round trip on a request that would otherwise fail (a temp id
             // is never valid UUID shape) and get misreported.
             if let unresolved = unresolvedReference(operation) {
+                // The peer create may already have drained (its temp row was
+                // swapped for the server record) before this op captured the
+                // temp id, e.g. a log started on a screen that still held it.
+                // The durable mapping says which server id it became, so
+                // rewrite the op instead of parking it as "never created".
+                if let serverId = TempIdMap.lookup(unresolved.id),
+                   let remapped = operation.remappingReferences(from: unresolved.id, to: serverId)
+                {
+                    row.replaceOperation(remapped)
+                    if unresolved.table == "recipes" {
+                        LocalRemap.remapRecipeReferences(from: unresolved.id, to: serverId, in: context)
+                    } else {
+                        LocalRemap.remapFoodReferences(from: unresolved.id, to: serverId, in: context)
+                    }
+                    save()
+                    continue
+                }
                 let peers = queuedOperations(table: unresolved.table, affectedId: unresolved.id)
                 if peers.contains(where: { $0.failedAt == nil }) {
                     // The peer create hasn't drained yet. Wait for it without
