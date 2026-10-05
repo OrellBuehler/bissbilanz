@@ -299,7 +299,7 @@ struct RepositoryTests {
         await harness.syncManager.drainPendingQueue()
 
         #expect(foodRepo.food(id: "f-server")?.name == "Skyr")
-        #expect(foodRepo.food(id: temp.id) == nil)
+        #expect(foodRepo.food(id: temp.id)?.id == "f-server")
         // The entry row now points at the server food id.
         #expect(entryRepo.entries(date: "2026-06-01").first?.foodId == "f-server")
         #expect(harness.syncManager.queuedRows().isEmpty)
