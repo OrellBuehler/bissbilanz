@@ -9,7 +9,7 @@ import {
 } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, setError, reset } = createMockDB();
+const { db, setResult, setError, reset, queueResults } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -21,8 +21,15 @@ vi.mock('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listRecipes, createRecipe, getRecipe, updateRecipe, deleteRecipe, toRecipeInsert } =
-	await import('$lib/server/recipes');
+const {
+	listRecipes,
+	createRecipe,
+	getRecipe,
+	updateRecipe,
+	deleteRecipe,
+	toRecipeInsert,
+	expandIncludedRecipes
+} = await import('$lib/server/recipes');
 
 describe('recipes-db', () => {
 	beforeEach(() => {
@@ -411,6 +418,73 @@ describe('recipes-db', () => {
 
 			const result = await listRecipes(TEST_USER.id, { limit: 10, offset: 5 });
 			expect(result.items).toBeDefined();
+		});
+	});
+
+	describe('expandIncludedRecipes', () => {
+		const SOURCE = TEST_RECIPE.id;
+		const rows = [
+			{ foodId: 'a', quantity: 300, servingUnit: 'g' },
+			{ foodId: 'b', quantity: 1, servingUnit: 'tbsp' }
+		];
+
+		test('scales by servings', async () => {
+			queueResults([[{ id: SOURCE }], [{ totalServings: 3, cookedWeight: null }], rows]);
+			const result = await expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, servings: 1 }]);
+			expect(result).toEqual([
+				{ foodId: 'a', quantity: 100, servingUnit: 'g' },
+				{ foodId: 'b', quantity: 0.33, servingUnit: 'tbsp' }
+			]);
+		});
+
+		test('scales by grams of cooked weight', async () => {
+			queueResults([[{ id: SOURCE }], [{ totalServings: 4, cookedWeight: 1200 }], rows]);
+			const result = await expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, grams: 300 }]);
+			expect(result[0].quantity).toBe(75);
+		});
+
+		test('concatenates several includes in order', async () => {
+			queueResults([
+				[{ id: SOURCE }],
+				[{ totalServings: 1, cookedWeight: null }],
+				[rows[0]],
+				[{ id: SOURCE }],
+				[{ totalServings: 1, cookedWeight: null }],
+				[rows[1]]
+			]);
+			const result = await expandIncludedRecipes(TEST_USER.id, [
+				{ recipeId: SOURCE, servings: 1 },
+				{ recipeId: SOURCE, servings: 2 }
+			]);
+			expect(result.map((r) => r.quantity)).toEqual([300, 2]);
+		});
+
+		test('rejects a recipe the user does not own', async () => {
+			queueResults([[]]);
+			await expect(
+				expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, servings: 1 }])
+			).rejects.toMatchObject({ status: 404 });
+		});
+
+		test('rejects grams when the recipe has no cooked weight', async () => {
+			queueResults([[{ id: SOURCE }], [{ totalServings: 4, cookedWeight: null }]]);
+			await expect(
+				expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, grams: 300 }])
+			).rejects.toMatchObject({ status: 400, message: expect.stringContaining('cookedWeight') });
+		});
+
+		test('rejects a non-positive amount', async () => {
+			queueResults([[{ id: SOURCE }], [{ totalServings: 4, cookedWeight: null }]]);
+			await expect(
+				expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, servings: 0 }])
+			).rejects.toMatchObject({ status: 400 });
+		});
+
+		test('rejects when the recipe disappears between the checks', async () => {
+			queueResults([[{ id: SOURCE }], []]);
+			await expect(
+				expandIncludedRecipes(TEST_USER.id, [{ recipeId: SOURCE, servings: 1 }])
+			).rejects.toMatchObject({ status: 404 });
 		});
 	});
 });

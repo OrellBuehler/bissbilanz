@@ -36,7 +36,8 @@ import type {
 	updateRecipe,
 	deleteRecipe,
 	listRecipes,
-	getRecipe
+	getRecipe,
+	expandIncludedRecipes
 } from '$lib/server/recipes';
 import type {
 	createEntry,
@@ -119,6 +120,7 @@ import { ApiError, McpUserError, isDatabaseError, isZodError } from '$lib/server
 import { asText, type McpResult } from './safe';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { MAX_RECIPE_INGREDIENTS, type IncludeRecipes } from './include-recipes';
 import { RECIPE_STEP_MAX_DIM, UPLOAD_DIR } from '$lib/server/images';
 import type { discardImportedImages, importImageFromUrl } from '$lib/server/image-download';
 
@@ -143,6 +145,7 @@ export type HandlerDeps = {
 	deleteRecipe: typeof deleteRecipe;
 	listRecipes: typeof listRecipes;
 	getRecipe: typeof getRecipe;
+	expandIncludedRecipes: typeof expandIncludedRecipes;
 	// Entries
 	createEntry: typeof createEntry;
 	listEntriesByDate: typeof listEntriesByDate;
@@ -411,8 +414,38 @@ export function createHandlers(d: HandlerDeps) {
 		};
 	};
 
-	const handleCreateRecipe = async (userId: string, payload: unknown) => {
+	const withIncludedRecipes = async (
+		userId: string,
+		payload: Record<string, unknown>,
+		baseIngredients: () => Promise<unknown[]>
+	) => {
+		const { includeRecipes, ...rest } = payload as Record<string, unknown> & {
+			includeRecipes?: IncludeRecipes;
+		};
+		if (!includeRecipes?.length) return rest;
+		const expanded = await d.expandIncludedRecipes(userId, includeRecipes);
+		const ingredients = [...(await baseIngredients()), ...expanded];
+		if (ingredients.length > MAX_RECIPE_INGREDIENTS) {
+			throw new McpUserError(
+				`A recipe can have at most ${MAX_RECIPE_INGREDIENTS} ingredients; the combined list has ${ingredients.length}`
+			);
+		}
+		return { ...rest, ingredients };
+	};
+
+	const handleCreateRecipe = async (userId: string, rawPayload: unknown) => {
 		try {
+			const payload = await withIncludedRecipes(
+				userId,
+				(rawPayload ?? {}) as Record<string, unknown>,
+				async () => {
+					const own = (rawPayload as { ingredients?: unknown[] } | undefined)?.ingredients;
+					return Array.isArray(own) ? own : [];
+				}
+			);
+			if (!Array.isArray(payload.ingredients) || payload.ingredients.length === 0) {
+				return { error: 'A recipe needs at least one ingredient (ingredients or includeRecipes)' };
+			}
 			const prepared = await importStepImages(userId, payload);
 			let result;
 			try {
@@ -828,7 +861,17 @@ export function createHandlers(d: HandlerDeps) {
 		args: { recipeId: string; [key: string]: unknown }
 	) => {
 		try {
-			const { recipeId, ...rest } = args;
+			const { recipeId, ...input } = args;
+			const rest = await withIncludedRecipes(userId, input, async () => {
+				if (Array.isArray(input.ingredients)) return input.ingredients;
+				const current = await d.getRecipe(userId, recipeId);
+				if (!current) throw new McpUserError('Recipe not found');
+				return current.ingredients.map(({ foodId, quantity, servingUnit }) => ({
+					foodId,
+					quantity,
+					servingUnit
+				}));
+			});
 			let prepared: { payload: unknown; imported: string[] } = { payload: rest, imported: [] };
 			if (
 				Array.isArray(rest.steps) &&

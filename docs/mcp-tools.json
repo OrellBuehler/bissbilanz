@@ -379,7 +379,7 @@
 		"/tools/create_recipe": {
 			"post": {
 				"operationId": "create_recipe",
-				"description": "Create a new recipe from foods that already exist in the database. Each ingredient references a food ID. Before calling this, find every ingredient with search_foods (and find_food_by_barcode / search_openfoodfacts for packaged products) and reuse the existing food. Create a missing ingredient food with create_food only from real nutrition data (a label photo, a specific product with its nutrition facts, or a web link carrying them) — never guess nutrition values. A recipe is a list of ingredient foods with quantities; never create a single food that represents the whole dish. Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link).",
+				"description": "Create a new recipe from foods that already exist in the database. Each ingredient references a food ID. Before calling this, find every ingredient with search_foods (and find_food_by_barcode / search_openfoodfacts for packaged products) and reuse the existing food. Create a missing ingredient food with create_food only from real nutrition data (a label photo, a specific product with its nutrition facts, or a web link carrying them) — never guess nutrition values. A recipe is a list of ingredient foods with quantities; never create a single food that represents the whole dish. Optionally add cooking instructions as ordered steps (plain-language text, each with an optional image link). To build a meal-prep box or combined dish from an existing recipe plus extras, pass the extras in ingredients and the existing recipe in includeRecipes (servings of it, or grams of its cooked weight) instead of copying its ingredients by hand; ingredients may then be omitted if includeRecipes covers the whole list.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -399,6 +399,7 @@
 										"description": "Number of servings the recipe makes"
 									},
 									"ingredients": {
+										"description": "List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. servingUnit must be the same kind of measurement as the food's own unit (mass with mass, volume with volume) — a mismatch is rejected with a 400 error.",
 										"minItems": 1,
 										"maxItems": 100,
 										"type": "array",
@@ -429,8 +430,7 @@
 												}
 											},
 											"required": ["foodId", "quantity", "servingUnit"]
-										},
-										"description": "List of ingredients. Each needs foodId (from the database), quantity, and servingUnit. servingUnit must be the same kind of measurement as the food's own unit (mass with mass, volume with volume) — a mismatch is rejected with a 400 error."
+										}
 									},
 									"isFavorite": { "description": "Mark as favorite", "type": "boolean" },
 									"imageUrl": {
@@ -455,9 +455,27 @@
 											},
 											"required": ["text"]
 										}
+									},
+									"includeRecipes": {
+										"description": "Optional list of existing recipes to fold into this one, each { recipeId, servings } or { recipeId, grams } (exactly one of the two; up to 20). The source recipe's ingredients are copied in, scaled to that many servings of it, or to that many grams of its cooked weight (the source needs a cookedWeight for grams). Use this to build a meal-prep box or combined dish from an existing recipe plus extra ingredients instead of copying ingredients by hand: pass the extras in ingredients and the existing recipe in includeRecipes. The ingredients are copied as a snapshot, so later edits to the source recipe do not change this one. The combined ingredient list may hold at most 100 rows.",
+										"maxItems": 20,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"recipeId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"servings": { "type": "number", "exclusiveMinimum": 0 },
+												"grams": { "type": "number", "exclusiveMinimum": 0 }
+											},
+											"required": ["recipeId"]
+										}
 									}
 								},
-								"required": ["name", "totalServings", "ingredients"]
+								"required": ["name", "totalServings"]
 							}
 						}
 					}
@@ -3891,7 +3909,7 @@
 		"/tools/update_recipe": {
 			"post": {
 				"operationId": "update_recipe",
-				"description": "Update an existing recipe. Can change name, servings, cooking steps, or replace all ingredients. ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted.",
+				"description": "Update an existing recipe. Can change name, servings, cooking steps, or replace all ingredients. ingredients and steps each replace the whole list when provided (steps: [] clears them) and stay unchanged when omitted. includeRecipes appends scaled copies of other recipes to the recipe's current ingredients (or to the ingredients you pass), as a snapshot.",
 				"requestBody": {
 					"required": true,
 					"content": {
@@ -3972,6 +3990,24 @@
 												}
 											},
 											"required": ["text"]
+										}
+									},
+									"includeRecipes": {
+										"description": "Optional list of existing recipes to fold into this one, each { recipeId, servings } or { recipeId, grams } (exactly one of the two; up to 20). The source recipe's ingredients are copied in, scaled to that many servings of it, or to that many grams of its cooked weight (the source needs a cookedWeight for grams). Use this to build a meal-prep box or combined dish from an existing recipe plus extra ingredients instead of copying ingredients by hand: pass the extras in ingredients and the existing recipe in includeRecipes. The ingredients are copied as a snapshot, so later edits to the source recipe do not change this one. The combined ingredient list may hold at most 100 rows.",
+										"maxItems": 20,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"recipeId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+												},
+												"servings": { "type": "number", "exclusiveMinimum": 0 },
+												"grams": { "type": "number", "exclusiveMinimum": 0 }
+											},
+											"required": ["recipeId"]
 										}
 									}
 								},
