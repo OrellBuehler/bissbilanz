@@ -12,6 +12,7 @@ let referenced: Rows = noRows();
 let uploadOwned = true;
 let forgetCalls = 0;
 let dbError: Error | null = null;
+const pageQueries = { foods: 0, recipes: 0, recipeSteps: 0, aiTasks: 0 };
 
 const schema = await import('$lib/server/schema');
 
@@ -32,15 +33,24 @@ const fakeDB = {
 								? 'recipeSteps'
 								: 'aiTasks';
 				return {
-					where: () =>
-						dbError
-							? Promise.reject(dbError)
-							: Promise.resolve(
-									key === 'aiTasks'
-										? // ai_tasks holds an array column, one row per task
-											[{ imageUrls: referenced.aiTasks }]
-										: referenced[key].map((imageUrl) => ({ imageUrl }))
-								)
+					where: () => ({
+						orderBy: () => ({
+							limit: async () => {
+								if (dbError) throw dbError;
+								const page = pageQueries[key]++;
+								if (key === 'aiTasks') {
+									// ai_tasks holds an array column, one row per task
+									return page === 0 ? [{ id: 'task-1', imageUrls: referenced.aiTasks }] : [];
+								}
+								return referenced[key]
+									.map((imageUrl, index) => ({
+										id: `${key}-${String(index).padStart(6, '0')}`,
+										imageUrl
+									}))
+									.slice(page * 5000, (page + 1) * 5000);
+							}
+						})
+					})
 				};
 			}
 		};
@@ -82,6 +92,7 @@ beforeEach(async () => {
 	await rm(UPLOAD_DIR, { recursive: true, force: true });
 	await mkdir(UPLOAD_DIR, { recursive: true });
 	referenced = noRows();
+	for (const key of Object.keys(pageQueries) as (keyof typeof pageQueries)[]) pageQueries[key] = 0;
 	dbError = null;
 	uploadOwned = true;
 	forgetCalls = 0;
@@ -182,6 +193,19 @@ describe('cleanupOrphanedImages', () => {
 
 		expect(await cleanupOrphanedImages()).toBe(0);
 		expect((await listDir()).sort()).toEqual([...NAMES].sort());
+	});
+
+	test('reads references page by page, so every page of foods counts', async () => {
+		await write(NAMES[0], ORPHAN_GRACE_MS + 60_000);
+		await write(NAMES[1], ORPHAN_GRACE_MS + 60_000);
+		referenced.foods = [
+			...Array.from({ length: 5000 }, () => 'https://images.openfoodfacts.org/x.jpg'),
+			`/uploads/${NAMES[0]}`
+		];
+
+		expect(await cleanupOrphanedImages()).toBe(1);
+		expect(await listDir()).toEqual([NAMES[0]]);
+		expect(pageQueries.foods).toBe(2);
 	});
 
 	test('never touches files outside the upload filename pattern', async () => {
