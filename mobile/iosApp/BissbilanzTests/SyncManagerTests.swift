@@ -65,6 +65,48 @@ struct SyncManagerTests {
         #expect(harness.recordedRequests.contains("POST /api/goals"))
     }
 
+    @Test("A duplicate-barcode 409 parks the edit with the other food's name")
+    func duplicateBarcodeConflictParksWithReadableReason() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub(
+            "PATCH", "/api/foods/f1", status: 409,
+            json: #"{"error": "A food with barcode 5449000169327 already exists: \"Coca-Cola Zero Zero\""}"#
+        )
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Cola")))
+        try harness.context.save()
+
+        harness.syncManager.enqueue(.updateFood(id: "f1", body: makeFoodCreate(name: "Cola")))
+        await harness.syncManager.drainPendingQueue()
+
+        let reason = L10n.syncBarcodeInUse(by: "Coca-Cola Zero Zero")
+        #expect(harness.syncManager.parkedRows().first?.failureReason == reason)
+        let banner = try #require(harness.syncManager.errors.first)
+        #expect(banner.contains(reason))
+        #expect(banner.contains("update food \"Cola\""))
+        #expect(banner.contains("f1") == false)
+    }
+
+    @Test("409 bodies map to readable parked reasons")
+    func conflictReasonMapping() {
+        func body(_ json: String) -> Data? { json.data(using: .utf8) }
+        #expect(SyncManager.conflictReason(body: body(#"{"error": "duplicate_barcode"}"#)) == L10n.syncBarcodeInUse)
+        #expect(
+            SyncManager.conflictReason(
+                body: body(#"{"error": "A food with barcode 1 already exists: \"unknown\""}"#)
+            ) == L10n.syncBarcodeInUse
+        )
+        #expect(
+            SyncManager.conflictReason(body: body(#"{"error": "A food with barcode 1 already exists: \"Skyr\""}"#))
+                == L10n.syncBarcodeInUse(by: "Skyr")
+        )
+        #expect(
+            SyncManager.conflictReason(body: body(#"{"error": "Name already taken"}"#)) == "Name already taken"
+        )
+        #expect(SyncManager.conflictReason(body: body(#"{"error": "duplicate_entry"}"#)) == L10n.syncConflictGeneric)
+        #expect(SyncManager.conflictReason(body: body("not json")) == L10n.syncConflictGeneric)
+        #expect(SyncManager.conflictReason(body: nil) == L10n.syncConflictGeneric)
+    }
+
     @Test("A parked op is not sent again until retried, and uploads once the server accepts it")
     func parkedOperationWaitsForRetry() async throws {
         let harness = try RepositoryHarness()
@@ -343,6 +385,85 @@ struct SyncManagerTests {
         #expect(entryCreate.foodId == "f-server")
         #expect(harness.entryRepository.entries(date: "2026-06-01").first?.foodId == "f-server")
         #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A temp food id held across a drain is resolved by the repositories")
+    func staleTempFoodIdResolvesAfterDrain() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", json: """
+        {"food": {
+            "id": "f-server-stale", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
+            "calories": 98, "protein": 16, "carbs": 6, "fat": 0.2, "fiber": 0, "isFavorite": false
+        }}
+        """)
+        harness.stub("POST", "/api/entries", json: """
+        {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
+        """)
+        harness.stub("PUT", "/api/foods/f-server-stale/labels", json: #"{"labels": [], "dropped": []}"#)
+
+        let stale = try await harness.foodRepository.createFood(makeFoodCreate())
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.foodRepository.food(id: stale.id)?.id == "f-server-stale")
+
+        _ = try await harness.entryRepository.createEntry(
+            EntryCreate(foodId: stale.id, mealType: "lunch", servings: 1, date: "2026-06-01"),
+            food: stale
+        )
+        let labelled = try await harness.foodRepository.addGeneratedLabels(id: stale.id, labels: ["yogurt"])
+        #expect(labelled.id == "f-server-stale")
+
+        await harness.syncManager.drainPendingQueue()
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        #expect(try JSONDecoder().decode(EntryCreate.self, from: entryBody).foodId == "f-server-stale")
+        #expect(harness.entryRepository.entries(date: "2026-06-01").first?.foodId == "f-server-stale")
+        #expect(harness.recordedRequests.contains("PUT /api/foods/f-server-stale/labels"))
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A queued entry create for an already drained temp food is rewritten, not parked")
+    func drainRewritesDrainedTempReference() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: """
+        {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 1}}
+        """)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01")
+        harness.context.insert(LocalEntry(
+            entry: EntryFactory.makeEntry(from: create, id: localEntryId, food: nil, recipe: nil),
+            date: "2026-06-01"
+        ))
+        try harness.context.save()
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_entry"])
+        #expect(harness.recordedRequests.isEmpty)
+
+        TempIdMap.record(from: tempFoodId, to: "f-server-parked")
+        harness.syncManager.retryAllParked()
+        harness.syncManager.resetBackoffForTesting()
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        #expect(try JSONDecoder().decode(EntryCreate.self, from: entryBody).foodId == "f-server-parked")
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("Temp id resolutions only record temp ids and fall back to the id itself")
+    func tempIdMapRecordsAndResolves() {
+        let tempId = LocalStore.makeTempId()
+        #expect(TempIdMap.resolved(tempId) == tempId)
+        TempIdMap.record(from: tempId, to: "srv-1")
+        TempIdMap.record(from: "plain-id", to: "srv-2")
+        #expect(TempIdMap.lookup(tempId) == "srv-1")
+        #expect(TempIdMap.resolved(tempId) == "srv-1")
+        #expect(TempIdMap.lookup("plain-id") == nil)
+        #expect(TempIdMap.resolved("plain-id") == "plain-id")
     }
 
     @Test("Offline create chain: queued recipe ingredients remap to the server food id")

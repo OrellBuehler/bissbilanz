@@ -29,7 +29,7 @@ final class FoodRepository {
     // MARK: - Reads (local)
 
     func food(id: String) -> Food? {
-        fetchRow(id: id)?.toFood()
+        fetchRow(id: TempIdMap.resolved(id))?.toFood()
     }
 
     func favorites() -> [Food] {
@@ -225,6 +225,7 @@ final class FoodRepository {
     /// offline create, see `SyncManager.onFoodReferenceMissing`). Without this
     /// the same stale food keeps surfacing in search/recents/favorites.
     func refreshFood(id: String) async throws {
+        let id = TempIdMap.resolved(id)
         guard !appMode.isLocal, !LocalStore.isTempId(id) else { return }
         do {
             let food = try await api.getFood(id: id)
@@ -438,6 +439,7 @@ final class FoodRepository {
     /// goes through the same optimistic write and sync queue as any edit.
     @discardableResult
     func enrichFood(id: String, barcode: String) async throws -> Food {
+        let id = TempIdMap.resolved(id)
         guard let current = food(id: id) else { throw APIError.notFound }
         let hit: BissbilanzAPI.OpenFoodFactsHit
         if appMode.isLocal {
@@ -514,6 +516,7 @@ final class FoodRepository {
 
     @discardableResult
     func updateFood(id: String, _ create: FoodCreate) async throws -> Food {
+        let id = TempIdMap.resolved(id)
         // Merge-patch the form fields onto the existing row: the edit form
         // only carries the basic fields, so rebuilding the row wholesale
         // would wipe extended nutrients and OFF metadata (nutriScore,
@@ -549,6 +552,7 @@ final class FoodRepository {
     /// `file://` photo is the only copy there is.
     @discardableResult
     func setImage(id: String, imageUrl: String?) async throws -> Food {
+        let id = TempIdMap.resolved(id)
         // NSNull, not a nil Optional: JSONSerialization rejects the latter, and
         // an omitted key would read as "leave the image alone" rather than
         // "remove it".
@@ -579,6 +583,7 @@ final class FoodRepository {
     /// create's response points it at the server id before it is sent.
     @discardableResult
     func setLabels(id: String, labels: [String]) async throws -> Food {
+        let id = TempIdMap.resolved(id)
         let normalized = LabelNormalizer.normalizeAll(labels).sorted()
         guard let row = fetchRow(id: id), let current = row.toFood(),
               let patched = try? JSONPatch.merged(Food.self, base: current, patch: ["labels": normalized])
@@ -599,6 +604,7 @@ final class FoodRepository {
     /// `FoodAutoLabeler`'s unattended sweep.
     @discardableResult
     func addGeneratedLabels(id: String, labels: [String]) async throws -> Food {
+        let id = TempIdMap.resolved(id)
         guard let row = fetchRow(id: id), let current = row.toFood() else {
             throw APIError.notFound
         }
@@ -615,6 +621,7 @@ final class FoodRepository {
     }
 
     func deleteFood(id: String) async throws {
+        let id = TempIdMap.resolved(id)
         LocalImageStore.evict(food(id: id)?.imageUrl)
         deleteRow(id: id)
         save()
@@ -634,6 +641,7 @@ final class FoodRepository {
     /// entries, recipes and supplements referencing it are read from the local
     /// store instead, with the same rules as the server.
     func deleteFoodChecked(id: String) async throws -> DeleteOutcome {
+        let id = TempIdMap.resolved(id)
         if appMode.isLocal || LocalStore.isTempId(id) {
             if let conflict = localUsage(foodId: id).conflict {
                 return .blocked(conflict)
@@ -661,6 +669,7 @@ final class FoodRepository {
     /// Refused when `DeleteConflict.forceUnavailable` applies — the prompt must
     /// not offer it, and the server refuses it too.
     func forceDeleteFood(id: String) async throws {
+        let id = TempIdMap.resolved(id)
         if appMode.isLocal || LocalStore.isTempId(id) {
             if localUsage(foodId: id).conflict?.forceUnavailable == true {
                 throw APIError.conflict(serverNewer: false, body: nil)
@@ -686,6 +695,7 @@ final class FoodRepository {
     /// blocked delete can point the user at what to change. Local mode (or a
     /// not-yet-uploaded temp id) reads the local store instead of asking the server.
     func whereUsed(id: String) async throws -> WhereUsed {
+        let id = TempIdMap.resolved(id)
         guard appMode.isLocal || LocalStore.isTempId(id) else {
             return try await api.getFoodUsage(id: id)
         }
@@ -775,6 +785,7 @@ final class FoodRepository {
 
     @discardableResult
     func toggleFavorite(foodId: String, isFavorite: Bool) async throws -> Food {
+        let foodId = TempIdMap.resolved(foodId)
         guard let row = fetchRow(id: foodId), let current = row.toFood(),
               let patched = patchedFavorite(current, isFavorite: isFavorite)
         else {
@@ -826,6 +837,8 @@ final class FoodRepository {
         guard !appMode.isLocal else {
             throw APIError.badRequest("Merging foods requires an account")
         }
+        let keeperId = TempIdMap.resolved(keeperId)
+        let sourceIds = sourceIds.map(TempIdMap.resolved)
         let merged = try await api.mergeFoods(keeperId: keeperId, sourceIds: sourceIds, overrides: overrides)
         upsert(merged)
         for sourceId in sourceIds {
