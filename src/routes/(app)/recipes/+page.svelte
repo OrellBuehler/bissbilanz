@@ -21,7 +21,6 @@
 	import FileArchive from '@lucide/svelte/icons/file-archive';
 	import FoodPackageExportDialog from '$lib/components/food-package/FoodPackageExportDialog.svelte';
 	import FoodPackageImportDialog from '$lib/components/food-package/FoodPackageImportDialog.svelte';
-	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
@@ -54,7 +53,6 @@
 	let packageExportOpen = $state(false);
 	let packageExportIds = $state<string[]>([]);
 	let packageImportOpen = $state(false);
-	let foods: Array<{ id: string; name: string; servingUnit?: string }> = $state([]);
 	let showForm = $state(false);
 	let editingRecipe = $state<EditingRecipe | null>(null);
 	let formImageUrl: string | null = $state(null);
@@ -90,7 +88,6 @@
 	$effect(() => {
 		if (browser) {
 			recipeService.refresh();
-			loadFoods();
 		}
 	});
 
@@ -111,11 +108,6 @@
 		editingExtendedNutrients = null;
 		showForm = true;
 	});
-
-	const loadFoods = async () => {
-		const { data } = await api.GET('/api/foods');
-		if (data) foods = data.foods;
-	};
 
 	const createRecipe = async (payload: RecipeFormPayload) => {
 		const body = formImageUrl ? { ...payload, imageUrl: formImageUrl } : payload;
@@ -481,7 +473,6 @@
 >
 	{#key editingRecipe?.id ?? 'new'}
 		<RecipeForm
-			{foods}
 			recipe={editingRecipe}
 			imageUrl={formImageUrl}
 			{uploading}

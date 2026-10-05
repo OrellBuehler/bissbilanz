@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
-	import { foodMatchTier } from '$lib/components/foods/foodFilters';
+	import { liveQuery } from 'dexie';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import type { DexieFood } from '$lib/db/types';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
@@ -22,15 +24,16 @@
 
 	type Food = components['schemas']['Food'];
 
+	const KEEPER_PICKER_LIMIT = 50;
+
 	type Props = {
 		open: boolean;
 		candidates: Food[];
-		allFoods: Food[];
 		onClose: () => void;
 		onCompleted?: () => void;
 	};
 
-	let { open = $bindable(false), candidates, allFoods, onClose, onCompleted }: Props = $props();
+	let { open = $bindable(false), candidates, onClose, onCompleted }: Props = $props();
 
 	let keeperId = $state<string | null>(null);
 	let keeperSearch = $state('');
@@ -95,13 +98,18 @@
 		}
 	});
 
+	// The keeper candidates come from the local mirror's bounded search, which
+	// also matches barcodes; the mirror can hold 100k foods and is never loaded whole.
+	const pickerPool = useLiveQuery(
+		() =>
+			candidates.length === 1
+				? foodService.search(keeperSearch, { limit: KEEPER_PICKER_LIMIT, barcode: true })
+				: liveQuery(async (): Promise<DexieFood[]> => []),
+		[] as DexieFood[]
+	);
 	const keeperPickerResults = $derived.by(() => {
-		if (candidates.length !== 1) return [];
 		const sourceIds = new Set(candidates.map((c) => c.id));
-		const q = keeperSearch.trim().toLowerCase();
-		const pool = allFoods.filter((f) => !sourceIds.has(f.id));
-		if (!q) return pool;
-		return pool.filter((f) => foodMatchTier(f, q) >= 0 || (f.barcode ?? '').includes(q));
+		return (pickerPool.value as unknown as Food[]).filter((f) => !sourceIds.has(f.id));
 	});
 
 	// Virtualization for the keeper picker — handles arbitrary food counts
@@ -140,8 +148,12 @@
 		};
 	});
 
+	let pickedKeeper = $state<Food | null>(null);
 	const keeper = $derived<Food | null>(
-		keeperId ? (allFoods.find((f) => f.id === keeperId) ?? null) : null
+		keeperId
+			? (candidates.find((f) => f.id === keeperId) ??
+					(pickedKeeper?.id === keeperId ? pickedKeeper : null))
+			: null
 	);
 
 	const sources = $derived<Food[]>(keeper ? candidates.filter((c) => c.id !== keeper.id) : []);
@@ -311,6 +323,7 @@
 				return;
 			}
 			toast.success(m.foods_merge_success());
+			await foodService.removeLocal(sources.map((s) => s.id));
 			await foodService.refresh();
 			onCompleted?.();
 			onClose();
@@ -372,7 +385,10 @@
 									food.id
 										? 'bg-accent'
 										: 'hover:bg-accent/50'}"
-									onclick={() => (keeperId = food.id)}
+									onclick={() => {
+										keeperId = food.id;
+										pickedKeeper = food;
+									}}
 									data-index={pickerWindow.startIndex + i}
 								>
 									<span class="min-w-0 flex-1 truncate">

@@ -17,18 +17,9 @@
 	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
 	import { toStepDrafts, type StepDraft } from '$lib/utils/recipe-steps';
 
-	type IngredientFood = {
-		id: string;
-		name: string;
-		servingUnit?: string;
-		brand?: string | null;
-		labels?: string[] | null;
-	};
-
 	export type RecipeFormPayload = ReturnType<typeof buildRecipePayload> & { isFavorite: boolean };
 
 	type Props = {
-		foods?: IngredientFood[];
 		// When provided, the form starts pre-filled for editing instead of a
 		// blank "new recipe" state, and does not reset after a successful save.
 		recipe?: {
@@ -56,7 +47,6 @@
 	};
 
 	let {
-		foods = [],
 		recipe = null,
 		onSave,
 		imageUrl,
@@ -183,7 +173,7 @@
 	<div class="space-y-2">
 		<Label class="text-sm font-medium">{m.recipe_form_ingredients()}</Label>
 		{#each formState.ingredients as ingredient, i}
-			<IngredientRow {ingredient} {foods} onRemove={() => removeIngredient(i)} />
+			<IngredientRow {ingredient} onRemove={() => removeIngredient(i)} />
 		{/each}
 		<Button variant="outline" size="sm" type="button" onclick={addIngredient}>
 			<Plus class="size-4" />

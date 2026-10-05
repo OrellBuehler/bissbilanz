@@ -20,11 +20,13 @@
 	import type { BulkLabelMode } from '$lib/components/foods/bulkActions';
 	import type { FoodCsvFood } from '$lib/foods/csv';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import ListPagination from '$lib/components/shared/ListPagination.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import type { components } from '$lib/api/generated/schema';
 
+	import type { DexieFood } from '$lib/db/types';
 	import { toast } from 'svelte-sonner';
 	import { browser } from '$app/environment';
 	import * as Sentry from '@sentry/sveltekit';
@@ -93,12 +95,12 @@
 		mergeOpen = true;
 	};
 
-	const openMergeFromGroup = (group: components['schemas']['FoodDuplicateGroup']) => {
-		const pool = (allFoodsQuery.value as unknown as components['schemas']['Food'][]) ?? [];
-		const byId = new Map(pool.map((f) => [f.id, f]));
+	const openMergeFromGroup = async (group: components['schemas']['FoodDuplicateGroup']) => {
+		const found = await foodService.getFoodsByIds(group.foods.map((f) => f.id));
+		const byId = new Map(found.map((f) => [f.id, f]));
 		mergeCandidates = group.foods
 			.map((f) => byId.get(f.id))
-			.filter((f): f is components['schemas']['Food'] => f !== undefined);
+			.filter((f) => f !== undefined) as unknown as components['schemas']['Food'][];
 		mergeOpen = true;
 	};
 
@@ -118,13 +120,17 @@
 		return () => clearTimeout(debounceTimer);
 	});
 
-	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
-	const searchResults = useLiveQuery(
-		() => (debouncedQuery ? foodService.search(debouncedQuery) : foodService.allFoods()),
-		[]
-	);
+	// The list is one page of the name-ordered mirror, and a search is capped at
+	// its best matches: an account can hold 100k foods and neither may load them all.
+	const PER_PAGE = 50;
+	let listPage = $state(1);
+	const pageQuery = useLiveQuery(() => foodService.allFoodsPage(listPage, PER_PAGE), {
+		foods: [] as DexieFood[],
+		total: 0
+	});
+	const searchResults = useLiveQuery(() => foodService.search(debouncedQuery), [] as DexieFood[]);
 
-	const foods = $derived(debouncedQuery ? searchResults.value : allFoodsQuery.value);
+	const foods = $derived(debouncedQuery ? searchResults.value : pageQuery.value.foods);
 
 	// Online Open Food Facts fallback when the personal DB has few matches.
 	$effect(() => {
@@ -259,12 +265,15 @@
 			};
 			return;
 		}
+		// A delete leaves no trace in the delta feed, so drop the row here.
+		if (!error) await foodService.removeLocal([id]);
 		foodService.refresh();
 	};
 
 	const confirmForceDelete = async () => {
 		if (!deleteConflict) return;
-		await foodService.deleteOnline(deleteConflict.id, true);
+		const { error } = await foodService.deleteOnline(deleteConflict.id, true);
+		if (!error) await foodService.removeLocal([deleteConflict.id]);
 		deleteConflict = null;
 		foodService.refresh();
 	};
@@ -586,6 +595,10 @@
 		/>
 	{/if}
 
+	{#if !debouncedQuery}
+		<ListPagination count={pageQuery.value.total} perPage={PER_PAGE} bind:page={listPage} />
+	{/if}
+
 	{#if debouncedQuery && (offSearchLoading || offResults.length > 0)}
 		<OffSearchResults loading={offSearchLoading} results={offResults} onPick={prefillFromOff} />
 	{/if}
@@ -667,7 +680,6 @@
 <MergeFoodDialog
 	bind:open={mergeOpen}
 	candidates={mergeCandidates}
-	allFoods={foods as components['schemas']['Food'][]}
 	onClose={() => (mergeOpen = false)}
 	onCompleted={onMergeCompleted}
 />

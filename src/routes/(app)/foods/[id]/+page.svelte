@@ -59,8 +59,6 @@
 
 	type Food = components['schemas']['Food'];
 	let mergeOpen = $state(false);
-	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
-	const allFoods = $derived((allFoodsQuery.value as unknown as Food[]) ?? []);
 
 	const onMergeCompleted = () => {
 		// This food is the merge source, so it no longer exists — leave the page.
@@ -315,7 +313,6 @@
 	<MergeFoodDialog
 		bind:open={mergeOpen}
 		candidates={[food as unknown as Food]}
-		{allFoods}
 		onClose={() => (mergeOpen = false)}
 		onCompleted={onMergeCompleted}
 	/>

@@ -76,6 +76,11 @@ export type DexieFood = {
 	// General en_US nouns for what the food physically is ("banana", "bottle").
 	// Server-aggregated; no index needed, so no Dexie version bump.
 	labels?: string[] | null;
+	// Set by the server on every write; the delta-sync cursor. Never edited locally.
+	serverModifiedAt?: string;
+	// 1 while isFavorite, absent otherwise. Maintained by the foods hooks in
+	// db/index.ts so favourites are an indexed lookup (booleans cannot be keys).
+	favKey?: 1;
 	createdAt: string | null;
 	updatedAt: string | null;
 };
@@ -353,4 +358,8 @@ export type DexieSyncMeta = {
 	lastSyncedAt: number;
 	/** Stores the full userId string for the __userId sentinel row. */
 	userId?: string;
+	/** foods delta sync: highest serverModifiedAt seen; the next sync resumes just before it. */
+	deltaCursor?: string;
+	/** foods delta sync: epoch ms of the last deletion reconciliation against /api/foods/ids. */
+	reconciledAt?: number;
 };
