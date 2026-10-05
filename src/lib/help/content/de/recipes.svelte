@@ -6,6 +6,12 @@
 	und Makros darauf auf, sodass das spätere Erfassen einer Portion automatisch den richtigen Anteil erfasst.
 </p>
 <p class="mb-6">
+	Um auf einem bereits gekochten Gericht aufzubauen, etwa einer Meal-Prep-Box aus dem Curry von
+	gestern, tippe auf <strong>Aus Rezept hinzufügen</strong>, wähle das Rezept und eine Menge in
+	Portionen (oder in Gramm, wenn es ein Kochgewicht hat), und seine Zutaten werden skaliert auf
+	diese Menge übernommen.
+</p>
+<p class="mb-6">
 	Tippe auf ein Rezept, um Name, Portionenanzahl, Foto oder Favoritenstatus zu bearbeiten oder es zu
 	löschen. Um die Zutaten selbst zu ändern, lösche das Rezept und baue es neu auf — für ein
 	bestehendes Rezept gibt es noch keinen Zutaten-Editor.

@@ -57,6 +57,8 @@ export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
 /** Dataset product with the extended-nutrient keys typed (see NUTRIENT_KEYS). */
 export type DatasetProduct = SchemaDatasetProduct & Partial<Record<NutrientKey, number | null>>;
 
+export type CrawledFood = { product: DatasetProduct; categories?: string[] };
+
 export type BuildResult = { ok: true; product: DatasetProduct } | { ok: false; reason: string };
 
 export type CrawlStats = {

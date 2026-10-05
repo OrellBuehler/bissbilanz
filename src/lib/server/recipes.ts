@@ -1,12 +1,18 @@
 import { getDB } from '$lib/server/db';
 import { recipes, recipeIngredients, recipeSteps, foods, foodEntries } from '$lib/server/schema';
-import { recipeCreateSchema, recipeUpdateSchema } from '$lib/server/validation';
+import {
+	recipeCreateSchema,
+	recipeUpdateSchema,
+	type recipeIngredientSchema
+} from '$lib/server/validation';
 import { and, count, eq, sql, type SQL } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
-import { withValidation } from '$lib/server/errors';
+import { ApiError, withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
-import { assertFoodOwnedForIngredient } from '$lib/server/ownership';
+import { assertFoodOwnedForIngredient, assertRecipeOwned } from '$lib/server/ownership';
+import { recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
+import type { z } from 'zod';
 import { unlinkUpload, unlinkUploads, uploadFilename } from '$lib/server/images';
 import { convertedIngredientQuantitySql } from '$lib/server/recipe-macros';
 import { ALL_NUTRIENT_KEYS, NUTRIENT_BY_KEY } from '$lib/nutrients';
@@ -359,4 +365,49 @@ export const deleteRecipe = async (
 		await unlinkUnreferencedUploads(result.stepImages, userId);
 	}
 	return result.deleted;
+};
+
+export type IncludedRecipe = { recipeId: string; servings?: number; grams?: number };
+
+export const expandIncludedRecipes = async (
+	userId: string,
+	includes: IncludedRecipe[]
+): Promise<z.infer<typeof recipeIngredientSchema>[]> => {
+	const db = getDB();
+	const expanded: z.infer<typeof recipeIngredientSchema>[] = [];
+	for (const include of includes) {
+		await assertRecipeOwned(db, userId, include.recipeId);
+		const [recipe] = await db
+			.select({ totalServings: recipes.totalServings, cookedWeight: recipes.cookedWeight })
+			.from(recipes)
+			.where(and(eq(recipes.id, include.recipeId), eq(recipes.userId, userId)))
+			.limit(1);
+		if (!recipe) throw new ApiError(404, 'Recipe not found');
+		const mode = include.grams !== undefined ? 'grams' : 'servings';
+		const amount = include.grams ?? include.servings ?? 0;
+		if (mode === 'grams' && !(recipe.cookedWeight && recipe.cookedWeight > 0)) {
+			throw new ApiError(
+				400,
+				`Recipe ${include.recipeId} has no cookedWeight, so it cannot be included by grams; pass servings instead`
+			);
+		}
+		const factor = recipeScaleFactor(recipe, amount, mode);
+		if (factor === null) {
+			throw new ApiError(
+				400,
+				`Recipe ${include.recipeId}: amount must be a positive number of servings or grams`
+			);
+		}
+		const rows = await db
+			.select({
+				foodId: recipeIngredients.foodId,
+				quantity: recipeIngredients.quantity,
+				servingUnit: recipeIngredients.servingUnit
+			})
+			.from(recipeIngredients)
+			.where(eq(recipeIngredients.recipeId, include.recipeId))
+			.orderBy(recipeIngredients.sortOrder);
+		expanded.push(...scaleIngredients(rows, factor));
+	}
+	return expanded;
 };

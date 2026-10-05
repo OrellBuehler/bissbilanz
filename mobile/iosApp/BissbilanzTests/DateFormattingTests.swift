@@ -453,4 +453,43 @@ struct EatenAtStringTests {
         #expect(DateFormatting.eatenAt(nil, onDate: "2026-04-02", calendar: zurich) == nil)
         #expect(DateFormatting.eatenAt("nonsense", onDate: "2026-04-02", calendar: zurich) == "nonsense")
     }
+
+    private func zurichDate(_ hour: Int, _ minute: Int, second: Int = 0, day: Int = 5) throws -> Date {
+        let components = DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: minute, second: second)
+        return try #require(zurich.date(from: components))
+    }
+
+    @Test("Replacing the minute keeps the hour and day and zeroes seconds")
+    func replacingMinute() throws {
+        let start = try zurichDate(12, 43, second: 27)
+        let result = DateFormatting.replacingClock(of: start, minute: 30, calendar: zurich)
+        let expected = try zurichDate(12, 30)
+        #expect(result == expected)
+    }
+
+    @Test("Replacing the hour keeps the minute")
+    func replacingHour() throws {
+        let start = try zurichDate(12, 43)
+        let result = DateFormatting.replacingClock(of: start, hour: 7, calendar: zurich)
+        let expected = try zurichDate(7, 43)
+        #expect(result == expected)
+    }
+
+    @Test("Successive hour and minute changes accumulate")
+    func replacingClockAccumulates() throws {
+        var value = try zurichDate(12, 43)
+        value = DateFormatting.replacingClock(of: value, hour: 9, calendar: zurich)
+        value = DateFormatting.replacingClock(of: value, minute: 5, calendar: zurich)
+        let expected = try zurichDate(9, 5)
+        #expect(value == expected)
+    }
+
+    @Test("Replacing the day keeps the wall-clock time")
+    func replacingDay() throws {
+        let start = try zurichDate(12, 43, second: 9)
+        let day = try zurichDate(0, 0, day: 20)
+        let result = DateFormatting.replacingDay(of: start, with: day, calendar: zurich)
+        let expected = try zurichDate(12, 43, second: 9, day: 20)
+        #expect(result == expected)
+    }
 }

@@ -154,7 +154,7 @@ android {
         implementation(libs.kotlinx.coroutines.play.services)
         implementation(libs.work.runtime)
         implementation(libs.reorderable)
-        implementation("com.google.guava:guava:33.7.1-android")
+        implementation("com.google.guava:guava:33.7.2-android")
         debugImplementation(libs.compose.ui.tooling)
         testImplementation(libs.kotlin.test)
         testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")

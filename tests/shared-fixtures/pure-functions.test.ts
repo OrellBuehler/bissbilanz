@@ -8,6 +8,7 @@ import {
 	cookedWeightServingSize,
 	gramsToServings
 } from '$lib/utils/recipe-yield';
+import { recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
 import { isVolumeBasis, parseDecimal, parseRows } from '$lib/label-parser';
 import {
 	casesFor,
@@ -62,6 +63,14 @@ function run(c: FixtureCase): unknown {
 			return gramsToServings(i.grams, i.cookedWeight, i.totalServings);
 		case 'caloriesPerHundredGrams':
 			return caloriesPerHundredGrams(i.calories, i.cookedWeight);
+		case 'recipeScaleFactor':
+			return recipeScaleFactor(
+				{ totalServings: i.totalServings, cookedWeight: i.cookedWeight },
+				i.amount,
+				i.mode
+			);
+		case 'scaleIngredients':
+			return scaleIngredients(i.ingredients, i.factor);
 		case 'parseRows': {
 			const parsed = parseRows(i.rows);
 			return {
