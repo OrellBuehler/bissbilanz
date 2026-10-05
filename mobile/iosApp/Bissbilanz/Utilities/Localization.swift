@@ -1901,6 +1901,32 @@ enum L10n {
         localized("sync_parked_reason", en: "Rejected: \(reason)", de: "Abgelehnt: \(reason)")
     }
 
+    static func syncBarcodeInUse(by name: String) -> String {
+        localized(
+            "sync_barcode_in_use_by",
+            en: "This barcode is already used by \"\(name)\". Merge the two foods or remove the barcode.",
+            de: "Dieser Barcode wird bereits von \"\(name)\" verwendet. " +
+                "Führe die beiden Lebensmittel zusammen oder entferne den Barcode."
+        )
+    }
+
+    static var syncBarcodeInUse: String {
+        localized(
+            "sync_barcode_in_use",
+            en: "This barcode is already used by another food. Merge the two foods or remove the barcode.",
+            de: "Dieser Barcode wird bereits von einem anderen Lebensmittel verwendet. " +
+                "Führe die beiden Lebensmittel zusammen oder entferne den Barcode."
+        )
+    }
+
+    static var syncConflictGeneric: String {
+        localized(
+            "sync_conflict_generic",
+            en: "The server found a conflict with existing data",
+            de: "Der Server hat einen Konflikt mit bestehenden Daten festgestellt"
+        )
+    }
+
     /// Human-readable title for a queued sync operation, keyed by its stored
     /// `typeName` (see `SyncOperation.typeName`).
     static func pendingChangeTitle(forType type: String) -> String {
