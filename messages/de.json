@@ -270,6 +270,7 @@
 	"food_form_save": "Speichern",
 	"food_form_labels": "Labels",
 	"food_form_labels_hint": "Englische Begriffe für das, was das Lebensmittel ist, z. B. banana, bread, bottle. Gescannte Produkte werden automatisch beschriftet.",
+	"recipe_form_labels_hint": "Englische Begriffe für das, was das Gericht ist, z. B. soup, salad, pasta. So findest du das Rezept über ein englisches Wort.",
 	"food_form_label_placeholder": "Label hinzufügen",
 	"food_form_label_add": "Label hinzufügen",
 	"food_form_label_remove": "Label {label} entfernen",

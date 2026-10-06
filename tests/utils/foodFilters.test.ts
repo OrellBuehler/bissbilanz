@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { filterFoods, foodMatchTier } from '../../src/lib/components/foods/foodFilters';
+import {
+	filterFoods,
+	filterRecipes,
+	foodMatchTier,
+	recipeMatchTier
+} from '../../src/lib/components/foods/foodFilters';
 
 const foods = [
 	{ id: '1', name: 'Oats', brand: 'Brand A', labels: ['oat', 'cereal'] },
@@ -48,5 +53,33 @@ describe('filterFoods', () => {
 			'Greek Yogurt',
 			'Oats'
 		]);
+	});
+});
+
+describe('filterRecipes', () => {
+	const recipes = [
+		{ id: '1', name: 'Gerstensuppe', labels: ['soup', 'barley'] },
+		{ id: '2', name: 'Soup of the day', labels: [] },
+		{ id: '3', name: 'Spaghetti', labels: null },
+		{ id: '4', name: 'Pasta' }
+	];
+
+	test('filters by name', () => {
+		expect(filterRecipes(recipes, 'spag').map((r) => r.id)).toEqual(['3']);
+	});
+
+	test('an English query finds a German recipe through its labels, name matches first', () => {
+		expect(filterRecipes(recipes, 'soup').map((r) => r.id)).toEqual(['2', '1']);
+		expect(recipeMatchTier(recipes[0], 'soup')).toBe(1);
+		expect(recipeMatchTier(recipes[1], 'soup')).toBe(0);
+		expect(recipeMatchTier(recipes[2], 'soup')).toBe(-1);
+	});
+
+	test('the query is normalized like a label', () => {
+		expect(filterRecipes(recipes, 'BARLEYS').map((r) => r.id)).toEqual(['1']);
+	});
+
+	test('an empty query returns everything untouched', () => {
+		expect(filterRecipes(recipes, ' ')).toBe(recipes);
 	});
 });

@@ -37,6 +37,8 @@
 	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
+	import { filterRecipes } from '$lib/components/foods/foodFilters';
+	import * as Sentry from '@sentry/sveltekit';
 
 	type EditingRecipe = {
 		id: string;
@@ -46,6 +48,7 @@
 		imageUrl: string | null;
 		cookedWeight: number | null;
 		calories: number | null;
+		labels: string[];
 		ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
 		// null while the steps are not cached (opened offline before ever loading them).
 		steps: Array<{ text: string; imageUrl: string | null }> | null;
@@ -73,17 +76,15 @@
 		(r.calories ?? 0) / (r.totalServings > 0 ? r.totalServings : 1);
 
 	const visibleRecipes = $derived(
-		[...recipes]
-			.filter((r) => r.name.toLowerCase().includes(query.trim().toLowerCase()))
-			.sort((a, b) => {
-				if (sortBy === 'calories') return perServingCalories(a) - perServingCalories(b);
-				if (sortBy === 'recent') {
-					const aTime = a.updatedAt ?? a.createdAt ?? '';
-					const bTime = b.updatedAt ?? b.createdAt ?? '';
-					return bTime.localeCompare(aTime);
-				}
-				return a.name.localeCompare(b.name);
-			})
+		[...filterRecipes(recipes, query)].sort((a, b) => {
+			if (sortBy === 'calories') return perServingCalories(a) - perServingCalories(b);
+			if (sortBy === 'recent') {
+				const aTime = a.updatedAt ?? a.createdAt ?? '';
+				const bTime = b.updatedAt ?? b.createdAt ?? '';
+				return bTime.localeCompare(aTime);
+			}
+			return a.name.localeCompare(b.name);
+		})
 	);
 
 	$effect(() => {
@@ -121,12 +122,30 @@
 		closeForm();
 	};
 
-	const updateRecipe = async (payload: RecipeFormPayload) => {
+	const updateRecipe = async (payload: RecipeFormPayload, labels?: string[]) => {
 		if (!editingRecipe) return;
 		const result = await recipeService.update(editingRecipe.id, payload);
 		if (result.status === 'failed') {
 			toast.error(m.detail_save_failed());
 			return;
+		}
+		// Labels live in their own table: only an actual edit is sent, because a
+		// user write is authoritative and replaces whatever a labeller had seeded.
+		const before = editingRecipe.labels;
+		if (
+			labels &&
+			(labels.length !== before.length || labels.some((label, i) => label !== before[i]))
+		) {
+			try {
+				const dropped = await recipeService.setLabels(editingRecipe.id, labels);
+				if (dropped.length > 0) {
+					toast.info(m.detail_labels_dropped({ labels: dropped.join(', ') }));
+				}
+			} catch (err) {
+				Sentry.captureException(err, { extra: { recipeId: editingRecipe.id } });
+				toast.error(m.detail_save_failed());
+				return;
+			}
 		}
 		toast.success(m.detail_saved());
 		closeForm();
@@ -183,6 +202,7 @@
 			imageUrl: recipe.imageUrl,
 			cookedWeight: recipe.cookedWeight,
 			calories: recipe.calories,
+			labels: recipe.labels ?? [],
 			ingredients: ingredients.map((i) => ({
 				foodId: i.foodId,
 				quantity: i.quantity,

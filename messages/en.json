@@ -270,6 +270,7 @@
 	"food_form_save": "Save",
 	"food_form_labels": "Labels",
 	"food_form_labels_hint": "English nouns for what the food is, e.g. banana, bread, bottle. Scanned products are labelled automatically.",
+	"recipe_form_labels_hint": "English nouns for what the dish is, e.g. soup, salad, pasta. They let you find the recipe by an English word.",
 	"food_form_label_placeholder": "Add a label",
 	"food_form_label_add": "Add label",
 	"food_form_label_remove": "Remove label {label}",

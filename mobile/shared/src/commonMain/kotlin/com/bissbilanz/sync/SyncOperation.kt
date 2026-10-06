@@ -160,6 +160,18 @@ sealed class SyncOperation {
         override val description get() = "set recipe image $id"
     }
 
+    /** Replaces the user's labels for a recipe; same shape and last-write-wins treatment as [SetFoodLabels]. */
+    @Serializable
+    @SerialName("set_recipe_labels")
+    data class SetRecipeLabels(
+        val id: String,
+        val labels: List<String>,
+    ) : SyncOperation() {
+        override val affectedTable = "recipes"
+        override val affectedId get() = id
+        override val description get() = "set recipe labels $id"
+    }
+
     @Serializable
     @SerialName("delete_recipe")
     data class DeleteRecipe(

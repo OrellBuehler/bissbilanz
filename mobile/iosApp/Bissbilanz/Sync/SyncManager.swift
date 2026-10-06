@@ -22,8 +22,11 @@ import SwiftData
 ///   the create has no row of its own to have been deleted; a referenced
 ///   foodId/recipeId no longer exists. Still-`temp_` references are caught
 ///   before the request even goes out (see `unresolvedReference`) and either
-///   kept queued (the peer create is still pending) or parked as
-///   "never created"; a resolved-but-now-missing reference is parked as
+///   kept queued (the peer create is still pending) or, when no create is
+///   queued any more, recovered rather than parked — see
+///   `recoverUnresolvedReference`: re-queue the create from the local row,
+///   else log an entry as a quick entry from its snapshot, and only park as
+///   "never created" when neither is possible; a resolved-but-now-missing reference is parked as
 ///   "no longer exists" with a conflict notice, distinct from below.
 /// - HTTP 404/410 on other (non-create, non-delete) ops → record deleted
 ///   elsewhere; remove + conflict notice.
@@ -134,7 +137,8 @@ final class SyncManager {
     /// store state when switching to Synced; queued ops would double-apply.
     func enqueue(_ operation: SyncOperation) {
         guard !appMode.isLocal else { return }
-        context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
+        captureEntrySnapshot(for: operation)
+        insertOperation(operation)
         save()
         refreshCounts()
         scheduleDrain()
@@ -217,8 +221,18 @@ final class SyncManager {
     /// Drops every queued operation touching (table, id) — used when a
     /// `temp_` row is deleted before its create drained (this also removes
     /// queued supplement-logs for a temp supplement, which share the table/id).
+    ///
+    /// Deleting a `temp_` food or recipe also drops the create other queued
+    /// writes were waiting on; those are resolved first (entries become quick
+    /// entries) instead of being left to park as "never created".
     func removeQueued(table: String, affectedId: String) {
+        if table == "foods" || table == "recipes", LocalStore.isTempId(affectedId) {
+            detachDependents(table: table, id: affectedId, excluding: nil)
+        }
         for row in queuedOperations(table: table, affectedId: affectedId) {
+            if let operation = row.operation() {
+                forgetEntrySnapshot(operation)
+            }
             context.delete(row)
         }
         save()
@@ -345,7 +359,11 @@ final class SyncManager {
                     save()
                     continue
                 }
-                let peers = queuedOperations(table: unresolved.table, affectedId: unresolved.id)
+                // Only a create can resolve the id; an edit queued against the same temp id
+                // (a label or favorite change) must not make this op wait for nothing.
+                let peers = queuedOperations(table: unresolved.table, affectedId: unresolved.id).filter { peer in
+                    peer.operation().map { isCreateOperation($0) } ?? false
+                }
                 if peers.contains(where: { $0.failedAt == nil }) {
                     // The peer create hasn't drained yet. Wait for it without
                     // treating this as a failure of this operation.
@@ -365,15 +383,28 @@ final class SyncManager {
                     )
                     continue
                 }
-                // Nothing will ever resolve this `temp_` id (the user discarded the
-                // create it depended on). Park rather than delete: the change stays
-                // visible until the user decides.
-                parkFailed(row, operation, reason: "the food or recipe it depended on was never created")
-                ErrorReporter.captureWarning(
-                    "Sync op parked: referenced create was never created",
-                    context: dropContext(operation, row, outcome: "parked_reference_not_created", status: nil)
-                )
-                continue
+                // Nothing will ever resolve this `temp_` id: no queued create, no
+                // recorded mapping. Recover the change rather than strand it.
+                switch recoverUnresolvedReference(row, operation, unresolved: unresolved) {
+                case .requeuedCreate, .droppedReference:
+                    continue
+                case let .quickEntry(name):
+                    sawConflict = true
+                    conflictDates.formUnion(dayKeys(for: operation))
+                    if case let .createEntry(body, _) = operation {
+                        noteConflict(L10n.syncRecoveredAsQuickEntry(name: name, day: body.date))
+                    }
+                    continue
+                case .unrecoverable:
+                    // Truly nothing left to rebuild it from. Park rather than delete:
+                    // the change stays visible until the user decides.
+                    parkFailed(row, operation, reason: "the food or recipe it depended on was never created")
+                    ErrorReporter.captureWarning(
+                        "Sync op parked: referenced create was never created",
+                        context: dropContext(operation, row, outcome: "parked_reference_not_created", status: nil)
+                    )
+                    continue
+                }
             }
 
             ErrorReporter.addBreadcrumb(
@@ -386,6 +417,7 @@ final class SyncManager {
                 if !row.isDeleted {
                     remove(row)
                 }
+                forgetEntrySnapshot(operation)
                 processed += 1
             } catch {
                 let kind = Self.classify(error, isOnline: connectivity.isOnline)
@@ -589,6 +621,287 @@ final class SyncManager {
         if changed {
             save()
         }
+    }
+
+    // MARK: - Recovery of unresolvable references
+
+    private enum Recovery {
+        /// The local food/recipe still exists: its create was queued again, ahead of the dependent op.
+        case requeuedCreate
+        /// The entry was rewritten as a quick entry from the snapshot taken when it was logged.
+        case quickEntry(name: String)
+        /// A completion no longer waits on an entry that will never exist.
+        case droppedReference
+        case unrecoverable
+    }
+
+    /// What can be done with an op that references a `temp_` id nothing will ever
+    /// resolve (no queued create, no `TempIdMap` entry), in order: rebuild the
+    /// create from the local row, or turn an entry into a quick entry. Never
+    /// deletes: `.unrecoverable` leaves it to the caller to park.
+    private func recoverUnresolvedReference(
+        _ row: PendingSyncOperation,
+        _ operation: SyncOperation,
+        unresolved: (table: String, id: String)
+    ) -> Recovery {
+        if unresolved.table == "entries" {
+            // An AI-task completion waiting on an entry whose create was removed
+            // (the user deleted the entry before it uploaded).
+            guard case let .completeAiTask(taskId, localEntryIds, summary, processedBy, editedAt) = operation else {
+                return .unrecoverable
+            }
+            let remaining = localEntryIds.filter { $0 != unresolved.id }
+            row.replaceOperation(.completeAiTask(
+                taskId: taskId, localEntryIds: remaining, resultSummary: summary,
+                processedBy: processedBy, clientEditedAt: editedAt
+            ))
+            save()
+            ErrorReporter.captureWarning(
+                "Sync op recovered: completion no longer waits for a missing entry",
+                context: dropContext(operation, row, outcome: "recovered_dropped_entry_reference", status: nil)
+            )
+            return .droppedReference
+        }
+
+        if requeueCreate(table: unresolved.table, id: unresolved.id, before: row) {
+            ErrorReporter.captureWarning(
+                "Sync op recovered: queued the missing create again",
+                context: dropContext(operation, row, outcome: "recovered_requeued_create", status: nil)
+            )
+            return .requeuedCreate
+        }
+
+        if case let .createEntry(body, localId) = operation,
+           let name = convertToQuickEntry(row, body: body, localId: localId)
+        {
+            ErrorReporter.captureWarning(
+                "Sync op recovered: entry logged as a quick entry",
+                context: dropContext(operation, row, outcome: "recovered_quick_entry", status: nil)
+            )
+            return .quickEntry(name: name)
+        }
+        return .unrecoverable
+    }
+
+    /// Queues a fresh create for a food/recipe that still exists locally under
+    /// its `temp_` id, and moves `dependent` behind it so it drains first.
+    private func requeueCreate(table: String, id: String, before dependent: PendingSyncOperation) -> Bool {
+        let create: SyncOperation
+        switch table {
+        case "foods":
+            guard let food = LocalRemap.foodRow(id: id, in: context)?.toFood(),
+                  let body = foodCreate(from: food)
+            else { return false }
+            create = .createFood(body: body, localId: id)
+        case "recipes":
+            guard let recipe = LocalRemap.recipeRow(id: id, in: context)?.toRecipe() else { return false }
+            create = .createRecipe(body: recipeCreate(from: recipe), localId: id)
+        default:
+            return false
+        }
+        insertOperation(create)
+        save()
+        dependent.seq = nextSeq()
+        dependent.nextAttemptAt = Date.distantPast
+        save()
+        refreshCounts()
+        return true
+    }
+
+    private func foodCreate(from food: Food) -> FoodCreate? {
+        guard var create = try? JSONPatch.decode(FoodCreate.self, from: JSONPatch.dictionary(of: food)) else {
+            return nil
+        }
+        create.imageUrl = Self.uploadableImageUrl(food.imageUrl)
+        return create
+    }
+
+    private func recipeCreate(from recipe: Recipe) -> RecipeCreate {
+        let steps = RecipeStepInput.sanitized(recipe.orderedSteps.map {
+            RecipeStepInput(text: $0.text, imageUrl: Self.uploadableImageUrl($0.imageUrl))
+        })
+        let ingredients = (recipe.ingredients ?? []).map {
+            RecipeIngredientInput(foodId: $0.foodId, quantity: $0.quantity, servingUnit: $0.servingUnit)
+        }
+        return RecipeCreate(
+            name: recipe.name,
+            totalServings: recipe.totalServings,
+            ingredients: ingredients,
+            isFavorite: recipe.isFavorite,
+            imageUrl: Self.uploadableImageUrl(recipe.imageUrl),
+            cookedWeight: recipe.cookedWeight,
+            steps: steps.isEmpty ? nil : steps
+        )
+    }
+
+    /// The server only accepts a `/`-relative path or an http(s) URL; a local
+    /// `file://` photo would turn the re-queued create into a permanent 400.
+    private static func uploadableImageUrl(_ imageUrl: String?) -> String? {
+        guard let imageUrl else { return nil }
+        if imageUrl.hasPrefix("http://") || imageUrl.hasPrefix("https://") { return imageUrl }
+        if imageUrl.hasPrefix("/"), !imageUrl.hasPrefix("//") { return imageUrl }
+        return nil
+    }
+
+    /// Records name and per-serving macros of the food/recipe a `createEntry`
+    /// logs, while the optimistic local rows that carry them still exist.
+    private func captureEntrySnapshot(for operation: SyncOperation) {
+        guard case let .createEntry(body, localId) = operation,
+              body.foodId != nil || body.recipeId != nil,
+              let snapshot = currentEntrySnapshot(body: body, localId: localId)
+        else { return }
+        QueuedEntrySnapshots.record(entryId: localId, snapshot: snapshot)
+    }
+
+    private func forgetEntrySnapshot(_ operation: SyncOperation) {
+        if case let .createEntry(_, localId) = operation {
+            QueuedEntrySnapshots.forget(entryId: localId)
+        }
+    }
+
+    /// The recorded snapshot, else whatever the local rows still say (a queue row
+    /// from before snapshots existed has none recorded).
+    private func entrySnapshot(body: EntryCreate, localId: String) -> QueuedEntrySnapshot? {
+        QueuedEntrySnapshots.lookup(entryId: localId) ?? currentEntrySnapshot(body: body, localId: localId)
+    }
+
+    private func currentEntrySnapshot(body: EntryCreate, localId: String) -> QueuedEntrySnapshot? {
+        if let entry = LocalRemap.entryRow(id: localId, in: context)?.toEntry(),
+           let snapshot = QueuedEntrySnapshot(entry: entry)
+        {
+            return snapshot
+        }
+        if let foodId = body.foodId, let food = LocalRemap.foodRow(id: foodId, in: context)?.toFood() {
+            return QueuedEntrySnapshot(food: food)
+        }
+        if let recipeId = body.recipeId, let recipe = LocalRemap.recipeRow(id: recipeId, in: context)?.toRecipe() {
+            return QueuedEntrySnapshot(recipe: recipe)
+        }
+        return nil
+    }
+
+    /// Rewrites a queued `createEntry` as a quick entry (same meal, date, servings
+    /// and eaten time) and mirrors that onto the optimistic local row. Returns the
+    /// entry's name, or nil when there is no snapshot to build it from.
+    private func convertToQuickEntry(_ row: PendingSyncOperation, body: EntryCreate, localId: String) -> String? {
+        guard let snapshot = entrySnapshot(body: body, localId: localId) else { return nil }
+        var quick = body
+        quick.foodId = nil
+        quick.recipeId = nil
+        quick.quickName = snapshot.name
+        quick.quickCalories = snapshot.calories
+        quick.quickProtein = snapshot.protein
+        quick.quickCarbs = snapshot.carbs
+        quick.quickFat = snapshot.fat
+        quick.quickFiber = snapshot.fiber
+        if quick.notes?.isEmpty ?? true {
+            quick.notes = L10n.syncRecoveredEntryNote
+        }
+        row.replaceOperation(.createEntry(body: quick, localId: localId))
+        if let local = LocalRemap.entryRow(id: localId, in: context), let entry = local.toEntry() {
+            let patched = Entry(
+                id: entry.id,
+                mealType: entry.mealType,
+                servings: entry.servings,
+                notes: quick.notes,
+                foodId: nil,
+                recipeId: nil,
+                supplementId: entry.supplementId,
+                quickName: snapshot.name,
+                quickCalories: snapshot.calories,
+                quickProtein: snapshot.protein,
+                quickCarbs: snapshot.carbs,
+                quickFat: snapshot.fat,
+                quickFiber: snapshot.fiber,
+                quickNutrients: entry.quickNutrients,
+                foodName: entry.foodName ?? snapshot.name,
+                calories: entry.calories ?? snapshot.calories,
+                protein: entry.protein ?? snapshot.protein,
+                carbs: entry.carbs ?? snapshot.carbs,
+                fat: entry.fat ?? snapshot.fat,
+                fiber: entry.fiber ?? snapshot.fiber,
+                imageUrl: entry.imageUrl,
+                servingSize: entry.servingSize,
+                servingUnit: entry.servingUnit,
+                date: entry.date,
+                eatenAt: entry.eatenAt,
+                createdAt: entry.createdAt,
+                updatedAt: entry.updatedAt
+            )
+            local.update(from: patched, date: local.date)
+        }
+        save()
+        return snapshot.name
+    }
+
+    // MARK: - Dependents of a create
+
+    private func insertOperation(_ operation: SyncOperation) {
+        context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
+    }
+
+    /// Queued or parked rows, other than `excluding`, that carry a reference to
+    /// the food/recipe `id` (an entry logging it, a recipe or supplement using it).
+    private func dependentRows(table: String, id: String, excluding: PendingSyncOperation?) -> [PendingSyncOperation] {
+        let excludedId = excluding?.id
+        return queuedRows().filter { candidate in
+            guard candidate.id != excludedId, let operation = candidate.operation() else { return false }
+            return references(of: operation).contains { $0.table == table && $0.id == id }
+        }
+    }
+
+    /// How many other queued or parked writes wait on this row's create. Zero
+    /// unless `row` is a create-food/create-recipe. Lets the UI warn before a
+    /// discard (see `discardParked`).
+    func dependentCount(of row: PendingSyncOperation) -> Int {
+        guard let operation = row.operation(), isCreateOperation(operation),
+              let table = operation.affectedTable, table == "foods" || table == "recipes",
+              let id = row.affectedId
+        else { return 0 }
+        return dependentRows(table: table, id: id, excluding: row).count
+    }
+
+    /// Settles the writes that waited on a food/recipe create that is going away,
+    /// without deleting any: entries become quick entries and are due again at
+    /// once; anything else is parked with a reason. Returns the days touched.
+    @discardableResult
+    private func detachDependents(table: String, id: String, excluding: PendingSyncOperation?) -> Set<String> {
+        var dates: Set<String> = []
+        for dependent in dependentRows(table: table, id: id, excluding: excluding) {
+            guard let operation = dependent.operation() else { continue }
+            if case let .createEntry(body, localId) = operation,
+               convertToQuickEntry(dependent, body: body, localId: localId) != nil
+            {
+                dates.insert(body.date)
+                if dependent.failedAt != nil {
+                    unpark(dependent)
+                } else {
+                    dependent.nextAttemptAt = Date.distantPast
+                }
+            } else {
+                park(dependent, reason: L10n.syncDependencyDiscarded)
+            }
+        }
+        save()
+        refreshCounts()
+        return dates
+    }
+
+    /// The discard side of `detachDependents`: also removes the never-uploaded
+    /// local food/recipe row, which no create is left to upload.
+    private func releaseDependents(of row: PendingSyncOperation, operation: SyncOperation) -> Set<String> {
+        guard isCreateOperation(operation), let table = operation.affectedTable,
+              table == "foods" || table == "recipes",
+              let id = row.affectedId, LocalStore.isTempId(id)
+        else { return [] }
+        let dates = detachDependents(table: table, id: id, excluding: row)
+        if table == "foods", let placeholder = LocalRemap.foodRow(id: id, in: context) {
+            context.delete(placeholder)
+            IntentDonations.removeFoods([id])
+        } else if table == "recipes", let placeholder = LocalRemap.recipeRow(id: id, in: context) {
+            context.delete(placeholder)
+        }
+        return dates
     }
 
     // MARK: - Execution
@@ -1179,9 +1492,21 @@ final class SyncManager {
 
     /// Deletes a parked change on the user's say-so. Only parked rows can be
     /// discarded here; a live queued row is never touched.
+    ///
+    /// Discarding a create-food/create-recipe never orphans the writes that
+    /// were waiting on it (see `dependentCount(of:)`): queued entries for it
+    /// become quick entries and go back in line to upload; any other dependent
+    /// (a recipe or supplement using the food) is parked with a reason, not
+    /// deleted. The never-uploaded local placeholder row goes with the create,
+    /// so it cannot be logged again against an id the server never had.
     func discardParked(_ row: PendingSyncOperation) {
         guard row.failedAt != nil else { return }
-        let dates = row.operation().map { dayKeys(for: $0) } ?? []
+        let operation = row.operation()
+        var dates = operation.map { dayKeys(for: $0) } ?? []
+        if let operation {
+            dates.formUnion(releaseDependents(of: row, operation: operation))
+            forgetEntrySnapshot(operation)
+        }
         context.delete(row)
         save()
         refreshCounts()

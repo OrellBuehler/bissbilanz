@@ -822,4 +822,274 @@ struct SyncManagerTests {
         #expect(harness.recordedRequests == ["PATCH /api/ai-tasks/task-1"])
         #expect(harness.syncManager.conflictNotices.count == 1)
     }
+
+    // MARK: - Recovering entries whose food never synced
+
+    private static let entryStub = """
+    {"entry": {"id": "e-server", "userId": "u1", "date": "2026-06-01", "mealType": "lunch", "servings": 2}}
+    """
+
+    /// The optimistic local entry row `EntryRepository.createEntry` writes before it enqueues.
+    private func insertLocalEntry(
+        _ harness: RepositoryHarness, create: EntryCreate, localId: String, food: Food?
+    ) throws {
+        harness.context.insert(LocalEntry(
+            entry: EntryFactory.makeEntry(from: create, id: localId, food: food, recipe: nil),
+            date: create.date
+        ))
+        try harness.context.save()
+    }
+
+    @Test("An entry whose food create is gone re-queues the create from the local food and uploads behind it")
+    func entryForMissingCreateRequeuesLocalFood() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", json: """
+        {"food": {
+            "id": "f-recreated", "userId": "u1", "name": "Skyr", "servingSize": 100, "servingUnit": "g",
+            "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false
+        }}
+        """)
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let food = try harness.food(id: tempFoodId, name: "Skyr")
+        harness.context.insert(LocalFood(food: food))
+        let create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 2, date: "2026-06-01")
+        try insertLocalEntry(harness, create: create, localId: localEntryId, food: food)
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 2)
+        #expect(harness.recordedRequests == ["POST /api/foods", "POST /api/entries"])
+        let foodBody = try #require(harness.recordedBodies("POST", "/api/foods").first)
+        #expect(try JSONDecoder().decode(FoodCreate.self, from: foodBody).name == "Skyr")
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let uploaded = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(uploaded.foodId == "f-recreated")
+        #expect(uploaded.quickName == nil)
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("An entry whose food is gone is logged as a quick entry from the snapshot")
+    func entryForGoneFoodBecomesQuickEntry() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let food = try harness.food(id: tempFoodId, name: "Skyr")
+        var create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 2, date: "2026-06-01")
+        create.eatenAt = "2026-06-01T12:30:00Z"
+        try insertLocalEntry(harness, create: create, localId: localEntryId, food: food)
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+        #expect(QueuedEntrySnapshots.lookup(entryId: localEntryId)?.name == "Skyr")
+
+        // No local food row, no queued create, no recorded mapping.
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.recordedRequests == ["POST /api/entries"])
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let uploaded = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(uploaded.foodId == nil)
+        #expect(uploaded.recipeId == nil)
+        #expect(uploaded.quickName == "Skyr")
+        #expect(uploaded.quickCalories == 100)
+        #expect(uploaded.quickProtein == 10)
+        #expect(uploaded.quickCarbs == 20)
+        #expect(uploaded.quickFat == 5)
+        #expect(uploaded.quickFiber == 3)
+        #expect(uploaded.servings == 2)
+        #expect(uploaded.mealType == "lunch")
+        #expect(uploaded.date == "2026-06-01")
+        #expect(uploaded.eatenAt == "2026-06-01T12:30:00Z")
+        #expect(uploaded.notes == L10n.syncRecoveredEntryNote)
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(harness.syncManager.conflictNotices == [L10n.syncRecoveredAsQuickEntry(name: "Skyr", day: "2026-06-01")])
+        #expect(QueuedEntrySnapshots.lookup(entryId: localEntryId) == nil)
+        #expect(harness.entryRepository.entries(date: "2026-06-01").allSatisfy { $0.foodId == nil })
+    }
+
+    @Test("The snapshot taken at enqueue survives the optimistic entry row being pruned")
+    func snapshotOutlivesLocalEntryRow() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+        // With the optimistic row gone, the upload queues the compensating delete.
+        harness.stub("DELETE", "/api/entries/e-server", status: 204, json: "")
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let food = try harness.food(id: tempFoodId, name: "Skyr")
+        var create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01")
+        create.notes = "with honey"
+        try insertLocalEntry(harness, create: create, localId: localEntryId, food: food)
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+        try harness.context.delete(model: LocalEntry.self)
+        try harness.context.save()
+
+        await harness.syncManager.drainPendingQueue()
+
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let uploaded = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(uploaded.quickName == "Skyr")
+        #expect(uploaded.quickCalories == 100)
+        // The user's own note is kept.
+        #expect(uploaded.notes == "with honey")
+        #expect(harness.syncManager.parkedRows().isEmpty)
+    }
+
+    @Test("A queue row persisted without a snapshot still decodes and drains")
+    func rowWithoutSnapshotStillDecodesAndDrains() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let food = try harness.food(id: tempFoodId, name: "Skyr")
+        let create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 1, date: "2026-06-01")
+        try insertLocalEntry(harness, create: create, localId: localEntryId, food: food)
+        // Inserted the way rows written before snapshots existed were: no enqueue, no snapshot.
+        let row = PendingSyncOperation(seq: 1, operation: .createEntry(body: create, localId: localEntryId))
+        harness.context.insert(row)
+        try harness.context.save()
+        #expect(row.operation() != nil)
+        #expect(QueuedEntrySnapshots.lookup(entryId: localEntryId) == nil)
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        #expect(try JSONDecoder().decode(EntryCreate.self, from: entryBody).quickName == "Skyr")
+        #expect(harness.syncManager.parkedRows().isEmpty)
+    }
+
+    @Test("An entry with neither a snapshot nor a local food stays parked, never deleted")
+    func unrecoverableEntryStaysParked() async throws {
+        let harness = try RepositoryHarness()
+        let create = EntryCreate(
+            foodId: LocalStore.makeTempId(), mealType: "lunch", servings: 1, date: "2026-06-01"
+        )
+        harness.context.insert(PendingSyncOperation(
+            seq: 1, operation: .createEntry(body: create, localId: LocalStore.makeTempId())
+        ))
+        try harness.context.save()
+
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(harness.recordedRequests.isEmpty)
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_entry"])
+    }
+
+    @Test("Discarding a parked food create turns the entries waiting on it into quick entries")
+    func discardingFoodCreateDoesNotOrphanEntries() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+
+        let tempFoodId = LocalStore.makeTempId()
+        let localEntryId = LocalStore.makeTempId()
+        let food = try harness.food(id: tempFoodId, name: "Skyr")
+        harness.context.insert(LocalFood(food: food))
+        let create = EntryCreate(foodId: tempFoodId, mealType: "lunch", servings: 2, date: "2026-06-01")
+        try insertLocalEntry(harness, create: create, localId: localEntryId, food: food)
+        harness.syncManager.enqueue(.createFood(body: makeFoodCreate(name: "Skyr"), localId: tempFoodId))
+        harness.syncManager.enqueue(.createEntry(body: create, localId: localEntryId))
+
+        await harness.syncManager.drainPendingQueue()
+        #expect(harness.syncManager.parkedRows().map(\.type) == ["create_food", "create_entry"])
+        let parkedFood = try #require(harness.syncManager.parkedRows().first { $0.type == "create_food" })
+        let parkedEntry = try #require(harness.syncManager.parkedRows().first { $0.type == "create_entry" })
+        #expect(harness.syncManager.dependentCount(of: parkedFood) == 1)
+        #expect(harness.syncManager.dependentCount(of: parkedEntry) == 0)
+
+        harness.syncManager.discardParked(parkedFood)
+
+        // The entry is back in line as a quick entry; the dead local food is gone.
+        #expect(harness.syncManager.parkedRows().isEmpty)
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["create_entry"])
+        #expect(LocalRemap.foodRow(id: tempFoodId, in: harness.context) == nil)
+
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        #expect(harness.recordedRequests == ["POST /api/foods", "POST /api/entries"])
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let uploaded = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(uploaded.foodId == nil)
+        #expect(uploaded.quickName == "Skyr")
+        #expect(uploaded.servings == 2)
+    }
+
+    @Test("Discarding a food create keeps a recipe that uses the food, parked with a reason")
+    func discardingFoodCreateParksRecipeDependents() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/foods", status: 400, json: #"{"error": "invalid"}"#)
+
+        let tempFoodId = LocalStore.makeTempId()
+        harness.syncManager.enqueue(.createFood(body: makeFoodCreate(name: "Skyr"), localId: tempFoodId))
+        harness.syncManager.enqueue(.createRecipe(
+            body: RecipeCreate(
+                name: "Bowl", totalServings: 2,
+                ingredients: [RecipeIngredientInput(foodId: tempFoodId, quantity: 80, servingUnit: .g)]
+            ),
+            localId: LocalStore.makeTempId()
+        ))
+        await harness.syncManager.drainPendingQueue()
+
+        let parkedFood = try #require(harness.syncManager.parkedRows().first { $0.type == "create_food" })
+        harness.syncManager.discardParked(parkedFood)
+
+        let remaining = harness.syncManager.parkedRows()
+        #expect(remaining.map(\.type) == ["create_recipe"])
+        #expect(remaining.first?.failureReason == L10n.syncDependencyDiscarded)
+    }
+
+    @Test("Deleting a temp food that a queued entry logs keeps the entry as a quick entry")
+    func deletingTempFoodKeepsQueuedEntries() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("POST", "/api/entries", json: Self.entryStub)
+
+        let temp = try await harness.foodRepository.createFood(makeFoodCreate(name: "Skyr"))
+        _ = try await harness.entryRepository.createEntry(
+            EntryCreate(foodId: temp.id, mealType: "lunch", servings: 2, date: "2026-06-01"),
+            food: temp
+        )
+
+        try await harness.foodRepository.deleteFood(id: temp.id)
+        #expect(harness.syncManager.queuedRows().map(\.type) == ["create_entry"])
+
+        await harness.syncManager.drainPendingQueue()
+
+        #expect(harness.recordedRequests == ["POST /api/entries"])
+        let entryBody = try #require(harness.recordedBodies("POST", "/api/entries").first)
+        let uploaded = try JSONDecoder().decode(EntryCreate.self, from: entryBody)
+        #expect(uploaded.foodId == nil)
+        #expect(uploaded.quickName == "Skyr")
+        #expect(uploaded.quickCalories == 98)
+        #expect(harness.syncManager.parkedRows().isEmpty)
+    }
+
+    @Test("A completion no longer waits on an entry that was deleted before it uploaded")
+    func completionDropsDeletedEntryReference() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("PATCH", "/api/ai-tasks/task-1", json: """
+        {"task": {"id": "task-1", "userId": "u1", "status": "completed", "photoUrls": [], "date": "2026-06-01"}}
+        """)
+        let deletedEntryId = LocalStore.makeTempId()
+
+        harness.syncManager.enqueue(.completeAiTask(
+            taskId: "task-1", localEntryIds: [deletedEntryId, "e2"], resultSummary: "Logged egg",
+            processedBy: "on_device", clientEditedAt: nil
+        ))
+        let drained = await harness.syncManager.drainPendingQueue()
+
+        #expect(drained == 1)
+        let body = try #require(harness.recordedBodies("PATCH", "/api/ai-tasks/task-1").first)
+        #expect(try JSONDecoder().decode(AiTaskUpdate.self, from: body).createdEntryIds == ["e2"])
+        #expect(harness.syncManager.parkedRows().isEmpty)
+    }
 }

@@ -157,6 +157,11 @@ db.version(11)
 			});
 	});
 
+// v12: recipe labels, so the recipe pickers match a label offline like foods do.
+db.version(12).stores({
+	recipes: 'id, name, isFavorite, updatedAt, *labels'
+});
+
 db.foods.hook('creating', (_primKey, obj) => {
 	obj.kind ||= 'food';
 	if (obj.isFavorite) obj.favKey = 1;

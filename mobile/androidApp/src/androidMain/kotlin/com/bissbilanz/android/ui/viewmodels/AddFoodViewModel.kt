@@ -47,6 +47,8 @@ class AddFoodViewModel(
             .map { list -> list.filter { it.isFavorite } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    suspend fun searchRecipes(query: String): List<Recipe> = recipeRepo.searchRecipes(query)
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 

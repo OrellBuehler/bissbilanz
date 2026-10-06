@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 
 /**
- * Chip editor for a food's labels — the general English nouns search matches
+ * Chip editor for a food's or recipe's labels — the general English nouns search matches
  * against ("banana", "bread"). Values are normalized by the caller on add so
  * what the user sees is exactly what the server will store.
  */
@@ -40,6 +40,7 @@ fun FoodLabelsInput(
     onAdd: () -> Unit,
     onRemove: (String) -> Unit,
     modifier: Modifier = Modifier,
+    hint: String = stringResource(R.string.food_form_labels_hint),
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -57,7 +58,7 @@ fun FoodLabelsInput(
             }
         }
         Text(
-            stringResource(R.string.food_form_labels_hint),
+            hint,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

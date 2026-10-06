@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS CachedRecipeLabel (
+    recipeId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    PRIMARY KEY (recipeId, label)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cached_recipe_label_label ON CachedRecipeLabel(label);

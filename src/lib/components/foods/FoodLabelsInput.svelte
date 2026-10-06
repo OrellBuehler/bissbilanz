@@ -10,9 +10,10 @@
 	type Props = {
 		labels: string[];
 		onChange: (labels: string[]) => void;
+		hint?: string;
 	};
 
-	let { labels, onChange }: Props = $props();
+	let { labels, onChange, hint }: Props = $props();
 
 	let draft = $state('');
 
@@ -75,5 +76,5 @@
 			<Plus class="size-4" />
 		</Button>
 	</div>
-	<p class="text-xs text-muted-foreground">{m.food_form_labels_hint()}</p>
+	<p class="text-xs text-muted-foreground">{hint ?? m.food_form_labels_hint()}</p>
 </div>

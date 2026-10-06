@@ -640,4 +640,140 @@ class RecipeRepositoryTest {
 
             assertEquals(emptyList(), cachedRecipe("srv_r1").steps)
         }
+
+    private suspend fun createLabelled(
+        name: String,
+        labels: List<String>,
+    ): String {
+        val created =
+            repository.createRecipe(
+                RecipeCreate(
+                    name = name,
+                    totalServings = 1.0,
+                    ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+                ),
+            )
+        repository.setLabels(created.id, labels)
+        return created.id
+    }
+
+    @Test
+    fun setLabelsNormalizesCachesAndIndexesThemAndQueuesTheWrite() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val (synced, queue) = syncedRepository()
+            val created =
+                synced.createRecipe(
+                    RecipeCreate(
+                        name = "Rice Bowl",
+                        totalServings = 1.0,
+                        ingredients = listOf(RecipeIngredientInput("temp_f1", 100.0, ServingUnit.g)),
+                    ),
+                )
+
+            val updated = synced.setLabels(created.id, listOf("Soups", "curry", "soup"))
+
+            assertEquals(listOf("curry", "soup"), updated?.labels)
+            assertEquals(listOf("curry", "soup"), cachedRecipe(created.id).labels)
+            assertEquals(2L, db.userDataDatabaseQueries.countRecipeLabels().executeAsOne())
+            val queued = queue.all().map { it.operation }.filterIsInstance<SyncOperation.SetRecipeLabels>()
+            assertEquals(listOf(SyncOperation.SetRecipeLabels(created.id, listOf("Soups", "curry", "soup"))), queued)
+        }
+
+    @Test
+    fun replacingLabelsDropsTheOnesThatWereRemoved() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val id = createLabelled("Rice Bowl", listOf("rice", "bowl"))
+
+            repository.setLabels(id, listOf("rice"))
+
+            assertEquals(1L, db.userDataDatabaseQueries.countRecipeLabels().executeAsOne())
+            assertEquals(listOf("rice"), cachedRecipe(id).labels)
+        }
+
+    @Test
+    fun searchRanksNameMatchesBeforeLabelMatches() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val byLabel = createLabelled("Aubergine Bake", listOf("soup"))
+            val byName = createLabelled("Tomato Soup", emptyList())
+            createLabelled("Pancakes", listOf("dessert"))
+
+            val results = repository.searchRecipes("Soups")
+
+            assertEquals(listOf(byLabel), results.map { it.id })
+            assertEquals(listOf(byName, byLabel), repository.searchRecipes("soup").map { it.id })
+        }
+
+    @Test
+    fun searchWithoutALabelStillMatchesByName() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val id = createLabelled("Tomato Soup", emptyList())
+
+            assertEquals(listOf(id), repository.searchRecipes("tomato").map { it.id })
+            assertTrue(repository.searchRecipes("zzz").isEmpty())
+        }
+
+    @Test
+    fun deletingARecipeDropsItsLabelIndex() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val id = createLabelled("Rice Bowl", listOf("rice"))
+
+            repository.deleteRecipe(id)
+
+            assertEquals(0L, db.userDataDatabaseQueries.countRecipeLabels().executeAsOne())
+        }
+
+    @Test
+    fun duplicateCarriesTheLabelsOver() =
+        runTest {
+            insertLocalFood("temp_f1")
+            val id = createLabelled("Rice Bowl", listOf("rice"))
+
+            val copy = repository.duplicateRecipe(id, "Rice Bowl (copy)")
+
+            assertEquals(listOf("rice"), copy.labels)
+            assertEquals(listOf("rice"), cachedRecipe(copy.id).labels)
+        }
+
+    @Test
+    fun refreshCachesTheLabelsTheListCarries() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 0).copy(labels = listOf("soup")))
+
+            synced.refresh()
+
+            assertEquals(listOf("soup"), cachedRecipe("srv_r1").labels)
+            assertEquals(listOf("srv_r1"), synced.searchRecipes("soup").map { it.id })
+        }
+
+    @Test
+    fun refreshKeepsCachedLabelsWhenAnOlderServerOmitsThem() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 0).copy(labels = listOf("soup")))
+            synced.refresh()
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 0))
+
+            synced.refresh()
+
+            assertEquals(listOf("soup"), cachedRecipe("srv_r1").labels)
+        }
+
+    @Test
+    fun refreshDropsLabelsOfRecipesTheServerNoLongerReturns() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            coEvery { api.getRecipes() } returns listOf(summary("srv_r1", stepCount = 0).copy(labels = listOf("soup")))
+            synced.refresh()
+            coEvery { api.getRecipes() } returns emptyList()
+
+            synced.refresh()
+
+            assertEquals(0L, db.userDataDatabaseQueries.countRecipeLabels().executeAsOne())
+        }
 }

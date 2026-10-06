@@ -34,3 +34,28 @@ export const filterFoods = <T extends SearchableFood>(foods: T[], query: string)
 		.sort((a, b) => a.tier - b.tier)
 		.map(({ food }) => food);
 };
+
+export type SearchableRecipe = { name: string; labels?: string[] | null };
+
+/**
+ * Match tier for one recipe, the food tiers minus the brand: 0 name, 1 label
+ * (the query normalized like a label), -1 no match.
+ */
+export const recipeMatchTier = (recipe: SearchableRecipe, query: string): number => {
+	const q = query.trim().toLowerCase();
+	if (!q) return 0;
+	if (recipe.name.toLowerCase().includes(q)) return 0;
+	const label = normalizeLabel(q);
+	if (label && recipe.labels?.includes(label)) return 1;
+	return -1;
+};
+
+/** Filter and rank recipes for a query: name matches first, then label matches. */
+export const filterRecipes = <T extends SearchableRecipe>(recipes: T[], query: string): T[] => {
+	if (!query.trim()) return recipes;
+	return recipes
+		.map((recipe) => ({ recipe, tier: recipeMatchTier(recipe, query) }))
+		.filter(({ tier }) => tier >= 0)
+		.sort((a, b) => a.tier - b.tier)
+		.map(({ recipe }) => recipe);
+};

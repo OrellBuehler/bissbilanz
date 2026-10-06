@@ -16,6 +16,7 @@
 	import { recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
 	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
+	import { filterRecipes } from '$lib/components/foods/foodFilters';
 
 	const MAX_INGREDIENTS = 100;
 
@@ -40,9 +41,7 @@
 	let amount = $state<number | null>(null);
 	let mode = $state<'servings' | 'grams'>('servings');
 
-	const visibleRecipes = $derived(
-		recipes.filter((r) => r.name.toLowerCase().includes(query.trim().toLowerCase()))
-	);
+	const visibleRecipes = $derived(filterRecipes(recipes, query));
 
 	const hasCookedWeight = $derived((selected?.cookedWeight ?? 0) > 0);
 
