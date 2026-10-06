@@ -53,7 +53,7 @@ import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.RecipeScaleMode
 import com.bissbilanz.util.recipeScaleFactor
-import com.bissbilanz.util.scaleIngredients
+import com.bissbilanz.util.scaleSourceIngredients
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
@@ -64,12 +64,14 @@ const val MAX_RECIPE_INGREDIENTS = 100
 /**
  * Picks a source recipe and an amount of it, then hands back that recipe's ingredients
  * scaled to the amount (a snapshot copy, not a link). [existingCount] is the number of
- * ingredients already in the editor, so the 100-ingredient cap can be enforced here.
+ * ingredients already in the editor, so the 100-ingredient cap can be enforced here. [excludeRecipeId] is the recipe being
+ * edited, which is never offered as a source.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeSourceSheet(
     existingCount: Int,
+    excludeRecipeId: String? = null,
     onDismiss: () -> Unit,
     onAdd: (List<RecipeIngredient>) -> Unit,
 ) {
@@ -104,8 +106,9 @@ fun RecipeSourceSheet(
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val visibleRecipes =
-        remember(recipes, query) {
+        remember(recipes, query, excludeRecipeId) {
             recipes
+                .filter { it.id != excludeRecipeId }
                 .filter { it.name.contains(query.trim(), ignoreCase = true) }
                 .sortedBy { it.name.lowercase() }
         }
@@ -290,7 +293,7 @@ fun RecipeSourceSheet(
                                         when {
                                             sourceIngredients.isEmpty() -> errorMessage = noIngredientsMessage
                                             existingCount + sourceIngredients.size > MAX_RECIPE_INGREDIENTS -> errorMessage = tooManyMessage
-                                            else -> onAdd(scaleIngredients(sourceIngredients, scale))
+                                            else -> onAdd(scaleSourceIngredients(sourceIngredients, scale))
                                         }
                                     } catch (e: Exception) {
                                         if (e is kotlinx.coroutines.CancellationException) throw e

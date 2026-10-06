@@ -160,6 +160,7 @@ fun RecipeEditSheet(
     if (showRecipeSource) {
         RecipeSourceSheet(
             existingCount = ingredients.size,
+            excludeRecipeId = recipeId,
             onDismiss = { showRecipeSource = false },
             onAdd = { scaled ->
                 showRecipeSource = false

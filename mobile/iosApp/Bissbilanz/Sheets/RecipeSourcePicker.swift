@@ -17,6 +17,7 @@ struct RecipeSourcePicker: View {
     @Environment(RecipeRepository.self) private var recipeRepository
 
     let currentIngredientCount: Int
+    var excludeRecipeId: String?
     let onAdd: ([RecipeIngredient], Double) async -> Void
 
     @State private var recipes: [Recipe] = []
@@ -25,12 +26,18 @@ struct RecipeSourcePicker: View {
     @State private var errorMessage: String?
     @State private var query = ""
 
+    nonisolated static func candidates(_ recipes: [Recipe], excluding id: String?) -> [Recipe] {
+        guard let id else { return recipes }
+        return recipes.filter { $0.id != id }
+    }
+
     private var filteredRecipes: [Recipe] {
+        let candidates = Self.candidates(recipes, excluding: excludeRecipeId)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
-            return RecipeSearch.matching(recipes, query: trimmed)
+            return RecipeSearch.matching(candidates, query: trimmed)
         }
-        return recipes.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return candidates.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     var body: some View {
