@@ -1,7 +1,4 @@
-import * as Sentry from '@sentry/sveltekit';
 import { randomUUID } from 'node:crypto';
-import { unlink } from 'node:fs/promises';
-import { join } from 'node:path';
 import { and, eq, inArray } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
 import {
@@ -12,7 +9,12 @@ import {
 	recipes,
 	uploads
 } from '$lib/server/schema';
-import { UPLOAD_DIR, renderThumbnail, unlinkUploads, writeUploadFile } from '$lib/server/images';
+import {
+	dropUploadFiles,
+	renderThumbnail,
+	unlinkUploads,
+	writeUploadFile
+} from '$lib/server/images';
 import { isDuplicateBarcodeError } from '$lib/server/foods';
 import { unlinkUnreferencedUploads } from '$lib/server/recipes';
 import { MAX_LABELS_PER_FOOD, normalizeLabels } from '$lib/server/labels';
@@ -71,15 +73,6 @@ async function mapLimit<T>(items: T[], limit: number, run: (item: T) => Promise<
 		})
 	);
 }
-
-const dropFiles = (filenames: string[]) =>
-	Promise.all(
-		filenames.map((filename) =>
-			unlink(join(UPLOAD_DIR, filename)).catch((err) => {
-				if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });
-			})
-		)
-	);
 
 /**
  * Apply a package with the user's conflict choices, all-or-nothing.
@@ -142,6 +135,7 @@ export async function commitFoodPackageImport(
 	const imageBytes = pkg.readImages([...new Set(imageJobs.map((job) => job.path))]);
 	const imageByRef = new Map<string, string>();
 	const written: string[] = [];
+	const writtenBytes = new Map<string, number>();
 	try {
 		await mapLimit(imageJobs, IMAGE_CONCURRENCY, async (job) => {
 			const bytes = imageBytes.get(job.path);
@@ -158,10 +152,11 @@ export async function commitFoodPackageImport(
 			}
 			const filename = await writeUploadFile(rendered);
 			written.push(filename);
+			writtenBytes.set(filename, rendered.byteLength);
 			imageByRef.set(job.key, `/uploads/${filename}`);
 		});
 	} catch (error) {
-		await dropFiles(written);
+		await dropUploadFiles(written);
 		throw error;
 	}
 
@@ -191,9 +186,15 @@ export async function commitFoodPackageImport(
 	const db = getDB();
 	try {
 		await db.transaction(async (tx) => {
-			if (written.length) {
-				await tx.insert(uploads).values(written.map((filename) => ({ filename, userId })));
-			}
+			await inChunks(written, (part) =>
+				tx.insert(uploads).values(
+					part.map((filename) => ({
+						filename,
+						userId,
+						sizeBytes: writtenBytes.get(filename) ?? 0
+					}))
+				)
+			);
 
 			const inserts: (typeof foods.$inferInsert)[] = [];
 			const labelWrites: { foodId: string; labels: string[]; existing: number }[] = [];
@@ -233,14 +234,18 @@ export async function commitFoodPackageImport(
 					)
 				: [];
 			const currentImage = new Map(current.map((row) => [row.id, row.imageUrl]));
-			const labelCounts = replaceIds.length
-				? await collect(replaceIds, (part) =>
-						tx
-							.select({ foodId: foodLabels.foodId })
-							.from(foodLabels)
-							.where(inArray(foodLabels.foodId, part))
-					)
-				: [];
+			const labelCountByFood = new Map<string, number>();
+			if (replaceIds.length) {
+				const labelRows = await collect(replaceIds, (part) =>
+					tx
+						.select({ foodId: foodLabels.foodId })
+						.from(foodLabels)
+						.where(inArray(foodLabels.foodId, part))
+				);
+				for (const row of labelRows) {
+					labelCountByFood.set(row.foodId, (labelCountByFood.get(row.foodId) ?? 0) + 1);
+				}
+			}
 			for (const op of replaces) {
 				if (!currentImage.has(op.id)) throw new ApiError(409, 'stale_preview');
 				const image = imageFor(op.food.ref, op.food.imageUrl);
@@ -259,7 +264,7 @@ export async function commitFoodPackageImport(
 				labelWrites.push({
 					foodId: op.id,
 					labels: op.food.labels,
-					existing: labelCounts.filter((row) => row.foodId === op.id).length
+					existing: labelCountByFood.get(op.id) ?? 0
 				});
 				counts.replaced.foods += 1;
 			}
@@ -349,7 +354,7 @@ export async function commitFoodPackageImport(
 			await inChunks(stepInserts, (part) => tx.insert(recipeSteps).values(part));
 		});
 	} catch (error) {
-		await dropFiles(written);
+		await dropUploadFiles(written);
 		// Another import (or an edit) took a barcode between the plan and the write.
 		if (isDuplicateBarcodeError(error) || isDuplicateBarcodeError((error as Error)?.cause)) {
 			throw new ApiError(409, 'stale_preview');

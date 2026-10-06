@@ -1,7 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createFood, findFoodByBarcode, listFoods } from '$lib/server/foods';
-import { paginationSchema } from '$lib/server/validation';
+import { foodsPaginationSchema } from '$lib/server/validation/pagination';
+import { foodDeltaQuerySchema } from '$lib/server/validation/foods';
+import { decodeFoodCursor } from '$lib/server/food-cursor';
 import { minLabelsSchema } from '$lib/server/validation/labels';
 import {
 	handleApiError,
@@ -25,7 +27,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			return json({ foods: food ? [food] : [], total: food ? 1 : 0 });
 		}
 
-		const paginationResult = paginationSchema.safeParse({
+		const paginationResult = foodsPaginationSchema.safeParse({
 			limit: url.searchParams.get('limit'),
 			offset: url.searchParams.get('offset')
 		});
@@ -47,6 +49,26 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			minLabels = 1;
 		}
 		const { offset } = paginationResult.data;
+		// `after` / `modifiedSince` switch to delta mode: ordered by server write
+		// time, keyset-paginated, no count, and a `nextCursor` in the response.
+		const deltaResult = foodDeltaQuerySchema.safeParse({
+			after: url.searchParams.get('after') || undefined,
+			modifiedSince: url.searchParams.get('modifiedSince') || undefined
+		});
+		if (!deltaResult.success) return validationError(deltaResult.error);
+		const { modifiedSince } = deltaResult.data;
+		const after = deltaResult.data.after ? decodeFoodCursor(deltaResult.data.after) : undefined;
+		if (after === null) return json({ error: 'Invalid cursor' }, { status: 400 });
+		if (after || modifiedSince) {
+			const { items, total, nextCursor } = await listFoods(userId, {
+				query,
+				limit: paginationResult.data.limit,
+				minLabels,
+				after,
+				modifiedSince
+			});
+			return json({ foods: items, total, nextCursor });
+		}
 		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
 		const { items: foods, total } = await listFoods(userId, { query, limit, offset, minLabels });
 		return json({ foods, total });

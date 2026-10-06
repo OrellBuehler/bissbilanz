@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.ServingUnit
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -22,10 +23,7 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param id
- * @param userId
  * @param name
- * @param brand
  * @param servingSize
  * @param servingUnit
  * @param calories
@@ -33,13 +31,8 @@ import kotlinx.serialization.encoding.*
  * @param carbs
  * @param fat
  * @param fiber
- * @param barcode
- * @param isFavorite
- * @param nutriScore
- * @param novaGroup
- * @param additives
- * @param ingredientsText
- * @param imageUrl
+ * @param id
+ * @param brand
  * @param saturatedFat
  * @param monounsaturatedFat
  * @param polyunsaturatedFat
@@ -83,31 +76,28 @@ import kotlinx.serialization.encoding.*
  * @param alcohol
  * @param water
  * @param salt
+ * @param barcode
+ * @param isFavorite
+ * @param nutriScore
+ * @param novaGroup
+ * @param additives
+ * @param ingredientsText
+ * @param imageUrl
+ * @param categoriesTags
  * @param labels
- * @param createdAt
- * @param updatedAt
- * @param serverModifiedAt
  */
 @Serializable
-data class Food(
-    @SerialName(value = "id") @Required val id: kotlin.String,
-    @SerialName(value = "userId") @Required val userId: kotlin.String,
+data class FoodBulkItem(
     @SerialName(value = "name") @Required val name: kotlin.String,
-    @SerialName(value = "brand") @Required val brand: kotlin.String?,
     @SerialName(value = "servingSize") @Required val servingSize: kotlin.Double,
-    @SerialName(value = "servingUnit") @Required val servingUnit: Food.ServingUnit,
+    @SerialName(value = "servingUnit") @Required val servingUnit: ServingUnit,
     @SerialName(value = "calories") @Required val calories: kotlin.Double,
     @SerialName(value = "protein") @Required val protein: kotlin.Double,
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
-    @SerialName(value = "barcode") @Required val barcode: kotlin.String?,
-    @SerialName(value = "isFavorite") @Required val isFavorite: kotlin.Boolean = false,
-    @SerialName(value = "nutriScore") @Required val nutriScore: kotlin.String?,
-    @SerialName(value = "novaGroup") @Required val novaGroup: kotlin.Int?,
-    @SerialName(value = "additives") @Required val additives: kotlin.collections.List<kotlin.String>?,
-    @SerialName(value = "ingredientsText") @Required val ingredientsText: kotlin.String?,
-    @SerialName(value = "imageUrl") @Required val imageUrl: kotlin.String?,
+    @SerialName(value = "id") @Required val id: kotlin.String,
+    @SerialName(value = "brand") val brand: kotlin.String? = null,
     @SerialName(value = "saturatedFat") val saturatedFat: kotlin.Double? = null,
     @SerialName(value = "monounsaturatedFat") val monounsaturatedFat: kotlin.Double? = null,
     @SerialName(value = "polyunsaturatedFat") val polyunsaturatedFat: kotlin.Double? = null,
@@ -151,51 +141,38 @@ data class Food(
     @SerialName(value = "alcohol") val alcohol: kotlin.Double? = null,
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
+    @SerialName(value = "barcode") val barcode: kotlin.String? = null,
+    @SerialName(value = "isFavorite") val isFavorite: kotlin.Boolean? = null,
+    @SerialName(value = "nutriScore") val nutriScore: FoodBulkItem.NutriScore? = null,
+    @SerialName(value = "novaGroup") val novaGroup: kotlin.Int? = null,
+    @SerialName(value = "additives") val additives: kotlin.collections.List<kotlin.String>? = null,
+    @SerialName(value = "ingredientsText") val ingredientsText: kotlin.String? = null,
+    @SerialName(value = "imageUrl") val imageUrl: kotlin.String? = null,
+    @SerialName(value = "categoriesTags") val categoriesTags: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "labels") val labels: kotlin.collections.List<kotlin.String>? = null,
-    @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
-    @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
-    @SerialName(value = "serverModifiedAt") val serverModifiedAt: kotlin.String? = null,
 ) {
     /**
      *
      *
-     * Values: g,kg,ml,cl,l,oz,lb,fl_oz,cup,tbsp,tsp
+     * Values: a,b,c,d,e
      */
     @Serializable
-    enum class ServingUnit(
+    enum class NutriScore(
         val value: kotlin.String,
     ) {
-        @SerialName(value = "g")
-        g("g"),
+        @SerialName(value = "a")
+        a("a"),
 
-        @SerialName(value = "kg")
-        kg("kg"),
+        @SerialName(value = "b")
+        b("b"),
 
-        @SerialName(value = "ml")
-        ml("ml"),
+        @SerialName(value = "c")
+        c("c"),
 
-        @SerialName(value = "cl")
-        cl("cl"),
+        @SerialName(value = "d")
+        d("d"),
 
-        @SerialName(value = "l")
-        l("l"),
-
-        @SerialName(value = "oz")
-        oz("oz"),
-
-        @SerialName(value = "lb")
-        lb("lb"),
-
-        @SerialName(value = "fl_oz")
-        fl_oz("fl_oz"),
-
-        @SerialName(value = "cup")
-        cup("cup"),
-
-        @SerialName(value = "tbsp")
-        tbsp("tbsp"),
-
-        @SerialName(value = "tsp")
-        tsp("tsp"),
+        @SerialName(value = "e")
+        e("e"),
     }
 }

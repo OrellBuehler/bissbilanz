@@ -73,6 +73,9 @@ export const uploads = pgTable(
 		userId: uuid('user_id')
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
+		// Stored bytes, for the per-user upload quota. Rows from before the column
+		// existed read 0, so the quota only counts what was written since.
+		sizeBytes: integer('size_bytes').notNull().default(0),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(table) => [index('uploads_user_id_idx').on(table.userId)]
@@ -194,10 +197,15 @@ export const foods = pgTable(
 		ingredientsText: text('ingredients_text'),
 		imageUrl: text('image_url'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+		// Set by the foods_server_modified_at trigger on every insert and update.
+		// `updated_at` is the client's last-write-wins stamp, so a late-synced
+		// offline edit can carry an old one; delta sync must key on this instead.
+		serverModifiedAt: timestamp('server_modified_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(table) => [
 		index('idx_foods_user_id').on(table.userId),
+		index('idx_foods_user_server_modified').on(table.userId, table.serverModifiedAt, table.id),
 		uniqueIndex('idx_foods_barcode')
 			.on(table.userId, table.barcode)
 			.where(sql`barcode IS NOT NULL`),

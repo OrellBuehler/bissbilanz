@@ -35,7 +35,11 @@ export const foodSchema = z
 		// them, and a missing key must not break a generated client's decode.
 		labels: z.array(z.string()).nullable().optional(),
 		createdAt: z.string().optional(),
-		updatedAt: z.string().optional()
+		updatedAt: z.string().optional(),
+		// When the server last wrote the row, set by the database on every insert
+		// and update. Unlike `updatedAt` (the client's last-write-wins stamp) it
+		// never goes backwards, so it is what delta sync is keyed on.
+		serverModifiedAt: z.string().optional()
 	})
 	.meta({ id: 'Food' });
 
@@ -69,9 +73,38 @@ const recentFoodSchema = z
 export const foodsListResponseSchema = z
 	.object({
 		foods: z.array(foodSchema),
-		total: z.number().int()
+		// In delta mode (`after` / `modifiedSince`) the count is skipped and this is
+		// the number of foods in the page.
+		total: z.number().int(),
+		// Delta mode only: pass as `after` for the next page; null once exhausted.
+		nextCursor: z.string().nullable().optional()
 	})
 	.meta({ id: 'FoodsListResponse' });
+
+export const foodIdsResponseSchema = z
+	.object({
+		ids: z.array(z.string().uuid())
+	})
+	.meta({ id: 'FoodIdsResponse' });
+
+export const foodBulkResultSchema = z
+	.object({
+		id: z.string(),
+		// created | exists | id_conflict | duplicate_barcode | invalid. A plain string
+		// so new outcomes can be added without breaking a decoder.
+		status: z.string(),
+		imageUrl: z.string().optional(),
+		// invalid: the validation message. created: why the image was not stored
+		// (image_too_large, image_invalid, quota_exceeded) while the food was.
+		message: z.string().optional()
+	})
+	.meta({ id: 'FoodBulkResult' });
+
+export const foodBulkResponseSchema = z
+	.object({
+		results: z.array(foodBulkResultSchema)
+	})
+	.meta({ id: 'FoodBulkResponse' });
 
 export const foodResponseSchema = z
 	.object({
