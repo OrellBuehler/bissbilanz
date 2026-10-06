@@ -490,7 +490,7 @@
 	},
 	"src/routes/(app)/recipes/+page.svelte": {
 		"@typescript-eslint/no-floating-promises": {
-			"count": 8
+			"count": 7
 		},
 		"svelte/no-unused-svelte-ignore": {
 			"count": 1

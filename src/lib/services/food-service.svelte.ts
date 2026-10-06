@@ -4,8 +4,9 @@ import { browser } from '$app/environment';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';
-import { refreshTable, withOfflineFallback } from './base';
-import { filterFoods } from '$lib/components/foods/foodFilters';
+import { withOfflineFallback } from './base';
+import { refreshFoodsDelta } from './food-delta';
+import { favoriteFoods, getFoodsByIds, regularFoodsPage, searchFoods } from './food-search';
 import { normalizeLabels } from '$lib/labels';
 import { pickNonNullNutrients } from '$lib/nutrients';
 import type { paths } from '$lib/api/generated/schema';
@@ -19,47 +20,56 @@ type FoodImportResult =
 	paths['/api/foods/import']['post']['responses']['201']['content']['application/json'];
 type FoodUpdate = paths['/api/foods/{id}']['patch']['requestBody']['content']['application/json'];
 
-// Supplement backing foods share the Dexie `foods` table but must not appear
-// in user-facing food lists. Treat a missing `kind` field as regular food so
-// pre-v4 cached rows still show up.
-const isRegularFood = (f: DexieFood) => (f.kind ?? 'food') === 'food';
-
-function allFoods() {
-	return liveQuery(() => db.foods.orderBy('name').filter(isRegularFood).toArray());
+function allFoodsPage(page: number, perPage: number) {
+	return liveQuery(() => regularFoodsPage(page, perPage));
 }
 
 function foodById(id: string) {
 	return liveQuery(() => db.foods.get(id));
 }
 
-function search(query: string) {
+function search(query: string, options: { limit?: number; barcode?: boolean } = {}) {
 	// Name, then label, then brand — the same tiers as the server's search, so
-	// "bread" finds "Vollkornbrot" offline too once it is labelled.
-	return liveQuery(() =>
-		db.foods
-			.orderBy('name')
-			.filter(isRegularFood)
-			.toArray()
-			.then((rows) => filterFoods(rows, query))
-	);
+	// "bread" finds "Vollkornbrot" offline too once it is labelled. Bounded by
+	// `options.limit`: an account can hold 100k foods and a search must not read them all.
+	return liveQuery(() => searchFoods(query, options));
 }
 
 function favorites() {
-	return liveQuery(() => db.foods.filter((f) => isRegularFood(f) && f.isFavorite).toArray());
+	return liveQuery(() => favoriteFoods());
 }
 
-async function refresh() {
-	// Only reconcile regular-food rows; supplement backing foods are
-	// managed by the supplement service and must not be wiped here.
-	await refreshTable<DexieFood>({
-		table: db.foods,
-		syncTableName: 'foods',
-		fetchServer: async () => {
-			const { data } = await api.GET('/api/foods');
-			return (data?.foods as unknown as DexieFood[]) ?? null;
-		},
-		keepLocalRow: isRegularFood
+function foodsByIds(ids: string[]) {
+	return liveQuery(() => getFoodsByIds(ids));
+}
+
+let running: Promise<void> | null = null;
+let rerun = false;
+
+/**
+ * Bring the foods mirror up to date from the server's delta feed instead of
+ * re-downloading the table. Overlapping calls are coalesced; a call made while
+ * one is running triggers exactly one more pass so it never gets a stale result.
+ */
+function refresh() {
+	if (running) {
+		rerun = true;
+		return running;
+	}
+	running = (async () => {
+		do {
+			rerun = false;
+			await refreshFoodsDelta();
+		} while (rerun);
+	})().finally(() => {
+		running = null;
 	});
+	return running;
+}
+
+/** Drop rows from the mirror that were just deleted on the server. */
+async function removeLocal(ids: string[]) {
+	await db.foods.bulkDelete(ids);
 }
 
 async function refreshById(id: string) {
@@ -370,11 +380,15 @@ async function enrichFromOff(id: string, barcode: string) {
 }
 
 export const foodService = {
-	allFoods,
+	allFoodsPage,
 	foodById,
+	foodsByIds,
+	getFoodsByIds,
+	searchFoods,
 	search,
 	favorites,
 	refresh,
+	removeLocal,
 	refreshById,
 	create,
 	update,

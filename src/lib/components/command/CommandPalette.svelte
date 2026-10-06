@@ -10,7 +10,6 @@
 	import { getNavItems } from '$lib/config/navigation';
 	import { commandPalette, requestQuickAction } from '$lib/stores/command-palette.svelte';
 	import { parseDateQuery, rankByQuery } from '$lib/utils/command-palette';
-	import { filterFoods } from '$lib/components/foods/foodFilters';
 	import { formatDateLabel, yesterday } from '$lib/utils/dates';
 	import { api } from '$lib/api/client';
 	import type { DexieFood, DexieRecipe } from '$lib/db/types';
@@ -34,8 +33,16 @@
 	const noFoods = () => liveQuery(async (): Promise<DexieFood[]> => []);
 	const noRecipes = () => liveQuery(async (): Promise<DexieRecipe[]> => []);
 
+	// Matches and favourites come from bounded index queries, never the whole mirror.
 	const foodsQuery = useLiveQuery<DexieFood[]>(
-		() => (commandPalette.open ? foodService.allFoods() : noFoods()),
+		() =>
+			commandPalette.open && query.trim()
+				? foodService.search(query, { limit: MAX_FOODS })
+				: noFoods(),
+		[]
+	);
+	const favoriteFoodsQuery = useLiveQuery<DexieFood[]>(
+		() => (commandPalette.open ? foodService.favorites() : noFoods()),
 		[]
 	);
 	const recipesQuery = useLiveQuery<DexieRecipe[]>(
@@ -44,6 +51,7 @@
 	);
 
 	const foods = $derived(foodsQuery.value);
+	const favoriteFoods = $derived(favoriteFoodsQuery.value);
 	const recipes = $derived(recipesQuery.value);
 
 	const loadRecentFoods = async () => {
@@ -156,7 +164,7 @@
 
 	const matchedFoods = $derived(
 		query.trim()
-			? filterFoods(foods, query).slice(0, MAX_FOODS)
+			? foods.slice(0, MAX_FOODS)
 			: recentFoods.slice(0, MAX_FOODS).map((f) => ({ id: f.id, name: f.name }))
 	);
 	const matchedRecipes = $derived(
@@ -166,7 +174,7 @@
 		query.trim()
 			? []
 			: [
-					...foods.filter((f) => f.isFavorite).map((f) => ({ id: f.id, name: f.name, food: true })),
+					...favoriteFoods.map((f) => ({ id: f.id, name: f.name, food: true })),
 					...recipes
 						.filter((r) => r.isFavorite)
 						.map((r) => ({ id: r.id, name: r.name, food: false }))

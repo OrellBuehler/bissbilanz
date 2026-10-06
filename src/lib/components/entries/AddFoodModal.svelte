@@ -5,7 +5,6 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import AmountInput from '$lib/components/entries/AmountInput.svelte';
 	import FoodPicker, {
-		type PickerFoodItem,
 		type PickerRecipeItem,
 		type PickerSelection
 	} from '$lib/components/entries/FoodPicker.svelte';
@@ -16,6 +15,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { untrack } from 'svelte';
+	import * as Sentry from '@sentry/sveltekit';
 	import { timeToIsoString, currentTime24h } from '$lib/utils/dates';
 	import * as m from '$lib/paraglide/messages';
 	import { toast } from 'svelte-sonner';
@@ -26,7 +26,6 @@
 
 	type Props = {
 		open?: boolean;
-		foods?: PickerFoodItem[];
 		recipes?: PickerRecipeItem[];
 		mealType?: string;
 		date: string;
@@ -51,7 +50,6 @@
 
 	let {
 		open = $bindable(false),
-		foods = [],
 		recipes = [],
 		mealType = 'Breakfast',
 		date,
@@ -85,9 +83,10 @@
 		wasOpen = open;
 	});
 
-	// Preselect the food or recipe the caller asked for. The lists can arrive
-	// after the modal opens (Dexie loads them asynchronously), so this retries
-	// until the item shows up, and only once per requested id.
+	// Preselect the food or recipe the caller asked for. A food is looked up in
+	// the local mirror (and fetched when it is not there yet); the recipe list can
+	// arrive after the modal opens, so that one retries until the item shows up.
+	// Either way it happens only once per requested id.
 	let preselectedId: string | null = $state(null);
 	$effect(() => {
 		if (!open) {
@@ -97,10 +96,14 @@
 		const wanted = initialFoodId ?? initialRecipeId ?? null;
 		if (!wanted || untrack(() => preselectedId) === wanted) return;
 		if (initialFoodId) {
-			const food = foods.find((f) => f.id === initialFoodId);
-			if (!food) return;
-			preselectedId = wanted;
-			handleSelect({ type: 'food', food });
+			const foodId = initialFoodId;
+			preselectFood(foodId)
+				.then((food) => {
+					if (!food || !open || foodId !== initialFoodId || preselectedId === wanted) return;
+					preselectedId = wanted;
+					handleSelect({ type: 'food', food });
+				})
+				.catch((err) => Sentry.captureException(err, { extra: { foodId } }));
 		} else {
 			const recipe = recipes.find((r) => r.id === initialRecipeId);
 			if (!recipe) return;
@@ -108,6 +111,15 @@
 			handleSelect({ type: 'recipe', recipe });
 		}
 	});
+
+	const preselectFood = async (foodId: string) => {
+		let [food] = await foodService.getFoodsByIds([foodId]);
+		if (!food) {
+			await foodService.refreshById(foodId);
+			[food] = await foodService.getFoodsByIds([foodId]);
+		}
+		return food;
+	};
 
 	const handleSelect = async (selection: PickerSelection) => {
 		if (selection.type === 'food') {
@@ -255,12 +267,7 @@
 					>
 				</Tabs.List>
 
-				<FoodPicker
-					{foods}
-					{recipes}
-					tab={tab === 'quick' ? 'search' : tab}
-					onSelect={handleSelect}
-				/>
+				<FoodPicker {recipes} tab={tab === 'quick' ? 'search' : tab} onSelect={handleSelect} />
 
 				<Tabs.Content value="quick" class="space-y-4">
 					<QuickFoodEntry
