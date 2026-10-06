@@ -12,6 +12,7 @@ class BulkUploadRunnerTest {
     private val waits = mutableListOf<Long>()
     private var clock = 0L
     private var paused = false
+    private var stopped = false
     private val progress = mutableListOf<Int>()
 
     private fun runner(
@@ -24,6 +25,7 @@ class BulkUploadRunnerTest {
             steps.removeFirstOrNull() ?: BulkUploadStep.Idle
         },
         isPaused = { paused },
+        isStopped = { stopped },
         onProgress = { progress.add(it) },
         errorReporter =
             object : ErrorReporter {
@@ -60,6 +62,28 @@ class BulkUploadRunnerTest {
             val outcome = runner(queue, onStep = { paused = true }).run("user-1")
 
             assertEquals(BulkUploadRunner.Outcome.PAUSED, outcome)
+            assertEquals(1, queue.size)
+        }
+
+    @Test
+    fun stopsBetweenBatchesWhenWorkManagerStopsTheWorkerAndLeavesTheRestQueued() =
+        runTest {
+            val queue = steps(BulkUploadStep.Progress(200, 0), BulkUploadStep.Progress(200, 0), BulkUploadStep.Progress(200, 0))
+
+            val outcome = runner(queue, onStep = { if (progress.size == 1) stopped = true }).run("user-1")
+
+            assertEquals(BulkUploadRunner.Outcome.STOPPED, outcome)
+            assertEquals(listOf(200, 400), progress)
+            assertEquals(1, queue.size)
+        }
+
+    @Test
+    fun aWorkerStoppedBeforeItStartsSendsNothing() =
+        runTest {
+            stopped = true
+            val queue = steps(BulkUploadStep.Progress(200, 0))
+
+            assertEquals(BulkUploadRunner.Outcome.STOPPED, runner(queue).run("user-1"))
             assertEquals(1, queue.size)
         }
 

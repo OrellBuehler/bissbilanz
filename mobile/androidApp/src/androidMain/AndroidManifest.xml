@@ -13,10 +13,11 @@
          them. User-granted ("Alarms & reminders"); without it reminders are inexact. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
-    <!-- Importing a huge food package runs as a foreground data-sync job (BulkImportWorker),
-         so it keeps going while the user leaves the app. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Background work never runs as a foreground service. WorkManager's own manifest adds this
+         permission and its SystemForegroundService; neither is wanted (Play asks for a
+         declaration and demo video for foreground services). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
 
     <!-- Health Connect: weight and sleep both ways, nutrition write-only,
          workout active calories read-only. -->
@@ -328,11 +329,9 @@
                 android:value="true" />
         </service>
 
-        <!-- WorkManager's foreground service, declared with the type BulkImportWorker uses. -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
-            android:foregroundServiceType="dataSync"
-            tools:node="merge" />
+            tools:node="remove" />
 
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
 

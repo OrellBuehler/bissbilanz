@@ -44,6 +44,7 @@ class BulkUploadWorker(
             BulkUploadRunner(
                 uploadNext = { user -> uploader.uploadNext(user) },
                 isPaused = { preferences.paused.value },
+                isStopped = { isStopped },
                 onProgress = { },
                 errorReporter = koin.get<ErrorReporter>(),
             )
@@ -57,7 +58,7 @@ class BulkUploadWorker(
                 enqueue(applicationContext, preferences.wifiOnly.value, ExistingWorkPolicy.APPEND_OR_REPLACE)
                 Result.success()
             }
-            BulkUploadRunner.Outcome.RETRY -> Result.retry()
+            BulkUploadRunner.Outcome.STOPPED, BulkUploadRunner.Outcome.RETRY -> Result.retry()
         }
     }
 
