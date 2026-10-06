@@ -79,6 +79,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
+import kotlin.time.Clock
 import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +104,7 @@ fun AddFoodSheet(
     val recentFoods by viewModel.recentFoods.collectAsStateWithLifecycle()
     val favoriteFoods by viewModel.favoriteFoods.collectAsStateWithLifecycle()
     val favoriteRecipes by viewModel.favoriteRecipes.collectAsStateWithLifecycle()
+    val recipeResults by viewModel.recipeResults.collectAsStateWithLifecycle()
     val recipes by viewModel.allRecipes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
@@ -122,6 +124,10 @@ fun AddFoodSheet(
     // matching the date picker iOS added to its log-food sheet.
     var logDate by remember(date) { mutableStateOf(date) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
+    var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
+    var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
 
     var selectedFood by remember { mutableStateOf<Food?>(null) }
     var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
@@ -217,6 +223,16 @@ fun AddFoodSheet(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                EatenTimeRow(
+                    hour = eatenHour,
+                    minute = eatenMinute,
+                    onChange = { hour, minute ->
+                        eatenHour = hour
+                        eatenMinute = minute
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 selectedFood?.let { food ->
                     val previewServings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
                     Column(
@@ -266,10 +282,11 @@ fun AddFoodSheet(
                     Button(
                         onClick = {
                             val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
+                            val eatenAt = buildEatenAt(logDate, eatenHour, eatenMinute)
                             if (selectedFood != null) {
-                                viewModel.logFood(selectedFood!!, mealType, servings, logDate) { onLogged() }
+                                viewModel.logFood(selectedFood!!, mealType, servings, logDate, eatenAt) { onLogged() }
                             } else if (selectedRecipe != null) {
-                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, logDate) { onLogged() }
+                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, logDate, eatenAt) { onLogged() }
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -322,11 +339,13 @@ fun AddFoodSheet(
                                 viewModel,
                                 query,
                                 searchResults,
+                                recipeResults,
                                 isSearching,
                                 offResults,
                                 isSearchingOff,
                                 isResolvingOff,
                                 onSelect = { selectedFood = it },
+                                onSelectRecipe = { selectedRecipe = it },
                             )
                         }
 
@@ -397,11 +416,13 @@ private fun SearchTab(
     viewModel: AddFoodViewModel,
     query: String,
     searchResults: List<Food>,
+    recipeResults: List<Recipe>,
     isSearching: Boolean,
     offResults: List<OpenFoodFactsProduct>,
     isSearchingOff: Boolean,
     isResolvingOff: Boolean,
     onSelect: (Food) -> Unit,
+    onSelectRecipe: (Recipe) -> Unit,
 ) {
     Column {
         OutlinedTextField(
@@ -417,7 +438,7 @@ private fun SearchTab(
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
-            } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
+            } else if (searchResults.isEmpty() && recipeResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
                 EmptyState(stringResource(R.string.food_search_no_results, query))
             } else {
                 LazyColumn(modifier = Modifier.fillMaxHeight()) {
@@ -427,6 +448,23 @@ private fun SearchTab(
                             onClick = { onSelect(food) },
                             onQuickLog = { onSelect(food) },
                         )
+                    }
+                    if (recipeResults.isNotEmpty()) {
+                        item(key = "recipes-header") {
+                            Text(
+                                stringResource(R.string.recipe_list_title),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                        items(recipeResults, key = { "recipe-${it.id}" }) { recipe ->
+                            RecipeListItem(
+                                recipe = recipe,
+                                onClick = { onSelectRecipe(recipe) },
+                                onQuickLog = { onSelectRecipe(recipe) },
+                            )
+                        }
                     }
                     openFoodFactsSection(
                         products = offResults,

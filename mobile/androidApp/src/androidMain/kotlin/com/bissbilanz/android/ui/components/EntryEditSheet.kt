@@ -29,6 +29,7 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.EntryField
 import com.bissbilanz.util.formatNutrient
+import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
 import com.bissbilanz.util.toDisplayString
@@ -71,7 +72,7 @@ fun EntryEditSheet(
 
     // Form state
     var servings by remember { mutableStateOf("1") }
-    var mealType by remember { mutableStateOf("Lunch") }
+    var mealType by remember { mutableStateOf(mealForCurrentTime()) }
     var notes by remember { mutableStateOf("") }
     var eatenDate by remember { mutableStateOf<String?>(null) }
     var eatenHour by remember { mutableStateOf<Int?>(null) }
