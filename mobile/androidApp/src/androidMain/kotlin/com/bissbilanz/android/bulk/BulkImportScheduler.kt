@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -43,7 +42,6 @@ class BulkImportScheduler(
         val request =
             OneTimeWorkRequestBuilder<BulkImportWorker>()
                 .setInputData(workDataOf(BulkImportWorker.KEY_PATH to path, BulkImportWorker.KEY_FILE_NAME to fileName))
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
         WorkManager.getInstance(context).enqueueUniqueWork(BulkImportWorker.UNIQUE_NAME, ExistingWorkPolicy.KEEP, request)
     }

@@ -1442,9 +1442,6 @@
     <string name="update_required_body">Diese Version von Bissbilanz wird nicht mehr unterstützt. Aktualisiere die App, um weiter zu protokollieren.</string>
     <string name="update_required_body_with_version">Diese Version von Bissbilanz wird nicht mehr unterstützt. Aktualisiere auf Version %1$s oder neuer, um weiter zu protokollieren.</string>
     <string name="update_required_button">Jetzt aktualisieren</string>
-    <string name="bulk_import_channel">Lebensmittel-Import</string>
-    <string name="bulk_import_channel_desc">Fortschritt beim Import eines grossen Lebensmittelpakets</string>
-    <string name="bulk_import_notification_title">Lebensmittelpaket wird importiert</string>
     <string name="bulk_import_progress">%1$s / %2$s Lebensmittel</string>
     <string name="bulk_import_ready_title">Grosses Paket</string>
     <string name="bulk_import_ready_foods">%1$s Lebensmittel</string>

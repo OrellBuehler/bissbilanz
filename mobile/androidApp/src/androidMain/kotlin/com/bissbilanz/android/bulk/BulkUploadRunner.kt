@@ -6,8 +6,9 @@ import kotlinx.coroutines.delay
 
 /**
  * The loop behind [BulkUploadWorker]: keeps sending batches until nothing is left, the user
- * pauses, or this run has used its time budget (WorkManager stops a worker after about ten
- * minutes, so a long upload is a chain of runs).
+ * pauses, WorkManager stops the worker, or this run has used its time budget (a normal worker
+ * is stopped after about ten minutes, so a long upload is a chain of runs). It checks for a stop
+ * between batches, so a batch in flight finishes and is never repeated.
  *
  * A 429 waits out the server's `Retry-After`. A failed request is retried with growing waits
  * and, when it keeps failing, reported once and handed back to WorkManager's own backoff.
@@ -15,6 +16,7 @@ import kotlinx.coroutines.delay
 class BulkUploadRunner(
     private val uploadNext: suspend (String) -> BulkUploadStep,
     private val isPaused: () -> Boolean,
+    private val isStopped: () -> Boolean = { false },
     private val onProgress: suspend (handled: Int) -> Unit,
     private val errorReporter: ErrorReporter,
     private val now: () -> Long = System::currentTimeMillis,
@@ -31,6 +33,9 @@ class BulkUploadRunner(
         /** More is left but this run's time is up: start another. */
         CONTINUE_LATER,
 
+        /** WorkManager stopped this worker (time limit, constraints, process pressure): it is re-queued. */
+        STOPPED,
+
         /** Offline, signed out, update required: let WorkManager retry with backoff. */
         RETRY,
     }
@@ -41,6 +46,7 @@ class BulkUploadRunner(
         var handled = 0
         while (true) {
             if (isPaused()) return Outcome.PAUSED
+            if (isStopped()) return Outcome.STOPPED
             if (now() >= deadline) return Outcome.CONTINUE_LATER
             when (val step = uploadNext(userId)) {
                 BulkUploadStep.Idle -> return Outcome.DONE

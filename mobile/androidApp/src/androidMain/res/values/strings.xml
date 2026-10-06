@@ -1444,9 +1444,6 @@
     <string name="update_required_body">This version of Bissbilanz is no longer supported. Update the app to keep logging.</string>
     <string name="update_required_body_with_version">This version of Bissbilanz is no longer supported. Update to version %1$s or later to keep logging.</string>
     <string name="update_required_button">Update now</string>
-    <string name="bulk_import_channel">Food import</string>
-    <string name="bulk_import_channel_desc">Progress while a large food package is imported</string>
-    <string name="bulk_import_notification_title">Importing food package</string>
     <string name="bulk_import_progress">%1$s / %2$s foods</string>
     <string name="bulk_import_ready_title">Large package</string>
     <string name="bulk_import_ready_foods">%1$s foods</string>
