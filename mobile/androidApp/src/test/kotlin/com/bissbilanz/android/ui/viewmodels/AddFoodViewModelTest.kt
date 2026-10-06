@@ -294,6 +294,85 @@ class AddFoodViewModelTest {
         }
 
     @Test
+    fun searchAlsoReturnsMatchingRecipes() =
+        runTest {
+            val recipe = mockk<com.bissbilanz.model.Recipe>(relaxed = true)
+            coEvery { foodRepo.searchFoods("ap") } returns listOf(testFood())
+            coEvery { recipeRepo.searchRecipes("ap") } returns listOf(recipe)
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+
+            assertEquals(listOf(recipe), vm.recipeResults.value)
+        }
+
+    @Test
+    fun recipeSearchFailureKeepsFoodResults() =
+        runTest {
+            val food = testFood()
+            coEvery { foodRepo.searchFoods("ap") } returns listOf(food)
+            coEvery { recipeRepo.searchRecipes("ap") } throws RuntimeException("db")
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+
+            assertEquals(listOf(food), vm.searchResults.value)
+            assertEquals(emptyList(), vm.recipeResults.value)
+        }
+
+    @Test
+    fun resetClearsRecipeResults() =
+        runTest {
+            val recipe = mockk<com.bissbilanz.model.Recipe>(relaxed = true)
+            coEvery { recipeRepo.searchRecipes("ap") } returns listOf(recipe)
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+            vm.reset()
+
+            assertEquals(emptyList(), vm.recipeResults.value)
+        }
+
+    @Test
+    fun logRecipePassesEatenAt() =
+        runTest {
+            val recipe = mockk<com.bissbilanz.model.Recipe>(relaxed = true)
+            val vm = viewModel()
+
+            vm.logRecipe(recipe, "lunch", 1.0, "2024-01-15", "2024-01-15T11:30:00Z") {}
+            advanceUntilIdle()
+
+            coVerify {
+                entryRepo.createEntry(
+                    match { it.eatenAt == "2024-01-15T11:30:00Z" },
+                    food = isNull(),
+                    recipe = recipe,
+                )
+            }
+        }
+
+    @Test
+    fun logFoodPassesEatenAt() =
+        runTest {
+            val food = testFood()
+            val vm = viewModel()
+
+            vm.logFood(food, "lunch", 1.0, "2024-01-15", "2024-01-15T11:30:00Z") {}
+            advanceUntilIdle()
+
+            coVerify {
+                entryRepo.createEntry(
+                    match { it.eatenAt == "2024-01-15T11:30:00Z" },
+                    food = food,
+                    recipe = isNull(),
+                )
+            }
+        }
+
+    @Test
     fun logQuickEntryCreatesEntry() =
         runTest {
             val vm = viewModel()

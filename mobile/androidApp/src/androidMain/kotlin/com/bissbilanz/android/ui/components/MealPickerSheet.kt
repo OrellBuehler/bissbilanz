@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +24,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
@@ -74,7 +74,7 @@ fun MealPickerSheet(
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedMeal by remember { mutableStateOf(initialMeal ?: "Lunch") }
+    var selectedMeal by remember { mutableStateOf(initialMeal ?: mealForCurrentTime()) }
     var servingsText by remember { mutableStateOf(initialServings.toDisplayString()) }
     var byWeight by remember { mutableStateOf(false) }
     var gramsText by remember {
@@ -86,7 +86,6 @@ fun MealPickerSheet(
     var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
     var notes by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
     val servings =
         if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
             (gramsText.toLocalizedDoubleOrNull() ?: 0.0) / gramsPerServing
@@ -120,30 +119,6 @@ fun MealPickerSheet(
                 TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         ) { DatePicker(state = dateState) }
-    }
-
-    if (showTimePicker) {
-        val timeState = rememberTimePickerState(initialHour = eatenHour, initialMinute = eatenMinute)
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        eatenHour = timeState.hour
-                        eatenMinute = timeState.minute
-                        showTimePicker = false
-                    },
-                ) { Text(stringResource(R.string.dialog_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.dialog_cancel)) }
-            },
-            text = {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TimePicker(state = timeState)
-                }
-            },
-        )
     }
 
     ModalBottomSheet(
@@ -270,19 +245,15 @@ fun MealPickerSheet(
                     Text(dayLabel(LocalDate.parse(selectedDate)))
                 }
 
-                Text(stringResource(R.string.entry_edit_time_label), style = MaterialTheme.typography.labelLarge)
-                OutlinedButton(
-                    onClick = { showTimePicker = true },
+                EatenTimeRow(
+                    hour = eatenHour,
+                    minute = eatenMinute,
+                    onChange = { hour, minute ->
+                        eatenHour = hour
+                        eatenMinute = minute
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(
-                        Icons.Default.Schedule,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(formatTimeOfDay(eatenHour, eatenMinute))
-                }
+                )
 
                 OutlinedTextField(
                     value = notes,

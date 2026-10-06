@@ -55,6 +55,9 @@ class AddFoodViewModel(
     private val _searchResults = MutableStateFlow<List<Food>>(emptyList())
     val searchResults: StateFlow<List<Food>> = _searchResults.asStateFlow()
 
+    private val _recipeResults = MutableStateFlow<List<Recipe>>(emptyList())
+    val recipeResults: StateFlow<List<Recipe>> = _recipeResults.asStateFlow()
+
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
 
@@ -91,6 +94,7 @@ class AddFoodViewModel(
     fun reset() {
         _query.value = ""
         _searchResults.value = emptyList()
+        _recipeResults.value = emptyList()
         _isSearching.value = false
         searchJob?.cancel()
     }
@@ -114,6 +118,14 @@ class AddFoodViewModel(
                             emptyList()
                         }
                     _searchResults.value = results
+                    _recipeResults.value =
+                        try {
+                            recipeRepo.searchRecipes(newQuery)
+                        } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            errorReporter.captureException(e)
+                            emptyList()
+                        }
                     _isSearching.value = false
                     // Mirrors the web FoodPicker: only fall back to Open Food Facts
                     // when the user's own database has few matches.
@@ -127,6 +139,7 @@ class AddFoodViewModel(
                     }
                 } else {
                     _searchResults.value = emptyList()
+                    _recipeResults.value = emptyList()
                     _offResults.value = emptyList()
                 }
             }
@@ -137,13 +150,14 @@ class AddFoodViewModel(
         mealType: String,
         servings: Double,
         date: String,
+        eatenAt: String? = null,
         onComplete: () -> Unit,
     ) {
         _isSaving.value = true
         viewModelScope.launch {
             try {
                 entryRepo.createEntry(
-                    EntryCreate(foodId = food.id, mealType = mealType, servings = servings, date = date),
+                    EntryCreate(foodId = food.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     food = food,
                 )
                 _snackbarMessage.value = "Logged ${food.name}"
@@ -163,13 +177,14 @@ class AddFoodViewModel(
         mealType: String,
         servings: Double,
         date: String,
+        eatenAt: String? = null,
         onComplete: () -> Unit,
     ) {
         _isSaving.value = true
         viewModelScope.launch {
             try {
                 entryRepo.createEntry(
-                    EntryCreate(recipeId = recipe.id, mealType = mealType, servings = servings, date = date),
+                    EntryCreate(recipeId = recipe.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     recipe = recipe,
                 )
                 _snackbarMessage.value = "Logged ${recipe.name}"
