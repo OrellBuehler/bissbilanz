@@ -155,3 +155,24 @@ export function readFoodPackage(bytes: Uint8Array): FoodPackageFile {
 
 	return { manifest, packageHash, readImages };
 }
+
+/**
+ * Inflates `paths` a slice at a time. When a slice hits the inflated-bytes cap, `readImages`
+ * leaves the rest out, so those paths are read again in a follow-up batch.
+ */
+export function* imageBatches(
+	readImages: FoodPackageFile['readImages'],
+	paths: string[],
+	batchSize: number
+): Generator<{ paths: string[]; images: Map<string, Uint8Array> }> {
+	for (let offset = 0; offset < paths.length; offset += batchSize) {
+		let pending = paths.slice(offset, offset + batchSize);
+		while (pending.length > 0) {
+			const images = readImages(pending);
+			const inflated = [...images.values()].reduce((sum, bytes) => sum + bytes.length, 0);
+			const capReached = inflated > MAX_TOTAL_INFLATED_BYTES - MAX_IMAGE_ENTRY_BYTES;
+			yield { paths: capReached ? pending.filter((path) => images.has(path)) : pending, images };
+			pending = capReached ? pending.filter((path) => !images.has(path)) : [];
+		}
+	}
+}

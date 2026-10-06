@@ -26,10 +26,10 @@ import type {
 	PackageFood,
 	PackageRecipe
 } from '$lib/server/validation/food-package';
-import type { FoodPackageFile } from './archive';
+import { imageBatches, type FoodPackageFile } from './archive';
 import { matchPackage, resolveOperations, type PackageIssue } from './match';
 import { loadImportContext, packageImageUrl } from './plan';
-import { MAX_IMAGE_ENTRY_BYTES, MAX_ISSUES, MAX_TOTAL_INFLATED_BYTES } from './format';
+import { MAX_ISSUES } from './format';
 
 export type ImportCounts = { foods: number; recipes: number };
 
@@ -156,20 +156,12 @@ export async function commitFoodPackageImport(
 		imageByRef.set(job.key, `/uploads/${filename}`);
 	};
 	try {
-		for (let offset = 0; offset < imagePaths.length; offset += IMAGE_BATCH_SIZE) {
-			let pending = imagePaths.slice(offset, offset + IMAGE_BATCH_SIZE);
-			while (pending.length > 0) {
-				const batch = pkg.readImages(pending);
-				const inflated = [...batch.values()].reduce((sum, bytes) => sum + bytes.length, 0);
-				const capReached = inflated > MAX_TOTAL_INFLATED_BYTES - MAX_IMAGE_ENTRY_BYTES;
-				const answered = capReached ? pending.filter((path) => batch.has(path)) : pending;
-				await mapLimit(
-					answered.flatMap((path) => jobsByPath.get(path) ?? []),
-					IMAGE_CONCURRENCY,
-					(job) => processJob(job, batch.get(job.path))
-				);
-				pending = capReached ? pending.filter((path) => !batch.has(path)) : [];
-			}
+		for (const batch of imageBatches(pkg.readImages, imagePaths, IMAGE_BATCH_SIZE)) {
+			await mapLimit(
+				batch.paths.flatMap((path) => jobsByPath.get(path) ?? []),
+				IMAGE_CONCURRENCY,
+				(job) => processJob(job, batch.images.get(job.path))
+			);
 		}
 	} catch (error) {
 		await dropUploadFiles(written);

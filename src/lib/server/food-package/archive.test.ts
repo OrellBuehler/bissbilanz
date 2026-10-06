@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { strToU8, zipSync, type Zippable } from 'fflate';
-import { readFoodPackage, WRONG_FILE_ACCOUNT_EXPORT } from './archive';
+import { imageBatches, readFoodPackage, WRONG_FILE_ACCOUNT_EXPORT } from './archive';
 import {
 	MANIFEST_NAME,
 	MAX_IMAGE_ENTRY_BYTES,
 	MAX_MANIFEST_BYTES,
 	MAX_PACKAGE_BYTES,
 	MAX_PACKAGE_FOODS,
+	MAX_TOTAL_INFLATED_BYTES,
 	MAX_ZIP_ENTRIES
 } from './format';
 
@@ -225,3 +226,30 @@ describe('big packages', () => {
 
 const ZIP64_MANIFEST_ONLY =
 	'UEsDBBQAAAAIAAAAIQBnL78VRwAAAFUAAAAVABQAYmlzc2JpbGFuei1mb29kcy5qc29uAQAQAFUAAAAAAAAARwAAAAAAAACrVkrLL8pNLFGyUlBKyiwuTsrMScyr0kvLz0/RLUhMzk5MT1XSUYAqCkstKs7MzwOqNQSL5acUA9nRsUBOUWpyZkEqhFsLAFBLAQIUAxQAAAAIAAAAIQBnL78VRwAAAFUAAAAVAAAAAAAAAAAAAACAAQAAAABiaXNzYmlsYW56LWZvb2RzLmpzb25QSwUGAAAAAAEAAQBDAAAAjgAAAAAA';
+
+describe('imageBatches', () => {
+	const sized = (length: number) => ({ length }) as Uint8Array;
+
+	it('reads each slice once when it stays under the cap', () => {
+		const calls: string[][] = [];
+		const readImages = (paths: string[]) => {
+			calls.push(paths);
+			return new Map(paths.map((path) => [path, sized(10)]));
+		};
+		const batches = [...imageBatches(readImages, ['a', 'b', 'c'], 2)];
+		expect(calls).toEqual([['a', 'b'], ['c']]);
+		expect(batches.map((batch) => batch.paths)).toEqual([['a', 'b'], ['c']]);
+	});
+
+	it('re-reads the paths a capped batch left out', () => {
+		const calls: string[][] = [];
+		const readImages = (paths: string[]) => {
+			calls.push(paths);
+			const [first] = paths;
+			return new Map([[first, sized(MAX_TOTAL_INFLATED_BYTES)]]);
+		};
+		const batches = [...imageBatches(readImages, ['a', 'b', 'c'], 3)];
+		expect(calls).toEqual([['a', 'b', 'c'], ['b', 'c'], ['c']]);
+		expect(batches.map((batch) => batch.paths)).toEqual([['a'], ['b'], ['c']]);
+	});
+});
