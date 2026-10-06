@@ -11,6 +11,7 @@
 	import { commandPalette, requestQuickAction } from '$lib/stores/command-palette.svelte';
 	import { parseDateQuery, rankByQuery } from '$lib/utils/command-palette';
 	import { formatDateLabel, yesterday } from '$lib/utils/dates';
+	import { recipeMatchTier } from '$lib/components/foods/foodFilters';
 	import { api } from '$lib/api/client';
 	import type { DexieFood, DexieRecipe } from '$lib/db/types';
 	import { dev } from '$app/environment';
@@ -25,6 +26,13 @@
 	const MAX_FOODS = 8;
 	const MAX_RECIPES = 5;
 	const MAX_FAVORITES = 5;
+
+	// Fuzzy name matches first, then recipes only an English label finds.
+	const matchRecipes = (items: DexieRecipe[], q: string) => {
+		const byName = rankByQuery(items, q, (r) => r.name);
+		const seen = new Set(byName.map((r) => r.id));
+		return [...byName, ...items.filter((r) => !seen.has(r.id) && recipeMatchTier(r, q) === 1)];
+	};
 
 	let query = $state('');
 	let recentFoods = $state<Array<{ id: string; name: string }>>([]);
@@ -168,7 +176,7 @@
 			: recentFoods.slice(0, MAX_FOODS).map((f) => ({ id: f.id, name: f.name }))
 	);
 	const matchedRecipes = $derived(
-		query.trim() ? rankByQuery(recipes, query, (r) => r.name).slice(0, MAX_RECIPES) : []
+		query.trim() ? matchRecipes(recipes, query).slice(0, MAX_RECIPES) : []
 	);
 	const favorites = $derived(
 		query.trim()

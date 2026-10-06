@@ -2,6 +2,7 @@
 	import IngredientRow from './IngredientRow.svelte';
 	import AddFromRecipeDialog from './AddFromRecipeDialog.svelte';
 	import RecipeStepsEditor from './RecipeStepsEditor.svelte';
+	import FoodLabelsInput from '$lib/components/foods/FoodLabelsInput.svelte';
 	import { buildRecipePayload, type RecipeFormState } from '$lib/utils/recipe-builder';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -30,6 +31,8 @@
 			isFavorite: boolean;
 			cookedWeight?: number | null;
 			calories?: number | null;
+			// Only present when editing: a create has no labels to show yet.
+			labels?: string[];
 			ingredients: Array<{ foodId: string; quantity: number; servingUnit: string }>;
 			// null = not downloaded yet (offline): the editor is hidden and the save
 			// leaves the server's steps untouched. Omitted = no steps.
@@ -38,7 +41,7 @@
 		// Set for a saved recipe; shows a "Start cooking" shortcut when it has steps.
 		cookHref?: string;
 		onUploadStepImage?: (file: File) => Promise<string | null>;
-		onSave: (payload: RecipeFormPayload) => Promise<void>;
+		onSave: (payload: RecipeFormPayload, labels?: string[]) => Promise<void>;
 		imageUrl?: string | null;
 		onImageUpload?: (file: File) => Promise<void>;
 		onImageRemove?: () => Promise<void>;
@@ -87,6 +90,8 @@
 	const stepsAvailable = recipe?.steps !== null;
 	// svelte-ignore state_referenced_locally
 	const hadSteps = (recipe?.steps?.length ?? 0) > 0;
+	// svelte-ignore state_referenced_locally
+	let labels = $state<string[] | undefined>(recipe?.labels);
 	let saving = $state(false);
 	let addFromRecipeOpen = $state(false);
 
@@ -132,7 +137,7 @@
 		if (payload.ingredients.length === 0) return;
 		saving = true;
 		try {
-			await onSave(payload);
+			await onSave(payload, labels);
 			// A create form clears for the next recipe; an edit form keeps
 			// showing what was just saved.
 			if (!recipe) {
@@ -217,6 +222,13 @@
 			<p class="text-xs text-muted-foreground">{m.recipe_form_steps_unavailable()}</p>
 		{/if}
 	</div>
+	{#if labels !== undefined}
+		<FoodLabelsInput
+			{labels}
+			onChange={(next) => (labels = next)}
+			hint={m.recipe_form_labels_hint()}
+		/>
+	{/if}
 	{#if extendedNutrients}
 		<div class="space-y-2">
 			<Label class="text-sm font-medium">{m.recipe_form_nutrients()}</Label>

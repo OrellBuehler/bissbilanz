@@ -5,6 +5,7 @@ import { db } from '$lib/db';
 import type { DexieRecipe, DexieRecipeIngredient, DexieRecipeStep } from '$lib/db/types';
 import { api } from '$lib/api/client';
 import { enqueue, pendingIdsFor } from '$lib/stores/offline-queue';
+import { normalizeLabels } from '$lib/labels';
 import { refreshTable, withOfflineFallback } from './base';
 
 function allRecipes() {
@@ -355,6 +356,39 @@ async function update(id: string, recipe: Record<string, unknown>): Promise<Muta
 	return { status: result.status };
 }
 
+/**
+ * Replace the recipe's labels, exactly like a food's: the Dexie row is updated
+ * first (so search picks the new labels up immediately), then the write goes to
+ * the server or into the offline queue with the same idempotency and
+ * last-write-wins stamps as a recipe edit. Returns the labels the server could
+ * not fit under the per-recipe cap, empty when the write was queued.
+ */
+async function setLabels(id: string, labels: string[]): Promise<string[]> {
+	const normalized = normalizeLabels(labels).sort();
+	await db.recipes.update(id, { labels: normalized, updatedAt: new Date().toISOString() });
+
+	let dropped: string[] = [];
+	await withOfflineFallback(
+		() =>
+			api.PUT('/api/recipes/{id}/labels', {
+				params: { path: { id } },
+				body: { labels }
+			}),
+		{
+			onSuccess: async (data) => {
+				await db.recipes.update(id, { labels: data.labels });
+				dropped = data.dropped;
+			},
+			method: 'PUT',
+			url: `/api/recipes/${id}/labels`,
+			body: { labels },
+			affectedTable: 'recipes',
+			affectedId: id
+		}
+	);
+	return dropped;
+}
+
 type DeleteRecipeResult =
 	{ status: 'deleted' } | { status: 'queued' } | { status: 'blocked'; entryCount: number };
 
@@ -420,5 +454,6 @@ export const recipeService = {
 	create,
 	duplicate,
 	update,
+	setLabels,
 	delete: deleteRecipe
 };

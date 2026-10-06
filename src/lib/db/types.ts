@@ -130,6 +130,8 @@ export type DexieRecipe = {
 	// Number of cooking steps; the list endpoint only sends the count, the
 	// steps themselves live in `recipeSteps`. Absent on rows cached by older builds.
 	stepCount?: number;
+	// English labels, same vocabulary as foods; absent on rows cached by older builds.
+	labels?: string[] | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 };
