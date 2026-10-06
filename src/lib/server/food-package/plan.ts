@@ -18,7 +18,12 @@ import {
 	type MatchResult,
 	type PackageIssue
 } from './match';
-import { MAX_ISSUES, MAX_PREVIEW_SAMPLES, MAX_PREVIEW_THUMBNAILS } from './format';
+import {
+	MAX_ISSUES,
+	MAX_PREVIEW_ITEMS,
+	MAX_PREVIEW_SAMPLES,
+	MAX_PREVIEW_THUMBNAILS
+} from './format';
 import type { FoodPackageAction } from '$lib/server/validation/food-package';
 
 export type ImportContext = { foods: ExistingFood[]; recipes: ExistingRecipe[] };
@@ -139,6 +144,8 @@ export type FoodPackagePreview = {
 		samples: { ref: string; name: string; brand: string | null; calories: number }[];
 		/** Every food that would be created, with its role and the recipes using it. */
 		items: NewFoodItem[];
+		/** True when `items` holds only the first MAX_PREVIEW_ITEMS of the new foods. */
+		itemsTruncated?: boolean;
 	};
 	newRecipes: { count: number; samples: { ref: string; name: string }[] };
 	conflicts: { foods: FoodConflictPreview[]; recipes: RecipeConflictPreview[] };
@@ -355,7 +362,8 @@ export async function planFoodPackageImport(
 						brand: food.brand ?? null,
 						calories: round1(food.calories)
 					})),
-				items: newFoodItems
+				items: newFoodItems.slice(0, MAX_PREVIEW_ITEMS),
+				...(newFoodItems.length > MAX_PREVIEW_ITEMS ? { itemsTruncated: true } : {})
 			},
 			newRecipes: {
 				count: match.newRecipeRefs.length,

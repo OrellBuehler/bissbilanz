@@ -14,12 +14,13 @@
 		items: NewFoodItem[];
 		/** How many of them the import would still create. */
 		count: number;
+		truncated?: boolean;
 		mappings: MappingState;
 		onMap: (ref: string, food: MappedFood) => void;
 		onUnmap: (ref: string) => void;
 	};
 
-	let { items, count, mappings, onMap, onUnmap }: Props = $props();
+	let { items, count, truncated = false, mappings, onMap, onUnmap }: Props = $props();
 
 	const PAGE = 20;
 
@@ -37,6 +38,11 @@
 				: m.food_package_new_foods_title({ count })}
 		</h3>
 		<p class="text-xs text-muted-foreground">{m.food_package_new_foods_hint()}</p>
+		{#if truncated}
+			<p class="text-xs text-muted-foreground">
+				{m.food_package_new_foods_truncated({ shown: items.length })}
+			</p>
+		{/if}
 	</div>
 
 	<ul class="space-y-2">

@@ -9,7 +9,10 @@ import {
 	foodsToCreate,
 	groupNewFoods,
 	initialResolutions,
+	isPackageTooLarge,
+	MAX_PACKAGE_LABEL,
 	mappingCandidates,
+	responseErrorInfo,
 	setMapping,
 	setResolution,
 	suggestedQuery,
@@ -217,5 +220,34 @@ describe('filenameFromContentDisposition', () => {
 		expect(
 			filenameFromContentDisposition(`attachment; filename*=UTF-8''..%2F..%2Fetc%2Fpasswd`)
 		).toBe('_.._etc_passwd');
+	});
+});
+
+describe('package size limit', () => {
+	it('flags files over 200 MB only', () => {
+		expect(isPackageTooLarge({ size: 200 * 1024 * 1024 })).toBe(false);
+		expect(isPackageTooLarge({ size: 200 * 1024 * 1024 + 1 })).toBe(true);
+		expect(MAX_PACKAGE_LABEL).toBe('200.0 MB');
+	});
+
+	it('recognises the server too-large code, a 413 and ordinary errors', async () => {
+		const coded = new Response(
+			JSON.stringify({
+				error: 'File must be 200MB or smaller',
+				details: { code: ['package_too_large'] }
+			}),
+			{ status: 400 }
+		);
+		expect(await responseErrorInfo(coded)).toEqual({
+			message: 'File must be 200MB or smaller',
+			tooLarge: true
+		});
+		expect(await responseErrorInfo(new Response('<html>', { status: 413 }))).toEqual({
+			message: null,
+			tooLarge: true
+		});
+		expect(
+			await responseErrorInfo(new Response(JSON.stringify({ error: 'Nope' }), { status: 400 }))
+		).toEqual({ message: 'Nope', tooLarge: false });
 	});
 });

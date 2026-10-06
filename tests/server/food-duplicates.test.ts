@@ -172,6 +172,99 @@ describe('groupBySimilarNameAndMacros', () => {
 		const rows = [row('a', ''), row('b', '   ')];
 		expect(groupBySimilarNameAndMacros(rows)).toHaveLength(0);
 	});
+
+	const seeded = (seed: number) => () => {
+		seed = (seed * 1664525 + 1013904223) % 4294967296;
+		return seed / 4294967296;
+	};
+
+	const WORDS = [
+		'greek',
+		'yogurt',
+		'oat',
+		'milk',
+		'apple',
+		'juice',
+		'bread',
+		'rye',
+		'cheese',
+		'tofu'
+	];
+
+	const randomRows = (count: number, random: () => number) =>
+		Array.from({ length: count }, (_, index) => {
+			const words = 1 + Math.floor(random() * 3);
+			let name = Array.from(
+				{ length: words },
+				() => WORDS[Math.floor(random() * WORDS.length)]
+			).join(' ');
+			if (random() < 0.3) name = name.slice(1);
+			if (random() < 0.2) name = `${name}s`;
+			const pick = random();
+			const scale = pick < 0.15 ? 0 : pick < 0.3 ? 0.4 : pick < 0.5 ? 0.5 : 1 + random() * 4;
+			const jitter = () => 1 + (random() - 0.5) * 0.25;
+			return row(`id-${String(index).padStart(5, '0')}`, name, {
+				servingSize: random() < 0.5 ? 100 : 30 + Math.floor(random() * 3) * 10,
+				servingUnit: random() < 0.8 ? ('g' as const) : ('ml' as const),
+				calories: scale * 100 * jitter(),
+				protein: scale * 10 * jitter(),
+				carbs: scale * 20 * jitter(),
+				fat: (random() < 0.3 ? 0 : scale) * 5 * jitter()
+			});
+		});
+
+	const bruteForce = (rows: ReturnType<typeof randomRows>) => {
+		const parent = new Map<string, string>();
+		const find = (id: string): string => {
+			const p = parent.get(id) ?? id;
+			if (p === id) return id;
+			const root = find(p);
+			parent.set(id, root);
+			return root;
+		};
+		for (let i = 0; i < rows.length; i++) {
+			for (let j = i + 1; j < rows.length; j++) {
+				if (similarity(rows[i].name, rows[j].name) < 0.82) continue;
+				if (!macrosSimilar(rows[i], rows[j])) continue;
+				parent.set(find(rows[i].id), find(rows[j].id));
+			}
+		}
+		const clusters = new Map<string, string[]>();
+		for (const r of rows) {
+			const root = find(r.id);
+			clusters.set(root, [...(clusters.get(root) ?? []), r.id]);
+		}
+		return [...clusters.values()].filter((ids) => ids.length > 1).map((ids) => ids.sort());
+	};
+
+	test.each([1, 2, 3])('finds exactly the clusters of the pairwise scan (seed %i)', (seed) => {
+		const rows = randomRows(400, seeded(seed));
+		const expected = bruteForce(rows)
+			.map((ids) => ids.join(','))
+			.sort();
+		const actual = groupBySimilarNameAndMacros(rows)
+			.map((group) => group.key)
+			.sort();
+		expect(expected.length).toBeGreaterThan(0);
+		expect(actual).toEqual(expected);
+	});
+
+	test('scans 20k foods well inside the time budget', () => {
+		const rows = randomRows(20000, seeded(7));
+		const started = performance.now();
+		const groups = groupBySimilarNameAndMacros(rows);
+		expect(performance.now() - started).toBeLessThan(10000);
+		expect(groups.length).toBeGreaterThan(0);
+	}, 30000);
+
+	test('stops at the time budget and returns what it found so far', () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const rows = randomRows(2000, seeded(5));
+		const groups = groupBySimilarNameAndMacros(rows, { budgetMs: -1 });
+		expect(groups).toEqual([]);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('scan stopped'));
+		warn.mockRestore();
+	});
 });
 
 describe('findDuplicateGroups', () => {

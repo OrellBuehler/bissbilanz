@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isNotNull } from 'drizzle-orm';
+import { and, asc, gt, isNotNull } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
 import { foods, recipes, recipeSteps, aiTasks } from '$lib/server/schema';
 import {
@@ -30,6 +30,21 @@ export const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
  * whole sweep, and a non-empty directory with an empty referenced set is
  * treated as a misconfigured UPLOAD_DIR rather than an empty database.
  */
+const PAGE_SIZE = 5000;
+
+const forEachPage = async <T extends { id: string }>(
+	fetchPage: (after: string | null) => Promise<T[]>,
+	visit: (row: T) => void
+): Promise<void> => {
+	let after: string | null = null;
+	while (true) {
+		const rows = await fetchPage(after);
+		for (const row of rows) visit(row);
+		if (rows.length < PAGE_SIZE) return;
+		after = rows[rows.length - 1].id;
+	}
+};
+
 export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> => {
 	let entries: string[];
 	try {
@@ -48,32 +63,68 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 	if (candidates.length === 0) return 0;
 
 	const db = getDB();
+	const onDisk = new Set(candidates);
+	const referenced = new Set<string>();
+	let anyReferenced = false;
+	const note = (urls: (string | null)[]) => {
+		for (const url of urls) {
+			const name = uploadFilename(url);
+			if (name === null) continue;
+			anyReferenced = true;
+			if (onDisk.has(name)) referenced.add(name);
+		}
+	};
 	// Deliberately unguarded: a DB failure must propagate, never be read as
-	// "nothing is referenced".
-	const [foodRows, recipeRows, stepRows, aiTaskRows] = await Promise.all([
-		db.select({ imageUrl: foods.imageUrl }).from(foods).where(isNotNull(foods.imageUrl)),
-		db.select({ imageUrl: recipes.imageUrl }).from(recipes).where(isNotNull(recipes.imageUrl)),
-		db
-			.select({ imageUrl: recipeSteps.imageUrl })
-			.from(recipeSteps)
-			.where(isNotNull(recipeSteps.imageUrl)),
-		db.select({ imageUrls: aiTasks.photoUrls }).from(aiTasks).where(isNotNull(aiTasks.photoUrls))
+	// "nothing is referenced". Read page by page (keyset on the primary key) so
+	// an account with 100k foods never materialises every row at once.
+	await Promise.all([
+		forEachPage(
+			(after) =>
+				db
+					.select({ id: foods.id, imageUrl: foods.imageUrl })
+					.from(foods)
+					.where(and(isNotNull(foods.imageUrl), after ? gt(foods.id, after) : undefined))
+					.orderBy(asc(foods.id))
+					.limit(PAGE_SIZE),
+			(row) => note([row.imageUrl])
+		),
+		forEachPage(
+			(after) =>
+				db
+					.select({ id: recipes.id, imageUrl: recipes.imageUrl })
+					.from(recipes)
+					.where(and(isNotNull(recipes.imageUrl), after ? gt(recipes.id, after) : undefined))
+					.orderBy(asc(recipes.id))
+					.limit(PAGE_SIZE),
+			(row) => note([row.imageUrl])
+		),
+		forEachPage(
+			(after) =>
+				db
+					.select({ id: recipeSteps.id, imageUrl: recipeSteps.imageUrl })
+					.from(recipeSteps)
+					.where(
+						and(isNotNull(recipeSteps.imageUrl), after ? gt(recipeSteps.id, after) : undefined)
+					)
+					.orderBy(asc(recipeSteps.id))
+					.limit(PAGE_SIZE),
+			(row) => note([row.imageUrl])
+		),
+		forEachPage(
+			(after) =>
+				db
+					.select({ id: aiTasks.id, imageUrls: aiTasks.photoUrls })
+					.from(aiTasks)
+					.where(and(isNotNull(aiTasks.photoUrls), after ? gt(aiTasks.id, after) : undefined))
+					.orderBy(asc(aiTasks.id))
+					.limit(PAGE_SIZE),
+			(row) => note(row.imageUrls ?? [])
+		)
 	]);
-
-	const referenced = new Set(
-		[
-			...foodRows.map((row) => row.imageUrl),
-			...recipeRows.map((row) => row.imageUrl),
-			...stepRows.map((row) => row.imageUrl),
-			...aiTaskRows.flatMap((row) => row.imageUrls ?? [])
-		]
-			.map(uploadFilename)
-			.filter((name): name is string => name !== null)
-	);
 
 	// An empty referenced set alongside upload files is the shape of a wrong
 	// UPLOAD_DIR or an empty mount, not of a genuinely image-free database.
-	if (referenced.size === 0) {
+	if (!anyReferenced) {
 		console.warn(
 			`[image-cleanup] Aborting: ${candidates.length} upload file(s) but no referenced images`
 		);

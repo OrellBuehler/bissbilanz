@@ -2250,6 +2250,7 @@ export interface components {
 			ingredientOnly: number;
 			samples: components['schemas']['FoodPackageNewFood'][];
 			items: components['schemas']['FoodPackageNewFoodItem'][];
+			itemsTruncated?: boolean;
 		};
 		FoodPackageNewFood: {
 			ref: string;

@@ -11,7 +11,7 @@ import {
 	FOOD_PACKAGE_FORMAT,
 	FOOD_PACKAGE_VERSION,
 	MANIFEST_NAME,
-	MAX_PACKAGE_BYTES
+	MAX_EXPORT_BYTES
 } from './format';
 import { packageFilename } from './filename';
 import { resolvePackageSelection, type PackageSelection, type SelectedFood } from './selection';
@@ -63,8 +63,8 @@ export async function summarizePackage(
 		ingredientFoods: selection.foods.filter((food) => food.role === 'ingredient').length,
 		images: present.length,
 		estimatedBytes,
-		maxBytes: MAX_PACKAGE_BYTES,
-		overLimit: estimatedBytes > MAX_PACKAGE_BYTES
+		maxBytes: MAX_EXPORT_BYTES,
+		overLimit: estimatedBytes > MAX_EXPORT_BYTES
 	};
 }
 
@@ -212,10 +212,10 @@ export async function buildFoodPackage(
 			else resolve(result as Uint8Array<ArrayBuffer>);
 		});
 	});
-	if (bytes.length > MAX_PACKAGE_BYTES) {
+	if (bytes.length > MAX_EXPORT_BYTES) {
 		throw new ApiError(
 			413,
-			`The package is larger than ${MAX_PACKAGE_BYTES / 1024 / 1024}MB — export fewer foods at once`
+			`The package is larger than ${MAX_EXPORT_BYTES / 1024 / 1024}MB — export fewer foods at once`
 		);
 	}
 	return {

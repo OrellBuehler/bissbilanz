@@ -216,8 +216,8 @@ final class LocalFoodPackageService {
             ingredientFoods: selected.foods.filter { $0.role == .ingredient }.count,
             images: photos,
             estimatedBytes: estimated,
-            maxBytes: FoodPackageFormat.maxPackageBytes,
-            overLimit: estimated > FoodPackageFormat.maxPackageBytes
+            maxBytes: FoodPackageFormat.maxExportBytes,
+            overLimit: estimated > FoodPackageFormat.maxExportBytes
         )
     }
 
@@ -275,7 +275,7 @@ final class LocalFoodPackageService {
             try zip.add(name: entry.name, data: entry.data, compress: false)
         }
         let data = try zip.finish()
-        guard data.count <= FoodPackageFormat.maxPackageBytes else { throw FoodPackageError.exportTooLarge }
+        guard data.count <= FoodPackageFormat.maxExportBytes else { throw FoodPackageError.exportTooLarge }
         return FoodPackageExport(
             data: data,
             filename: FoodPackageFilename.packageFilename(

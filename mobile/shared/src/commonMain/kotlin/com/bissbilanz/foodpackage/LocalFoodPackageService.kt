@@ -717,8 +717,8 @@ class LocalFoodPackageService(
                 ingredientFoods = chosen.foods.count { it.role == FoodPackageFoodRole.ingredient },
                 images = sizes.size,
                 estimatedBytes = estimated.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                maxBytes = MAX_PACKAGE_BYTES.toInt(),
-                overLimit = estimated > MAX_PACKAGE_BYTES,
+                maxBytes = MAX_EXPORT_BYTES.toInt(),
+                overLimit = estimated > MAX_EXPORT_BYTES,
             )
         }
 
@@ -801,10 +801,10 @@ class LocalFoodPackageService(
                 }
             val manifest = PackageManifest(FOOD_PACKAGE_VERSION, exportedAt ?: now(), manifestFoods, manifestRecipes)
             val bytes = archive.write(FoodPackageManifestCodec.encode(manifest), imageFiles)
-            if (bytes.size > MAX_PACKAGE_BYTES) {
+            if (bytes.size > MAX_EXPORT_BYTES) {
                 throw FoodPackageException(
                     FoodPackageException.Kind.TOO_LARGE,
-                    "The package is larger than ${MAX_PACKAGE_BYTES / 1024 / 1024}MB — export fewer foods at once",
+                    "The package is larger than ${MAX_EXPORT_BYTES / 1024 / 1024}MB — export fewer foods at once",
                 )
             }
             ExportedPackage(

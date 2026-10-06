@@ -9,10 +9,15 @@ const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
  * route's own size check runs. A declared Content-Length over the cap is rejected
  * up front; chunked bodies are counted as they stream in and aborted at the cap.
  */
-export async function readCappedFormData(request: Request, maxBytes: number): Promise<FormData> {
+export async function readCappedFormData(
+	request: Request,
+	maxBytes: number,
+	onTooLarge?: () => ApiError
+): Promise<FormData> {
 	const limit = maxBytes + MULTIPART_OVERHEAD_BYTES;
-	const tooLarge = () =>
-		new ApiError(400, `File must be ${Math.round(maxBytes / 1024 / 1024)}MB or smaller`);
+	const tooLarge =
+		onTooLarge ??
+		(() => new ApiError(400, `File must be ${Math.round(maxBytes / 1024 / 1024)}MB or smaller`));
 
 	const declared = Number(request.headers.get('content-length') ?? 0);
 	if (declared > limit) throw tooLarge();

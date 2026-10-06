@@ -1572,6 +1572,8 @@
 	"food_package_import_button": "Import",
 	"food_package_import_success": "Imported {foods} foods and {recipes} recipes",
 	"food_package_import_failed": "Import failed. Please try again.",
+	"food_package_import_too_large": "This package is too big to import in the browser (limit {size}). Open it in the Bissbilanz app on your phone instead.",
+	"food_package_new_foods_truncated": "Only the first {shown} of the new foods are listed here. All of them are imported.",
 	"food_package_stale": "Your data changed meanwhile — please review again.",
 	"food_package_result_title": "Import complete",
 	"food_package_result_line": "{created} new · {replaced} replaced · {keptBoth} kept both · {skipped} skipped",

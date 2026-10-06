@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import type { components } from '$lib/api/generated/schema';
+import { MAX_PACKAGE_BYTES, PACKAGE_TOO_LARGE } from '$lib/food-package-limits';
 import { isSameUnitDimension, type ServingUnit } from '$lib/units';
 
 export type PackageAction = components['schemas']['FoodPackageAction'];
@@ -220,6 +221,29 @@ export const formatBytes = (bytes: number): string => {
 	if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 };
+
+export const isPackageTooLarge = (file: Pick<File, 'size'>): boolean =>
+	file.size > MAX_PACKAGE_BYTES;
+
+export const MAX_PACKAGE_LABEL = formatBytes(MAX_PACKAGE_BYTES);
+
+/** Error message and machine code from a JSON error response; null when unreadable. */
+export async function responseErrorInfo(
+	response: Response
+): Promise<{ message: string | null; tooLarge: boolean }> {
+	const tooLarge = response.status === 413;
+	try {
+		const data = await response.json();
+		return {
+			message: typeof data?.error === 'string' ? data.error : null,
+			tooLarge: tooLarge || data?.details?.code?.[0] === PACKAGE_TOO_LARGE
+		};
+	} catch (err) {
+		// A non-JSON error body (proxy page, truncated response): the caller shows a generic message.
+		if (!tooLarge) Sentry.captureException(err, { level: 'warning' });
+		return { message: null, tooLarge };
+	}
+}
 
 /** Error message from a JSON error response, or null. */
 export async function responseError(response: Response): Promise<string | null> {

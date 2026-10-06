@@ -9,6 +9,7 @@ let exportCalls: unknown[] = [];
 let summaryCalls: unknown[] = [];
 let commitCalls: Array<{ resolutions: unknown }> = [];
 let exportFilename = 'bissbilanz-foods-2026-09-28.bissbilanz';
+let previewTruncated = false;
 let commitError: ApiError | null = null;
 
 vi.mock('$lib/server/food-package/export', () => ({
@@ -49,6 +50,7 @@ vi.mock('$lib/server/food-package/plan', () => ({
 				count: 1,
 				ingredientOnly: 1,
 				samples: [{ ref: 'f1', name: 'Flour', brand: null, calories: 364 }],
+				...(previewTruncated ? { itemsTruncated: true } : {}),
 				items: [
 					{
 						ref: 'f1',
@@ -120,6 +122,7 @@ describe('food package routes', () => {
 		commitCalls = [];
 		exportFilename = 'bissbilanz-foods-2026-09-28.bissbilanz';
 		commitError = null;
+		previewTruncated = false;
 	});
 
 	test('export requires auth', async () => {
@@ -245,6 +248,34 @@ describe('food package routes', () => {
 				recipes: [{ ref: 'r1', name: 'Bread' }]
 			})
 		]);
+	});
+
+	test('preview flags a truncated list of new foods', async () => {
+		previewTruncated = true;
+		const response = await previewRoute.POST(upload('/api/foods/package/preview', {}));
+		await expectResponseContract('POST', '/api/foods/package/preview', response);
+		expect((await response.json()).newFoods.itemsTruncated).toBe(true);
+	});
+
+	test('preview answers a too-big package with the too-large code', async () => {
+		const event = upload('/api/foods/package/preview', {});
+		const body = new FormData();
+		body.append('file', new File([packageZip()], 'foods.zip'));
+		const oversized = {
+			...event,
+			request: new Request('http://localhost:5173/api/foods/package/preview', {
+				method: 'POST',
+				body,
+				headers: { 'content-length': String(300 * 1024 * 1024) }
+			})
+		} as typeof event;
+		const response = await previewRoute.POST(oversized);
+		await expectResponseContract('POST', '/api/foods/package/preview', response);
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({
+			error: 'File must be 200MB or smaller',
+			details: { code: ['package_too_large'] }
+		});
 	});
 
 	test('import passes mappings on to the commit', async () => {

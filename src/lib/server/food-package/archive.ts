@@ -14,7 +14,8 @@ import {
 	MAX_MANIFEST_BYTES,
 	MAX_PACKAGE_BYTES,
 	MAX_TOTAL_INFLATED_BYTES,
-	MAX_ZIP_ENTRIES
+	MAX_ZIP_ENTRIES,
+	packageTooLarge
 } from './format';
 
 export type FoodPackageFile = {
@@ -81,7 +82,7 @@ const parseManifest = (text: string): FoodPackageManifest => {
 export function readFoodPackage(bytes: Uint8Array): FoodPackageFile {
 	if (bytes.length === 0) throw new ApiError(400, 'The file is empty');
 	if (bytes.length > MAX_PACKAGE_BYTES) {
-		throw new ApiError(400, `File must be ${MAX_PACKAGE_BYTES / 1024 / 1024}MB or smaller`);
+		throw packageTooLarge();
 	}
 	const packageHash = createHash('sha256').update(bytes).digest('hex');
 
@@ -153,4 +154,25 @@ export function readFoodPackage(bytes: Uint8Array): FoodPackageFile {
 	};
 
 	return { manifest, packageHash, readImages };
+}
+
+/**
+ * Inflates `paths` a slice at a time. When a slice hits the inflated-bytes cap, `readImages`
+ * leaves the rest out, so those paths are read again in a follow-up batch.
+ */
+export function* imageBatches(
+	readImages: FoodPackageFile['readImages'],
+	paths: string[],
+	batchSize: number
+): Generator<{ paths: string[]; images: Map<string, Uint8Array> }> {
+	for (let offset = 0; offset < paths.length; offset += batchSize) {
+		let pending = paths.slice(offset, offset + batchSize);
+		while (pending.length > 0) {
+			const images = readImages(pending);
+			const inflated = [...images.values()].reduce((sum, bytes) => sum + bytes.length, 0);
+			const capReached = inflated > MAX_TOTAL_INFLATED_BYTES - MAX_IMAGE_ENTRY_BYTES;
+			yield { paths: capReached ? pending.filter((path) => images.has(path)) : pending, images };
+			pending = capReached ? pending.filter((path) => !images.has(path)) : [];
+		}
+	}
 }

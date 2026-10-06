@@ -144,7 +144,12 @@ export const foodPackagePreviewResponseSchema = z
 							)
 						})
 						.meta({ id: 'FoodPackageNewFoodItem' })
-				)
+				),
+				/**
+				 * True when `items` lists only the first 2000 new foods of a big package. Absent
+				 * or false means the list is complete; `count` is always the full number.
+				 */
+				itemsTruncated: z.boolean().optional()
 			})
 			.meta({ id: 'FoodPackageNewFoods' }),
 		newRecipes: z
