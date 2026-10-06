@@ -11,6 +11,7 @@
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
 	import { dev } from '$app/environment';
+	import { filterRecipes } from '$lib/components/foods/foodFilters';
 	import { cookedWeightServingSize } from '$lib/utils/recipe-yield';
 
 	export type PickerFoodItem = {
@@ -33,6 +34,7 @@
 		imageUrl?: string | null;
 		totalServings?: number;
 		cookedWeight?: number | null;
+		labels?: string[] | null;
 	};
 
 	export type PickerSelection =
@@ -167,8 +169,7 @@
 	);
 	const filtered = () => localFoods.value;
 
-	const filteredRecipes = () =>
-		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
+	const filteredRecipes = () => filterRecipes(recipes, query);
 
 	const favoritesQuery = useLiveQuery(() => foodService.favorites(), [] as DexieFood[]);
 	const favoriteFoods = $derived(
