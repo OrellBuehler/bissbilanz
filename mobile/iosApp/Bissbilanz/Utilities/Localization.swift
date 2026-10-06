@@ -1895,6 +1895,31 @@ enum L10n {
         localized("sync_dropped_entry_unknown_food", en: "that food", de: "dieses Lebensmittel")
     }
 
+    static var syncRecoveredEntryNote: String {
+        localized(
+            "sync_recovered_entry_note",
+            en: "The original food could not be synced.",
+            de: "Das ursprüngliche Lebensmittel konnte nicht synchronisiert werden."
+        )
+    }
+
+    static func syncRecoveredAsQuickEntry(name: String, day: String) -> String {
+        localized(
+            "sync_recovered_as_quick_entry",
+            en: "\(name) for \(day) was saved as a quick entry because its food could not be synced.",
+            de: "\(name) für \(day) wurde als Schnelleintrag gespeichert, weil das Lebensmittel " +
+                "nicht synchronisiert werden konnte."
+        )
+    }
+
+    static var syncDependencyDiscarded: String {
+        localized(
+            "sync_dependency_discarded",
+            en: "a food or recipe it depended on was discarded",
+            de: "ein Lebensmittel oder Rezept, von dem es abhängt, wurde verworfen"
+        )
+    }
+
     // MARK: - Update required
 
     static var updateRequiredTitle: String {
