@@ -135,10 +135,16 @@ final class SyncManager {
     /// Persists an operation for upload. In Local mode the local store is the
     /// primary store, so nothing is queued — the login migrator uploads the
     /// store state when switching to Synced; queued ops would double-apply.
-    func enqueue(_ operation: SyncOperation) {
+    /// `before` is the record an edit started from (captured by the repository
+    /// ahead of its optimistic write) so the pending-changes screen can show
+    /// what the edit changes.
+    func enqueue(_ operation: SyncOperation, before: PendingChangeBefore? = nil) {
         guard !appMode.isLocal else { return }
         captureEntrySnapshot(for: operation)
-        insertOperation(operation)
+        let row = insertOperation(operation)
+        if let before {
+            PendingChangeSnapshots.record(rowId: row.id, before: before)
+        }
         save()
         refreshCounts()
         scheduleDrain()
@@ -213,6 +219,7 @@ final class SyncManager {
     }
 
     func remove(_ row: PendingSyncOperation) {
+        PendingChangeSnapshots.forget(rowId: row.id)
         context.delete(row)
         save()
         refreshCounts()
@@ -233,6 +240,7 @@ final class SyncManager {
             if let operation = row.operation() {
                 forgetEntrySnapshot(operation)
             }
+            PendingChangeSnapshots.forget(rowId: row.id)
             context.delete(row)
         }
         save()
@@ -254,6 +262,7 @@ final class SyncManager {
     func clearQueue() {
         do {
             try context.delete(model: PendingSyncOperation.self)
+            PendingChangeSnapshots.forgetAll()
         } catch {
             ErrorReporter.captureWarning("Clearing the sync queue failed", context: ["reason": ErrorReporter.reason(for: error)])
         }
@@ -836,8 +845,11 @@ final class SyncManager {
 
     // MARK: - Dependents of a create
 
-    private func insertOperation(_ operation: SyncOperation) {
-        context.insert(PendingSyncOperation(seq: nextSeq(), operation: operation))
+    @discardableResult
+    private func insertOperation(_ operation: SyncOperation) -> PendingSyncOperation {
+        let row = PendingSyncOperation(seq: nextSeq(), operation: operation)
+        context.insert(row)
+        return row
     }
 
     /// Queued or parked rows, other than `excluding`, that carry a reference to
@@ -1486,6 +1498,7 @@ final class SyncManager {
             dates.formUnion(releaseDependents(of: row, operation: operation))
             forgetEntrySnapshot(operation)
         }
+        PendingChangeSnapshots.forget(rowId: row.id)
         context.delete(row)
         save()
         refreshCounts()

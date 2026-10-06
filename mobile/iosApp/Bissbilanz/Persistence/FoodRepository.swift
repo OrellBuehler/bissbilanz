@@ -674,7 +674,8 @@ final class FoodRepository {
         // would wipe extended nutrients and OFF metadata (nutriScore,
         // additives, imageUrl, …) of e.g. a scanned food.
         let patch = (try? JSONPatch.dictionary(of: create)) ?? [:]
-        let optimistic: Food = if let existing = food(id: id),
+        let existingFood = food(id: id)
+        let optimistic: Food = if let existing = existingFood,
                                   let merged = try? JSONPatch.merged(Food.self, base: existing, patch: patch)
         {
             merged
@@ -691,7 +692,10 @@ final class FoodRepository {
                 (try? JSONPatch.merged(FoodCreate.self, base: body, patch: patch)) ?? body
             }
         } else {
-            syncManager.enqueue(.updateFood(id: id, body: create))
+            syncManager.enqueue(
+                .updateFood(id: id, body: create),
+                before: existingFood.map { PendingChangeBefore(food: $0) }
+            )
         }
         IntentDonations.reindexFood(optimistic)
         return optimistic

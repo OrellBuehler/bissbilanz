@@ -2218,6 +2218,20 @@ enum L10n {
         )
     }
 
+    static func pendingDiscardDependents(_ count: Int) -> String {
+        count == 1
+            ? localized(
+                "pending_discard_dependents_singular",
+                en: "1 other queued change depends on it. It is kept; an entry becomes a quick entry.",
+                de: "1 weitere wartende Änderung hängt davon ab. Sie bleibt erhalten; ein Eintrag wird zum Schnelleintrag."
+            )
+            : localized(
+                "pending_discard_dependents_plural",
+                en: "\(count) other queued changes depend on it. They are kept; entries become quick entries.",
+                de: "\(count) weitere wartende Änderungen hängen davon ab. Sie bleiben erhalten; Einträge werden zu Schnelleinträgen."
+            )
+    }
+
     static func pendingDiscardOther(_ name: String) -> String {
         localized(
             "pending_discard_other",

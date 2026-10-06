@@ -52,13 +52,20 @@ struct PendingChangeDetails: Equatable {
 
     /// Confirmation text for discarding: says what is lost.
     var discardMessage: String {
+        discardMessage(dependents: 0)
+    }
+
+    /// `dependents` is how many other queued changes wait on this create.
+    func discardMessage(dependents: Int) -> String {
         let name = summary.subject ?? summary.title
-        switch kind {
-        case .create: return L10n.pendingDiscardCreate(name)
-        case .update: return L10n.pendingDiscardUpdate(name)
-        case .delete: return L10n.pendingDiscardDelete(name)
-        case .other: return L10n.pendingDiscardOther(name)
+        let base = switch kind {
+        case .create: L10n.pendingDiscardCreate(name)
+        case .update: L10n.pendingDiscardUpdate(name)
+        case .delete: L10n.pendingDiscardDelete(name)
+        case .other: L10n.pendingDiscardOther(name)
         }
+        guard dependents > 0 else { return base }
+        return "\(base)\n\n\(L10n.pendingDiscardDependents(dependents))"
     }
 }
 
@@ -103,16 +110,18 @@ enum PendingChangeDescriber {
     static func summary(
         type: String,
         operation: SyncOperation?,
-        lookup: PendingChangeLookup
+        lookup: PendingChangeLookup,
+        before: PendingChangeBefore? = nil
     ) -> PendingChangeSummary {
-        details(type: type, operation: operation, lookup: lookup).summary
+        details(type: type, operation: operation, lookup: lookup, before: before).summary
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     static func details(
         type: String,
         operation: SyncOperation?,
-        lookup: PendingChangeLookup
+        lookup: PendingChangeLookup,
+        before: PendingChangeBefore? = nil
     ) -> PendingChangeDetails {
         let title = L10n.pendingChangeTitle(forType: type)
         guard let operation else {
@@ -127,7 +136,7 @@ enum PendingChangeDescriber {
         case let .createFood(body, _):
             return foodCreate(body, title: title)
         case let .updateFood(id, body):
-            return foodUpdate(id: id, body: body, title: title, lookup: lookup)
+            return foodUpdate(id: id, body: body, title: title, lookup: lookup, before: before?.food)
         case let .deleteFood(id, force):
             let name = lookup.foodName(id)
             return deletion(
@@ -149,13 +158,13 @@ enum PendingChangeDescriber {
         case let .createEntry(body, _):
             return entryCreate(body, title: title, lookup: lookup)
         case let .updateEntry(id, body):
-            return entryUpdate(id: id, body: body, title: title, lookup: lookup)
+            return entryUpdate(id: id, body: body, title: title, lookup: lookup, before: before?.entry)
         case let .deleteEntry(id):
             return entryDelete(id: id, title: title, lookup: lookup)
         case let .createRecipe(body, _):
             return recipeCreate(body, title: title, lookup: lookup)
         case let .updateRecipe(id, body):
-            return recipeUpdate(id: id, body: body, title: title, lookup: lookup)
+            return recipeUpdate(id: id, body: body, title: title, lookup: lookup, before: before?.recipe)
         case let .setRecipeImage(id, imageUrl):
             let photo = field(L10n.pendingDetailPhoto, photoText(imageUrl))
             return simple(.update, title: title, subject: lookup.recipeName(id), fields: [photo])
@@ -256,11 +265,12 @@ enum PendingChangeDescriber {
         id: String,
         body: FoodCreate,
         title: String,
-        lookup: PendingChangeLookup
+        lookup: PendingChangeLookup,
+        before: Food?
     ) -> PendingChangeDetails {
-        let record = lookup.food(lookup.resolveId(id))
+        let record = before ?? lookup.food(lookup.resolveId(id))
         let fields = compare(foodSpecs, new: dictionary(of: body), old: record.map { dictionary(of: $0) })
-        let outcome = updateOutcome(fields, hasRecord: record != nil)
+        let outcome = updateOutcome(fields, hasRecord: record != nil, isBefore: before != nil)
         var extras = changedLabels(outcome.changed)
         if extras.isEmpty {
             extras = [amount(body.servingSize, body.servingUnit.displayName), amount(body.calories, "kcal")]
@@ -347,13 +357,14 @@ enum PendingChangeDescriber {
         id: String,
         body: EntryUpdate,
         title: String,
-        lookup: PendingChangeLookup
+        lookup: PendingChangeLookup,
+        before: Entry?
     ) -> PendingChangeDetails {
-        let record = lookup.entry(lookup.resolveId(id))
+        let record = before ?? lookup.entry(lookup.resolveId(id))
         let fields = compare(
             entrySpecs, new: dictionary(of: body), old: record.map { dictionary(of: $0) }
         )
-        let outcome = updateOutcome(fields, hasRecord: record != nil)
+        let outcome = updateOutcome(fields, hasRecord: record != nil, isBefore: before != nil)
         let extras = changedLabels(outcome.changed.isEmpty ? fields : outcome.changed)
         var subject = nonEmpty(record?.foodName) ?? nonEmpty(record?.quickName)
         if subject == nil, case let .some(.some(name)) = body.quickName { subject = nonEmpty(name) }
@@ -454,7 +465,8 @@ enum PendingChangeDescriber {
         id: String,
         body: RecipeUpdate,
         title: String,
-        lookup: PendingChangeLookup
+        lookup: PendingChangeLookup,
+        before: Recipe?
     ) -> PendingChangeDetails {
         var facts = RecipeFacts()
         facts.name = body.name
@@ -469,7 +481,7 @@ enum PendingChangeDescriber {
         }
         facts.steps = body.steps.map { stepLines($0.map(\.text)) }
 
-        let record = lookup.recipe(lookup.resolveId(id))
+        let record = before ?? lookup.recipe(lookup.resolveId(id))
         var old: RecipeFacts?
         if let record {
             var oldFacts = RecipeFacts()
@@ -485,7 +497,7 @@ enum PendingChangeDescriber {
             old = oldFacts
         }
         let fields = recipeFields(new: facts, old: old)
-        let outcome = updateOutcome(fields, hasRecord: record != nil)
+        let outcome = updateOutcome(fields, hasRecord: record != nil, isBefore: before != nil)
         var extras = outcome.changed.isEmpty ? changedLabels(fields) : changedLabels(outcome.changed)
         if extras.isEmpty, let count = body.ingredients?.count {
             extras = [L10n.pendingIngredientCount(count)]
@@ -734,10 +746,15 @@ enum PendingChangeDescriber {
         let changed: [PendingChangeField]
     }
 
-    /// With a cached record, only the fields that differ from it; when it
-    /// already holds every submitted value (an offline edit is applied locally
-    /// before it is queued) or there is no record, the submitted values.
-    private static func updateOutcome(_ fields: [PendingChangeField], hasRecord: Bool) -> UpdateOutcome {
+    /// With the record the edit started from (`isBefore`, captured at enqueue)
+    /// or a cached one, only the fields that differ from it; when the cached
+    /// record already holds every submitted value (an offline edit is applied
+    /// locally before it is queued) or there is no record, the submitted values.
+    private static func updateOutcome(
+        _ fields: [PendingChangeField],
+        hasRecord: Bool,
+        isBefore: Bool = false
+    ) -> UpdateOutcome {
         let changed = hasRecord ? fields.filter { $0.oldValue != $0.value } : []
         if !changed.isEmpty {
             return UpdateOutcome(
@@ -753,7 +770,7 @@ enum PendingChangeDescriber {
         }
         return UpdateOutcome(
             sections: [PendingChangeSection(title: L10n.pendingDetailSubmitted, fields: compacted(plain))],
-            notes: hasRecord ? [L10n.pendingDetailAlreadyLocal] : [],
+            notes: hasRecord && !isBefore ? [L10n.pendingDetailAlreadyLocal] : [],
             changed: []
         )
     }

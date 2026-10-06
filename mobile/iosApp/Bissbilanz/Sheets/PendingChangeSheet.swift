@@ -80,7 +80,10 @@ struct PendingChangeSheet: View {
     @ViewBuilder
     private func content(for row: PendingSyncOperation) -> some View {
         let lookup = PendingChangeLookup.store(context: modelContext, queued: queued)
-        let details = PendingChangeDescriber.details(type: row.type, operation: row.operation(), lookup: lookup)
+        let details = PendingChangeDescriber.details(
+            type: row.type, operation: row.operation(), lookup: lookup,
+            before: PendingChangeSnapshots.lookup(rowId: row.id)
+        )
         let parked = row.failedAt != nil
         List {
             Section {
@@ -139,7 +142,7 @@ struct PendingChangeSheet: View {
             }
             Button(L10n.cancel, role: .cancel) {}
         } message: {
-            Text(details.discardMessage)
+            Text(details.discardMessage(dependents: syncManager.dependentCount(of: row)))
         }
     }
 

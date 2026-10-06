@@ -25,6 +25,7 @@ struct PendingSyncView: View {
 
     var body: some View {
         let lookup = PendingChangeLookup.store(context: modelContext, queued: queued)
+        let befores = PendingChangeSnapshots.all()
         List {
             if queued.isEmpty {
                 ContentUnavailableView {
@@ -47,7 +48,7 @@ struct PendingSyncView: View {
                 if !parked.isEmpty {
                     Section {
                         ForEach(parked) { row in
-                            PendingSyncRow(row: row, lookup: lookup) {
+                            PendingSyncRow(row: row, lookup: lookup, before: befores[row.id.uuidString]) {
                                 selected = PendingSyncSelection(id: row.id)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -73,7 +74,7 @@ struct PendingSyncView: View {
                 if !pending.isEmpty {
                     Section {
                         ForEach(pending) { row in
-                            PendingSyncRow(row: row, lookup: lookup) {
+                            PendingSyncRow(row: row, lookup: lookup, before: befores[row.id.uuidString]) {
                                 selected = PendingSyncSelection(id: row.id)
                             }
                         }
@@ -114,14 +115,20 @@ struct PendingSyncView: View {
             }
             Button(L10n.cancel, role: .cancel) {}
         } message: { target in
-            Text(discardMessage(for: target, lookup: lookup))
+            Text(discardMessage(for: target, lookup: lookup, befores: befores))
         }
     }
 
-    private func discardMessage(for target: PendingSyncSelection, lookup: PendingChangeLookup) -> String {
+    private func discardMessage(
+        for target: PendingSyncSelection,
+        lookup: PendingChangeLookup,
+        befores: [String: PendingChangeBefore]
+    ) -> String {
         guard let row = queued.first(where: { $0.id == target.id }) else { return "" }
-        return PendingChangeDescriber.details(type: row.type, operation: row.operation(), lookup: lookup)
-            .discardMessage
+        return PendingChangeDescriber.details(
+            type: row.type, operation: row.operation(), lookup: lookup, before: befores[row.id.uuidString]
+        )
+        .discardMessage(dependents: syncManager.dependentCount(of: row))
     }
 }
 
@@ -132,6 +139,7 @@ struct PendingSyncView: View {
 private struct PendingSyncRow: View {
     let row: PendingSyncOperation
     let lookup: PendingChangeLookup
+    let before: PendingChangeBefore?
     let onSelect: () -> Void
 
     private var isParked: Bool {
@@ -139,7 +147,9 @@ private struct PendingSyncRow: View {
     }
 
     var body: some View {
-        let summary = PendingChangeDescriber.summary(type: row.type, operation: row.operation(), lookup: lookup)
+        let summary = PendingChangeDescriber.summary(
+            type: row.type, operation: row.operation(), lookup: lookup, before: before
+        )
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: PendingChangeDescriber.icon(forType: row.type))
