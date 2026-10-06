@@ -32,6 +32,7 @@
 	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
 	import { requestQuickAction, consumeQuickAction } from '$lib/stores/command-palette.svelte';
 	import { caloriesPerHundredGrams } from '$lib/utils/recipe-yield';
 	import HintCard from '$lib/components/help/HintCard.svelte';
@@ -88,6 +89,7 @@
 	$effect(() => {
 		if (browser) {
 			recipeService.refresh();
+			void foodService.refresh();
 		}
 	});
 

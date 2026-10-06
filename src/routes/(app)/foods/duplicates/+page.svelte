@@ -45,7 +45,10 @@
 	}
 
 	$effect(() => {
-		if (browser) refresh();
+		if (browser) {
+			refresh();
+			void foodService.refresh();
+		}
 	});
 
 	function resolve(group: DuplicateGroup) {
