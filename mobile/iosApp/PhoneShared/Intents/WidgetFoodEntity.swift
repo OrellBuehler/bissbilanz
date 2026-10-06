@@ -62,50 +62,86 @@ struct WidgetFoodEntity: AppEntity {
 /// `EntryWriter.suggestedFoods()`'s "favorites first" ordering.
 struct WidgetFoodEntityQuery: EntityStringQuery {
     func entities(for identifiers: [String]) async throws -> [WidgetFoodEntity] {
-        let ids = Set(identifiers)
-        return await Self.fetchLocalFoods().filter { ids.contains($0.id) }
+        await Self.fetchLocalFoods(ids: identifiers)
     }
 
     func entities(matching string: String) async throws -> [WidgetFoodEntity] {
-        await Self.fetchLocalFoods().filter { $0.name.localizedCaseInsensitiveContains(string) }
+        await Self.fetchLocalFoods(matching: string)
     }
 
     func suggestedEntities() async throws -> [WidgetFoodEntity] {
-        let foods = await Self.fetchLocalFoods()
-        let favorites = foods.filter(\.isFavorite)
-        let rest = foods.filter { !$0.isFavorite }
-        return Array((favorites + rest).prefix(20))
+        await Self.fetchSuggestedFoods()
     }
 
-    /// Every on-device food, sorted by name, mapped to the Sendable
-    /// `WidgetFoodEntity` *before* returning — the underlying `LocalFood`
-    /// SwiftData rows are tied to this `@MainActor` call and must never cross
-    /// back out to the callers above, which run off the main actor. Small
-    /// enough (a personal food database) to fetch and filter in memory
-    /// rather than building a SwiftData predicate per query.
+    /// The `LocalFood` SwiftData rows are tied to these `@MainActor` calls and
+    /// must never cross back out to the callers above, which run off the main
+    /// actor, so each maps to the Sendable `WidgetFoodEntity` before returning.
+    /// Every read is bounded by a predicate and `fetchLimit`: the widget
+    /// extension has a small memory budget and the catalog can hold 100k foods.
     @MainActor
-    fileprivate static func fetchLocalFoods() -> [WidgetFoodEntity] {
+    private static func makeContext() -> ModelContext {
         let container = LocalStore.extensionContainer(cloudKitEnabled: AppModeSnapshot.isLocal) { error, context in
             QuickAddDiagnostics.record(phase: context["phase"] as? String ?? "widget_food_query", error: error)
         }
-        let context = ModelContext(container)
-        let rows = (try? context.fetch(FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)]))) ?? []
+        return ModelContext(container)
+    }
+
+    @MainActor
+    private static func fetchLocalFoods(ids: [String]) -> [WidgetFoodEntity] {
+        guard !ids.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<LocalFood>(
+            predicate: #Predicate<LocalFood> { ids.contains($0.id) },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        let rows = (try? makeContext().fetch(descriptor)) ?? []
         return rows.map(WidgetFoodEntity.init)
     }
 
-    /// Fresh id → display-data map, for `WidgetFoodSelection` to resolve a
-    /// saved widget configuration's picks against at render time rather than
-    /// trusting the `WidgetFoodEntity` values WidgetKit cached when the pick
-    /// was made (those can go stale between edits).
     @MainActor
-    static func currentFoodsById() -> [String: WidgetSnapshot.FavoriteFood] {
+    private static func fetchLocalFoods(matching string: String) -> [WidgetFoodEntity] {
+        guard !string.isEmpty else { return [] }
+        var descriptor = FetchDescriptor<LocalFood>(
+            predicate: #Predicate<LocalFood> { $0.name.localizedStandardContains(string) },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        descriptor.fetchLimit = 50
+        let rows = (try? makeContext().fetch(descriptor)) ?? []
+        return rows.map(WidgetFoodEntity.init)
+    }
+
+    /// Favorites first, then the alphabetical head of the rest, 20 in all.
+    @MainActor
+    private static func fetchSuggestedFoods() -> [WidgetFoodEntity] {
+        let context = makeContext()
+        let limit = 20
+        var favoritesDescriptor = FetchDescriptor<LocalFood>(
+            predicate: #Predicate<LocalFood> { $0.isFavorite },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        favoritesDescriptor.fetchLimit = limit
+        let favorites = (try? context.fetch(favoritesDescriptor)) ?? []
+        var restDescriptor = FetchDescriptor<LocalFood>(
+            predicate: #Predicate<LocalFood> { !$0.isFavorite },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        restDescriptor.fetchLimit = limit - favorites.count
+        let rest = favorites.count < limit ? ((try? context.fetch(restDescriptor)) ?? []) : []
+        return (favorites + rest).map(WidgetFoodEntity.init)
+    }
+
+    /// Fresh id → display-data map for the foods a saved widget configuration
+    /// picked, for `WidgetFoodSelection` to resolve them against at render time
+    /// rather than trusting the `WidgetFoodEntity` values WidgetKit cached when
+    /// the pick was made (those can go stale between edits).
+    @MainActor
+    static func currentFoodsById(ids: [String]) -> [String: WidgetSnapshot.FavoriteFood] {
         // `Dictionary(_:uniquingKeysWith:)`, not `uniqueKeysWithValues:` —
         // `id` uniqueness is enforced by every write path rather than a
         // schema constraint (see `LocalStore`'s CloudKit compatibility
         // note), so this stays crash-safe even if a duplicate ever slips
         // through.
         Dictionary(
-            fetchLocalFoods().map {
+            fetchLocalFoods(ids: ids).map {
                 ($0.id, WidgetSnapshot.FavoriteFood(id: $0.id, name: $0.name, calories: $0.calories, imageUrl: $0.imageUrl))
             },
             uniquingKeysWith: { first, _ in first }

@@ -68,6 +68,11 @@ struct Food: Codable, Identifiable, Hashable {
     let labels: [String]?
     let createdAt: String?
     let updatedAt: String?
+    /// When the server last wrote the row — what delta sync is keyed on (unlike
+    /// `updatedAt`, it never goes backwards). Absent on older servers and on
+    /// foods built locally; `var` with a default so existing call sites keep
+    /// compiling.
+    var serverModifiedAt: String? = nil
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
@@ -247,6 +252,13 @@ struct ImagePatch: Codable {
 
 struct FoodsResponse: Codable {
     let foods: [Food]
+    /// Delta mode only (`modifiedSince` / `after`): pass as `after` for the next
+    /// page; nil once exhausted, and always nil outside delta mode.
+    var nextCursor: String? = nil
+}
+
+struct FoodIdsResponse: Codable {
+    let ids: [String]
 }
 
 struct FoodResponse: Codable {

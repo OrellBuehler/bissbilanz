@@ -26,6 +26,7 @@ final class StubURLProtocol: URLProtocol {
     private nonisolated(unsafe) static var recorded: [String] = []
     private nonisolated(unsafe) static var bodies: [String: [Data]] = [:]
     private nonisolated(unsafe) static var headers: [String: [[String: String]]] = [:]
+    private nonisolated(unsafe) static var queries: [String: [String]] = [:]
     private static let lock = NSLock()
 
     static func stub(
@@ -67,6 +68,13 @@ final class StubURLProtocol: URLProtocol {
         return bodies["\(method) \(url)"] ?? []
     }
 
+    /// Query strings sent to "METHOD url", in arrival order ("" when none).
+    static func recordedQueries(_ method: String, _ url: String) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return queries["\(method) \(url)"] ?? []
+    }
+
     /// `allHTTPHeaderFields` of every request sent to "METHOD url", in arrival
     /// order — e.g. asserting `X-Client-Platform`/`X-Client-Version` were set.
     static func recordedHeaders(_ method: String, _ url: String) -> [[String: String]] {
@@ -105,6 +113,7 @@ final class StubURLProtocol: URLProtocol {
             Self.bodies[key, default: []].append(body)
         }
         Self.headers[key, default: []].append(request.allHTTPHeaderFields ?? [:])
+        Self.queries[key, default: []].append(url?.query ?? "")
         let stub: Stub?
         if var queued = Self.stubQueues[key], !queued.isEmpty {
             stub = queued.removeFirst()
@@ -240,6 +249,10 @@ struct RepositoryHarness {
         StubURLProtocol.recordedBodies(method, "\(baseURL)\(path)")
     }
 
+    func recordedQueries(_ method: String, _ path: String) -> [String] {
+        StubURLProtocol.recordedQueries(method, "\(baseURL)\(path)")
+    }
+
     func recordedHeaders(_ method: String, _ path: String) -> [[String: String]] {
         StubURLProtocol.recordedHeaders(method, "\(baseURL)\(path)")
     }
@@ -251,7 +264,7 @@ struct RepositoryHarness {
     }
 
     var foodRepository: FoodRepository {
-        FoodRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
+        FoodRepository(context: context, api: api, appMode: appMode, syncManager: syncManager, defaults: defaults)
     }
 
     var recipeRepository: RecipeRepository {

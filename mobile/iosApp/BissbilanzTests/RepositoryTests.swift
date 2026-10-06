@@ -663,11 +663,93 @@ struct RepositoryTests {
 
     // BISSBILANZ-33: a food deleted or merged away server-side (`mergeFoods`
     // re-points entries that already exist server-side, but not a still-
-    // queued offline create) must stop surfacing from the local mirror once a
-    // full listing confirms it is gone — otherwise the same stale food keeps
+    // queued offline create) must stop surfacing from the local mirror once the
+    // server's id list confirms it is gone — otherwise the same stale food keeps
     // producing dropped creates.
 
-    @Test("mirrorAll prunes a local food absent from a completed full listing")
+    private func listedFood(_ id: String, name: String, modifiedAt: String? = nil) -> String {
+        let stamp = modifiedAt.map { ", \"serverModifiedAt\": \"\($0)\"" } ?? ""
+        return """
+        {"id": "\(id)", "userId": "u1", "name": "\(name)", "servingSize": 100, "servingUnit": "g",
+         "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false\(stamp)}
+        """
+    }
+
+    @Test("mirrorAll pages through the delta cursor, starting from the epoch")
+    func mirrorAllFollowsCursor() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stubSequence("GET", "/api/foods", [
+            (status: 200, json: #"{"foods": [\#(listedFood("a", name: "A"))], "total": 1, "nextCursor": "cursor-1"}"#, headers: [:]),
+            (status: 200, json: #"{"foods": [\#(listedFood("b", name: "B"))], "total": 1, "nextCursor": null}"#, headers: [:]),
+        ])
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["a", "b"]}"#)
+
+        try await repo.mirrorAll()
+
+        #expect(repo.food(id: "a") != nil)
+        #expect(repo.food(id: "b") != nil)
+        let queries = harness.recordedQueries("GET", "/api/foods")
+        #expect(queries.count == 2)
+        #expect(queries[0].contains("modifiedSince=1970-01-01T00:00:00Z"))
+        #expect(queries[0].contains("limit=1000"))
+        #expect(!queries[0].contains("after="))
+        #expect(queries[1].contains("after=cursor-1"))
+        #expect(!queries[1].contains("modifiedSince="))
+    }
+
+    @Test("mirrorAll stores the newest serverModifiedAt and resumes a minute before it")
+    func mirrorAllPersistsCheckpoint() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [
+            \(listedFood("a", name: "A", modifiedAt: "2026-10-01T12:00:00.000Z")),
+            \(listedFood("b", name: "B", modifiedAt: "2026-10-01T12:30:00.500Z"))
+        ], "total": 2, "nextCursor": null}
+        """)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["a", "b"]}"#)
+
+        try await repo.mirrorAll()
+        try await repo.mirrorAll()
+
+        let queries = harness.recordedQueries("GET", "/api/foods")
+        #expect(queries.count == 2)
+        #expect(queries[0].contains("modifiedSince=1970-01-01T00:00:00Z"))
+        #expect(queries[1].contains("modifiedSince=2026-10-01T12:29:00Z"))
+    }
+
+    @Test("mirrorAll ignores a checkpoint once the store has been emptied")
+    func mirrorAllRestartsOnEmptyStore() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.defaults.set(1_800_000_000.0, forKey: FoodMirrorState.checkpointKey)
+        harness.stub("GET", "/api/foods", json: #"{"foods": [], "total": 0, "nextCursor": null}"#)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": []}"#)
+
+        try await repo.mirrorAll()
+
+        #expect(harness.recordedQueries("GET", "/api/foods").first?.contains("modifiedSince=1970-01-01T00:00:00Z") == true)
+    }
+
+    @Test("mirrorAll upserts existing rows in place")
+    func mirrorAllUpdatesExistingRows() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "a", name: "Old")))
+        try harness.context.save()
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [\(listedFood("a", name: "New"))], "total": 1, "nextCursor": null}
+        """)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["a"]}"#)
+
+        try await repo.mirrorAll()
+
+        #expect(repo.food(id: "a")?.name == "New")
+        #expect(try harness.context.fetchCount(FetchDescriptor<LocalFood>()) == 1)
+    }
+
+    @Test("mirrorAll prunes a local food absent from the server's id list")
     func mirrorAllPrunesStaleFood() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.foodRepository
@@ -675,11 +757,9 @@ struct RepositoryTests {
         try harness.context.insert(LocalFood(food: harness.food(id: "stale", name: "Stale")))
         try harness.context.save()
         harness.stub("GET", "/api/foods", json: """
-        {"foods": [{
-            "id": "kept", "userId": "u1", "name": "Kept", "servingSize": 100, "servingUnit": "g",
-            "calories": 100, "protein": 10, "carbs": 20, "fat": 5, "fiber": 3, "isFavorite": false
-        }]}
+        {"foods": [\(listedFood("kept", name: "Kept"))], "total": 1, "nextCursor": null}
         """)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["kept"]}"#)
 
         try await repo.mirrorAll()
 
@@ -687,11 +767,15 @@ struct RepositoryTests {
         #expect(repo.food(id: "stale") == nil)
     }
 
-    @Test("mirrorAll keeps a stale food that still has a queued local write")
-    func mirrorAllKeepsPendingStaleFood() async throws {
+    @Test("mirrorAll compares ids case-insensitively and keeps pending and temp rows")
+    func mirrorAllPruneKeepsProtectedRows() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.foodRepository
+        let tempId = LocalStore.makeTempId()
+        try harness.context.insert(LocalFood(food: harness.food(id: "AAAAAAAA-0000-4000-8000-000000000001", name: "Upper")))
         try harness.context.insert(LocalFood(food: harness.food(id: "pending", name: "Pending Edit")))
+        try harness.context.insert(LocalFood(food: harness.food(id: tempId, name: "Temp")))
+        try harness.context.insert(LocalFood(food: harness.food(id: "stale", name: "Stale")))
         try harness.context.save()
         harness.syncManager.enqueue(.updateFood(
             id: "pending",
@@ -700,14 +784,51 @@ struct RepositoryTests {
                 calories: 100, protein: 10, carbs: 20, fat: 5, fiber: 3
             )
         ))
-        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/foods", json: #"{"foods": [], "total": 0, "nextCursor": null}"#)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["aaaaaaaa-0000-4000-8000-000000000001"]}"#)
 
         try await repo.mirrorAll()
 
+        #expect(repo.food(id: "AAAAAAAA-0000-4000-8000-000000000001") != nil)
         #expect(repo.food(id: "pending") != nil)
+        #expect(repo.food(id: tempId) != nil)
+        #expect(repo.food(id: "stale") == nil)
     }
 
-    @Test("mirrorAll prunes nothing when the listing is interrupted before a short page")
+    @Test("mirrorAll reconciles ids at most once a day unless asked")
+    func mirrorAllThrottlesPrune() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        harness.stub("GET", "/api/foods", json: #"{"foods": [], "total": 0, "nextCursor": null}"#)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": []}"#)
+
+        try await repo.mirrorAll()
+        try await repo.mirrorAll()
+        #expect(harness.recordedRequests.filter { $0 == "GET /api/foods/ids" }.count == 1)
+
+        try await repo.mirrorAll(reconcileDeletions: true)
+        #expect(harness.recordedRequests.filter { $0 == "GET /api/foods/ids" }.count == 2)
+    }
+
+    @Test("mirrorAll prunes nothing when it stops at the page cap")
+    func mirrorAllSkipsPruneWhenTruncated() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "stale", name: "Stale")))
+        try harness.context.save()
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [\(listedFood("a", name: "A"))], "total": 1, "nextCursor": "more"}
+        """)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["a"]}"#)
+
+        try await repo.mirrorAll(maxPages: 2)
+
+        #expect(repo.food(id: "a") != nil)
+        #expect(repo.food(id: "stale") != nil)
+        #expect(harness.recordedRequests.filter { $0 == "GET /api/foods/ids" }.isEmpty)
+    }
+
+    @Test("mirrorAll prunes nothing when the listing is interrupted")
     func mirrorAllSkipsPruneOnPartialListing() async throws {
         let harness = try RepositoryHarness()
         let repo = harness.foodRepository
@@ -723,6 +844,42 @@ struct RepositoryTests {
         }
 
         #expect(repo.food(id: "stale") != nil)
+    }
+
+    @Test("Local search is capped and ranks name matches first")
+    func localSearchHonoursLimit() throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        for index in 0 ..< 60 {
+            let name = "Apple \(String(format: "%02d", index))"
+            try harness.context.insert(LocalFood(food: harness.food(id: "f-\(index)", name: name)))
+        }
+        try harness.context.insert(LocalFood(food: harness.food(id: "other", name: "Pear")))
+        try harness.context.save()
+
+        let hits = repo.searchLocal("apple")
+
+        #expect(hits.count == 50)
+        #expect(hits.first?.name == "Apple 00")
+        #expect(repo.searchLocal("apple", limit: 5).map(\.name) == ["Apple 00", "Apple 01", "Apple 02", "Apple 03", "Apple 04"])
+        #expect(repo.searchLocal("").isEmpty)
+    }
+
+    @Test("A delta page decodes its cursor and per-food serverModifiedAt, both optional")
+    func deltaPageDecodes() throws {
+        let decoder = JSONDecoder()
+        let full = Data("""
+        {"foods": [\(listedFood("a", name: "A", modifiedAt: "2026-10-01T12:00:00.123Z"))], "total": 1, "nextCursor": "c"}
+        """.utf8)
+        let bare = Data(#"{"foods": [], "total": 0}"#.utf8)
+        let ids = Data(#"{"ids": ["a", "b"]}"#.utf8)
+
+        let page = try decoder.decode(FoodsResponse.self, from: full)
+        #expect(page.nextCursor == "c")
+        #expect(page.foods.first?.serverModifiedAt == "2026-10-01T12:00:00.123Z")
+        let end = try decoder.decode(FoodsResponse.self, from: bare)
+        #expect(end.nextCursor == nil)
+        #expect(try decoder.decode(FoodIdsResponse.self, from: ids).ids == ["a", "b"])
     }
 
     @Test("refreshFood prunes the local row when the server no longer has it")

@@ -16,6 +16,24 @@ extension BissbilanzAPI {
         return response.foods
     }
 
+    /// One page of the delta listing, ordered by (server_modified_at, id). The
+    /// first page is requested with `modifiedSince` (an ISO-8601 instant,
+    /// exclusive); every following page with the previous page's `nextCursor`
+    /// as `after`.
+    func getFoodsDelta(modifiedSince: String? = nil, after: String? = nil, limit: Int = 1000) async throws -> FoodsResponse {
+        var params = ["limit": "\(limit)"]
+        if let modifiedSince { params["modifiedSince"] = modifiedSince }
+        if let after { params["after"] = after }
+        return try await get("/api/foods", params: params)
+    }
+
+    /// Every food id the user has — for reconciling hard deletes the delta
+    /// listing cannot express.
+    func getFoodIds() async throws -> [String] {
+        let response: FoodIdsResponse = try await get("/api/foods/ids")
+        return response.ids
+    }
+
     func getRecentFoods(limit: Int = 20) async throws -> [Food] {
         let response: FoodsResponse = try await get("/api/foods/recent", params: ["limit": "\(limit)"])
         return response.foods

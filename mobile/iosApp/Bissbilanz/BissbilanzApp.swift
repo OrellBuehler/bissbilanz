@@ -550,14 +550,15 @@ struct BissbilanzApp: App {
         }
         // Keep Spotlight in step with the searchable catalog so
         // foods/recipes are findable before the next manual log. The whole
-        // local catalog is indexed — not just favorites/recents — so keyword
-        // and label search reach every food, but rebuilding it is real work
-        // (one attributeSet per row), so it's throttled to once every six
-        // hours; favorite recipes are cheap enough to redo on every
+        // local catalog is indexed — favorites and recents first, then the
+        // alphabetical head up to the cap in `spotlightFoods` — so keyword
+        // and label search reach the foods people look for, but rebuilding it
+        // is real work (one attributeSet per row), so it's throttled to once
+        // every six hours; favorite recipes are cheap enough to redo on every
         // activation.
         let reindexFullCatalog = IntentDonations.catalogReindexDue()
         IntentDonations.indexCatalog(
-            foods: reindexFullCatalog ? foodRepository.allLocalFoods() : [],
+            foods: reindexFullCatalog ? foodRepository.spotlightFoods() : [],
             recipes: recipeRepository.favoriteRecipes()
         )
         if reindexFullCatalog {
