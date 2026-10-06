@@ -64,6 +64,28 @@ test('mapProductDetail uses a cloudinary size stack and leaves unknown roots unl
 	expect(d!.category).toBeNull();
 });
 
+test('mapProductDetail keeps the original stack for hosts that only mention cloudinary', () => {
+	const d = mapProductDetail(
+		{ uid: 6, name: 'X', images: [{ url: 'https://cloudinary.com.example.org/{stack}/p.png' }] },
+		ROOTS
+	);
+	expect(d!.imageUrl).toBe('https://cloudinary.com.example.org/original/p.png');
+});
+
+test('mapProductDetail strips nested tags and decodes entities once', () => {
+	const d = mapProductDetail(
+		{
+			uid: 7,
+			name: 'X',
+			productInformation: {
+				mainInformation: { ingredients: '<scr<b>ipt>Salz &amp;lt; 1% &amp; Zucker&nbsp;' }
+			}
+		},
+		ROOTS
+	);
+	expect(d!.ingredients).toBe('Salz &lt; 1% & Zucker');
+});
+
 test('parseEnergyKcal reads kcal, falls back to kJ and ignores the approximation sign', () => {
 	expect(parseEnergyKcal('287 kJ (69 kcal)')).toBe(69);
 	expect(parseEnergyKcal('~ 78 kJ (~ 18 kcal)')).toBe(18);

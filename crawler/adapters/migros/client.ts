@@ -72,25 +72,45 @@ export function parseEnergyKcal(value: string | undefined): number | null {
 	return null;
 }
 
+const ENTITIES: Record<string, string> = {
+	nbsp: ' ',
+	amp: '&',
+	lt: '<',
+	gt: '>',
+	quot: '"',
+	'#39': "'",
+	'#039': "'"
+};
+
+function stripTags(value: string): string {
+	let previous: string;
+	let text = value;
+	do {
+		previous = text;
+		text = text.replace(/<[^<>]*>/g, '');
+	} while (text !== previous);
+	return text.replace(/[<>]/g, '');
+}
+
 function cleanText(value: string | null | undefined): string | null {
 	if (!value) return null;
-	const text = value
-		.replace(/<[^>]*>/g, '')
-		.replace(/&nbsp;/g, ' ')
-		.replace(/&amp;/g, '&')
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&#0?39;/g, "'")
+	const text = stripTags(value)
+		.replace(/&(nbsp|amp|lt|gt|quot|#0?39);/g, (_, name: string) => ENTITIES[name])
 		.replace(/\s+/g, ' ')
 		.trim();
 	return text || null;
 }
 
+function isCloudinary(url: string): boolean {
+	if (!URL.canParse(url)) return false;
+	const host = new URL(url).hostname;
+	return host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
+}
+
 function resolveImage(raw: RawProduct): string | null {
 	const url = raw.images?.[0]?.url ?? raw.imageTransparent?.url;
 	if (!url) return null;
-	const stack = url.includes('cloudinary.com') ? 'w_800,h_800,c_limit' : 'original';
+	const stack = isCloudinary(url) ? 'w_800,h_800,c_limit' : 'original';
 	return url.replace('{stack}', stack);
 }
 
