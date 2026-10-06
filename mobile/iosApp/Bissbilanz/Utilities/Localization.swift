@@ -880,6 +880,10 @@ enum L10n {
         localized("recipes", en: "Recipes", de: "Rezepte")
     }
 
+    static var recipe: String {
+        localized("recipe", en: "Recipe", de: "Rezept")
+    }
+
     static var createRecipe: String {
         localized("create_recipe", en: "Create Recipe", de: "Rezept erstellen")
     }
