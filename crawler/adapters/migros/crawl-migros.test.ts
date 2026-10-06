@@ -38,9 +38,22 @@ test('emits normalized products and dedupes repeated ids and barcodes', async ()
 	const stats = newStats();
 	const out = [];
 	for await (const p of crawlMigros(client, { stats, sleep: async () => {} })) out.push(p);
-	expect(out.map((p) => p.name).sort()).toEqual(['A', 'B']);
+	expect(out.map((p) => p.product.name).sort()).toEqual(['A', 'B']);
 	expect(stats.emitted).toBe(2);
 	expect(stats.dropReasons['dup']).toBe(2); // one dup id + one dup barcode
+});
+
+test('attaches the category label of the product to the emitted food', async () => {
+	const client = makeClient(
+		{
+			'1': { ...base, category: 'Brot & Backwaren' },
+			'2': { ...base, id: '2', gtins: ['7610200000002'] }
+		},
+		['1', '2']
+	);
+	const out = [];
+	for await (const p of crawlMigros(client, { sleep: async () => {} })) out.push(p);
+	expect(out.map((p) => p.categories)).toEqual([['Brot & Backwaren'], []]);
 });
 
 test('skips ids whose product detail is null', async () => {

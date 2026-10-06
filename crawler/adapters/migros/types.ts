@@ -1,5 +1,5 @@
 export type MigrosNutrition = {
-	basis?: string; // e.g. "100g", "200g", "100ml"
+	basis?: string; // e.g. "100 g", "100 ml"
 	energyKcal?: number | null;
 	protein?: number | null;
 	carbohydrate?: number | null;
@@ -8,6 +8,7 @@ export type MigrosNutrition = {
 	sugar?: number | null;
 	saturatedFat?: number | null;
 	salt?: number | null;
+	other?: Record<string, number>; // extended nutrient keys, already in the app's units
 };
 
 export type MigrosProductDetail = {
@@ -18,15 +19,18 @@ export type MigrosProductDetail = {
 	productUrl?: string | null;
 	imageUrl?: string | null;
 	ingredients?: string | null;
+	category?: string | null;
 	nutrition: MigrosNutrition;
 };
 
+export type MigrosCursor = { category: string; page: number };
+
 export interface MigrosClient {
-	/** Yields product ids for the configured food categories, page by page. */
-	listProductIds(opts: { resume?: { category: string; page: number } | null }): AsyncIterable<{
+	/** Yields product ids of the food categories, in scan order. */
+	listProductIds(opts: { resume?: MigrosCursor | null }): AsyncIterable<{
 		id: string;
-		cursor: { category: string; page: number };
+		cursor: MigrosCursor;
 	}>;
-	/** Fetches and normalizes one product detail; null if unavailable. */
+	/** Returns the normalized detail of an id yielded by `listProductIds`; null if unavailable. */
 	getProduct(id: string): Promise<MigrosProductDetail | null>;
 }

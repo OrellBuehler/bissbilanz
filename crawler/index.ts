@@ -13,8 +13,20 @@ import { mapOrdered } from './lib/map-ordered';
 import { readCheckpoint, writeCheckpoint } from './lib/checkpoint';
 import { newStats, type CrawledFood, type CrawlStats } from './types';
 
-// Root "food" category id(s) in the Migros taxonomy; refine on the host during a real crawl.
-const MIGROS_FOOD_CATEGORIES = ['7494731'];
+// Food root categories of the Migros taxonomy (breadcrumb[0] of the product detail) with the
+// short label put on each food; the app drops labels longer than 3 words on import.
+const MIGROS_FOOD_ROOTS: Record<string, string> = {
+	'7494730': 'Fleisch & Fisch',
+	'7494731': 'Milchprodukte & Eier',
+	'7494732': 'Früchte & Gemüse',
+	'7494733': 'Brot & Backwaren',
+	'7494734': 'Getränke & Kaffee',
+	'7494735': 'Pasta & Konserven',
+	'7494736': 'Snacks & Süssigkeiten',
+	'7494737': 'Wein & Bier',
+	'7494738': 'Tiefkühlprodukte',
+	'30009000': 'Baby & Kind'
+};
 const MIGROS_CHECKPOINT = 'data/catalog/.migros-checkpoint.json';
 const CACHE_DIR = 'data/catalog/.cache';
 
@@ -160,23 +172,19 @@ export async function runMigros(opts: {
 	if (resume)
 		console.error(`[migros] resuming from category ${resume.category} page ${resume.page}`);
 
-	const client = await createMigrosClient({ categories: MIGROS_FOOD_CATEGORIES });
+	const client = await createMigrosClient({ roots: MIGROS_FOOD_ROOTS });
 	const products = crawlMigros(client, {
 		stats,
-		throttleMs: 600,
 		limit: opts.limit,
 		resume,
 		onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, { ...cursor, outPath }),
 		onProgress: (s) =>
 			console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
 	});
-	const items = (async function* () {
-		for await (const product of products) yield { product };
-	})();
 	// The package spool is kept on failure so a resumed crawl continues where the checkpoint is.
 	const run = await writePackage({
 		source: MIGROS_SOURCE,
-		items,
+		items: products,
 		outPath,
 		images: opts.images ?? true,
 		fetchImage: opts.fetchImage,

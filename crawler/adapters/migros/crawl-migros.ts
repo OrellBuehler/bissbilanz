@@ -1,4 +1,4 @@
-import type { DatasetProduct, CrawlStats } from '../../types';
+import type { CrawledFood, CrawlStats } from '../../types';
 import { newStats, recordDrop } from '../../types';
 import { migrosToDataset } from './normalize-migros';
 import type { MigrosClient } from './types';
@@ -17,7 +17,7 @@ export type MigrosCrawlOpts = {
 export async function* crawlMigros(
 	client: MigrosClient,
 	opts: MigrosCrawlOpts = {}
-): AsyncIterable<DatasetProduct> {
+): AsyncIterable<CrawledFood> {
 	const stats = opts.stats ?? newStats();
 	const crawledAt = opts.crawledAt ?? new Date().toISOString();
 	const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -51,7 +51,7 @@ export async function* crawlMigros(
 		if (r.product.barcode) seenBarcodes.add(r.product.barcode);
 		stats.emitted++;
 		if (opts.onProgress && stats.emitted % 500 === 0) opts.onProgress(stats);
-		yield r.product;
+		yield { product: r.product, categories: detail.category ? [detail.category] : [] };
 		if (opts.onCheckpoint) await opts.onCheckpoint(cursor);
 		if (opts.limit && stats.emitted >= opts.limit) return;
 	}
