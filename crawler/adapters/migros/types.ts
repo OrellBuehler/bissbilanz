@@ -23,13 +23,16 @@ export type MigrosProductDetail = {
 	nutrition: MigrosNutrition;
 };
 
+export type MigrosScanProgress = { scanned: number; found: number };
+
 export type MigrosCursor = { category: string; page: number };
 
 export interface MigrosClient {
-	/** Yields product ids of the food categories, in scan order. */
+	/** Yields product ids of the food categories, in scan order, plus an id-less cursor after each scanned batch. */
 	listProductIds(opts: { resume?: MigrosCursor | null }): AsyncIterable<{
-		id: string;
+		id?: string;
 		cursor: MigrosCursor;
+		progress?: MigrosScanProgress;
 	}>;
 	/** Returns the normalized detail of an id yielded by `listProductIds`; null if unavailable. */
 	getProduct(id: string): Promise<MigrosProductDetail | null>;

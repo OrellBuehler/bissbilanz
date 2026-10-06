@@ -167,7 +167,10 @@ struct RecipeEditSheet: View {
             .environment(\.editMode, $editMode)
             .keyboardDismissable()
             .navigationDestination(isPresented: $showRecipePicker) {
-                RecipeSourcePicker(currentIngredientCount: ingredients.count) { source, factor in
+                RecipeSourcePicker(
+                    currentIngredientCount: ingredients.count,
+                    excludeRecipeId: existingRecipe?.id
+                ) { source, factor in
                     await addFromRecipe(source, factor: factor)
                 }
             }

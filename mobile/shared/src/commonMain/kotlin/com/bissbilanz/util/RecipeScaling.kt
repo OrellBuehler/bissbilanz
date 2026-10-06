@@ -28,3 +28,8 @@ fun scaleIngredients(
     ingredients.map {
         it.copy(quantity = maxOf(floor(it.quantity * factor * 100.0 + 0.5) / 100.0, 0.01))
     }
+
+fun scaleSourceIngredients(
+    ingredients: List<RecipeIngredient>,
+    factor: Double,
+): List<RecipeIngredient> = scaleIngredients(ingredients.sortedBy { it.sortOrder }, factor)

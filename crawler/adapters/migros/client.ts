@@ -1,4 +1,5 @@
 import { NUTRIENT_BY_KEY } from '$lib/nutrients';
+import type { Logger } from '../../lib/log';
 import type { MigrosClient, MigrosCursor, MigrosNutrition, MigrosProductDetail } from './types';
 
 type RawNutrientRow = { label?: string; values?: string[] };
@@ -94,10 +95,11 @@ function stripTags(value: string): string {
 
 function cleanText(value: string | null | undefined): string | null {
 	if (!value) return null;
-	const text = stripTags(value)
-		.replace(/&(nbsp|amp|lt|gt|quot|#0?39);/g, (_, name: string) => ENTITIES[name])
-		.replace(/\s+/g, ' ')
-		.trim();
+	const decoded = value.replace(
+		/&(nbsp|amp|lt|gt|quot|#0?39);/g,
+		(_, name: string) => ENTITIES[name]
+	);
+	const text = stripTags(decoded).replace(/\s+/g, ' ').trim();
 	return text || null;
 }
 
@@ -197,6 +199,7 @@ export type MigrosClientConfig = {
 export type MigrosClientDeps = {
 	api?: MigrosApi;
 	sleep?: (ms: number) => Promise<void>;
+	log?: Logger;
 };
 
 export const MIGROS_SCAN = 'ids';
@@ -205,6 +208,10 @@ const USER_AGENT = 'bissbilanz-crawler/1.0 (+https://github.com/OrellBuehler/bis
 
 function statusOf(err: unknown): number | undefined {
 	return (err as { response?: { status?: number } })?.response?.status;
+}
+
+function errorMessage(err: unknown): string {
+	return err instanceof Error ? err.message : String(err);
 }
 
 async function loadWrapperApi(): Promise<MigrosApi> {
@@ -220,7 +227,7 @@ async function loadWrapperApi(): Promise<MigrosApi> {
 				{ uids },
 				{ leshopch: token }
 			);
-			return Array.isArray(res) ? res : [];
+			return res as unknown[];
 		}
 	};
 }
@@ -238,6 +245,7 @@ export async function createMigrosClient(
 	deps: MigrosClientDeps = {}
 ): Promise<MigrosClient> {
 	const api = deps.api ?? (await loadWrapperApi());
+	const log = deps.log ?? (() => {});
 	const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 	const throttleMs = config.throttleMs ?? 600;
 	const maxAttempts = config.maxAttempts ?? 5;
@@ -262,11 +270,17 @@ export async function createMigrosClient(
 				const status = statusOf(err);
 				if (attempt >= maxAttempts) throw err;
 				if (status === 401) {
+					log(`[migros] token expired (attempt ${attempt}/${maxAttempts}), renewing`);
 					token = null;
 					continue;
 				}
 				if (status === undefined || status === 429 || status >= 500) {
-					await sleep(2000 * 2 ** (attempt - 1));
+					const wait = 2000 * 2 ** (attempt - 1);
+					const reason = status === undefined ? errorMessage(err) : `HTTP ${status}`;
+					log(
+						`[migros] retry ${attempt}/${maxAttempts - 1} after ${reason}, waiting ${wait / 1000}s`
+					);
+					await sleep(wait);
 					continue;
 				}
 				throw err;
@@ -275,11 +289,14 @@ export async function createMigrosClient(
 	}
 
 	async function fetchBatch(ids: string[]): Promise<RawProduct[]> {
-		const res = await request(async () => {
+		return request(async () => {
 			token ??= await api.getGuestToken();
-			return api.getProductDetails(ids, token);
+			const res: unknown = await api.getProductDetails(ids, token);
+			if (!Array.isArray(res)) {
+				throw new Error(`unexpected product-details response: ${typeof res}`);
+			}
+			return res as RawProduct[];
 		});
-		return res as RawProduct[];
 	}
 
 	const cache = new Map<string, MigrosProductDetail>();
@@ -287,6 +304,8 @@ export async function createMigrosClient(
 	return {
 		async *listProductIds({ resume }) {
 			let start = resume && resume.category === MIGROS_SCAN ? resume.page : firstId;
+			const scanStart = start;
+			let foodFound = 0;
 			let empty = 0;
 			while (empty < maxEmpty) {
 				const ids = Array.from({ length: batchSize }, (_, i) => String(start + i));
@@ -301,12 +320,17 @@ export async function createMigrosClient(
 					const detail = mapProductDetail(raw, config.roots);
 					if (detail) found.push(detail);
 				}
+				foodFound += found.length;
 				found.sort((a, b) => Number(a.id) - Number(b.id));
 				for (const detail of found) {
 					cache.set(detail.id, detail);
 					const cursor: MigrosCursor = { category: MIGROS_SCAN, page: Number(detail.id) + 1 };
 					yield { id: detail.id, cursor };
 				}
+				yield {
+					cursor: { category: MIGROS_SCAN, page: start },
+					progress: { scanned: start - scanStart, found: foodFound }
+				};
 			}
 		},
 		async getProduct(id) {

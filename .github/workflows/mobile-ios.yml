@@ -4,10 +4,21 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
+  # Compile-only on main: a PR merged without being updated to main can still
+  # break the build after merge (#842 vs #846 only surfaced in the release
+  # archive). Tests stay PR-only to spare the macOS runner queue.
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'tests/fixtures/shared/**'
+      - 'analytics-parity/**'
+      - '.github/workflows/mobile-ios.yml'
+      - '.github/actions/ios-setup/**'
 
 concurrency:
   group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -19,16 +30,17 @@ jobs:
   # The filter includes this file's own path (like codeql-swift.yml) so a change
   # to the Xcode selection or build steps gets validated on the PR that makes it.
   changes:
-    if: github.event.pull_request.draft == false
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
     outputs:
-      relevant: ${{ steps.filter.outputs.relevant }}
+      relevant: ${{ github.event_name == 'push' || steps.filter.outputs.relevant == 'true' }}
     steps:
       - id: filter
+        if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
@@ -47,7 +59,7 @@ jobs:
   # an artifact instead of each linking it.
   ios-build:
     needs: changes
-    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && needs.changes.outputs.relevant == 'true'
     # GitHub's arm64 Xcode 27 image (macOS 27, Xcode 27.0 / Swift 6.4 by
     # default) — the first runner whose SDK declares the iOS 27 App Intents
     # types the Siri data queries adopt behind `#if compiler(>=6.4)`. The
@@ -107,7 +119,7 @@ jobs:
   # SDK build, the unit test suite and the App Intents UI tests.
   ios-tests:
     needs: [changes, ios-build]
-    if: github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.changes.outputs.relevant == 'true'
     # GitHub's arm64 Xcode 27 image (macOS 27, Xcode 27.0 / Swift 6.4 by
     # default) — the first runner whose SDK declares the iOS 27 App Intents
     # types the Siri data queries adopt behind `#if compiler(>=6.4)`. The

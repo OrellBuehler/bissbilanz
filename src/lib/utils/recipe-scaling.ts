@@ -21,3 +21,8 @@ export const scaleIngredients = <T extends ScalableIngredient>(
 		...i,
 		quantity: Math.max(0.01, Math.round(i.quantity * factor * 100) / 100)
 	}));
+
+export const excludeRecipe = <T extends { id: string }>(
+	recipes: T[],
+	excludeId: string | null | undefined
+): T[] => (excludeId ? recipes.filter((r) => r.id !== excludeId) : recipes);

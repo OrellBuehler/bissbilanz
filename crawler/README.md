@@ -73,6 +73,13 @@ bun run crawl migros --limit 5    # cap the number of foods (use it to validate 
 bun run crawl off dump.jsonl.gz --no-images   # skip downloading and embedding images
 ```
 
+On start, every command prints the machine's public IP (looked up from `https://api.ipify.org`,
+5 s timeout) so you can confirm which address the requests leave from, e.g. behind a VPN egress.
+A failed lookup only prints a warning. Crawls then log progress to stderr: OFF every 10,000 lines,
+BLV and image writes every 500 foods, and Migros about every 30 s (cursor, ids scanned and rate,
+food products, emitted/dropped counts, images, elapsed time), plus each 429/5xx retry with its wait
+time and a final summary with totals, output path and size.
+
 The OFF dump is large (tens of GB uncompressed); the crawler streams it (gunzip + line split),
 never loading it into memory. Image downloads are cached in `data/catalog/.cache/` so a re-run
 does not refetch. The Migros crawl is live and rate-limited and checkpoints progress
@@ -87,7 +94,7 @@ the crawler scans the product id space `100000000..~100230000` through
 `product-display/public/v2/product-detail` (100 ids per call, one call per 600 ms, ~2,300 calls)
 and keeps products whose root category (`breadcrumb[0]`, `MIGROS_FOOD_ROOTS` in `index.ts`) is a
 food or drink category. Each food gets the source label plus a short German root-category label.
-The checkpoint cursor is the next id to scan, so a resumed run does not duplicate foods.
+The checkpoint cursor is the next id to scan and advances after every scanned batch, so a resumed run neither duplicates foods nor rescans long runs of non-food ids. On resume the barcodes already in the spool seed the duplicate check. A non-array response from Migros is retried like a 5xx and aborts the run (checkpoint kept) if it persists.
 Nutrition comes from the German `nutrientsTable` (first column, `100 g` or `100 ml`; kcal read
 from `287 kJ (69 kcal)`, kJ / 4.184 as fallback). Products without a nutrition table, with a
 prepared/portion basis, or with a missing energy/protein/carbs/fat value are dropped; a missing

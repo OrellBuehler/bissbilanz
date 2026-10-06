@@ -13,7 +13,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieRecipe } from '$lib/db/types';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
-	import { recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
+	import { excludeRecipe, recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
 	import { formatKcal } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
 	import { filterRecipes } from '$lib/components/foods/foodFilters';
@@ -25,10 +25,11 @@
 	type Props = {
 		open: boolean;
 		existingCount: number;
+		excludeRecipeId?: string | null;
 		onAdd: (ingredients: Ingredient[]) => void;
 	};
 
-	let { open = $bindable(false), existingCount, onAdd }: Props = $props();
+	let { open = $bindable(false), existingCount, excludeRecipeId = null, onAdd }: Props = $props();
 
 	const recipesQuery = useLiveQuery(() => recipeService.allRecipes());
 	const recipes = $derived(recipesQuery.value ?? []);
@@ -41,7 +42,7 @@
 	let amount = $state<number | null>(null);
 	let mode = $state<'servings' | 'grams'>('servings');
 
-	const visibleRecipes = $derived(filterRecipes(recipes, query));
+	const visibleRecipes = $derived(filterRecipes(excludeRecipe(recipes, excludeRecipeId), query));
 
 	const hasCookedWeight = $derived((selected?.cookedWeight ?? 0) > 0);
 

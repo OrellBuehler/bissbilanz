@@ -86,6 +86,17 @@ test('mapProductDetail strips nested tags and decodes entities once', () => {
 	expect(d!.ingredients).toBe('Salz &lt; 1% & Zucker');
 });
 
+test('mapProductDetail never leaves tag-like text from encoded markup', () => {
+	const ingredients = (value: string) =>
+		mapProductDetail(
+			{ uid: 7, name: 'X', productInformation: { mainInformation: { ingredients: value } } },
+			ROOTS
+		)!.ingredients;
+	expect(ingredients('&lt;b&gt;x')).toBe('x');
+	expect(ingredients('&lt;scr&lt;b&gt;ipt&gt;Salz')).toBe('Salz');
+	expect(ingredients('&amp;lt;b&amp;gt;x')).toBe('&lt;b&gt;x');
+});
+
 test('parseEnergyKcal reads kcal, falls back to kJ and ignores the approximation sign', () => {
 	expect(parseEnergyKcal('287 kJ (69 kcal)')).toBe(69);
 	expect(parseEnergyKcal('~ 78 kJ (~ 18 kcal)')).toBe(18);
@@ -138,7 +149,7 @@ function product(uid: number, rootId: string | null) {
 }
 
 function fakeApi(
-	respond: (ids: string[], attempt: number) => unknown[] | Error,
+	respond: (ids: string[], attempt: number) => unknown,
 	calls: Calls = { tokens: 0, details: [], tokensUsed: [] }
 ): MigrosApi & { calls: Calls } {
 	let attempt = 0;
@@ -153,7 +164,7 @@ function fakeApi(
 			calls.tokensUsed.push(token);
 			const res = respond(ids, attempt++);
 			if (res instanceof Error) throw res;
-			return res;
+			return res as unknown[];
 		}
 	};
 }
@@ -169,6 +180,7 @@ async function collect(
 ) {
 	const out: Array<{ id: string; page: number }> = [];
 	for await (const { id, cursor } of client.listProductIds({ resume })) {
+		if (id === undefined) continue;
 		out.push({ id, page: cursor.page });
 		expect(await client.getProduct(id)).not.toBeNull();
 	}
@@ -280,4 +292,76 @@ test('getProduct returns null for an id that was not scanned', async () => {
 		{ api: fakeApi(() => []), sleep: noSleep }
 	);
 	expect(await client.getProduct('42')).toBeNull();
+});
+
+test('retries a non-array response, then aborts instead of treating it as empty', async () => {
+	const sleeps: number[] = [];
+	const recovering = fakeApi((_ids, attempt) => (attempt < 2 ? { error: 'boom' } : []));
+	const ok = await createMigrosClient(
+		{ roots: ROOTS, firstId: 1, batchSize: 3, maxEmptyBatches: 1, throttleMs: 0 },
+		{
+			api: recovering,
+			sleep: async (ms) => {
+				sleeps.push(ms);
+			}
+		}
+	);
+	await collect(ok);
+	expect(sleeps).toEqual([2000, 4000]);
+
+	const failing = fakeApi(() => ({ message: 'bad gateway' }));
+	const bad = await createMigrosClient(
+		{ roots: ROOTS, firstId: 1, batchSize: 3, throttleMs: 0, maxAttempts: 3, maxEmptyBatches: 1 },
+		{ api: failing, sleep: noSleep }
+	);
+	await expect(collect(bad)).rejects.toThrow('unexpected product-details response');
+	expect(failing.calls.details).toHaveLength(3);
+});
+
+test('yields an id-less cursor after every scanned batch', async () => {
+	const api = fakeApi((ids) => (ids[0] === '1000' ? [product(1001, '999')] : []));
+	const client = await createMigrosClient(
+		{ roots: ROOTS, firstId: 1000, batchSize: 10, maxEmptyBatches: 2, throttleMs: 0 },
+		{ api, sleep: noSleep }
+	);
+	const items: Array<{ id?: string; page: number }> = [];
+	for await (const { id, cursor } of client.listProductIds({ resume: null }))
+		items.push({ id, page: cursor.page });
+	expect(items).toEqual([
+		{ id: undefined, page: 1010 },
+		{ id: undefined, page: 1020 },
+		{ id: undefined, page: 1030 }
+	]);
+});
+
+test('logs each retry with its reason and wait time', async () => {
+	const lines: string[] = [];
+	const api = fakeApi((_ids, attempt) =>
+		attempt === 0 ? httpError(429) : attempt === 1 ? httpError(401) : []
+	);
+	const client = await createMigrosClient(
+		{ roots: ROOTS, firstId: 1, batchSize: 3, maxEmptyBatches: 1, throttleMs: 0 },
+		{ api, sleep: noSleep, log: (l) => void lines.push(l) }
+	);
+	await collect(client);
+	expect(lines).toHaveLength(2);
+	expect(lines[0]).toContain('HTTP 429');
+	expect(lines[0]).toContain('waiting 2s');
+	expect(lines[1]).toContain('renewing');
+});
+
+test('reports scanned ids and food products found with each batch cursor', async () => {
+	const api = fakeApi((ids) => (ids[0] === '1000' ? [product(1001, '7494733')] : []));
+	const client = await createMigrosClient(
+		{ roots: ROOTS, firstId: 1000, batchSize: 10, maxEmptyBatches: 2, throttleMs: 0 },
+		{ api, sleep: noSleep }
+	);
+	const progress = [];
+	for await (const item of client.listProductIds({ resume: null }))
+		if (item.progress) progress.push(item.progress);
+	expect(progress).toEqual([
+		{ scanned: 10, found: 1 },
+		{ scanned: 20, found: 1 },
+		{ scanned: 30, found: 1 }
+	]);
 });

@@ -73,6 +73,18 @@ struct RecipeEditSheetTests {
         #expect(rows.first?.unit == .g)
     }
 
+    @Test("The recipe being edited is not offered as a source")
+    func sourceCandidatesExcludeTheEditedRecipe() throws {
+        let harness = try RepositoryHarness()
+        let recipes = try [
+            harness.recipe(id: "r1", name: "Curry"),
+            harness.recipe(id: "r2", name: "Soup"),
+        ]
+
+        #expect(RecipeSourcePicker.candidates(recipes, excluding: "r1").map(\.id) == ["r2"])
+        #expect(RecipeSourcePicker.candidates(recipes, excluding: nil).map(\.id) == ["r1", "r2"])
+    }
+
     @Test("Source ingredients come from the cached detail without a request")
     func sourceIngredientsUseTheCache() async throws {
         let harness = try RepositoryHarness()
