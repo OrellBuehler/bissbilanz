@@ -743,6 +743,16 @@
     <string name="recipe_edit_load_failed">Rezept konnte nicht geladen werden</string>
     <string name="recipe_edit_save_failed">Rezept konnte nicht gespeichert werden</string>
     <string name="recipe_edit_add_ingredient">Zutat hinzufügen</string>
+    <string name="recipe_edit_add_from_recipe">Aus Rezept hinzufügen</string>
+    <string name="recipe_source_mode_label">Menge in</string>
+    <string name="recipe_source_grams_label">Gramm</string>
+    <string name="recipe_source_of_servings">von %1$s Portionen</string>
+    <string name="recipe_source_of_grams">von %1$s g Kochgewicht</string>
+    <string name="recipe_source_preview_kcal">≈ %1$d kcal</string>
+    <string name="recipe_source_snapshot_hint">Die Zutaten werden in dieses Rezept kopiert und umgerechnet. Spätere Änderungen am Ausgangsrezept werden nicht übernommen.</string>
+    <string name="recipe_source_load_failed">Die Zutaten dieses Rezepts konnten nicht geladen werden. Prüfe die Verbindung und versuche es erneut.</string>
+    <string name="recipe_source_no_ingredients">Dieses Rezept hat keine Zutaten.</string>
+    <string name="recipe_source_too_many">Ein Rezept kann höchstens %1$d Zutaten haben.</string>
     <string name="recipe_edit_edit_title">Rezept bearbeiten</string>
     <string name="recipe_edit_create_title">Rezept erstellen</string>
     <string name="recipe_edit_name">Rezeptname *</string>

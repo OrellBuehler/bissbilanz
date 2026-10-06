@@ -75,6 +75,7 @@ fun RecipeEditSheet(
     var stepsAvailable by remember { mutableStateOf(true) }
     var openUnitDropdownIndex by remember { mutableStateOf<Int?>(null) }
     var showFoodPicker by remember { mutableStateOf(false) }
+    var showRecipeSource by remember { mutableStateOf(false) }
 
     val loadFailedMessage = stringResource(R.string.recipe_edit_load_failed)
     val saveFailedMessage = stringResource(R.string.recipe_edit_save_failed)
@@ -145,6 +146,28 @@ fun RecipeEditSheet(
                         unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                     )
                 showFoodPicker = false
+            },
+        )
+    }
+
+    if (showRecipeSource) {
+        RecipeSourceSheet(
+            existingCount = ingredients.size,
+            onDismiss = { showRecipeSource = false },
+            onAdd = { scaled ->
+                showRecipeSource = false
+                scope.launch {
+                    val rows =
+                        scaled.map { ing ->
+                            RecipeIngredientRow(
+                                food = resolveFood(ing.foodId),
+                                foodId = ing.foodId,
+                                quantity = ing.quantity.toDisplayString(),
+                                unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
+                            )
+                        }
+                    ingredients = ingredients + rows
+                }
             },
         )
     }
@@ -248,6 +271,13 @@ fun RecipeEditSheet(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(stringResource(R.string.action_add))
                     }
+                }
+
+                OutlinedButton(
+                    onClick = { showRecipeSource = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.recipe_edit_add_from_recipe), maxLines = 1)
                 }
 
                 ingredients.forEachIndexed { index, ingredient ->
