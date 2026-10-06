@@ -90,6 +90,15 @@ final class SyncManager {
     /// keeps surfacing in search/recents/favorites for the next offline log.
     @ObservationIgnored var onFoodReferenceMissing: ((Set<String>) async -> Void)?
 
+    /// Set by the app: whether a food id is an imported food whose bulk upload has not
+    /// happened yet (`BulkUploadManager.isAwaitingUpload`). The server would answer "not
+    /// found" to an operation that refers to such a food, so the drain holds it back for a
+    /// while instead — and the question moves that food to the front of the upload.
+    @ObservationIgnored var isAwaitingBulkUpload: ((String) -> Bool)?
+
+    /// How long an operation waits for a food to reach the server before the drain looks again.
+    private static let bulkUploadWait: TimeInterval = 20
+
     /// Test seam: when false, `scheduleDrain` becomes a no-op so tests
     /// control drain timing explicitly via `drainPendingQueue`.
     @ObservationIgnored var autoDrain = true
@@ -302,6 +311,14 @@ final class SyncManager {
                 continue
             }
             let isDelete = isDeleteOperation(operation)
+
+            // The food is on this device but not on the server yet: a bulk import's upload
+            // is still on its way. Not a failure and not a retry — it just is not due yet.
+            if awaitsBulkUpload(operation) {
+                row.nextAttemptAt = Date().addingTimeInterval(Self.bulkUploadWait)
+                save()
+                continue
+            }
 
             // A create can reference a food/recipe that is itself still an
             // unresolved `temp_` id — the peer create is either still queued
@@ -974,6 +991,20 @@ final class SyncManager {
     /// `create_entry`/`create_recipe`/`create_supplement`/`complete_ai_task`
     /// carry such a reference — the other ops don't point at another entity.
     private func unresolvedReference(_ operation: SyncOperation) -> (table: String, id: String)? {
+        references(of: operation).first { LocalStore.isTempId($0.id) }
+    }
+
+    /// Whether the operation targets, or refers to, an imported food still waiting for its
+    /// bulk upload. Deleting one is exempt: the server not knowing the food is the outcome
+    /// a delete wants, and the upload skips a food that is gone.
+    private func awaitsBulkUpload(_ operation: SyncOperation) -> Bool {
+        guard let isAwaiting = isAwaitingBulkUpload, !isDeleteOperation(operation) else { return false }
+        var foodIds = references(of: operation).filter { $0.table == "foods" }.map { $0.id }
+        if operation.affectedTable == "foods", let id = operation.affectedId { foodIds.append(id) }
+        return foodIds.contains { !LocalStore.isTempId($0) && isAwaiting($0) }
+    }
+
+    private func references(of operation: SyncOperation) -> [(table: String, id: String)] {
         let candidates: [(table: String, id: String)]
         switch operation {
         case let .createEntry(body, _):
@@ -993,7 +1024,7 @@ final class SyncManager {
         default:
             candidates = []
         }
-        return candidates.first { LocalStore.isTempId($0.id) }
+        return candidates
     }
 
     // MARK: - Backoff

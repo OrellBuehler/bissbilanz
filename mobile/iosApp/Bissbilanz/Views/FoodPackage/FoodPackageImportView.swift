@@ -22,6 +22,8 @@ struct FoodPackageImportView: View {
     @Environment(AppModeManager.self) private var appMode
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(AuthManager.self) private var authManager
+    @Environment(BulkUploadManager.self) private var bulkUploads
     @Environment(\.modelContext) private var modelContext
 
     @State private var showPicker = false
@@ -36,6 +38,11 @@ struct FoodPackageImportView: View {
     @State private var analyzing = false
     @State private var importing = false
     @State private var errorMessage: String?
+    @State private var bulkURL: URL?
+    @State private var bulkInfo: BulkPackageInfo?
+    @State private var bulkScoped = false
+    @State private var bulkRun = BulkImportRun()
+    @State private var showCloudConfirmation = false
 
     private static let maxBytes = FoodPackageFormat.maxPackageBytes
 
@@ -50,6 +57,8 @@ struct FoodPackageImportView: View {
         List {
             if let result {
                 resultSection(result)
+            } else if let bulkInfo {
+                bulkSections(bulkInfo)
             } else if analyzing {
                 HStack(spacing: 12) {
                     ProgressView()
@@ -88,6 +97,23 @@ struct FoodPackageImportView: View {
                 .disabled(importing || analyzing)
                 .padding()
                 .background(.bar)
+            }
+        }
+        .confirmationDialog(
+            L10n.bulkImportCloudTitle, isPresented: $showCloudConfirmation, titleVisibility: .visible
+        ) {
+            Button(L10n.bulkImportCloudContinue) { startBulkImport() }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.bulkImportCloudMessage)
+        }
+        // Leaving the screen ends an import in progress — it is the only place its progress shows;
+        // what was added stays, and importing the file again carries on.
+        .onDisappear {
+            if bulkRun.isRunning {
+                bulkRun.cancel()
+            } else {
+                releaseBulkFile()
             }
         }
         .fileImporter(isPresented: $showPicker, allowedContentTypes: [.foodPackage, .zip, .json, .data]) { picked in
@@ -212,6 +238,135 @@ struct FoodPackageImportView: View {
         }
     }
 
+    // MARK: - Bulk import
+
+    @ViewBuilder
+    private func bulkSections(_ info: BulkPackageInfo) -> some View {
+        if let summary = bulkRun.summary {
+            Section {
+                Label(L10n.bulkImportDone, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(MacroColors.fiber)
+                Text(L10n.bulkImportResult(
+                    created: summary.created, skipped: summary.skipped, invalid: summary.invalid
+                ))
+                if summary.images + summary.imagesFailed > 0 {
+                    Text(L10n.bulkImportPhotos(stored: summary.images, failed: summary.imagesFailed))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if summary.recipesIgnored > 0 {
+                    Text(L10n.bulkImportRecipesIgnored(summary.recipesIgnored))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if summary.created > 0, !appMode.isLocal {
+                    Text(L10n.bulkImportUploadNote).font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(Array(summary.issues.prefix(5).enumerated()), id: \.offset) { _, issue in
+                    Text(issue).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Section {
+                Text(L10n.bulkImportHeadline(info.foodCount)).font(.headline)
+                Text(L10n.bulkImportDetails(images: info.imageCount, sizeMB: info.fileBytes / (1024 * 1024)))
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(L10n.bulkImportNoPreview).font(.subheadline)
+                if !appMode.isLocal {
+                    Text(L10n.bulkImportUploadNote).font(.subheadline)
+                }
+                if info.recipeCount > 0 {
+                    Text(L10n.bulkImportRecipesIgnored(info.recipeCount))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if bulkRun.wasStopped {
+                    Text(L10n.bulkImportStopped).font(.caption).foregroundStyle(.secondary)
+                }
+                if let failure = bulkRun.failure ?? errorMessage {
+                    Text(failure).font(.caption).foregroundStyle(.red)
+                }
+            }
+            Section {
+                if bulkRun.isRunning {
+                    let progress = bulkRun.progress
+                    VStack(alignment: .leading, spacing: 8) {
+                        ProgressView(
+                            value: Double(progress?.processed ?? 0),
+                            total: Double(max(progress?.total ?? 1, 1))
+                        )
+                        Text(L10n.bulkImportProgress(done: progress?.processed ?? 0, total: progress?.total ?? 0))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                    Button(role: .destructive) {
+                        bulkRun.cancel()
+                    } label: {
+                        Text(L10n.bulkImportStop)
+                    }
+                } else {
+                    Button {
+                        if appMode.isLocal {
+                            showCloudConfirmation = true
+                        } else {
+                            startBulkImport()
+                        }
+                    } label: {
+                        Text(L10n.bulkImportButton(info.foodCount)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    Button(L10n.foodPackageChooseFile) { showPicker = true }
+                }
+            }
+        }
+    }
+
+    private func startBulkImport() {
+        guard let bulkURL, let bulkInfo else { return }
+        errorMessage = nil
+        let destination: BulkImportDestination
+        if appMode.isLocal {
+            destination = .local
+        } else if let userId = authManager.userId {
+            destination = .synced(userId: userId)
+        } else {
+            errorMessage = L10n.bulkImportNeedsSignIn
+            return
+        }
+        let repository = foodRepository
+        let uploads = bulkUploads
+        let context = modelContext
+        let scoped = bulkScoped
+        bulkRun.start(
+            container: context.container,
+            fileURL: bulkURL,
+            info: bulkInfo,
+            destination: destination,
+            prepare: {
+                // The duplicate check only sees foods this device holds: pull the account's first.
+                guard case .synced = destination else { return }
+                do {
+                    try await repository.mirrorAll()
+                } catch {
+                    ErrorReporter.captureWarning(
+                        "Mirroring foods before a bulk import failed",
+                        context: ["reason": ErrorReporter.reason(for: error)]
+                    )
+                }
+            },
+            finish: { summary in
+                if case .synced = destination { await uploads.noteImported(count: summary.created) }
+                WidgetSnapshotWriter.scheduleUpdate(context: context)
+            },
+            cleanup: {
+                if scoped { bulkURL.stopAccessingSecurityScopedResource() }
+            }
+        )
+        bulkScoped = false
+    }
+
+    private func releaseBulkFile() {
+        if bulkScoped, let bulkURL { bulkURL.stopAccessingSecurityScopedResource() }
+        bulkScoped = false
+    }
+
     private func applyAllRow(
         _ value: FoodPackageAction?,
         onChange: @escaping (FoodPackageAction) -> Void
@@ -244,10 +399,31 @@ struct FoodPackageImportView: View {
 
     private func load(_ picked: Result<URL, Error>) async {
         errorMessage = nil
+        releaseBulkFile()
+        bulkInfo = nil
+        bulkURL = nil
+        bulkRun = BulkImportRun()
         do {
             let url = try picked.get()
             let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            var keepAccess = false
+            defer { if scoped, !keepAccess { url.stopAccessingSecurityScopedResource() } }
+            analyzing = true
+            defer { analyzing = false }
+            let route = try await Task.detached(priority: .userInitiated) {
+                try BulkPackageProbe.assess(fileURL: url)
+            }.value
+            if case let .bulk(info) = route {
+                // Too big to preview: it is imported from the file itself, which has to stay
+                // reachable until the import ends.
+                fileData = nil
+                preview = nil
+                bulkURL = url
+                bulkInfo = info
+                bulkScoped = scoped
+                keepAccess = true
+                return
+            }
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size <= Self.maxBytes else {
                 errorMessage = L10n.foodPackageFileTooLarge
@@ -256,6 +432,8 @@ struct FoodPackageImportView: View {
             fileData = try Data(contentsOf: url)
             fileName = url.lastPathComponent
             await analyze()
+        } catch let error as FoodPackageError {
+            errorMessage = FoodPackageErrorText.message(for: error)
         } catch {
             ErrorReporter.capture(error)
             errorMessage = L10n.foodPackageOpenFailed

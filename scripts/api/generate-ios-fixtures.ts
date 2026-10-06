@@ -47,6 +47,7 @@ const SCHEMA_NAMES: string[] = [
 	'FoodPackagePreviewResponse',
 	'FoodPackageImportResult',
 	'FoodLabelsSetResponse',
+	'FoodBulkResponse',
 	'EntriesListResponse',
 	'EntriesCopyResponse',
 	'EntriesRangeResponse',

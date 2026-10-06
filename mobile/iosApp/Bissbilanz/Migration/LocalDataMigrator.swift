@@ -186,12 +186,15 @@ final class LocalDataMigrator {
         deleteAll(LocalGoals.self)
         deleteAll(LocalPreferences.self)
         deleteAll(LocalDayProperties.self)
+        deleteAll(BulkUploadJob.self)
         context.saveReportingFailure("LocalDataMigrator.save")
         // Images live on the file system, not in SwiftData, so they survive the
         // deletes above — a sign-out that left them behind would carry one
         // account's photos into the next.
         LocalImageStore.clear()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
+        FoodMirrorState.reset(defaults)
+        BulkUploadState.reset(defaults)
     }
 
     /// A failed delete is reported and the wipe carries on with the other models: a

@@ -320,6 +320,12 @@ object FoodPackageManifestCodec {
         return value
     }
 
+    /** One food element of a manifest read as a stream; the same checks as [parse] makes. */
+    internal fun parseFoodElement(
+        element: JsonElement,
+        path: String,
+    ): PackageFood = parseFood(element, path)
+
     private fun parseFood(
         element: JsonElement,
         path: String,

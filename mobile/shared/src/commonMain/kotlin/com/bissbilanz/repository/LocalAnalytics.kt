@@ -157,7 +157,7 @@ class LocalAnalytics(
         endDate: String,
     ): FoodDiversityResponse {
         val entries = loadEntries(startDate, endDate)
-        val foods = loadFoods(entries)
+        val foods = loadFoods(entries, loadRecipes(entries))
         val rows = foodDiversityRows(entries.map { it.toAggEntry() }, foods)
         return FoodDiversityResponse(
             data =
@@ -378,10 +378,20 @@ class LocalAnalytics(
      * embedded in an entry (covers a recipe ingredient or a food not separately
      * cached). Entry-embedded copies win, matching the freshest synced data.
      */
-    private fun loadFoods(entries: List<Entry>): List<AggFood> {
+    private fun loadFoods(
+        entries: List<Entry>,
+        recipes: List<AggRecipe>,
+    ): List<AggFood> {
         val byId = mutableMapOf<String, AggFood>()
-        db.userDataDatabaseQueries.selectAllFoods().executeAsList().forEach { row ->
-            json.decodeOrNull<Food>(row.jsonData)?.let { byId[it.id] = it.toAggFood() }
+        val needed =
+            buildSet {
+                entries.forEach { e -> e.foodId?.let { add(it) } }
+                recipes.forEach { r -> r.ingredients.forEach { add(it.foodId) } }
+            }
+        needed.chunked(FOOD_ID_CHUNK).forEach { chunk ->
+            db.userDataDatabaseQueries.selectFoodsByIds(chunk).executeAsList().forEach { row ->
+                json.decodeOrNull<Food>(row.jsonData)?.let { byId[it.id] = it.toAggFood() }
+            }
         }
         entries.forEach { e -> e.food?.let { byId[it.id] = it.toAggFood() } }
         return byId.values.toList()
@@ -397,7 +407,9 @@ class LocalAnalytics(
     }
 
     private fun buildInputs(entries: List<Entry>): Inputs =
-        Inputs(entries.map { it.toAggEntry() }, loadFoods(entries), loadRecipes(entries))
+        loadRecipes(entries).let { recipes ->
+            Inputs(entries.map { it.toAggEntry() }, loadFoods(entries, recipes), recipes)
+        }
 
     private fun fastingDaysInRange(
         startDate: String,
@@ -460,3 +472,6 @@ class LocalAnalytics(
                 },
         )
 }
+
+/** SQLite caps bound variables per statement (999 on older Android), so id lists are queried in chunks. */
+private const val FOOD_ID_CHUNK = 500

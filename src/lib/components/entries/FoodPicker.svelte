@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as Sentry from '@sentry/sveltekit';
-	import { onlyFavorites } from '$lib/utils/favorites';
-	import { filterFoods } from '$lib/components/foods/foodFilters';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
+	import type { DexieFood } from '$lib/db/types';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -58,13 +59,12 @@
 	type FavoriteItem = Extract<PickerSelection, { type: 'favorite' }>['favorite'];
 
 	type Props = {
-		foods?: PickerFoodItem[];
 		recipes?: PickerRecipeItem[];
 		tab: 'search' | 'favorites' | 'recent' | 'recipes';
 		onSelect: (selection: PickerSelection) => void;
 	};
 
-	let { foods = [], recipes = [], tab, onSelect }: Props = $props();
+	let { recipes = [], tab, onSelect }: Props = $props();
 
 	let query = $state('');
 	type CatalogHit = {
@@ -104,7 +104,7 @@
 		offResults = [];
 		searchTimer = setTimeout(async () => {
 			// Snapshot the local match count before awaiting, so the fallback
-			// decision isn't skewed by the `foods` prop changing mid-request.
+			// decision isn't skewed by the local results changing mid-request.
 			const localCount = filtered().length;
 			try {
 				const { data } = await api.GET('/api/catalog/search', {
@@ -148,22 +148,31 @@
 		lastServings?: number;
 		imageUrl?: string | null;
 	}> = $state([]);
-	// `/api/foods/recent` carries the image itself; the map only covers a recent
-	// food that the `foods` prop has but the response shape does not.
-	const foodImages = $derived(new Map(foods.map((f) => [f.id, f.imageUrl ?? null])));
+	// `/api/foods/recent` carries the image itself; the mirror only covers a recent
+	// food whose image the response shape does not have.
+	const recentMirror = useLiveQuery(
+		() => foodService.foodsByIds(recentFoods.map((f) => f.id)),
+		[] as DexieFood[]
+	);
+	const recentById = $derived(new Map(recentMirror.value.map((f) => [f.id, f])));
 	let loadingRecent = $state(false);
 	let favoriteRecipes: FavoriteItem[] = $state([]);
 	let loadingFavorites = $state(false);
 
 	// Name → label → brand, like the server: a labelled "Vollkornbrot" answers
 	// "bread" here before we ever go to the catalog or Open Food Facts.
-	const filtered = () => filterFoods(foods, query);
+	const localFoods = useLiveQuery(
+		() => foodService.search(tab === 'search' ? query : ''),
+		[] as DexieFood[]
+	);
+	const filtered = () => localFoods.value;
 
 	const filteredRecipes = () =>
 		recipes.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
 
+	const favoritesQuery = useLiveQuery(() => foodService.favorites(), [] as DexieFood[]);
 	const favoriteFoods = $derived(
-		onlyFavorites(foods).map((f): FavoriteItem => ({
+		favoritesQuery.value.map((f): FavoriteItem => ({
 			id: f.id,
 			name: f.name,
 			imageUrl: f.imageUrl ?? null,
@@ -363,7 +372,7 @@
 				<li class="flex min-w-0 items-center justify-between gap-2">
 					<FoodThumbnail
 						name={food.name}
-						imageUrl={food.imageUrl ?? foodImages.get(food.id)}
+						imageUrl={food.imageUrl ?? recentById.get(food.id)?.imageUrl}
 						size="sm"
 					/>
 					<span class="min-w-0 flex-1 truncate text-sm">{food.name}</span>
@@ -373,7 +382,7 @@
 						class="shrink-0"
 						aria-label={m.add_food_add()}
 						onclick={() => {
-							const fullFood = foods.find((f) => f.id === food.id);
+							const fullFood = recentById.get(food.id);
 							onSelect({
 								type: 'food',
 								food: fullFood ?? { id: food.id, name: food.name },

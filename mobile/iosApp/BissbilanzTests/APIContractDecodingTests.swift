@@ -56,6 +56,7 @@ struct APIContractDecodingTests {
         entry("FoodPackagePreviewResponse", FoodPackagePreview.self),
         entry("FoodPackageImportResult", FoodPackageImportResult.self),
         entry("FoodLabelsSetResponse", FoodLabelsSetResponse.self),
+        entry("FoodBulkResponse", BulkFoodsResponse.self),
         entry("EntriesListResponse", EntriesResponse.self),
         entry("EntriesCopyResponse", EntriesResponse.self),
         entry("EntriesRangeResponse", EntriesResponse.self),

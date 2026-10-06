@@ -54,11 +54,9 @@
 
 	const entriesQuery = useLiveQuery(() => entryService.entriesByDate(date), []);
 	const fastsQuery = useLiveQuery(() => fastingService.sessions(), []);
-	const foodsQuery = useLiveQuery(() => foodService.allFoods(), []);
 	const recipesQuery = useLiveQuery(() => recipeService.allRecipes(), []);
 
 	let entries = $derived(entriesQuery.value);
-	let foods = $derived(foodsQuery.value);
 	let recipes = $derived(recipesQuery.value);
 
 	let editModalOpen = $state(false);
@@ -316,7 +314,6 @@
 
 	<AddFoodModal
 		bind:open={addModalOpen}
-		{foods}
 		{recipes}
 		{date}
 		mealType={activeMeal}

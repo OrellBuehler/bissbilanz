@@ -26,6 +26,20 @@ const val MAX_PREVIEW_THUMBNAILS = 300
 const val MAX_PREVIEW_SAMPLES = 50
 const val MAX_ISSUES = 100
 
+/**
+ * Limits for a package imported through the bulk path, which streams the manifest and never
+ * holds the whole package in memory. The server-parity constants above still decide when a
+ * package is too big for the normal preview-and-resolve import and is routed here instead.
+ */
+const val BULK_MAX_FOODS = 250_000
+const val BULK_MAX_BYTES = 4L * 1024 * 1024 * 1024
+const val BULK_MAX_MANIFEST_BYTES = 1L * 1024 * 1024 * 1024
+const val BULK_MAX_FOOD_JSON_CHARS = 256 * 1024
+const val BULK_MAX_IMAGE_ENTRY_BYTES = 5L * 1024 * 1024
+
+/** Images larger than this are not worth keeping as they are: the bulk upload endpoint caps them at 200 KB. */
+const val BULK_UPLOAD_IMAGE_BYTES = 200 * 1024
+
 /** Only paths the exporter itself writes; anything else in the archive is never read. */
 val IMAGE_PATH_REGEX = Regex("^images/[a-z0-9]+\\.(webp|jpe?g|png)$")
 

@@ -43,6 +43,19 @@ object LocalImageStore {
             file.writeBytes(bytes)
         }
 
+    /**
+     * Like [write], into a subdirectory named after the file's first two characters: a bulk
+     * import keeps tens of thousands of photos, too many for one directory to stay quick.
+     */
+    fun writeSharded(
+        context: Context,
+        fileName: String,
+        bytes: ByteArray,
+    ): File {
+        val dir = File(directory(context), fileName.take(SHARD_LENGTH).lowercase()).apply { mkdirs() }
+        return File(dir, fileName).also { file -> file.writeBytes(bytes) }
+    }
+
     fun fileUri(file: File): String = Uri.fromFile(file).toString()
 
     /**
@@ -60,7 +73,7 @@ object LocalImageStore {
 
     /** Clears the whole store — used when the account's data is wiped. */
     fun clear(context: Context) {
-        runCatching { directory(context).listFiles()?.forEach { it.delete() } }
+        runCatching { directory(context).listFiles()?.forEach { it.deleteRecursively() } }
     }
 
     /**
@@ -82,8 +95,11 @@ object LocalImageStore {
                 else -> cacheKey(imageUrl)?.let { File(dir, it) }
             } ?: return null
         val file = candidate.canonicalFile
-        return file.takeIf { it.parentFile == dir }
+        val parent = file.parentFile
+        return file.takeIf { parent == dir || (parent?.parentFile == dir && SHARD_NAME.matches(parent.name)) }
     }
 
+    private const val SHARD_LENGTH = 2
+    private val SHARD_NAME = Regex("^[0-9a-f]{2}$")
     private val UPLOAD_NAME = Regex("^[a-f0-9-]+\\.webp$")
 }

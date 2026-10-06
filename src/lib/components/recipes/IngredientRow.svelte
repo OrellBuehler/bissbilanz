@@ -7,7 +7,10 @@
 	import X from '@lucide/svelte/icons/x';
 	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import { servingUnitValues, unitDimension, type ServingUnit } from '$lib/units';
-	import { filterFoods } from '$lib/components/foods/foodFilters';
+	import { liveQuery } from 'dexie';
+	import { useLiveQuery } from '$lib/db/live.svelte';
+	import { foodService } from '$lib/services/food-service.svelte';
+	import type { DexieFood } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
 
 	const unitLabels: Record<string, () => string> = {
@@ -24,28 +27,33 @@
 		tsp: () => m.food_form_unit_tsp()
 	};
 
-	type IngredientFood = {
-		id: string;
-		name: string;
-		servingUnit?: string;
-		brand?: string | null;
-		labels?: string[] | null;
-	};
-
 	type Props = {
 		ingredient: { foodId: string; quantity: number; servingUnit: string };
-		foods?: IngredientFood[];
 		onRemove?: () => void;
 	};
 
-	let { ingredient, foods = [], onRemove = () => {} }: Props = $props();
+	let { ingredient, onRemove = () => {} }: Props = $props();
 
 	let foodPickerOpen = $state(false);
 	let foodQuery = $state('');
 
+	// The picker lists the best matches from the local mirror, which can hold
+	// 100k foods; only the selected food is looked up by id.
+	const foodResults = useLiveQuery(
+		() =>
+			foodPickerOpen
+				? foodService.search(foodQuery)
+				: liveQuery(async (): Promise<DexieFood[]> => []),
+		[] as DexieFood[]
+	);
+	const selectedMatches = useLiveQuery(
+		() => foodService.foodsByIds(ingredient.foodId ? [ingredient.foodId] : []),
+		[] as DexieFood[]
+	);
+
 	const handleFoodChange = (value: string) => {
 		ingredient.foodId = value;
-		const food = foods.find((f) => f.id === value);
+		const food = foodResults.value.find((f) => f.id === value);
 		if (food?.servingUnit) {
 			ingredient.servingUnit = food.servingUnit;
 		}
@@ -53,8 +61,7 @@
 		foodQuery = '';
 	};
 
-	const selectedFood = $derived(foods.find((f) => f.id === ingredient.foodId));
-	const filteredFoods = $derived(filterFoods(foods, foodQuery));
+	const selectedFood = $derived(selectedMatches.value[0]);
 
 	// Only offer units in the same dimension (mass or volume) as the selected
 	// food's own unit — a cross-dimension unit has no valid conversion.
@@ -89,7 +96,7 @@
 				<Command.List>
 					<Command.Empty>{m.recipe_form_no_foods()}</Command.Empty>
 					<Command.Group>
-						{#each filteredFoods as food (food.id)}
+						{#each foodResults.value as food (food.id)}
 							<Command.Item value={food.id} onSelect={() => handleFoodChange(food.id)}>
 								{food.name}
 							</Command.Item>

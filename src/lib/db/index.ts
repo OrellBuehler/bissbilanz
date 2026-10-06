@@ -137,6 +137,39 @@ db.version(10).stores({
 	recipeSteps: 'id, recipeId'
 });
 
+// v11: food mirror that scales to 100k rows. `brand` and `*labels` back the
+// tiered search (name prefix, label, brand) without loading rows; `favKey` is a
+// numeric stand-in for `isFavorite` (booleans are not valid IndexedDB keys, so
+// the old isFavorite index never matched anything) and `[kind+name]` serves the
+// paged foods list. `favKey` and `kind` are kept in step with the row by the
+// foods hooks below; existing rows are backfilled here.
+db.version(11)
+	.stores({
+		foods: 'id, name, barcode, isFavorite, kind, updatedAt, brand, *labels, favKey, [kind+name]'
+	})
+	.upgrade(async (tx) => {
+		await tx
+			.table('foods')
+			.toCollection()
+			.modify((food: { kind?: string; isFavorite?: boolean; favKey?: 1 }) => {
+				food.kind ||= 'food';
+				if (food.isFavorite) food.favKey = 1;
+			});
+	});
+
+db.foods.hook('creating', (_primKey, obj) => {
+	obj.kind ||= 'food';
+	if (obj.isFavorite) obj.favKey = 1;
+	else delete obj.favKey;
+});
+
+db.foods.hook('updating', (mods, _primKey, obj) => {
+	const next = mods as Partial<DexieFood>;
+	const isFavorite = 'isFavorite' in next ? next.isFavorite : obj.isFavorite;
+	const kind = 'kind' in next ? next.kind : obj.kind;
+	return { favKey: isFavorite ? 1 : undefined, kind: kind || 'food' };
+});
+
 export { db };
 
 /** Clear all user data from Dexie (e.g. on logout). Uses a transaction for atomicity. */

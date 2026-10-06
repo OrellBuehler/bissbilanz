@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { DexieFood } from '$lib/db/types';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -24,9 +25,14 @@
 	let mergeOpen = $state(false);
 	let mergeCandidates = $state<Food[]>([]);
 
-	const allFoodsQuery = useLiveQuery(() => foodService.allFoods(), []);
-	const allFoods = $derived(allFoodsQuery.value as unknown as Food[]);
-	const foodById = $derived(new Map(allFoods.map((f) => [f.id, f])));
+	// Only the foods that sit in a duplicate group are read from the mirror.
+	const groupFoodsQuery = useLiveQuery(
+		() => foodService.foodsByIds(groups.flatMap((group) => group.foods.map((f) => f.id))),
+		[] as DexieFood[]
+	);
+	const foodById = $derived(
+		new Map((groupFoodsQuery.value as unknown as Food[]).map((f) => [f.id, f]))
+	);
 
 	async function refresh() {
 		loading = true;
@@ -39,7 +45,10 @@
 	}
 
 	$effect(() => {
-		if (browser) refresh();
+		if (browser) {
+			refresh();
+			void foodService.refresh();
+		}
 	});
 
 	function resolve(group: DuplicateGroup) {
@@ -125,7 +134,6 @@
 <MergeFoodDialog
 	bind:open={mergeOpen}
 	candidates={mergeCandidates}
-	{allFoods}
 	onClose={() => (mergeOpen = false)}
 	onCompleted={() => {
 		foodService.refresh();

@@ -9,8 +9,8 @@ import SwiftData
 /// `PendingSyncOperation` has changed since versioning was introduced (v1.52.0 and
 /// earlier stores predate it), so V1 nests a frozen copy of that one model and
 /// reuses the live classes for the rest, which are identical in both versions. The
-/// next change to a model freezes its old shape in a new nested type the same way,
-/// and adds a `LocalSchemaV3` and a `MigrationStage`.
+/// next change to an existing model freezes its old shape in a new nested type the
+/// same way, and adds a `LocalSchemaV4` and a `MigrationStage`.
 enum LocalSchemaV1: VersionedSchema {
     static var versionIdentifier: Schema.Version {
         Schema.Version(1, 0, 0)
@@ -39,7 +39,7 @@ enum LocalSchemaV1: VersionedSchema {
     }
 }
 
-/// The current models: V1 plus `failedAt` and `failureReason` on the sync queue.
+/// V1 plus `failedAt` and `failureReason` on the sync queue.
 enum LocalSchemaV2: VersionedSchema {
     static var versionIdentifier: Schema.Version {
         Schema.Version(2, 0, 0)
@@ -50,12 +50,27 @@ enum LocalSchemaV2: VersionedSchema {
     }
 }
 
+/// The current models: V2 plus the bulk upload jobs of a big package import. A new model
+/// is all that changed, so the step from V2 is lightweight.
+enum LocalSchemaV3: VersionedSchema {
+    static var versionIdentifier: Schema.Version {
+        Schema.Version(3, 0, 0)
+    }
+
+    static var models: [any PersistentModel.Type] {
+        LocalSchemaV2.models + [BulkUploadJob.self]
+    }
+}
+
 enum LocalMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [LocalSchemaV1.self, LocalSchemaV2.self]
+        [LocalSchemaV1.self, LocalSchemaV2.self, LocalSchemaV3.self]
     }
 
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: LocalSchemaV1.self, toVersion: LocalSchemaV2.self)]
+        [
+            .lightweight(fromVersion: LocalSchemaV1.self, toVersion: LocalSchemaV2.self),
+            .lightweight(fromVersion: LocalSchemaV2.self, toVersion: LocalSchemaV3.self),
+        ]
     }
 }

@@ -24,6 +24,16 @@ enum FoodPackageFormat {
     static let maxIssues = 100
     static let maxLabelsPerFood = LabelNormalizer.maxLabelsPerFood
 
+    /// Limits of the bulk import (`BulkPackageImporter`), which takes the packages the
+    /// limits above turn away: a crawled catalog of tens of thousands of foods with a
+    /// photo each. The package is mapped and its manifest streamed, so these are about
+    /// what a phone can sensibly keep, not about memory.
+    static let bulkMaxBytes = 4 * 1024 * 1024 * 1024
+    static let bulkMaxFoods = 250_000
+    static let bulkMaxManifestBytes = 1024 * 1024 * 1024
+    static let bulkMaxZipEntries = bulkMaxFoods * 2 + 16
+    static let bulkBatchSize = 500
+
     /// The 43 extended nutrients, in `ALL_NUTRIENT_KEYS` order (`src/lib/nutrients.ts`).
     static let nutrientKeys: [String] = [
         "saturatedFat", "monounsaturatedFat", "polyunsaturatedFat", "transFat", "cholesterol", "omega3", "omega6",
@@ -361,7 +371,7 @@ enum PackageManifestCoding {
         return PackageManifest(formatVersion: Int(version), exportedAt: exportedAt, foods: foods, recipes: recipes)
     }
 
-    private static func parseFood(_ item: Any, path: String) throws -> PackageFood {
+    static func parseFood(_ item: Any, path: String) throws -> PackageFood {
         guard let object = item as? [String: Any] else { throw invalid(path, "expected an object") }
         let ref = try requiredString(object, "ref", path: path, max: 10)
         guard isRef(ref, prefix: "f") else { throw invalid("\(path).ref", "Invalid string") }
@@ -543,7 +553,7 @@ enum PackageManifestCoding {
         return (1 ... 6).contains(digits.count) && digits.allSatisfy { $0.isASCII && $0.isNumber }
     }
 
-    private static func number(_ value: Any?) -> Double? {
+    static func number(_ value: Any?) -> Double? {
         guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
         let result = number.doubleValue
         return result.isFinite ? result : nil

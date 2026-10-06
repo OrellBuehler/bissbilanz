@@ -40,6 +40,26 @@ interface PackageImageStore {
     /** Keep an imported image on the device and return the URL to store on the row, or null if unreadable. */
     suspend fun saveImported(bytes: ByteArray): String?
 
+    /**
+     * Like [saveImported] for the bulk path: tens of thousands of images, so the platform may
+     * shard them over directories and skip re-checking a photo that is already a small webp.
+     */
+    suspend fun saveImportedBulk(bytes: ByteArray): String? = saveImported(bytes)
+
+    /** The image's bytes for a bulk upload, at most [maxBytes] (re-encoded if need be), or null if there is none. */
+    suspend fun readForUpload(
+        imageUrl: String,
+        maxBytes: Int,
+    ): ByteArray? = read(imageUrl)?.takeIf { it.size <= maxBytes }
+
+    /** The server now hosts the on-device image at [serverUrl]: keep the local bytes as its cache, or drop them. */
+    suspend fun adoptUploaded(
+        localUrl: String,
+        serverUrl: String,
+    ) {
+        discard(localUrl)
+    }
+
     /** Drop an image no row references any more. */
     suspend fun discard(imageUrl: String)
 }

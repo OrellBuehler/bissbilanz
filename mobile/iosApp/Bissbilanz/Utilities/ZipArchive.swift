@@ -19,12 +19,20 @@ enum CRC32 {
         return value
     }
 
+    static let initial: UInt32 = 0xFFFF_FFFF
+
+    static func update(_ crc: UInt32, _ buffer: UnsafeBufferPointer<UInt8>) -> UInt32 {
+        var value = crc
+        for byte in buffer {
+            value = table[Int((value ^ UInt32(byte)) & 0xFF)] ^ (value >> 8)
+        }
+        return value
+    }
+
     static func checksum(_ data: Data) -> UInt32 {
-        var crc: UInt32 = 0xFFFF_FFFF
+        var crc = initial
         data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
-            for byte in buffer {
-                crc = table[Int((crc ^ UInt32(byte)) & 0xFF)] ^ (crc >> 8)
-            }
+            crc = update(crc, buffer.bindMemory(to: UInt8.self))
         }
         return ~crc
     }
@@ -42,21 +50,36 @@ struct ZipEntry: Equatable {
     var isDirectory: Bool { name.hasSuffix("/") }
 }
 
-/// Reads stored and deflated entries of an ordinary (non-zip64, unencrypted) zip
+/// Reads stored and deflated entries of an unencrypted zip, zip64 included,
 /// through its central directory. Entries are only ever looked up by name and
 /// inflated into memory — nothing is written to disk, so an entry name can never
 /// escape anywhere. Sizes come from the central directory and are checked
 /// against the caller's limit before anything is inflated; the inflated length
 /// and CRC-32 are verified afterwards.
+///
+/// `init(fileURL:)` maps the file instead of reading it, so a multi-gigabyte
+/// package costs address space, not memory, and an entry is only paged in when
+/// it is read. `stream` hands an entry out in chunks for the ones too big to
+/// hold whole (a manifest of a hundred thousand foods).
 struct ZipReader {
     private let data: Data
     let entries: [ZipEntry]
+    private let indexByName: [String: Int]
 
     private static let endSignature = 0x0605_4B50
     private static let centralSignature = 0x0201_4B50
     private static let localSignature = 0x0403_4B50
+    private static let zip64EndSignature = 0x0606_4B50
+    private static let zip64LocatorSignature = 0x0706_4B50
     private static let endRecordLength = 22
+    private static let zip64LocatorLength = 20
+    private static let zip64EndRecordLength = 56
     private static let maxCommentLength = 0xFFFF
+    private static let sentinel32 = 0xFFFF_FFFF
+
+    init(fileURL: URL, maxEntries: Int) throws {
+        try self.init(data: Data(contentsOf: fileURL, options: .alwaysMapped), maxEntries: maxEntries)
+    }
 
     init(data: Data, maxEntries: Int) throws {
         guard data.count >= Self.endRecordLength else { throw ZipError.notAZip }
@@ -77,14 +100,22 @@ struct ZipReader {
         }
         guard let end else { throw ZipError.notAZip }
 
-        let total = try Self.u16(data, end + 10)
-        let directorySize = try Self.u32(data, end + 12)
-        let directoryOffset = try Self.u32(data, end + 16)
-        if total == 0xFFFF || directorySize == 0xFFFF_FFFF || directoryOffset == 0xFFFF_FFFF {
-            throw ZipError.unsupported
+        var total = try Self.u16(data, end + 10)
+        var directorySize = try Self.u32(data, end + 12)
+        var directoryOffset = try Self.u32(data, end + 16)
+        var directoryLimit = end
+        if total == 0xFFFF || directorySize == Self.sentinel32 || directoryOffset == Self.sentinel32 {
+            if let zip64 = try Self.zip64End(data, end: end) {
+                total = zip64.total
+                directorySize = zip64.size
+                directoryOffset = zip64.offset
+                directoryLimit = zip64.recordStart
+            } else if directorySize == Self.sentinel32 || directoryOffset == Self.sentinel32 {
+                throw ZipError.damaged
+            }
         }
         guard total <= maxEntries else { throw ZipError.tooManyEntries }
-        guard directoryOffset + directorySize <= end else { throw ZipError.damaged }
+        guard directoryOffset + directorySize <= directoryLimit else { throw ZipError.damaged }
 
         var parsed: [ZipEntry] = []
         parsed.reserveCapacity(total)
@@ -94,14 +125,20 @@ struct ZipReader {
             let flags = try Self.u16(data, offset + 8)
             let method = try Self.u16(data, offset + 10)
             let crc = try Self.u32(data, offset + 16)
-            let compressed = try Self.u32(data, offset + 20)
-            let uncompressed = try Self.u32(data, offset + 24)
+            var compressed = try Self.u32(data, offset + 20)
+            var uncompressed = try Self.u32(data, offset + 24)
             let nameLength = try Self.u16(data, offset + 28)
             let extraLength = try Self.u16(data, offset + 30)
             let commentLength = try Self.u16(data, offset + 32)
-            let localOffset = try Self.u32(data, offset + 42)
+            var localOffset = try Self.u32(data, offset + 42)
             let nameStart = offset + 46
-            guard nameStart + nameLength <= data.count else { throw ZipError.damaged }
+            guard nameStart + nameLength + extraLength <= data.count else { throw ZipError.damaged }
+            if compressed == Self.sentinel32 || uncompressed == Self.sentinel32 || localOffset == Self.sentinel32 {
+                try Self.applyZip64Extra(
+                    data, extraStart: nameStart + nameLength, extraLength: extraLength,
+                    uncompressed: &uncompressed, compressed: &compressed, localOffset: &localOffset
+                )
+            }
             let nameBytes = data.subdata(in: data.startIndex + nameStart ..< data.startIndex + nameStart + nameLength)
             let name = String(data: nameBytes, encoding: .utf8) ?? String(decoding: nameBytes, as: UTF8.self)
             parsed.append(ZipEntry(
@@ -116,10 +153,76 @@ struct ZipReader {
             offset = nameStart + nameLength + extraLength + commentLength
         }
         entries = parsed
+        var index: [String: Int] = [:]
+        index.reserveCapacity(parsed.count)
+        for (position, entry) in parsed.enumerated() where index[entry.name] == nil {
+            index[entry.name] = position
+        }
+        indexByName = index
+    }
+
+    /// The zip64 end-of-central-directory record the locator right before the
+    /// ordinary end record points at. Nil when there is no locator.
+    private static func zip64End(
+        _ data: Data, end: Int
+    ) throws -> (total: Int, size: Int, offset: Int, recordStart: Int)? {
+        let locator = end - zip64LocatorLength
+        guard locator >= 0, try u32(data, locator) == zip64LocatorSignature else { return nil }
+        let record = try u64(data, locator + 8)
+        guard record + zip64EndRecordLength <= locator, try u32(data, record) == zip64EndSignature else {
+            throw ZipError.damaged
+        }
+        return try (
+            total: u64(data, record + 32),
+            size: u64(data, record + 40),
+            offset: u64(data, record + 48),
+            recordStart: record
+        )
+    }
+
+    /// Reads the zip64 extended information extra field (id 0x0001): the 64-bit
+    /// values of exactly those fields whose 32-bit slot holds 0xFFFFFFFF, in the
+    /// order uncompressed size, compressed size, local header offset.
+    private static func applyZip64Extra(
+        _ data: Data,
+        extraStart: Int,
+        extraLength: Int,
+        uncompressed: inout Int,
+        compressed: inout Int,
+        localOffset: inout Int
+    ) throws {
+        var position = extraStart
+        let extraEnd = extraStart + extraLength
+        while position + 4 <= extraEnd {
+            let id = try u16(data, position)
+            let size = try u16(data, position + 2)
+            let fieldsEnd = position + 4 + size
+            guard fieldsEnd <= extraEnd else { throw ZipError.damaged }
+            if id == 1 {
+                var cursor = position + 4
+                if uncompressed == sentinel32 {
+                    guard cursor + 8 <= fieldsEnd else { throw ZipError.damaged }
+                    uncompressed = try u64(data, cursor)
+                    cursor += 8
+                }
+                if compressed == sentinel32 {
+                    guard cursor + 8 <= fieldsEnd else { throw ZipError.damaged }
+                    compressed = try u64(data, cursor)
+                    cursor += 8
+                }
+                if localOffset == sentinel32 {
+                    guard cursor + 8 <= fieldsEnd else { throw ZipError.damaged }
+                    localOffset = try u64(data, cursor)
+                }
+                return
+            }
+            position = fieldsEnd
+        }
+        throw ZipError.damaged
     }
 
     func entry(named name: String) -> ZipEntry? {
-        entries.first { $0.name == name }
+        indexByName[name].map { entries[$0] }
     }
 
     /// The inflated bytes of `entry`. `limit` caps the size the archive declares
@@ -147,6 +250,102 @@ struct ZipReader {
         return output
     }
 
+    private static let streamChunkBytes = 256 * 1024
+
+    /// Hands the inflated bytes of `entry` to `body` in chunks, never holding
+    /// more than one chunk of output. `limit` caps the size the archive declares
+    /// for it; the inflated length may not exceed what was declared, and the
+    /// length and CRC-32 are checked once the last chunk is out — so a damaged
+    /// entry throws after `body` has already seen its bytes.
+    func stream(
+        _ entry: ZipEntry,
+        limit: Int,
+        body: (UnsafeBufferPointer<UInt8>) throws -> Void
+    ) throws {
+        guard entry.flags & 1 == 0 else { throw ZipError.unsupported }
+        guard entry.uncompressedSize <= limit else { throw ZipError.entryTooLarge }
+        let header = entry.localHeaderOffset
+        guard try Self.u32(data, header) == Self.localSignature else { throw ZipError.damaged }
+        let start = try header + 30 + Self.u16(data, header + 26) + Self.u16(data, header + 28)
+        guard start + entry.compressedSize <= data.count else { throw ZipError.damaged }
+        let region = data[data.startIndex + start ..< data.startIndex + start + entry.compressedSize]
+
+        var crc = CRC32.initial
+        var total = 0
+        let expectedSize = entry.uncompressedSize
+        func tally(_ chunk: UnsafeBufferPointer<UInt8>) throws {
+            total += chunk.count
+            guard total <= expectedSize else { throw ZipError.damaged }
+            crc = CRC32.update(crc, chunk)
+            try body(chunk)
+        }
+        switch entry.method {
+        case 0:
+            guard entry.compressedSize == entry.uncompressedSize else { throw ZipError.damaged }
+            try region.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+                let bytes = raw.bindMemory(to: UInt8.self)
+                var offset = 0
+                while offset < bytes.count {
+                    let length = min(Self.streamChunkBytes, bytes.count - offset)
+                    try tally(UnsafeBufferPointer(rebasing: bytes[offset ..< offset + length]))
+                    offset += length
+                }
+            }
+        case 8:
+            try Self.inflateStream(region, tally: tally)
+        default:
+            throw ZipError.unsupported
+        }
+        guard total == expectedSize, ~crc == entry.crc32 else { throw ZipError.checksumMismatch }
+    }
+
+    private static func inflateStream(
+        _ input: Data,
+        tally: (UnsafeBufferPointer<UInt8>) throws -> Void
+    ) throws {
+        if input.isEmpty { return }
+        let output = UnsafeMutablePointer<UInt8>.allocate(capacity: streamChunkBytes)
+        defer { output.deallocate() }
+        let placeholder = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+        defer { placeholder.deallocate() }
+        var stream = compression_stream(
+            dst_ptr: placeholder, dst_size: 0, src_ptr: UnsafePointer(placeholder), src_size: 0, state: nil
+        )
+        guard compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {
+            throw ZipError.damaged
+        }
+        defer { compression_stream_destroy(&stream) }
+
+        try input.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { throw ZipError.damaged }
+            stream.src_ptr = base
+            stream.src_size = raw.count
+            stream.dst_ptr = output
+            stream.dst_size = streamChunkBytes
+            var idleRounds = 0
+            while true {
+                let status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
+                let produced = streamChunkBytes - stream.dst_size
+                if produced > 0 {
+                    idleRounds = 0
+                    try tally(UnsafeBufferPointer(start: output, count: produced))
+                } else {
+                    idleRounds += 1
+                }
+                switch status {
+                case COMPRESSION_STATUS_END:
+                    return
+                case COMPRESSION_STATUS_OK:
+                    guard idleRounds < 2 else { throw ZipError.damaged }
+                    stream.dst_ptr = output
+                    stream.dst_size = streamChunkBytes
+                default:
+                    throw ZipError.damaged
+                }
+            }
+        }
+    }
+
     /// Raw DEFLATE (what `COMPRESSION_ZLIB` decodes) of exactly `size` bytes. One
     /// spare byte in the buffer tells a stream that inflates to more than the
     /// header claims apart from one that fills it exactly.
@@ -172,6 +371,13 @@ struct ZipReader {
         guard offset >= 0, offset + 2 <= data.count else { throw ZipError.damaged }
         let base = data.startIndex + offset
         return Int(data[base]) | (Int(data[base + 1]) << 8)
+    }
+
+    private static func u64(_ data: Data, _ offset: Int) throws -> Int {
+        let low = try u32(data, offset)
+        let high = try u32(data, offset + 4)
+        guard high < 0x4000_0000 else { throw ZipError.damaged }
+        return low | (high << 32)
     }
 
     private static func u32(_ data: Data, _ offset: Int) throws -> Int {

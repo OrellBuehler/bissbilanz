@@ -41,6 +41,7 @@ struct BissbilanzApp: App {
     @State private var appModeManager: AppModeManager
     @State private var connectivityMonitor: ConnectivityMonitor
     @State private var syncManager: SyncManager
+    @State private var bulkUploadManager: BulkUploadManager
     @State private var migrator: LocalDataMigrator
     @State private var entryRepository: EntryRepository
     @State private var foodRepository: FoodRepository
@@ -148,6 +149,22 @@ struct BissbilanzApp: App {
         let context = container.mainContext
 
         let sync = SyncManager(context: context, api: api, appMode: appMode, connectivity: connectivity)
+        // The background upload of a big package import. The sync queue holds back an operation
+        // that refers to an imported food the server has not got yet, and retries once the
+        // upload has delivered another batch.
+        let bulkUploads = BulkUploadManager(
+            container: container,
+            api: api,
+            appMode: appMode,
+            connectivity: connectivity,
+            currentUserId: { auth.userId }
+        )
+        sync.isAwaitingBulkUpload = { [weak bulkUploads] foodId in
+            bulkUploads?.isAwaitingUpload(foodId: foodId) ?? false
+        }
+        bulkUploads.onProgress = { [weak sync] in
+            sync?.scheduleDrain()
+        }
 
         _updateGate = State(wrappedValue: gate)
         _authManager = State(wrappedValue: auth)
@@ -155,6 +172,7 @@ struct BissbilanzApp: App {
         _appModeManager = State(wrappedValue: appMode)
         _connectivityMonitor = State(wrappedValue: connectivity)
         _syncManager = State(wrappedValue: sync)
+        _bulkUploadManager = State(wrappedValue: bulkUploads)
         _migrator = State(wrappedValue: LocalDataMigrator(
             context: context,
             api: api,
@@ -402,6 +420,9 @@ struct BissbilanzApp: App {
             aiTaskStore: aiTasks
         ))
 
+        // The same for the bulk food upload, which needs minutes at a time rather than seconds.
+        BulkUploadScheduler.register(bulkUploads)
+
         // Supplement and logging reminders. The categories cost nothing and must be
         // registered before any request is scheduled, so it happens regardless of
         // authorization — the permission itself is only asked for when the user adds
@@ -451,6 +472,7 @@ struct BissbilanzApp: App {
             .environment(appModeManager)
             .environment(connectivityMonitor)
             .environment(syncManager)
+            .environment(bulkUploadManager)
             .environment(migrator)
             .environment(entryRepository)
             .environment(foodRepository)
@@ -491,6 +513,7 @@ struct BissbilanzApp: App {
                 // Upload anything queued while the session was expired.
                 if state == .authenticated {
                     syncManager.scheduleDrain()
+                    bulkUploadManager.start()
                 }
             }
             .onChange(of: appModeManager.mode) { _, _ in
@@ -500,6 +523,10 @@ struct BissbilanzApp: App {
                 guard storeUnavailable == nil else { return }
                 if phase == .active {
                     syncManager.scheduleDrain()
+                    Task {
+                        await bulkUploadManager.refreshCounts()
+                        bulkUploadManager.start()
+                    }
                     // Pick up fasts ended from the lock screen and re-request
                     // the Live Activity if the system expired it mid-fast
                     // (~8h cap) while the fast is still running.
@@ -522,6 +549,7 @@ struct BissbilanzApp: App {
                 } else if phase == .background {
                     // Re-arm the background pull chain for the time away.
                     BackgroundRefresher.schedule()
+                    BulkUploadScheduler.schedule()
                 }
             }
         }
@@ -550,14 +578,15 @@ struct BissbilanzApp: App {
         }
         // Keep Spotlight in step with the searchable catalog so
         // foods/recipes are findable before the next manual log. The whole
-        // local catalog is indexed — not just favorites/recents — so keyword
-        // and label search reach every food, but rebuilding it is real work
-        // (one attributeSet per row), so it's throttled to once every six
-        // hours; favorite recipes are cheap enough to redo on every
+        // local catalog is indexed — favorites and recents first, then the
+        // alphabetical head up to the cap in `spotlightFoods` — so keyword
+        // and label search reach the foods people look for, but rebuilding it
+        // is real work (one attributeSet per row), so it's throttled to once
+        // every six hours; favorite recipes are cheap enough to redo on every
         // activation.
         let reindexFullCatalog = IntentDonations.catalogReindexDue()
         IntentDonations.indexCatalog(
-            foods: reindexFullCatalog ? foodRepository.allLocalFoods() : [],
+            foods: reindexFullCatalog ? foodRepository.spotlightFoods() : [],
             recipes: recipeRepository.favoriteRecipes()
         )
         if reindexFullCatalog {

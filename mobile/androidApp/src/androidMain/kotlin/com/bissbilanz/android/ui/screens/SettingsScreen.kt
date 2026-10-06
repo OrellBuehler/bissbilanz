@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.bulk.formatCount
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.AppTopBar
@@ -24,6 +25,8 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.foodpackage.BulkUploadCounts
+import com.bissbilanz.foodpackage.BulkUploadStore
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.sync.SyncManager
 import kotlinx.coroutines.launch
@@ -39,6 +42,10 @@ fun SettingsScreen(navController: NavController) {
     val healthConnect: HealthConnectService = koinInject()
     val healthAvailable = remember { healthConnect.isAvailable() }
     val syncState by syncManager.state.collectAsStateWithLifecycle()
+    val bulkStore: BulkUploadStore = koinInject()
+    val bulkCounts by remember(bulkStore) { bulkStore.countsFlow() }
+        .collectAsStateWithLifecycle(initialValue = BulkUploadCounts(0, 0, 0, 0))
+    var showUnsyncedSignOutDialog by remember { mutableStateOf(false) }
     val pendingSyncCount = syncState.pendingCount + syncState.failedCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
@@ -104,6 +111,27 @@ fun SettingsScreen(navController: NavController) {
         AddMealTypeDialog(
             onAdd = { viewModel.addMealType(it) },
             onDismiss = { showMealTypeDialog = false },
+        )
+    }
+
+    if (showUnsyncedSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsyncedSignOutDialog = false },
+            title = { Text(stringResource(R.string.bulk_upload_sign_out_title)) },
+            text = { Text(stringResource(R.string.bulk_upload_sign_out_message, formatCount(bulkCounts.unsynced))) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUnsyncedSignOutDialog = false
+                        viewModel.logout()
+                    },
+                ) {
+                    Text(stringResource(R.string.bulk_upload_sign_out_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsyncedSignOutDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
+            },
         )
     }
 
@@ -256,7 +284,10 @@ fun SettingsScreen(navController: NavController) {
                     exportingData = exportingData,
                     onSignIn = { launchLoginFlow(context, authManager) },
                     onExportData = { viewModel.exportData(context.cacheDir) },
-                    onSignOut = { viewModel.logout() },
+                    onSignOut = {
+                        // Signing out wipes the device, and imported foods that were never uploaded exist nowhere else.
+                        if (bulkCounts.unsynced > 0) showUnsyncedSignOutDialog = true else viewModel.logout()
+                    },
                     onDeleteAccount = { showDeleteAccountDialog = true },
                 )
 

@@ -38,8 +38,13 @@ CREATE TABLE IF NOT EXISTS CachedFood (
     fiber REAL NOT NULL DEFAULT 0,
     isFavorite INTEGER NOT NULL DEFAULT 0,
     barcode TEXT,
-    jsonData TEXT NOT NULL
+    jsonData TEXT NOT NULL,
+    servingUnit TEXT,
+    updatedAt TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_cached_food_name ON CachedFood(name, id);
+CREATE INDEX IF NOT EXISTS idx_cached_food_barcode ON CachedFood(barcode);
 
 -- One row per (food, label), mirrored from Food.labels on every cache write so
 -- the offline search can match "bread" against a food named "Vollkornbrot"
@@ -130,6 +135,20 @@ CREATE TABLE IF NOT EXISTS CachedDayProperties (
     activityCaloriesSource TEXT
 );
 
+-- Foods imported from a huge package that the account does not have yet. The food itself
+-- lives in CachedFood (that row is the mirror, usable immediately); this row only tracks
+-- the background upload. state is pending (to upload), done (on the server) or failed
+-- (rejected, see lastError). Rows are keyed by the signed-in user that owns the upload.
+CREATE TABLE IF NOT EXISTS BulkUploadJob (
+    foodId TEXT NOT NULL PRIMARY KEY,
+    userId TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    lastError TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_bulk_upload_job_state ON BulkUploadJob(userId, state);
+
 -- Tiny key/value store local to this database file. Currently only holds the
 -- "legacy user data copied out of bissbilanz.db" marker written by
 -- LegacyUserDataMigration; being part of userdata.db it survives backup/restore,
@@ -182,8 +201,42 @@ DELETE FROM CachedEntry WHERE date = ?;
 selectAllFoods:
 SELECT * FROM CachedFood ORDER BY name;
 
+selectFoodsPage:
+SELECT * FROM CachedFood ORDER BY name, id LIMIT :limit OFFSET :offset;
+
+selectFoodsAfterId:
+SELECT * FROM CachedFood WHERE id > :afterId ORDER BY id LIMIT :limit;
+
+selectFoodsByIds:
+SELECT * FROM CachedFood WHERE id IN :ids;
+
+countFoods:
+SELECT COUNT(*) FROM CachedFood;
+
 selectAllFoodIds:
 SELECT id FROM CachedFood;
+
+-- Lightweight columns for matching and name lookups, so a large mirror never has to decode jsonData.
+selectFoodKeys:
+SELECT id, name, brand, barcode, servingUnit, updatedAt FROM CachedFood;
+
+selectFoodNames:
+SELECT id, name FROM CachedFood ORDER BY name, id;
+
+selectFoodBrands:
+SELECT id, brand FROM CachedFood WHERE brand IS NOT NULL;
+
+selectFoodIdsByLabels:
+SELECT DISTINCT foodId FROM CachedFoodLabel WHERE label IN :labels;
+
+countFoodsPerBrand:
+SELECT TRIM(brand) AS brand, COUNT(*) AS foodCount FROM CachedFood WHERE brand IS NOT NULL AND TRIM(brand) <> '' GROUP BY TRIM(brand);
+
+countFoodsPerLabel:
+SELECT label, COUNT(*) AS foodCount FROM CachedFoodLabel GROUP BY label;
+
+updateFoodKeys:
+UPDATE CachedFood SET servingUnit = :servingUnit, updatedAt = :updatedAt WHERE id = :id;
 
 selectFoodById:
 SELECT * FROM CachedFood WHERE id = ?;
@@ -194,20 +247,31 @@ SELECT * FROM CachedFood WHERE barcode = ? LIMIT 1;
 selectFavorites:
 SELECT * FROM CachedFood WHERE isFavorite = 1 ORDER BY name;
 
--- Same tiers as the server: name, then English label, then brand.
+-- Same tiers as the server: name, then English label, then brand. The inner query ranks
+-- and limits on id/name only so a broad pattern never sorts whole rows (jsonData included).
 searchFoods:
 SELECT * FROM CachedFood
-WHERE name LIKE :pattern
-   OR brand LIKE :pattern
-   OR EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label)
+WHERE id IN (
+    SELECT f.id FROM CachedFood f
+    WHERE f.name LIKE :pattern
+       OR f.brand LIKE :pattern
+       OR EXISTS (SELECT 1 FROM CachedFoodLabel l WHERE l.foodId = f.id AND l.label = :label)
+    ORDER BY
+        CASE
+            WHEN f.name LIKE :pattern THEN 0
+            WHEN EXISTS (SELECT 1 FROM CachedFoodLabel l WHERE l.foodId = f.id AND l.label = :label) THEN 1
+            ELSE 2
+        END,
+        f.name
+    LIMIT :limit
+)
 ORDER BY
     CASE
         WHEN name LIKE :pattern THEN 0
         WHEN EXISTS (SELECT 1 FROM CachedFoodLabel WHERE CachedFoodLabel.foodId = CachedFood.id AND CachedFoodLabel.label = :label) THEN 1
         ELSE 2
     END,
-    name
-LIMIT :limit;
+    name;
 
 -- Foods recently logged via cached entries (Local mode replacement for /api/foods/recent)
 selectRecentFoods:
@@ -430,3 +494,63 @@ DELETE FROM CachedPreferences;
 
 clearAllDayProperties:
 DELETE FROM CachedDayProperties;
+
+-- Bulk package import / upload
+selectFoodIdentityKeys:
+SELECT name, brand, barcode FROM CachedFood;
+
+insertBulkJob:
+INSERT OR IGNORE INTO BulkUploadJob(foodId, userId, state, attempts, lastError) VALUES (?, ?, 'pending', 0, NULL);
+
+selectBulkJob:
+SELECT * FROM BulkUploadJob WHERE foodId = ?;
+
+selectPendingBulkJobs:
+SELECT * FROM BulkUploadJob WHERE userId = :userId AND state = 'pending' ORDER BY rowid LIMIT :limit;
+
+selectPendingBulkJobsByIds:
+SELECT * FROM BulkUploadJob WHERE userId = :userId AND state = 'pending' AND foodId IN :ids;
+
+selectBulkJobFoodIds:
+SELECT foodId FROM BulkUploadJob WHERE state IN ('pending', 'failed');
+
+selectBulkJobFoodIdsForUser:
+SELECT foodId FROM BulkUploadJob WHERE userId = ? AND state = 'pending';
+
+countBulkJobs:
+SELECT
+    COUNT(*) AS total,
+    COALESCE(SUM(CASE WHEN state = 'done' THEN 1 ELSE 0 END), 0) AS done,
+    COALESCE(SUM(CASE WHEN state = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+    COALESCE(SUM(CASE WHEN state = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+FROM BulkUploadJob;
+
+countUnsyncedBulkJobs:
+SELECT COUNT(*) FROM BulkUploadJob WHERE state IN ('pending', 'failed');
+
+markBulkJobDone:
+UPDATE BulkUploadJob SET state = 'done', lastError = NULL WHERE foodId = ?;
+
+markBulkJobFailed:
+UPDATE BulkUploadJob SET state = 'failed', attempts = attempts + 1, lastError = ? WHERE foodId = ?;
+
+bumpBulkJobAttempts:
+UPDATE BulkUploadJob SET attempts = attempts + 1, lastError = ? WHERE foodId = ?;
+
+retryFailedBulkJobs:
+UPDATE BulkUploadJob SET state = 'pending', lastError = NULL WHERE userId = ? AND state = 'failed';
+
+renameBulkJob:
+UPDATE BulkUploadJob SET foodId = :newId WHERE foodId = :oldId;
+
+deleteBulkJob:
+DELETE FROM BulkUploadJob WHERE foodId = ?;
+
+deleteDoneBulkJobs:
+DELETE FROM BulkUploadJob WHERE userId = ? AND state = 'done';
+
+deleteBulkJobsOfOtherUsers:
+DELETE FROM BulkUploadJob WHERE userId <> ?;
+
+clearAllBulkUploadJobs:
+DELETE FROM BulkUploadJob;

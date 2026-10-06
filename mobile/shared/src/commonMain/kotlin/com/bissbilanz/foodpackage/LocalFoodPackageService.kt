@@ -76,10 +76,10 @@ class LocalFoodPackageService(
     // ── Context ───────────────────────────────────────────────────────────
 
     private class ImportContext(
-        val foods: List<Food>,
         val recipes: List<RecipeDetail>,
         val existingFoods: List<ExistingFood>,
         val existingRecipes: List<ExistingRecipe>,
+        val foodById: (String) -> Food?,
     )
 
     private fun millis(iso: String?): Long {
@@ -92,8 +92,12 @@ class LocalFoodPackageService(
         }
     }
 
+    /**
+     * Foods are matched on key columns only, so a mirror of any size is never decoded
+     * wholesale; a full [Food] is decoded on demand for the few rows a package touches.
+     * A row written before the key columns existed is decoded once and back-filled.
+     */
     private fun loadContext(): ImportContext {
-        val foods = queries.selectAllFoods().executeAsList().mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
         val recipes = queries.selectAllRecipes().executeAsList().mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
         val entriesPerFood = queries.countEntriesPerFood().executeAsList().associate { it.foodId to it.entryCount.toInt() }
         val entriesPerRecipe = queries.countEntriesPerRecipe().executeAsList().associate { it.recipeId to it.entryCount.toInt() }
@@ -101,29 +105,48 @@ class LocalFoodPackageService(
         for (recipe in recipes) {
             for (ingredient in recipe.ingredients) inRecipes[ingredient.foodId] = (inRecipes[ingredient.foodId] ?: 0) + 1
         }
+        val existingFoods = ArrayList<ExistingFood>()
+        for (key in queries.selectFoodKeys().executeAsList()) {
+            var servingUnit = key.servingUnit
+            var updatedAt = key.updatedAt
+            if (servingUnit == null) {
+                val food = foodById(key.id) ?: continue
+                servingUnit = food.servingUnit.value
+                updatedAt = food.updatedAt
+                queries.updateFoodKeys(servingUnit, updatedAt, key.id)
+            }
+            existingFoods.add(
+                ExistingFood(
+                    id = key.id,
+                    name = key.name,
+                    brand = key.brand,
+                    barcode = key.barcode,
+                    servingUnit = servingUnit,
+                    isSupplement = false,
+                    updatedAtMillis = millis(updatedAt),
+                    entryCount = entriesPerFood[key.id] ?: 0,
+                    recipeCount = inRecipes[key.id] ?: 0,
+                ),
+            )
+        }
         return ImportContext(
-            foods = foods,
             recipes = recipes,
-            existingFoods =
-                foods.map {
-                    ExistingFood(
-                        id = it.id,
-                        name = it.name,
-                        brand = it.brand,
-                        barcode = it.barcode,
-                        servingUnit = it.servingUnit.value,
-                        isSupplement = false,
-                        updatedAtMillis = millis(it.updatedAt),
-                        entryCount = entriesPerFood[it.id] ?: 0,
-                        recipeCount = inRecipes[it.id] ?: 0,
-                    )
-                },
+            existingFoods = existingFoods,
             existingRecipes =
                 recipes.map {
                     ExistingRecipe(it.id, it.name, millis(it.updatedAt), entriesPerRecipe[it.id] ?: 0)
                 },
+            foodById = ::foodById,
         )
     }
+
+    private fun foodById(id: String): Food? = queries.selectFoodById(id).executeAsOneOrNull()?.let { json.decodeOrNull<Food>(it.jsonData) }
+
+    private fun foodsByIds(ids: Collection<String>): List<Food> =
+        ids
+            .chunked(FOOD_ID_CHUNK)
+            .flatMap { chunk -> queries.selectFoodsByIds(chunk).executeAsList() }
+            .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
 
     // ── Preview ───────────────────────────────────────────────────────────
 
@@ -143,7 +166,8 @@ class LocalFoodPackageService(
             val match = matchPackage(manifest, context.existingFoods, context.existingRecipes)
             val foodsByRef = manifest.foods.associateBy { it.ref }
             val recipesByRef = manifest.recipes.associateBy { it.ref }
-            val foodsById = context.foods.associateBy { it.id }
+            val foodsById = HashMap<String, Food?>()
+            val foodFor = { id: String -> foodsById.getOrPut(id) { context.foodById(id) } }
             val recipesById = context.recipes.associateBy { it.id }
             val existingStats = context.existingFoods.associateBy { it.id }
             val recipeStats = context.existingRecipes.associateBy { it.id }
@@ -164,7 +188,7 @@ class LocalFoodPackageService(
             val foodConflicts =
                 match.foodConflicts.map { conflict ->
                     val incoming = foodsByRef.getValue(conflict.ref)
-                    val row = foodsById.getValue(conflict.existingId)
+                    val row = foodFor(conflict.existingId) ?: stale()
                     val stats = existingStats.getValue(conflict.existingId)
                     FoodPackageFoodConflict(
                         ref = conflict.ref,
@@ -204,7 +228,7 @@ class LocalFoodPackageService(
                             ),
                         alsoMatches =
                             conflict.alsoMatches
-                                .mapNotNull { foodsById[it] }
+                                .mapNotNull { foodFor(it) }
                                 .map { FoodPackageAlsoMatch(it.id, it.name, it.brand) },
                         allowed = conflict.allowed,
                         notes = conflict.notes,
@@ -231,7 +255,7 @@ class LocalFoodPackageService(
                                 name = row.name,
                                 totalServings = row.totalServings,
                                 cookedWeight = row.cookedWeight,
-                                ingredients = row.ingredients.sortedBy { it.sortOrder }.mapNotNull { foodsById[it.foodId]?.name },
+                                ingredients = row.ingredients.sortedBy { it.sortOrder }.mapNotNull { foodFor(it.foodId)?.name },
                                 imageUrl = row.imageUrl,
                                 id = row.id,
                                 entryCount = recipeStats.getValue(row.id).entryCount,
@@ -412,6 +436,7 @@ class LocalFoodPackageService(
             barcode = food.barcode,
             jsonData = json.encodeToString(food),
         )
+        queries.updateFoodKeys(servingUnit = food.servingUnit.value, updatedAt = food.updatedAt, id = food.id)
     }
 
     private fun writeRecipe(recipe: RecipeDetail) {
@@ -442,7 +467,7 @@ class LocalFoodPackageService(
         context: ImportContext,
     ) {
         val stamp = now()
-        val foodsById = LinkedHashMap(context.foods.associateBy { it.id })
+        val foodsById = HashMap<String, Food>()
         val foodIdByRef = HashMap<String, String>()
         val replacedFoodIds = HashSet<String>()
         val writtenRecipeIds = HashSet<String>()
@@ -485,7 +510,7 @@ class LocalFoodPackageService(
             }
 
             val recipeMacros = { ingredients: List<RecipeIngredient>, servings: Double ->
-                computeRecipePerServingMacros(ingredients, servings) { foodsById[it] }
+                computeRecipePerServingMacros(ingredients, servings) { foodsById[it] ?: context.foodById(it) }
             }
 
             fun ingredientsOf(recipe: PackageRecipe) =
@@ -607,9 +632,9 @@ class LocalFoodPackageService(
             selection.includeRecipes
                 ?: if (selection.all == true) FoodPackageIncludeRecipes.all else FoodPackageIncludeRecipes.none
 
-        val selectedFoods: List<Food> =
+        val selectedIds: Set<String> =
             if (selection.all == true) {
-                context.foods
+                queries.selectAllFoodIds().executeAsList().toSet()
             } else {
                 val ids = selection.foodIds.orEmpty().toSet()
                 val brands =
@@ -618,18 +643,27 @@ class LocalFoodPackageService(
                         .map { it.trim().lowercase() }
                         .toSet()
                 val labels = normalizeLabels(selection.labels.orEmpty()).toSet()
-                context.foods.filter { food ->
-                    food.id in ids ||
-                        (brands.isNotEmpty() && food.brand?.trim()?.lowercase() in brands) ||
-                        (labels.isNotEmpty() && food.labels.orEmpty().any { it in labels })
-                }
-            }.sortedWith(foodOrder)
-        if (selectedFoods.size > MAX_PACKAGE_FOODS) {
+                val byBrand =
+                    if (brands.isEmpty()) {
+                        emptyList()
+                    } else {
+                        queries
+                            .selectFoodBrands()
+                            .executeAsList()
+                            .filter { it.brand?.trim()?.lowercase() in brands }
+                            .map { it.id }
+                    }
+                val byLabel =
+                    if (labels.isEmpty()) emptyList() else queries.selectFoodIdsByLabels(labels).executeAsList()
+                ids + byBrand + byLabel
+            }
+        if (selectedIds.size > MAX_PACKAGE_FOODS) {
             throw FoodPackageException(
                 FoodPackageException.Kind.TOO_LARGE,
                 "A package can hold at most $MAX_PACKAGE_FOODS foods",
             )
         }
+        val selectedFoods = foodsByIds(selectedIds).sortedWith(foodOrder)
         val selectedFoodIds = selectedFoods.map { it.id }.toSet()
 
         val recipeIds = selection.recipeIds.orEmpty().toSet()
@@ -651,13 +685,12 @@ class LocalFoodPackageService(
             )
         }
 
-        val foodsById = context.foods.associateBy { it.id }
         val closureIds =
             selectedRecipes
                 .flatMap { recipe -> recipe.ingredients.map { it.foodId } }
                 .filter { it !in selectedFoodIds }
                 .distinct()
-        val closure = closureIds.mapNotNull { foodsById[it] }
+        val closure = foodsByIds(closureIds)
         val all =
             selectedFoods.map { SelectedFood(it, FoodPackageFoodRole.selected) } +
                 closure.map { SelectedFood(it, FoodPackageFoodRole.ingredient) }
@@ -788,6 +821,8 @@ class LocalFoodPackageService(
         }
 
     private companion object {
+        const val FOOD_ID_CHUNK = 500
+
         /** Rough JSON size of one item; only feeds the size estimate shown before export. */
         const val BYTES_PER_ITEM = 1500
     }

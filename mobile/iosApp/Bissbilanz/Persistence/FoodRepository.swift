@@ -18,12 +18,20 @@ final class FoodRepository {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let syncManager: SyncManager
+    private let defaults: UserDefaults
 
-    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
+    init(
+        context: ModelContext,
+        api: BissbilanzAPI,
+        appMode: AppModeManager,
+        syncManager: SyncManager,
+        defaults: UserDefaults = .standard
+    ) {
         self.context = context
         self.api = api
         self.appMode = appMode
         self.syncManager = syncManager
+        self.defaults = defaults
     }
 
     // MARK: - Reads (local)
@@ -75,6 +83,23 @@ final class FoodRepository {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
         return rows.compactMap { $0.toFood() }
+    }
+
+    /// The foods worth putting in Spotlight: favorites, then recents, then the
+    /// alphabetical head of the catalog, capped at `limit`. Indexing every row
+    /// of a 100k-food catalog means 100k attribute sets and an unbounded array
+    /// of entities in memory, for a system search nobody scrolls that far in.
+    func spotlightFoods(limit: Int = 5000) -> [Food] {
+        guard limit > 0 else { return [] }
+        var seen = Set<String>()
+        var result: [Food] = []
+        let candidates = favorites() + localRecentFoods(limit: 200) + localFoods(limit: limit)
+        for food in candidates where result.count < limit {
+            if seen.insert(food.id).inserted {
+                result.append(food)
+            }
+        }
+        return result
     }
 
     /// Visual Intelligence supplies general English nouns, not a text search.
@@ -175,40 +200,66 @@ final class FoodRepository {
             .map(\.key)
     }
 
-    /// Rank name matches ahead of brand-only matches; both stay alphabetical.
+    /// Rank name matches ahead of label matches ahead of brand-only matches;
+    /// each tier stays alphabetical. Same tiers as the server's search: name,
+    /// then English label, then brand. The query is folded exactly like a
+    /// stored label, so "Breads" meets a food labelled "bread" whatever
+    /// language its name is in.
     ///
-    /// One pass, with each row's comparisons evaluated once. The previous shape
-    /// filtered the table, then re-filtered the matches twice more to split the
-    /// two groups — up to four ICU comparisons per row. This backs offline
-    /// search, Local-mode search, and the on-device meal estimator's
-    /// `searchLocalFoods` tool, which calls it once per item while the model
-    /// waits. Rows arrive alphabetical and name matches rank first, so once
-    /// `limit` of them are found the rest of the table can't change the result.
-    /// Same tiers as the server's search: name, then English label, then brand.
-    /// The query is folded exactly like a stored label, so "Breads" meets a
-    /// food labelled "bread" whatever language its name is in.
+    /// Backs offline search, Local-mode search, and the on-device meal
+    /// estimator's `searchLocalFoods` tool (once per item while the model
+    /// waits), so it must stay cheap on a catalog of 100k foods: the name and
+    /// brand tiers are `fetchLimit`-bounded predicate fetches, and the label
+    /// tier — a predicate cannot reach into `labels` — only runs when the name
+    /// tier left room, over just the id and labels columns.
     func searchLocal(_ query: String, limit: Int = 50) -> [Food] {
-        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
-        let rows = (try? context.fetch(descriptor)) ?? []
-        let label = LabelNormalizer.normalize(query)
-        var nameMatches: [LocalFood] = []
-        var labelMatches: [LocalFood] = []
-        var brandOnly: [LocalFood] = []
-        for row in rows {
-            if row.name.localizedCaseInsensitiveContains(query) {
-                nameMatches.append(row)
-                if nameMatches.count == limit { break }
-            } else if let label, labelMatches.count < limit, row.labels.contains(label) {
-                labelMatches.append(row)
-            } else if brandOnly.count < limit,
-                      row.brand?.localizedCaseInsensitiveContains(query) == true
-            {
-                brandOnly.append(row)
-            }
+        guard limit > 0, !query.isEmpty else { return [] }
+        var nameDescriptor = FetchDescriptor<LocalFood>(
+            predicate: #Predicate { $0.name.localizedStandardContains(query) },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        nameDescriptor.fetchLimit = limit
+        var rows = fetchRows(nameDescriptor)
+        if rows.count < limit, let label = LabelNormalizer.normalize(query) {
+            let matched = Set(rows.map(\.id))
+            let labelIds = labelMatchIds(label, excluding: matched, limit: limit - rows.count)
+            rows += fetchRows(FetchDescriptor<LocalFood>(
+                predicate: #Predicate { labelIds.contains($0.id) },
+                sortBy: [SortDescriptor(\.name)]
+            ))
         }
-        return (nameMatches + labelMatches + brandOnly)
-            .prefix(limit)
-            .compactMap { $0.toFood() }
+        if rows.count < limit {
+            var brandDescriptor = FetchDescriptor<LocalFood>(
+                predicate: #Predicate {
+                    !$0.name.localizedStandardContains(query) && $0.brand?.localizedStandardContains(query) == true
+                },
+                sortBy: [SortDescriptor(\.name)]
+            )
+            brandDescriptor.fetchLimit = limit
+            let labeled = Set(rows.map(\.id))
+            rows += fetchRows(brandDescriptor).filter { !labeled.contains($0.id) }
+        }
+        return rows.prefix(limit).compactMap { $0.toFood() }
+    }
+
+    private func labelMatchIds(_ label: String, excluding: Set<String>, limit: Int) -> [String] {
+        var descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
+        descriptor.propertiesToFetch = [\.id, \.labels]
+        var ids: [String] = []
+        for row in fetchRows(descriptor) where row.labels.contains(label) && !excluding.contains(row.id) {
+            ids.append(row.id)
+            if ids.count == limit { break }
+        }
+        return ids
+    }
+
+    private func fetchRows(_ descriptor: FetchDescriptor<LocalFood>) -> [LocalFood] {
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            ErrorReporter.capture(error, context: ["operation": "FoodRepository.fetchRows"])
+            return []
+        }
     }
 
     func findLocalByBarcode(_ barcode: String) -> Food? {
@@ -233,7 +284,8 @@ final class FoodRepository {
             upsert(food)
             save()
         } catch let error as APIError where Self.isMissing(error) {
-            if !syncManager.pendingAffectedIds(table: "foods").contains(id) {
+            // An imported food still waiting for its bulk upload is not on the server yet.
+            if !syncManager.pendingAffectedIds(table: "foods").contains(id), try !hasBulkUploadJob(foodId: id) {
                 deleteRow(id: id)
                 save()
             }
@@ -274,7 +326,7 @@ final class FoodRepository {
         save()
     }
 
-    /// Caches the user's whole food database, page by page.
+    /// Mirrors the user's whole food database into the local store, as a delta.
     ///
     /// Foods are otherwise cached opportunistically — favorites, recents, search
     /// hits, scanned barcodes — which is enough to log with but not to analyse
@@ -282,42 +334,142 @@ final class FoodRepository {
     /// omega-3/6, NOVA group…) needs the food behind every entry, including ones
     /// logged months ago and never opened since.
     ///
-    /// Paging stops on the first short page. A mirror that completes that way
-    /// (i.e. really did enumerate the whole catalog) also prunes local rows
-    /// absent from the response — `/api/foods` is the user's entire personal
-    /// database, so anything left over was deleted or merged away server-side
-    /// (see `mergeFoods`) while this device was offline. An interrupted
-    /// mirror (an error, or hitting `maxPages`) prunes nothing: a partial
+    /// The server lists foods ordered by `(serverModifiedAt, id)`, so a sync only
+    /// asks for rows written since the stored checkpoint (the newest
+    /// `serverModifiedAt` seen, minus `checkpointOverlap` to absorb clock skew
+    /// and in-flight transactions) and pages through them with the opaque
+    /// `nextCursor`. A fresh store starts from the epoch. The checkpoint is
+    /// persisted after every page, so an interrupted first sync of a very large
+    /// catalog resumes where it stopped; upserts are idempotent, so the overlap
+    /// is harmless.
+    ///
+    /// Deletions are not in a delta, so a mirror that ran to the end also
+    /// reconciles ids (`pruneMissing`) — when none has been done yet and then
+    /// once per `pruneInterval`, or whenever `reconcileDeletions` asks. A
+    /// mirror cut short by an error or by `maxPages` prunes nothing: a partial
     /// listing is not grounds for deleting rows it simply didn't get to yet.
     /// Rows with an un-uploaded queued write are skipped on upsert and kept on
-    /// prune either way, as everywhere else.
-    func mirrorAll(pageSize: Int = 200, maxPages: Int = 50) async throws {
+    /// prune, as everywhere else.
+    func mirrorAll(pageSize: Int = 1000, maxPages: Int = 1000, reconcileDeletions: Bool = false) async throws {
         guard !appMode.isLocal else { return }
-        let pendingIds = syncManager.pendingAffectedIds(table: "foods")
-        var serverIds: Set<String> = []
-        for page in 0 ..< maxPages {
-            let foods = try await api.getFoods(limit: pageSize, offset: page * pageSize)
-            for food in foods {
-                serverIds.insert(food.id)
-                if !pendingIds.contains(food.id) {
-                    upsert(food)
-                }
+        let storedCheckpoint = defaults.double(forKey: FoodMirrorState.checkpointKey)
+        let hasLocalRows = ((try? context.fetchCount(FetchDescriptor<LocalFood>())) ?? 0) > 0
+        // A store emptied since the checkpoint was written (sign-out, wipe) has
+        // nothing to be incremental over.
+        let checkpoint = storedCheckpoint > 0 && hasLocalRows
+            ? Date(timeIntervalSince1970: storedCheckpoint)
+            : nil
+        let since = checkpoint.map { $0.addingTimeInterval(-Self.checkpointOverlap) }
+            ?? Date(timeIntervalSince1970: 0)
+        let modifiedSince = DateFormatting.isoDateTimeString(from: since)
+
+        var newest = checkpoint
+        var cursor: String?
+        var completed = false
+        for _ in 0 ..< maxPages {
+            let page = try await api.getFoodsDelta(
+                modifiedSince: cursor == nil ? modifiedSince : nil,
+                after: cursor,
+                limit: pageSize
+            )
+            let pendingIds = syncManager.pendingAffectedIds(table: "foods")
+            upsertAll(page.foods.filter { !pendingIds.contains($0.id) })
+            context.saveReportingFailure("FoodRepository.mirrorAll")
+            for food in page.foods {
+                guard let stamp = food.serverModifiedAt.flatMap(DateFormatting.isoDateTime(from:)) else { continue }
+                if newest.map({ stamp > $0 }) ?? true { newest = stamp }
             }
-            save()
-            if foods.count < pageSize {
-                pruneMissing(serverIds: serverIds, pendingIds: pendingIds)
-                return
+            if let newest {
+                defaults.set(newest.timeIntervalSince1970, forKey: FoodMirrorState.checkpointKey)
+            }
+            guard let next = page.nextCursor, !page.foods.isEmpty else {
+                completed = true
+                break
+            }
+            cursor = next
+        }
+        WidgetSnapshotWriter.scheduleUpdate(context: context)
+        if completed, reconcileDeletions || pruneDue() {
+            try await pruneMissing()
+        }
+    }
+
+    private static let checkpointOverlap: TimeInterval = 60
+    private static let pruneInterval: TimeInterval = 24 * 60 * 60
+
+    private func pruneDue() -> Bool {
+        let last = defaults.double(forKey: FoodMirrorState.prunedAtKey)
+        return last <= 0 || Date().timeIntervalSince1970 - last >= Self.pruneInterval
+    }
+
+    /// Inserts or updates a page of foods with one id lookup per chunk — a
+    /// per-food `fetchRow` would scan the whole table once per row, which is
+    /// quadratic across a 100k-food first sync.
+    private func upsertAll(_ foods: [Food]) {
+        for chunk in foods.chunked(into: 500) {
+            let ids = chunk.map(\.id)
+            let existing = (try? context.fetch(FetchDescriptor<LocalFood>(
+                predicate: #Predicate { ids.contains($0.id) }
+            ))) ?? []
+            var rowsById: [String: LocalFood] = [:]
+            for row in existing where rowsById[row.id] == nil {
+                rowsById[row.id] = row
+            }
+            for food in chunk {
+                if let row = rowsById[food.id] {
+                    row.update(from: food)
+                } else {
+                    context.insert(LocalFood(food: food))
+                }
             }
         }
     }
 
-    /// Deletes local food rows absent from `serverIds` — see `mirrorAll`.
-    private func pruneMissing(serverIds: Set<String>, pendingIds: Set<String>) {
-        let rows = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
-        for row in rows where !serverIds.contains(row.id) && !pendingIds.contains(row.id) {
-            context.delete(row)
+    /// Deletes local food rows the server no longer has — deleted, or merged
+    /// away via `mergeFoods` — judged by comparing ids (`GET /api/foods/ids`),
+    /// since a delta listing cannot express a hard delete. Ids compare
+    /// case-insensitively: the server's are lowercase UUIDs. Only rows that
+    /// were already local before the request went out are candidates (one
+    /// created or drained while it was in flight is not in the response yet),
+    /// and rows with a queued write, or a `temp_` id awaiting its create, stay — as do
+    /// imported foods whose bulk upload is not done, which the server has never heard of.
+    private func pruneMissing() async throws {
+        let before = localFoodIds()
+        let serverIds = Set(try await api.getFoodIds().map { $0.lowercased() })
+        var pendingIds = Set(syncManager.pendingAffectedIds(table: "foods").map { $0.lowercased() })
+        pendingIds.formUnion(try bulkUploadFoodIds())
+        let orphans = before.filter { id in
+            let folded = id.lowercased()
+            return !LocalStore.isTempId(id) && !serverIds.contains(folded) && !pendingIds.contains(folded)
+        }
+        for chunk in orphans.chunked(into: 500) {
+            let rows = (try? context.fetch(FetchDescriptor<LocalFood>(
+                predicate: #Predicate { chunk.contains($0.id) }
+            ))) ?? []
+            for row in rows {
+                context.delete(row)
+            }
         }
         save()
+        defaults.set(Date().timeIntervalSince1970, forKey: FoodMirrorState.prunedAtKey)
+    }
+
+    /// Foods an import handed to the bulk upload and the server has not confirmed (pending or
+    /// parked), lowercased. A read that fails throws: guessing "none" would let a prune delete them.
+    private func bulkUploadFoodIds() throws -> Set<String> {
+        var descriptor = FetchDescriptor<BulkUploadJob>()
+        descriptor.propertiesToFetch = [\.foodId]
+        return Set(try context.fetch(descriptor).map { $0.foodId.lowercased() })
+    }
+
+    private func hasBulkUploadJob(foodId: String) throws -> Bool {
+        try context.fetchCount(FetchDescriptor<BulkUploadJob>(predicate: #Predicate { $0.foodId == foodId })) > 0
+    }
+
+    private func localFoodIds() -> [String] {
+        var descriptor = FetchDescriptor<LocalFood>()
+        descriptor.propertiesToFetch = [\.id]
+        return fetchRows(descriptor).map(\.id)
     }
 
     /// One alphabetical page of the catalog for the Foods tab's "All" list, so
@@ -903,5 +1055,24 @@ final class FoodRepository {
     private func save() {
         context.saveReportingFailure("FoodRepository.save")
         WidgetSnapshotWriter.scheduleUpdate(context: context)
+    }
+}
+
+fileprivate extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
+    }
+}
+
+/// Where `FoodRepository.mirrorAll` remembers how far it got. Cleared with the
+/// rest of the local data (`LocalDataMigrator.wipeLocalData`), so the next
+/// account starts from a fresh sync.
+enum FoodMirrorState {
+    static let checkpointKey = "food_mirror_checkpoint"
+    static let prunedAtKey = "food_mirror_pruned_at"
+
+    static func reset(_ defaults: UserDefaults) {
+        defaults.removeObject(forKey: checkpointKey)
+        defaults.removeObject(forKey: prunedAtKey)
     }
 }

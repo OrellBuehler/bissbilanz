@@ -116,3 +116,30 @@ describe('foodService.setLabels', () => {
 		expect(rows.map((r) => r.id)).toEqual(['f2']);
 	});
 });
+
+describe('bounded mirror reads', () => {
+	test('allFoodsPage pages regular foods by name with a total', async () => {
+		const first = await firstValue<{ foods: DexieFood[]; total: number }>(
+			foodService.allFoodsPage(1, 2)
+		);
+		expect(first.foods.map((r) => r.id)).toEqual(['f3', 'f1']);
+		expect(first.total).toBe(3);
+	});
+
+	test('favorites reads the favourite index and skips supplements', async () => {
+		await db.foods.update('f2', { isFavorite: true });
+		await db.foods.update('s1', { isFavorite: true });
+		const rows = await firstValue<DexieFood[]>(foodService.favorites());
+		expect(rows.map((r) => r.id)).toEqual(['f2']);
+	});
+
+	test('foodsByIds fetches only the requested regular foods', async () => {
+		const rows = await firstValue<DexieFood[]>(foodService.foodsByIds(['f1', 's1', 'nope']));
+		expect(rows.map((r) => r.id)).toEqual(['f1']);
+	});
+
+	test('search honours the limit option', async () => {
+		const rows = await firstValue<DexieFood[]>(foodService.search('', { limit: 2 }));
+		expect(rows).toHaveLength(2);
+	});
+});
