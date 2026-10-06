@@ -251,7 +251,7 @@ struct ManifestScannerTests {
         #expect(throws: FoodPackageError.notAPackage) { try foreign.header.validate() }
         let newer = try scan(#"{"format":"bissbilanz.food-package","formatVersion":99,"foods":[]}"#)
         #expect(throws: FoodPackageError.newerVersion) { try newer.header.validate() }
-        let fractional = try scan(#"{"format":"bissbilanz.food-package","formatVersion":1.5,"foods":[]}"#)
+        let fractional = try scan(#"{"format":"bissbilanz.food-package","formatVersion":0.5,"foods":[]}"#)
         #expect(throws: FoodPackageError.invalid("formatVersion — expected an integer of at least 1")) {
             try fractional.header.validate()
         }
