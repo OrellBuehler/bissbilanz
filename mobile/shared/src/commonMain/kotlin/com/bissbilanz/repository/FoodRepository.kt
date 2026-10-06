@@ -7,8 +7,10 @@ import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
+import com.bissbilanz.api.generated.model.FoodBrandStat
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
+import com.bissbilanz.api.generated.model.FoodLabelStat
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.RecipeDetail
@@ -42,6 +44,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 /**
  * Thrown by [FoodRepository.fetchDuplicateGroups] and [FoodRepository.mergeFoods] when
@@ -77,12 +82,19 @@ class FoodRepository(
     private val _recentFoods = MutableStateFlow<List<Food>>(emptyList())
     val recentFoods: StateFlow<List<Food>> = _recentFoods.asStateFlow()
 
-    fun allFoods(): Flow<List<Food>> =
+    fun localBrandStats(): List<FoodBrandStat> =
         db.userDataDatabaseQueries
-            .selectAllFoods()
-            .asFlow()
-            .mapToList(Dispatchers.IO)
-            .map { rows -> rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) } }
+            .countFoodsPerBrand()
+            .executeAsList()
+            .map { FoodBrandStat(it.brand.orEmpty(), it.foodCount.toInt()) }
+            .sortedBy { it.brand.lowercase() }
+
+    fun localLabelStats(): List<FoodLabelStat> =
+        db.userDataDatabaseQueries
+            .countFoodsPerLabel()
+            .executeAsList()
+            .map { FoodLabelStat(it.label, it.foodCount.toInt()) }
+            .sortedBy { it.label }
 
     fun favorites(): Flow<List<Food>> =
         db.userDataDatabaseQueries
@@ -96,12 +108,13 @@ class FoodRepository(
         offset: Int = 0,
     ): FoodsListResponse {
         if (appModeManager.isLocal) {
-            val all =
-                db.userDataDatabaseQueries
-                    .selectAllFoods()
+            val queries = db.userDataDatabaseQueries
+            val page =
+                queries
+                    .selectFoodsPage(limit.toLong(), offset.toLong())
                     .executeAsList()
                     .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
-            return FoodsListResponse(foods = all.drop(offset).take(limit), total = all.size)
+            return FoodsListResponse(foods = page, total = queries.countFoods().executeAsOne().toInt())
         }
         val response = api.getFoodsPaginated(limit, offset)
         withContext(ioDispatcher) { cacheFoods(response.foods) }
@@ -109,41 +122,84 @@ class FoodRepository(
     }
 
     /**
-     * Pages through every food on the server (not just the first [pageSize]) and
-     * replaces the local cache with the full set, pruning any cached food the server
-     * no longer has — e.g. one deleted by a duplicate merge (`src/lib/server/
-     * food-merge.ts`). Without the full page-through and prune, a merged-away food
-     * stayed cached forever and a later create against it 404ed. [pageSize] is capped
-     * by the server at 200 (`paginationSchema` in `src/lib/server/validation/
-     * pagination.ts`); bounded to [MAX_REFRESH_PAGES] pages per call as a defensive
-     * cap against a runaway loop; if the cap is hit the fetch is incomplete, so the
-     * cache is only upserted and never pruned.
+     * Brings the local mirror up to date from the server's write-ordered change feed
+     * (`GET /api/foods?modifiedSince=`), [pageSize] foods per request, following
+     * `nextCursor` until it is null. The newest `serverModifiedAt` seen is stored as a
+     * checkpoint after every page, so an interrupted first sync resumes where it stopped
+     * and the next refresh asks only for what changed since, minus [DELTA_OVERLAP] to
+     * cover commits that landed out of order; upserts are idempotent, so overlap is free.
+     * Hard deletes (a duplicate merge, a delete on another device) are not in the feed,
+     * so [pruneDeletedFoods] reconciles ids. A fetch cut off by [maxPages] never prunes.
      */
-    suspend fun refreshFoods(pageSize: Int = 200) {
+    suspend fun refreshFoods(
+        pageSize: Int = DELTA_PAGE_SIZE,
+        maxPages: Int = MAX_REFRESH_PAGES,
+    ) {
         if (appModeManager.isLocal) return
-        val allFoods = mutableListOf<Food>()
-        var offset = 0
+        val checkpoint = readFoodsMeta(FOODS_CHECKPOINT_KEY)?.let { Instant.parse(it) }
+        val since = (checkpoint?.minus(DELTA_OVERLAP) ?: Instant.fromEpochMilliseconds(0)).toString()
+        var newest = checkpoint
+        var cursor: String? = null
         var pages = 0
-        var complete = false
-        while (pages < MAX_REFRESH_PAGES) {
+        var exhausted = false
+        while (pages < maxPages) {
             pages++
-            val page = api.getFoods(pageSize, offset)
-            allFoods.addAll(page)
-            if (page.size < pageSize) {
-                complete = true
+            val page = api.getFoodsDelta(modifiedSince = if (cursor == null) since else null, after = cursor, limit = pageSize)
+            val pageNewest = page.foods.mapNotNull { food -> food.serverModifiedAt?.let { Instant.parse(it) } }.maxOrNull()
+            withContext(ioDispatcher) { cacheFoods(page.foods) }
+            if (pageNewest != null && (newest == null || pageNewest > newest)) {
+                newest = pageNewest
+                cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(FOODS_CHECKPOINT_KEY, pageNewest.toString())
+            }
+            cursor = page.nextCursor
+            if (cursor == null) {
+                exhausted = true
                 break
             }
-            offset += pageSize
         }
-        if (!complete) {
+        if (!exhausted) {
             errorReporter.captureException(
-                IllegalStateException("refreshFoods hit the $MAX_REFRESH_PAGES page cap; cache upserted without pruning"),
+                IllegalStateException("refreshFoods hit the $maxPages page cap; cache upserted without pruning"),
             )
-            withContext(ioDispatcher) { cacheFoods(allFoods) }
             return
         }
+        pruneDeletedFoods()
+    }
+
+    private fun readFoodsMeta(key: String): String? = cacheDb.bissbilanzDatabaseQueries.selectSyncMeta(key).executeAsOneOrNull()
+
+    /**
+     * Removes cached foods the server no longer has, by id diff against `/api/foods/ids`
+     * (foods are hard-deleted, so the change feed cannot say so). The id list is large,
+     * so it runs when it was never done, once a day, or when the server's food count
+     * differs from the mirror's. A temp id (not yet uploaded) or an id with a queued
+     * sync op is never removed.
+     */
+    private suspend fun pruneDeletedFoods() {
+        val now = Clock.System.now()
+        val lastPrune = readFoodsMeta(FOODS_PRUNE_KEY)?.let { Instant.parse(it) }
+        val queries = db.userDataDatabaseQueries
+        val stale = lastPrune == null || now - lastPrune >= PRUNE_INTERVAL
+        if (!stale) {
+            val serverTotal = api.getFoodsPaginated(1, 0).total
+            val localSynced = withContext(ioDispatcher) { queries.selectAllFoodIds().executeAsList().count { !it.isTempId() } }
+            if (serverTotal == localSynced) return
+        }
+        val serverIds = api.getFoodIds().toHashSet()
         val protectedIds = pendingFoodIds()
-        withContext(ioDispatcher) { cacheAllFoods(allFoods, protectedIds) }
+        withContext(ioDispatcher) {
+            queries.transaction {
+                queries
+                    .selectAllFoodIds()
+                    .executeAsList()
+                    .filter { it !in serverIds && it !in protectedIds && !it.isTempId() }
+                    .forEach { id ->
+                        queries.deleteFoodLabels(id)
+                        queries.deleteFood(id)
+                    }
+            }
+        }
+        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(FOODS_PRUNE_KEY, now.toString())
     }
 
     /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
@@ -236,14 +292,12 @@ class FoodRepository(
     fun resolveByName(query: String): Food? {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return null
-        val foods =
-            db.userDataDatabaseQueries
-                .selectAllFoods()
-                .executeAsList()
-                .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
-        foods.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it }
-        foods.firstOrNull { it.name.startsWith(trimmed, ignoreCase = true) }?.let { return it }
-        return foods.firstOrNull { it.name.contains(trimmed, ignoreCase = true) }
+        val names = db.userDataDatabaseQueries.selectFoodNames().executeAsList()
+        val match =
+            names.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }
+                ?: names.firstOrNull { it.name.startsWith(trimmed, ignoreCase = true) }
+                ?: names.firstOrNull { it.name.contains(trimmed, ignoreCase = true) }
+        return match?.let { getFoodCached(it.id) }
     }
 
     suspend fun createFood(food: FoodCreate): Food {
@@ -758,41 +812,12 @@ class FoodRepository(
             barcode = food.barcode,
             jsonData = json.encodeToString(food),
         )
+        db.userDataDatabaseQueries.updateFoodKeys(servingUnit = food.servingUnit.value, updatedAt = food.updatedAt, id = food.id)
     }
 
     private fun cacheFoods(foods: List<Food>) {
         db.userDataDatabaseQueries.transaction {
             foods.forEach { food -> cacheFood(food) }
-        }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "foods",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
-    }
-
-    /**
-     * Like [cacheFoods], but [foods] is the complete server set (every page), so any
-     * cached food not in it is gone server-side and pruned — except a temp id (not
-     * yet uploaded) or one in [protectedIds] (a pending/in-flight sync op), which
-     * would otherwise be deleted out from under an offline create or edit racing
-     * this refresh.
-     */
-    private fun cacheAllFoods(
-        foods: List<Food>,
-        protectedIds: Set<String>,
-    ) {
-        db.userDataDatabaseQueries.transaction {
-            foods.forEach { food -> cacheFood(food) }
-            val serverIds = foods.mapTo(mutableSetOf()) { it.id }
-            db.userDataDatabaseQueries
-                .selectAllFoodIds()
-                .executeAsList()
-                .filter { it !in serverIds && it !in protectedIds && !it.isTempId() }
-                .forEach { id ->
-                    db.userDataDatabaseQueries.deleteFoodLabels(id)
-                    db.userDataDatabaseQueries.deleteFood(id)
-                }
         }
         // SyncMeta lives in the cache database; written after the user-data commit.
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
@@ -870,7 +895,15 @@ class FoodRepository(
         )
 
     companion object {
-        /** Caps how many [refreshFoods] pages a single call fetches. */
-        private const val MAX_REFRESH_PAGES = 100
+        /** Server cap for one delta page. */
+        private const val DELTA_PAGE_SIZE = 1000
+
+        /** Safety cap on pages per [refreshFoods] call (1M foods); reaching it only defers pruning. */
+        private const val MAX_REFRESH_PAGES = 1000
+
+        private val DELTA_OVERLAP = 1.minutes
+        private val PRUNE_INTERVAL = 24.hours
+        private const val FOODS_CHECKPOINT_KEY = "foods_delta_checkpoint"
+        private const val FOODS_PRUNE_KEY = "foods_last_prune"
     }
 }

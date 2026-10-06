@@ -36,8 +36,12 @@ class LocalImageSweeper(
         val referenced =
             withContext(Dispatchers.IO) {
                 buildSet {
-                    queries.selectAllFoods().executeAsList().mapNotNullTo(this) {
-                        json.decodeOrNull<Food>(it.jsonData)?.imageUrl
+                    var afterId = ""
+                    while (true) {
+                        val page = queries.selectFoodsAfterId(afterId, FOOD_PAGE).executeAsList()
+                        page.mapNotNullTo(this) { json.decodeOrNull<Food>(it.jsonData)?.imageUrl }
+                        if (page.size < FOOD_PAGE) break
+                        afterId = page.last().id
                     }
                     queries.selectAllRecipes().executeAsList().forEach { row ->
                         json.decodeOrNull<RecipeDetail>(row.jsonData)?.let { addAll(it.referencedImageUrls()) }
@@ -68,3 +72,5 @@ internal suspend fun sweepUnreferenced(
 }
 
 private const val GRACE_MS = 24 * 60 * 60 * 1000L
+
+private const val FOOD_PAGE = 500L

@@ -1,0 +1,4 @@
+ALTER TABLE CachedFood ADD COLUMN servingUnit TEXT;
+ALTER TABLE CachedFood ADD COLUMN updatedAt TEXT;
+CREATE INDEX IF NOT EXISTS idx_cached_food_name ON CachedFood(name, id);
+CREATE INDEX IF NOT EXISTS idx_cached_food_barcode ON CachedFood(barcode);

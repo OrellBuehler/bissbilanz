@@ -6,6 +6,7 @@ import com.bissbilanz.api.generated.model.FoodBrandsResponse
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodDuplicatesResponse
+import com.bissbilanz.api.generated.model.FoodIdsResponse
 import com.bissbilanz.api.generated.model.FoodLabelStat
 import com.bissbilanz.api.generated.model.FoodLabelStatsResponse
 import com.bissbilanz.api.generated.model.FoodLabelsSet
@@ -41,6 +42,26 @@ interface FoodsApi : ApiTransport {
         limit: Int = 100,
         offset: Int = 0,
     ): List<Food> = getFoodsPaginated(limit, offset).foods
+
+    /**
+     * One page of the server's write-ordered change feed: foods written after
+     * [modifiedSince] on the first call, then after [after] (the previous page's
+     * `nextCursor`). `nextCursor` is null once the feed is exhausted.
+     */
+    suspend fun getFoodsDelta(
+        modifiedSince: String? = null,
+        after: String? = null,
+        limit: Int = 1000,
+    ): FoodsListResponse =
+        get("/api/foods") {
+            parameter("limit", limit)
+            if (after != null) parameter("after", after) else parameter("modifiedSince", modifiedSince ?: "1970-01-01T00:00:00Z")
+        }
+
+    suspend fun getFoodIds(): List<String> {
+        val response: FoodIdsResponse = get("/api/foods/ids")
+        return response.ids
+    }
 
     suspend fun getFoodUsage(id: String): FoodUsageResponse = get("/api/foods/$id/usage")
 
