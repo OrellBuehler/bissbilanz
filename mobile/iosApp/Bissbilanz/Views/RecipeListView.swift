@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 enum RecipeSort: String, CaseIterable, Identifiable {
@@ -286,6 +287,7 @@ struct RecipeListView: View {
 struct LogRecipeSheet: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     let recipe: Recipe
     let onLogged: () -> Void
@@ -294,24 +296,27 @@ struct LogRecipeSheet: View {
     @State private var gramsText: String
     @State private var logByWeight = false
     @State private var mealType: String
-    @State private var date = Date()
+    @State private var date: Date
+    @State private var eatenTime = Date()
+    @State private var notes = ""
+    @State private var mealTypes = WidgetSnapshotWriter.standardMealTypes
     @State private var isSaving = false
     @State private var errorMessage: String?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
-    private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
-
     /// Grams per serving implied by the recipe's cooked weight, if any — offers
     /// "log by grams" as an alternative to servings.
     private var gramsPerServing: Double? { recipe.cookedWeightServingSize }
 
     /// `initialServings`/`initialMealType` let a suggestion (recipe suggestions
-    /// screen/card) prefill the form with its scaled portion and time-of-day
-    /// meal instead of the plain "1 serving, Lunch" default.
+    /// screen/card) prefill the form with its scaled portion and meal. Without
+    /// one the meal comes from the clock, exactly as in `LogFoodForm`. `date`
+    /// is the day being viewed; it defaults to today.
     init(
         recipe: Recipe,
+        date: String? = nil,
         initialServings: Double? = nil,
         initialMealType: String? = nil,
         onLogged: @escaping () -> Void
@@ -323,7 +328,16 @@ struct LogRecipeSheet: View {
         _gramsText = State(
             initialValue: recipe.cookedWeightServingSize.map { MacroFormat.servings($0 * servingsValue) } ?? ""
         )
-        _mealType = State(initialValue: initialMealType ?? "Lunch")
+        _mealType = State(initialValue: initialMealType ?? MealTiming.mealForCurrentTime())
+        _date = State(initialValue: date.flatMap { DateFormatting.date(from: $0) } ?? Date())
+    }
+
+    private func loadMealTypes() {
+        var types = WidgetSnapshotWriter.mealTypes(context: modelContext)
+        if !types.contains(mealType) {
+            types.append(mealType)
+        }
+        mealTypes = types
     }
 
     private func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
@@ -428,10 +442,17 @@ struct LogRecipeSheet: View {
                         }
                     }
 
-                    DatePicker(L10n.today, selection: $date, displayedComponents: .date)
+                    DatePicker(L10n.date, selection: $date, displayedComponents: .date)
+                    TimePickerRow(L10n.time, selection: $eatenTime)
+                }
+
+                Section(L10n.notes) {
+                    TextField(L10n.notes, text: $notes, axis: .vertical)
+                        .lineLimit(2 ... 4)
                 }
             }
             .keyboardDismissable()
+            .task { loadMealTypes() }
             .navigationTitle(L10n.log)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -459,11 +480,14 @@ struct LogRecipeSheet: View {
 
     private func logRecipe() async {
         isSaving = true
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let entry = EntryCreate(
             recipeId: recipe.id,
             mealType: mealType,
             servings: resolvedServings,
-            date: DateFormatting.isoString(from: date)
+            date: date.isoDateString,
+            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+            eatenAt: DateFormatting.eatenAtString(time: eatenTime, on: date)
         )
         do {
             try await entryRepository.createEntry(entry, recipe: recipe)
