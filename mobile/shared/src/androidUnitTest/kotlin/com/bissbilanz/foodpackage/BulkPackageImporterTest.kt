@@ -14,7 +14,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private class BulkFakeImageStore : PackageImageStore {
+internal class BulkFakeImageStore : PackageImageStore {
     val files = mutableMapOf<String, ByteArray>()
     val discarded = mutableListOf<String>()
     private var counter = 0
