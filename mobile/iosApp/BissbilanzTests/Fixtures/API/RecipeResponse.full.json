@@ -64,6 +64,7 @@
 			}
 		],
 		"isFavorite": true,
+		"labels": ["sample-labels"],
 		"name": "sample-name",
 		"protein": 30,
 		"steps": [

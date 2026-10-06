@@ -82,6 +82,9 @@ import {
 	handleListLabels,
 	handleSetFoodLabels,
 	handleSetFoodLabelsBatch,
+	handleListUnlabeledRecipes,
+	handleSetRecipeLabels,
+	handleSetRecipeLabelsBatch,
 	handleListAiTasks,
 	handleGetAiTask,
 	handleCompleteAiTask,
@@ -114,7 +117,7 @@ Conventions that apply to every tool:
 - Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes. A recipe with a cookedWeight (grams of the finished dish) can be logged by weight: call get_recipe first, then servings = grams / (cookedWeight / totalServings).
 - Supplements: timeOfDay ("morning", "noon", "evening", or omitted for anytime) and reminderTimes (local "HH:MM") are scheduling preferences only. log_supplement marks a supplement taken for the whole day and creates the matching food entries; there are no per-slot logs. Check get_supplement_status before logging to avoid duplicates.
 - log_food and delete_entry return the updated daily status, so a follow-up get_daily_status is unnecessary after logging.
-- Food labels are general en_US nouns for what a food physically is ("banana", "bottle", "sandwich"), always English whatever the food is named in. Write them with set_food_labels_batch after paging list_unlabeled_foods; the label_foods prompt does the whole sweep.`;
+- Food labels are general en_US nouns for what a food physically is ("banana", "bottle", "sandwich"), always English whatever the food is named in. Write them with set_food_labels_batch after paging list_unlabeled_foods; recipes are labelled the same way with set_recipe_labels_batch after list_unlabeled_recipes. The label_foods prompt does the whole sweep, foods and recipes.`;
 
 /**
  * The labelling contract. This text is the product: it is what steers a model
@@ -124,6 +127,9 @@ Conventions that apply to every tool:
  */
 const LABEL_CONTRACT =
 	'Return 3-8 general English (en_US) nouns describing what the food physically IS or visibly contains, as a camera would see it. Use singular, lowercase, everyday terms - banana, bread, cheese, bottle, salad. Do NOT use brand names, product names, nutrition terms, cuisines, or adjectives. Prefer the concrete object over the category, but include one broader term where it is natural (banana, fruit). Always English, whatever language the food is named in: a food called "Banane" is still labelled "banana".';
+
+const RECIPE_LABEL_CONTRACT =
+	'Return 3-8 general English (en_US) nouns describing what the dish physically IS or visibly contains, as a camera would see it, working from the recipe name and its ingredient names. Use singular, lowercase, everyday terms - soup, salad, bread, cake, pasta. Do NOT use brand names, nutrition terms, cuisines, or adjectives. Prefer the concrete dish over the category, but include one broader term where it is natural (lasagna, pasta). Always English, whatever language the recipe is named in: a recipe called "Gerstensuppe" is still labelled "soup".';
 
 export function createMcpServer(userId: string): McpServer {
 	const server = new McpServer(
@@ -439,13 +445,19 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List Recipes',
 			description:
-				"List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). " +
+				"List recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). " +
 				'A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food. ' +
-				'stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves.',
-			inputSchema: {},
+				'stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves. ' +
+				'Each recipe carries its labels. Pass query to match the name, then the English labels (so "soup" finds "Gerstensuppe" once labelled).',
+			inputSchema: {
+				query: z
+					.string()
+					.optional()
+					.describe('Only recipes whose name or English label matches. Omit to list all.')
+			},
 			annotations: READ_ONLY
 		},
-		safe(() => handleListRecipes(userId))
+		safe((args) => handleListRecipes(userId, args))
 	);
 
 	server.registerTool(
@@ -1562,11 +1574,91 @@ export function createMcpServer(userId: string): McpServer {
 	);
 
 	server.registerTool(
+		'list_unlabeled_recipes',
+		{
+			title: 'List Unlabeled Recipes',
+			description:
+				'List recipes that carry fewer than minLabels labels (default 1, i.e. no labels at all), so a labelling sweep can find its work. Returns the recipe name, the names of its ingredient foods, its image URL (if any) and the labels it already has — label from those, and extend rather than repeat what is already there.',
+			inputSchema: {
+				minLabels: z
+					.number()
+					.int()
+					.min(1)
+					.max(MAX_LABELS_PER_FOOD)
+					.optional()
+					.describe(
+						'Return recipes carrying fewer than this many labels. 1 (default) means unlabelled only; 5 also surfaces thinly labelled recipes worth extending.'
+					),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(200)
+					.optional()
+					.describe('Maximum number of recipes to return. Defaults to 50.'),
+				offset: z
+					.number()
+					.int()
+					.min(0)
+					.optional()
+					.describe('Number of recipes to skip for pagination.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleListUnlabeledRecipes(userId, args))
+	);
+
+	server.registerTool(
+		'set_recipe_labels',
+		{
+			title: 'Set Recipe Labels',
+			description: `Replace the labels you previously wrote for one recipe. ${RECIPE_LABEL_CONTRACT} Labels are normalized server-side (lowercased, singularized), and your write never touches labels the user set by hand. Prefer set_recipe_labels_batch when labelling more than one recipe.`,
+			inputSchema: {
+				recipeId: z.string().uuid().describe('ID of the recipe to label'),
+				labels: z
+					.array(z.string())
+					.max(MAX_LABELS_PER_FOOD)
+					.describe('General en_US nouns for what the dish is. Pass an empty array to clear.')
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleSetRecipeLabels(userId, args))
+	);
+
+	server.registerTool(
+		'set_recipe_labels_batch',
+		{
+			title: 'Set Recipe Labels (Batch)',
+			description: `Label many recipes in one call — the normal way to run a recipe labelling sweep. ${RECIPE_LABEL_CONTRACT} By default (mode "extend") your labels are added to what the recipe already carries; mode "replace" swaps out the labels you wrote before. Either way labels the user set by hand are never touched, and the cap of ${MAX_LABELS_PER_FOOD} per recipe is hard: labels that do not fit come back per item as "dropped". Results are per-item, so one unknown id does not fail the batch.`,
+			inputSchema: {
+				mode: z
+					.enum(['replace', 'extend'])
+					.optional()
+					.describe(
+						'"extend" (default) adds to existing labels; "replace" swaps out your earlier ones.'
+					),
+				items: z
+					.array(
+						z.object({
+							recipeId: z.string().uuid().describe('ID of the recipe to label'),
+							labels: z.array(z.string()).max(MAX_LABELS_PER_FOOD)
+						})
+					)
+					.min(1)
+					.max(MAX_BATCH_ITEMS)
+					.describe(`Up to ${MAX_BATCH_ITEMS} recipes with their labels.`)
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleSetRecipeLabelsBatch(userId, args))
+	);
+
+	server.registerTool(
 		'list_labels',
 		{
 			title: 'List Labels',
 			description:
-				'The user\'s label vocabulary: every label in use with how many foods carry it, most common first. Check it before a labelling sweep so you reuse the nouns already in play ("bread", not "loaf") and search_foods keeps matching consistently.',
+				'The user\'s label vocabulary, shared by foods and recipes: every label in use with how many foods and recipes carry it (count, split into foodCount and recipeCount), most common first. Check it before a labelling sweep so you reuse the nouns already in play ("bread", not "loaf") and search_foods keeps matching consistently.',
 			inputSchema: {},
 			annotations: READ_ONLY
 		},

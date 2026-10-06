@@ -168,7 +168,11 @@ export const foodLabelsSetResponseSchema = z
 export const foodLabelStatSchema = z
 	.object({
 		label: z.string(),
-		count: z.number().int()
+		// Foods plus recipes carrying the label; the split follows. Optional so a
+		// response from a server that predates recipe labels still decodes.
+		count: z.number().int(),
+		foodCount: z.number().int().optional(),
+		recipeCount: z.number().int().optional()
 	})
 	.meta({ id: 'FoodLabelStat' });
 
@@ -238,3 +242,32 @@ export const foodBrandsResponseSchema = z
 		)
 	})
 	.meta({ id: 'FoodBrandsResponse' });
+
+export const recipeLabelsResponseSchema = z
+	.object({
+		labels: z.array(foodLabelDetailSchema)
+	})
+	.meta({ id: 'RecipeLabelsResponse' });
+
+export const recipeLabelsSetResponseSchema = z
+	.object({
+		labels: z.array(z.string()),
+		dropped: z.array(z.string())
+	})
+	.meta({ id: 'RecipeLabelsSetResponse' });
+
+export const recipeLabelsBatchItemResultSchema = z
+	.object({
+		recipeId: z.string().uuid(),
+		ok: z.boolean(),
+		labels: z.array(z.string()).optional(),
+		dropped: z.array(z.string()).optional(),
+		error: z.string().optional()
+	})
+	.meta({ id: 'RecipeLabelsBatchItemResult' });
+
+export const recipeLabelsBatchResponseSchema = z
+	.object({
+		results: z.array(recipeLabelsBatchItemResultSchema)
+	})
+	.meta({ id: 'RecipeLabelsBatchResponse' });

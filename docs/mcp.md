@@ -100,7 +100,7 @@ supplement logging semantics. Clients pass these to the model once.
 | Analytics          | `get_food_diversity`, `get_meal_timing`, `get_sleep_food_correlation`, `get_weight_food_series`, `get_extended_nutrients`, `get_daily_nutrients`                                                                                                                        |
 | Nutrition planning | `get_nutrient_gaps`, `find_nutrient_sources`, `get_eating_patterns`, `get_meal_plan_context` — micronutrient shortfalls against IOM references, the foods that close them, eating habits, and one bundle for building a plan                                            |
 | AI task queue      | `list_ai_tasks`, `get_ai_task`, `complete_ai_task`, `dismiss_ai_task` — meal photos (up to five per task) and descriptions queued from the apps for an agent to process; each task carries the meal's date, type and `eatenAt` (the queue time unless the user set one) |
-| Food labels        | `list_unlabeled_foods`, `list_labels`, `set_food_labels`, `set_food_labels_batch` — see [Food labels](#food-labels)                                                                                                                                                     |
+| Food labels        | `list_unlabeled_foods`, `list_unlabeled_recipes`, `list_labels`, `set_food_labels`, `set_food_labels_batch`, `set_recipe_labels`, `set_recipe_labels_batch` — see [Food labels](#food-labels)                                                                           |
 
 Every tool carries `readOnlyHint`/`destructiveHint`/`idempotentHint` annotations and a
 display `title`. Results are returned as a JSON text block plus `structuredContent`; tools
@@ -152,6 +152,15 @@ reachable over REST (`GET /api/foods?minLabels=n` for foods carrying fewer than 
 labels, `PUT /api/foods/{id}/labels`, `POST /api/foods/labels`, and
 `GET /api/foods/labels` for the vocabulary with per-label food counts) for a local
 classifier or a third-party tool.
+
+Recipes carry labels exactly like foods (same sources, same replace-by-source and
+20-label rules, one shared vocabulary), so the `label_foods` prompt sweeps recipes too:
+`list_unlabeled_recipes` returns each recipe's name, its ingredient food names, its image
+URL and the labels it already has, and `set_recipe_labels_batch` writes them back. Over
+REST that is `GET /api/recipes?minLabels=n` (or `unlabeled=true`), `GET`/`PUT
+/api/recipes/{id}/labels` and `POST /api/recipes/labels`; `GET /api/foods/labels` counts
+foods and recipes together (`count`, split into `foodCount` and `recipeCount`), and
+`GET /api/recipes?q=` matches the name and then the English labels.
 
 Labels are also a search tier: `GET /api/foods?q=` matches the name first, then the
 English labels, then the brand, then trigram-similar names, in that order — so `bread`

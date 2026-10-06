@@ -25,6 +25,7 @@ const OWNED_TABLES = [
 	'foods',
 	'idempotency_keys',
 	'push_subscriptions',
+	'recipe_labels',
 	'recipes',
 	'reminders',
 	'sleep_entries',

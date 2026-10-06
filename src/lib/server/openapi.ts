@@ -42,6 +42,9 @@ import {
 	foodLabelsSetResponseSchema,
 	foodLabelsBatchResponseSchema,
 	foodLabelStatsResponseSchema,
+	recipeLabelsResponseSchema,
+	recipeLabelsSetResponseSchema,
+	recipeLabelsBatchResponseSchema,
 	foodBrandsResponseSchema
 } from './validation/responses/foods';
 import {
@@ -53,7 +56,12 @@ import {
 	foodPackagePreviewResponseSchema,
 	foodPackageImportResultSchema
 } from './validation/responses/food-package';
-import { foodLabelsSetSchema, foodLabelsBatchSchema } from './validation/labels';
+import {
+	foodLabelsSetSchema,
+	foodLabelsBatchSchema,
+	recipeLabelsSetSchema,
+	recipeLabelsBatchSchema
+} from './validation/labels';
 import {
 	entriesListResponseSchema,
 	entryResponseSchema,
@@ -632,7 +640,7 @@ export const apiPaths = {
 			operationId: 'listFoodLabelStats',
 			tags: ['Foods'],
 			description:
-				"The user's label vocabulary with the number of foods carrying each label, most common first.",
+				"The user's label vocabulary, shared by foods and recipes, most common first. `count` is the number of foods plus recipes carrying the label, split into `foodCount` and `recipeCount`. With `kind=supplement` only supplement foods are counted (recipes are not); with `kind=food` regular foods and recipes are.",
 			requestParams: {
 				query: z.object({
 					kind: z
@@ -886,9 +894,20 @@ export const apiPaths = {
 		get: {
 			operationId: 'listRecipes',
 			tags: ['Recipes'],
-			description: 'List recipes.',
+			description:
+				'List recipes. A `q` query matches the name, then the English labels (so "soup" finds "Gerstensuppe" once labelled). `minLabels=n` returns only recipes carrying fewer than n labels (1 = unlabelled). Every recipe carries its `labels`.',
 			requestParams: {
-				query: paginationSchema
+				query: paginationSchema.extend({
+					q: z.string().optional(),
+					minLabels: z
+						.number()
+						.int()
+						.min(1)
+						.max(20)
+						.optional()
+						.describe('Only recipes carrying fewer than this many labels.'),
+					unlabeled: z.boolean().optional().describe('Same as minLabels=1.')
+				})
 			},
 			responses: {
 				'200': {
@@ -972,6 +991,64 @@ export const apiPaths = {
 			responses: {
 				'204': res204,
 				'401': res401,
+				'409': res409
+			}
+		}
+	},
+	'/api/recipes/labels': {
+		post: {
+			operationId: 'setRecipeLabelsBatch',
+			tags: ['Recipes'],
+			description:
+				'Batch-write labels for up to 100 recipes, with the same rules as the food batch: `mode=replace` (default) swaps out the rows written by `source`, `mode=extend` only adds, the 20-per-recipe cap is hard (overflow is reported per item as `dropped`) and results are per item so one unknown id does not fail the sweep. The label vocabulary is shared with foods (GET /api/foods/labels).',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: recipeLabelsBatchSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeLabelsBatchResponseSchema } }
+				},
+				'400': res400,
+				'401': res401
+			}
+		}
+	},
+	'/api/recipes/{id}/labels': {
+		get: {
+			operationId: 'getRecipeLabels',
+			tags: ['Recipes'],
+			description: "List a recipe's labels with their source and confidence.",
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeLabelsResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404
+			}
+		},
+		put: {
+			operationId: 'setRecipeLabels',
+			tags: ['Recipes'],
+			description:
+				"Replace (or with `mode=extend`, add to) a recipe's labels for one source (default `user`), exactly like a food's. Labels are normalized server-side and must be general en_US nouns describing what the dish physically is. A `user` write moves the recipe's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: recipeLabelsSetSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: recipeLabelsSetResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
 				'409': res409
 			}
 		}

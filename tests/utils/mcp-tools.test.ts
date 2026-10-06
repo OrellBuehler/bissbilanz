@@ -42,6 +42,7 @@ const READ_ONLY_TOOLS = [
 	'list_ai_tasks',
 	'get_ai_task',
 	'list_unlabeled_foods',
+	'list_unlabeled_recipes',
 	'list_labels',
 	'find_duplicate_foods'
 ] as const;
@@ -69,7 +70,9 @@ const UPDATE_TOOLS = [
 	'complete_ai_task',
 	'dismiss_ai_task',
 	'set_food_labels',
-	'set_food_labels_batch'
+	'set_food_labels_batch',
+	'set_recipe_labels',
+	'set_recipe_labels_batch'
 ] as const;
 
 const DESTRUCTIVE_TOOLS = [
@@ -132,9 +135,9 @@ describe('tool annotations', () => {
 		}
 	});
 
-	test('all 70 tools are classified', () => {
+	test('all 73 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(70);
+		expect(all).toHaveLength(73);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -208,15 +211,18 @@ describe('toolNames', () => {
 			'complete_ai_task',
 			'dismiss_ai_task',
 			'list_unlabeled_foods',
+			'list_unlabeled_recipes',
 			'list_labels',
 			'set_food_labels',
 			'set_food_labels_batch',
+			'set_recipe_labels',
+			'set_recipe_labels_batch',
 			'merge_foods',
 			'find_duplicate_foods'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(70);
+		expect(toolNames).toHaveLength(73);
 	});
 });

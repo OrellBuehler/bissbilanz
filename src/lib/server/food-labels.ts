@@ -1,6 +1,7 @@
 import { getDB } from '$lib/server/db';
-import { foodLabels, foods, type LabelSource } from '$lib/server/schema';
-import { and, count, desc, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import { foodLabels, foods, recipeLabels, recipes, type LabelSource } from '$lib/server/schema';
+import { and, count, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
 import { MAX_LABELS_PER_FOOD, normalizeLabels } from '$lib/server/labels';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { labelsFromCategoriesTags } from '$lib/server/openfoodfacts-labels';
@@ -29,13 +30,67 @@ export const foodColumnsWithLabels = { ...getTableColumns(foods), labels: foodLa
 
 type DB = ReturnType<typeof getDB>;
 
-const ownedFoodIds = async (db: DB, userId: string, foodIds: string[]) => {
-	if (foodIds.length === 0) return new Set<string>();
+/**
+ * Foods and recipes share one label implementation: the write rules below are
+ * identical, only the table (and its foreign key to the labelled row) differs.
+ */
+export type LabelSubject = {
+	table: PgTable;
+	fk: PgColumn;
+	userId: PgColumn;
+	label: PgColumn;
+	source: PgColumn;
+	confidence: PgColumn;
+	createdAt: PgColumn;
+	rowKey: 'foodId' | 'recipeId';
+	owner: PgTable;
+	ownerId: PgColumn;
+	ownerUserId: PgColumn;
+	ownerUpdatedAt: PgColumn;
+};
+
+export const foodSubject: LabelSubject = {
+	table: foodLabels,
+	fk: foodLabels.foodId,
+	userId: foodLabels.userId,
+	label: foodLabels.label,
+	source: foodLabels.source,
+	confidence: foodLabels.confidence,
+	createdAt: foodLabels.createdAt,
+	rowKey: 'foodId',
+	owner: foods,
+	ownerId: foods.id,
+	ownerUserId: foods.userId,
+	ownerUpdatedAt: foods.updatedAt
+};
+
+export const recipeSubject: LabelSubject = {
+	table: recipeLabels,
+	fk: recipeLabels.recipeId,
+	userId: recipeLabels.userId,
+	label: recipeLabels.label,
+	source: recipeLabels.source,
+	confidence: recipeLabels.confidence,
+	createdAt: recipeLabels.createdAt,
+	rowKey: 'recipeId',
+	owner: recipes,
+	ownerId: recipes.id,
+	ownerUserId: recipes.userId,
+	ownerUpdatedAt: recipes.updatedAt
+};
+
+export const ownedSubjectIds = async (
+	db: DB,
+	subject: LabelSubject,
+	userId: string,
+	ids: string[]
+) => {
+	if (ids.length === 0) return new Set<string>();
 	const rows = await db
-		.select({ id: foods.id })
-		.from(foods)
-		.where(and(eq(foods.userId, userId), inArray(foods.id, foodIds)));
-	return new Set(rows.map((row) => row.id));
+		.select({ id: subject.ownerId })
+		.from(subject.owner)
+		.where(and(eq(subject.ownerUserId, userId), inArray(subject.ownerId, ids)));
+	return new Set(rows.map((row) => String(row.id)));
 };
 
 export type LabelWriteMode = 'replace' | 'extend';
@@ -55,10 +110,11 @@ export type LabelWriteOutcome = { labels: string[]; dropped: string[] };
  * The per-food cap is hard: labels that do not fit next to what already exists
  * are reported back as `dropped` rather than silently pushing older rows out.
  */
-const writeLabels = async (
+export const writeLabels = async (
 	db: DB,
+	subject: LabelSubject,
 	userId: string,
-	foodId: string,
+	id: string,
 	normalized: string[],
 	source: LabelSource,
 	confidence?: number | null,
@@ -67,21 +123,21 @@ const writeLabels = async (
 	db.transaction(async (tx) => {
 		if (mode === 'replace') {
 			await tx
-				.delete(foodLabels)
+				.delete(subject.table)
 				.where(
 					and(
-						eq(foodLabels.userId, userId),
-						eq(foodLabels.foodId, foodId),
-						source === 'user' ? undefined : eq(foodLabels.source, source)
+						eq(subject.userId, userId),
+						eq(subject.fk, id),
+						source === 'user' ? undefined : eq(subject.source, source)
 					)
 				);
 		}
 
 		const existingRows = await tx
-			.select({ label: foodLabels.label })
-			.from(foodLabels)
-			.where(eq(foodLabels.foodId, foodId));
-		const existing = new Set(existingRows.map((row) => row.label));
+			.select({ label: subject.label })
+			.from(subject.table)
+			.where(eq(subject.fk, id));
+		const existing = new Set(existingRows.map((row) => String(row.label)));
 
 		const fresh = normalized.filter((label) => !existing.has(label));
 		const room = Math.max(0, MAX_LABELS_PER_FOOD - existing.size);
@@ -91,7 +147,7 @@ const writeLabels = async (
 		// write promotes it — "user outranks everything" cuts both ways.
 		const promoted = source === 'user' ? normalized.filter((label) => existing.has(label)) : [];
 		const values = [...inserted, ...promoted].map((label) => ({
-			foodId,
+			[subject.rowKey]: id,
 			userId,
 			label,
 			source,
@@ -99,36 +155,41 @@ const writeLabels = async (
 		}));
 
 		if (values.length > 0) {
-			const insert = tx.insert(foodLabels).values(values);
+			const insert = tx.insert(subject.table).values(values);
 			await (source === 'user'
 				? insert.onConflictDoUpdate({
-						target: [foodLabels.foodId, foodLabels.label],
+						target: [subject.fk, subject.label],
 						set: { source: 'user', confidence: confidence ?? null, updatedAt: new Date() }
 					})
-				: insert.onConflictDoNothing({ target: [foodLabels.foodId, foodLabels.label] }));
+				: insert.onConflictDoNothing({ target: [subject.fk, subject.label] }));
 		}
 
 		return { labels: [...existing, ...inserted].sort(), dropped };
 	});
 
 /**
- * A user's label edit is an edit of the food as far as every other device is
- * concerned, so it moves the food's last-write-wins clock. Returns false when a
- * newer edit already landed and this one lost.
+ * A user's label edit is an edit of the food (or recipe) as far as every other
+ * device is concerned, so it moves the row's last-write-wins clock. Returns
+ * false when a newer edit already landed and this one lost.
  */
-const stampFood = async (
+const stampOwner = async (
 	db: DB,
+	subject: LabelSubject,
 	userId: string,
-	foodId: string,
+	id: string,
 	clientEditedAt: Date | null | undefined
 ): Promise<boolean> => {
 	const [row] = await db
-		.update(foods)
+		.update(subject.owner)
 		.set({ updatedAt: lwwStamp(clientEditedAt) })
 		.where(
-			and(eq(foods.id, foodId), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
+			and(
+				eq(subject.ownerId, id),
+				eq(subject.ownerUserId, userId),
+				lwwGuard(subject.ownerUpdatedAt, clientEditedAt)
+			)
 		)
-		.returning({ id: foods.id });
+		.returning({ id: subject.ownerId });
 	return Boolean(row);
 };
 
@@ -162,6 +223,7 @@ export async function seedCatalogLabels(
 	);
 	const { labels: after } = await writeLabels(
 		db,
+		foodSubject,
 		userId,
 		foodId,
 		labels,
@@ -181,19 +243,27 @@ export type FoodLabelRow = {
 	createdAt: Date | null;
 };
 
-export async function getFoodLabels(userId: string, foodId: string): Promise<FoodLabelRow[]> {
+export async function getSubjectLabels(
+	subject: LabelSubject,
+	userId: string,
+	id: string
+): Promise<FoodLabelRow[]> {
 	const db = getDB();
-	return db
+	const rows = await db
 		.select({
-			label: foodLabels.label,
-			source: foodLabels.source,
-			confidence: foodLabels.confidence,
-			createdAt: foodLabels.createdAt
+			label: subject.label,
+			source: subject.source,
+			confidence: subject.confidence,
+			createdAt: subject.createdAt
 		})
-		.from(foodLabels)
-		.where(and(eq(foodLabels.userId, userId), eq(foodLabels.foodId, foodId)))
-		.orderBy(foodLabels.label);
+		.from(subject.table)
+		.where(and(eq(subject.userId, userId), eq(subject.fk, id)))
+		.orderBy(subject.label);
+	return rows as FoodLabelRow[];
 }
+
+export const getFoodLabels = (userId: string, foodId: string) =>
+	getSubjectLabels(foodSubject, userId, foodId);
 
 export type SetFoodLabelsOptions = {
 	confidence?: number | null;
@@ -209,29 +279,31 @@ export type SetFoodLabelsResult =
  * Replace-by-source (or extend): a write for `source` touches exactly that
  * source's rows and leaves the others alone, so re-running a labeller is
  * idempotent and a machine source can never delete what the user asserted by
- * hand. A user write with a client edit time is LWW-guarded against the food.
+ * hand. A user write with a client edit time is LWW-guarded against the owner row.
  */
-export async function setFoodLabels(
+export async function setSubjectLabels(
+	subject: LabelSubject,
 	userId: string,
-	foodId: string,
+	id: string,
 	labels: string[],
 	source: LabelSource,
 	options: SetFoodLabelsOptions = {}
 ): Promise<SetFoodLabelsResult> {
 	const db = getDB();
-	const owned = await ownedFoodIds(db, userId, [foodId]);
-	if (!owned.has(foodId)) return { status: 'not_found' };
+	const owned = await ownedSubjectIds(db, subject, userId, [id]);
+	if (!owned.has(id)) return { status: 'not_found' };
 
 	if (source === 'user') {
-		const won = await stampFood(db, userId, foodId, options.clientEditedAt);
+		const won = await stampOwner(db, subject, userId, id, options.clientEditedAt);
 		if (!won) return { status: 'conflict' };
 	}
 
 	const normalized = normalizeLabels(labels);
 	const outcome = await writeLabels(
 		db,
+		subject,
 		userId,
-		foodId,
+		id,
 		normalized,
 		source,
 		options.confidence,
@@ -239,6 +311,14 @@ export async function setFoodLabels(
 	);
 	return { status: 'ok', ...outcome };
 }
+
+export const setFoodLabels = (
+	userId: string,
+	foodId: string,
+	labels: string[],
+	source: LabelSource,
+	options: SetFoodLabelsOptions = {}
+) => setSubjectLabels(foodSubject, userId, foodId, labels, source, options);
 
 export type BatchLabelItem = { foodId: string; labels: string[] };
 export type BatchLabelResult = {
@@ -249,51 +329,63 @@ export type BatchLabelResult = {
 	error?: string;
 };
 
+export type SubjectBatchResult = {
+	id: string;
+	ok: boolean;
+	labels?: string[];
+	dropped?: string[];
+	error?: string;
+};
+
 /** Per-item results so one unknown id does not fail a whole labelling sweep. */
-export async function setFoodLabelsBatch(
+export async function setSubjectLabelsBatch(
+	subject: LabelSubject,
 	userId: string,
-	items: BatchLabelItem[],
+	items: { id: string; labels: string[] }[],
 	source: LabelSource,
-	options: Omit<SetFoodLabelsOptions, 'clientEditedAt'> = {}
-): Promise<BatchLabelResult[]> {
+	options: Omit<SetFoodLabelsOptions, 'clientEditedAt'>,
+	notFoundMessage: string
+): Promise<SubjectBatchResult[]> {
 	const db = getDB();
 	// One ownership query for the whole batch rather than one per item — this is
 	// the path a full-database sweep runs on.
-	const owned = await ownedFoodIds(
+	const owned = await ownedSubjectIds(
 		db,
+		subject,
 		userId,
-		items.map((item) => item.foodId)
+		items.map((item) => item.id)
 	);
 
-	const results: BatchLabelResult[] = [];
+	const results: SubjectBatchResult[] = [];
 	for (const item of items) {
-		if (!owned.has(item.foodId)) {
-			results.push({ foodId: item.foodId, ok: false, error: 'Food not found' });
+		if (!owned.has(item.id)) {
+			results.push({ id: item.id, ok: false, error: notFoundMessage });
 			continue;
 		}
 		try {
-			if (source === 'user') await stampFood(db, userId, item.foodId, null);
+			if (source === 'user') await stampOwner(db, subject, userId, item.id, null);
 			const normalized = normalizeLabels(item.labels);
 			// Per item, not one transaction for the batch: a single bad row must not
 			// roll back the work that already succeeded.
 			const { labels, dropped } = await writeLabels(
 				db,
+				subject,
 				userId,
-				item.foodId,
+				item.id,
 				normalized,
 				source,
 				options.confidence,
 				options.mode
 			);
 			results.push({
-				foodId: item.foodId,
+				id: item.id,
 				ok: true,
 				labels,
 				...(dropped.length ? { dropped } : {})
 			});
 		} catch (error) {
 			results.push({
-				foodId: item.foodId,
+				id: item.id,
 				ok: false,
 				error: error instanceof Error ? error.message : 'Unexpected error'
 			});
@@ -302,31 +394,80 @@ export async function setFoodLabelsBatch(
 	return results;
 }
 
-export type LabelStat = { label: string; count: number };
+export async function setFoodLabelsBatch(
+	userId: string,
+	items: BatchLabelItem[],
+	source: LabelSource,
+	options: Omit<SetFoodLabelsOptions, 'clientEditedAt'> = {}
+): Promise<BatchLabelResult[]> {
+	const results = await setSubjectLabelsBatch(
+		foodSubject,
+		userId,
+		items.map((item) => ({ id: item.foodId, labels: item.labels })),
+		source,
+		options,
+		'Food not found'
+	);
+	return results.map(({ id, ...rest }) => ({ foodId: id, ...rest }));
+}
+
+export type LabelStat = { label: string; count: number; foodCount: number; recipeCount: number };
 
 /**
- * The user's label vocabulary with how many foods carry each one. This is what
- * lets a labeller stay consistent ("bread", not "loaf") and is the seed of a
- * labels-as-edges food graph.
+ * The user's label vocabulary with how many foods and recipes carry each one.
+ * This is what lets a labeller stay consistent ("bread", not "loaf") and is the
+ * seed of a labels-as-edges food graph. `count` is foods plus recipes, with the
+ * split in `foodCount` / `recipeCount`. Supplements are foods of kind
+ * `supplement`, so `kind=supplement` leaves recipes out.
  */
 export async function listLabelStats(
 	userId: string,
 	options?: { kind?: 'food' | 'supplement' }
 ): Promise<LabelStat[]> {
 	const db = getDB();
-	if (options?.kind) {
-		return db
-			.select({ label: foodLabels.label, count: count() })
-			.from(foodLabels)
-			.innerJoin(foods, eq(foods.id, foodLabels.foodId))
-			.where(and(eq(foodLabels.userId, userId), eq(foods.kind, options.kind)))
-			.groupBy(foodLabels.label)
-			.orderBy(desc(count()), foodLabels.label);
-	}
-	return db
+	const kind = options?.kind;
+	const foodQuery = db
 		.select({ label: foodLabels.label, count: count() })
 		.from(foodLabels)
-		.where(eq(foodLabels.userId, userId))
-		.groupBy(foodLabels.label)
-		.orderBy(desc(count()), foodLabels.label);
+		.$dynamic();
+	const [foodRows, recipeRows] = await Promise.all([
+		(kind
+			? foodQuery
+					.innerJoin(foods, eq(foods.id, foodLabels.foodId))
+					.where(and(eq(foodLabels.userId, userId), eq(foods.kind, kind)))
+			: foodQuery.where(eq(foodLabels.userId, userId))
+		).groupBy(foodLabels.label),
+		kind === 'supplement'
+			? Promise.resolve([])
+			: db
+					.select({ label: recipeLabels.label, count: count() })
+					.from(recipeLabels)
+					.where(eq(recipeLabels.userId, userId))
+					.groupBy(recipeLabels.label)
+	]);
+
+	const merged = new Map<string, LabelStat>();
+	for (const row of foodRows) {
+		merged.set(row.label, {
+			label: row.label,
+			count: row.count,
+			foodCount: row.count,
+			recipeCount: 0
+		});
+	}
+	for (const row of recipeRows) {
+		const stat = merged.get(row.label);
+		if (stat) {
+			stat.count += row.count;
+			stat.recipeCount = row.count;
+		} else {
+			merged.set(row.label, {
+				label: row.label,
+				count: row.count,
+				foodCount: 0,
+				recipeCount: row.count
+			});
+		}
+	}
+	return [...merged.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }

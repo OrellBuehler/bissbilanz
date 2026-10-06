@@ -37,7 +37,7 @@ later sign in.
 ## What makes it different
 
 **Your food log is an MCP server.** Connect Claude, ChatGPT or any MCP client and just say
-what you ate. **70 tools** cover logging, foods, recipes, goals, weight, sleep,
+what you ate. **73 tools** cover logging, foods, recipes, goals, weight, sleep,
 supplements, analytics and the AI task queue — OAuth-protected, so the agent only ever sees your data.
 
 **On-device label OCR and photo cut-outs.** No barcode? Point the camera at the nutrition table. A shared
@@ -126,7 +126,7 @@ Then:
 > and 89 / 160 g protein for the day.
 
 Anything the app can do, the agent can do: `log_food`, `search_foods`, `create_recipe`,
-`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 63 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
+`get_daily_status`, `log_weight`, `get_streaks`, `get_sleep_food_correlation` and 66 more — see [docs/mcp.md](docs/mcp.md) for the full tool, prompt and resource list and how to connect each client.
 
 An agent can also label the food database — `list_unlabeled_foods` plus `set_food_labels_batch`
 gives every food the plain English nouns a camera would call it. Labels are a search tier

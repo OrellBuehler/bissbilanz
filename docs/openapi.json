@@ -726,7 +726,7 @@
 			"get": {
 				"operationId": "listFoodLabelStats",
 				"tags": ["Foods"],
-				"description": "The user's label vocabulary with the number of foods carrying each label, most common first.",
+				"description": "The user's label vocabulary, shared by foods and recipes, most common first. `count` is the number of foods plus recipes carrying the label, split into `foodCount` and `recipeCount`. With `kind=supplement` only supplement foods are counted (recipes are not); with `kind=food` regular foods and recipes are.",
 				"parameters": [
 					{
 						"in": "query",
@@ -1280,7 +1280,7 @@
 			"get": {
 				"operationId": "listRecipes",
 				"tags": ["Recipes"],
-				"description": "List recipes.",
+				"description": "List recipes. A `q` query matches the name, then the English labels (so \"soup\" finds \"Gerstensuppe\" once labelled). `minLabels=n` returns only recipes carrying fewer than n labels (1 = unlabelled). Every recipe carries its `labels`.",
 				"parameters": [
 					{
 						"in": "query",
@@ -1301,6 +1301,33 @@
 							"minimum": 0,
 							"maximum": 9007199254740991
 						}
+					},
+					{
+						"in": "query",
+						"name": "q",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"in": "query",
+						"name": "minLabels",
+						"schema": {
+							"description": "Only recipes carrying fewer than this many labels.",
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 20
+						},
+						"description": "Only recipes carrying fewer than this many labels."
+					},
+					{
+						"in": "query",
+						"name": "unlabeled",
+						"schema": {
+							"description": "Same as minLabels=1.",
+							"type": "boolean"
+						},
+						"description": "Same as minLabels=1."
 					}
 				],
 				"responses": {
@@ -1470,6 +1497,132 @@
 					},
 					"401": {
 						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					}
+				}
+			}
+		},
+		"/api/recipes/labels": {
+			"post": {
+				"operationId": "setRecipeLabelsBatch",
+				"tags": ["Recipes"],
+				"description": "Batch-write labels for up to 100 recipes, with the same rules as the food batch: `mode=replace` (default) swaps out the rows written by `source`, `mode=extend` only adds, the 20-per-recipe cap is hard (overflow is reported per item as `dropped`) and results are per item so one unknown id does not fail the sweep. The label vocabulary is shared with foods (GET /api/foods/labels).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RecipeLabelsBatch"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeLabelsBatchResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			}
+		},
+		"/api/recipes/{id}/labels": {
+			"get": {
+				"operationId": "getRecipeLabels",
+				"tags": ["Recipes"],
+				"description": "List a recipe's labels with their source and confidence.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeLabelsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			},
+			"put": {
+				"operationId": "setRecipeLabels",
+				"tags": ["Recipes"],
+				"description": "Replace (or with `mode=extend`, add to) a recipe's labels for one source (default `user`), exactly like a food's. Labels are normalized server-side and must be general en_US nouns describing what the dish physically is. A `user` write moves the recipe's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RecipeLabelsSet"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/RecipeLabelsSetResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
 					},
 					"409": {
 						"$ref": "#/components/responses/ConflictResponse"
@@ -7578,6 +7731,95 @@
 					}
 				}
 			},
+			"RecipeLabelsBatch": {
+				"type": "object",
+				"properties": {
+					"source": {
+						"type": "string",
+						"enum": ["user", "llm", "external", "catalog"]
+					},
+					"confidence": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0,
+								"maximum": 1
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"mode": {
+						"type": "string",
+						"enum": ["replace", "extend"]
+					},
+					"items": {
+						"minItems": 1,
+						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeLabelsBatchItem"
+						}
+					}
+				},
+				"required": ["items"]
+			},
+			"RecipeLabelsBatchItem": {
+				"type": "object",
+				"properties": {
+					"recipeId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"labels": {
+						"maxItems": 20,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					}
+				},
+				"required": ["recipeId", "labels"]
+			},
+			"RecipeLabelsSet": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"maxItems": 20,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 120
+						}
+					},
+					"source": {
+						"type": "string",
+						"enum": ["user", "llm", "external", "catalog"]
+					},
+					"confidence": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0,
+								"maximum": 1
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"mode": {
+						"type": "string",
+						"enum": ["replace", "extend"]
+					}
+				},
+				"required": ["labels"]
+			},
 			"SupplementIngredientInput": {
 				"type": "object",
 				"properties": {
@@ -10056,6 +10298,16 @@
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
+					},
+					"foodCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"recipeCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
 					}
 				},
 				"required": ["label", "count"],
@@ -10771,6 +11023,12 @@
 						"type": "integer",
 						"minimum": -9007199254740991,
 						"maximum": 9007199254740991
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
 				"required": [
@@ -10845,6 +11103,12 @@
 					},
 					"updatedAt": {
 						"type": "string"
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
 					},
 					"ingredients": {
 						"type": "array",
@@ -11113,6 +11377,81 @@
 					"water",
 					"salt"
 				],
+				"additionalProperties": false
+			},
+			"RecipeLabelsBatchResponse": {
+				"type": "object",
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/RecipeLabelsBatchItemResult"
+						}
+					}
+				},
+				"required": ["results"],
+				"additionalProperties": false
+			},
+			"RecipeLabelsBatchItemResult": {
+				"type": "object",
+				"properties": {
+					"recipeId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"ok": {
+						"type": "boolean"
+					},
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"dropped": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"error": {
+						"type": "string"
+					}
+				},
+				"required": ["recipeId", "ok"],
+				"additionalProperties": false
+			},
+			"RecipeLabelsResponse": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/FoodLabelDetail"
+						}
+					}
+				},
+				"required": ["labels"],
+				"additionalProperties": false
+			},
+			"RecipeLabelsSetResponse": {
+				"type": "object",
+				"properties": {
+					"labels": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"dropped": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				},
+				"required": ["labels", "dropped"],
 				"additionalProperties": false
 			},
 			"RecipeUsageResponse": {

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { expectResponseContract } from '../helpers/contract';
-import { TEST_USER, TEST_FOOD } from '../helpers/fixtures';
+import { TEST_USER, TEST_RECIPE } from '../helpers/fixtures';
 
 type SetCall = {
 	userId: string;
-	foodId: string;
+	recipeId: string;
 	labels: string[];
 	source: string;
 	mode?: string;
@@ -14,10 +14,10 @@ type SetCall = {
 
 let setCalls: SetCall[] = [];
 let conflict = false;
-let knownFoodIds = new Set<string>();
+let knownRecipeIds = new Set<string>();
 
-vi.mock('$lib/server/food-labels', () => ({
-	getFoodLabels: async () => [
+vi.mock('$lib/server/recipe-labels', () => ({
+	getRecipeLabels: async () => [
 		{
 			label: 'banana',
 			source: 'user',
@@ -26,66 +26,62 @@ vi.mock('$lib/server/food-labels', () => ({
 		},
 		{ label: 'fruit', source: 'llm', confidence: 0.8, createdAt: null }
 	],
-	setFoodLabels: async (
+	setRecipeLabels: async (
 		userId: string,
-		foodId: string,
+		recipeId: string,
 		labels: string[],
 		source: string,
 		options: { mode?: string; clientEditedAt?: Date | null } = {}
 	) => {
-		setCalls.push({ userId, foodId, labels, source, ...options });
-		if (!knownFoodIds.has(foodId)) return { status: 'not_found' };
+		setCalls.push({ userId, recipeId, labels, source, ...options });
+		if (!knownRecipeIds.has(recipeId)) return { status: 'not_found' };
 		if (conflict) return { status: 'conflict' };
 		return { status: 'ok', labels: labels.map((l) => l.toLowerCase()), dropped: [] };
 	},
-	listLabelStats: async () => [
-		{ label: 'banana', count: 3, foodCount: 2, recipeCount: 1 },
-		{ label: 'bread', count: 1, foodCount: 1, recipeCount: 0 }
-	],
-	setFoodLabelsBatch: async (
+	setRecipeLabelsBatch: async (
 		userId: string,
-		items: Array<{ foodId: string; labels: string[] }>,
+		items: Array<{ recipeId: string; labels: string[] }>,
 		source: string,
 		options: { mode?: string } = {}
 	) =>
 		items.map((item) => {
-			setCalls.push({ userId, foodId: item.foodId, labels: item.labels, source, ...options });
-			return knownFoodIds.has(item.foodId)
-				? { foodId: item.foodId, ok: true, labels: item.labels }
-				: { foodId: item.foodId, ok: false, error: 'Food not found' };
+			setCalls.push({ userId, recipeId: item.recipeId, labels: item.labels, source, ...options });
+			return knownRecipeIds.has(item.recipeId)
+				? { recipeId: item.recipeId, ok: true, labels: item.labels }
+				: { recipeId: item.recipeId, ok: false, error: 'Recipe not found' };
 		})
 }));
 
-const { GET, PUT } = await import('../../src/routes/api/foods/[id]/labels/+server');
-const { GET: LABELS_GET, POST } = await import('../../src/routes/api/foods/labels/+server');
+const { GET, PUT } = await import('../../src/routes/api/recipes/[id]/labels/+server');
+const { POST } = await import('../../src/routes/api/recipes/labels/+server');
 
 const OTHER_ID = '11111111-2222-4333-8444-555555555555';
 
 beforeEach(() => {
 	setCalls = [];
 	conflict = false;
-	knownFoodIds = new Set([TEST_FOOD.id]);
+	knownRecipeIds = new Set([TEST_RECIPE.id]);
 });
 
-describe('GET /api/foods/[id]/labels', () => {
+describe('GET /api/recipes/[id]/labels', () => {
 	test('returns 401 when not authenticated', async () => {
-		const event = createMockEvent({ user: null, params: { id: TEST_FOOD.id } });
+		const event = createMockEvent({ user: null, params: { id: TEST_RECIPE.id } });
 		const response = await GET(event);
-		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		await expectResponseContract('GET', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(401);
 	});
 
 	test('returns 400 for a non-uuid id', async () => {
 		const event = createMockEvent({ user: TEST_USER, params: { id: 'not-a-uuid' } });
 		const response = await GET(event);
-		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		await expectResponseContract('GET', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(400);
 	});
 
 	test('exposes source and confidence, with dates as ISO strings', async () => {
-		const event = createMockEvent({ user: TEST_USER, params: { id: TEST_FOOD.id } });
+		const event = createMockEvent({ user: TEST_USER, params: { id: TEST_RECIPE.id } });
 		const response = await GET(event);
-		await expectResponseContract('GET', '/api/foods/{id}/labels', response);
+		await expectResponseContract('GET', '/api/recipes/{id}/labels', response);
 		const data = await response.json();
 		expect(data.labels).toEqual([
 			{
@@ -99,19 +95,19 @@ describe('GET /api/foods/[id]/labels', () => {
 	});
 });
 
-describe('PUT /api/foods/[id]/labels', () => {
-	const put = (body: unknown, id = TEST_FOOD.id, user = TEST_USER) =>
+describe('PUT /api/recipes/[id]/labels', () => {
+	const put = (body: unknown, id = TEST_RECIPE.id, user = TEST_USER) =>
 		PUT(createMockEvent({ user, params: { id }, body: body as any, method: 'PUT' }));
 
 	test('returns 401 when not authenticated', async () => {
-		const response = await put({ labels: ['banana'] }, TEST_FOOD.id, null as any);
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		const response = await put({ labels: ['banana'] }, TEST_RECIPE.id, null as any);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(401);
 	});
 
 	test('defaults the source to user', async () => {
 		const response = await put({ labels: ['Banana'] });
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ labels: ['banana'], dropped: [] });
 		expect(setCalls[0].source).toBe('user');
@@ -121,13 +117,13 @@ describe('PUT /api/foods/[id]/labels', () => {
 		const response = await PUT(
 			createMockEvent({
 				user: TEST_USER,
-				params: { id: TEST_FOOD.id },
+				params: { id: TEST_RECIPE.id },
 				body: { labels: ['banana'], mode: 'extend' } as any,
 				method: 'PUT',
 				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
 			})
 		);
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(setCalls[0]).toMatchObject({
 			mode: 'extend',
@@ -146,20 +142,20 @@ describe('PUT /api/foods/[id]/labels', () => {
 		const response = await PUT(
 			createMockEvent({
 				user: TEST_USER,
-				params: { id: TEST_FOOD.id },
+				params: { id: TEST_RECIPE.id },
 				body: { labels: ['banana'] } as any,
 				method: 'PUT',
 				headers: { 'X-Client-Edited-At': '2026-09-01T10:00:00.000Z' }
 			})
 		);
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(409);
 		expect(await response.json()).toEqual({ error: 'conflict_server_newer' });
 	});
 
 	test('honours an explicit source', async () => {
 		const response = await put({ labels: ['banana'], source: 'external' });
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(setCalls[0].source).toBe('external');
 	});
 
@@ -188,55 +184,38 @@ describe('PUT /api/foods/[id]/labels', () => {
 
 	test('accepts an empty array as "clear my labels"', async () => {
 		const response = await put({ labels: [] });
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ labels: [], dropped: [] });
 	});
 
-	test('returns 404 for a food the caller does not own', async () => {
+	test('returns 404 for a recipe the caller does not own', async () => {
 		const response = await put({ labels: ['banana'] }, OTHER_ID);
-		await expectResponseContract('PUT', '/api/foods/{id}/labels', response);
+		await expectResponseContract('PUT', '/api/recipes/{id}/labels', response);
 		expect(response.status).toBe(404);
 	});
 });
 
-describe('GET /api/foods/labels', () => {
-	test('returns 401 when not authenticated', async () => {
-		const response = await LABELS_GET(createMockEvent({ user: null }));
-		await expectResponseContract('GET', '/api/foods/labels', response);
-		expect(response.status).toBe(401);
-	});
-
-	test('lists the label vocabulary with counts', async () => {
-		const response = await LABELS_GET(createMockEvent({ user: TEST_USER }));
-		await expectResponseContract('GET', '/api/foods/labels', response);
-		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual({
-			labels: [
-				{ label: 'banana', count: 3, foodCount: 2, recipeCount: 1 },
-				{ label: 'bread', count: 1, foodCount: 1, recipeCount: 0 }
-			]
-		});
-	});
-});
-
-describe('POST /api/foods/labels', () => {
+describe('POST /api/recipes/labels', () => {
 	const post = (body: unknown, user = TEST_USER) =>
 		POST(createMockEvent({ user, body: body as any }));
 
 	test('passes the mode through', async () => {
 		const response = await post({
 			mode: 'extend',
-			items: [{ foodId: TEST_FOOD.id, labels: ['banana'] }]
+			items: [{ recipeId: TEST_RECIPE.id, labels: ['banana'] }]
 		});
-		await expectResponseContract('POST', '/api/foods/labels', response);
+		await expectResponseContract('POST', '/api/recipes/labels', response);
 		expect(response.status).toBe(200);
 		expect(setCalls[0].mode).toBe('extend');
 	});
 
 	test('returns 401 when not authenticated', async () => {
-		const response = await post({ items: [{ foodId: TEST_FOOD.id, labels: ['x'] }] }, null as any);
-		await expectResponseContract('POST', '/api/foods/labels', response);
+		const response = await post(
+			{ items: [{ recipeId: TEST_RECIPE.id, labels: ['x'] }] },
+			null as any
+		);
+		await expectResponseContract('POST', '/api/recipes/labels', response);
 		expect(response.status).toBe(401);
 	});
 
@@ -244,23 +223,23 @@ describe('POST /api/foods/labels', () => {
 		const response = await post({
 			source: 'external',
 			items: [
-				{ foodId: TEST_FOOD.id, labels: ['banana'] },
-				{ foodId: OTHER_ID, labels: ['ghost'] }
+				{ recipeId: TEST_RECIPE.id, labels: ['banana'] },
+				{ recipeId: OTHER_ID, labels: ['ghost'] }
 			]
 		});
-		await expectResponseContract('POST', '/api/foods/labels', response);
+		await expectResponseContract('POST', '/api/recipes/labels', response);
 		expect(response.status).toBe(200);
 		const data = await response.json();
 		expect(data.results).toEqual([
-			{ foodId: TEST_FOOD.id, ok: true, labels: ['banana'] },
-			{ foodId: OTHER_ID, ok: false, error: 'Food not found' }
+			{ recipeId: TEST_RECIPE.id, ok: true, labels: ['banana'] },
+			{ recipeId: OTHER_ID, ok: false, error: 'Recipe not found' }
 		]);
 		expect(setCalls.every((c) => c.source === 'external')).toBe(true);
 	});
 
 	test('rejects more than 100 items', async () => {
 		const items = Array.from({ length: 101 }, () => ({
-			foodId: TEST_FOOD.id,
+			recipeId: TEST_RECIPE.id,
 			labels: ['banana']
 		}));
 		const response = await post({ items });
@@ -274,8 +253,8 @@ describe('POST /api/foods/labels', () => {
 		expect(response.status).toBe(400);
 	});
 
-	test('rejects a non-uuid foodId', async () => {
-		const response = await post({ items: [{ foodId: 'nope', labels: ['banana'] }] });
+	test('rejects a non-uuid recipeId', async () => {
+		const response = await post({ items: [{ recipeId: 'nope', labels: ['banana'] }] });
 		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
 		expect(response.status).toBe(400);
 	});

@@ -83,7 +83,7 @@ export function registerPrompts(server: McpServer) {
 		{
 			title: 'Label foods for Visual Intelligence',
 			description:
-				'Sweep the food database and give every unlabelled (or thinly labelled) food general en_US nouns, so searching "bread" or pointing a camera at a banana finds it.',
+				'Sweep the food and recipe database and give every unlabelled (or thinly labelled) food and recipe general en_US nouns, so searching "bread" or pointing a camera at a banana finds it.',
 			argsSchema: {
 				limit: z
 					.string()
@@ -123,9 +123,12 @@ export function registerPrompts(server: McpServer) {
 					'3. Write the labels back with set_food_labels_batch, up to 100 foods per call. It extends by default, so only send labels the food does not have yet; anything past 20 per food comes back as dropped.',
 					'4. Repeat until list_unlabeled_foods comes back empty' +
 						(limit ? ' or you have labelled the requested number.' : '.'),
-					'5. Finish with one line: how many foods you labelled, and any you skipped because the name was too vague to tell what it is.',
+					'5. Then do the same for my recipes, which carry labels exactly like foods: call list_unlabeled_recipes' +
+						(threshold > 1 ? ` with minLabels=${threshold}` : '') +
+						' (it returns each recipe name with its ingredient names; label the dish, not an ingredient) and write the labels back with set_recipe_labels_batch, repeating until list_unlabeled_recipes comes back empty. Reuse the nouns from list_labels, which covers foods and recipes alike.',
+					'6. Finish with one line: how many foods and how many recipes you labelled, and any you skipped because the name was too vague to tell what it is.',
 					'',
-					'Do not ask me about individual foods — skip anything you cannot identify and list those at the end.'
+					'Do not ask me about individual foods or recipes — skip anything you cannot identify and list those at the end.'
 				].join('\n')
 			);
 		}

@@ -2679,7 +2679,7 @@
 		"/tools/list_labels": {
 			"post": {
 				"operationId": "list_labels",
-				"description": "The user's label vocabulary: every label in use with how many foods carry it, most common first. Check it before a labelling sweep so you reuse the nouns already in play (\"bread\", not \"loaf\") and search_foods keeps matching consistently.",
+				"description": "The user's label vocabulary, shared by foods and recipes: every label in use with how many foods and recipes carry it (count, split into foodCount and recipeCount), most common first. Check it before a labelling sweep so you reuse the nouns already in play (\"bread\", not \"loaf\") and search_foods keeps matching consistently.",
 				"requestBody": {
 					"required": true,
 					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
@@ -2747,10 +2747,22 @@
 		"/tools/list_recipes": {
 			"post": {
 				"operationId": "list_recipes",
-				"description": "List all recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food. stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves.",
+				"description": "List recipes in the user's database with whole-recipe macro totals (divide by totalServings for per-serving amounts). A recipe with a cookedWeight (grams of the finished dish) can also be logged by weight — see log_food. stepCount is the number of cooking steps (0 = no instructions); call get_recipe for the steps themselves. Each recipe carries its labels. Pass query to match the name, then the English labels (so \"soup\" finds \"Gerstensuppe\" once labelled).",
 				"requestBody": {
 					"required": true,
-					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"query": {
+										"description": "Only recipes whose name or English label matches. Omit to list all.",
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
 				},
 				"responses": { "200": { "description": "structuredContent" } }
 			}
@@ -2803,6 +2815,43 @@
 									},
 									"offset": {
 										"description": "Number of foods to skip for pagination.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_unlabeled_recipes": {
+			"post": {
+				"operationId": "list_unlabeled_recipes",
+				"description": "List recipes that carry fewer than minLabels labels (default 1, i.e. no labels at all), so a labelling sweep can find its work. Returns the recipe name, the names of its ingredient foods, its image URL (if any) and the labels it already has — label from those, and extend rather than repeat what is already there.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"minLabels": {
+										"description": "Return recipes carrying fewer than this many labels. 1 (default) means unlabelled only; 5 also surfaces thinly labelled recipes worth extending.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 20
+									},
+									"limit": {
+										"description": "Maximum number of recipes to return. Defaults to 50.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 200
+									},
+									"offset": {
+										"description": "Number of recipes to skip for pagination.",
 										"type": "integer",
 										"minimum": 0,
 										"maximum": 9007199254740991
@@ -3404,6 +3453,82 @@
 											"required": ["foodId", "labels"]
 										},
 										"description": "Up to 100 foods with their labels."
+									}
+								},
+								"required": ["items"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/set_recipe_labels": {
+			"post": {
+				"operationId": "set_recipe_labels",
+				"description": "Replace the labels you previously wrote for one recipe. Return 3-8 general English (en_US) nouns describing what the dish physically IS or visibly contains, as a camera would see it, working from the recipe name and its ingredient names. Use singular, lowercase, everyday terms - soup, salad, bread, cake, pasta. Do NOT use brand names, nutrition terms, cuisines, or adjectives. Prefer the concrete dish over the category, but include one broader term where it is natural (lasagna, pasta). Always English, whatever language the recipe is named in: a recipe called \"Gerstensuppe\" is still labelled \"soup\". Labels are normalized server-side (lowercased, singularized), and your write never touches labels the user set by hand. Prefer set_recipe_labels_batch when labelling more than one recipe.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recipeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the recipe to label"
+									},
+									"labels": {
+										"maxItems": 20,
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "General en_US nouns for what the dish is. Pass an empty array to clear."
+									}
+								},
+								"required": ["recipeId", "labels"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/set_recipe_labels_batch": {
+			"post": {
+				"operationId": "set_recipe_labels_batch",
+				"description": "Label many recipes in one call — the normal way to run a recipe labelling sweep. Return 3-8 general English (en_US) nouns describing what the dish physically IS or visibly contains, as a camera would see it, working from the recipe name and its ingredient names. Use singular, lowercase, everyday terms - soup, salad, bread, cake, pasta. Do NOT use brand names, nutrition terms, cuisines, or adjectives. Prefer the concrete dish over the category, but include one broader term where it is natural (lasagna, pasta). Always English, whatever language the recipe is named in: a recipe called \"Gerstensuppe\" is still labelled \"soup\". By default (mode \"extend\") your labels are added to what the recipe already carries; mode \"replace\" swaps out the labels you wrote before. Either way labels the user set by hand are never touched, and the cap of 20 per recipe is hard: labels that do not fit come back per item as \"dropped\". Results are per-item, so one unknown id does not fail the batch.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"mode": {
+										"description": "\"extend\" (default) adds to existing labels; \"replace\" swaps out your earlier ones.",
+										"type": "string",
+										"enum": ["replace", "extend"]
+									},
+									"items": {
+										"minItems": 1,
+										"maxItems": 100,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"recipeId": {
+													"type": "string",
+													"format": "uuid",
+													"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+													"description": "ID of the recipe to label"
+												},
+												"labels": { "maxItems": 20, "type": "array", "items": { "type": "string" } }
+											},
+											"required": ["recipeId", "labels"]
+										},
+										"description": "Up to 100 recipes with their labels."
 									}
 								},
 								"required": ["items"]
@@ -4424,7 +4549,7 @@
 		"/prompts/label_foods": {
 			"post": {
 				"operationId": "prompt_label_foods",
-				"description": "Sweep the food database and give every unlabelled (or thinly labelled) food general en_US nouns, so searching \"bread\" or pointing a camera at a banana finds it.",
+				"description": "Sweep the food and recipe database and give every unlabelled (or thinly labelled) food and recipe general en_US nouns, so searching \"bread\" or pointing a camera at a banana finds it.",
 				"requestBody": {
 					"required": true,
 					"content": {

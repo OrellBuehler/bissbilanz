@@ -494,6 +494,52 @@ const resources: Resource[] = [
 				expect: [404]
 			},
 			{
+				name: 'GET labels',
+				attack: idCall('api/recipes/[id]/labels', 'GET', (w) => w.a.recipe),
+				expect: [200, 404],
+				check: (out) => {
+					if (out.status === 200) expect(out.json.labels).toEqual([]);
+				},
+				controlExpect: [200]
+			},
+			{
+				name: 'PUT labels',
+				attack: idCall('api/recipes/[id]/labels', 'PUT', (w) => w.a.recipe, {
+					body: { labels: ['isobhijack'] }
+				}),
+				expect: [404]
+			},
+			{
+				name: 'PUT labels with machine source and extend mode',
+				attack: idCall('api/recipes/[id]/labels', 'PUT', (w) => w.a.recipe, {
+					body: { labels: ['isobhijack'], source: 'llm', mode: 'extend' }
+				}),
+				expect: [404]
+			},
+			{
+				name: 'batch label write',
+				attack: (w) => ({
+					route: 'api/recipes/labels',
+					method: 'POST',
+					body: { items: [{ recipeId: w.a.recipe, labels: ['isobhijack'] }] }
+				}),
+				expect: [200],
+				controlExpect: [200],
+				check: (out) => expect(out.json.results.every((r: any) => r.ok === false)).toBe(true)
+			},
+			{
+				name: 'list thinly labelled',
+				attack: () => ({ route: 'api/recipes', method: 'GET', query: { minLabels: '5' } }),
+				expect: [200],
+				emptyLike: true
+			},
+			{
+				name: 'list with search query',
+				attack: () => ({ route: 'api/recipes', method: 'GET', query: { q: 'isoalabel' } }),
+				expect: [200],
+				emptyLike: true
+			},
+			{
 				name: 'list',
 				attack: () => ({ route: 'api/recipes', method: 'GET' }),
 				expect: [200],

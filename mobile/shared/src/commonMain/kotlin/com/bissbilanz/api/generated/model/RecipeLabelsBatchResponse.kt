@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.RecipeLabelsBatchItemResult
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -22,15 +23,9 @@ import kotlinx.serialization.encoding.*
 /**
  *
  *
- * @param label
- * @param count
- * @param foodCount
- * @param recipeCount
+ * @param results
  */
 @Serializable
-data class FoodLabelStat(
-    @SerialName(value = "label") @Required val label: kotlin.String,
-    @SerialName(value = "count") @Required val count: kotlin.Int,
-    @SerialName(value = "foodCount") val foodCount: kotlin.Int? = null,
-    @SerialName(value = "recipeCount") val recipeCount: kotlin.Int? = null,
+data class RecipeLabelsBatchResponse(
+    @SerialName(value = "results") @Required val results: kotlin.collections.List<RecipeLabelsBatchItemResult>,
 )

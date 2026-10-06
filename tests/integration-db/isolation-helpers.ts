@@ -17,6 +17,7 @@ import {
 	identities,
 	pushSubscriptions,
 	recipeIngredients,
+	recipeLabels,
 	recipeSteps,
 	recipes,
 	reminders,
@@ -156,6 +157,9 @@ export const seeders = {
 		const recipe = await insertRecipe(w, w.A, 'isoA-Recipe', w.a.food);
 		w.a.recipe = recipe.id;
 		await w.db.insert(recipeSteps).values({ recipeId: recipe.id, sortOrder: 0, text: 'isoA-step' });
+		await w.db
+			.insert(recipeLabels)
+			.values({ recipeId: recipe.id, userId: w.A, label: 'isoalabel', source: 'user' });
 	},
 
 	entries: async (w: World) => {
@@ -347,6 +351,7 @@ const snapshotQueries = (w: World) => {
 			.from(recipeIngredients)
 			.where(inArray(recipeIngredients.recipeId, aRecipes)),
 		recipeSteps: db.select().from(recipeSteps).where(inArray(recipeSteps.recipeId, aRecipes)),
+		recipeLabels: db.select().from(recipeLabels).where(inArray(recipeLabels.recipeId, aRecipes)),
 		supplements: db.select().from(supplements).where(own(supplements)),
 		supplementIngredients: db
 			.select()
@@ -442,6 +447,14 @@ export const foreignReferences = async (w: World) => {
 			.select({ id: foodLabels.id })
 			.from(foodLabels)
 			.where(and(eq(foodLabels.userId, A), inArray(foodLabels.foodId, bFoods))),
+		labelsOnForeignRecipe: await db
+			.select({ id: recipeLabels.id })
+			.from(recipeLabels)
+			.where(and(inArray(recipeLabels.recipeId, aRecipes), ne(recipeLabels.userId, A))),
+		labelsFromForeignUserOnOwnRecipe: await db
+			.select({ id: recipeLabels.id })
+			.from(recipeLabels)
+			.where(and(eq(recipeLabels.userId, A), inArray(recipeLabels.recipeId, bRecipes))),
 		timeframesToForeignMealType: await db
 			.select({ id: favoriteMealTimeframes.id })
 			.from(favoriteMealTimeframes)
