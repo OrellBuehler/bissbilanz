@@ -26,6 +26,7 @@
 		// When provided, the form starts pre-filled for editing instead of a
 		// blank "new recipe" state, and does not reset after a successful save.
 		recipe?: {
+			id?: string;
 			name: string;
 			totalServings: number;
 			isFavorite: boolean;
@@ -244,5 +245,6 @@
 <AddFromRecipeDialog
 	bind:open={addFromRecipeOpen}
 	existingCount={filledIngredients.length}
+	excludeRecipeId={recipe?.id}
 	onAdd={addFromRecipe}
 />
