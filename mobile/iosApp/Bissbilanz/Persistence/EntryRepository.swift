@@ -264,7 +264,7 @@ final class EntryRepository {
             // The row hasn't been uploaded — rewrite the queued create instead.
             coalesceQueuedCreate(tempId: id, update: update)
         } else {
-            syncManager.enqueue(.updateEntry(id: id, body: update))
+            syncManager.enqueue(.updateEntry(id: id, body: update), before: PendingChangeBefore(entry: existing))
         }
         // Re-sync the affected day — both days when the entry moved dates.
         let currentDate = update.date ?? previousDate

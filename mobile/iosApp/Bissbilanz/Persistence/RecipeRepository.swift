@@ -167,7 +167,7 @@ final class RecipeRepository {
                 (try? JSONPatch.merged(RecipeCreate.self, base: body, patch: fullPatch)) ?? body
             }
         } else {
-            syncManager.enqueue(.updateRecipe(id: id, body: update))
+            syncManager.enqueue(.updateRecipe(id: id, body: update), before: PendingChangeBefore(recipe: existing))
         }
         return updated
     }
