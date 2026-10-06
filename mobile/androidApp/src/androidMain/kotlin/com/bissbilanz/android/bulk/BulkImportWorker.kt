@@ -9,6 +9,8 @@ import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.jwtSubject
+import com.bissbilanz.foodpackage.BulkImportCheckpoints
+import com.bissbilanz.foodpackage.BulkImportRunner
 import com.bissbilanz.foodpackage.BulkImportSummary
 import com.bissbilanz.foodpackage.BulkPackageImporter
 import com.bissbilanz.foodpackage.FoodPackageException
@@ -22,7 +24,8 @@ import java.io.File
  * Imports a huge food package in the background; progress shows in the import screen. A plain
  * worker, not a foreground service: WorkManager stops it after about ten minutes or when the
  * system needs the process, and re-queues it. The import is resumable: the importer skips what
- * is already in the food list, so a stopped run simply picks up again.
+ * is already in the food list, so a stopped run simply picks up again, and [BulkImportRunner]
+ * carries the running totals over so the final summary covers every run of the job.
  *
  * In an account the imported foods are queued for upload (see [BulkUploadWorker]); in Local
  * mode they stay on the device.
@@ -42,8 +45,17 @@ class BulkImportWorker(
         val foods = koin.get<FoodRepository>()
         if (!isLocal) refreshMirror(foods, errorReporter)
         return try {
+            val preferences = koin.get<BulkUploadPreferences>()
+            val runner =
+                BulkImportRunner(
+                    importer = koin.get<BulkPackageImporter>(),
+                    checkpoints = koin.get<BulkImportCheckpoints>(),
+                    onFoodsQueued = {
+                        if (!preferences.paused.value) BulkUploadWorker.enqueue(applicationContext, preferences.wifiOnly.value)
+                    },
+                )
             val summary =
-                koin.get<BulkPackageImporter>().import(path, userId) { progress ->
+                runner.run(path, userId) { progress ->
                     setProgress(
                         workDataOf(KEY_PROCESSED to progress.processed, KEY_TOTAL to progress.total, KEY_CREATED to progress.created),
                     )
@@ -52,7 +64,6 @@ class BulkImportWorker(
             foods.onFoodChanged?.invoke()
             FoodPackageEvents.imported.tryEmit(Unit)
             if (summary.queuedForUpload > 0) {
-                val preferences = koin.get<BulkUploadPreferences>()
                 if (!preferences.paused.value) BulkUploadWorker.enqueue(applicationContext, preferences.wifiOnly.value)
             }
             Result.success(summary.toData())

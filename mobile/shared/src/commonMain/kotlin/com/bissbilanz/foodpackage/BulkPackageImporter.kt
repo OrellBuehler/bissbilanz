@@ -28,6 +28,20 @@ data class BulkImportSummary(
     val queuedForUpload: Int,
 )
 
+/**
+ * The running totals of one import job as of the last committed chunk. A run that is stopped and
+ * started again passes the last one back as `resumeFrom`: the foods it covers are not looked at
+ * again and the counts carry on from it, so the final summary spans every run of the job.
+ */
+data class BulkImportCheckpoint(
+    val processed: Int,
+    val created: Int,
+    val skippedExisting: Int,
+    val invalid: Int,
+    val images: Int,
+    val imagesMissing: Int,
+)
+
 data class BulkImportProgress(
     val processed: Int,
     val total: Int,
@@ -42,7 +56,9 @@ data class BulkImportProgress(
  * There is no per-item conflict step. A food is skipped when the food list already holds its
  * name and brand (same key as [foodKey]) or when it repeats earlier in the package; a barcode
  * the list already holds is dropped, not the food. Running the same import again therefore
- * imports only what is still missing, which is what makes it resumable.
+ * imports only what is still missing, which is what makes it resumable. A caller that wants one
+ * summary across the restarts of a job keeps the last [BulkImportCheckpoint] and hands it back
+ * as `resumeFrom`; without it the counts cover this run only.
  *
  * With an [uploadUserId] (signed-in mode) every new food also gets an upload job; the food row
  * is the mirror and stays usable while [BulkUploadStore] drains the jobs in the background.
@@ -63,6 +79,8 @@ class BulkPackageImporter(
     suspend fun import(
         path: String,
         uploadUserId: String?,
+        resumeFrom: BulkImportCheckpoint? = null,
+        onCheckpoint: suspend (BulkImportCheckpoint) -> Unit = {},
         onProgress: suspend (BulkImportProgress) -> Unit = {},
     ): BulkImportSummary =
         withContext(Dispatchers.IO) {
@@ -75,12 +93,15 @@ class BulkPackageImporter(
                     trimBarcode(row.barcode)?.let { barcodes.add(it) }
                 }
                 val stamp = now()
-                var processed = 0
-                var created = 0
-                var skipped = 0
-                var invalid = 0
-                var storedImages = 0
-                var missingImages = 0
+                val resume = resumeFrom?.takeIf { it.processed in 0..total }
+                val resumedUntil = resume?.processed ?: 0
+                var seen = 0
+                var processed = resumedUntil
+                var created = resume?.created ?: 0
+                var skipped = resume?.skippedExisting ?: 0
+                var invalid = resume?.invalid ?: 0
+                var storedImages = resume?.images ?: 0
+                var missingImages = resume?.imagesMissing ?: 0
                 val chunk = ArrayList<PackageFood>(CHUNK_SIZE)
 
                 suspend fun flush() {
@@ -129,9 +150,11 @@ class BulkPackageImporter(
                     }
                     created += rows.size
                     chunk.clear()
+                    onCheckpoint(BulkImportCheckpoint(processed, created, skipped, invalid, storedImages, missingImages))
                 }
 
                 session.streamFoods { result ->
+                    if (++seen <= resumedUntil) return@streamFoods
                     processed++
                     val food = result.food
                     if (food == null) {

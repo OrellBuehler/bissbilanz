@@ -18,7 +18,8 @@ final class BulkImportRun {
 
     /// Starts the import. `prepare` runs first (in Synced mode: pulling the account's foods, so
     /// the duplicate check sees them); `finish` runs after a successful import with its summary,
-    /// before the screen shows it; `cleanup` runs once however it ends — the place to release the
+    /// before the screen shows it; `stopped` runs when the user cancels, so what was already added
+    /// can start uploading; `cleanup` runs once however it ends — the place to release the
     /// file.
     func start(
         container: ModelContainer,
@@ -27,6 +28,7 @@ final class BulkImportRun {
         destination: BulkImportDestination,
         prepare: @escaping @MainActor () async -> Void = {},
         finish: @escaping @MainActor (BulkImportSummary) async -> Void = { _ in },
+        stopped: @escaping @MainActor () async -> Void = {},
         cleanup: @escaping @MainActor () -> Void = {}
     ) {
         guard !isRunning else { return }
@@ -53,6 +55,7 @@ final class BulkImportRun {
                 self?.summary = complete
             } catch is CancellationError {
                 self?.markStopped()
+                await stopped()
             } catch let error as FoodPackageError {
                 self?.failure = FoodPackageErrorText.message(for: error)
             } catch {

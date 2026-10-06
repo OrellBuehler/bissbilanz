@@ -15,6 +15,7 @@ import com.bissbilanz.android.bulk.BulkImportScheduler
 import com.bissbilanz.android.bulk.BulkUploadController
 import com.bissbilanz.android.bulk.BulkUploadPreferences
 import com.bissbilanz.android.bulk.BulkUploadWorker
+import com.bissbilanz.android.bulk.PreferencesBulkImportCheckpoints
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -70,6 +71,7 @@ import com.bissbilanz.di.sharedModule
 import com.bissbilanz.foodpackage.AndroidBulkPackageReader
 import com.bissbilanz.foodpackage.AndroidFoodPackageArchive
 import com.bissbilanz.foodpackage.BulkFoodUploader
+import com.bissbilanz.foodpackage.BulkImportCheckpoints
 import com.bissbilanz.foodpackage.BulkPackageImporter
 import com.bissbilanz.foodpackage.BulkPackageReader
 import com.bissbilanz.foodpackage.BulkUploadStore
@@ -163,6 +165,7 @@ class BissbilanzApplication :
                     )
                 }
                 single { BulkImportScheduler(androidContext()) }
+                single<BulkImportCheckpoints> { PreferencesBulkImportCheckpoints(androidContext()) }
                 single { BulkUploadController(androidContext(), get(), get(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
