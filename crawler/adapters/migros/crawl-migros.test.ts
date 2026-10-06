@@ -89,3 +89,64 @@ test('checkpoints only emitted products (after yield), not dropped ones', async 
 	expect(out.length).toBe(2);
 	expect(cursors.length).toBe(2);
 });
+
+test('checkpoints id-less cursors from scanned batches without counting them as seen', async () => {
+	const client: MigrosClient = {
+		async *listProductIds() {
+			yield { cursor: { category: 'ids', page: 10 } };
+			yield { id: '1', cursor: { category: 'ids', page: 2 } };
+			yield { cursor: { category: 'ids', page: 20 } };
+		},
+		async getProduct() {
+			return base;
+		}
+	};
+	const stats = newStats();
+	const cursors: number[] = [];
+	const out = [];
+	for await (const p of crawlMigros(client, {
+		stats,
+		sleep: async () => {},
+		onCheckpoint: (c) => void cursors.push(c.page)
+	}))
+		out.push(p);
+	expect(cursors).toEqual([10, 2, 20]);
+	expect(stats.seen).toBe(1);
+	expect(out.length).toBe(1);
+});
+
+test('drops barcodes already spooled before a resume', async () => {
+	const client = makeClient(
+		{
+			'1': base,
+			'2': { ...base, id: '2', name: 'B', gtins: ['7610200000002'] }
+		},
+		['1', '2']
+	);
+	const stats = newStats();
+	const out = [];
+	for await (const p of crawlMigros(client, {
+		stats,
+		sleep: async () => {},
+		seenBarcodes: ['7610200000001']
+	}))
+		out.push(p);
+	expect(out.map((p) => p.product.name)).toEqual(['B']);
+	expect(stats.dropReasons['dup']).toBe(1);
+});
+
+test('reports batch progress through onScan', async () => {
+	const client: MigrosClient = {
+		async *listProductIds() {
+			yield { cursor: { category: 'ids', page: 100 }, progress: { scanned: 100, found: 0 } };
+		},
+		async getProduct() {
+			return null;
+		}
+	};
+	const seen: Array<[number, number]> = [];
+	for await (const _ of crawlMigros(client, {
+		onScan: (c, p) => void seen.push([c.page, p.scanned])
+	}));
+	expect(seen).toEqual([[100, 100]]);
+});

@@ -5,12 +5,14 @@ import { crawlMigros } from './adapters/migros/crawl-migros';
 import { createMigrosClient } from './adapters/migros/client';
 import { crawlBlv, loadBlvWorkbook } from './adapters/blv/crawl-blv';
 import { downloadBlvXlsx } from './adapters/blv/download';
-import { PackageWriter, type PackageResult } from './lib/package-writer';
+import { PackageWriter, readSpoolBarcodes, type PackageResult } from './lib/package-writer';
 import { toPackageFood } from './lib/to-package-food';
 import { createPoliteClient } from './lib/http';
 import { createDiskCache, createImageFetcher, type ImageFetcher } from './lib/images';
 import { mapOrdered } from './lib/map-ordered';
 import { readCheckpoint, writeCheckpoint } from './lib/checkpoint';
+import { consoleLog, createIntervalGate, formatDuration, formatRate, type Logger } from './lib/log';
+import { logPublicIp } from './lib/public-ip';
 import { newStats, type CrawledFood, type CrawlStats } from './types';
 
 // Food root categories of the Migros taxonomy (breadcrumb[0] of the product detail) with the
@@ -64,7 +66,8 @@ type WriteOpts = {
 	imageConcurrency?: number;
 	imageDelayMs?: number;
 	resume?: boolean;
-	onProgress?: (written: number) => void;
+	onProgress?: (written: number, images: number) => void;
+	progressEvery?: number;
 };
 
 export type PackageRun = PackageResult & { imageDrops: Record<string, number> };
@@ -106,7 +109,8 @@ async function writePackage(opts: WriteOpts): Promise<PackageRun> {
 	try {
 		for await (const { food, image } of prepared) {
 			await writer.addFood(food, image);
-			if (opts.onProgress && writer.count % 500 === 0) opts.onProgress(writer.count);
+			if (opts.onProgress && writer.count % (opts.progressEvery ?? 500) === 0)
+				opts.onProgress(writer.count, writer.images);
 		}
 		return { ...(await writer.close()), imageDrops };
 	} catch (err) {
@@ -116,12 +120,19 @@ async function writePackage(opts: WriteOpts): Promise<PackageRun> {
 	}
 }
 
-function report(tag: string, stats: CrawlStats, run: PackageRun, outPath: string) {
-	console.error(
-		`[${tag}] done: ${run.foods} foods, ${run.images} images, ${(run.bytes / 1024 / 1024).toFixed(1)} MB → ${outPath}`
+function report(
+	tag: string,
+	stats: CrawlStats,
+	run: PackageRun,
+	outPath: string,
+	log: Logger,
+	startedAt: number
+) {
+	log(
+		`[${tag}] done in ${formatDuration(Date.now() - startedAt)}: seen=${stats.seen} emitted=${stats.emitted} dropped=${stats.dropped}, ${run.foods} foods, ${run.images} images, ${(run.bytes / 1024 / 1024).toFixed(1)} MB → ${outPath}`
 	);
-	console.error(`[${tag}] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
-	console.error(`[${tag}] image drops: ${JSON.stringify(run.imageDrops)}`);
+	log(`[${tag}] drop reasons: ${JSON.stringify(stats.dropReasons)}`);
+	log(`[${tag}] image drops: ${JSON.stringify(run.imageDrops)}`);
 }
 
 export async function runOff(opts: {
@@ -130,13 +141,21 @@ export async function runOff(opts: {
 	limit?: number;
 	images?: boolean;
 	fetchImage?: ImageFetcher;
+	log?: Logger;
 }): Promise<CrawlStats> {
+	const log = opts.log ?? consoleLog;
+	const startedAt = Date.now();
 	const stats = newStats();
+	log(`[off] reading ${opts.dumpPath}`);
 	const products = crawlOffDump(readDumpLines(opts.dumpPath), {
 		stats,
 		limit: opts.limit,
-		onProgress: (s) =>
-			console.error(`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
+		onProgress: (s) => {
+			const elapsed = Date.now() - startedAt;
+			log(
+				`[off] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped} elapsed=${formatDuration(elapsed)} (${formatRate(s.seen, elapsed, 'lines/s', 1)})`
+			);
+		}
 	});
 	const items = (async function* () {
 		for await (const product of products) yield { product };
@@ -149,9 +168,9 @@ export async function runOff(opts: {
 		fetchImage: opts.fetchImage,
 		imageDelayMs: 200,
 		imageConcurrency: 4,
-		onProgress: (n) => console.error(`[off] written=${n}`)
+		onProgress: (n, images) => log(`[off] written=${n} images=${images}`)
 	});
-	report('off', stats, run, opts.outPath);
+	report('off', stats, run, opts.outPath, log, startedAt);
 	return stats;
 }
 
@@ -161,7 +180,11 @@ export async function runMigros(opts: {
 	limit?: number;
 	images?: boolean;
 	fetchImage?: ImageFetcher;
+	log?: Logger;
+	progressIntervalMs?: number;
 }): Promise<CrawlStats> {
+	const log = opts.log ?? consoleLog;
+	const startedAt = Date.now();
 	const stats = newStats();
 	const checkpointPath = opts.checkpointPath ?? MIGROS_CHECKPOINT;
 	const resume = await readCheckpoint<{ category: string; page: number; outPath?: string }>(
@@ -169,17 +192,30 @@ export async function runMigros(opts: {
 	);
 	const outPath =
 		opts.outPath ?? resume?.outPath ?? `data/catalog/migros-${dateStamp()}.bissbilanz`;
+	const seenBarcodes = resume ? await readSpoolBarcodes(outPath) : [];
 	if (resume)
-		console.error(`[migros] resuming from category ${resume.category} page ${resume.page}`);
+		log(
+			`[migros] resuming from cursor ${resume.category}:${resume.page} with ${seenBarcodes.length} seeded barcodes (${outPath})`
+		);
+	else log(`[migros] starting a new crawl → ${outPath}`);
 
-	const client = await createMigrosClient({ roots: MIGROS_FOOD_ROOTS });
+	let written = 0;
+	let images = 0;
+	const due = createIntervalGate(opts.progressIntervalMs ?? 30_000);
+	const client = await createMigrosClient({ roots: MIGROS_FOOD_ROOTS }, { log });
 	const products = crawlMigros(client, {
 		stats,
 		limit: opts.limit,
 		resume,
+		seenBarcodes,
 		onCheckpoint: (cursor) => writeCheckpoint(checkpointPath, { ...cursor, outPath }),
-		onProgress: (s) =>
-			console.error(`[migros] seen=${s.seen} emitted=${s.emitted} dropped=${s.dropped}`)
+		onScan: (cursor, progress) => {
+			if (!due()) return;
+			const elapsed = Date.now() - startedAt;
+			log(
+				`[migros] cursor=${cursor.page} scanned=${progress.scanned} ids, food products=${progress.found} (${formatRate(progress.scanned, elapsed, 'ids/s', 1)}), emitted=${stats.emitted} (${formatRate(stats.emitted, elapsed, 'products/min', 60)}), dropped=${stats.dropped} ${JSON.stringify(stats.dropReasons)}, written=${written}, images=${images}, elapsed=${formatDuration(elapsed)}`
+			);
+		}
 	});
 	// The package spool is kept on failure so a resumed crawl continues where the checkpoint is.
 	const run = await writePackage({
@@ -191,10 +227,15 @@ export async function runMigros(opts: {
 		imageDelayMs: 300,
 		imageConcurrency: 1,
 		resume: !!resume,
-		keepSpoolOnError: true
+		keepSpoolOnError: true,
+		progressEvery: 20,
+		onProgress: (n, imgs) => {
+			written = n;
+			images = imgs;
+		}
 	});
 	rmSync(checkpointPath, { force: true });
-	report('migros', stats, run, outPath);
+	report('migros', stats, run, outPath, log, startedAt);
 	return stats;
 }
 
@@ -202,16 +243,20 @@ export async function runBlv(opts: {
 	xlsxPath?: string;
 	outPath: string;
 	limit?: number;
+	log?: Logger;
 }): Promise<CrawlStats> {
+	const log = opts.log ?? consoleLog;
+	const startedAt = Date.now();
 	const stats = newStats();
 	const workbook = await loadBlvWorkbook(opts.xlsxPath ?? (await downloadBlvXlsx()));
 	const run = await writePackage({
 		source: BLV_SOURCE,
 		items: crawlBlv(workbook, { stats, limit: opts.limit }),
 		outPath: opts.outPath,
-		images: false
+		images: false,
+		onProgress: (n) => log(`[blv] written=${n} elapsed=${formatDuration(Date.now() - startedAt)}`)
 	});
-	report('blv', stats, run, opts.outPath);
+	report('blv', stats, run, opts.outPath, log, startedAt);
 	return stats;
 }
 
@@ -250,6 +295,7 @@ async function main() {
 	const [cmd, ...rest] = process.argv.slice(2);
 	const { positional, limit, images } = parseArgs(rest);
 	mkdirSync('data/catalog', { recursive: true });
+	await logPublicIp();
 	if (cmd === 'off') {
 		const dumpPath = positional[0];
 		if (!dumpPath)

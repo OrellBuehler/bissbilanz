@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import yazl from 'yazl';
 import { readFoodPackage } from '$lib/server/food-package/archive';
 import { foodPackageManifestSchema } from '$lib/server/validation/food-package';
-import { PackageWriter, buildReadme } from './package-writer';
+import { PackageWriter, buildReadme, readSpoolBarcodes } from './package-writer';
 import { toPackageFood } from './to-package-food';
 import { buildDatasetProduct } from './normalize';
 
@@ -127,6 +127,18 @@ test('resume keeps spooled foods and continues refs; orphan images are dropped',
 	expect(result).toMatchObject({ foods: 2, images: 1 });
 	const files = unzipSync(new Uint8Array(await Bun.file(out).arrayBuffer()));
 	expect(Object.keys(files)).not.toContain('images/f2.webp');
+});
+
+test('readSpoolBarcodes lists the barcodes of a suspended spool', async () => {
+	const out = join(tmp(), 'barcodes.bissbilanz');
+	expect(await readSpoolBarcodes(out)).toEqual([]);
+	const w = new PackageWriter(out, info);
+	await w.open();
+	await w.addFood(food('Apfel'), null);
+	await w.addFood(food('Birne', { barcode: undefined }), null);
+	await w.addFood(food('Kiwi', { barcode: '7612345678917' }), null);
+	await w.suspend();
+	expect(await readSpoolBarcodes(out)).toEqual(['7612345678900', '7612345678917']);
 });
 
 test('abort removes the spool and leaves no package behind', async () => {
