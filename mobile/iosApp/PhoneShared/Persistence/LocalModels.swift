@@ -161,6 +161,10 @@ final class LocalRecipe {
     var carbs: Double = 0
     var fat: Double = 0
     var fiber: Double = 0
+    /// Stored alongside `jsonData` like `LocalFood.labels`, so the sweep for
+    /// unlabeled recipes and the shared label vocabulary read it without
+    /// decoding every blob. Defaulted so the store migrates lightly.
+    var labels: [String] = []
     var jsonData: Data = Data()
 
     init(recipe: Recipe) {
@@ -173,6 +177,7 @@ final class LocalRecipe {
         carbs = recipe.carbs ?? 0
         fat = recipe.fat ?? 0
         fiber = recipe.fiber ?? 0
+        labels = recipe.labels ?? []
         jsonData = LocalStoreCoding.encode(recipe)
     }
 
@@ -185,6 +190,7 @@ final class LocalRecipe {
         carbs = recipe.carbs ?? 0
         fat = recipe.fat ?? 0
         fiber = recipe.fiber ?? 0
+        labels = recipe.labels ?? []
         jsonData = LocalStoreCoding.encode(recipe)
     }
 

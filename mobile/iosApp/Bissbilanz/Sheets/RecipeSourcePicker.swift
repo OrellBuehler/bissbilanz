@@ -26,10 +26,11 @@ struct RecipeSourcePicker: View {
     @State private var query = ""
 
     private var filteredRecipes: [Recipe] {
-        let matching = query.isEmpty
-            ? recipes
-            : recipes.filter { $0.name.localizedCaseInsensitiveContains(query) }
-        return matching.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return RecipeSearch.matching(recipes, query: trimmed)
+        }
+        return recipes.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     var body: some View {

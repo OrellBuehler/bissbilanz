@@ -205,6 +205,69 @@ final class RecipeRepository {
         return patched
     }
 
+    /// Replaces the recipe's labels — the English nouns search matches against,
+    /// shared with foods. Optimistic like every other edit. Labels never ride
+    /// on a recipe body, so a temp-id recipe gets its own queued op; the
+    /// temp-id remap that follows the create's response points it at the
+    /// server id before it is sent.
+    @discardableResult
+    func setLabels(id: String, labels: [String]) async throws -> Recipe {
+        let id = TempIdMap.resolved(id)
+        let normalized = LabelNormalizer.normalizeAll(labels).sorted()
+        guard let row = fetchRow(id: id), let current = row.toRecipe(),
+              let patched = try? JSONPatch.merged(Recipe.self, base: current, patch: ["labels": normalized])
+        else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        syncManager.enqueue(.setRecipeLabels(id: id, labels: labels))
+        return patched
+    }
+
+    /// Merges labeller-suggested labels into whatever the recipe already
+    /// carries — additive like the server's `source: llm, mode: extend`
+    /// write, so it never drops a label the user set by hand. Used by the
+    /// "Suggest labels" button's merge-for-review step and by
+    /// `FoodAutoLabeler`'s unattended sweep, same as `FoodRepository`'s.
+    @discardableResult
+    func addGeneratedLabels(id: String, labels: [String]) async throws -> Recipe {
+        let id = TempIdMap.resolved(id)
+        guard let row = fetchRow(id: id), let current = row.toRecipe() else {
+            throw APIError.notFound
+        }
+        let suggested = LabelNormalizer.normalizeAll(labels)
+        guard !suggested.isEmpty else { return current }
+        let merged = LabelNormalizer.normalizeAll((current.labels ?? []) + suggested).sorted()
+        guard let patched = try? JSONPatch.merged(Recipe.self, base: current, patch: ["labels": merged]) else {
+            throw APIError.notFound
+        }
+        row.update(from: patched)
+        save()
+        syncManager.enqueue(.addGeneratedRecipeLabels(id: id, labels: suggested))
+        return patched
+    }
+
+    /// Local recipes with no labels at all — part of the auto-label sweep's
+    /// work list (`LabelUnlabeledFoodsView`) next to `unlabeledLocalFoods`.
+    func unlabeledLocalRecipes() -> [Recipe] {
+        let descriptor = FetchDescriptor<LocalRecipe>(sortBy: [SortDescriptor(\.name)])
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return rows.filter { $0.labels.isEmpty }.compactMap { $0.toRecipe() }
+    }
+
+    /// The names of a recipe's ingredient foods, in ingredient order, for the
+    /// labeller. The server's recipe responses carry ingredient `foodId`s but
+    /// no embedded food, so each name is looked up in the local food mirror;
+    /// an ingredient whose food is not cached is left out.
+    func ingredientFoodNames(of recipe: Recipe) -> [String] {
+        (recipe.ingredients ?? [])
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .compactMap { ingredient in
+                (ingredient.food ?? localFood(id: TempIdMap.resolved(ingredient.foodId)))?.name
+            }
+    }
+
     func deleteRecipe(id: String) async throws {
         let id = TempIdMap.resolved(id)
         let doomed = recipe(id: id)
@@ -428,6 +491,7 @@ final class RecipeRepository {
         )
         result.steps = recipe.steps
         result.stepCount = recipe.stepCount
+        result.labels = recipe.labels
         return result
     }
 

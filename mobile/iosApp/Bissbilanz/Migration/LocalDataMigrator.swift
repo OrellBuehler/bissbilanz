@@ -417,6 +417,15 @@ final class LocalDataMigrator {
                 create,
                 idempotencyKey: Self.migrationKey("recipe", row.id)
             )
+            // Labels never ride on a recipe body. Sent before the row is re-keyed,
+            // so a failure here retries the create (idempotent) and this together.
+            if let labels = recipe.labels, !labels.isEmpty {
+                _ = try await api.setRecipeLabels(
+                    id: server.id,
+                    labels: labels,
+                    idempotencyKey: Self.migrationKey("recipe-labels", row.id)
+                )
+            }
             LocalRemap.replaceRecipe(id: row.id, with: server, in: context)
             done += 1
             progress(done, total, .recipes)

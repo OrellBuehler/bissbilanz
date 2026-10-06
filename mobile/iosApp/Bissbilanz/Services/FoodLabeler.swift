@@ -34,12 +34,22 @@ enum FoodLabelerError: Error {
     }
 }
 
-/// What the labeller reads about a food to suggest labels for it — the same
-/// fields `FoodEditSheet`'s form (or a saved `Food`) holds.
+/// What the labeller is labelling: a food, or a recipe, which goes through the
+/// same labeller with its own prompt and instructions.
+enum FoodLabelSubject {
+    case food
+    case recipe
+}
+
+/// What the labeller reads about a food or recipe to suggest labels for it —
+/// the same fields `FoodEditSheet`'s form (or a saved `Food`) holds, or for a
+/// recipe (`init(recipeName:ingredientNames:image:)`) its name, its ingredients'
+/// food names and its photo.
 struct FoodLabelInput {
     var name: String
     var brand: String?
-    var servingUnit: ServingUnit
+    /// Nil for a recipe, which has no single serving unit.
+    var servingUnit: ServingUnit?
     var ingredientsText: String?
     /// The food's photo, loaded via `FoodImageLoader`, when it has one.
     /// Attached to the prompt on OS versions that support it — see
@@ -47,6 +57,35 @@ struct FoodLabelInput {
     /// callers can always pass whatever `FoodImageLoader.image(for:)`
     /// returned without checking availability themselves.
     var image: UIImage?
+    var subject: FoodLabelSubject = .food
+    /// A recipe's ingredient food names, in ingredient order.
+    var ingredientNames: [String] = []
+
+    init(
+        name: String,
+        brand: String?,
+        servingUnit: ServingUnit?,
+        ingredientsText: String?,
+        image: UIImage? = nil
+    ) {
+        self.name = name
+        self.brand = brand
+        self.servingUnit = servingUnit
+        self.ingredientsText = ingredientsText
+        self.image = image
+    }
+
+    /// A recipe's input: the name, the names of the foods it is made of
+    /// (`RecipeRepository.ingredientFoodNames(of:)`) and its photo.
+    init(recipeName: String, ingredientNames: [String], image: UIImage? = nil) {
+        name = recipeName
+        brand = nil
+        servingUnit = nil
+        ingredientsText = nil
+        self.image = image
+        subject = .recipe
+        self.ingredientNames = ingredientNames
+    }
 }
 
 /// Which model(s) `FoodLabeler` is allowed to use, chosen in `SettingsView`'s
@@ -157,6 +196,7 @@ final class FoodLabeler {
         let prompt = Self.buildPrompt(for: input, vocabulary: foodRepository.mostUsedLocalLabels())
         let image = attachableImage(for: input)
         let provider = FoodLabelProviderSettings.selected
+        let instructions = Self.instructions(for: input.subject)
 
         guard provider != .mcp else {
             throw FoodLabelerError.unavailable
@@ -167,7 +207,7 @@ final class FoodLabeler {
             if #available(iOS 26.0, *) {
                 if case .available = SystemLanguageModel.default.availability {
                     do {
-                        return try await labelsOnDevice(prompt: prompt, image: image)
+                        return try await labelsOnDevice(prompt: prompt, image: image, instructions: instructions)
                     } catch {
                         ErrorReporter.captureWarning(
                             "On-device food labelling failed",
@@ -184,7 +224,7 @@ final class FoodLabeler {
             throw FoodLabelerError.unavailable
         }
         do {
-            return try await labelsWithPrivateCloudCompute(prompt: prompt, image: image)
+            return try await labelsWithPrivateCloudCompute(prompt: prompt, image: image, instructions: instructions)
         } catch {
             ErrorReporter.captureWarning(
                 "Private Cloud Compute food labelling failed",
@@ -223,17 +263,22 @@ final class FoodLabeler {
     /// synchronous context, including the unit tests (same reasoning as
     /// `MealEstimatorPrivateCloud.swift`'s `isWeakEstimate`).
     nonisolated static func buildPrompt(for input: FoodLabelInput, vocabulary: [String]) -> String {
-        var lines = ["Food name: \(input.name)"]
+        var lines = [input.subject == .recipe ? "Recipe name: \(input.name)" : "Food name: \(input.name)"]
         if let brand = input.brand, !brand.isEmpty {
             lines.append("Brand: \(brand)")
         }
-        var servingLine = "Serving unit: \(input.servingUnit.displayName)"
-        if input.servingUnit.isVolume {
-            servingLine += " (a volume unit usually means this is a drink)"
+        if let servingUnit = input.servingUnit {
+            var servingLine = "Serving unit: \(servingUnit.displayName)"
+            if servingUnit.isVolume {
+                servingLine += " (a volume unit usually means this is a drink)"
+            }
+            lines.append(servingLine)
         }
-        lines.append(servingLine)
         if let ingredients = input.ingredientsText, !ingredients.isEmpty {
             lines.append("Ingredients: \(ingredients.prefix(300))")
+        }
+        if !input.ingredientNames.isEmpty {
+            lines.append("Ingredients: \(input.ingredientNames.joined(separator: ", ").prefix(300))")
         }
         if !vocabulary.isEmpty {
             lines.append(
@@ -254,22 +299,32 @@ final class FoodLabeler {
     /// `PrivateCloudComputeLanguageModel` and the `LanguageModelSession.init(
     /// model:instructions:)` overload it needs are new in the Xcode 27 SDK, so
     /// this stays callable (and simply unavailable) on older SDKs/OS versions.
-    private func labelsWithPrivateCloudCompute(prompt: String, image: CGImage?) async throws -> [String] {
+    private func labelsWithPrivateCloudCompute(
+        prompt: String,
+        image: CGImage?,
+        instructions: String
+    ) async throws -> [String] {
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *) {
-            return try await labelsWithPCCModel(prompt: prompt, image: image)
+            return try await labelsWithPCCModel(prompt: prompt, image: image, instructions: instructions)
         }
         #endif
         throw FoodLabelerError.unavailable
     }
 
-    #if canImport(FoundationModels)
+    /// The system instructions for a subject, shared by the on-device and
+    /// Private Cloud Compute sessions (same tool-free, guided-generation
+    /// prompt, just a different model backing the session). Pure and
+    /// `nonisolated` like `buildPrompt`, so it is testable without Apple
+    /// Intelligence.
+    nonisolated static func instructions(for subject: FoodLabelSubject) -> String {
+        switch subject {
+        case .food: foodInstructions
+        case .recipe: recipeInstructions
+        }
+    }
 
-    // Not private: the Private Cloud Compute extension below reuses
-    // `instructions` for the same tool-free, guided-generation prompt, just a
-    // different model backing the session.
-    @available(iOS 26.0, *)
-    static let instructions = """
+    nonisolated static let foodInstructions = """
     You are labelling a food in the user's personal food database so it can be found by an \
     English-language search or by pointing a camera at it (Visual Intelligence). For the food \
     described below, return 3 to 8 general English (en_US) nouns describing what it physically \
@@ -288,9 +343,23 @@ final class FoodLabeler {
     - Meat gets "meat" plus the specific animal, e.g. "beef" or "chicken".
     """
 
+    nonisolated static let recipeInstructions = """
+    You are labelling a recipe in the user's personal food database so it can be found by an \
+    English-language search. For the recipe described below (its name and the foods it is made \
+    of), return 3 to 8 general English (en_US) nouns describing what the finished dish IS or \
+    visibly contains, as a camera would see it. Use singular, lowercase, everyday terms - soup, \
+    pasta, salad, curry, cake, tomato. Do NOT use brand names, nutrition terms, cuisines, or \
+    adjectives. Prefer the concrete dish over the category, but include one broader term where \
+    it is natural (soup, dish). Add the main ingredient that visibly defines the dish where it \
+    applies (tomato, chicken, rice). Always English, whatever language the recipe is named in: \
+    a recipe called "Tomatensuppe" is still labelled "soup" and "tomato".
+    """
+
+    #if canImport(FoundationModels)
+
     @available(iOS 26.0, *)
-    private func labelsOnDevice(prompt: String, image: CGImage?) async throws -> [String] {
-        let session = LanguageModelSession(instructions: Self.instructions)
+    private func labelsOnDevice(prompt: String, image: CGImage?, instructions: String) async throws -> [String] {
+        let session = LanguageModelSession(instructions: instructions)
         #if compiler(>=6.4) && canImport(FoundationModels)
         if #available(iOS 27, *), let image {
             let response = try await session.respond(generating: GeneratedFoodLabels.self) {
@@ -311,10 +380,10 @@ final class FoodLabeler {
 
 @available(iOS 27, *)
 private extension FoodLabeler {
-    func labelsWithPCCModel(prompt: String, image: CGImage?) async throws -> [String] {
+    func labelsWithPCCModel(prompt: String, image: CGImage?, instructions: String) async throws -> [String] {
         let session = LanguageModelSession(
             model: PrivateCloudComputeLanguageModel(),
-            instructions: Self.instructions
+            instructions: instructions
         )
         if let image {
             let response = try await session.respond(generating: GeneratedFoodLabels.self) {

@@ -48,6 +48,26 @@ extension L10n {
         )
     }
 
+    static var suggestRecipeLabelsHint: String {
+        localized(
+            "suggest_recipe_labels_hint",
+            en: "Suggestions use the recipe's name and the foods it contains — and its photo too, on iOS 27 " +
+                "or later, when the recipe has one.",
+            de: "Vorschläge basieren auf Name und Zutaten des Rezepts – ab iOS 27 zusätzlich auf dem Foto, " +
+                "falls vorhanden."
+        )
+    }
+
+    static var recipeLabelsHint: String {
+        localized(
+            "recipe_labels_hint",
+            en: "English nouns for what the dish is, e.g. soup, pasta, tomato. Searching for one finds this " +
+                "recipe.",
+            de: "Englische Begriffe für das, was das Gericht ist, z. B. soup, pasta, tomato. Die Suche " +
+                "danach findet dieses Rezept."
+        )
+    }
+
     static var foodLabelUnavailable: String {
         localized(
             "food_label_unavailable",
@@ -65,24 +85,24 @@ extension L10n {
     }
 
     static var foodLabelsSectionTitle: String {
-        localized("food_labels_section_title", en: "Food Labels", de: "Lebensmittel-Labels")
+        localized("food_labels_section_title", en: "Food & Recipe Labels", de: "Lebensmittel- & Rezept-Labels")
     }
 
     static var autoLabelToggleLabel: String {
         localized(
             "auto_label_toggle_label",
-            en: "Auto-label new foods",
-            de: "Neue Lebensmittel automatisch labeln"
+            en: "Auto-label new foods and recipes",
+            de: "Neue Lebensmittel und Rezepte automatisch labeln"
         )
     }
 
     static var autoLabelToggleFooter: String {
         localized(
             "auto_label_toggle_footer",
-            en: "When a new food has no labels yet, Bissbilanz suggests some automatically using the " +
-                "labelling method chosen above.",
-            de: "Wenn ein neues Lebensmittel noch keine Labels hat, schlägt Bissbilanz automatisch welche " +
-                "vor – mit der oben gewählten Labelling-Methode."
+            en: "When a new food or recipe has no labels yet, Bissbilanz suggests some automatically using " +
+                "the labelling method chosen above.",
+            de: "Wenn ein neues Lebensmittel oder Rezept noch keine Labels hat, schlägt Bissbilanz " +
+                "automatisch welche vor – mit der oben gewählten Labelling-Methode."
         )
     }
 
@@ -113,12 +133,12 @@ extension L10n {
     static var foodLabelProviderFooter: String {
         localized(
             "food_label_provider_footer",
-            en: "Choose what suggests food labels — for new foods, \"Suggest Labels\" and the labelling " +
+            en: "Choose what suggests food and recipe labels — for new foods and recipes, \"Suggest Labels\" and the labelling " +
                 "sweep below. Automatic tries on-device Apple Intelligence first and falls back to Private " +
                 "Cloud Compute. On-Device Only and Private Cloud Compute each use just one of those, even " +
                 "if the other would work. AI Assistant (MCP) leaves labelling entirely to a connected " +
                 "assistant instead, and never runs it automatically.",
-            de: "Wähle, was Lebensmittel-Labels vorschlägt – für neue Lebensmittel, „Labels vorschlagen“ " +
+            de: "Wähle, was Lebensmittel- und Rezept-Labels vorschlägt – für neue Lebensmittel und Rezepte, „Labels vorschlagen“ " +
                 "und den Labelling-Durchlauf unten. Automatisch versucht zuerst Apple Intelligence auf dem " +
                 "Gerät und weicht bei Bedarf auf Private Cloud Compute aus. „Nur auf dem Gerät“ und „Private " +
                 "Cloud Compute“ verwenden jeweils nur eine der beiden Methoden, auch wenn die andere " +
@@ -132,39 +152,39 @@ extension L10n {
         case .automatic:
             localized(
                 "food_label_sweep_explanation_automatic",
-                en: "Each unlabeled food below is sent to Apple Intelligence on this device — or, if " +
+                en: "Each unlabeled food or recipe below is sent to Apple Intelligence on this device — or, if " +
                     "that's not available, to Apple's Private Cloud Compute — to suggest a few English " +
-                    "words for what it is. Suggestions are saved to the food automatically. On-device " +
+                    "words for what it is. Suggestions are saved automatically. On-device " +
                     "processing never leaves your phone; Private Cloud Compute processes it on Apple's " +
                     "servers under the same privacy protections and doesn't retain the data.",
-                de: "Jedes unbeschriftete Lebensmittel unten wird an Apple Intelligence auf diesem Gerät " +
-                    "gesendet – oder, falls das nicht verfügbar ist, an Apples Private Cloud Compute –, um " +
-                    "ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge werden " +
-                    "automatisch beim Lebensmittel gespeichert. Die Verarbeitung auf dem Gerät verlässt " +
+                de: "Jedes unbeschriftete Lebensmittel und Rezept unten wird an Apple Intelligence auf diesem " +
+                    "Gerät gesendet – oder, falls das nicht verfügbar ist, an Apples Private Cloud Compute –, " +
+                    "um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge werden " +
+                    "automatisch gespeichert. Die Verarbeitung auf dem Gerät verlässt " +
                     "dein Handy nie; Private Cloud Compute verarbeitet die Daten auf Apples Servern unter " +
                     "denselben Datenschutzvorkehrungen und speichert sie nicht dauerhaft."
             )
         case .onDeviceOnly:
             localized(
                 "food_label_sweep_explanation_on_device",
-                en: "Each unlabeled food below is sent to Apple Intelligence on this device to suggest a " +
-                    "few English words for what it is. Suggestions are saved to the food automatically. " +
+                en: "Each unlabeled food or recipe below is sent to Apple Intelligence on this device to " +
+                    "suggest a few English words for what it is. Suggestions are saved automatically. " +
                     "Processing happens entirely on this device and never leaves your phone.",
-                de: "Jedes unbeschriftete Lebensmittel unten wird an Apple Intelligence auf diesem Gerät " +
-                    "gesendet, um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge " +
-                    "werden automatisch beim Lebensmittel gespeichert. Die Verarbeitung erfolgt vollständig " +
+                de: "Jedes unbeschriftete Lebensmittel und Rezept unten wird an Apple Intelligence auf diesem " +
+                    "Gerät gesendet, um ein paar englische Begriffe dafür vorzuschlagen, was es ist. " +
+                    "Vorschläge werden automatisch gespeichert. Die Verarbeitung erfolgt vollständig " +
                     "auf dem Gerät und verlässt dein Handy nie."
             )
         case .privateCloudCompute:
             localized(
                 "food_label_sweep_explanation_private_cloud",
-                en: "Each unlabeled food below is sent to Apple's Private Cloud Compute to suggest a few " +
-                    "English words for what it is. Suggestions are saved to the food automatically. " +
+                en: "Each unlabeled food or recipe below is sent to Apple's Private Cloud Compute to suggest " +
+                    "a few English words for what it is. Suggestions are saved automatically. " +
                     "Private Cloud Compute processes it on Apple's servers under the same privacy " +
                     "protections as on-device processing and doesn't retain the data.",
-                de: "Jedes unbeschriftete Lebensmittel unten wird an Apples Private Cloud Compute gesendet, " +
-                    "um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge werden " +
-                    "automatisch beim Lebensmittel gespeichert. Private Cloud Compute verarbeitet die Daten " +
+                de: "Jedes unbeschriftete Lebensmittel und Rezept unten wird an Apples Private Cloud Compute " +
+                    "gesendet, um ein paar englische Begriffe dafür vorzuschlagen, was es ist. Vorschläge " +
+                    "werden automatisch gespeichert. Private Cloud Compute verarbeitet die Daten " +
                     "auf Apples Servern unter denselben Datenschutzvorkehrungen wie bei der Verarbeitung " +
                     "auf dem Gerät und speichert sie nicht dauerhaft."
             )
@@ -177,7 +197,8 @@ extension L10n {
     }
 
     static var labelUnlabeledFoods: String {
-        localized("label_unlabeled_foods", en: "Label Unlabeled Foods", de: "Unbeschriftete Lebensmittel labeln")
+        localized("label_unlabeled_foods", en: "Label Unlabeled Foods and Recipes",
+            de: "Unbeschriftete Lebensmittel und Rezepte labeln")
     }
 
     static func unlabeledFoodCount(_ count: Int) -> String {
@@ -188,6 +209,19 @@ extension L10n {
         )
     }
 
+    /// "3 foods, 2 recipes" — only the kinds there are, or "0 foods" when
+    /// nothing is left.
+    static func unlabeledCount(foods: Int, recipes: Int) -> String {
+        let foodPart = unlabeledFoodCount(foods)
+        guard recipes > 0 else { return foodPart }
+        let recipePart = localized(
+            "unlabeled_recipe_count",
+            en: recipes == 1 ? "1 recipe" : "\(recipes) recipes",
+            de: recipes == 1 ? "1 Rezept" : "\(recipes) Rezepte"
+        )
+        return foods > 0 ? "\(foodPart), \(recipePart)" : recipePart
+    }
+
     static func foodLabelSweepProgress(_ done: Int, _ total: Int) -> String {
         localized("food_label_sweep_progress", en: "\(done) of \(total)", de: "\(done) von \(total)")
     }
@@ -196,11 +230,11 @@ extension L10n {
         localized(
             "food_label_sweep_summary",
             en: failed == 0
-                ? "Labelled \(labelled) foods."
-                : "Labelled \(labelled) foods, \(failed) failed.",
+                ? "Labelled \(labelled) foods and recipes."
+                : "Labelled \(labelled) foods and recipes, \(failed) failed.",
             de: failed == 0
-                ? "\(labelled) Lebensmittel beschriftet."
-                : "\(labelled) Lebensmittel beschriftet, \(failed) fehlgeschlagen."
+                ? "\(labelled) Lebensmittel und Rezepte beschriftet."
+                : "\(labelled) Lebensmittel und Rezepte beschriftet, \(failed) fehlgeschlagen."
         )
     }
 

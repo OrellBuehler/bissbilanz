@@ -1,19 +1,20 @@
 import SwiftUI
 
-/// Sequential, cancellable sweep over every local food with no labels yet,
-/// suggesting and saving labels for each in turn. Pushed from `SettingsView`'s
-/// "Food labels" section. `.task` starts the sweep as soon as the view
+/// Sequential, cancellable sweep over every local food and recipe with no labels
+/// yet, suggesting and saving labels for each in turn through the one
+/// `FoodLabeler`. Pushed from `SettingsView`'s "Food labels" section. `.task` starts the sweep as soon as the view
 /// appears and SwiftUI cancels it automatically when the view goes away
 /// (navigating back), so `runSweep` only needs to check `Task.isCancelled`
 /// between items to stop promptly.
 struct LabelUnlabeledFoodsView: View {
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodLabeler.self) private var foodLabeler
     @Environment(FoodImageLoader.self) private var foodImageLoader
 
     @State private var done = 0
     @State private var total = 0
-    @State private var currentFoodName: String?
+    @State private var currentItemName: String?
     @State private var labelledCount = 0
     @State private var failedCount = 0
     @State private var isFinished = false
@@ -44,8 +45,8 @@ struct LabelUnlabeledFoodsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L10n.foodLabelSweepProgress(done, total))
                                 .font(.subheadline)
-                            if let currentFoodName {
-                                Text(currentFoodName)
+                            if let currentItemName {
+                                Text(currentItemName)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -63,10 +64,11 @@ struct LabelUnlabeledFoodsView: View {
 
     private func runSweep() async {
         let foods = foodRepository.unlabeledLocalFoods()
-        total = foods.count
+        let recipes = recipeRepository.unlabeledLocalRecipes()
+        total = foods.count + recipes.count
         for food in foods {
             if Task.isCancelled { return }
-            currentFoodName = food.name
+            currentItemName = food.name
             do {
                 let image = await foodImageLoader.image(for: food.imageUrl)
                 let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
@@ -89,7 +91,47 @@ struct LabelUnlabeledFoodsView: View {
             }
             done += 1
         }
-        currentFoodName = nil
+        for listed in recipes {
+            if Task.isCancelled { return }
+            currentItemName = listed.name
+            do {
+                let recipe = await withIngredients(listed)
+                let image = await foodImageLoader.image(for: recipe.imageUrl)
+                let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
+                    recipeName: recipe.name,
+                    ingredientNames: recipeRepository.ingredientFoodNames(of: recipe),
+                    image: image
+                ))
+                if !suggestions.isEmpty {
+                    try await recipeRepository.addGeneratedLabels(id: recipe.id, labels: suggestions)
+                }
+                labelledCount += 1
+            } catch {
+                failedCount += 1
+                ErrorReporter.captureWarning(
+                    "Label sweep item failed",
+                    context: ["reason": ErrorReporter.reason(for: error), "sync.recipe_id": listed.id]
+                )
+            }
+            done += 1
+        }
+        currentItemName = nil
         isFinished = true
+    }
+
+    /// The list endpoint carries no ingredients, so a recipe cached from it alone
+    /// is fetched in full first; without them the labeller would only see the
+    /// name. A failed fetch is reported and the sweep goes on with what it has.
+    private func withIngredients(_ recipe: Recipe) async -> Recipe {
+        guard recipe.ingredients == nil else { return recipe }
+        do {
+            try await recipeRepository.refreshRecipe(id: recipe.id)
+        } catch {
+            ErrorReporter.captureWarning(
+                "Label sweep recipe refresh failed",
+                context: ["reason": ErrorReporter.reason(for: error), "sync.recipe_id": recipe.id]
+            )
+        }
+        return recipeRepository.recipe(id: recipe.id) ?? recipe
     }
 }
