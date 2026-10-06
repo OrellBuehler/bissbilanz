@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { readFoodPackage } from '$lib/server/food-package/archive';
+import { silentLog } from './lib/log';
 import { parseArgs, runBlv, runOff } from './index';
 import { APPLE, MILK_KJ_ONLY, buildBlvWorkbookBytes } from './adapters/blv/test-workbook';
 
@@ -22,7 +23,7 @@ const read = async (path: string) =>
 
 test('runOff writes a package the app reader accepts, keeping the image URL without images', async () => {
 	const out = join(tmp(), 'off.bissbilanz');
-	const stats = await runOff({ dumpPath: dump, outPath: out, images: false });
+	const stats = await runOff({ dumpPath: dump, outPath: out, images: false, log: silentLog });
 	expect(stats.emitted).toBe(2);
 
 	const pkg = await read(out);
@@ -52,6 +53,7 @@ test('runOff embeds rendered images and records failures without dropping the fo
 	await runOff({
 		dumpPath: dump,
 		outPath: out,
+		log: silentLog,
 		fetchImage: async (url) => {
 			fetched.push(url);
 			return { ok: true, bytes: webp };
@@ -67,6 +69,7 @@ test('runOff embeds rendered images and records failures without dropping the fo
 	await runOff({
 		dumpPath: dump,
 		outPath: failedOut,
+		log: silentLog,
 		fetchImage: async () => ({ ok: false, reason: 'not-found' })
 	});
 	const failed = await read(failedOut);
@@ -82,7 +85,7 @@ test('runBlv writes a package from a local xlsx path', async () => {
 	const xlsx = join(dir, 'blv.xlsx');
 	writeFileSync(xlsx, await buildBlvWorkbookBytes([APPLE, MILK_KJ_ONLY]));
 	const out = join(dir, 'blv.bissbilanz');
-	const stats = await runBlv({ xlsxPath: xlsx, outPath: out });
+	const stats = await runBlv({ xlsxPath: xlsx, outPath: out, log: silentLog });
 	expect(stats.emitted).toBe(2);
 	const pkg = await read(out);
 	expect(pkg.manifest.foods.length).toBe(2);
@@ -93,6 +96,16 @@ test('runBlv writes a package from a local xlsx path', async () => {
 		calories: 52,
 		labels: ['BLV', 'Früchte', 'Früchte frisch']
 	});
+});
+
+test('runOff logs a summary with totals and the output path', async () => {
+	const out = join(tmp(), 'off-log.bissbilanz');
+	const lines: string[] = [];
+	await runOff({ dumpPath: dump, outPath: out, images: false, log: (l) => void lines.push(l) });
+	const done = lines.find((l) => l.includes('done in'))!;
+	expect(done).toContain('2 foods');
+	expect(done).toContain(out);
+	expect(done).toContain('MB');
 });
 
 test('parseArgs reads limit and --no-images', () => {

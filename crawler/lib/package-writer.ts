@@ -55,6 +55,17 @@ ${info.attribution.trim()}
 `;
 }
 
+export async function readSpoolBarcodes(outPath: string): Promise<string[]> {
+	const spool = Bun.file(join(`${outPath}.parts`, 'foods.ndjson'));
+	const barcodes: string[] = [];
+	if (!(await spool.exists())) return barcodes;
+	for await (const line of splitJsonlLines(spool.stream())) {
+		const barcode = (JSON.parse(line) as { barcode?: string | null }).barcode;
+		if (barcode) barcodes.push(barcode);
+	}
+	return barcodes;
+}
+
 export class PackageWriter {
 	#outPath: string;
 	#info: PackageInfo;
@@ -76,6 +87,10 @@ export class PackageWriter {
 
 	get count(): number {
 		return this.#count;
+	}
+
+	get images(): number {
+		return this.#images;
 	}
 
 	async open(opts: { resume?: boolean } = {}): Promise<void> {

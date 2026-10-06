@@ -1,7 +1,7 @@
 import type { CrawledFood, CrawlStats } from '../../types';
 import { newStats, recordDrop } from '../../types';
 import { migrosToDataset } from './normalize-migros';
-import type { MigrosClient } from './types';
+import type { MigrosClient, MigrosScanProgress } from './types';
 
 export type MigrosCrawlOpts = {
 	limit?: number;
@@ -10,8 +10,10 @@ export type MigrosCrawlOpts = {
 	resume?: { category: string; page: number } | null;
 	sleep?: (ms: number) => Promise<void>;
 	throttleMs?: number;
+	seenBarcodes?: Iterable<string>;
 	onCheckpoint?: (cursor: { category: string; page: number }) => Promise<void> | void;
 	onProgress?: (stats: CrawlStats) => void;
+	onScan?: (cursor: { category: string; page: number }, progress: MigrosScanProgress) => void;
 };
 
 export async function* crawlMigros(
@@ -23,9 +25,16 @@ export async function* crawlMigros(
 	const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 	const throttleMs = opts.throttleMs ?? 0;
 	const seenIds = new Set<string>();
-	const seenBarcodes = new Set<string>();
+	const seenBarcodes = new Set<string>(opts.seenBarcodes);
 
-	for await (const { id, cursor } of client.listProductIds({ resume: opts.resume ?? null })) {
+	for await (const { id, cursor, progress } of client.listProductIds({
+		resume: opts.resume ?? null
+	})) {
+		if (id === undefined) {
+			if (opts.onCheckpoint) await opts.onCheckpoint(cursor);
+			if (opts.onScan && progress) opts.onScan(cursor, progress);
+			continue;
+		}
 		stats.seen++;
 		if (seenIds.has(id)) {
 			recordDrop(stats, 'dup:id');
