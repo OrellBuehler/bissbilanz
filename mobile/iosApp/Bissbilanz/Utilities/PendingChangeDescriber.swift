@@ -168,6 +168,12 @@ enum PendingChangeDescriber {
         case let .setRecipeImage(id, imageUrl):
             let photo = field(L10n.pendingDetailPhoto, photoText(imageUrl))
             return simple(.update, title: title, subject: lookup.recipeName(id), fields: [photo])
+        case let .setRecipeLabels(id, labels), let .addGeneratedRecipeLabels(id, labels):
+            let value = labels.isEmpty ? emptyDash : labels.joined(separator: ", ")
+            return simple(
+                .update, title: title, subject: lookup.recipeName(id),
+                fields: [field(L10n.pendingDetailLabels, value)]
+            )
         case let .deleteRecipe(id, force):
             return deletion(
                 title: title, subject: lookup.recipeName(id), label: L10n.pendingDetailRecipe, id: id,
@@ -231,7 +237,8 @@ enum PendingChangeDescriber {
         case "create_food", "update_food", "delete_food", "toggle_favorite", "set_food_image",
              "set_food_labels", "add_generated_food_labels": "fork.knife"
         case "create_entry", "update_entry", "delete_entry": "plus.circle"
-        case "create_recipe", "update_recipe", "delete_recipe", "set_recipe_image": "book"
+        case "create_recipe", "update_recipe", "delete_recipe", "set_recipe_image",
+             "set_recipe_labels", "add_generated_recipe_labels": "book"
         case "set_goals": "target"
         case "create_weight", "update_weight", "delete_weight": "scalemass"
         case "create_sleep", "update_sleep", "delete_sleep": "bed.double"
