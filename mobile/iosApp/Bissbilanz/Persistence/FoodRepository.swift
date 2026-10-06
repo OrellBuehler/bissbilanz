@@ -188,11 +188,15 @@ final class FoodRepository {
     /// The most-used labels already in the local catalog, most-common first —
     /// handed to `FoodLabeler` so it reuses existing vocabulary instead of
     /// inventing near-synonyms, mirroring the MCP `label_foods` prompt's
-    /// `list_labels` step.
+    /// `list_labels` step. Recipes share the vocabulary: their labels count
+    /// next to the foods', like the server's `/api/foods/labels`.
     func mostUsedLocalLabels(limit: Int = 60) -> [String] {
         let rows = (try? context.fetch(FetchDescriptor<LocalFood>())) ?? []
         var counts: [String: Int] = [:]
         for row in rows {
+            for label in row.labels { counts[label, default: 0] += 1 }
+        }
+        for row in (try? context.fetch(FetchDescriptor<LocalRecipe>())) ?? [] {
             for label in row.labels { counts[label, default: 0] += 1 }
         }
         return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }

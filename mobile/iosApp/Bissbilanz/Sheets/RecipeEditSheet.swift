@@ -4,6 +4,8 @@ struct RecipeEditSheet: View {
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(AppModeManager.self) private var appMode
+    @Environment(FoodLabeler.self) private var foodLabeler
+    @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(\.dismiss) private var dismiss
 
     let existingRecipe: Recipe?
@@ -29,6 +31,10 @@ struct RecipeEditSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showRecipePicker = false
+    @State private var labels: [String] = []
+    @State private var originalLabels: [String] = []
+    @State private var isSuggestingLabels = false
+    @State private var suggestLabelsError: String?
 
     /// `food` is nil when the server-shaped recipe's ingredient couldn't be resolved
     /// against the local food store or the API (e.g. offline with nothing cached) —
@@ -138,6 +144,17 @@ struct RecipeEditSheet: View {
                 }
 
                 stepsSection
+
+                LabelEditorSection(
+                    labels: $labels,
+                    hint: L10n.recipeLabelsHint,
+                    suggestHint: L10n.suggestRecipeLabelsHint,
+                    canSuggest: foodLabeler.isAvailable && !ingredients.isEmpty,
+                    isSuggesting: isSuggestingLabels,
+                    suggestError: suggestLabelsError
+                ) {
+                    Task { await suggestLabels() }
+                }
 
                 if let errorMessage {
                     Section {
@@ -293,6 +310,32 @@ struct RecipeEditSheet: View {
         originalImageUrl = recipe.imageUrl
         ingredients = await Self.resolvedIngredientRows(for: recipe, foodRepository: foodRepository)
         await prefillSteps(for: recipe)
+        // After the steps: that may have refreshed the detail, and a list copy
+        // from an older cache carries no labels yet.
+        labels = (recipeRepository.recipe(id: recipe.id) ?? recipe).labels ?? []
+        originalLabels = labels
+    }
+
+    /// Runs the labeller on the form's current values and merges its
+    /// suggestions into `labels` for review — nothing is saved until the
+    /// user hits Save, same as a manually typed label. The ingredients' food
+    /// names come from the rows being edited, so it works before the first
+    /// save too.
+    private func suggestLabels() async {
+        isSuggestingLabels = true
+        suggestLabelsError = nil
+        do {
+            let image = await foodImageLoader.image(for: imageUrl)
+            let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
+                recipeName: name,
+                ingredientNames: ingredients.compactMap { $0.food?.name },
+                image: image
+            ))
+            labels = LabelNormalizer.normalizeAll(labels + suggestions).sorted()
+        } catch {
+            suggestLabelsError = (error as? FoodLabelerError)?.localizedMessage ?? error.localizedDescription
+        }
+        isSuggestingLabels = false
     }
 
     /// A recipe copied from the list endpoint (or cached by an older build) has
@@ -461,9 +504,23 @@ struct RecipeEditSheet: View {
                 )
                 saved = try await recipeRepository.createRecipe(create)
             }
+            // Labels live in their own table; only an actual edit is sent,
+            // because a user write replaces whatever a labeller seeded.
+            if existingRecipe == nil ? !labels.isEmpty : labels != originalLabels {
+                saved = try await recipeRepository.setLabels(id: saved.id, labels: labels)
+                originalLabels = labels
+            }
             // The parent gets the saved recipe either way; only a clean save
             // closes the sheet.
             onSaved(saved)
+            // No-ops unless the recipe still has no labels at all, so this
+            // never overrides what was just typed above.
+            FoodAutoLabeler.labelIfNeeded(
+                saved,
+                labeler: foodLabeler,
+                recipeRepository: recipeRepository,
+                foodImageLoader: foodImageLoader
+            )
             if photoFailed {
                 errorMessage = L10n.photoSaveFailed
             } else {

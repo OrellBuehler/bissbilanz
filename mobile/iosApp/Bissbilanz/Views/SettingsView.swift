@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodLabeler.self) private var foodLabeler
     @Environment(MealEstimator.self) private var mealEstimator
 
@@ -362,7 +363,7 @@ struct SettingsView: View {
                 }
 
                 // Food labels: which model does the labelling, auto-labelling
-                // new foods, plus a sweep for whatever's still unlabelled.
+                // new foods and recipes, plus a sweep for whatever's still unlabelled.
                 // Shown whenever there's a provider worth picking at all —
                 // on-device or Private Cloud Compute support, or an account
                 // that could have an AI assistant connected — hidden entirely
@@ -412,7 +413,10 @@ struct SettingsView: View {
                                 HStack {
                                     Text(L10n.labelUnlabeledFoods)
                                     Spacer()
-                                    Text(L10n.unlabeledFoodCount(foodRepository.unlabeledLocalFoods().count))
+                                    Text(L10n.unlabeledCount(
+                                        foods: foodRepository.unlabeledLocalFoods().count,
+                                        recipes: recipeRepository.unlabeledLocalRecipes().count
+                                    ))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

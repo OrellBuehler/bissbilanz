@@ -43,7 +43,7 @@ enum LocalStore {
     /// Full union of persisted models. Computed because `Schema` is not
     /// Sendable — a stored static would not be concurrency-safe under Swift 6.
     static var schema: Schema {
-        Schema(versionedSchema: LocalSchemaV3.self)
+        Schema(versionedSchema: LocalSchemaV4.self)
     }
 
     /// Builds the container. `cloudKitEnabled` mirrors the data store to the

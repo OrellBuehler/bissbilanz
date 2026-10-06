@@ -21,10 +21,19 @@ enum LocalRemap {
     }
 
     static func replaceRecipe(id oldId: String, with recipe: Recipe, in context: ModelContext) {
-        if let row = recipeRow(id: oldId, in: context), recipe.id != oldId {
-            context.delete(row)
+        var replacement = recipe
+        if let row = recipeRow(id: oldId, in: context) {
+            // A create body carries no labels, so the drained record has none
+            // while the user's (or the labeller's) still ride a queued op:
+            // keep them on the row until that op's result refreshes it.
+            if (recipe.labels ?? []).isEmpty, !row.labels.isEmpty {
+                replacement.labels = row.labels
+            }
+            if recipe.id != oldId {
+                context.delete(row)
+            }
         }
-        upsertRecipe(recipe, in: context)
+        upsertRecipe(replacement, in: context)
         remapRecipeReferences(from: oldId, to: recipe.id, in: context)
         TempIdMap.record(from: oldId, to: recipe.id)
         context.saveReportingFailure("LocalRemap.save")

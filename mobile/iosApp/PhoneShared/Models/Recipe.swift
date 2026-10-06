@@ -27,6 +27,10 @@ struct Recipe: Codable, Identifiable, Hashable {
     // copies that have neither.
     var steps: [RecipeStep]? = nil
     var stepCount: Int? = nil
+    /// General en_US nouns for the dish ("soup", "tomato"), sorted, shared with
+    /// foods: the list and detail endpoints both send them, older servers and
+    /// caches don't. `var` with a nil default keeps the memberwise initializer.
+    var labels: [String]? = nil
 
     /// `calories`/`protein`/etc. are whole-recipe totals (matching the server and the
     /// list/detail endpoints) — divide by `totalServings` for a one-serving preview.
@@ -191,3 +195,8 @@ struct RecipesResponse: Codable {
 struct RecipeResponse: Codable {
     let recipe: Recipe
 }
+
+/// Response of `PUT /api/recipes/{id}/labels`: the labels now stored, plus any
+/// that did not fit under the per-recipe cap (never silently trimmed). Same
+/// envelope as `FoodLabelsSetResponse`.
+typealias RecipeLabelsSetResponse = FoodLabelsSetResponse

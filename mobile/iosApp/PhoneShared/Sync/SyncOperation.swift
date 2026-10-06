@@ -35,6 +35,12 @@ enum SyncOperation: Codable {
     /// nil optionals, so a removal sent on a normal update body would be
     /// dropped and the old image would stay.
     case setRecipeImage(id: String, imageUrl: String?)
+    /// Replaces the user's labels for a recipe — `setFoodLabels`' counterpart
+    /// (`PUT /api/recipes/{id}/labels`; labels never ride on a recipe body).
+    case setRecipeLabels(id: String, labels: [String])
+    /// Extends a recipe's labels with a labeller's suggestions — `source: llm,
+    /// mode: extend` server-side, like `addGeneratedFoodLabels`.
+    case addGeneratedRecipeLabels(id: String, labels: [String])
     /// See `deleteFood`'s `force`.
     case deleteRecipe(id: String, force: Bool)
     case setGoals(body: Goals)
@@ -95,6 +101,8 @@ enum SyncOperation: Codable {
         case .createRecipe: "create_recipe"
         case .updateRecipe: "update_recipe"
         case .setRecipeImage: "set_recipe_image"
+        case .setRecipeLabels: "set_recipe_labels"
+        case .addGeneratedRecipeLabels: "add_generated_recipe_labels"
         case .deleteRecipe: "delete_recipe"
         case .setGoals: "set_goals"
         case .createWeight: "create_weight"
@@ -125,7 +133,8 @@ enum SyncOperation: Codable {
         case .createFood, .updateFood, .deleteFood, .toggleFavorite, .setFoodImage, .setFoodLabels,
              .addGeneratedFoodLabels: "foods"
         case .createEntry, .updateEntry, .deleteEntry: "entries"
-        case .createRecipe, .updateRecipe, .setRecipeImage, .deleteRecipe: "recipes"
+        case .createRecipe, .updateRecipe, .setRecipeImage, .setRecipeLabels, .addGeneratedRecipeLabels,
+             .deleteRecipe: "recipes"
         case .setGoals: "goals"
         case .createWeight, .updateWeight, .deleteWeight: "weight"
         case .createSleep, .updateSleep, .deleteSleep: "sleep"
@@ -150,6 +159,7 @@ enum SyncOperation: Codable {
              let .setFoodImage(id, _), let .setFoodLabels(id, _), let .addGeneratedFoodLabels(id, _),
              let .updateEntry(id, _), let .deleteEntry(id),
              let .updateRecipe(id, _), let .setRecipeImage(id, _), let .deleteRecipe(id, _),
+             let .setRecipeLabels(id, _), let .addGeneratedRecipeLabels(id, _),
              let .updateWeight(id, _), let .deleteWeight(id),
              let .updateSleep(id, _), let .deleteSleep(id),
              let .updateSupplement(id, _), let .deleteSupplement(id),
@@ -232,6 +242,12 @@ enum SyncOperation: Codable {
 
         case let .setRecipeImage(id, imageUrl) where id == oldId:
             return .setRecipeImage(id: newId, imageUrl: imageUrl)
+
+        case let .setRecipeLabels(id, labels) where id == oldId:
+            return .setRecipeLabels(id: newId, labels: labels)
+
+        case let .addGeneratedRecipeLabels(id, labels) where id == oldId:
+            return .addGeneratedRecipeLabels(id: newId, labels: labels)
 
         case let .deleteRecipe(id, force) where id == oldId:
             return .deleteRecipe(id: newId, force: force)
@@ -343,6 +359,8 @@ enum SyncOperation: Codable {
         case .createRecipe: "create recipe"
         case let .updateRecipe(id, _): "update recipe \(id)"
         case let .setRecipeImage(id, _): "set recipe image \(id)"
+        case let .setRecipeLabels(id, _): "set recipe labels \(id)"
+        case let .addGeneratedRecipeLabels(id, _): "add generated recipe labels \(id)"
         case let .deleteRecipe(id, _): "delete recipe \(id)"
         case .setGoals: "set goals"
         case .createWeight: "create weight entry"

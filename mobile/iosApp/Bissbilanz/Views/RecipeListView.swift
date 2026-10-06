@@ -36,9 +36,7 @@ struct RecipeListView: View {
     @State private var usageRecipe: Recipe?
 
     private var filteredRecipes: [Recipe] {
-        let matching = searchQuery.isEmpty
-            ? recipes
-            : recipes.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+        let matching = recipes.filter { RecipeSearch.matches($0, query: searchQuery) }
         switch sortBy {
         case .name:
             return matching.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

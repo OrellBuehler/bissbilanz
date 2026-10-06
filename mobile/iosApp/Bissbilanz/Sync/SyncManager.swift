@@ -692,6 +692,27 @@ final class SyncManager {
                 clientEditedAt: clientEditedAt
             )
 
+        case let .setRecipeLabels(id, labels):
+            _ = try await api.setRecipeLabels(
+                id: id,
+                labels: labels,
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: clientEditedAt
+            )
+
+        case let .addGeneratedRecipeLabels(id, labels):
+            // A machine write, not the device's own edit: no clientEditedAt,
+            // so it never wins last-write-wins over an edit the user actually
+            // made on another device (same as `addGeneratedFoodLabels`).
+            _ = try await api.setRecipeLabels(
+                id: id,
+                labels: labels,
+                source: "llm",
+                mode: "extend",
+                idempotencyKey: idempotencyKey,
+                clientEditedAt: nil
+            )
+
         case let .deleteRecipe(id, force):
             try await api.deleteRecipe(
                 id: id,
@@ -1243,7 +1264,8 @@ final class SyncManager {
             if let ingredients = body.ingredients {
                 ids["sync.ingredient_food_ids"] = ingredients.map(\.foodId)
             }
-        case let .setRecipeImage(id, _), let .deleteRecipe(id, _):
+        case let .setRecipeImage(id, _), let .deleteRecipe(id, _),
+             let .setRecipeLabels(id, _), let .addGeneratedRecipeLabels(id, _):
             ids["sync.recipe_id"] = id
 
         case .setGoals:

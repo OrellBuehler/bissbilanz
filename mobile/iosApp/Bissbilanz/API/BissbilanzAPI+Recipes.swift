@@ -42,6 +42,25 @@ extension BissbilanzAPI {
         return response.recipe
     }
 
+    /// Sets a recipe's labels, shared with foods. Same source/mode semantics
+    /// as `setFoodLabels`: with both nil this is a user write that replaces
+    /// everything; `source: "llm", mode: "extend"` only adds. A 409 means a
+    /// newer edit already won last-write-wins.
+    func setRecipeLabels(
+        id: String,
+        labels: [String],
+        source: String? = nil,
+        mode: String? = nil,
+        idempotencyKey: String? = nil,
+        clientEditedAt: String? = nil
+    ) async throws -> RecipeLabelsSetResponse {
+        try await put(
+            "/api/recipes/\(id)/labels",
+            body: FoodLabelsSetBody(labels: labels, source: source, mode: mode),
+            idempotencyKey: idempotencyKey, clientEditedAt: clientEditedAt
+        )
+    }
+
     func deleteRecipe(
         id: String,
         force: Bool = false,

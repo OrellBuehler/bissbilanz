@@ -64,7 +64,6 @@ struct FoodEditForm: View {
     @State private var originalImageUrl: String?
     @State private var labels: [String] = []
     @State private var originalLabels: [String] = []
-    @State private var labelInput = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     /// Collapsed by default — additional nutrients are edited far less often
@@ -209,58 +208,15 @@ struct FoodEditForm: View {
             // Labels get their own section, separate from the nutrient
             // fields above — folding both into one "Advanced" disclosure
             // read as one undifferentiated pile of fields.
-            Section {
-                ForEach(labels, id: \.self) { label in
-                    LabeledContent(label) {
-                        Button(role: .destructive) {
-                            labels.removeAll { $0 == label }
-                        } label: {
-                            Image(systemName: "minus.circle")
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("\(L10n.removeLabel): \(label)")
-                    }
-                }
-                HStack {
-                    TextField(L10n.addLabel, text: $labelInput)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit(addLabel)
-                    Button(action: addLabel) {
-                        Image(systemName: "plus.circle.fill")
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(labelInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .accessibilityLabel(L10n.addLabel)
-                }
-
-                if foodLabeler.isAvailable {
-                    Button {
-                        Task { await suggestLabels() }
-                    } label: {
-                        if isSuggestingLabels {
-                            HStack {
-                                ProgressView()
-                                Text(L10n.suggestingLabels)
-                            }
-                        } else {
-                            Label(L10n.suggestLabels, systemImage: "sparkles")
-                        }
-                    }
-                    .disabled(isSuggestingLabels)
-                    Text(L10n.suggestLabelsHint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                if let suggestLabelsError {
-                    Text(suggestLabelsError)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                }
-            } header: {
-                Text(L10n.labels)
-            } footer: {
-                Text(L10n.labelsHint)
+            LabelEditorSection(
+                labels: $labels,
+                hint: L10n.labelsHint,
+                suggestHint: L10n.suggestLabelsHint,
+                canSuggest: foodLabeler.isAvailable,
+                isSuggesting: isSuggestingLabels,
+                suggestError: suggestLabelsError
+            ) {
+                Task { await suggestLabels() }
             }
 
             Section {
@@ -424,16 +380,6 @@ struct FoodEditForm: View {
     /// Renders a parsed value without a trailing ".0".
     private static func numberString(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(value)
-    }
-
-    /// Normalized on add so what the user sees is exactly what the server stores.
-    private func addLabel() {
-        defer { labelInput = "" }
-        guard let value = LabelNormalizer.normalize(labelInput),
-              !labels.contains(value),
-              labels.count < LabelNormalizer.maxLabelsPerFood
-        else { return }
-        labels.append(value)
     }
 
     private func save() async {

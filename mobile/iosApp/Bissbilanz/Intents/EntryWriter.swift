@@ -83,11 +83,11 @@ final class EntryWriter {
     // MARK: - Recipe reads
 
     /// Recipes are a local-first, modest set (no server search endpoint), so a
-    /// name/substring filter over the cached list matches the in-app behaviour.
+    /// name, then label, filter over the cached list matches the in-app behaviour.
     func searchRecipes(_ query: String) -> [Recipe] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return suggestedRecipes() }
-        return recipeRepository.recipes().filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
+        return RecipeSearch.matching(recipeRepository.recipes(), query: trimmed)
     }
 
     func recipe(id: String) -> Recipe? {
