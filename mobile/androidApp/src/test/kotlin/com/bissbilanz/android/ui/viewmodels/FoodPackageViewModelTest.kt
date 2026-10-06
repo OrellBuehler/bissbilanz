@@ -390,7 +390,7 @@ class FoodPackageViewModelTest {
     @Test
     fun startingABulkImportHandsTheFileToTheBackgroundJobAndLetsGoOfIt() =
         runBlocking<Unit> {
-            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 20_000, 0)
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 48_000, 0)
             val vm = viewModel(AppMode.SYNCED)
             vm.analyzed("huge.bissbilanz")
 
