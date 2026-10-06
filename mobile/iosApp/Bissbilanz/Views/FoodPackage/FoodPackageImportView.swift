@@ -355,6 +355,12 @@ struct FoodPackageImportView: View {
                 if case .synced = destination { await uploads.noteImported(count: summary.created) }
                 WidgetSnapshotWriter.scheduleUpdate(context: context)
             },
+            stopped: {
+                if case .synced = destination {
+                    await uploads.refreshCounts()
+                    uploads.start()
+                }
+            },
             cleanup: {
                 if scoped { bulkURL.stopAccessingSecurityScopedResource() }
             }
