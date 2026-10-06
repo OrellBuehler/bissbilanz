@@ -81,6 +81,16 @@ CREATE TABLE IF NOT EXISTS CachedRecipe (
     jsonData TEXT NOT NULL
 );
 
+-- One row per (recipe, label), mirrored from RecipeDetail.labels on every cache write,
+-- like CachedFoodLabel does for foods.
+CREATE TABLE IF NOT EXISTS CachedRecipeLabel (
+    recipeId TEXT NOT NULL,
+    label TEXT NOT NULL,
+    PRIMARY KEY (recipeId, label)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cached_recipe_label_label ON CachedRecipeLabel(label);
+
 CREATE TABLE IF NOT EXISTS CachedSupplement (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -332,6 +342,27 @@ DELETE FROM CachedRecipe WHERE id = ?;
 deleteAllRecipes:
 DELETE FROM CachedRecipe;
 
+-- Same tiers as the server: name, then English label.
+searchRecipes:
+SELECT * FROM CachedRecipe
+WHERE name LIKE :pattern
+   OR EXISTS (SELECT 1 FROM CachedRecipeLabel l WHERE l.recipeId = CachedRecipe.id AND l.label = :label)
+ORDER BY
+    CASE WHEN name LIKE :pattern THEN 0 ELSE 1 END,
+    name;
+
+insertRecipeLabel:
+INSERT OR IGNORE INTO CachedRecipeLabel(recipeId, label) VALUES (?, ?);
+
+deleteRecipeLabels:
+DELETE FROM CachedRecipeLabel WHERE recipeId = ?;
+
+deleteAllRecipeLabels:
+DELETE FROM CachedRecipeLabel;
+
+countRecipeLabels:
+SELECT COUNT(*) FROM CachedRecipeLabel;
+
 -- Supplements
 selectAllSupplements:
 SELECT * FROM CachedSupplement ORDER BY sortOrder;
@@ -473,6 +504,9 @@ DELETE FROM CachedGoals;
 
 clearAllRecipes:
 DELETE FROM CachedRecipe;
+
+clearAllRecipeLabels:
+DELETE FROM CachedRecipeLabel;
 
 clearAllSupplements:
 DELETE FROM CachedSupplement;

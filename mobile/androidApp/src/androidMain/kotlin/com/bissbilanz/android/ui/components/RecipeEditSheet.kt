@@ -21,11 +21,13 @@ import com.bissbilanz.android.R
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.util.MAX_LABELS_PER_FOOD
 import com.bissbilanz.util.RecipeField
 import com.bissbilanz.util.RecipeStepDraft
 import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.isSameUnitDimension
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toStepInputs
@@ -66,6 +68,9 @@ fun RecipeEditSheet(
     var originalImageUrl by remember { mutableStateOf<String?>(null) }
     var cookedWeightText by remember { mutableStateOf("") }
     var loadedCalories by remember { mutableStateOf<Double?>(null) }
+    var labels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var originalLabels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var labelInput by remember { mutableStateOf("") }
 
     var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
     var steps by remember { mutableStateOf(listOf<RecipeStepDraft>()) }
@@ -109,6 +114,8 @@ fun RecipeEditSheet(
                 originalImageUrl = recipe.imageUrl
                 cookedWeightText = recipe.cookedWeight?.toDisplayString() ?: ""
                 loadedCalories = recipe.calories
+                labels = recipe.labels ?: emptyList()
+                originalLabels = labels
                 stepsAvailable = recipe.steps != null
                 steps =
                     recipe.steps.orEmpty().sortedBy { it.sortOrder }.map {
@@ -244,6 +251,20 @@ fun RecipeEditSheet(
                             } ?: stringResource(R.string.recipe_edit_cooked_weight_hint),
                         )
                     },
+                )
+                FoodLabelsInput(
+                    labels = labels,
+                    input = labelInput,
+                    onInputChange = { labelInput = it },
+                    onAdd = {
+                        val value = normalizeLabel(labelInput)
+                        if (value != null && value !in labels && labels.size < MAX_LABELS_PER_FOOD) {
+                            labels = labels + value
+                        }
+                        labelInput = ""
+                    },
+                    onRemove = { label -> labels = labels - label },
+                    hint = stringResource(R.string.recipe_edit_labels_hint),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -448,6 +469,10 @@ fun RecipeEditSheet(
                                                 if (cookedWeightVal == null) setOf(RecipeField.COOKED_WEIGHT) else emptySet(),
                                         )
                                         bodySaved = true
+                                        // Labels live in their own table; only an actual edit is
+                                        // sent, because a user write replaces whatever a labeller
+                                        // seeded.
+                                        if (labels != originalLabels) recipeRepo.setLabels(id, labels)
                                         // Separate from the body: `imageUrl` defaults to
                                         // null on RecipeUpdate and the client omits
                                         // defaults, so a removal sent that way would be
@@ -470,19 +495,21 @@ fun RecipeEditSheet(
                                     } else {
                                         // No id yet, so the already-uploaded URL rides
                                         // along on the create body.
-                                        recipeRepo.createRecipe(
-                                            RecipeCreate(
-                                                name = nameVal,
-                                                totalServings =
-                                                    (totalServings.toLocalizedDoubleOrNull() ?: 1.0)
-                                                        .coerceAtLeast(1.0),
-                                                ingredients = ingredientInputs,
-                                                isFavorite = isFavorite,
-                                                imageUrl = imageUrl,
-                                                cookedWeight = cookedWeightVal,
-                                                steps = steps.toStepInputs(),
-                                            ),
-                                        )
+                                        val created =
+                                            recipeRepo.createRecipe(
+                                                RecipeCreate(
+                                                    name = nameVal,
+                                                    totalServings =
+                                                        (totalServings.toLocalizedDoubleOrNull() ?: 1.0)
+                                                            .coerceAtLeast(1.0),
+                                                    ingredients = ingredientInputs,
+                                                    isFavorite = isFavorite,
+                                                    imageUrl = imageUrl,
+                                                    cookedWeight = cookedWeightVal,
+                                                    steps = steps.toStepInputs(),
+                                                ),
+                                            )
+                                        if (labels.isNotEmpty()) recipeRepo.setLabels(created.id, labels)
                                     }
                                     sheetState.hide()
                                     onSaved()

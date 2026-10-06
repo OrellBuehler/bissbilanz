@@ -2,6 +2,8 @@ package com.bissbilanz.api
 
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeLabelsSet
+import com.bissbilanz.api.generated.model.RecipeLabelsSetResponse
 import com.bissbilanz.api.generated.model.RecipeResponse
 import com.bissbilanz.api.generated.model.RecipeSummary
 import com.bissbilanz.api.generated.model.RecipeUpdate
@@ -24,6 +26,22 @@ interface RecipesApi : ApiTransport {
     suspend fun getRecipe(id: String): RecipeDetail {
         val response: RecipeResponse = get("/api/recipes/$id")
         return response.recipe
+    }
+
+    /**
+     * Replaces the user's labels for a recipe. Source defaults to `user` server-side,
+     * which is what makes the write authoritative over anything a labeller seeded.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun setRecipeLabels(
+        id: String,
+        labels: List<String>,
+        idempotencyKey: String? = null,
+        clientEditedAt: String? = null,
+    ): RecipeLabelsSetResponse {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val editedAt = clientEditedAt ?: Clock.System.now().toString()
+        return put("/api/recipes/$id/labels", RecipeLabelsSet(labels = labels), key, editedAt)
     }
 
     @OptIn(ExperimentalUuidApi::class)

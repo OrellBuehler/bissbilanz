@@ -278,6 +278,8 @@ class LocalDataMigrator(
             if (row.id.isTempId()) continue
             val newId = newTempId()
             val recipe = json.decodeOrNull<RecipeDetail>(row.jsonData)?.copy(id = newId)
+            queries.deleteRecipeLabels(row.id)
+            recipe?.labels?.forEach { queries.insertRecipeLabel(newId, it) }
             queries.deleteRecipe(row.id)
             queries.insertRecipe(
                 id = newId,
@@ -634,6 +636,7 @@ class LocalDataMigrator(
                 )
             val server = api.createRecipe(create, uploadKey(row.id)).serverTotalsToPerServing()
             queries.transaction {
+                queries.deleteRecipeLabels(row.id)
                 queries.deleteRecipe(row.id)
                 queries.insertRecipe(
                     id = server.id,

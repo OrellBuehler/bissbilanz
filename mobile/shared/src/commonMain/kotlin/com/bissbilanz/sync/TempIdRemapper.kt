@@ -58,6 +58,10 @@ internal fun remapTempIds(
             op.copy(id = remap(op.id))
         }
 
+        is SyncOperation.SetRecipeLabels -> {
+            op.copy(id = remap(op.id))
+        }
+
         is SyncOperation.DeleteRecipe -> {
             op.copy(id = remap(op.id))
         }
