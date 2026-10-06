@@ -94,7 +94,7 @@ enum FoodPackageReader {
     }
 
     /// The manifest at the root, or inside one top-level folder (re-zipped by a file manager).
-    private static func manifestPrefix(_ name: String) -> String? {
+    static func manifestPrefix(_ name: String) -> String? {
         if name == FoodPackageFormat.manifestName { return "" }
         let suffix = "/" + FoodPackageFormat.manifestName
         guard name.hasSuffix(suffix) else { return nil }

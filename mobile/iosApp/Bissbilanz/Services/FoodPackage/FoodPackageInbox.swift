@@ -55,7 +55,8 @@ final class FoodPackageInbox {
 
     /// Copies `url` (security-scoped when it comes from another app's container) to
     /// `<root>/food-package-import/<uuid>/<file name>`. Refuses files over the
-    /// package size limit before copying them.
+    /// bulk import's size limit before copying them (the import screen decides which flow
+    /// a file big enough for the bulk one takes).
     nonisolated static func stage(
         _ url: URL,
         root: URL = FileManager.default.temporaryDirectory
@@ -64,7 +65,7 @@ final class FoodPackageInbox {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
 
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= FoodPackageFormat.maxPackageBytes else { throw FoodPackageError.tooLarge }
+        guard size <= FoodPackageFormat.bulkMaxBytes else { throw FoodPackageError.tooLarge }
 
         let folder = root
             .appendingPathComponent(importFolderName, isDirectory: true)

@@ -1,0 +1,10 @@
+{
+	"results": [
+		{
+			"id": "sample-id",
+			"imageUrl": "sample-imageUrl",
+			"message": "sample-message",
+			"status": "sample-status"
+		}
+	]
+}

@@ -163,7 +163,10 @@ final class AccountDowngrader {
     /// several passes — but an operation that never uploads must not spin here
     /// forever, hence "stop as soon as a pass makes no progress".
     private func drainPendingQueue() async throws {
-        if syncManager.failedCount > 0 {
+        // Imported foods the bulk upload has not delivered exist only on this device, and the
+        // download below replaces the store: wait for the upload, or retry the parked ones.
+        let bulkJobs = try context.fetchCount(FetchDescriptor<BulkUploadJob>())
+        if syncManager.failedCount > 0 || bulkJobs > 0 {
             throw DowngradeError.pendingChanges
         }
         var pending = syncManager.pendingCount

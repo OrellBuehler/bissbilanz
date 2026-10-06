@@ -284,7 +284,8 @@ final class FoodRepository {
             upsert(food)
             save()
         } catch let error as APIError where Self.isMissing(error) {
-            if !syncManager.pendingAffectedIds(table: "foods").contains(id) {
+            // An imported food still waiting for its bulk upload is not on the server yet.
+            if !syncManager.pendingAffectedIds(table: "foods").contains(id), try !hasBulkUploadJob(foodId: id) {
                 deleteRow(id: id)
                 save()
             }
@@ -430,11 +431,13 @@ final class FoodRepository {
     /// case-insensitively: the server's are lowercase UUIDs. Only rows that
     /// were already local before the request went out are candidates (one
     /// created or drained while it was in flight is not in the response yet),
-    /// and rows with a queued write, or a `temp_` id awaiting its create, stay.
+    /// and rows with a queued write, or a `temp_` id awaiting its create, stay — as do
+    /// imported foods whose bulk upload is not done, which the server has never heard of.
     private func pruneMissing() async throws {
         let before = localFoodIds()
         let serverIds = Set(try await api.getFoodIds().map { $0.lowercased() })
-        let pendingIds = Set(syncManager.pendingAffectedIds(table: "foods").map { $0.lowercased() })
+        var pendingIds = Set(syncManager.pendingAffectedIds(table: "foods").map { $0.lowercased() })
+        pendingIds.formUnion(try bulkUploadFoodIds())
         let orphans = before.filter { id in
             let folded = id.lowercased()
             return !LocalStore.isTempId(id) && !serverIds.contains(folded) && !pendingIds.contains(folded)
@@ -449,6 +452,18 @@ final class FoodRepository {
         }
         save()
         defaults.set(Date().timeIntervalSince1970, forKey: FoodMirrorState.prunedAtKey)
+    }
+
+    /// Foods an import handed to the bulk upload and the server has not confirmed (pending or
+    /// parked), lowercased. A read that fails throws: guessing "none" would let a prune delete them.
+    private func bulkUploadFoodIds() throws -> Set<String> {
+        var descriptor = FetchDescriptor<BulkUploadJob>()
+        descriptor.propertiesToFetch = [\.foodId]
+        return Set(try context.fetch(descriptor).map { $0.foodId.lowercased() })
+    }
+
+    private func hasBulkUploadJob(foodId: String) throws -> Bool {
+        try context.fetchCount(FetchDescriptor<BulkUploadJob>(predicate: #Predicate { $0.foodId == foodId })) > 0
     }
 
     private func localFoodIds() -> [String] {

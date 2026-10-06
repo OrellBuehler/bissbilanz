@@ -9,8 +9,9 @@ struct LocalSchemaTests {
     func versionedSchemaCoversAllModels() {
         #expect(LocalSchemaV1.models.count == LocalStore.dataModels.count + 1)
         #expect(LocalSchemaV2.models.count == LocalStore.dataModels.count + 1)
-        #expect(LocalMigrationPlan.schemas.count == 2)
-        #expect(LocalMigrationPlan.stages.count == 1)
+        #expect(LocalSchemaV3.models.count == LocalStore.dataModels.count + 2)
+        #expect(LocalMigrationPlan.schemas.count == 3)
+        #expect(LocalMigrationPlan.stages.count == 2)
     }
 
     @Test("A store written by v1.52.0 migrates to the current schema with its rows intact")
@@ -43,5 +44,6 @@ struct LocalSchemaTests {
         let queue = try container.mainContext.fetch(FetchDescriptor<PendingSyncOperation>())
         #expect(queue.count == 1)
         #expect(queue.first?.failedAt == nil)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<BulkUploadJob>()) == 0)
     }
 }

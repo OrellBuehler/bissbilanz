@@ -318,11 +318,11 @@ final class LocalFoodPackageService {
 
     // MARK: - Preview
 
-    private static let allowedImageHosts: Set<String> = ["images.openfoodfacts.org", "images.openfoodfacts.net"]
+    private nonisolated static let allowedImageHosts: Set<String> = ["images.openfoodfacts.org", "images.openfoodfacts.net"]
 
     /// An absolute image URL a package may point at: https on an Open Food Facts
     /// host. Anything else — our own paths, `file://`, other hosts — is dropped.
-    static func publicImageUrl(_ url: String?) -> String? {
+    nonisolated static func publicImageUrl(_ url: String?) -> String? {
         guard let url, !url.isEmpty, !url.hasPrefix("/"),
               let parsed = URL(string: url), parsed.scheme == "https",
               let host = parsed.host?.lowercased(), allowedImageHosts.contains(host)
@@ -674,7 +674,7 @@ final class LocalFoodPackageService {
 
     // MARK: - Row building
 
-    private static func foodValues(_ food: PackageFood) -> [String: Any] {
+    nonisolated static func foodValues(_ food: PackageFood) -> [String: Any] {
         var values: [String: Any] = [
             "name": food.name,
             "servingSize": food.servingSize,
@@ -697,7 +697,7 @@ final class LocalFoodPackageService {
         return values
     }
 
-    private static func makeFood(
+    nonisolated static func makeFood(
         from food: PackageFood, id: String, barcode: String?, imageUrl: String?, stamp: String
     ) throws -> Food {
         var values = foodValues(food)
