@@ -37,6 +37,7 @@ import type {
 	deleteRecipe,
 	listRecipes,
 	getRecipe,
+	listRecipeIngredientNames,
 	expandIncludedRecipes
 } from '$lib/server/recipes';
 import type {
@@ -114,6 +115,7 @@ import type {
 	dismissAiTaskByAgent
 } from '$lib/server/ai-tasks';
 import type { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
+import type { setRecipeLabels, setRecipeLabelsBatch } from '$lib/server/recipe-labels';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import * as Sentry from '@sentry/sveltekit';
 import { ApiError, McpUserError, isDatabaseError, isZodError } from '$lib/server/errors';
@@ -139,6 +141,9 @@ export type HandlerDeps = {
 	setFoodLabels: typeof setFoodLabels;
 	setFoodLabelsBatch: typeof setFoodLabelsBatch;
 	listLabelStats: typeof listLabelStats;
+	setRecipeLabels: typeof setRecipeLabels;
+	setRecipeLabelsBatch: typeof setRecipeLabelsBatch;
+	listRecipeIngredientNames: typeof listRecipeIngredientNames;
 	// Recipes
 	createRecipe: typeof createRecipe;
 	updateRecipe: typeof updateRecipe;
@@ -637,9 +642,9 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
-	const handleListRecipes = async (userId: string) => {
+	const handleListRecipes = async (userId: string, args: { query?: string } = {}) => {
 		try {
-			const { items: recipes } = await d.listRecipes(userId);
+			const { items: recipes } = await d.listRecipes(userId, { query: args.query });
 			return { recipes };
 		} catch (e) {
 			wrapError('list recipes', e);
@@ -1469,6 +1474,7 @@ export function createHandlers(d: HandlerDeps) {
 					name: trim(recipe.name),
 					totalServings: recipe.totalServings,
 					isFavorite: recipe.isFavorite,
+					labels: recipe.labels,
 					perServing: {
 						calories: recipe.calories / (recipe.totalServings || 1),
 						protein: recipe.protein / (recipe.totalServings || 1),
@@ -1917,6 +1923,69 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	// A recipe is labelled from its name and what goes into it.
+	const handleListUnlabeledRecipes = async (
+		userId: string,
+		args: { minLabels?: number; limit?: number; offset?: number }
+	) => {
+		try {
+			const { items, total } = await d.listRecipes(userId, {
+				minLabels: args.minLabels ?? 1,
+				limit: args.limit ?? 50,
+				offset: args.offset
+			});
+			const ingredients = await d.listRecipeIngredientNames(
+				userId,
+				items.map((recipe) => recipe.id)
+			);
+			return {
+				total,
+				recipes: items.map((recipe) => ({
+					id: recipe.id,
+					name: recipe.name,
+					ingredients: ingredients.get(recipe.id) ?? [],
+					imageUrl: recipe.imageUrl,
+					labels: recipe.labels
+				}))
+			};
+		} catch (e) {
+			wrapError('list unlabeled recipes', e);
+		}
+	};
+
+	const handleSetRecipeLabels = async (
+		userId: string,
+		args: { recipeId: string; labels: string[] }
+	) => {
+		try {
+			// Source is forced server-side: an MCP client cannot write as 'user'.
+			const result = await d.setRecipeLabels(userId, args.recipeId, args.labels, 'llm');
+			if (result.status !== 'ok') return { error: 'Recipe not found' };
+			return {
+				success: true,
+				recipeId: args.recipeId,
+				labels: result.labels,
+				dropped: result.dropped
+			};
+		} catch (e) {
+			wrapError('set recipe labels', e);
+		}
+	};
+
+	const handleSetRecipeLabelsBatch = async (
+		userId: string,
+		args: { items: Array<{ recipeId: string; labels: string[] }>; mode?: 'replace' | 'extend' }
+	) => {
+		try {
+			const results = await d.setRecipeLabelsBatch(userId, args.items, 'llm', {
+				mode: args.mode ?? 'extend'
+			});
+			return { results, labeled: results.filter((r) => r.ok).length };
+		} catch (e) {
+			wrapError('set recipe labels batch', e);
+		}
+	};
+
 	const handleListLabels = async (userId: string) => {
 		try {
 			const labels = await d.listLabelStats(userId);
@@ -1993,6 +2062,9 @@ export function createHandlers(d: HandlerDeps) {
 		handleListLabels,
 		handleSetFoodLabels,
 		handleSetFoodLabelsBatch,
+		handleListUnlabeledRecipes,
+		handleSetRecipeLabels,
+		handleSetRecipeLabelsBatch,
 		handleListAiTasks,
 		handleGetAiTask,
 		handleCompleteAiTask,

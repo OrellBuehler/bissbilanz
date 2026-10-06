@@ -22,7 +22,11 @@ const recipeSummarySchema = z
 		fiber: z.number(),
 		// Number of cooking steps, for a "has instructions" badge. Always sent by
 		// the server; optional so cached copies from older builds still decode.
-		stepCount: z.number().int().optional()
+		stepCount: z.number().int().optional(),
+		// General en_US nouns for what the recipe is (sorted, sources collapsed),
+		// flattened from recipe_labels like a food's `labels`. Optional so a
+		// response from a server that predates recipe labels still decodes.
+		labels: z.array(z.string()).optional()
 	})
 	.meta({ id: 'RecipeSummary' });
 
@@ -62,6 +66,7 @@ const recipeDetailSchema = z
 		fiber: z.number(),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional(),
+		labels: z.array(z.string()).optional(),
 		ingredients: z.array(recipeIngredientResponseSchema),
 		// Ordered cooking steps (possibly empty). Always sent by the server; optional
 		// so recipe copies cached by older builds still decode.

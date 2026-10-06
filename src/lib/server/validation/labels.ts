@@ -48,5 +48,30 @@ export const foodLabelsBatchSchema = z
 	})
 	.meta({ id: 'FoodLabelsBatch' });
 
-/** Query filter for `GET /api/foods`: foods with fewer than this many labels. */
+export const recipeLabelsSetSchema = z
+	.object({
+		labels: labelsArraySchema,
+		source: labelSourceSchema.optional(),
+		confidence: confidenceSchema,
+		mode: labelWriteModeSchema.optional()
+	})
+	.meta({ id: 'RecipeLabelsSet' });
+
+export const recipeLabelsBatchItemSchema = z
+	.object({
+		recipeId: z.string().uuid(),
+		labels: labelsArraySchema
+	})
+	.meta({ id: 'RecipeLabelsBatchItem' });
+
+export const recipeLabelsBatchSchema = z
+	.object({
+		source: labelSourceSchema.optional(),
+		confidence: confidenceSchema,
+		mode: labelWriteModeSchema.optional(),
+		items: z.array(recipeLabelsBatchItemSchema).min(1).max(MAX_BATCH_ITEMS)
+	})
+	.meta({ id: 'RecipeLabelsBatch' });
+
+/** Query filter for `GET /api/foods` and `GET /api/recipes`: foods with fewer than this many labels. */
 export const minLabelsSchema = z.coerce.number().int().min(1).max(MAX_LABELS_PER_FOOD);

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createRecipe, getRecipe, listRecipes } from '$lib/server/recipes';
 import { paginationSchema } from '$lib/server/validation';
+import { minLabelsSchema } from '$lib/server/validation/labels';
 import {
 	handleApiError,
 	requireAuth,
@@ -26,7 +27,21 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const { offset } = paginationResult.data;
 		const limit = url.searchParams.has('limit') ? paginationResult.data.limit : undefined;
-		const { items: recipes, total } = await listRecipes(userId, { limit, offset });
+		const query = url.searchParams.get('q') ?? undefined;
+		let minLabels: number | undefined;
+		if (url.searchParams.has('minLabels')) {
+			const parsed = minLabelsSchema.safeParse(url.searchParams.get('minLabels'));
+			if (!parsed.success) return validationError(parsed.error);
+			minLabels = parsed.data;
+		} else if (url.searchParams.get('unlabeled') === 'true') {
+			minLabels = 1;
+		}
+		const { items: recipes, total } = await listRecipes(userId, {
+			limit,
+			offset,
+			query,
+			minLabels
+		});
 		return json({ recipes, total });
 	} catch (error) {
 		return handleApiError(error);

@@ -302,7 +302,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description The user's label vocabulary with the number of foods carrying each label, most common first. */
+		/** @description The user's label vocabulary, shared by foods and recipes, most common first. `count` is the number of foods plus recipes carrying the label, split into `foodCount` and `recipeCount`. With `kind=supplement` only supplement foods are counted (recipes are not); with `kind=food` regular foods and recipes are. */
 		get: operations['listFoodLabelStats'];
 		put?: never;
 		/** @description Batch-write labels for up to 100 foods. `mode=replace` (default) swaps out the rows written by `source`; `mode=extend` only adds. Either way a machine labeller never deletes a user label, and the 20-per-food cap is hard: labels that do not fit are reported per item as `dropped`. Results are per-item, so one unknown id does not fail the sweep. */
@@ -444,7 +444,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description List recipes. */
+		/** @description List recipes. A `q` query matches the name, then the English labels (so "soup" finds "Gerstensuppe" once labelled). `minLabels=n` returns only recipes carrying fewer than n labels (1 = unlabelled). Every recipe carries its `labels`. */
 		get: operations['listRecipes'];
 		put?: never;
 		/** @description Create a new recipe. Optional `steps` are ordered cooking instructions ({ text, imageUrl? }, up to 50). */
@@ -472,6 +472,41 @@ export interface paths {
 		head?: never;
 		/** @description Update a recipe. `ingredients` and `steps` each replace the whole list when present (an empty `steps` list clears them) and leave it unchanged when omitted. */
 		patch: operations['updateRecipe'];
+		trace?: never;
+	};
+	'/api/recipes/labels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Batch-write labels for up to 100 recipes, with the same rules as the food batch: `mode=replace` (default) swaps out the rows written by `source`, `mode=extend` only adds, the 20-per-recipe cap is hard (overflow is reported per item as `dropped`) and results are per item so one unknown id does not fail the sweep. The label vocabulary is shared with foods (GET /api/foods/labels). */
+		post: operations['setRecipeLabelsBatch'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/recipes/{id}/labels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List a recipe's labels with their source and confidence. */
+		get: operations['getRecipeLabels'];
+		/** @description Replace (or with `mode=extend`, add to) a recipe's labels for one source (default `user`), exactly like a food's. Labels are normalized server-side and must be general en_US nouns describing what the dish physically is. A `user` write moves the recipe's last-write-wins clock: send `X-Client-Edited-At` like any other offline edit, and a 409 means a newer edit already landed. */
+		put: operations['setRecipeLabels'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
 		trace?: never;
 	};
 	'/api/recipes/{id}/usage': {
@@ -1804,6 +1839,27 @@ export interface components {
 			cookedWeight?: number | null;
 			steps?: components['schemas']['RecipeStepInput'][];
 		};
+		RecipeLabelsBatch: {
+			/** @enum {string} */
+			source?: 'user' | 'llm' | 'external' | 'catalog';
+			confidence?: number | null;
+			/** @enum {string} */
+			mode?: 'replace' | 'extend';
+			items: components['schemas']['RecipeLabelsBatchItem'][];
+		};
+		RecipeLabelsBatchItem: {
+			/** Format: uuid */
+			recipeId: string;
+			labels: string[];
+		};
+		RecipeLabelsSet: {
+			labels: string[];
+			/** @enum {string} */
+			source?: 'user' | 'llm' | 'external' | 'catalog';
+			confidence?: number | null;
+			/** @enum {string} */
+			mode?: 'replace' | 'extend';
+		};
 		SupplementIngredientInput: {
 			/** Format: uuid */
 			foodId?: string;
@@ -2421,6 +2477,8 @@ export interface components {
 		FoodLabelStat: {
 			label: string;
 			count: number;
+			foodCount?: number;
+			recipeCount?: number;
 		};
 		FoodLabelsBatchResponse: {
 			results: components['schemas']['FoodLabelsBatchItemResult'][];
@@ -2586,6 +2644,7 @@ export interface components {
 			fat: number;
 			fiber: number;
 			stepCount?: number;
+			labels?: string[];
 		};
 		RecipeResponse: {
 			recipe: components['schemas']['RecipeDetail'];
@@ -2607,6 +2666,7 @@ export interface components {
 			fiber: number;
 			createdAt?: string;
 			updatedAt?: string;
+			labels?: string[];
 			ingredients: components['schemas']['RecipeIngredient'][];
 			steps?: components['schemas']['RecipeStep'][];
 			extendedNutrientsPerServing?: components['schemas']['RecipeExtendedNutrients'];
@@ -2674,6 +2734,24 @@ export interface components {
 			alcohol: number | null;
 			water: number | null;
 			salt: number | null;
+		};
+		RecipeLabelsBatchResponse: {
+			results: components['schemas']['RecipeLabelsBatchItemResult'][];
+		};
+		RecipeLabelsBatchItemResult: {
+			/** Format: uuid */
+			recipeId: string;
+			ok: boolean;
+			labels?: string[];
+			dropped?: string[];
+			error?: string;
+		};
+		RecipeLabelsResponse: {
+			labels: components['schemas']['FoodLabelDetail'][];
+		};
+		RecipeLabelsSetResponse: {
+			labels: string[];
+			dropped: string[];
 		};
 		RecipeUsageResponse: {
 			entries: components['schemas']['UsageEntry'][];
@@ -4369,6 +4447,11 @@ export interface operations {
 			query?: {
 				limit?: number;
 				offset?: number;
+				q?: string;
+				/** @description Only recipes carrying fewer than this many labels. */
+				minLabels?: number;
+				/** @description Same as minLabels=1. */
+				unlabeled?: boolean;
 			};
 			header?: never;
 			path?: never;
@@ -4484,6 +4567,87 @@ export interface operations {
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	setRecipeLabelsBatch: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['RecipeLabelsBatch'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeLabelsBatchResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getRecipeLabels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeLabelsResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	setRecipeLabels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['RecipeLabelsSet'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RecipeLabelsSetResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
 		};
 	};
 	getRecipeUsage: {

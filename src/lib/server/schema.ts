@@ -478,6 +478,35 @@ export const recipes = pgTable(
 	]
 );
 
+// Recipe labels mirror food_labels exactly (same sources, same write rules,
+// same shared label vocabulary) so one labeller can cover foods and recipes.
+export const recipeLabels = pgTable(
+	'recipe_labels',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		recipeId: uuid('recipe_id')
+			.notNull()
+			.references(() => recipes.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		label: text('label').notNull(),
+		source: labelSourceEnum('source').notNull(),
+		confidence: real('confidence'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
+	},
+	(table) => [
+		uniqueIndex('idx_recipe_labels_recipe_label').on(table.recipeId, table.label),
+		index('idx_recipe_labels_user_label').on(table.userId, table.label),
+		index('idx_recipe_labels_recipe_id').on(table.recipeId),
+		check(
+			'recipe_labels_confidence_range',
+			sql`${table.confidence} IS NULL OR (${table.confidence} >= 0 AND ${table.confidence} <= 1)`
+		)
+	]
+);
+
 // Recipe Ingredients
 export const recipeIngredients = pgTable(
 	'recipe_ingredients',
@@ -1108,6 +1137,8 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
+export type RecipeLabel = typeof recipeLabels.$inferSelect;
+export type NewRecipeLabel = typeof recipeLabels.$inferInsert;
 export type FoodLabel = typeof foodLabels.$inferSelect;
 export type NewFoodLabel = typeof foodLabels.$inferInsert;
 export type FoodEntry = typeof foodEntries.$inferSelect;

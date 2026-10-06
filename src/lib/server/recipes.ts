@@ -1,11 +1,18 @@
 import { getDB } from '$lib/server/db';
-import { recipes, recipeIngredients, recipeSteps, foods, foodEntries } from '$lib/server/schema';
+import {
+	recipes,
+	recipeIngredients,
+	recipeLabels,
+	recipeSteps,
+	foods,
+	foodEntries
+} from '$lib/server/schema';
 import {
 	recipeCreateSchema,
 	recipeUpdateSchema,
 	type recipeIngredientSchema
 } from '$lib/server/validation';
-import { and, count, eq, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, exists, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import type { Result, DeleteResult } from '$lib/server/types';
 import { ApiError, withValidation } from '$lib/server/errors';
 import { roundNutrition } from '$lib/utils/round-nutrition';
@@ -17,6 +24,8 @@ import { unlinkUpload, unlinkUploads, uploadFilename } from '$lib/server/images'
 import { convertedIngredientQuantitySql } from '$lib/server/recipe-macros';
 import { ALL_NUTRIENT_KEYS, NUTRIENT_BY_KEY } from '$lib/nutrients';
 import { nutrientColumn } from '$lib/server/nutrient-columns';
+import { recipeLabelsExpr } from '$lib/server/recipe-labels';
+import { normalizeLabel } from '$lib/server/labels';
 
 type RecipeInput = {
 	name: string;
@@ -82,12 +91,42 @@ export const toRecipeInsert = (userId: string, input: RecipeInput) => ({
 	cookedWeight: input.cookedWeight ?? null
 });
 
-export const listRecipes = async (
-	userId: string,
-	options?: { limit?: number; offset?: number }
-) => {
+export type ListRecipesOptions = {
+	limit?: number;
+	offset?: number;
+	/** Matches the recipe name, then its English labels. */
+	query?: string;
+	/** Only recipes carrying fewer than this many labels (1 = unlabelled). */
+	minLabels?: number;
+};
+
+export const listRecipes = async (userId: string, options?: ListRecipesOptions) => {
 	const db = getDB();
-	const whereClause = eq(recipes.userId, userId);
+	const query = options?.query?.trim() || undefined;
+	const escapedQuery = query?.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+	const pattern = escapedQuery ? `%${escapedQuery}%` : undefined;
+
+	// Two match tiers, ranked in this order: name substring, then the query
+	// normalized like a label equal to one of the recipe's English labels — the
+	// same label tier foods have, so "soup" finds "Gerstensuppe" once labelled.
+	const nameMatch = pattern ? ilike(recipes.name, pattern) : undefined;
+	const queryLabel = query ? normalizeLabel(query) : null;
+	const labelMatch = queryLabel
+		? exists(
+				db
+					.select({ one: sql`1` })
+					.from(recipeLabels)
+					.where(and(eq(recipeLabels.recipeId, recipes.id), eq(recipeLabels.label, queryLabel)))
+			)
+		: undefined;
+	const matchClause = pattern ? or(nameMatch, labelMatch) : undefined;
+
+	const minLabels = options?.minLabels;
+	const labelCountFilter =
+		minLabels !== undefined
+			? sql`(SELECT count(*) FROM ${recipeLabels} rl WHERE rl.recipe_id = ${recipes.id}) < ${minLabels}`
+			: undefined;
+	const whereClause = and(eq(recipes.userId, userId), matchClause, labelCountFilter);
 
 	const q = db
 		.select({
@@ -98,14 +137,20 @@ export const listRecipes = async (
 			imageUrl: recipes.imageUrl,
 			cookedWeight: recipes.cookedWeight,
 			...macroAggregations,
-			stepCount: sql<number>`(SELECT count(*)::int FROM ${recipeSteps} WHERE ${recipeSteps.recipeId} = ${recipes.id})`
+			stepCount: sql<number>`(SELECT count(*)::int FROM ${recipeSteps} WHERE ${recipeSteps.recipeId} = ${recipes.id})`,
+			labels: recipeLabelsExpr
 		})
 		.from(recipes)
 		.leftJoin(recipeIngredients, eq(recipeIngredients.recipeId, recipes.id))
 		.leftJoin(foods, eq(foods.id, recipeIngredients.foodId))
 		.where(whereClause)
-		.groupBy(recipes.id)
-		.orderBy(recipes.name);
+		.groupBy(recipes.id);
+
+	if (pattern) {
+		q.orderBy(sql`CASE WHEN ${nameMatch} THEN 0 ELSE 1 END`, recipes.name);
+	} else {
+		q.orderBy(recipes.name);
+	}
 
 	if (options?.limit !== undefined) q.limit(options.limit);
 	if (options?.offset) q.offset(options.offset);
@@ -116,6 +161,31 @@ export const listRecipes = async (
 	]);
 
 	return roundNutrition({ items, total: countResult[0]?.total ?? 0 });
+};
+
+/**
+ * Ingredient food names per recipe, in ingredient order: what a labeller needs
+ * (with the recipe name) to work out what a recipe is.
+ */
+export const listRecipeIngredientNames = async (
+	userId: string,
+	recipeIds: string[]
+): Promise<Map<string, string[]>> => {
+	const names = new Map<string, string[]>();
+	if (recipeIds.length === 0) return names;
+	const rows = await getDB()
+		.select({ recipeId: recipeIngredients.recipeId, name: foods.name })
+		.from(recipeIngredients)
+		.innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+		.innerJoin(foods, eq(foods.id, recipeIngredients.foodId))
+		.where(and(eq(recipes.userId, userId), inArray(recipeIngredients.recipeId, recipeIds)))
+		.orderBy(recipeIngredients.recipeId, recipeIngredients.sortOrder);
+	for (const row of rows) {
+		const list = names.get(row.recipeId) ?? [];
+		list.push(row.name);
+		names.set(row.recipeId, list);
+	}
+	return names;
 };
 
 export const createRecipe = (
@@ -204,6 +274,7 @@ export const getRecipe = async (userId: string, id: string) => {
 				imageUrl: recipes.imageUrl,
 				cookedWeight: recipes.cookedWeight,
 				...macroAggregations,
+				labels: recipeLabelsExpr,
 				createdAt: recipes.createdAt,
 				updatedAt: recipes.updatedAt
 			})

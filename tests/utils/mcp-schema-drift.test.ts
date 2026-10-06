@@ -7,7 +7,10 @@ import { foodCreateSchema } from '../../src/lib/server/validation/foods';
 import { recipeCreateSchema } from '../../src/lib/server/validation/recipes';
 import { goalsSchema } from '../../src/lib/server/validation/goals';
 import { dayPropertiesSetSchema } from '../../src/lib/server/validation/day-properties';
-import { foodLabelsBatchSchema } from '../../src/lib/server/validation/labels';
+import {
+	foodLabelsBatchSchema,
+	recipeLabelsBatchSchema
+} from '../../src/lib/server/validation/labels';
 
 const server = createMcpServer('test-user');
 const tools = (
@@ -123,6 +126,34 @@ describe('food label caps agree with REST', () => {
 		test(name, () => {
 			expect(mcpSchema().safeParse(payload).success).toBe(
 				foodLabelsBatchSchema.safeParse(payload).success
+			);
+		});
+	}
+});
+
+describe('recipe label caps agree with REST', () => {
+	const RECIPE_ID = '123e4567-e89b-12d3-a456-426614174000';
+	const item = (labels: number) => ({
+		recipeId: RECIPE_ID,
+		labels: Array.from({ length: labels }, (_, i) => `label${i}`)
+	});
+	const mcpSchema = () => {
+		const registered = tools.set_recipe_labels_batch?.inputSchema;
+		expect(registered, 'set_recipe_labels_batch should have an inputSchema').toBeDefined();
+		return typeof registered!.safeParse === 'function'
+			? registered!
+			: z.object(registered as unknown as z.ZodRawShape);
+	};
+
+	for (const [name, payload] of [
+		['one item', { items: [item(3)] }],
+		['21 labels on a recipe', { items: [item(21)] }],
+		['101 items', { items: Array.from({ length: 101 }, () => item(1)) }],
+		['a non-uuid recipeId', { items: [{ recipeId: 'nope', labels: ['banana'] }] }]
+	] as const) {
+		test(name, () => {
+			expect(mcpSchema().safeParse(payload).success).toBe(
+				recipeLabelsBatchSchema.safeParse(payload).success
 			);
 		});
 	}

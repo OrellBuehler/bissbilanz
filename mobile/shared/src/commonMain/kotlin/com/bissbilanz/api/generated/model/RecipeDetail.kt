@@ -40,6 +40,7 @@ import kotlinx.serialization.encoding.*
  * @param cookedWeight
  * @param createdAt
  * @param updatedAt
+ * @param labels
  * @param steps
  * @param extendedNutrientsPerServing
  */
@@ -60,6 +61,7 @@ data class RecipeDetail(
     @SerialName(value = "cookedWeight") val cookedWeight: kotlin.Double? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
+    @SerialName(value = "labels") val labels: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "steps") val steps: kotlin.collections.List<RecipeStep>? = null,
     @SerialName(value = "extendedNutrientsPerServing") val extendedNutrientsPerServing: RecipeExtendedNutrients? = null,
 )

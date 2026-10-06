@@ -60,11 +60,14 @@ let mockCreateSupplementResult: any = null;
 let mockUpdateSupplementResult: any = null;
 let mockCreateFoodError: any = null;
 let mockListFoodsArgs: any = null;
+let mockListRecipesArgs: any = null;
 let mockSetLabelCalls: Array<{
 	userId: string;
-	foodId: string;
+	foodId?: string;
+	recipeId?: string;
 	labels: string[];
 	source: string;
+	mode?: string;
 }> = [];
 let mockLabelFoodMissing = false;
 let mockOFFProduct: any = null;
@@ -136,7 +139,10 @@ const mockDeps = {
 			: { success: false, error: new Error('Validation failed') },
 	deleteFood: async () => mockDeleteFoodResult,
 	listRecentFoods: async () => mockRecentFoods,
-	listRecipes: async () => ({ items: mockRecipes, total: mockRecipes.length }),
+	listRecipes: async (_userId: string, options: unknown) => {
+		mockListRecipesArgs = options;
+		return { items: mockRecipes, total: mockRecipes.length };
+	},
 	createRecipe: async (_userId: string, payload: unknown) => {
 		recipeWrites.push(payload);
 		return mockCreateRecipeResult
@@ -313,7 +319,24 @@ const mockDeps = {
 	listLabelStats: async () => [
 		{ label: 'fruit', count: 2 },
 		{ label: 'banana', count: 1 }
-	]
+	],
+	setRecipeLabels: async (userId: string, recipeId: string, labels: string[], source: string) => {
+		mockSetLabelCalls.push({ userId, recipeId, labels, source });
+		return mockLabelFoodMissing ? { status: 'not_found' } : { status: 'ok', labels, dropped: [] };
+	},
+	setRecipeLabelsBatch: async (userId: string, items: any[], source: string, options: any) => {
+		for (const item of items) {
+			mockSetLabelCalls.push({
+				userId,
+				recipeId: item.recipeId,
+				labels: item.labels,
+				source,
+				...options
+			});
+		}
+		return items.map((item, i) => ({ recipeId: item.recipeId, ok: i === 0, labels: item.labels }));
+	},
+	listRecipeIngredientNames: async () => new Map([[TEST_RECIPE.id, ['Oats', 'Milk']]])
 } satisfies Record<string, Function> as unknown as HandlerDeps;
 
 const {
@@ -321,6 +344,9 @@ const {
 	handleListLabels,
 	handleSetFoodLabels,
 	handleSetFoodLabelsBatch,
+	handleListUnlabeledRecipes,
+	handleSetRecipeLabels,
+	handleSetRecipeLabelsBatch,
 	handleSearchFoods,
 	handleCreateFood,
 	handleUpdateFood,
@@ -2582,5 +2608,80 @@ describe('food label handlers', () => {
 			mode: 'replace'
 		});
 		expect(mockSetLabelCalls[1]).toMatchObject({ mode: 'replace' });
+	});
+});
+
+describe('recipe label handlers', () => {
+	beforeEach(() => {
+		mockRecipes = [];
+		mockListRecipesArgs = null;
+		mockSetLabelCalls = [];
+		mockLabelFoodMissing = false;
+	});
+
+	test('list_unlabeled_recipes returns name, ingredient names, image and labels', async () => {
+		mockRecipes = [{ ...TEST_RECIPE, imageUrl: '/uploads/x.webp', labels: [] }];
+		const result: any = await handleListUnlabeledRecipes(TEST_USER.id, { limit: 10, offset: 5 });
+
+		expect(mockListRecipesArgs).toMatchObject({ minLabels: 1, limit: 10, offset: 5 });
+		expect(result.total).toBe(1);
+		expect(result.recipes[0]).toEqual({
+			id: TEST_RECIPE.id,
+			name: TEST_RECIPE.name,
+			ingredients: ['Oats', 'Milk'],
+			imageUrl: '/uploads/x.webp',
+			labels: []
+		});
+	});
+
+	test('list_unlabeled_recipes passes minLabels through and defaults to a page of 50', async () => {
+		await handleListUnlabeledRecipes(TEST_USER.id, { minLabels: 5 });
+		expect(mockListRecipesArgs).toMatchObject({ minLabels: 5, limit: 50 });
+	});
+
+	test('list_recipes passes the search query through', async () => {
+		await handleListRecipes(TEST_USER.id, { query: 'soup' });
+		expect(mockListRecipesArgs).toMatchObject({ query: 'soup' });
+	});
+
+	test('set_recipe_labels forces source llm', async () => {
+		const result: any = await handleSetRecipeLabels(TEST_USER.id, {
+			recipeId: TEST_RECIPE.id,
+			labels: ['porridge']
+		});
+		expect(mockSetLabelCalls).toEqual([
+			{ userId: TEST_USER.id, recipeId: TEST_RECIPE.id, labels: ['porridge'], source: 'llm' }
+		]);
+		expect(result).toEqual({
+			success: true,
+			recipeId: TEST_RECIPE.id,
+			labels: ['porridge'],
+			dropped: []
+		});
+	});
+
+	test('set_recipe_labels reports a missing recipe instead of throwing', async () => {
+		mockLabelFoodMissing = true;
+		const result: any = await handleSetRecipeLabels(TEST_USER.id, {
+			recipeId: TEST_RECIPE.id,
+			labels: ['porridge']
+		});
+		expect(result).toEqual({ error: 'Recipe not found' });
+	});
+
+	test('set_recipe_labels_batch extends by default, forces llm and counts successes', async () => {
+		const result: any = await handleSetRecipeLabelsBatch(TEST_USER.id, {
+			items: [
+				{ recipeId: TEST_RECIPE.id, labels: ['porridge'] },
+				{ recipeId: TEST_FOOD.id, labels: ['ghost'] }
+			]
+		});
+		expect(mockSetLabelCalls.every((c) => c.source === 'llm' && c.mode === 'extend')).toBe(true);
+		expect(result.labeled).toBe(1);
+		await handleSetRecipeLabelsBatch(TEST_USER.id, {
+			items: [{ recipeId: TEST_RECIPE.id, labels: ['a'] }],
+			mode: 'replace'
+		});
+		expect(mockSetLabelCalls.at(-1)).toMatchObject({ mode: 'replace' });
 	});
 });

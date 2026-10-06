@@ -39,6 +39,7 @@ const TEST_RECIPE_DETAIL = {
 };
 
 let mockListResult: any = [];
+let listCalls: any[] = [];
 let mockCreateResult: any = null;
 let mockGetResult: any = null;
 
@@ -56,7 +57,10 @@ import { allValidationSchemas } from '../helpers/mock-validation';
 vi.mock('$lib/server/validation', () => ({ ...allValidationSchemas }));
 
 vi.mock('$lib/server/recipes', () => ({
-	listRecipes: async () => ({ items: mockListResult, total: mockListResult.length }),
+	listRecipes: async (_userId: string, options: unknown) => {
+		listCalls.push(options);
+		return { items: mockListResult, total: mockListResult.length };
+	},
 	createRecipe: async () =>
 		mockCreateResult
 			? { success: true, data: mockCreateResult }
@@ -72,6 +76,7 @@ const { GET, POST } = await import('../../src/routes/api/recipes/+server');
 describe('api/recipes', () => {
 	beforeEach(() => {
 		mockListResult = [];
+		listCalls = [];
 		mockCreateResult = null;
 		mockGetResult = null;
 	});
@@ -94,6 +99,35 @@ describe('api/recipes', () => {
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.recipes).toHaveLength(1);
+		});
+
+		test('returns each recipe with its labels', async () => {
+			mockListResult = [{ ...TEST_RECIPE_DETAIL, stepCount: 2, labels: ['porridge', 'oat'] }];
+			const response = await GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/recipes', response);
+			const data = await response.json();
+			expect(data.recipes[0].labels).toEqual(['porridge', 'oat']);
+		});
+
+		test('passes the search query and minLabels through', async () => {
+			const response = await GET(
+				createMockEvent({ user: TEST_USER, searchParams: { q: 'soup', minLabels: '3' } })
+			);
+			await expectResponseContract('GET', '/api/recipes', response);
+			expect(listCalls[0]).toMatchObject({ query: 'soup', minLabels: 3 });
+		});
+
+		test('treats unlabeled=true as minLabels=1', async () => {
+			await GET(createMockEvent({ user: TEST_USER, searchParams: { unlabeled: 'true' } }));
+			expect(listCalls[0]).toMatchObject({ minLabels: 1 });
+		});
+
+		test('rejects an out-of-range minLabels', async () => {
+			const response = await GET(
+				createMockEvent({ user: TEST_USER, searchParams: { minLabels: '99' } })
+			);
+			// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).
+			expect(response.status).toBe(400);
 		});
 	});
 

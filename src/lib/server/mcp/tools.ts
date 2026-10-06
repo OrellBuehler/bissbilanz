@@ -72,6 +72,9 @@ export const toolNames = [
 	'list_labels',
 	'set_food_labels',
 	'set_food_labels_batch',
+	'list_unlabeled_recipes',
+	'set_recipe_labels',
+	'set_recipe_labels_batch',
 	// AI task queue
 	'list_ai_tasks',
 	'get_ai_task',

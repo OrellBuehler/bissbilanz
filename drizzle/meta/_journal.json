@@ -505,6 +505,13 @@
       "when": 1791235146805,
       "tag": "0071_magenta_texas_twister",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791271049514,
+      "tag": "0072_special_banshee",
+      "breakpoints": true
     }
   ]
 }

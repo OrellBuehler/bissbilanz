@@ -9,6 +9,7 @@
 			"id": "428b763e-055c-4c9f-836c-e1ecdaba49b5",
 			"imageUrl": "sample-imageUrl",
 			"isFavorite": true,
+			"labels": ["sample-labels"],
 			"name": "sample-name",
 			"protein": 30,
 			"stepCount": 3,

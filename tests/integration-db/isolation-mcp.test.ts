@@ -202,6 +202,28 @@ const resources: Resource[] = [
 				}
 			},
 			{
+				name: 'list_unlabeled_recipes',
+				tool: 'list_unlabeled_recipes',
+				args: () => ({ minLabels: 5 }),
+				emptyLike: true
+			},
+			{
+				name: 'set_recipe_labels',
+				tool: 'set_recipe_labels',
+				args: (w) => ({ recipeId: w.a.recipe, labels: ['isobhijack'] })
+			},
+			{
+				name: 'set_recipe_labels_batch',
+				tool: 'set_recipe_labels_batch',
+				args: (w) => ({ items: [{ recipeId: w.a.recipe, labels: ['isobhijack'] }] }),
+				outcome: 'either',
+				check: (result) => {
+					const results = result.payload?.results;
+					if (Array.isArray(results)) expect(results.every((r: any) => r.ok === false)).toBe(true);
+					else expect(rejected(result)).toBe(true);
+				}
+			},
+			{
 				name: 'merge_foods between foreign foods',
 				tool: 'merge_foods',
 				args: (w) => ({ keeperId: w.a.foodKeeper, sourceIds: [w.a.foodSource] })

@@ -231,9 +231,9 @@ describe('food labels', () => {
 		await setFoodLabels(userId, foodId, ['fruit', 'banana'], 'llm');
 		await setFoodLabels(userId, otherFoodId, ['bread', 'fruit'], 'llm');
 		expect(await listLabelStats(userId)).toEqual([
-			{ label: 'fruit', count: 2 },
-			{ label: 'banana', count: 1 },
-			{ label: 'bread', count: 1 }
+			{ label: 'fruit', count: 2, foodCount: 2, recipeCount: 0 },
+			{ label: 'banana', count: 1, foodCount: 1, recipeCount: 0 },
+			{ label: 'bread', count: 1, foodCount: 1, recipeCount: 0 }
 		]);
 		expect(await listLabelStats(otherUserId)).toEqual([]);
 	});

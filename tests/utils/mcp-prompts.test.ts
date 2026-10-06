@@ -91,6 +91,14 @@ describe('MCP prompts', () => {
 		expect(text).toContain('English');
 	});
 
+	test('label_foods also sweeps recipes with the recipe tools', async () => {
+		const client = await connect();
+		const result = await client.getPrompt({ name: 'label_foods', arguments: {} });
+		const text = result.messages[0].content.type === 'text' ? result.messages[0].content.text : '';
+		expect(text).toContain('list_unlabeled_recipes');
+		expect(text).toContain('set_recipe_labels_batch');
+	});
+
 	test('label_foods scopes the sweep when a limit is given', async () => {
 		const client = await connect();
 		const result = await client.getPrompt({ name: 'label_foods', arguments: { limit: '25' } });

@@ -2,7 +2,9 @@
 	"labels": [
 		{
 			"count": 3,
-			"label": "sample-label"
+			"foodCount": 3,
+			"label": "sample-label",
+			"recipeCount": 0
 		}
 	]
 }

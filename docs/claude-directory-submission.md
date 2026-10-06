@@ -25,7 +25,7 @@ then send people there instead of the prefilled custom-connector dialog.
 
 ## 2. Tools
 
-Synced automatically from the server: 70 tools, 6 prompts and the resources listed in
+Synced automatically from the server: 73 tools, 6 prompts and the resources listed in
 [mcp.md](mcp.md). Every tool has a `title` and a `readOnlyHint` / `destructiveHint` /
 `idempotentHint` annotation (`src/lib/server/mcp/server.ts`), so the portal should flag
 nothing. `docs/mcp-tools.json` is the generated snapshot of the surface.
