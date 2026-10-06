@@ -172,8 +172,8 @@ class FoodRepository(
      * Removes cached foods the server no longer has, by id diff against `/api/foods/ids`
      * (foods are hard-deleted, so the change feed cannot say so). The id list is large,
      * so it runs when it was never done, once a day, or when the server's food count
-     * differs from the mirror's. A temp id (not yet uploaded) or an id with a queued
-     * sync op is never removed.
+     * differs from the mirror's. A temp id (not yet uploaded), an id with a queued sync
+     * op and a bulk-imported food still waiting for its upload are never removed.
      */
     private suspend fun pruneDeletedFoods() {
         val now = Clock.System.now()
@@ -182,11 +182,15 @@ class FoodRepository(
         val stale = lastPrune == null || now - lastPrune >= PRUNE_INTERVAL
         if (!stale) {
             val serverTotal = api.getFoodsPaginated(1, 0).total
-            val localSynced = withContext(ioDispatcher) { queries.selectAllFoodIds().executeAsList().count { !it.isTempId() } }
+            val localSynced =
+                withContext(ioDispatcher) {
+                    val unsynced = queries.selectBulkJobFoodIds().executeAsList().toHashSet()
+                    queries.selectAllFoodIds().executeAsList().count { !it.isTempId() && it !in unsynced }
+                }
             if (serverTotal == localSynced) return
         }
         val serverIds = api.getFoodIds().toHashSet()
-        val protectedIds = pendingFoodIds()
+        val protectedIds = pendingFoodIds() + withContext(ioDispatcher) { queries.selectBulkJobFoodIds().executeAsList() }
         withContext(ioDispatcher) {
             queries.transaction {
                 queries
@@ -201,6 +205,20 @@ class FoodRepository(
         }
         cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(FOODS_PRUNE_KEY, now.toString())
     }
+
+    /**
+     * A food imported in bulk that the server does not have yet: like a `temp_` food it is
+     * edited and deleted on this device only, and the upload carries whatever the row says
+     * by the time it is sent.
+     */
+    private suspend fun isLocalOnly(id: String): Boolean =
+        id.isTempId() ||
+            withContext(ioDispatcher) {
+                db.userDataDatabaseQueries
+                    .selectBulkJob(id)
+                    .executeAsOneOrNull()
+                    ?.state == "pending"
+            }
 
     /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
     private suspend fun pendingFoodIds(): Set<String> =
@@ -312,11 +330,12 @@ class FoodRepository(
         id: String,
         food: FoodCreate,
     ): Food {
-        val tempFood = foodCreateToFood(food, id)
+        val bulkPending = !id.isTempId() && isLocalOnly(id)
+        val tempFood = foodCreateToFood(food, id).let { if (bulkPending) it.copy(labels = getFoodCached(id)?.labels) else it }
         withContext(ioDispatcher) { cacheFood(tempFood) }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, food)
-        } else {
+        } else if (!bulkPending) {
             syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
         }
         onFoodChanged?.invoke()
@@ -343,7 +362,7 @@ class FoodRepository(
                 val body = json.decodeOrNull<FoodCreate>(create.body) ?: return@rewriteQueuedCreate null
                 create.copy(body = json.encodeToString(body.copy(isFavorite = isFavorite)))
             }
-        } else {
+        } else if (!isLocalOnly(id)) {
             syncQueue.enqueue(SyncOperation.ToggleFavorite(id, isFavorite))
         }
         onFoodChanged?.invoke()
@@ -368,7 +387,7 @@ class FoodRepository(
                 val body = json.decodeOrNull<FoodCreate>(create.body) ?: return@rewriteQueuedCreate null
                 create.copy(body = json.encodeToString(body.copy(imageUrl = imageUrl)))
             }
-        } else {
+        } else if (!isLocalOnly(id)) {
             syncQueue.enqueue(SyncOperation.SetFoodImage(id, imageUrl))
         }
         previous?.imageUrl?.takeIf { it != imageUrl }?.let { onImageOrphaned?.invoke(it) }
@@ -389,7 +408,7 @@ class FoodRepository(
     ): Food? {
         val normalized = normalizeLabels(labels).sorted()
         val updated = getFoodCached(id)?.copy(labels = normalized)?.also { withContext(ioDispatcher) { cacheFood(it) } }
-        syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
+        if (!isLocalOnly(id) || id.isTempId()) syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
         onFoodChanged?.invoke()
         return updated
     }
@@ -402,6 +421,8 @@ class FoodRepository(
         }
         if (id.isTempId()) {
             syncQueue.removeByAffected("foods", id)
+        } else if (isLocalOnly(id)) {
+            withContext(ioDispatcher) { db.userDataDatabaseQueries.deleteBulkJob(id) }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteFood(id))
         }
@@ -418,7 +439,7 @@ class FoodRepository(
      * read from the local cache instead, with the same rules as the server.
      */
     suspend fun deleteFoodChecked(id: String): DeleteOutcome {
-        if (appModeManager.isLocal || id.isTempId()) {
+        if (appModeManager.isLocal || isLocalOnly(id)) {
             val blocked = localFoodUsage(id).toBlocked(id)
             if (blocked != null) return blocked
             deleteFood(id)
@@ -457,7 +478,7 @@ class FoodRepository(
      * applies — the prompt must not offer it, and the server refuses it too.
      */
     suspend fun forceDeleteFood(id: String) {
-        if (appModeManager.isLocal || id.isTempId()) {
+        if (appModeManager.isLocal || isLocalOnly(id)) {
             check(localFoodUsage(id).toBlocked(id)?.forceUnavailable != true) { "Food $id cannot be force-deleted" }
             if (appModeManager.isLocal) removeFoodFromLocalRecipes(id)
             deleteFood(id)
@@ -486,7 +507,7 @@ class FoodRepository(
      * reads the local cache instead of asking the server.
      */
     suspend fun whereUsed(id: String): WhereUsed {
-        if (appModeManager.isLocal || id.isTempId()) {
+        if (appModeManager.isLocal || isLocalOnly(id)) {
             val usage = localFoodUsage(id)
             return WhereUsed(
                 entries = usage.entries.toWhereUsedEntries(json).take(WHERE_USED_ENTRY_LIMIT),
@@ -670,13 +691,32 @@ class FoodRepository(
     suspend fun searchFoods(query: String): List<Food> {
         if (appModeManager.isLocal) return searchFoodsCached(query)
         return try {
-            api.searchFoods(query)
+            withUnsyncedBulkFoods(api.searchFoods(query), query)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
             searchFoodsCached(query)
         }
     }
+
+    /**
+     * Foods imported in bulk are usable at once, but the server only knows them once their
+     * upload has run, so its answer is topped up with the matching ones that are still waiting.
+     */
+    private suspend fun withUnsyncedBulkFoods(
+        remote: List<Food>,
+        query: String,
+    ): List<Food> =
+        withContext(ioDispatcher) {
+            val queries = db.userDataDatabaseQueries
+            if (queries.countUnsyncedBulkJobs().executeAsOne() == 0L) return@withContext remote
+            val known = remote.mapTo(HashSet()) { it.id }
+            remote +
+                searchFoodsCached(query).filter { food ->
+                    val state = queries.selectBulkJob(food.id).executeAsOneOrNull()?.state
+                    food.id !in known && (state == "pending" || state == "failed")
+                }
+        }
 
     /**
      * Free-text Open Food Facts search, used as a fallback when the user's own

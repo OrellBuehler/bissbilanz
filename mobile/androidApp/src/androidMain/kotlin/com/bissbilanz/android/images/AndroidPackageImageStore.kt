@@ -10,6 +10,7 @@ import com.bissbilanz.foodpackage.PackageImageStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.File
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -65,6 +66,88 @@ class AndroidPackageImageStore(
             LocalImageStore.fileUri(file)
         }
 
+    /**
+     * A bulk package's photos are 400 px webp files the exporter wrote itself: when the header
+     * says so, they are kept as they are without being decoded, which is what keeps tens of
+     * thousands of them fast. Anything else goes through the usual checks.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun saveImportedBulk(bytes: ByteArray): String? =
+        withContext(Dispatchers.IO) {
+            val extension = extensionOf(bytes) ?: return@withContext null
+            val size = if (extension == "webp") webpDimensions(bytes) else null
+            val trusted = size != null && size.first <= BULK_TRUSTED_PX && size.second <= BULK_TRUSTED_PX
+            if (!trusted) {
+                val bounds = boundsOf(bytes) ?: return@withContext null
+                if (bounds.first.toLong() * bounds.second > MAX_PIXELS) return@withContext null
+            }
+            val file = LocalImageStore.writeSharded(context, "${Uuid.random()}.$extension", bytes)
+            LocalImageStore.fileUri(file)
+        }
+
+    /** The photo as the bulk endpoint accepts it: at most [maxBytes], re-encoded smaller when it has to be. */
+    override suspend fun readForUpload(
+        imageUrl: String,
+        maxBytes: Int,
+    ): ByteArray? =
+        withContext(Dispatchers.IO) {
+            val bytes = LocalImageStore.fileFor(context, imageUrl)?.takeIf { it.isFile }?.readBytes() ?: return@withContext null
+            if (bytes.size <= maxBytes) bytes else shrink(bytes, maxBytes)
+        }
+
+    /**
+     * The server renders its own thumbnail of what it receives, so the local copy of an
+     * uploaded photo becomes the cache entry for the hosted one instead of being downloaded again.
+     */
+    override suspend fun adoptUploaded(
+        localUrl: String,
+        serverUrl: String,
+    ) {
+        withContext(Dispatchers.IO) {
+            val source = LocalImageStore.fileFor(context, localUrl)?.takeIf { it.isFile } ?: return@withContext
+            val key = LocalImageStore.cacheKey(serverUrl)
+            if (key == null) {
+                LocalImageStore.evict(context, localUrl)
+                return@withContext
+            }
+            val target = File(LocalImageStore.directory(context), key)
+            if (!source.renameTo(target)) {
+                source.copyTo(target, overwrite = true)
+                source.delete()
+            }
+        }
+    }
+
+    private fun shrink(
+        bytes: ByteArray,
+        maxBytes: Int,
+    ): ByteArray? {
+        val bounds = boundsOf(bytes) ?: return null
+        val options =
+            BitmapFactory.Options().apply {
+                inSampleSize = sampleSizeFor(bounds.first, bounds.second, UPLOAD_PX)
+            }
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        try {
+            for (quality in UPLOAD_QUALITIES) {
+                val out = ByteArrayOutputStream()
+                bitmap.compress(uploadFormat(), quality, out)
+                if (out.size() <= maxBytes) return out.toByteArray()
+            }
+        } finally {
+            bitmap.recycle()
+        }
+        return null
+    }
+
+    @Suppress("DEPRECATION")
+    private fun uploadFormat(): Bitmap.CompressFormat =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            Bitmap.CompressFormat.WEBP_LOSSY
+        } else {
+            Bitmap.CompressFormat.WEBP
+        }
+
     override suspend fun discard(imageUrl: String) {
         withContext(Dispatchers.IO) { LocalImageStore.evict(context, imageUrl) }
     }
@@ -101,6 +184,11 @@ class AndroidPackageImageStore(
         }
 
     private companion object {
+        const val UPLOAD_PX = 400
+        val UPLOAD_QUALITIES = intArrayOf(80, 60, 40)
+
+        /** The exporter writes 400 px photos; a webp up to this size is trusted without decoding. */
+        const val BULK_TRUSTED_PX = 512
         const val THUMBNAIL_PX = 96
         const val THUMBNAIL_QUALITY = 70
 

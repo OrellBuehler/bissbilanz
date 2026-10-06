@@ -112,6 +112,9 @@ class AccountDowngrader(
         api.deleteAccount()
         try {
             syncQueue.clear()
+            // The account is gone: foods still waiting to be uploaded stay as local foods, but
+            // there is nothing left to upload them to.
+            db.userDataDatabaseQueries.clearAllBulkUploadJobs()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Failures.report(e)

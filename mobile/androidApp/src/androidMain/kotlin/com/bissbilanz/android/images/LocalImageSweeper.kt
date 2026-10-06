@@ -64,7 +64,7 @@ internal suspend fun sweepUnreferenced(
     withContext(Dispatchers.IO) {
         val keep = referenced.mapNotNull { LocalImageStore.fileFor(context, it)?.name }.toSet()
         val cutoff = now - GRACE_MS
-        LocalImageStore.directory(context).listFiles()?.forEach { file ->
+        LocalImageStore.directory(context).walkTopDown().filter { it.isFile }.forEach { file ->
             if (file.name in keep || file.lastModified() > cutoff) return@forEach
             runCatching { file.delete() }
         }

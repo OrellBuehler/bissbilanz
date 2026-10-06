@@ -73,6 +73,12 @@ class SyncManager(
      */
     var onConflictResolved: (suspend () -> Unit)? = null
 
+    /**
+     * Uploads foods imported in bulk that a queued entry or recipe depends on, just before
+     * that operation is sent. Set by the app once the bulk uploader exists.
+     */
+    var bulkFoodGate: BulkFoodGate? = null
+
     /** Pending delayed re-drain, armed for when the soonest backoff gate expires. */
     private var retryJob: Job? = null
 
@@ -261,6 +267,11 @@ class SyncManager(
                             "the food or recipe it depended on was never created",
                         )
                         continue
+                    }
+
+                    bulkFoodGate?.let { gate ->
+                        val foodIds = referencedFoodIds(op, json)
+                        if (foodIds.isNotEmpty()) gate.ensureUploaded(foodIds)
                     }
 
                     val remap = execute(op, req.idempotencyKey, req.clientEditedAt)

@@ -174,3 +174,42 @@ private fun remapSupplementCreateBody(
         )
     return if (updated == supplement) body else json.encodeToString(updated)
 }
+
+/** Ids of foods a queued operation points at, for the ones that carry a body with food references. */
+internal fun referencedFoodIds(
+    op: SyncOperation,
+    json: Json,
+): Set<String> =
+    when (op) {
+        is SyncOperation.CreateEntry -> listOfNotNull(json.decodeOrNull<EntryCreate>(op.body)?.foodId).toSet()
+        is SyncOperation.UpdateEntry -> listOfNotNull(json.decodeOrNull<EntryUpdate>(op.body)?.foodId).toSet()
+        is SyncOperation.CreateRecipe ->
+            json
+                .decodeOrNull<RecipeCreate>(op.body)
+                ?.ingredients
+                .orEmpty()
+                .map { it.foodId }
+                .toSet()
+        is SyncOperation.UpdateRecipe ->
+            json
+                .decodeOrNull<RecipeUpdate>(op.body)
+                ?.ingredients
+                .orEmpty()
+                .map { it.foodId }
+                .toSet()
+        is SyncOperation.CreateSupplement ->
+            json
+                .decodeOrNull<SupplementCreate>(op.body)
+                ?.ingredients
+                .orEmpty()
+                .mapNotNull { it.foodId }
+                .toSet()
+        is SyncOperation.UpdateSupplement ->
+            json
+                .decodeOrNull<SupplementCreate>(op.body)
+                ?.ingredients
+                .orEmpty()
+                .mapNotNull { it.foodId }
+                .toSet()
+        else -> emptySet()
+    }

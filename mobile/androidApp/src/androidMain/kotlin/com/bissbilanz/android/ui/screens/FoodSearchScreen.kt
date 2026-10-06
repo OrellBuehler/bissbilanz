@@ -37,6 +37,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.PendingNavigation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
+import com.bissbilanz.android.ui.components.BulkUploadCard
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
@@ -247,6 +248,8 @@ fun FoodSearchScreen(navController: NavController) {
                     onExpandedChange = {},
                     modifier = Modifier.fillMaxWidth(),
                 ) {}
+
+                BulkUploadCard(modifier = Modifier.padding(top = 8.dp))
 
                 if (query.length >= 2) {
                     Spacer(modifier = Modifier.height(8.dp))

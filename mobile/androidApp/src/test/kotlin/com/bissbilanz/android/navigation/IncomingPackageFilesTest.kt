@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import androidx.test.core.app.ApplicationProvider
+import com.bissbilanz.foodpackage.BULK_MAX_BYTES
 import com.bissbilanz.foodpackage.MAX_PACKAGE_BYTES
 import org.junit.After
 import org.junit.Before
@@ -125,8 +126,27 @@ class IncomingPackageFilesTest {
     }
 
     @Test
-    fun refusesAFileDeclaredTooLargeWithoutCopyingIt() {
+    fun copiesAFileBeyondTheNormalLimitForTheBulkImport() {
         SharedFileProvider.size = MAX_PACKAGE_BYTES + 1
+
+        val request = IncomingPackageFiles.copyToCache(context, uri)
+
+        assertNull(request.problem)
+        assertNotNull(request.path)
+    }
+
+    @Test
+    fun checksThereIsRoomForTheCopyAndTheStoredPhotos() {
+        val dir = context.cacheDir
+
+        assertTrue(IncomingPackageFiles.hasRoomFor(dir, 0))
+        assertTrue(IncomingPackageFiles.hasRoomFor(dir, 10))
+        assertEquals(false, IncomingPackageFiles.hasRoomFor(dir, Long.MAX_VALUE / 4))
+    }
+
+    @Test
+    fun refusesAFileDeclaredTooLargeWithoutCopyingIt() {
+        SharedFileProvider.size = BULK_MAX_BYTES + 1
 
         val request = IncomingPackageFiles.copyToCache(context, uri)
 
