@@ -768,6 +768,7 @@
     <string name="recipe_edit_steps_count">Schritte (%1$d)</string>
     <string name="recipe_edit_no_steps">Noch keine Schritte.\nFüge Schritte hinzu, um das Rezept Schritt für Schritt zu kochen.</string>
     <string name="recipe_edit_steps_unavailable">Die Schritte können erst bearbeitet werden, wenn dieses Rezept einmal online geöffnet wurde.</string>
+    <string name="recipe_edit_labels_hint">Englische Begriffe für das, was das Gericht ist, z. B. soup, curry, salad. Die Suche danach findet dieses Rezept.</string>
     <string name="recipe_edit_step_label">Schritt %1$d</string>
     <string name="recipe_edit_step_hint">Beschreibe diesen Schritt</string>
     <string name="recipe_edit_step_move_up">Schritt %1$d nach oben</string>

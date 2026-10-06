@@ -37,6 +37,7 @@ class LocalDataWiper(
                 queries.clearAllFoodLabels()
                 queries.clearAllGoals()
                 queries.clearAllRecipes()
+                queries.clearAllRecipeLabels()
                 queries.clearAllSupplements()
                 queries.clearAllSupplementLogs()
                 queries.clearAllReminders()

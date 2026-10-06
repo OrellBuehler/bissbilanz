@@ -26,6 +26,8 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.normalizeLabel
+import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -75,6 +77,7 @@ class RecipeRepository(
         withContext(Dispatchers.IO) {
             queries.transaction {
                 queries.deleteAllRecipes()
+                queries.deleteAllRecipeLabels()
                 summaries.forEach { s ->
                     if (s.id in pendingIds) return@forEach
                     // The list has no ingredients or steps, only a step count. Keep what a
@@ -96,19 +99,9 @@ class RecipeRepository(
                             fiber = s.fiber,
                             ingredients = cached?.ingredients ?: emptyList(),
                             steps = cachedStepsFor(s.stepCount, cached),
+                            labels = s.labels ?: cached?.labels,
                         ).serverTotalsToPerServing()
-                    queries.insertRecipe(
-                        id = recipe.id,
-                        name = recipe.name,
-                        totalServings = recipe.totalServings,
-                        isFavorite = if (recipe.isFavorite) 1L else 0L,
-                        calories = recipe.calories,
-                        protein = recipe.protein,
-                        carbs = recipe.carbs,
-                        fat = recipe.fat,
-                        fiber = recipe.fiber,
-                        jsonData = json.encodeToString(recipe),
-                    )
+                    cacheRecipe(recipe)
                 }
                 preserved.forEach { cacheRecipe(it) }
             }
@@ -175,16 +168,19 @@ class RecipeRepository(
         name: String,
     ): RecipeDetail {
         val source = getRecipe(id)
-        return createRecipe(
-            RecipeCreate(
-                name = name,
-                totalServings = source.totalServings,
-                ingredients = source.ingredients.toIngredientInputs(),
-                isFavorite = false,
-                cookedWeight = source.cookedWeight,
-                steps = source.steps?.toStepInputs(),
-            ),
-        )
+        val copy =
+            createRecipe(
+                RecipeCreate(
+                    name = name,
+                    totalServings = source.totalServings,
+                    ingredients = source.ingredients.toIngredientInputs(),
+                    isFavorite = false,
+                    cookedWeight = source.cookedWeight,
+                    steps = source.steps?.toStepInputs(),
+                ),
+            )
+        val labels = source.labels.orEmpty()
+        return if (labels.isEmpty()) copy else setLabels(copy.id, labels) ?: copy
     }
 
     private fun List<RecipeStep>.toStepInputs(): List<RecipeStepInput> =
@@ -288,9 +284,42 @@ class RecipeRepository(
         return updated
     }
 
+    /**
+     * Replaces the recipe's labels, the English nouns search matches against.
+     * Optimistic like every other edit: the cache (and its label index) is
+     * updated first, then the write is queued. Labels never ride on a recipe body,
+     * so a temp-id recipe gets its own queued op; the temp-id remap on the create's
+     * response points it at the server id before it is sent.
+     */
+    suspend fun setLabels(
+        id: String,
+        labels: List<String>,
+    ): RecipeDetail? {
+        val normalized = normalizeLabels(labels).sorted()
+        val updated =
+            getRecipeCached(id)?.copy(labels = normalized)?.also { withContext(Dispatchers.IO) { cacheRecipe(it) } }
+        syncQueue.enqueue(SyncOperation.SetRecipeLabels(id, labels))
+        return updated
+    }
+
+    /**
+     * Cached recipes whose name contains [query], then those carrying the query as an
+     * English label (the query is folded exactly like a stored label, so "Soups" meets "soup").
+     */
+    suspend fun searchRecipes(query: String): List<RecipeDetail> {
+        val trimmed = query.trim()
+        val label = normalizeLabel(trimmed) ?: ""
+        return withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries
+                .searchRecipes(pattern = "%$trimmed%", label = label)
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+        }
+    }
+
     suspend fun deleteRecipe(id: String) {
         val imageUrl = getRecipeCached(id)?.imageUrl
-        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
+        withContext(Dispatchers.IO) { deleteCachedRecipe(id) }
         if (id.isTempId()) {
             syncQueue.removeByAffected("recipes", id)
         } else {
@@ -322,7 +351,7 @@ class RecipeRepository(
         return try {
             api.deleteRecipe(id)
             val imageUrl = getRecipeCached(id)?.imageUrl
-            withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteRecipe(id) }
+            withContext(Dispatchers.IO) { deleteCachedRecipe(id) }
             syncQueue.removeByAffected("recipes", id)
             imageUrl?.let { onImageOrphaned?.invoke(it) }
             DeleteOutcome.Deleted
@@ -394,7 +423,14 @@ class RecipeRepository(
         }
     }
 
+    private fun deleteCachedRecipe(id: String) {
+        db.userDataDatabaseQueries.deleteRecipeLabels(id)
+        db.userDataDatabaseQueries.deleteRecipe(id)
+    }
+
     private fun cacheRecipe(recipe: RecipeDetail) {
+        db.userDataDatabaseQueries.deleteRecipeLabels(recipe.id)
+        recipe.labels?.forEach { label -> db.userDataDatabaseQueries.insertRecipeLabel(recipe.id, label) }
         db.userDataDatabaseQueries.insertRecipe(
             id = recipe.id,
             name = recipe.name,

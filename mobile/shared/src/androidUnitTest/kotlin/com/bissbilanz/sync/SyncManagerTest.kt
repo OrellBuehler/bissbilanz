@@ -12,6 +12,7 @@ import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.api.generated.model.RecipeIngredientInput
+import com.bissbilanz.api.generated.model.RecipeLabelsSetResponse
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
@@ -703,6 +704,65 @@ class SyncManagerTest {
             assertEquals(2, synced)
             assertEquals(0, syncQueue.pendingCount())
             coVerify { api.setRecipeImage("srv-recipe-1", "/uploads/a.webp", any(), any()) }
+        }
+
+    @Test
+    fun createRecipeDrainRemapsQueuedLabelsAndKeepsThemInTheMirror() =
+        runTest {
+            val temp = recipeDetail("temp_r1", foodId = "srv-food-1").copy(labels = listOf("soup"))
+            userDb.userDataDatabaseQueries.insertRecipeLabel("temp_r1", "soup")
+            userDb.userDataDatabaseQueries.insertRecipe(
+                id = temp.id,
+                name = temp.name,
+                totalServings = temp.totalServings,
+                isFavorite = 0L,
+                calories = temp.calories,
+                protein = temp.protein,
+                carbs = temp.carbs,
+                fat = temp.fat,
+                fiber = temp.fiber,
+                jsonData = json.encodeToString(temp),
+            )
+            enqueueAt(
+                SyncOperation.CreateRecipe(
+                    json.encodeToString(
+                        RecipeCreate(
+                            name = "Bowl",
+                            totalServings = 2.0,
+                            ingredients = listOf(RecipeIngredientInput("srv-food-1", 100.0, ServingUnit.g)),
+                        ),
+                    ),
+                    localId = "temp_r1",
+                ),
+                createdAt = 1,
+            )
+            enqueueAt(SyncOperation.SetRecipeLabels("temp_r1", listOf("soup")), createdAt = 2)
+            coEvery { api.createRecipe(any(), any(), any()) } returns recipeDetail("srv-recipe-1", foodId = "srv-food-1")
+            coEvery { api.setRecipeLabels(any(), any(), any(), any()) } returns
+                RecipeLabelsSetResponse(labels = listOf("soup"), dropped = emptyList())
+
+            val synced = manager.syncPendingQueue()
+
+            assertEquals(2, synced)
+            coVerify { api.setRecipeLabels("srv-recipe-1", listOf("soup"), any(), any()) }
+            val queries = userDb.userDataDatabaseQueries
+            assertEquals(
+                listOf("srv-recipe-1"),
+                queries.searchRecipes("%zzz%", "soup").executeAsList().map { it.id },
+            )
+            assertEquals(1L, queries.countRecipeLabels().executeAsOne())
+        }
+
+    @Test
+    fun losingARecipeLabelWriteSurfacesAConflictNotice() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.SetRecipeLabels("srv-recipe-1", listOf("soup")))
+            coEvery { api.setRecipeLabels(any(), any(), any(), any()) } throws serverNewerConflict()
+
+            manager.syncPendingQueue()
+
+            assertEquals(1, manager.state.value.conflictNotices.size)
+            assertEquals(0, syncQueue.pendingCount())
         }
 
     @Test

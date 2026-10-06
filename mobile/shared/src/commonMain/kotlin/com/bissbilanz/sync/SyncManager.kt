@@ -540,6 +540,10 @@ class SyncManager(
                 api.setRecipeImage(op.id, op.imageUrl, idempotencyKey, clientEditedAt)
             }
 
+            is SyncOperation.SetRecipeLabels -> {
+                api.setRecipeLabels(op.id, op.labels, idempotencyKey, clientEditedAt)
+            }
+
             is SyncOperation.DeleteRecipe -> {
                 api.deleteRecipe(op.id, op.force, idempotencyKey, clientEditedAt)
             }
@@ -877,7 +881,18 @@ class SyncManager(
     ) {
         val queries = db.userDataDatabaseQueries
         queries.transaction {
+            // The server created the recipe without labels; the user's edit is still queued
+            // behind this create, so the optimistic labels stay visible until it lands.
+            val tempRecipe =
+                queries
+                    .selectRecipeById(tempId)
+                    .executeAsOneOrNull()
+                    ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+            val labels = server.labels ?: tempRecipe?.labels
+            queries.deleteRecipeLabels(tempId)
             queries.deleteRecipe(tempId)
+            queries.deleteRecipeLabels(server.id)
+            labels?.forEach { queries.insertRecipeLabel(server.id, it) }
             queries.insertRecipe(
                 id = server.id,
                 name = server.name,

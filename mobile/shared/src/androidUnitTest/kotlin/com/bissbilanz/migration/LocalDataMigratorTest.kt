@@ -365,6 +365,30 @@ class LocalDataMigratorTest {
         }
 
     @Test
+    fun rekeyingARecipeMovesItsLabelIndexToTheNewTempId() =
+        runTest {
+            insertFood(TestFixtures.food(id = "old-food-1", name = "Apple"))
+            insertRecipe(recipeDetail("old-recipe-1", foodId = "old-food-1").copy(labels = listOf("soup")))
+            queries.insertRecipeLabel("old-recipe-1", "soup")
+            coEvery { api.createFood(any(), any(), any()) } throws RuntimeException("offline")
+
+            migrator.migrate()
+
+            val recipeId =
+                queries
+                    .selectAllRecipes()
+                    .executeAsList()
+                    .single()
+                    .id
+            assertTrue(recipeId.startsWith("temp_"))
+            assertEquals(
+                listOf(recipeId),
+                queries.searchRecipes("%zzz%", "soup").executeAsList().map { it.id },
+            )
+            assertEquals(1L, queries.countRecipeLabels().executeAsOne())
+        }
+
+    @Test
     fun migrateRekeysAndUploadsRowsFromAnEarlierSyncedSession() =
         runTest {
             val oldFood = TestFixtures.food(id = "old-food-1", name = "Apple")

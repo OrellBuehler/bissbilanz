@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -342,7 +344,7 @@ fun AddFoodSheet(
                         }
 
                         3 -> {
-                            RecipesTab(recipes, onSelect = { selectedRecipe = it })
+                            RecipesTab(recipes, onSearch = viewModel::searchRecipes, onSelect = { selectedRecipe = it })
                         }
 
                         4 -> {
@@ -490,18 +492,38 @@ private fun RecentTab(
 @Composable
 private fun RecipesTab(
     recipes: List<Recipe>,
+    onSearch: suspend (String) -> List<Recipe>,
     onSelect: (Recipe) -> Unit,
 ) {
     if (recipes.isEmpty()) {
         EmptyState(stringResource(R.string.add_food_no_recipes))
     } else {
-        LazyColumn(modifier = Modifier.fillMaxHeight()) {
-            items(recipes, key = { it.id }) { recipe ->
-                RecipeListItem(
-                    recipe = recipe,
-                    onClick = { onSelect(recipe) },
-                    onQuickLog = { onSelect(recipe) },
-                )
+        var query by remember { mutableStateOf("") }
+        // Name matches first, then recipes carrying the query as a label.
+        val visible by produceState(recipes, recipes, query) {
+            value = if (query.isBlank()) recipes else onSearch(query)
+        }
+        Column(modifier = Modifier.fillMaxHeight()) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text(stringResource(R.string.recipe_list_search_placeholder)) },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
+            if (visible.isEmpty()) {
+                EmptyState(stringResource(R.string.recipe_list_no_results))
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(visible, key = { it.id }) { recipe ->
+                        RecipeListItem(
+                            recipe = recipe,
+                            onClick = { onSelect(recipe) },
+                            onQuickLog = { onSelect(recipe) },
+                        )
+                    }
+                }
             }
         }
     }

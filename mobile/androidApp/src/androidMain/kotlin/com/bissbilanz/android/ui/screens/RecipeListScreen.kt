@@ -59,10 +59,14 @@ fun RecipeListScreen(navController: NavController) {
     val duplicateFailedMessage = stringResource(R.string.recipe_list_duplicate_failed)
     val copyNameTemplate = stringResource(R.string.recipe_copy_name_format)
 
+    // Name matches first, then recipes carrying the query as a label; null while the query is blank.
+    val matchedIds by produceState<Set<String>?>(null, query, recipes) {
+        value = if (query.isBlank()) null else recipeRepo.searchRecipes(query).map { it.id }.toSet()
+    }
     val visibleRecipes =
-        remember(recipes, query, sortBy) {
+        remember(recipes, matchedIds, sortBy) {
             recipes
-                .filter { it.name.contains(query, ignoreCase = true) }
+                .filter { matchedIds?.contains(it.id) ?: true }
                 .sortedWith(sortBy.comparator)
         }
 

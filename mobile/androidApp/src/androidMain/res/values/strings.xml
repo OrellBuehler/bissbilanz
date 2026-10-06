@@ -770,6 +770,7 @@
     <string name="recipe_edit_steps_count">Steps (%1$d)</string>
     <string name="recipe_edit_no_steps">No steps yet.\nAdd steps to cook this recipe one step at a time.</string>
     <string name="recipe_edit_steps_unavailable">Steps can\'t be edited until this recipe has been opened online once.</string>
+    <string name="recipe_edit_labels_hint">English nouns for what the dish is, e.g. soup, curry, salad. Searching for one finds this recipe.</string>
     <string name="recipe_edit_step_label">Step %1$d</string>
     <string name="recipe_edit_step_hint">Describe this step</string>
     <string name="recipe_edit_step_move_up">Move step %1$d up</string>

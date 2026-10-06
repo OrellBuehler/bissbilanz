@@ -43,6 +43,7 @@ class LocalDataWiperTest {
             queries.insertBulkJob("f1", "user-1")
 
             assertEquals(1L, queries.countFoodLabels().executeAsOne())
+            assertEquals(1L, queries.countRecipeLabels().executeAsOne())
 
             wiper.wipeAll()
 
@@ -51,6 +52,7 @@ class LocalDataWiperTest {
             assertEquals(0L, queries.countFoodLabels().executeAsOne())
             assertNull(queries.selectGoals().executeAsOneOrNull())
             assertTrue(queries.selectAllRecipes().executeAsList().isEmpty())
+            assertEquals(0L, queries.countRecipeLabels().executeAsOne())
             assertTrue(queries.selectAllSupplements().executeAsList().isEmpty())
             assertTrue(queries.selectAllSupplementLogs().executeAsList().isEmpty())
             assertTrue(queries.selectAllWeightEntries().executeAsList().isEmpty())
@@ -108,6 +110,7 @@ class LocalDataWiperTest {
             fiber = 2.0,
             jsonData = "{}",
         )
+        queries.insertRecipeLabel("r1", "bowl")
         queries.insertSupplement(id = "s1", name = "Iron", isActive = 1L, sortOrder = 0L, jsonData = "{}")
         queries.insertSupplementLog(id = "s1-2024-01-15", supplementId = "s1", date = "2024-01-15", takenAt = "t")
         queries.insertWeightEntry(id = "w1", entryDate = "2024-01-15", weightKg = 80.0, loggedAt = null, jsonData = "{}")
