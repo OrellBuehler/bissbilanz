@@ -12,6 +12,7 @@ struct FoodSearchView: View {
 
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(EntryRepository.self) private var entryRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(AppModeManager.self) private var appMode
     @Environment(\.dismiss) private var dismiss
 
@@ -36,6 +37,8 @@ struct FoodSearchView: View {
     @State private var selectedTab = 0
     @State private var isSearching = false
     @State private var selectedFood: Food?
+    @State private var allRecipes: [Recipe] = []
+    @State private var selectedRecipe: Recipe?
     @State private var editingFood: Food?
     @State private var showLogSheet = false
     @State private var showCreateFood = false
@@ -134,23 +137,13 @@ struct FoodSearchView: View {
             if let errorMessage { Text(errorMessage) }
         }
         .toast(message: $toastMessage)
-        .sheet(item: $selectedFood, onDismiss: {
-            // The search field's keyboard survives the sheet's presentation and
-            // pops back up over the results when it closes — drop first
-            // responder so the list (and the field itself) stays readable.
-            // Deferred a tick: resigning inside onDismiss forces a layout pass
-            // while SwiftUI is still updating the presentation, which trips
-            // the exclusivity check (BISSBILANZ-47).
-            DispatchQueue.main.async {
-                UIApplication.shared.sendAction(
-                    #selector(UIResponder.resignFirstResponder),
-                    to: nil,
-                    from: nil,
-                    for: nil
-                )
-            }
-        }) { food in
+        .sheet(item: $selectedFood, onDismiss: resignSearchKeyboard) { food in
             LogFoodSheet(food: food, date: date ?? DateFormatting.today)
+        }
+        .sheet(item: $selectedRecipe, onDismiss: resignSearchKeyboard) { recipe in
+            LogRecipeSheet(recipe: recipe, date: date ?? DateFormatting.today) {
+                toastMessage = "\(recipe.name) \(L10n.logged)"
+            }
         }
         .sheet(item: $editingFood) { food in
             FoodEditSheet(food: food) { updated in
@@ -184,10 +177,91 @@ struct FoodSearchView: View {
             if let initialQuery, !initialQuery.isEmpty {
                 query = initialQuery
             }
+            allRecipes = recipeRepository.recipes()
             await loadRecent()
             await loadFavorites()
             await loadAll()
         }
+    }
+
+    /// The search field's keyboard survives a sheet's presentation and pops
+    /// back up over the results when it closes — drop first responder so the
+    /// list (and the field itself) stays readable. Deferred a tick: resigning
+    /// inside onDismiss forces a layout pass while SwiftUI is still updating
+    /// the presentation, which trips the exclusivity check (BISSBILANZ-47).
+    private func resignSearchKeyboard() {
+        DispatchQueue.main.async {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+        }
+    }
+
+    /// Recipes only join the quick-add search (opened with a day to log to);
+    /// the Foods tab stays foods-only.
+    private var matchingRecipes: [Recipe] {
+        date == nil ? [] : RecipeSearch.matching(allRecipes, query: query)
+    }
+
+    @ViewBuilder
+    private var recipeResults: some View {
+        let recipes = matchingRecipes
+        if !isSelecting, !recipes.isEmpty {
+            Section(L10n.recipes) {
+                ForEach(recipes) { recipe in
+                    recipeRow(recipe)
+                }
+            }
+        }
+    }
+
+    private func recipeRow(_ recipe: Recipe) -> some View {
+        Button {
+            selectedRecipe = recipe
+        } label: {
+            HStack {
+                if recipe.imageUrl != nil {
+                    FoodImageView(imageUrl: recipe.imageUrl)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(recipe.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    if let calories = recipe.caloriesPerServing {
+                        Text("\(Int(calories)) cal")
+                            .font(.caption)
+                            .foregroundStyle(accessibleColor(.calories))
+                    }
+                }
+                Spacer()
+                Label(L10n.recipe, systemImage: "book")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if recipe.isFavorite {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(recipeAccessibilityLabel(recipe))
+    }
+
+    private func recipeAccessibilityLabel(_ recipe: Recipe) -> String {
+        var parts = [L10n.recipe, recipe.name]
+        if let calories = recipe.caloriesPerServing { parts.append("\(Int(calories)) cal") }
+        if recipe.isFavorite { parts.append(L10n.favorite) }
+        return parts.joined(separator: ", ")
     }
 
     /// Rows are logging buttons outside select mode, so the lists only get a
@@ -331,7 +405,7 @@ struct FoodSearchView: View {
         Group {
             if query.count < 2 {
                 let items = allFoods.filter { matches($0) }
-                if items.isEmpty {
+                if items.isEmpty, matchingRecipes.isEmpty {
                     if isLoadingMoreAll {
                         LoadingView(message: L10n.loading)
                     } else if query.isEmpty {
@@ -351,6 +425,7 @@ struct FoodSearchView: View {
                                     if food.id == allFoods.last?.id { loadMoreAll() }
                                 }
                         }
+                        recipeResults
                         if isLoadingMoreAll {
                             HStack {
                                 Spacer()
@@ -361,11 +436,11 @@ struct FoodSearchView: View {
                     }
                     .listStyle(.plain)
                 }
-            } else if isSearching, searchResults.isEmpty, offResults.isEmpty {
+            } else if isSearching, searchResults.isEmpty, offResults.isEmpty, matchingRecipes.isEmpty {
                 // Results for the previous query stay up while the next one
                 // loads, so the list isn't torn down under a finger mid-typing.
                 LoadingView(message: L10n.loading)
-            } else if searchResults.isEmpty, offResults.isEmpty, !isSearchingOff {
+            } else if searchResults.isEmpty, offResults.isEmpty, matchingRecipes.isEmpty, !isSearchingOff {
                 ContentUnavailableView(
                     L10n.noResults,
                     systemImage: "magnifyingglass",
@@ -376,6 +451,7 @@ struct FoodSearchView: View {
                     ForEach(searchResults) { food in
                         foodRow(food)
                     }
+                    recipeResults
                     // Open Food Facts hits aren't in the user's database yet,
                     // so there is nothing to merge them with.
                     if !isSelecting, isSearchingOff || !offResults.isEmpty {
