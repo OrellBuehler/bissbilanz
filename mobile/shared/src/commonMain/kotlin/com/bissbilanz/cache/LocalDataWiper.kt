@@ -44,6 +44,7 @@ class LocalDataWiper(
                 queries.clearAllSleepEntries()
                 queries.clearAllPreferences()
                 queries.clearAllDayProperties()
+                queries.clearAllBulkUploadJobs()
             }
             val cacheQueries = cacheDb.bissbilanzDatabaseQueries
             cacheQueries.transaction {

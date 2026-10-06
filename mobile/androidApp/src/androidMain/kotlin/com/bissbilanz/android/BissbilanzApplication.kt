@@ -11,6 +11,10 @@ import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskPollWorker
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.aitasks.McpConnectionStore
+import com.bissbilanz.android.bulk.BulkImportScheduler
+import com.bissbilanz.android.bulk.BulkUploadController
+import com.bissbilanz.android.bulk.BulkUploadPreferences
+import com.bissbilanz.android.bulk.BulkUploadWorker
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -59,10 +63,16 @@ import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.sanitizeClientVersion
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.SecureStorage
+import com.bissbilanz.auth.jwtSubject
 import com.bissbilanz.cache.DatabaseDriverFactory
 import com.bissbilanz.cache.LocalDataWiper
 import com.bissbilanz.di.sharedModule
+import com.bissbilanz.foodpackage.AndroidBulkPackageReader
 import com.bissbilanz.foodpackage.AndroidFoodPackageArchive
+import com.bissbilanz.foodpackage.BulkFoodUploader
+import com.bissbilanz.foodpackage.BulkPackageImporter
+import com.bissbilanz.foodpackage.BulkPackageReader
+import com.bissbilanz.foodpackage.BulkUploadStore
 import com.bissbilanz.foodpackage.FoodPackageArchive
 import com.bissbilanz.foodpackage.LocalFoodPackageService
 import com.bissbilanz.foodpackage.PackageImageStore
@@ -136,6 +146,24 @@ class BissbilanzApplication :
                 single<FoodPackageArchive> { AndroidFoodPackageArchive() }
                 single<PackageImageStore> { AndroidPackageImageStore(androidContext()) }
                 single { LocalFoodPackageService(db = get(), json = get(), archive = get(), images = get()) }
+                single<BulkPackageReader> { AndroidBulkPackageReader() }
+                single { BulkPackageImporter(db = get(), json = get(), reader = get(), images = get()) }
+                single { BulkUploadStore(get()) }
+                single { BulkUploadPreferences(androidContext()) }
+                single {
+                    val authManager = get<AuthManager>()
+                    BulkFoodUploader(
+                        api = get(),
+                        db = get(),
+                        json = get(),
+                        images = get(),
+                        store = get(),
+                        errorReporter = get(),
+                        currentUserId = { jwtSubject(authManager.getAccessToken()) },
+                    )
+                }
+                single { BulkImportScheduler(androidContext()) }
+                single { BulkUploadController(androidContext(), get(), get(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
                 single {
                     AccountDowngrader(
@@ -243,9 +271,13 @@ class BissbilanzApplication :
         koin.get<RecipeRepository>().onImageOrphaned = evictImage
         val mcpConnectionStore = koin.get<McpConnectionStore>()
         koin.get<LocalDataWiper>().onWiped = {
+            BulkUploadWorker.cancel(this@BissbilanzApplication)
+            koin.get<BulkUploadPreferences>().setPaused(false)
             LocalImageStore.clear(this@BissbilanzApplication)
             mcpConnectionStore.clear()
         }
+        // A diary entry that points at a food still waiting for its bulk upload sends that food first.
+        koin.get<SyncManager>().bulkFoodGate = koin.get<BulkFoodUploader>()
 
         koin.get<FoodRepository>().onFoodChanged = {
             WorkManager
@@ -353,6 +385,17 @@ class BissbilanzApplication :
         // per launch from whatever the cache already holds.
         koin.get<CoroutineScope>().launch {
             FoodShortcutPublisher.publish(this@BissbilanzApplication)
+        }
+
+        // Foods imported in bulk that never finished uploading (the app was killed, the phone
+        // restarted) continue where they stopped.
+        koin.get<CoroutineScope>().launch(Dispatchers.IO) {
+            BulkUploadWorker.resumeIfNeeded(
+                this@BissbilanzApplication,
+                koin.get<BulkUploadStore>(),
+                koin.get<BulkUploadPreferences>(),
+                koin.get<AppModeManager>(),
+            )
         }
 
         // Local mode has no server-side orphan cleanup; start-up is the one moment

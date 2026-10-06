@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.bulk.BulkImportScheduler
+import com.bissbilanz.android.bulk.BulkImportStatus
+import com.bissbilanz.android.bulk.BulkImportWorker
 import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingPackageImport
@@ -18,11 +21,15 @@ import com.bissbilanz.api.generated.model.FoodPackageIncludeRecipes
 import com.bissbilanz.api.generated.model.FoodPackagePreviewResponse
 import com.bissbilanz.api.generated.model.FoodPackageSelection
 import com.bissbilanz.api.generated.model.FoodPackageSummaryResponse
+import com.bissbilanz.foodpackage.BulkManifestInfo
+import com.bissbilanz.foodpackage.BulkPackageImporter
 import com.bissbilanz.foodpackage.FoodPackageArchive
 import com.bissbilanz.foodpackage.FoodPackageException
 import com.bissbilanz.foodpackage.FoodPackageMappingState
 import com.bissbilanz.foodpackage.FoodPackageResolutionState
 import com.bissbilanz.foodpackage.LocalFoodPackageService
+import com.bissbilanz.foodpackage.MAX_PACKAGE_BYTES
+import com.bissbilanz.foodpackage.MAX_PACKAGE_FOODS
 import com.bissbilanz.foodpackage.MappedFood
 import com.bissbilanz.foodpackage.resolvable
 import com.bissbilanz.mode.AppModeManager
@@ -31,8 +38,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +62,8 @@ class FoodPackageViewModel(
     private val localPackages: LocalFoodPackageService,
     private val archive: FoodPackageArchive,
     private val foodRepository: FoodRepository,
+    private val bulkImporter: BulkPackageImporter,
+    private val bulkImports: BulkImportScheduler,
 ) : ViewModel() {
     private val isLocalMode: Boolean get() = appModeManager.isLocal
 
@@ -262,6 +273,8 @@ class FoodPackageViewModel(
         /** New incoming foods that stand in for one of the user's own, by package ref. */
         val mappings: Map<String, MappedFood> = emptyMap(),
         val result: FoodPackageImportResult? = null,
+        /** Set instead of [preview] for a package too big for the per-item review: it is imported as a whole. */
+        val bulk: BulkManifestInfo? = null,
         /** Server error text (e.g. a rejected file), shown verbatim. */
         val error: String? = null,
         /** Why the file could not be opened, as a string resource. */
@@ -271,11 +284,40 @@ class FoodPackageViewModel(
     private val _importState = MutableStateFlow(ImportState())
     val importState: StateFlow<ImportState> = _importState.asStateFlow()
 
+    /** The background import of a huge package, which keeps running when this screen is left. */
+    val bulkStatus: StateFlow<BulkImportStatus> =
+        bulkImports.status.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), BulkImportStatus.Idle)
+
     fun resetImport() {
         previewJob?.cancel()
         IncomingPackageFiles.delete(_importState.value.path)
         _importState.value = ImportState()
+        if (bulkStatus.value !is BulkImportStatus.Running) bulkImports.acknowledge()
     }
+
+    /**
+     * Hands the package to the background import. From here the file belongs to that job: it
+     * deletes it when done, so this screen lets go of it.
+     */
+    fun startBulkImport() {
+        val state = _importState.value
+        val path = state.path ?: return
+        if (state.bulk == null) return
+        bulkImports.start(path, state.fileName ?: IncomingPackageFiles.DEFAULT_NAME)
+        _importState.update { it.copy(path = null, importing = true) }
+    }
+
+    fun bulkErrorRes(kind: String): Int =
+        when (kind) {
+            BulkImportWorker.KIND_SIGNED_OUT -> R.string.bulk_import_error_signed_out
+            BulkImportWorker.KIND_FAILED -> R.string.bulk_import_error_failed
+            BulkImportWorker.KIND_UNREADABLE -> R.string.food_package_error_unreadable
+            else ->
+                FoodPackageException.Kind.entries
+                    .firstOrNull { it.name == kind }
+                    ?.let { openErrorRes(FoodPackageException(it, kind)) }
+                    ?: R.string.bulk_import_error_failed
+        }
 
     /** Take up a file handed over from outside the app (or a problem reading it). */
     fun openIncoming(request: PendingPackageImport.Request) {
@@ -286,10 +328,10 @@ class FoodPackageViewModel(
                 ImportState(
                     fileName = request.fileName,
                     errorRes =
-                        if (request.problem == PendingPackageImport.Problem.TOO_LARGE) {
-                            R.string.food_package_file_too_large
-                        } else {
-                            R.string.food_package_error_unreadable
+                        when (request.problem) {
+                            PendingPackageImport.Problem.TOO_LARGE -> R.string.food_package_file_too_large
+                            PendingPackageImport.Problem.NO_SPACE -> R.string.food_package_error_no_space
+                            else -> R.string.food_package_error_unreadable
                         },
                 )
             return
@@ -325,20 +367,25 @@ class FoodPackageViewModel(
         previewJob =
             viewModelScope.launch {
                 try {
-                    val preview =
-                        withContext(Dispatchers.IO) {
-                            // Every file is checked on the device first, so a stray zip gets a clear
-                            // message instead of an upload that fails.
-                            if (!isLocalMode) archive.read(path)
-                            if (isLocalMode) localPackages.preview(path) else api.previewFoodPackage(fileName, File(path).readBytes())
+                    val info = bulkImporter.peek(path)
+                    if (info.foodCount > MAX_PACKAGE_FOODS || File(path).length() > MAX_PACKAGE_BYTES) {
+                        _importState.update { it.copy(bulk = info, preview = null) }
+                    } else {
+                        val preview =
+                            withContext(Dispatchers.IO) {
+                                // Every file is checked on the device first, so a stray zip gets a clear
+                                // message instead of an upload that fails.
+                                if (!isLocalMode) archive.read(path)
+                                if (isLocalMode) localPackages.preview(path) else api.previewFoodPackage(fileName, File(path).readBytes())
+                            }
+                        _importState.update {
+                            it.copy(
+                                preview = preview,
+                                foods = FoodPackageResolutionState.initial(preview.conflicts.foods.map { c -> c.resolvable() }),
+                                recipes = FoodPackageResolutionState.initial(preview.conflicts.recipes.map { c -> c.resolvable() }),
+                                mappings = emptyMap(),
+                            )
                         }
-                    _importState.update {
-                        it.copy(
-                            preview = preview,
-                            foods = FoodPackageResolutionState.initial(preview.conflicts.foods.map { c -> c.resolvable() }),
-                            recipes = FoodPackageResolutionState.initial(preview.conflicts.recipes.map { c -> c.resolvable() }),
-                            mappings = emptyMap(),
-                        )
                     }
                 } catch (e: FoodPackageException) {
                     _importState.update { it.copy(preview = null, errorRes = openErrorRes(e)) }
@@ -481,6 +528,10 @@ class FoodPackageViewModel(
     override fun onCleared() {
         IncomingPackageFiles.delete(_importState.value.path)
         super.onCleared()
+    }
+
+    private companion object {
+        const val STOP_TIMEOUT_MS = 5_000L
     }
 
     private fun serverError(e: ApiException): String? {

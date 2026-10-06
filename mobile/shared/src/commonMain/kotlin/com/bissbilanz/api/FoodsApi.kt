@@ -3,6 +3,8 @@ package com.bissbilanz.api
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodBrandStat
 import com.bissbilanz.api.generated.model.FoodBrandsResponse
+import com.bissbilanz.api.generated.model.FoodBulkItem
+import com.bissbilanz.api.generated.model.FoodBulkResponse
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodDuplicatesResponse
@@ -23,10 +25,25 @@ import com.bissbilanz.api.generated.model.OpenFoodFactsResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsSearchResponse
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeUpdate
+import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.isSuccess
+import kotlinx.serialization.builtins.ListSerializer
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+/** A photo sent along with a bulk food create. */
+class BulkFoodImage(
+    val bytes: ByteArray,
+    val contentType: String,
+)
 
 interface FoodsApi : ApiTransport {
     suspend fun getFoodsPaginated(
@@ -61,6 +78,49 @@ interface FoodsApi : ApiTransport {
     suspend fun getFoodIds(): List<String> {
         val response: FoodIdsResponse = get("/api/foods/ids")
         return response.ids
+    }
+
+    /**
+     * Creates up to 200 foods with client-chosen ids in one request (`POST /api/foods/bulk`);
+     * [images] maps a food id to the photo sent as its `image.<id>` part. The reply carries one
+     * result per item, in order. Origin is set explicitly: the server's CSRF check refuses a
+     * multipart POST without one.
+     */
+    suspend fun bulkCreateFoods(
+        items: List<FoodBulkItem>,
+        images: Map<String, BulkFoodImage> = emptyMap(),
+    ): FoodBulkResponse {
+        val foodsJson = json.encodeToString(ListSerializer(FoodBulkItem.serializer()), items)
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/foods/bulk",
+                formData =
+                    formData {
+                        append("foods", foodsJson, Headers.build { append(HttpHeaders.ContentType, "application/json") })
+                        for ((id, image) in images) {
+                            append(
+                                "image.$id",
+                                image.bytes,
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, image.contentType)
+                                    append(HttpHeaders.ContentDisposition, "filename=\"$id\"")
+                                },
+                            )
+                        }
+                    },
+            ) {
+                applyClientVersionHeaders(clientPlatform, clientVersion)
+                header(HttpHeaders.Origin, baseUrl)
+                timeout { requestTimeoutMillis = 120_000 }
+            }
+        if (!response.status.isSuccess()) {
+            throw ApiException(
+                "POST /api/foods/bulk failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+                response.status.value,
+                response,
+            )
+        }
+        return response.body()
     }
 
     suspend fun getFoodUsage(id: String): FoodUsageResponse = get("/api/foods/$id/usage")

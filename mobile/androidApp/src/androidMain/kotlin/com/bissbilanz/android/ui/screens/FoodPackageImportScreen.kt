@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.bulk.BulkImportStatus
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.ui.components.FoodImage
@@ -91,11 +92,13 @@ import com.bissbilanz.api.generated.model.FoodPackageNewFoodItem
 import com.bissbilanz.api.generated.model.FoodPackageRecipeConflict
 import com.bissbilanz.foodpackage.FoodPackageMappingState
 import com.bissbilanz.foodpackage.MappedFood
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * Review and import a food package someone shared — the Android counterpart of
@@ -107,6 +110,8 @@ import org.koin.androidx.compose.koinViewModel
 fun FoodPackageImportScreen(navController: NavController) {
     val viewModel: FoodPackageViewModel = koinViewModel()
     val state by viewModel.importState.collectAsStateWithLifecycle()
+    val bulkStatus by viewModel.bulkStatus.collectAsStateWithLifecycle()
+    val appModeManager: AppModeManager = koinInject()
     val messageRes by viewModel.messageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
@@ -129,10 +134,10 @@ fun FoodPackageImportScreen(navController: NavController) {
                 val path = picked.path
                 if (path == null) {
                     viewModel.fileRejected(
-                        if (picked.problem == PendingPackageImport.Problem.TOO_LARGE) {
-                            R.string.food_package_file_too_large
-                        } else {
-                            R.string.food_package_error_unreadable
+                        when (picked.problem) {
+                            PendingPackageImport.Problem.TOO_LARGE -> R.string.food_package_file_too_large
+                            PendingPackageImport.Problem.NO_SPACE -> R.string.food_package_error_no_space
+                            else -> R.string.food_package_error_unreadable
                         },
                     )
                 } else {
@@ -187,7 +192,17 @@ fun FoodPackageImportScreen(navController: NavController) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             val preview = state.preview
             val result = state.result
+            val finishBulk: () -> Unit = {
+                viewModel.resetImport()
+                navController.popBackStack()
+            }
+            val bulk = bulkStatus
             when {
+                bulk is BulkImportStatus.Running -> BulkRunningView(bulk)
+                bulk is BulkImportStatus.Finished -> BulkFinishedView(bulk.summary, onDone = finishBulk)
+                bulk is BulkImportStatus.Failed -> BulkFailedView(viewModel.bulkErrorRes(bulk.kind), onDone = finishBulk)
+                state.bulk != null ->
+                    BulkReadyView(viewModel, state, isLocalMode = appModeManager.isLocal, onPickAnother = { picker.launch(mimeTypes) })
                 result != null ->
                     Column(
                         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -538,7 +553,7 @@ private fun NewFoodCard(
 private fun Food.toMappedFood() = MappedFood(id, name, brand, servingSize, servingUnit.value, imageUrl)
 
 @Composable
-private fun SmallText(text: String) {
+internal fun SmallText(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 

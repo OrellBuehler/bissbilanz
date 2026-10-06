@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.bulk.BulkImportScheduler
 import com.bissbilanz.android.navigation.FoodPackageEvents
 import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.sync.RefreshManager
@@ -18,10 +19,13 @@ import com.bissbilanz.api.generated.model.FoodPackagePreviewResponse
 import com.bissbilanz.api.generated.model.FoodPackageResolutions
 import com.bissbilanz.api.generated.model.FoodPackageSelection
 import com.bissbilanz.api.generated.model.FoodPackageTotals
+import com.bissbilanz.foodpackage.BulkManifestInfo
+import com.bissbilanz.foodpackage.BulkPackageImporter
 import com.bissbilanz.foodpackage.ExportedPackage
 import com.bissbilanz.foodpackage.FoodPackageArchive
 import com.bissbilanz.foodpackage.FoodPackageException
 import com.bissbilanz.foodpackage.LocalFoodPackageService
+import com.bissbilanz.foodpackage.MAX_PACKAGE_BYTES
 import com.bissbilanz.foodpackage.MappedFood
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
@@ -32,6 +36,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +49,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.io.RandomAccessFile
 import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -68,6 +74,8 @@ class FoodPackageViewModelTest {
     private lateinit var local: LocalFoodPackageService
     private lateinit var archive: FoodPackageArchive
     private lateinit var foodRepo: FoodRepository
+    private lateinit var bulkImporter: BulkPackageImporter
+    private lateinit var bulkImports: BulkImportScheduler
     private lateinit var pkg: File
 
     @BeforeTest
@@ -78,6 +86,8 @@ class FoodPackageViewModelTest {
         local = mockk(relaxed = true)
         archive = mockk(relaxed = true)
         foodRepo = mockk(relaxed = true)
+        bulkImporter = mockk(relaxed = true)
+        bulkImports = mockk(relaxed = true)
         pkg = File.createTempFile("package", ".pkg").apply { writeBytes(byteArrayOf(1, 2, 3)) }
     }
 
@@ -90,7 +100,17 @@ class FoodPackageViewModelTest {
     private fun viewModel(mode: AppMode): FoodPackageViewModel {
         val modeManager = AppModeManager(mockk<KeyValueStore>(relaxed = true))
         modeManager.setMode(mode)
-        return FoodPackageViewModel(api, refreshManager, mockk<ErrorReporter>(relaxed = true), modeManager, local, archive, foodRepo)
+        return FoodPackageViewModel(
+            api,
+            refreshManager,
+            mockk<ErrorReporter>(relaxed = true),
+            modeManager,
+            local,
+            archive,
+            foodRepo,
+            bulkImporter,
+            bulkImports,
+        )
     }
 
     private suspend fun <T> awaitState(
@@ -334,5 +354,76 @@ class FoodPackageViewModelTest {
             assertEquals("Käsespätzle.bissbilanz", file?.name)
             coVerify(exactly = 0) { local.export(any(), any()) }
             cache.deleteRecursively()
+        }
+
+    @Test
+    fun aPackageWithTooManyFoodsSkipsThePerItemReviewAndOffersTheBulkImport() =
+        runBlocking<Unit> {
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo("2026-10-06", 48_000, 3)
+            val vm = viewModel(AppMode.SYNCED)
+
+            vm.analyzed("huge.bissbilanz")
+
+            assertEquals(
+                48_000,
+                vm.importState.value.bulk
+                    ?.foodCount,
+            )
+            assertNull(vm.importState.value.preview)
+            coVerify(exactly = 0) { api.previewFoodPackage(any(), any()) }
+            coVerify(exactly = 0) { local.preview(any()) }
+        }
+
+    @Test
+    fun aFileBeyondTheNormalSizeLimitGoesTheBulkWayEvenWithFewFoods() =
+        runBlocking<Unit> {
+            RandomAccessFile(pkg, "rw").use { it.setLength(MAX_PACKAGE_BYTES + 1) }
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 10, 0)
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyzed()
+
+            assertNotNull(vm.importState.value.bulk)
+            coVerify(exactly = 0) { local.preview(any()) }
+        }
+
+    @Test
+    fun startingABulkImportHandsTheFileToTheBackgroundJobAndLetsGoOfIt() =
+        runBlocking<Unit> {
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 20_000, 0)
+            val vm = viewModel(AppMode.SYNCED)
+            vm.analyzed("huge.bissbilanz")
+
+            vm.startBulkImport()
+
+            verify { bulkImports.start(pkg.path, "huge.bissbilanz") }
+            assertNull(vm.importState.value.path)
+            assertTrue(vm.importState.value.importing)
+            assertTrue(pkg.exists())
+        }
+
+    @Test
+    fun aNormalPackageIsNotOfferedTheBulkImport() =
+        runBlocking<Unit> {
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 12, 0)
+            coEvery { local.preview(pkg.path) } returns preview()
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyzed()
+
+            assertNull(vm.importState.value.bulk)
+            assertNotNull(vm.importState.value.preview)
+        }
+
+    @Test
+    fun bulkFailuresAreExplainedInPlainWords() =
+        runBlocking<Unit> {
+            val vm = viewModel(AppMode.SYNCED)
+
+            assertEquals(R.string.bulk_import_error_signed_out, vm.bulkErrorRes("SIGNED_OUT"))
+            assertEquals(R.string.bulk_import_error_failed, vm.bulkErrorRes("FAILED"))
+            assertEquals(R.string.food_package_error_not_a_package, vm.bulkErrorRes("NOT_A_PACKAGE"))
+            assertEquals(R.string.food_package_error_invalid, vm.bulkErrorRes("DAMAGED"))
+            assertEquals(R.string.bulk_import_error_failed, vm.bulkErrorRes("SOMETHING_NEW"))
         }
 }

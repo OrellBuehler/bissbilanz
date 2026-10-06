@@ -40,6 +40,7 @@ class LocalDataWiperTest {
     fun wipeAllClearsEveryUserTableTheQueueAndAllSyncMeta() =
         runTest {
             seedEverything()
+            queries.insertBulkJob("f1", "user-1")
 
             assertEquals(1L, queries.countFoodLabels().executeAsOne())
 
@@ -56,6 +57,7 @@ class LocalDataWiperTest {
             assertTrue(queries.selectAllSleepEntries().executeAsList().isEmpty())
             assertNull(queries.selectPreferences().executeAsOneOrNull())
             assertTrue(queries.selectAllDayProperties().executeAsList().isEmpty())
+            assertEquals(0L, queries.countBulkJobs().executeAsOne().total)
             assertEquals(0L, syncQueue.pendingCount())
             assertTrue(cacheQueries.selectAllMealTypes().executeAsList().isEmpty())
             // The one-shot migration marker is gone together with all other sync meta.

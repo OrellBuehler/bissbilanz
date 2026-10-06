@@ -3,7 +3,7 @@ package com.bissbilanz.android.navigation
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.bissbilanz.foodpackage.MAX_PACKAGE_BYTES
+import com.bissbilanz.foodpackage.BULK_MAX_BYTES
 import com.bissbilanz.util.Failures
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +30,7 @@ object PendingPackageImport {
         val problem: Problem? = null,
     )
 
-    enum class Problem { UNREADABLE, TOO_LARGE }
+    enum class Problem { UNREADABLE, TOO_LARGE, NO_SPACE }
 
     private val _request = MutableStateFlow<Request?>(null)
     val request: StateFlow<Request?> = _request.asStateFlow()
@@ -53,6 +53,7 @@ object PendingPackageImport {
 object IncomingPackageFiles {
     private const val DIR = "incoming"
     private const val MAX_AGE_MS = 24L * 60 * 60 * 1000
+    private const val FREE_SPACE_MARGIN_BYTES = 64L * 1024 * 1024
     const val DEFAULT_NAME = "package.bissbilanz"
 
     /** The name the sending app shows for [uri], as Android reports it. */
@@ -89,11 +90,15 @@ object IncomingPackageFiles {
         uri: Uri,
     ): PendingPackageImport.Request {
         val name = displayName(context, uri)
-        if (declaredSize(context, uri) > MAX_PACKAGE_BYTES) {
+        val declared = declaredSize(context, uri)
+        if (declared > BULK_MAX_BYTES) {
             return PendingPackageImport.Request(name, null, PendingPackageImport.Problem.TOO_LARGE)
         }
         val dir = File(context.cacheDir, DIR).apply { mkdirs() }
         sweep(dir)
+        if (!hasRoomFor(dir, declared)) {
+            return PendingPackageImport.Request(name, null, PendingPackageImport.Problem.NO_SPACE)
+        }
         val target = File(dir, "${Uuid.random()}.pkg")
         val input =
             try {
@@ -115,7 +120,7 @@ object IncomingPackageFiles {
                         if (count < 0) break
                         total += count
                         // The declared size proves nothing; stop copying once the real one is too big.
-                        if (total > MAX_PACKAGE_BYTES) break
+                        if (total > BULK_MAX_BYTES) break
                         out.write(buffer, 0, count)
                     }
                 }
@@ -125,12 +130,22 @@ object IncomingPackageFiles {
             target.delete()
             return PendingPackageImport.Request(name, null, PendingPackageImport.Problem.UNREADABLE)
         }
-        if (total > MAX_PACKAGE_BYTES) {
+        if (total > BULK_MAX_BYTES) {
             target.delete()
             return PendingPackageImport.Request(name, null, PendingPackageImport.Problem.TOO_LARGE)
         }
         return PendingPackageImport.Request(name, target.absolutePath)
     }
+
+    /**
+     * Room for the copy plus what a big package's photos take once they are stored in the app
+     * (about as much again), and some headroom. An unknown size passes: the copy itself stops
+     * at the limit.
+     */
+    internal fun hasRoomFor(
+        dir: File,
+        declared: Long,
+    ): Boolean = declared <= 0 || dir.usableSpace >= declared * 2 + FREE_SPACE_MARGIN_BYTES
 
     /** Drops cached copies from earlier imports. */
     private fun sweep(dir: File) {

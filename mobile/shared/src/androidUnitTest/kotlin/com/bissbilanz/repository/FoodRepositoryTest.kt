@@ -455,6 +455,120 @@ class FoodRepositoryTest {
         assertNull(result)
     }
 
+    private fun queueBulkUpload(
+        id: String,
+        state: String = "pending",
+    ) {
+        db.userDataDatabaseQueries.insertBulkJob(id, "user-1")
+        if (state == "failed") db.userDataDatabaseQueries.markBulkJobFailed("rejected", id)
+    }
+
+    @Test
+    fun refreshFoodsKeepsBulkImportedFoodsThatAreStillWaitingForTheirUpload() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "bulk-pending", name = "Waiting"))
+            seedFoodInCache(TestFixtures.food(id = "bulk-failed", name = "Rejected"))
+            seedFoodInCache(TestFixtures.food(id = "gone", name = "Merged Away"))
+            queueBulkUpload("bulk-pending")
+            queueBulkUpload("bulk-failed", state = "failed")
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(emptyList())
+            coEvery { api.getFoodIds() } returns emptyList()
+            coEvery { syncQueue.all() } returns emptyList()
+
+            repository.refreshFoods()
+
+            assertEquals(setOf("bulk-pending", "bulk-failed"), cachedIds())
+        }
+
+    @Test
+    fun refreshFoodsDoesNotCountUploadingFoodsAgainstTheServerTotal() =
+        runTest {
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(TestFixtures.food(id = "1", name = "One")))
+            coEvery { api.getFoodIds() } returns listOf("1")
+            coEvery { api.getFoodsPaginated(1, 0) } returns FoodsListResponse(foods = emptyList(), total = 1)
+            coEvery { syncQueue.all() } returns emptyList()
+            repository.refreshFoods()
+            seedFoodInCache(TestFixtures.food(id = "bulk-pending", name = "Waiting"))
+            queueBulkUpload("bulk-pending")
+
+            repository.refreshFoods()
+
+            coVerify(exactly = 1) { api.getFoodIds() }
+        }
+
+    @Test
+    fun editingAFoodThatIsWaitingForItsBulkUploadStaysOnTheDevice() =
+        runTest {
+            val original = TestFixtures.food(id = "bulk-pending", name = "Waiting").copy(labels = listOf("bread"))
+            seedFoodInCache(original)
+            queueBulkUpload("bulk-pending")
+            val create =
+                FoodCreate(
+                    name = "Renamed",
+                    servingSize = 100.0,
+                    servingUnit = ServingUnit.g,
+                    calories = 10.0,
+                    protein = 1.0,
+                    carbs = 1.0,
+                    fat = 1.0,
+                    fiber = 1.0,
+                )
+
+            repository.updateFood("bulk-pending", create)
+            repository.toggleFavorite("bulk-pending", true)
+            repository.setLabels("bulk-pending", listOf("cake"))
+
+            io.mockk.coVerify(exactly = 0) { syncQueue.enqueue(any()) }
+            val stored =
+                json.decodeFromString<Food>(
+                    db.userDataDatabaseQueries
+                        .selectFoodById("bulk-pending")
+                        .executeAsOne()
+                        .jsonData,
+                )
+            assertEquals("Renamed", stored.name)
+            assertTrue(stored.isFavorite)
+            assertEquals(listOf("cake"), stored.labels)
+        }
+
+    @Test
+    fun deletingAFoodThatIsWaitingForItsBulkUploadDropsItsJobWithoutAServerCall() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "bulk-pending", name = "Waiting"))
+            queueBulkUpload("bulk-pending")
+
+            repository.deleteFood("bulk-pending")
+
+            assertEquals(emptySet(), cachedIds())
+            assertNull(db.userDataDatabaseQueries.selectBulkJob("bulk-pending").executeAsOneOrNull())
+            coVerify(exactly = 0) { syncQueue.enqueue(any()) }
+        }
+
+    @Test
+    fun searchTopsUpTheServersAnswerWithBulkFoodsStillWaitingForTheirUpload() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "bulk-pending", name = "Haferflocken"))
+            seedFoodInCache(TestFixtures.food(id = "uploaded", name = "Haferbrei"))
+            seedFoodInCache(TestFixtures.food(id = "plain", name = "Haferschleim"))
+            queueBulkUpload("bulk-pending")
+            queueBulkUpload("uploaded")
+            db.userDataDatabaseQueries.markBulkJobDone("uploaded")
+            coEvery { api.searchFoods("Hafer") } returns listOf(TestFixtures.food(id = "uploaded", name = "Haferbrei"))
+
+            val found = repository.searchFoods("Hafer")
+
+            assertEquals(listOf("uploaded", "bulk-pending"), found.map { it.id })
+        }
+
+    @Test
+    fun searchLeavesTheServersAnswerAloneWhenNothingIsWaiting() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "plain", name = "Haferschleim"))
+            coEvery { api.searchFoods("Hafer") } returns emptyList()
+
+            assertEquals(emptyList(), repository.searchFoods("Hafer"))
+        }
+
     private fun seedFoodInCache(food: Food) {
         db.userDataDatabaseQueries.insertFood(
             id = food.id,
