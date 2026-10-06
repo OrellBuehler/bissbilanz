@@ -18,9 +18,16 @@ final class ConnectivityMonitor {
         }
     }
 
+    /// True on a cellular or personal-hotspot path, where the user may not want a
+    /// big background upload to run (`BulkUploadManager`'s Wi-Fi-only switch).
+    var isExpensive = false
+
     /// Invoked on the main actor whenever connectivity flips (used by the
     /// sync manager to drain when connectivity is regained).
     var onOnlineChange: ((Bool) -> Void)?
+
+    /// Invoked on the main actor after every path update, whatever changed.
+    var onPathChange: (() -> Void)?
 
     @ObservationIgnored private var monitor: NWPathMonitor?
 
@@ -34,8 +41,11 @@ final class ConnectivityMonitor {
         // non-singleton use).
         monitor.pathUpdateHandler = { [weak self] path in
             let online = path.status == .satisfied
+            let expensive = path.isExpensive
             Task { @MainActor in
+                self?.isExpensive = expensive
                 self?.isOnline = online
+                self?.onPathChange?()
             }
         }
         monitor.start(queue: DispatchQueue(label: "connectivity-monitor", qos: .utility))

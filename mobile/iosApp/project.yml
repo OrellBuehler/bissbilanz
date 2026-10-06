@@ -76,10 +76,12 @@ targets:
         UIBackgroundModes:
           - remote-notification
           - fetch
+          - processing
         # Identifiers BGTaskScheduler may register — must match
         # BackgroundRefresher.taskIdentifier or registration fails at launch.
         BGTaskSchedulerPermittedIdentifiers:
           - com.bissbilanz.ios.refresh
+          - com.bissbilanz.ios.bulkupload
         # Only standard (exempt) HTTPS encryption is used, so declare no
         # non-exempt encryption — TestFlight then skips the per-build
         # export-compliance prompt that would otherwise block each upload.

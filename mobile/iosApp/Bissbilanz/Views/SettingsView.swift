@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(AppModeManager.self) private var appModeManager
     @Environment(SyncManager.self) private var syncManager
+    @Environment(BulkUploadManager.self) private var bulkUploadManager
     @Environment(\.modelContext) private var modelContext
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
@@ -610,6 +611,13 @@ struct SettingsView: View {
         }
     }
 
+    /// What signing out costs: the local data, and imported foods that never reached the server.
+    private var signOutMessage: String {
+        guard bulkUploadManager.hasWork else { return L10n.signOutConfirmation }
+        let unsynced = bulkUploadManager.pendingCount + bulkUploadManager.failedCount
+        return L10n.signOutConfirmation + "\n\n" + L10n.signOutBulkWarning(unsynced)
+    }
+
     @ViewBuilder
     private var accountActionRows: some View {
         Button {
@@ -642,6 +650,7 @@ struct SettingsView: View {
                 // signed-out account — wipe them so nothing leaks
                 // into the next session (Local mode or another
                 // account).
+                bulkUploadManager.reset()
                 migrator.wipeLocalData()
                 // wipeLocalData clears the files; this also
                 // drops the decoded images the loader still
@@ -654,7 +663,7 @@ struct SettingsView: View {
             }
             Button(L10n.cancel, role: .cancel) {}
         } message: {
-            Text(L10n.signOutConfirmation)
+            Text(signOutMessage)
         }
         Button(role: .destructive) {
             showDeleteAccountConfirmation = true
@@ -986,6 +995,7 @@ struct SettingsView: View {
                 try await api.deleteAccount()
                 // Same teardown as sign-out: wipe local data before flipping auth
                 // state so nothing leaks into the next session.
+                bulkUploadManager.reset()
                 migrator.wipeLocalData()
                 foodImageLoader.clear()
                 authManager.logout()

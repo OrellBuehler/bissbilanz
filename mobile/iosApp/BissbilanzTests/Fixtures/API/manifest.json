@@ -232,6 +232,18 @@
 				}
 			]
 		},
+		"FoodBulkResponse": {
+			"enumVariants": [],
+			"full": "FoodBulkResponse.full.json",
+			"minimal": "FoodBulkResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "bulkCreateFoods",
+					"path": "/api/foods/bulk"
+				}
+			]
+		},
 		"FoodDuplicatesResponse": {
 			"enumVariants": [
 				"FoodDuplicatesResponse.full.enum-groups-0-reason-name-brand.json",

@@ -92,7 +92,10 @@ struct ContentView: View {
         // navigation title and read as a system alert (TestFlight feedback,
         // 1.42.0). Zero-height while there are no notices.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SyncConflictBanner()
+            VStack(spacing: 0) {
+                BulkUploadBanner()
+                SyncConflictBanner()
+            }
         }
         // Widget deep links land here as sheets so they work regardless of
         // which tabs the user has configured. Each case picks its own
