@@ -2016,6 +2016,216 @@ enum L10n {
         )
     }
 
+    // MARK: - Pending change details
+
+    static var pendingDetailsTitle: String {
+        localized("pending_detail_title", en: "Change details", de: "Details zur Änderung")
+    }
+
+    static var pendingDetailStatus: String {
+        localized("pending_detail_status", en: "Status", de: "Status")
+    }
+
+    static var pendingDetailRejected: String {
+        localized("pending_detail_rejected", en: "Rejected by the server", de: "Vom Server abgelehnt")
+    }
+
+    static var pendingDetailRetrying: String {
+        localized("pending_detail_retrying", en: "Waiting to retry", de: "Wartet auf neuen Versuch")
+    }
+
+    static var pendingDetailCreated: String {
+        localized("pending_detail_created", en: "Created", de: "Erstellt")
+    }
+
+    static var pendingDetailEdited: String {
+        localized("pending_detail_edited", en: "Last edited", de: "Zuletzt bearbeitet")
+    }
+
+    static var pendingDetailRetries: String {
+        localized("pending_detail_retries", en: "Retries", de: "Versuche")
+    }
+
+    static var pendingDetailNextAttempt: String {
+        localized("pending_detail_next_attempt", en: "Next attempt", de: "Nächster Versuch")
+    }
+
+    static var pendingDetailRejectedOn: String {
+        localized("pending_detail_rejected_on", en: "Rejected on", de: "Abgelehnt am")
+    }
+
+    static var pendingDetailReason: String {
+        localized("pending_detail_reason", en: "Reason", de: "Grund")
+    }
+
+    static var pendingDetailReference: String {
+        localized("pending_detail_reference", en: "Reference", de: "Referenz")
+    }
+
+    static var pendingDetailChanges: String {
+        localized("pending_detail_changes", en: "Changes", de: "Änderungen")
+    }
+
+    static var pendingDetailSubmitted: String {
+        localized("pending_detail_submitted", en: "Submitted values", de: "Gesendete Werte")
+    }
+
+    static var pendingDetailCreatedWith: String {
+        localized("pending_detail_created_with", en: "Created with", de: "Erstellt mit")
+    }
+
+    static var pendingDetailWillDelete: String {
+        localized("pending_detail_will_delete", en: "Will be deleted", de: "Wird gelöscht")
+    }
+
+    static var pendingDetailDetails: String {
+        localized("pending_detail_details", en: "Details", de: "Details")
+    }
+
+    static var pendingDetailAlreadyLocal: String {
+        localized(
+            "pending_detail_already_local",
+            en: "This device already shows these values. The server has not received them yet.",
+            de: "Dieses Gerät zeigt diese Werte bereits an. Der Server hat sie noch nicht erhalten."
+        )
+    }
+
+    static var pendingDetailForced: String {
+        localized(
+            "pending_detail_forced",
+            en: "Deleted even though it is used elsewhere.",
+            de: "Wird gelöscht, auch wenn es anderswo verwendet wird."
+        )
+    }
+
+    static var pendingDetailCleared: String {
+        localized("pending_detail_cleared", en: "cleared", de: "entfernt")
+    }
+
+    static var pendingDetailYes: String {
+        localized("pending_detail_yes", en: "Yes", de: "Ja")
+    }
+
+    static var pendingDetailNo: String {
+        localized("pending_detail_no", en: "No", de: "Nein")
+    }
+
+    static var pendingDetailPhotoSet: String {
+        localized("pending_detail_photo_set", en: "Photo set", de: "Foto gesetzt")
+    }
+
+    static var pendingDetailPhotoRemoved: String {
+        localized("pending_detail_photo_removed", en: "Photo removed", de: "Foto entfernt")
+    }
+
+    static var pendingDetailPhoto: String {
+        localized("pending_detail_photo", en: "Photo", de: "Foto")
+    }
+
+    static var pendingDetailFood: String {
+        localized("pending_detail_food", en: "Food", de: "Lebensmittel")
+    }
+
+    static var pendingDetailRecipe: String {
+        localized("pending_detail_recipe", en: "Recipe", de: "Rezept")
+    }
+
+    static var pendingDetailUnknownFood: String {
+        localized("pending_detail_unknown_food", en: "Unknown food", de: "Unbekanntes Lebensmittel")
+    }
+
+    static var pendingDetailOtherNutrients: String {
+        localized("pending_detail_other_nutrients", en: "Other nutrients", de: "Weitere Nährstoffe")
+    }
+
+    static var pendingDetailNutriScore: String {
+        localized("pending_detail_nutri_score", en: "Nutri-Score", de: "Nutri-Score")
+    }
+
+    static var pendingDetailNova: String {
+        localized("pending_detail_nova", en: "NOVA group", de: "NOVA-Gruppe")
+    }
+
+    static var pendingDetailAdditives: String {
+        localized("pending_detail_additives", en: "Additives", de: "Zusatzstoffe")
+    }
+
+    static var pendingDetailIngredientsText: String {
+        localized("pending_detail_ingredients_text", en: "Ingredients text", de: "Zutatenliste")
+    }
+
+    static var pendingDetailCookedWeight: String {
+        localized("pending_detail_cooked_weight", en: "Cooked weight", de: "Gekochtes Gewicht")
+    }
+
+    static var pendingDetailSteps: String {
+        localized("pending_detail_steps", en: "Steps", de: "Schritte")
+    }
+
+    static var pendingDetailLabels: String {
+        localized("pending_detail_labels", en: "Labels", de: "Labels")
+    }
+
+    static var pendingDetailSummary: String {
+        localized("pending_detail_summary", en: "Summary", de: "Zusammenfassung")
+    }
+
+    static var pendingDetailEntries: String {
+        localized("pending_detail_entries", en: "Entries", de: "Einträge")
+    }
+
+    static func pendingServingsCount(_ text: String, plural: Bool) -> String {
+        plural
+            ? localized("pending_servings_plural", en: "\(text) servings", de: "\(text) Portionen")
+            : localized("pending_servings_singular", en: "\(text) serving", de: "\(text) Portion")
+    }
+
+    static func pendingIngredientCount(_ count: Int) -> String {
+        count == 1
+            ? localized("pending_ingredient_singular", en: "1 ingredient", de: "1 Zutat")
+            : localized("pending_ingredient_plural", en: "\(count) ingredients", de: "\(count) Zutaten")
+    }
+
+    static func pendingMoreChanges(_ count: Int) -> String {
+        localized("pending_more_changes", en: "+\(count) more", de: "+\(count) weitere")
+    }
+
+    static var pendingDiscardTitle: String {
+        localized("pending_discard_title", en: "Discard this change?", de: "Diese Änderung verwerfen?")
+    }
+
+    static func pendingDiscardCreate(_ name: String) -> String {
+        localized(
+            "pending_discard_create",
+            en: "\"\(name)\" only exists on this device. If you discard it, it is lost for good.",
+            de: "\"\(name)\" existiert nur auf diesem Gerät. Wenn du es verwirfst, geht es endgültig verloren."
+        )
+    }
+
+    static func pendingDiscardUpdate(_ name: String) -> String {
+        localized(
+            "pending_discard_update",
+            en: "Your edit of \"\(name)\" will not be uploaded. The server keeps its current version.",
+            de: "Deine Änderung an \"\(name)\" wird nicht hochgeladen. Der Server behält seine aktuelle Version."
+        )
+    }
+
+    static func pendingDiscardDelete(_ name: String) -> String {
+        localized(
+            "pending_discard_delete",
+            en: "\"\(name)\" will not be deleted on the server and may come back on the next sync.",
+            de: "\"\(name)\" wird auf dem Server nicht gelöscht und kann beim nächsten Abgleich zurückkehren."
+        )
+    }
+
+    static func pendingDiscardOther(_ name: String) -> String {
+        localized(
+            "pending_discard_other",
+            en: "\"\(name)\" will not be uploaded and the change is lost.",
+            de: "\"\(name)\" wird nicht hochgeladen und die Änderung geht verloren."
+        )
+    }
+
     /// Human-readable title for a queued sync operation, keyed by its stored
     /// `typeName` (see `SyncOperation.typeName`).
     static func pendingChangeTitle(forType type: String) -> String {

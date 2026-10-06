@@ -2,14 +2,18 @@ import SwiftData
 import SwiftUI
 
 /// Shows the offline sync queue — every local change still waiting to upload —
-/// with its kind, age and retry status, plus a manual retry. Reached from the
-/// "N changes waiting to sync" row in Settings.
+/// with what each one is about, its retry status, plus a manual retry. Tapping
+/// a row opens its full details. Reached from the "N changes waiting to sync"
+/// row in Settings.
 ///
 /// Reads the queue with `@Query` (the same `mainContext` the `SyncManager`
 /// writes to), so it updates live as ops drain or new ones are enqueued.
 struct PendingSyncView: View {
     @Environment(SyncManager.self) private var syncManager
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \PendingSyncOperation.seq) private var queued: [PendingSyncOperation]
+    @State private var selected: PendingSyncSelection?
+    @State private var discardTarget: PendingSyncSelection?
 
     private var pending: [PendingSyncOperation] {
         queued.filter { $0.failedAt == nil }
@@ -20,6 +24,7 @@ struct PendingSyncView: View {
     }
 
     var body: some View {
+        let lookup = PendingChangeLookup.store(context: modelContext, queued: queued)
         List {
             if queued.isEmpty {
                 ContentUnavailableView {
@@ -42,7 +47,22 @@ struct PendingSyncView: View {
                 if !parked.isEmpty {
                     Section {
                         ForEach(parked) { row in
-                            ParkedSyncRow(row: row)
+                            PendingSyncRow(row: row, lookup: lookup) {
+                                selected = PendingSyncSelection(id: row.id)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    discardTarget = PendingSyncSelection(id: row.id)
+                                } label: {
+                                    Label(L10n.discard, systemImage: "trash")
+                                }
+                                Button {
+                                    syncManager.retryParked(row)
+                                } label: {
+                                    Label(L10n.retry, systemImage: "arrow.clockwise")
+                                }
+                                .tint(.blue)
+                            }
                         }
                     } header: {
                         Text(L10n.pendingChangesParkedTitle)
@@ -53,7 +73,9 @@ struct PendingSyncView: View {
                 if !pending.isEmpty {
                     Section {
                         ForEach(pending) { row in
-                            PendingSyncRow(row: row)
+                            PendingSyncRow(row: row, lookup: lookup) {
+                                selected = PendingSyncSelection(id: row.id)
+                            }
                         }
                     }
                 }
@@ -73,69 +95,93 @@ struct PendingSyncView: View {
                 }
             }
         }
-    }
-}
-
-/// A change the server permanently rejected: kept in the store (never deleted by
-/// the drain) with the reason, and the user decides whether to retry or discard it.
-private struct ParkedSyncRow: View {
-    @Environment(SyncManager.self) private var syncManager
-    let row: PendingSyncOperation
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Image(systemName: PendingSyncRow.icon(for: row.type))
-                    .foregroundStyle(.red)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.pendingChangeTitle(forType: row.type))
-                        .font(.subheadline)
-                    if let reason = row.failureReason {
-                        Text(L10n.syncParkedReason(reason))
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-            }
-            HStack {
-                Button(role: .destructive) {
-                    syncManager.discardParked(row)
-                } label: {
-                    Label(L10n.discard, systemImage: "trash")
-                }
-                Spacer()
-                Button {
-                    syncManager.retryParked(row)
-                } label: {
-                    Label(L10n.retry, systemImage: "arrow.clockwise")
-                }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+        .sheet(item: $selected) { selection in
+            PendingChangeSheet(rowId: selection.id)
         }
-        .padding(.vertical, 4)
+        .confirmationDialog(
+            L10n.pendingDiscardTitle,
+            isPresented: Binding(
+                get: { discardTarget != nil },
+                set: { if !$0 { discardTarget = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: discardTarget
+        ) { target in
+            Button(L10n.discard, role: .destructive) {
+                if let row = queued.first(where: { $0.id == target.id }) {
+                    syncManager.discardParked(row)
+                }
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        } message: { target in
+            Text(discardMessage(for: target, lookup: lookup))
+        }
+    }
+
+    private func discardMessage(for target: PendingSyncSelection, lookup: PendingChangeLookup) -> String {
+        guard let row = queued.first(where: { $0.id == target.id }) else { return "" }
+        return PendingChangeDescriber.details(type: row.type, operation: row.operation(), lookup: lookup)
+            .discardMessage
     }
 }
 
+/// One queued change: what it is about on the first line, its operation and
+/// key values on the second. A change the server permanently rejected is kept
+/// in the store (never deleted by the drain) with the reason, and the user
+/// decides whether to retry or discard it from its details.
 private struct PendingSyncRow: View {
     let row: PendingSyncOperation
+    let lookup: PendingChangeLookup
+    let onSelect: () -> Void
+
+    private var isParked: Bool {
+        row.failedAt != nil
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: Self.icon(for: row.type))
-                .foregroundStyle(.secondary)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.pendingChangeTitle(forType: row.type))
-                    .font(.subheadline)
-                Text(row.createdAt, format: .relative(presentation: .named))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        let summary = PendingChangeDescriber.summary(type: row.type, operation: row.operation(), lookup: lookup)
+        Button(action: onSelect) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: PendingChangeDescriber.icon(forType: row.type))
+                    .foregroundStyle(isParked ? Color.red : Color.secondary)
+                    .frame(width: 24)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.primary)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                    if let secondary = summary.secondary {
+                        Text(secondary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    if isParked {
+                        if let reason = row.failureReason {
+                            Text(L10n.syncParkedReason(reason))
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .lineLimit(2)
+                        }
+                    } else {
+                        Text(row.createdAt, format: .relative(presentation: .named))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Spacer(minLength: 8)
+                if !isParked {
+                    statusLabel
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 4)
+                    .accessibilityHidden(true)
             }
-            Spacer()
-            statusLabel
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -148,24 +194,6 @@ private struct PendingSyncRow: View {
             Text(L10n.syncWaiting)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    /// SF Symbol per queued op kind (matches the entity, not the action).
-    static func icon(for type: String) -> String {
-        switch type {
-        case "create_food", "update_food", "delete_food", "toggle_favorite": "fork.knife"
-        case "create_entry", "update_entry", "delete_entry": "plus.circle"
-        case "create_recipe", "update_recipe", "delete_recipe": "book"
-        case "set_goals": "target"
-        case "create_weight", "update_weight", "delete_weight": "scalemass"
-        case "create_sleep", "update_sleep", "delete_sleep": "bed.double"
-        case "create_supplement", "update_supplement", "delete_supplement",
-             "log_supplement", "unlog_supplement": "pills"
-        case "set_day_properties", "delete_day_properties": "calendar"
-        case "upsert_fast", "delete_fast": "timer"
-        case "update_preferences": "gearshape"
-        default: "arrow.triangle.2.circlepath"
         }
     }
 }
