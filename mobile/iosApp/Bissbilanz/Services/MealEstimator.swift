@@ -29,6 +29,10 @@ enum MealEstimatorError: Error {
     case guardrailViolation
     case contextWindowExceeded
     case unsupportedLanguage
+    /// The model's output could not be deserialized into the `@Generable`
+    /// shape (`LanguageModelSession.GenerationError.decodingFailure`), even
+    /// after `MealEstimateGeneration` retried it.
+    case decodingFailed
     case generationFailed(String)
 
     var localizedMessage: String {
@@ -39,8 +43,22 @@ enum MealEstimatorError: Error {
             L10n.aiMealContextWindowError
         case .unsupportedLanguage:
             L10n.aiMealUnsupportedLanguageError
+        case .decodingFailed:
+            L10n.aiMealDecodingError
         case let .generationFailed(message):
             message.isEmpty ? L10n.aiMealGenerationError : message
+        }
+    }
+
+    /// Short, stable classification for telemetry (`ErrorReporter.captureWarning`),
+    /// since a localized message says nothing about why generation failed.
+    var telemetryReason: String {
+        switch self {
+        case .guardrailViolation: "guardrail_violation"
+        case .contextWindowExceeded: "context_window_exceeded"
+        case .unsupportedLanguage: "unsupported_language"
+        case .decodingFailed: "decoding_failed"
+        case let .generationFailed(message): "generation_failed: \(message)"
         }
     }
 }
@@ -76,6 +94,14 @@ struct MealEstimateItem: Identifiable, Codable, Equatable {
     var fat: Double?
     var fiber: Double?
     var confidence: Double
+    /// Sanity-check findings from `MealEstimateValidator`. Optional so a draft
+    /// persisted before this field existed still decodes.
+    var warnings: [MealEstimateWarning]?
+
+    /// Whether the numbers need a human look before this item is logged.
+    var hasBlockingWarning: Bool {
+        warnings?.contains(where: { $0.isBlocking }) ?? false
+    }
 
     /// Builds an item from the model's raw generated fields, applying the
     /// hallucination guard: drops any `matchedFoodId` the search tool never
@@ -150,7 +176,7 @@ final class MealEstimator {
     func prewarm() {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            makeSession().prewarm()
+            makeSession(matchedIds: MatchedFoodIds()).prewarm()
         }
         #endif
     }
@@ -244,11 +270,47 @@ final class MealEstimator {
     good match, estimate realistic European portion sizes and report calories in kcal \
     and protein, carbs, fat and fiber in grams. Write each item's name in the same \
     language the user described their meal in.
+
+    \(MealEstimator.estimationRules)
+    """
+
+    /// Appended to both the text and the photo instructions
+    /// (`MealEstimator+Photo.swift`). The per-100 g anchors are what keep a
+    /// small model from reporting 180 g of protein for 240 g of beef; the
+    /// dish rule is what keeps it from listing a burrito bowl and then every
+    /// ingredient of it again. `MealEstimateValidator` and
+    /// `MealEstimateDeduplicator` re-check both after generation.
+    static let estimationRules = """
+    Rules for every number you report:
+    - All values (grams, calories, protein, carbs, fat, fiber) are for the whole stated \
+    portion, never per 100 g. First decide the portion's weight in grams, then derive the \
+    macros from that weight.
+    - Protein + carbs + fat + fiber in grams can never add up to more than the portion \
+    weighs. Meat, fish, dairy, fruit and vegetables are mostly water.
+    - Calories are about 4 x protein + 4 x carbs + 9 x fat. No food has more than 9 kcal \
+    per gram.
+    - Typical values per 100 g: raw lean ground beef (7% fat) 150 kcal, 21 g protein, 7 g \
+    fat; chicken breast 120 kcal, 23 g protein, 2 g fat; salmon 200 kcal, 20 g protein, \
+    13 g fat; egg 145 kcal, 12.5 g protein, 10 g fat (one egg is about 55 g); cooked rice \
+    or pasta 130 to 160 kcal, 3 to 5 g protein, 28 to 31 g carbs, 1 g fat; bread 260 kcal, \
+    9 g protein, 49 g carbs, 3 g fat; cooked beans 120 kcal, 8 g protein, 20 g carbs; \
+    potatoes 80 kcal, 2 g protein, 17 g carbs; vegetables 20 to 50 kcal; fruit 40 to 90 \
+    kcal; cheese 300 to 400 kcal, 25 g protein, 30 g fat; nuts 600 kcal, 20 g protein, \
+    50 g fat; butter and oil 720 to 900 kcal, 80 to 100 g fat; milk 45 to 65 kcal.
+    - A dish made of several things is either ONE item for the whole dish, or one item \
+    per ingredient, never both. When the user lists the ingredients (for example "burrito \
+    bowl with rice, black beans, chicken and salsa"), return only the ingredients as \
+    separate items and no item for the dish itself. When the user names a dish without \
+    ingredients, return a single item for the whole dish. Sides and drinks named next to \
+    a dish ("with fries and a cola") stay separate items.
     """
 
     @available(iOS 26.0, *)
-    private func makeSession() -> LanguageModelSession {
-        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: MatchedFoodIds())
+    private func makeSession(matchedIds: MatchedFoodIds, usesTools: Bool = true) -> LanguageModelSession {
+        guard usesTools else {
+            return LanguageModelSession(instructions: Self.instructions)
+        }
+        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)
         return LanguageModelSession(tools: [tool], instructions: Self.instructions)
     }
 
@@ -265,36 +327,58 @@ final class MealEstimator {
         }
     }
 
+    /// Retries a decoding failure and an implausible answer (see
+    /// `MealEstimateGeneration`) and returns the validated result; the
+    /// Private Cloud Compute and photo paths wrap their own model calls in
+    /// the same policy.
     @available(iOS 26.0, *)
     private func estimateWithFoundationModels(description: String) async throws -> MealEstimate {
+        try await MealEstimateGeneration.run(description: description) { attempt in
+            try await generateOnDevice(prompt: attempt.prompt(for: description), usesTools: attempt.usesTools)
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func generateOnDevice(prompt: String, usesTools: Bool) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
-        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)
-        let session = LanguageModelSession(tools: [tool], instructions: Self.instructions)
+        let session = makeSession(matchedIds: matchedIds, usesTools: usesTools)
         do {
-            let response = try await session.respond(to: description, generating: EstimatedMeal.self)
-            let validIds = await matchedIds.ids
-            let items = response.content.items.map { item in
-                MealEstimateItem.fromGenerated(
-                    name: item.name,
-                    matchedFoodId: item.matchedFoodId,
-                    quantityDescription: item.quantityDescription,
-                    grams: item.grams,
-                    servings: item.servings,
-                    calories: item.calories,
-                    protein: item.protein,
-                    carbs: item.carbs,
-                    fat: item.fat,
-                    fiber: item.fiber,
-                    confidence: item.confidence,
-                    validMatchedFoodIds: validIds
-                )
-            }
-            return MealEstimate(items: items)
+            let response = try await session.respond(to: prompt, generating: EstimatedMeal.self)
+            return await Self.estimate(from: response.content, matchedIds: matchedIds, source: .onDevice)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
             throw MealEstimatorError.generationFailed(error.localizedDescription)
         }
+    }
+
+    /// The raw, not yet validated estimate for a generated meal, with the
+    /// hallucination guard applied to every matched food id. Not private:
+    /// shared by the Private Cloud Compute and photo paths.
+    @available(iOS 26.0, *)
+    static func estimate(
+        from meal: EstimatedMeal,
+        matchedIds: MatchedFoodIds,
+        source: MealEstimateSource
+    ) async -> MealEstimate {
+        let validIds = await matchedIds.ids
+        let items = meal.items.map { item in
+            MealEstimateItem.fromGenerated(
+                name: item.name,
+                matchedFoodId: item.matchedFoodId,
+                quantityDescription: item.quantityDescription,
+                grams: item.grams,
+                servings: item.servings,
+                calories: item.calories,
+                protein: item.protein,
+                carbs: item.carbs,
+                fat: item.fat,
+                fiber: item.fiber,
+                confidence: item.confidence,
+                validMatchedFoodIds: validIds
+            )
+        }
+        return MealEstimate(items: items, source: source)
     }
 
     /// Not private: reused by `MealEstimator+Photo.swift` for the photo path's errors.
@@ -307,6 +391,8 @@ final class MealEstimator {
             .contextWindowExceeded
         case .unsupportedLanguageOrLocale:
             .unsupportedLanguage
+        case .decodingFailure:
+            .decodingFailed
         default:
             .generationFailed(error.localizedDescription)
         }
@@ -403,10 +489,21 @@ struct FoodSearchTool: Tool {
 @available(iOS 26.0, *)
 @Generable
 struct EstimatedMeal {
-    @Guide(description: "One entry per distinct food or drink item mentioned in the user's description")
+    @Guide(
+        description: "One entry per distinct food or drink item mentioned in the user's description. A dish whose " +
+            "ingredients are listed is returned as those ingredients only, never as the dish plus its ingredients.",
+        .maximumCount(20)
+    )
     let items: [EstimatedItem]
 }
 
+/// Properties are generated in declaration order, so the order here is the
+/// order the model reasons in: portion weight first, then the macros that
+/// weight can hold, and calories last so they can be added up from the macros
+/// instead of being guessed before them. The numeric ranges are only a
+/// backstop against runaway numbers; `MealEstimateValidator` does the real
+/// plausibility checks. Optional properties carry no range guide, since
+/// guides apply to the non-optional type.
 @available(iOS 26.0, *)
 @Generable
 struct EstimatedItem {
@@ -422,26 +519,41 @@ struct EstimatedItem {
     @Guide(description: "A short human-readable quantity, e.g. \"2 eggs\" or \"1 slice\"")
     let quantityDescription: String
 
-    @Guide(description: "Estimated weight in grams for the full quantity, if it can be reasonably estimated")
-    let grams: Double?
+    @Guide(
+        description: "Weight of the full portion in grams (volume in ml for drinks). Decide this first; the " +
+            "macros below must fit into it.",
+        .range(0 ... 5000)
+    )
+    let grams: Double
 
     @Guide(description: "Number of servings of the matched food — only set this when matchedFoodId is set")
     let servings: Double?
 
-    @Guide(description: "Estimated calories in kcal for the full quantity described")
-    let calories: Double
-
-    @Guide(description: "Estimated protein in grams for the full quantity described")
+    @Guide(
+        description: "Protein in grams in the full portion, never more than the portion weighs",
+        .range(0 ... 300)
+    )
     let protein: Double
 
-    @Guide(description: "Estimated carbohydrates in grams for the full quantity described")
+    @Guide(
+        description: "Carbohydrates in grams in the full portion. Protein + carbs + fat + fiber together " +
+            "weigh less than the portion.",
+        .range(0 ... 600)
+    )
     let carbs: Double
 
-    @Guide(description: "Estimated fat in grams for the full quantity described")
+    @Guide(description: "Fat in grams in the full portion", .range(0 ... 300))
     let fat: Double
 
-    @Guide(description: "Estimated fiber in grams for the full quantity described")
+    @Guide(description: "Fiber in grams in the full portion", .range(0 ... 100))
     let fiber: Double
+
+    @Guide(
+        description: "Calories in kcal for the full portion, worked out last: about 4 x protein + 4 x carbs + " +
+            "9 x fat",
+        .range(0 ... 5000)
+    )
+    let calories: Double
 
     @Guide(description: "Confidence in this estimate, from 0 (rough guess) to 1 (certain)", .range(0 ... 1))
     let confidence: Double

@@ -205,7 +205,20 @@ final class AiTaskProcessor {
                 return
             }
 
-            if autoLog {
+            // Nobody is watching an automatic log: items whose numbers failed
+            // the sanity checks (see `MealEstimateValidator`) or that probably
+            // double count a dish's ingredients wait for a human instead, in
+            // the same "Ready to review" list review-first tasks use.
+            let needsReview = items.contains { $0.hasBlockingWarning }
+            if autoLog, needsReview {
+                ErrorReporter.addBreadcrumb(
+                    "AiTaskProcessor: estimate has implausible items, holding it for review",
+                    category: "ai_task",
+                    data: ["task_id": task.id]
+                )
+            }
+
+            if autoLog, !needsReview {
                 // `isStillCurrent` above only ever sees an edit made on this
                 // same device (`AiTaskEditSheet` updates `aiTaskStore.tasks`
                 // locally) — a concurrent edit from web/Android made any

@@ -84,6 +84,8 @@ extension MealEstimator {
     is included, use it only to clarify quantities or items the photo(s) don't make \
     clear — the photo(s) are the primary source. Write each item's name in the \
     language of the text note, or in English if there is none.
+
+    \(MealEstimator.estimationRules)
     """
 
     /// Matches the server's own downsize target for AI task photos
@@ -105,48 +107,52 @@ extension MealEstimator {
         }.value
     }
 
+    /// Same retry and validation policy as the text paths (`MealEstimateGeneration`).
     private func estimateWithPhotos(
         description: String,
         photos: [CGImage],
         source: MealEstimateSource
     ) async throws -> MealEstimate {
+        try await MealEstimateGeneration.run(description: description) { attempt in
+            try await generateFromPhotos(
+                description: description,
+                hint: attempt.hint,
+                photos: photos,
+                source: source,
+                usesTools: attempt.usesTools
+            )
+        }
+    }
+
+    private func generateFromPhotos(
+        description: String,
+        hint: String?,
+        photos: [CGImage],
+        source: MealEstimateSource,
+        usesTools: Bool
+    ) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
-        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)
+        let tools: [any Tool] = usesTools
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)]
+            : []
         let session = switch source {
         case .onDevice:
-            LanguageModelSession(tools: [tool], instructions: Self.photoInstructions)
+            LanguageModelSession(tools: tools, instructions: Self.photoInstructions)
         case .privateCloudCompute:
             LanguageModelSession(
                 model: PrivateCloudComputeLanguageModel(),
-                tools: [tool],
+                tools: tools,
                 instructions: Self.photoInstructions
             )
         }
         do {
             let response = try await session.respond(generating: EstimatedMeal.self) {
-                Self.photoPromptText(description: description)
+                Self.photoPromptText(description: description, hint: hint)
                 for photo in photos {
                     Attachment(photo)
                 }
             }
-            let validIds = await matchedIds.ids
-            let items = response.content.items.map { item in
-                MealEstimateItem.fromGenerated(
-                    name: item.name,
-                    matchedFoodId: item.matchedFoodId,
-                    quantityDescription: item.quantityDescription,
-                    grams: item.grams,
-                    servings: item.servings,
-                    calories: item.calories,
-                    protein: item.protein,
-                    carbs: item.carbs,
-                    fat: item.fat,
-                    fiber: item.fiber,
-                    confidence: item.confidence,
-                    validMatchedFoodIds: validIds
-                )
-            }
-            return MealEstimate(items: items, source: source)
+            return await Self.estimate(from: response.content, matchedIds: matchedIds, source: source)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -154,17 +160,23 @@ extension MealEstimator {
         }
     }
 
-    private static func photoPromptText(description: String) -> String {
+    private static func photoPromptText(description: String, hint: String?) -> String {
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return "Identify each distinct food or drink item visible in the photo(s) below and estimate this meal."
+        var text: String
+        if trimmed.isEmpty {
+            text = "Identify each distinct food or drink item visible in the photo(s) below and estimate this meal."
+        } else {
+            text = """
+            The user's note about this meal: "\(trimmed)"
+            Identify each distinct food or drink item visible in the photo(s) below, using \
+            the note above only to clarify anything the photo(s) don't make clear, and \
+            estimate this meal.
+            """
         }
-        return """
-        The user's note about this meal: "\(trimmed)"
-        Identify each distinct food or drink item visible in the photo(s) below, using \
-        the note above only to clarify anything the photo(s) don't make clear, and \
-        estimate this meal.
-        """
+        if let hint {
+            text += "\n\n\(hint)"
+        }
+        return text
     }
 }
 
