@@ -290,7 +290,7 @@ struct LogRecipeSheet: View {
     let recipe: Recipe
     let onLogged: () -> Void
 
-    @State private var servings: String
+    @State private var servings: Double
     @State private var gramsText: String
     @State private var logByWeight = false
     @State private var mealType: String
@@ -322,7 +322,7 @@ struct LogRecipeSheet: View {
         self.recipe = recipe
         self.onLogged = onLogged
         let servingsValue = initialServings ?? 1
-        _servings = State(initialValue: MacroFormat.servings(servingsValue))
+        _servings = State(initialValue: servingsValue)
         _gramsText = State(
             initialValue: recipe.cookedWeightServingSize.map { MacroFormat.servings($0 * servingsValue) } ?? ""
         )
@@ -344,8 +344,25 @@ struct LogRecipeSheet: View {
 
     /// Servings to log, resolved from whichever field is active.
     private var resolvedServings: Double {
+        Self.servingsToLog(
+            logByWeight: logByWeight,
+            servings: servings,
+            gramsText: gramsText,
+            gramsPerServing: gramsPerServing
+        )
+    }
+
+    /// The recipe entry's amount is always a count of recipe servings: the
+    /// servings control as-is, or grams eaten divided by the grams one serving
+    /// weighs when logging by weight.
+    nonisolated static func servingsToLog(
+        logByWeight: Bool,
+        servings: Double,
+        gramsText: String,
+        gramsPerServing: Double?
+    ) -> Double {
         guard logByWeight, let gramsPerServing, gramsPerServing > 0 else {
-            return Double.parseUserInput(servings) ?? 1
+            return servings
         }
         return (Double.parseUserInput(gramsText) ?? 0) / gramsPerServing
     }
@@ -423,15 +440,7 @@ struct LogRecipeSheet: View {
                                 .accessibilityLabel(L10n.gramsEaten)
                         }
                     } else {
-                        HStack {
-                            Text(L10n.servings)
-                            Spacer()
-                            TextField("1", text: $servings)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 60)
-                                .accessibilityLabel(L10n.servings)
-                        }
+                        ServingsField(servings: $servings)
                     }
 
                     Picker(L10n.meal, selection: $mealType) {
