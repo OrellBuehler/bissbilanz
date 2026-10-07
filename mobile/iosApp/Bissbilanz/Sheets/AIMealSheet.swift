@@ -411,6 +411,11 @@ struct AIMealSheet: View {
             // sheet once there is something to review.
             detent = .large
         } catch let error as MealEstimatorError {
+            // Refusals and a too-long description are the user's to fix, and a
+            // decoding failure was already reported once its retries ran out.
+            if case .generationFailed = error {
+                ErrorReporter.captureWarning("Meal estimate failed", context: ["reason": error.telemetryReason])
+            }
             errorMessage = error.localizedMessage
         } catch {
             errorMessage = error.localizedDescription

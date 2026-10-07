@@ -3680,6 +3680,16 @@ enum L10n {
         )
     }
 
+    static var aiMealDecodingError: String {
+        localized(
+            "ai_meal_decoding_error",
+            en: "The on-device model returned an answer that couldn't be read, even after trying again. "
+                + "Try again, or describe the meal in fewer words.",
+            de: "Das Modell auf dem Gerät hat auch nach einem erneuten Versuch eine unlesbare Antwort geliefert. "
+                + "Versuche es erneut oder beschreibe die Mahlzeit kürzer."
+        )
+    }
+
     static var aiMealReviewTitle: String {
         localized("ai_meal_review_title", en: "Review Estimate", de: "Schätzung überprüfen")
     }
@@ -3698,6 +3708,44 @@ enum L10n {
 
     static var aiMealLowConfidence: String {
         localized("ai_meal_low_confidence", en: "Low confidence", de: "Geringe Sicherheit")
+    }
+
+    /// What `AIMealReviewView` says under an item `MealEstimateValidator`
+    /// doubts (or corrected). Phrased for someone about to edit the numbers.
+    static func aiMealWarning(_ warning: MealEstimateWarning) -> String {
+        switch warning {
+        case .macrosExceedPortion:
+            localized(
+                "ai_meal_warning_macros_exceed_portion",
+                en: "Protein, carbs, fat and fiber add up to more than the portion weighs. Check these values.",
+                de: "Eiweiß, Kohlenhydrate, Fett und Ballaststoffe wiegen zusammen mehr als die Portion. "
+                    + "Bitte Werte prüfen."
+            )
+        case .caloriesExceedPortion:
+            localized(
+                "ai_meal_warning_calories_exceed_portion",
+                en: "More calories than this portion can hold. Check these values.",
+                de: "Mehr Kalorien, als diese Portion enthalten kann. Bitte Werte prüfen."
+            )
+        case .caloriesInconsistent:
+            localized(
+                "ai_meal_warning_calories_inconsistent",
+                en: "Calories don't match the macros. Check these values.",
+                de: "Die Kalorien passen nicht zu den Makros. Bitte Werte prüfen."
+            )
+        case .duplicatesListedIngredients:
+            localized(
+                "ai_meal_warning_duplicates_ingredients",
+                en: "Probably already counted in the ingredients below, so it is switched off.",
+                de: "Vermutlich schon in den Zutaten unten enthalten und deshalb ausgeschaltet."
+            )
+        case .caloriesRecalculated:
+            localized(
+                "ai_meal_warning_calories_recalculated",
+                en: "Calories were recalculated from the macros.",
+                de: "Die Kalorien wurden aus den Makros neu berechnet."
+            )
+        }
     }
 
     static var aiMealNoItemsFound: String {

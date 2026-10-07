@@ -98,16 +98,18 @@ extension MealEstimator {
         estimate.items.map(\.confidence).reduce(0, +) / Double(estimate.items.count)
     }
 
-    /// Only the two on-device failures the fallback is meant to catch: a
-    /// guardrail refusal and a context-window overflow. A generic generation
-    /// failure or an unsupported language most likely isn't something a
-    /// bigger model fixes, so those still surface to the user as before.
+    /// Only the on-device failures the fallback is meant to catch: a
+    /// guardrail refusal, a context-window overflow, and output that stayed
+    /// undecodable through every on-device retry (the server model has a far
+    /// larger context). A generic generation failure or an unsupported
+    /// language most likely isn't something a bigger model fixes, so those
+    /// still surface to the user as before.
     ///
     /// `nonisolated`: see `isWeakEstimate` above.
     nonisolated static func isRetryableOnPrivateCloud(_ error: Error) -> Bool {
         guard let error = error as? MealEstimatorError else { return false }
         switch error {
-        case .guardrailViolation, .contextWindowExceeded:
+        case .guardrailViolation, .contextWindowExceeded, .decodingFailed:
             return true
         case .unsupportedLanguage, .generationFailed:
             return false
@@ -119,36 +121,28 @@ extension MealEstimator {
 
 @available(iOS 27, *)
 private extension MealEstimator {
+    /// Same retry and validation policy as the on-device path (`MealEstimateGeneration`).
     func estimateWithPCCModel(description: String) async throws -> MealEstimate {
+        try await MealEstimateGeneration.run(description: description) { attempt in
+            try await generateOnPrivateCloud(prompt: attempt.prompt(for: description), usesTools: attempt.usesTools)
+        }
+    }
+
+    func generateOnPrivateCloud(prompt: String, usesTools: Bool) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
-        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)
+        let tools: [any Tool] = usesTools
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)]
+            : []
         let session = LanguageModelSession(
             model: PrivateCloudComputeLanguageModel(),
-            tools: [tool],
+            tools: tools,
             instructions: Self.instructions
         )
         do {
-            let response = try await session.respond(to: description, generating: EstimatedMeal.self)
-            let validIds = await matchedIds.ids
-            let items = response.content.items.map { item -> MealEstimateItem in
-                // Same hallucination guard as the on-device path: drop any
-                // matchedFoodId the tool never actually returned.
-                let matchedFoodId = item.matchedFoodId.flatMap { validIds.contains($0) ? $0 : nil }
-                return MealEstimateItem(
-                    name: item.name,
-                    matchedFoodId: matchedFoodId,
-                    quantityDescription: item.quantityDescription,
-                    grams: item.grams,
-                    servings: matchedFoodId != nil ? item.servings : nil,
-                    calories: item.calories,
-                    protein: item.protein,
-                    carbs: item.carbs,
-                    fat: item.fat,
-                    fiber: item.fiber,
-                    confidence: item.confidence
-                )
-            }
-            return MealEstimate(items: items, source: .privateCloudCompute)
+            let response = try await session.respond(to: prompt, generating: EstimatedMeal.self)
+            // Same hallucination guard as the on-device path: drops any
+            // matchedFoodId the tool never actually returned.
+            return await Self.estimate(from: response.content, matchedIds: matchedIds, source: .privateCloudCompute)
         } catch let error as LanguageModelSession.GenerationError {
             throw MealEstimator.mapGenerationError(error)
         } catch {

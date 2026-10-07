@@ -70,6 +70,11 @@ struct AIMealReviewView: View {
         var fat: String
         var fiber: String
         let confidence: Double
+        /// Findings from generation time that cannot be recomputed from the
+        /// editable fields (a recalculation, a probable duplicate); the
+        /// plausibility of the numbers themselves is re-checked live in
+        /// `displayedWarnings(for:)` as the user edits them.
+        let estimateNotes: [MealEstimateWarning]
     }
 
     private var includedCount: Int {
@@ -155,6 +160,15 @@ struct AIMealReviewView: View {
                     .foregroundStyle(.orange)
             }
 
+            ForEach(displayedWarnings(for: item.wrappedValue), id: \.self) { warning in
+                Label(
+                    L10n.aiMealWarning(warning),
+                    systemImage: warning.isBlocking ? "exclamationmark.triangle.fill" : "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(warning.isBlocking ? Color.orange : Color.secondary)
+            }
+
             macroField(L10n.calories, text: item.calories, unit: "kcal", color: accessibleColor(.calories))
             macroField(L10n.protein, text: item.protein, unit: "g", color: accessibleColor(.protein))
             macroField(L10n.carbs, text: item.carbs, unit: "g", color: accessibleColor(.carbs))
@@ -181,12 +195,43 @@ struct AIMealReviewView: View {
         }
     }
 
+    /// The estimate-time warnings that stay on screen however the numbers are
+    /// edited; every other kind is re-derived live.
+    private static let persistedNotes: Set<MealEstimateWarning> = [.caloriesRecalculated, .duplicatesListedIngredients]
+
+    /// What to flag under an item right now: the sanity checks re-run on the
+    /// numbers as currently typed (so the warning goes away once the user fixes
+    /// them), plus the notes recorded when the estimate was made. An item
+    /// logged from a food in the database never uses the estimated numbers, so
+    /// those are not second-guessed.
+    private func displayedWarnings(for item: EditableItem) -> [MealEstimateWarning] {
+        var warnings: [MealEstimateWarning] = []
+        if item.matchedFood == nil, item.pendingFoodCreate == nil {
+            warnings = MealEstimateValidator.warnings(
+                name: item.name,
+                grams: item.grams,
+                calories: Double.parseUserInput(item.calories),
+                protein: Double.parseUserInput(item.protein),
+                carbs: Double.parseUserInput(item.carbs),
+                fat: Double.parseUserInput(item.fat),
+                fiber: Double.parseUserInput(item.fiber)
+            )
+        }
+        for note in item.estimateNotes where !warnings.contains(note) {
+            warnings.append(note)
+        }
+        return warnings
+    }
+
     private func populateItemsIfNeeded() {
         guard items.isEmpty else { return }
         items = estimate.items.map { item in
             let pendingFoodCreate = item.matchedFoodId.flatMap { taskContext?.pendingFoods[$0] }
+            let notes = (item.warnings ?? []).filter { Self.persistedNotes.contains($0) }
             return EditableItem(
-                isIncluded: true,
+                // A probable duplicate of the ingredients listed with it starts
+                // switched off; one tap on its toggle brings it back.
+                isIncluded: !notes.contains(.duplicatesListedIngredients),
                 name: item.name,
                 matchedFood: pendingFoodCreate == nil ? item.matchedFoodId.flatMap { foodRepository.food(id: $0) } : nil,
                 pendingFoodCreate: pendingFoodCreate,
@@ -198,7 +243,8 @@ struct AIMealReviewView: View {
                 carbs: Self.formatted(item.carbs),
                 fat: Self.formatted(item.fat),
                 fiber: Self.formatted(item.fiber),
-                confidence: item.confidence
+                confidence: item.confidence,
+                estimateNotes: notes
             )
         }
     }
