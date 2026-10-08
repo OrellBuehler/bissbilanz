@@ -237,8 +237,14 @@ jobs:
       # scheme's Test action, but a UI test relaunches the whole app per test
       # method, and this step's 3x retry-on-failure would triple that cost for
       # a much newer, less-proven test surface.
+      # The on-device Foundation Models tests (meal-estimator eval, food
+      # labeller) fail on the runner with ModelManagerError 1019 even though
+      # availability reports `.available`; TEST_RUNNER_ forwards the variable
+      # into the test process so those tests skip. Run them locally instead.
       - name: Run iOS unit tests
         working-directory: mobile/iosApp
+        env:
+          TEST_RUNNER_SKIP_ON_DEVICE_MODEL_TESTS: '1'
         run: |
           xcodebuild test-without-building \
             -project Bissbilanz.xcodeproj \
