@@ -430,8 +430,7 @@ struct BissbilanzApp: App {
         // because an action tap that cold-launches the app is dropped if no delegate
         // exists by the time launch finishes; `UNUserNotificationCenter.delegate` is
         // weak, hence the singleton.
-        SupplementReminderScheduler.registerCategory()
-        ReminderScheduler.registerCategory()
+        NotificationCategories.register()
         SupplementNotificationDelegate.shared.configure(
             repository: supplementRepo,
             reminderRepository: reminderRepo,
