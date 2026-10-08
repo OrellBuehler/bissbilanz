@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftData
 
@@ -96,15 +97,59 @@ enum LocalStore {
     /// `makeContainer` with the migration plan, then without it if that fails. A store
     /// written by an older build can carry a model version the plan does not list;
     /// SwiftData refuses those under a plan but still migrates them on its own.
+    ///
+    /// The plan's failure is reported once the fallback has run, with the on-disk
+    /// store's entity version hashes (read first: a successful inferred migration
+    /// rewrites them) so the unlisted version can be identified. `recovered` says
+    /// whether the fallback opened the store, so the caller can treat a recovery as
+    /// a warning rather than an error.
     private static func makeContainerPreferringPlan(
         cloudKitEnabled: Bool,
         onError: (Error, [String: Any]) -> Void
     ) throws -> ModelContainer {
         do {
             return try makeContainer(cloudKitEnabled: cloudKitEnabled, onError: onError)
+        } catch let planError {
+            var context: [String: Any] = ["phase": "store_init_migration_plan"]
+            context.merge(onDiskStoreDiagnostics(at: appGroupStoreURL ?? legacyStoreURL)) { current, _ in current }
+            do {
+                let container = try makeContainer(
+                    cloudKitEnabled: cloudKitEnabled, useMigrationPlan: false, onError: onError
+                )
+                context["recovered"] = true
+                onError(planError, context)
+                return container
+            } catch {
+                onError(planError, context)
+                throw error
+            }
+        }
+    }
+
+    /// What the store file on disk says about its model, for a migration the plan
+    /// rejected: entity name → first four bytes (hex) of its version hash, read from
+    /// the store's metadata. Never throws; a store that cannot be read is described
+    /// in the result instead, so a diagnostics failure cannot hide the original one.
+    static func onDiskStoreDiagnostics(at url: URL?) -> [String: Any] {
+        guard let url, FileManager.default.fileExists(atPath: url.path) else {
+            return ["store_metadata_error": "no store file"]
+        }
+        do {
+            let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
+                ofType: NSSQLiteStoreType, at: url, options: nil
+            )
+            guard let hashes = metadata[NSStoreModelVersionHashesKey] as? [String: Data] else {
+                return ["store_metadata_error": "no model version hashes"]
+            }
+            return ["store_model_hashes": shortHashes(hashes)]
         } catch {
-            onError(error, ["phase": "store_init_migration_plan"])
-            return try makeContainer(cloudKitEnabled: cloudKitEnabled, useMigrationPlan: false, onError: onError)
+            return ["store_metadata_error": String(describing: error)]
+        }
+    }
+
+    static func shortHashes(_ hashes: [String: Data]) -> [String: String] {
+        hashes.mapValues { hash in
+            hash.prefix(4).map { String(format: "%02x", $0) }.joined()
         }
     }
 

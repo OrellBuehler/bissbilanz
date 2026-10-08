@@ -383,8 +383,17 @@ struct FoodEditForm: View {
     }
 
     private func save() async {
-        isSaving = true
         errorMessage = nil
+        // A barcode another food already owns would only come back as a parked 409
+        // after the upload; say so now. An unchanged barcode is left alone, so a
+        // food that already shares one locally can still be edited.
+        if barcode != (existingFood?.barcode ?? ""),
+           let other = foodRepository.foodWithBarcode(barcode, excluding: existingFood?.id)
+        {
+            errorMessage = L10n.syncBarcodeInUse(by: other.name)
+            return
+        }
+        isSaving = true
 
         let serving = Double.parseUserInput(servingSize) ?? 100
         // The food record stores per-serving values. When the user entered the

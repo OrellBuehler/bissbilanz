@@ -635,6 +635,21 @@ struct RepositoryTests {
         #expect(harness.recordedRequests.isEmpty)
     }
 
+    @Test("A barcode owned by another food is reported, the food's own barcode is not")
+    func foodWithBarcodeExcludesTheEditedFood() throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.foodRepository
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Cola", barcode: "123")))
+        try harness.context.insert(LocalFood(food: harness.food(id: "f2", name: "Skyr")))
+        try harness.context.save()
+
+        #expect(repo.foodWithBarcode("123", excluding: "f2")?.name == "Cola")
+        #expect(repo.foodWithBarcode("123", excluding: nil)?.name == "Cola")
+        #expect(repo.foodWithBarcode("123", excluding: "f1") == nil)
+        #expect(repo.foodWithBarcode("999", excluding: "f2") == nil)
+        #expect(repo.foodWithBarcode("", excluding: "f2") == nil)
+    }
+
     // TestFlight 2026-09-13 ("cannot log foods from OFF"): the proxy's barcode
     // response carried no `id`, `Food` requires one, so every OFF search hit
     // and every scan in Synced mode decoded to nil and surfaced as "Couldn't

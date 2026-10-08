@@ -107,6 +107,30 @@ struct SyncManagerTests {
         #expect(SyncManager.conflictReason(body: nil) == L10n.syncConflictGeneric)
     }
 
+    @Test("409 bodies yield a stable code, and only user-fixable ones skip Sentry")
+    func conflictCodeClassification() {
+        func body(_ json: String) -> Data? { json.data(using: .utf8) }
+        #expect(SyncManager.conflictCode(body: body(#"{"error": "duplicate_barcode"}"#)) == "duplicate_barcode")
+        #expect(SyncManager.conflictCode(body: body(#"{"error": "duplicate_entry"}"#)) == "duplicate_entry")
+        #expect(
+            SyncManager.conflictCode(
+                body: body(#"{"error": "A food with barcode 5449000169327 already exists: \"Skyr\""}"#)
+            ) == "duplicate_barcode"
+        )
+        #expect(
+            SyncManager.conflictCode(body: body(#"{"error": "Favorite meal timeframes overlap"}"#))
+                == "Favorite meal timeframes overlap"
+        )
+        #expect(SyncManager.conflictCode(body: body(#"{"error": "   "}"#)) == nil)
+        #expect(SyncManager.conflictCode(body: body("not json")) == nil)
+        #expect(SyncManager.conflictCode(body: nil) == nil)
+
+        #expect(SyncManager.isUserActionableConflict("duplicate_barcode"))
+        #expect(SyncManager.isUserActionableConflict("duplicate_entry"))
+        #expect(!SyncManager.isUserActionableConflict("Favorite meal timeframes overlap"))
+        #expect(!SyncManager.isUserActionableConflict("stale_preview"))
+    }
+
     @Test("A parked op is not sent again until retried, and uploads once the server accepts it")
     func parkedOperationWaitsForRetry() async throws {
         let harness = try RepositoryHarness()

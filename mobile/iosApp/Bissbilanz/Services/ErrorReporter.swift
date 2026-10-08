@@ -44,8 +44,9 @@ enum ErrorReporter {
             // blocking stacktrace. On by default; set explicitly so it can't be
             // lost to a future default change.
             options.enableAppHangTracking = true
+            let maxBreadcrumbs = options.maxBreadcrumbs
             options.beforeSend = { event in
-                ErrorReporter.isSuspensionArtifactHang(event) ? nil : event
+                ErrorReporter.filterAppHang(event, maxBreadcrumbs: maxBreadcrumbs)
             }
             // Let Sentry ingest MetricKit *diagnostics* — OS-sampled crashes,
             // hangs, CPU and disk-write exceptions — as events with stack
@@ -135,6 +136,29 @@ enum ErrorReporter {
         }
     }
 
+    /// Sink for `LocalStore.openStore`'s `onError`. A migration plan failure that
+    /// the inferred-migration fallback recovered from (`recovered`) cost the user
+    /// nothing, so it is a warning that carries the on-disk store's model hashes
+    /// (BISSBILANZ-44), not an error; everything else goes through `capture`.
+    static func captureStoreOpen(_ error: Error, context: [String: Any]) {
+        guard context["recovered"] as? Bool == true else {
+            capture(error, context: context)
+            return
+        }
+        addBreadcrumb(
+            "recovered via inferred migration",
+            category: "store",
+            level: .warning,
+            data: ["phase": context["phase"] as? String ?? "store_init"]
+        )
+        var details = context
+        let nsError = error as NSError
+        details["error"] = String(describing: error)
+        details["error_domain"] = nsError.domain
+        details["error_code"] = nsError.code
+        captureWarning("Store opened via inferred migration after the migration plan failed", context: details)
+    }
+
     /// Sends a message event to verify the pipeline end-to-end (debug builds
     /// expose this from the settings screen).
     static func sendTestEvent() {
@@ -171,6 +195,18 @@ enum ErrorReporter {
         }
     }
 
+    /// Whether a `reason(for:)` value names a failure the device or session
+    /// explains (no connection, slow network, unreachable host, dead login,
+    /// superseded request) rather than a defect. Server errors, decoding errors
+    /// and anything unclassified are still worth a report.
+    static func isExpectedFailureReason(_ reason: String) -> Bool {
+        expectedFailureReasons.contains(reason)
+    }
+
+    private static let expectedFailureReasons: Set<String> = [
+        "unauthorized", "offline", "timeout", "cannot_reach_host", "cancelled",
+    ]
+
     /// Longest hang worth believing. The OS watchdog terminates a genuinely
     /// blocked app within roughly 20 seconds, so anything past this is not a
     /// hang that happened.
@@ -192,6 +228,56 @@ enum ErrorReporter {
     static func isSuspensionArtifactHang(hangDescription: String) -> Bool {
         guard let seconds = reportedHangSeconds(in: hangDescription) else { return false }
         return seconds > maxPlausibleAppHangSeconds
+    }
+
+    /// A background launch (BGAppRefresh woken by a charger change, a silent
+    /// push) never posts the foreground/active notifications, so its breadcrumb
+    /// trail carries no `app.lifecycle` crumb with state "foreground" or
+    /// "active" (BISSBILANZ-48/35/3X). The SDK reports hangs, fatal and
+    /// non-fatal alike, with mechanism "AppHang"; with no foreground phase the
+    /// user never saw the app stall, so these are not defects. Only trusted
+    /// while the trail is shorter than the SDK's cap, otherwise the crumb may
+    /// simply have been evicted by newer ones.
+    static func isBackgroundLaunchHang(_ event: Event, maxBreadcrumbs: UInt) -> Bool {
+        guard event.exceptions?.first?.mechanism?.type == "AppHang" else { return false }
+        let crumbs = event.breadcrumbs ?? []
+        let lifecycleStates = crumbs.compactMap { crumb -> String? in
+            guard crumb.category == lifecycleCrumbCategory else { return nil }
+            return crumb.data?["state"] as? String
+        }
+        return hasNoForegroundPhase(
+            lifecycleStates: lifecycleStates,
+            breadcrumbCount: crumbs.count,
+            maxBreadcrumbs: maxBreadcrumbs
+        )
+    }
+
+    /// The SDK's own breadcrumb category for UIApplication lifecycle changes
+    /// (`SentryBreadcrumbTracker`): data["state"] is "foreground", "active",
+    /// "inactive" or "background".
+    private static let lifecycleCrumbCategory = "app.lifecycle"
+
+    static func hasNoForegroundPhase(
+        lifecycleStates: [String],
+        breadcrumbCount: Int,
+        maxBreadcrumbs: UInt
+    ) -> Bool {
+        guard UInt(breadcrumbCount) < maxBreadcrumbs else { return false }
+        return !lifecycleStates.contains { $0 == "foreground" || $0 == "active" }
+    }
+
+    /// `beforeSend` hook: drops app-hang noise and leaves a breadcrumb saying
+    /// why, so the next real event shows that a report was suppressed.
+    static func filterAppHang(_ event: Event, maxBreadcrumbs: UInt) -> Event? {
+        if isSuspensionArtifactHang(event) {
+            addBreadcrumb("dropped app hang: suspension artifact", category: "sentry", level: .debug)
+            return nil
+        }
+        if isBackgroundLaunchHang(event, maxBreadcrumbs: maxBreadcrumbs) {
+            addBreadcrumb("dropped app hang: background launch", category: "sentry", level: .debug)
+            return nil
+        }
+        return event
     }
 
     /// Reads the lower bound out of "App hanging between 53799.2 and 53800.0

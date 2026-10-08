@@ -272,6 +272,15 @@ final class FoodRepository {
         return (try? context.fetch(descriptor))?.first?.toFood()
     }
 
+    /// The local food other than `id` that already owns `barcode`. The server
+    /// allows one food per barcode, so saving a second one would only park its
+    /// upload as a 409 later (BISSBILANZ-46); the edit form asks first.
+    func foodWithBarcode(_ barcode: String, excluding id: String?) -> Food? {
+        guard !barcode.isEmpty, let found = findLocalByBarcode(barcode) else { return nil }
+        if let id, TempIdMap.resolved(found.id) == TempIdMap.resolved(id) { return nil }
+        return found
+    }
+
     // MARK: - Refresh (API → store)
 
     /// Also prunes the local row when the server no longer has it (deleted, or
