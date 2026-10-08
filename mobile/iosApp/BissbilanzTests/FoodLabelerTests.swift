@@ -75,8 +75,11 @@ struct FoodLabelerTests {
     #if canImport(FoundationModels)
 
     @available(iOS 26.0, *)
+    // CI sets this via TEST_RUNNER_SKIP_ON_DEVICE_MODEL_TESTS: the xcode-27
+    // runner reports the model `.available` but every generation fails.
     private static var modelAvailable: Bool {
-        SystemLanguageModel.default.availability == .available
+        ProcessInfo.processInfo.environment["SKIP_ON_DEVICE_MODEL_TESTS"] == nil
+            && SystemLanguageModel.default.availability == .available
     }
 
     @Test(
