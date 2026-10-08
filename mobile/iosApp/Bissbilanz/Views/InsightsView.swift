@@ -132,7 +132,7 @@ struct InsightsView: View {
     // MARK: - Date Range Picker
 
     private var dateRangePicker: some View {
-        Picker(L10n.period, selection: $selectedRange.animation(reduceMotion ? nil : .default)) {
+        Picker(L10n.period, selection: $selectedRange) {
             Text("7d").tag(7)
             Text("30d").tag(30)
             Text("90d").tag(90)
@@ -196,7 +196,9 @@ struct InsightsView: View {
     /// build a sector path from NaN and trap inside `Path.roundedSector` —
     /// that was the "90d then back to 7d" crash on an empty week.
     private var plottableMealBreakdown: [MealBreakdownEntry] {
-        mealBreakdown.filter { $0.calories.isFinite && $0.calories > 0 }
+        let meals = mealBreakdown.filter { $0.calories.isFinite && $0.calories > 0 }
+        let total = meals.reduce(0.0) { $0 + $1.calories }
+        return total.isFinite ? meals : []
     }
 
     @ViewBuilder
@@ -223,6 +225,9 @@ struct InsightsView: View {
                         }
                     }
                     .frame(height: 200)
+                    // A sector animating away makes Charts build a NaN path; rebuild instead.
+                    .id(meals.map(\.mealType).joined(separator: "|"))
+                    .transaction { $0.animation = nil }
                     .accessibilityLabel(L10n.mealBreakdown)
                 }
             }
