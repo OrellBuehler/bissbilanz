@@ -14,10 +14,9 @@ enum AiTaskNotifier {
     static let identifierPrefix = "aitask-"
     static let userInfoTaskId = "aiTaskId"
 
-    /// Never register a category for this: it has no actions, and
-    /// `setNotificationCategories` replaces the whole set, so adding one would mean
-    /// touching the supplement reminder's registration for no gain. An unregistered
-    /// identifier still reaches the delegate on the content, which is all we read.
+    /// Never register a category for this: it has no actions, so it would gain nothing
+    /// in `NotificationCategories`. An unregistered identifier still reaches the
+    /// delegate on the content, which is all we read.
     private static let burstCap = 10
 
     /// Ids already announced on this device, tracked in one array-valued default rather

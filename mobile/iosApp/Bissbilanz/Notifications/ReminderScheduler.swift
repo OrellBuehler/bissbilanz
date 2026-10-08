@@ -49,10 +49,9 @@ enum ReminderScheduler {
 
     // MARK: - Setup
 
-    /// Registers the reminder category. Free, and must be in place before any
-    /// request is scheduled — see `SupplementReminderScheduler.registerCategory`.
-    static func registerCategory() {
-        let category = UNNotificationCategory(
+    /// The reminder category — see `NotificationCategories.register`.
+    static var category: UNNotificationCategory {
+        UNNotificationCategory(
             identifier: categoryIdentifier,
             actions: [
                 UNNotificationAction(identifier: snoozeAction, title: L10n.remindLater, options: []),
@@ -61,7 +60,6 @@ enum ReminderScheduler {
             intentIdentifiers: [],
             options: []
         )
-        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
     // MARK: - Candidates (for the combined refill)

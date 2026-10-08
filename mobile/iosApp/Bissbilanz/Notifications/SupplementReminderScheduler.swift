@@ -47,10 +47,10 @@ enum SupplementReminderScheduler {
 
     // MARK: - Setup
 
-    /// Registers the reminder category. Free, and must be in place before any request is
-    /// scheduled, so it runs at launch regardless of authorization.
-    static func registerCategory() {
-        let category = UNNotificationCategory(
+    /// The reminder category. Registered at launch alongside every other category — see
+    /// `NotificationCategories.register`.
+    static var category: UNNotificationCategory {
+        UNNotificationCategory(
             identifier: categoryIdentifier,
             actions: [
                 // None are `.foreground`: each does a local SwiftData write or a bit of
@@ -65,7 +65,6 @@ enum SupplementReminderScheduler {
             // Deliberately no .customDismissAction: swiping a reminder away is not a skip.
             options: []
         )
-        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
     /// Asks for permission, once, at the moment of intent — when the user adds their first
