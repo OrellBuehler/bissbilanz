@@ -449,11 +449,24 @@ final class SyncManager {
                     )
 
                 case .conflict(serverNewer: false):
+                    let serverError = Self.conflictCode(body: conflictBody)
                     parkFailed(row, operation, reason: Self.conflictReason(body: conflictBody))
-                    ErrorReporter.captureWarning(
-                        "Sync op parked: validation conflict",
-                        context: dropContext(operation, row, outcome: "parked_validation_conflict", status: 409)
+                    let conflictContext = dropContext(
+                        operation, row, outcome: "parked_validation_conflict", status: 409, serverError: serverError
                     )
+                    if let serverError, Self.isUserActionableConflict(serverError) {
+                        // The parked row and its banner already tell the user what
+                        // to fix (e.g. the barcode belongs to another food), so this
+                        // is an expected state, not a defect.
+                        ErrorReporter.addBreadcrumb(
+                            "Sync op parked: \(serverError)",
+                            category: "sync",
+                            level: .warning,
+                            data: conflictContext
+                        )
+                    } else {
+                        ErrorReporter.captureWarning("Sync op parked: validation conflict", context: conflictContext)
+                    }
 
                 case .notFound where isDelete:
                     remove(row)
@@ -1461,13 +1474,9 @@ final class SyncManager {
     /// `A food with barcode X already exists: "Name"`, and `errors.ts` with the
     /// bare `duplicate_barcode` code when the name lookup was not available.
     static func conflictReason(body: Data?) -> String {
-        guard let body,
-              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              let message = (json["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !message.isEmpty
-        else { return L10n.syncConflictGeneric }
+        guard let message = conflictMessage(body: body) else { return L10n.syncConflictGeneric }
         if message == "duplicate_barcode" { return L10n.syncBarcodeInUse }
-        if message.hasPrefix("A food with barcode"), message.contains("already exists") {
+        if isDuplicateBarcodeSentence(message) {
             if let open = message.firstIndex(of: "\""), let close = message.lastIndex(of: "\""), open < close {
                 let name = String(message[message.index(after: open) ..< close])
                 if !name.isEmpty, name != "unknown" { return L10n.syncBarcodeInUse(by: name) }
@@ -1475,6 +1484,40 @@ final class SyncManager {
             return L10n.syncBarcodeInUse
         }
         return message.contains(" ") ? message : L10n.syncConflictGeneric
+    }
+
+    /// The trimmed `{error}` string of a 409 body, nil when it carries none.
+    nonisolated static func conflictMessage(body: Data?) -> String? {
+        guard let body,
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let message = (json["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty
+        else { return nil }
+        return message
+    }
+
+    private nonisolated static func isDuplicateBarcodeSentence(_ message: String) -> Bool {
+        message.hasPrefix("A food with barcode") && message.contains("already exists")
+    }
+
+    /// The server's machine code for a 409 body, for telemetry. The barcode
+    /// sentence carries the other food's name, so it collapses to its code;
+    /// anything else is capped.
+    nonisolated static func conflictCode(body: Data?) -> String? {
+        guard let message = conflictMessage(body: body) else { return nil }
+        if isDuplicateBarcodeSentence(message) { return "duplicate_barcode" }
+        return String(message.prefix(120))
+    }
+
+    /// 409 codes `errors.ts` answers for state the user can fix themselves (a
+    /// barcode or entry that already exists). The parked row explains them in
+    /// the UI, so they are not worth a Sentry event.
+    private nonisolated static let userActionableConflictCodes: Set<String> = [
+        "duplicate_barcode", "duplicate_entry",
+    ]
+
+    nonisolated static func isUserActionableConflict(_ code: String) -> Bool {
+        userActionableConflictCodes.contains(code)
     }
 
     /// Puts a parked change back in line for the next drain.
@@ -1550,7 +1593,8 @@ final class SyncManager {
         _ operation: SyncOperation,
         _ row: PendingSyncOperation,
         outcome: String,
-        status: Int?
+        status: Int?,
+        serverError: String? = nil
     ) -> [String: Any] {
         var context: [String: Any] = [
             "sync.op": operation.typeName,
@@ -1561,6 +1605,9 @@ final class SyncManager {
         ]
         if let status {
             context["status_code"] = status
+        }
+        if let serverError {
+            context["server_error"] = serverError
         }
         for (key, value) in referenceIds(operation) {
             context[key] = value

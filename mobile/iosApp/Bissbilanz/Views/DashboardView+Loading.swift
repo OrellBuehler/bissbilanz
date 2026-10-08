@@ -135,16 +135,26 @@ extension DashboardView {
         refreshFailed = entriesFailReason != nil && entries.isEmpty
         if refreshFailed, let entriesFailReason {
             // Whenever the user actually sees the "couldn't refresh" state, log
-            // why — at warning level so it bypasses the API layer's noise filter
-            // (offline/401/404), which would otherwise leave the failure invisible.
-            ErrorReporter.captureWarning(
-                "Dashboard entries refresh failed — showing retry",
-                context: [
-                    "date": dateString,
-                    "endpoint": "/api/entries",
-                    "reason": entriesFailReason,
-                ]
-            )
+            // why — at warning level so it bypasses the API layer's noise filter.
+            // Reasons the device or the session explain (offline, timeout, dead
+            // login) are not defects, so they leave a breadcrumb instead.
+            if ErrorReporter.isExpectedFailureReason(entriesFailReason) {
+                ErrorReporter.addBreadcrumb(
+                    "dashboard retry shown, not reported",
+                    category: "sync",
+                    level: .warning,
+                    data: ["date": dateString, "reason": entriesFailReason]
+                )
+            } else {
+                ErrorReporter.captureWarning(
+                    "Dashboard entries refresh failed — showing retry",
+                    context: [
+                        "date": dateString,
+                        "endpoint": "/api/entries",
+                        "reason": entriesFailReason,
+                    ]
+                )
+            }
         }
         if let checklist { supplementChecklist = checklist }
     }

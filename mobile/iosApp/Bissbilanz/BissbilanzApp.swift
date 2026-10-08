@@ -140,7 +140,7 @@ struct BissbilanzApp: App {
         } else {
             let opened = LocalStore.openStore(
                 cloudKitEnabled: appMode.isLocal,
-                onError: { error, context in ErrorReporter.capture(error, context: context) }
+                onError: { error, context in ErrorReporter.captureStoreOpen(error, context: context) }
             )
             container = opened.container
             storeUnavailable = opened.unavailable

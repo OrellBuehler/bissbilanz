@@ -80,4 +80,60 @@ struct LocalSchemaTests {
         #expect(rows.first?.name == "Tomato Soup")
         #expect(rows.first?.labels == [])
     }
+
+    @Test("Version hashes are cut to four bytes of hex")
+    func shortHashesTruncate() {
+        let hashes = LocalStore.shortHashes([
+            "LocalFood": Data([0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02]),
+            "LocalGoals": Data([0x0A, 0x0B]),
+        ])
+        #expect(hashes == ["LocalFood": "deadbeef", "LocalGoals": "0a0b"])
+    }
+
+    @Test("An on-disk store reports its entity version hashes")
+    func onDiskStoreDiagnosticsReadsHashes() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalSchemaTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("Bissbilanz.store")
+
+        let legacySchema = Schema(versionedSchema: LocalSchemaV1.self)
+        do {
+            let legacy = try ModelContainer(
+                for: legacySchema,
+                configurations: [ModelConfiguration(schema: legacySchema, url: url, cloudKitDatabase: .none)]
+            )
+            legacy.mainContext.insert(LocalGoals(goals: .defaults))
+            try legacy.mainContext.save()
+        }
+
+        let diagnostics = LocalStore.onDiskStoreDiagnostics(at: url)
+
+        let hashes = try #require(diagnostics["store_model_hashes"] as? [String: String])
+        #expect(!hashes.isEmpty)
+        #expect(hashes.values.allSatisfy { $0.count == 8 })
+        #expect(diagnostics["store_metadata_error"] == nil)
+    }
+
+    @Test("A store that cannot be read is described instead of thrown")
+    func onDiskStoreDiagnosticsNeverThrows() throws {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalSchemaTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Bissbilanz.store")
+        #expect(LocalStore.onDiskStoreDiagnostics(at: nil)["store_metadata_error"] as? String == "no store file")
+        #expect(LocalStore.onDiskStoreDiagnostics(at: missing)["store_metadata_error"] as? String == "no store file")
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LocalSchemaTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let garbage = directory.appendingPathComponent("Bissbilanz.store")
+        try Data("not a sqlite file".utf8).write(to: garbage)
+
+        let diagnostics = LocalStore.onDiskStoreDiagnostics(at: garbage)
+
+        #expect(diagnostics["store_model_hashes"] == nil)
+        #expect(diagnostics["store_metadata_error"] is String)
+    }
 }
