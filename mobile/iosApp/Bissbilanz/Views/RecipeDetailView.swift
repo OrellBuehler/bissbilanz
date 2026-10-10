@@ -167,8 +167,11 @@ struct RecipeDetailView: View {
                     Button {
                         showCooking = true
                     } label: {
-                        Label(L10n.startCooking, systemImage: "flame")
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 6) {
+                            Image(systemName: "flame").accessibilityHidden(true)
+                            Text(L10n.startCooking)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
