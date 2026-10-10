@@ -10,9 +10,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import java.io.IOException
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -70,9 +72,17 @@ class AuthManagerRefreshTest {
     @Test
     fun concurrentRefreshesShareOneRequest() =
         runBlocking {
-            val auth = manager { tokens() }
+            val gate = CompletableDeferred<Unit>()
+            val auth =
+                manager {
+                    gate.await()
+                    tokens()
+                }
 
-            val results = (1..5).map { async { auth.refreshToken() } }.awaitAll()
+            val callers = (1..5).map { async { auth.refreshToken() } }
+            repeat(20) { yield() }
+            gate.complete(Unit)
+            val results = callers.awaitAll()
 
             assertTrue(results.all { it })
             assertEquals(1, requests)
