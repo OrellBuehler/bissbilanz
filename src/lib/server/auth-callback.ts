@@ -9,6 +9,7 @@ import { findOrCreateUserByIdentity, linkIdentity, IdentityConflictError } from 
 import { createSession } from './session';
 import { assertState } from './oidc-validate';
 import { rateLimit } from './rate-limit';
+import { noteRateLimited } from './errors';
 import { consumePendingState, createOneTimeCode } from './mobile-auth';
 import { consumeWebTransaction, type WebAuthTransaction } from './auth-transactions';
 import { extractLocaleFromHeader, isLocale } from '$lib/paraglide/runtime';
@@ -156,7 +157,7 @@ export async function handleWebCallback(input: {
 	try {
 		rateLimit(`auth:callback:${input.clientAddress}`, 5, 60_000);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
+		noteRateLimited(err);
 		throw error(429, 'Too many requests');
 	}
 
@@ -227,7 +228,7 @@ export async function handleFormPostCallback(input: {
 	try {
 		rateLimit(`auth:callback:${input.clientAddress}`, 5, 60_000);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
+		noteRateLimited(err);
 		throw error(429, 'Too many requests');
 	}
 
@@ -281,7 +282,7 @@ export async function handleMobileCallback(input: {
 	try {
 		rateLimit(`auth:mobile:callback:${input.clientAddress}`, 5, 60_000);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
+		noteRateLimited(err);
 		throw error(429, 'Too many requests');
 	}
 

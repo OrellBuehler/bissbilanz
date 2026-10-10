@@ -3520,6 +3520,8 @@ export interface components {
 		/** @description Too many requests */
 		AuthRateLimitedResponse: {
 			headers: {
+				/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+				'Retry-After'?: number;
 				[name: string]: unknown;
 			};
 			content: {
@@ -3590,6 +3592,8 @@ export interface components {
 		/** @description Too many requests */
 		RateLimitedResponse: {
 			headers: {
+				/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+				'Retry-After'?: number;
 				[name: string]: unknown;
 			};
 			content: {
@@ -5711,6 +5715,7 @@ export interface operations {
 			204: components['responses']['DeletedResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			403: components['responses']['ForbiddenResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	exportAccountData: {

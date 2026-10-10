@@ -1,5 +1,4 @@
 import { error, redirect } from '@sveltejs/kit';
-import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { parseSessionCookie, getSessionWithUser } from '$lib/server/session';
 import {
@@ -11,6 +10,7 @@ import {
 } from '$lib/server/oauth';
 import { resolveOAuthClient } from '$lib/server/oauth-cimd';
 import { rateLimit } from '$lib/server/rate-limit';
+import { noteRateLimited } from '$lib/server/errors';
 import { getRequestIp } from '$lib/server/client-ip';
 import { getIssuer } from '$lib/server/oauth-metadata';
 
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		rateLimit(`oauth:authorize:${getRequestIp(event)}`, 30, 60_000);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
+		noteRateLimited(err);
 		throw error(429, 'Too many requests');
 	}
 

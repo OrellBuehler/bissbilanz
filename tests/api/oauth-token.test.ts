@@ -254,4 +254,24 @@ describe('POST /api/oauth/token', () => {
 			expect(data.token_type).toBe('Bearer');
 		});
 	});
+
+	describe('rate limiting', () => {
+		test('answers 429 with Retry-After once the per-IP limit is spent', async () => {
+			const callFromSpentIp = () => {
+				const event = createTokenRequest({ client_id: 'test' });
+				event.getClientAddress = () => '198.51.100.20';
+				return POST(event);
+			};
+			for (let i = 0; i < 20; i++) await callFromSpentIp();
+
+			const response = await callFromSpentIp();
+
+			expect(response.status).toBe(429);
+			expect(Number(response.headers.get('Retry-After'))).toBeGreaterThan(0);
+			expect(await response.json()).toEqual({
+				error: 'too_many_requests',
+				error_description: 'Rate limit exceeded'
+			});
+		});
+	});
 });

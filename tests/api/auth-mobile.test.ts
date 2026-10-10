@@ -3,6 +3,15 @@ import { createHash } from 'node:crypto';
 import { isHttpError } from '@sveltejs/kit';
 import { JOSEError } from 'jose/errors';
 import { expectResponseContract } from '../helpers/contract';
+import { RateLimitError } from '$lib/server/errors';
+
+const sentry = vi.hoisted(() => ({
+	captureException: vi.fn(),
+	captureMessage: vi.fn(),
+	addBreadcrumb: vi.fn(),
+	logger: { error: vi.fn() }
+}));
+vi.mock('@sentry/sveltekit', () => sentry);
 
 // These two routes throw SvelteKit's error() helper directly instead of
 // returning a Response, relying on the framework to catch it and build the
@@ -72,6 +81,8 @@ describe('POST /api/auth/mobile/token', () => {
 		rateLimitError = null;
 		mockOneTimeCodeUser = undefined;
 		mockRefreshResult = {};
+		sentry.captureException.mockClear();
+		sentry.addBreadcrumb.mockClear();
 	});
 
 	test('exchanges a valid code for a token pair', async () => {
@@ -158,6 +169,37 @@ describe('POST /api/auth/mobile/token', () => {
 		await expectResponseContract('POST', '/api/auth/mobile/token', response);
 		expect(response.status).toBe(429);
 	});
+
+	test('tells a rate-limited client when to retry', async () => {
+		rateLimitError = new RateLimitError(37);
+		const response = await callRoute(tokenPOST, tokenEvent({ refresh_token: 'good-refresh' }));
+		await expectResponseContract('POST', '/api/auth/mobile/token', response);
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('37');
+		expect(await response.json()).toEqual({ message: 'Too many requests' });
+	});
+
+	test('falls back to a minute when the limiter gave no reset time', async () => {
+		rateLimitError = new Error('Too many requests');
+		const response = await callRoute(tokenPOST, tokenEvent({ refresh_token: 'good-refresh' }));
+		expect(response.headers.get('Retry-After')).toBe('60');
+	});
+
+	test('does not report an expected rate-limit rejection as a Sentry issue', async () => {
+		rateLimitError = new RateLimitError(37);
+		await callRoute(tokenPOST, tokenEvent({ refresh_token: 'good-refresh' }));
+		expect(sentry.captureException).not.toHaveBeenCalled();
+		expect(sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ category: 'rate-limit' })
+		);
+	});
+
+	test('does not consume or validate anything while rate limited', async () => {
+		rateLimitError = new RateLimitError(37);
+		consumeOneTimeCode.mockClear();
+		await callRoute(tokenPOST, tokenEvent({ code: 'a-code' }));
+		expect(consumeOneTimeCode).not.toHaveBeenCalled();
+	});
 });
 
 vi.mock('$lib/server/env', () => ({
@@ -193,6 +235,7 @@ describe('POST /api/auth/mobile/apple', () => {
 		rateLimitError = null;
 		mockAppleConfig = { servicesId: 's', teamId: 't', keyId: 'k', privateKey: 'p' };
 		verifyIdToken.mockReset();
+		sentry.captureException.mockClear();
 	});
 
 	test('verifies the identity token and mints a token pair', async () => {
@@ -235,5 +278,15 @@ describe('POST /api/auth/mobile/apple', () => {
 		const response = await callRoute(applePOST, appleEvent({ identity_token: 'jwt', nonce: 'n' }));
 		await expectResponseContract('POST', '/api/auth/mobile/apple', response);
 		expect(response.status).toBe(429);
+	});
+
+	test('tells a rate-limited client when to retry without raising a Sentry issue', async () => {
+		rateLimitError = new RateLimitError(12);
+		const response = await callRoute(applePOST, appleEvent({ identity_token: 'jwt', nonce: 'n' }));
+		await expectResponseContract('POST', '/api/auth/mobile/apple', response);
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('12');
+		expect(sentry.captureException).not.toHaveBeenCalled();
+		expect(verifyIdToken).not.toHaveBeenCalled();
 	});
 });

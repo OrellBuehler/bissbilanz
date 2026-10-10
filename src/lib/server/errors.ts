@@ -56,6 +56,39 @@ export class ApiError extends Error {
 	}
 }
 
+export class RateLimitError extends ApiError {
+	constructor(
+		public retryAfterSeconds: number,
+		message = 'Rate limit exceeded'
+	) {
+		super(429, message);
+		this.name = 'RateLimitError';
+	}
+}
+
+const DEFAULT_RETRY_AFTER_SECONDS = 60;
+
+export function retryAfterSeconds(error: unknown): number {
+	return error instanceof RateLimitError ? error.retryAfterSeconds : DEFAULT_RETRY_AFTER_SECONDS;
+}
+
+export function noteRateLimited(error: unknown) {
+	Sentry.addBreadcrumb({
+		category: 'rate-limit',
+		level: 'warning',
+		message: error instanceof Error ? error.message : 'Rate limit exceeded',
+		data: { retryAfterSeconds: retryAfterSeconds(error) }
+	});
+}
+
+export function rateLimitedResponse(error: unknown, body: Record<string, unknown>) {
+	noteRateLimited(error);
+	return json(body, {
+		status: 429,
+		headers: { 'Retry-After': String(retryAfterSeconds(error)) }
+	});
+}
+
 /**
  * Error whose message is written for the MCP caller and safe to show as is.
  * Anything else thrown inside a tool is reported to Sentry and hidden.
@@ -109,6 +142,9 @@ export function handleApiError(error: unknown): Response {
 
 	if (error instanceof ApiError) {
 		if (error.status >= 500) Sentry.captureException(error);
+		if (error instanceof RateLimitError) {
+			return rateLimitedResponse(error, { error: error.message });
+		}
 		return json(
 			{
 				error: error.message,

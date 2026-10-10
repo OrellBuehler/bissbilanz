@@ -6,9 +6,11 @@ import com.bissbilanz.api.installUpdateGate
 import com.bissbilanz.util.Failures
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +22,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.concurrent.Volatile
+import kotlin.time.Clock
 
 sealed class AuthState {
     data object Loading : AuthState()
@@ -53,12 +56,14 @@ class AuthManager(
     private val clientPlatform: String = "android",
     private val clientVersion: String? = null,
     private val updateGate: UpdateGate = UpdateGate(),
+    engine: HttpClientEngine = com.bissbilanz.createHttpEngine(),
+    private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     private val client =
-        HttpClient(com.bissbilanz.createHttpEngine()) {
+        HttpClient(engine) {
             install(ContentNegotiation) {
                 json(this@AuthManager.json)
             }
@@ -71,6 +76,12 @@ class AuthManager(
     private val refreshMutex = Mutex()
 
     @Volatile
+    private var refreshBlockedUntilMs = 0L
+
+    @Volatile
+    private var transientRefreshFailures = 0
+
+    @Volatile
     private var pendingState: String? = null
 
     @Volatile
@@ -79,6 +90,11 @@ class AuthManager(
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
+        private const val REFRESH_BACKOFF_BASE_MS = 2_000L
+        private const val REFRESH_BACKOFF_CAP_MS = 60_000L
+        private const val DEFAULT_RETRY_AFTER_MS = 60_000L
+        private const val MAX_RETRY_AFTER_MS = 300_000L
+        private const val MIN_RETRY_AFTER_MS = 1_000L
     }
 
     fun initialize() {
@@ -137,6 +153,7 @@ class AuthManager(
 
             secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
             response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
+            clearRefreshBlock()
             _authState.value = AuthState.Authenticated
             true
         } catch (e: Exception) {
@@ -157,6 +174,8 @@ class AuthManager(
                 return@withLock true
             }
 
+            if (nowMs() < refreshBlockedUntilMs) return@withLock false
+
             val refreshToken = secureStorage.load(KEY_REFRESH_TOKEN) ?: return@withLock false
 
             val stateBeforeRefresh = _authState.value
@@ -176,11 +195,13 @@ class AuthManager(
                 if (status == 400 || status == 401 || status == 403) {
                     secureStorage.delete(KEY_ACCESS_TOKEN)
                     secureStorage.delete(KEY_REFRESH_TOKEN)
+                    clearRefreshBlock()
                     _authState.value = AuthState.SessionExpired
                     return@withLock false
                 }
 
                 if (status !in 200..299) {
+                    blockRefresh(if (status == 429) retryAfterMs(httpResponse) else null)
                     _authState.compareAndSet(AuthState.Refreshing, stateBeforeRefresh)
                     return@withLock false
                 }
@@ -188,6 +209,7 @@ class AuthManager(
                 val response: TokenResponse = httpResponse.body()
                 secureStorage.save(KEY_ACCESS_TOKEN, response.accessToken)
                 response.refreshToken?.let { secureStorage.save(KEY_REFRESH_TOKEN, it) }
+                clearRefreshBlock()
                 _authState.value = AuthState.Authenticated
                 true
             } catch (e: Exception) {
@@ -199,10 +221,36 @@ class AuthManager(
                 // keeps the state it just set.
                 _authState.compareAndSet(AuthState.Refreshing, stateBeforeRefresh)
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                blockRefresh(null)
                 Failures.report(e)
                 false
             }
         }
+    }
+
+    private fun retryAfterMs(response: HttpResponse): Long {
+        val seconds = response.headers[HttpHeaders.RetryAfter]?.trim()?.toLongOrNull()
+        return if (seconds != null && seconds > 0) {
+            (seconds * 1000).coerceIn(MIN_RETRY_AFTER_MS, MAX_RETRY_AFTER_MS)
+        } else {
+            DEFAULT_RETRY_AFTER_MS
+        }
+    }
+
+    private fun blockRefresh(serverRetryAfterMs: Long?) {
+        transientRefreshFailures++
+        val delayMs =
+            serverRetryAfterMs
+                ?: minOf(
+                    REFRESH_BACKOFF_BASE_MS shl (transientRefreshFailures - 1).coerceAtMost(10),
+                    REFRESH_BACKOFF_CAP_MS,
+                )
+        refreshBlockedUntilMs = nowMs() + delayMs
+    }
+
+    private fun clearRefreshBlock() {
+        transientRefreshFailures = 0
+        refreshBlockedUntilMs = 0L
     }
 
     fun clearSessionExpired() {
@@ -214,6 +262,7 @@ class AuthManager(
     fun logout() {
         secureStorage.delete(KEY_ACCESS_TOKEN)
         secureStorage.delete(KEY_REFRESH_TOKEN)
+        clearRefreshBlock()
         _authState.value = AuthState.Unauthenticated
     }
 

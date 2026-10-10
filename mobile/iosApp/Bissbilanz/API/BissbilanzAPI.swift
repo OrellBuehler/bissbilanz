@@ -428,8 +428,9 @@ final class BissbilanzAPI {
         }
         var req = request
         ClientVersionHeader.apply(to: &req)
-        if let token = authManager.accessToken {
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let sentToken = authManager.accessToken
+        if let sentToken {
+            req.setValue("Bearer \(sentToken)", forHTTPHeaderField: "Authorization")
         }
 
         let data: Data
@@ -450,7 +451,7 @@ final class BissbilanzAPI {
         try checkUpdateRequired(data, httpResponse)
 
         if httpResponse.statusCode == 401 {
-            if await authManager.refreshAccessToken() {
+            if await authManager.refreshAccessToken(rejecting: sentToken) {
                 var retryReq = request
                 ClientVersionHeader.apply(to: &retryReq)
                 if let token = authManager.accessToken {
@@ -478,7 +479,8 @@ final class BissbilanzAPI {
                 return (retryData, retryHTTP)
             }
             // `unauthorized` means "session is dead, prompt to sign in" — a
-            // transient refresh failure (offline, 5xx) is just retryable.
+            // transient refresh failure (offline, 429, 5xx, or a refresh still
+            // cooling down after one) is just retryable.
             switch authManager.authState {
             case .expired, .unauthenticated:
                 throw APIError.unauthorized
