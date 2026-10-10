@@ -3273,6 +3273,9 @@
 					},
 					"403": {
 						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
 					}
 				}
 			}
@@ -14451,6 +14454,15 @@
 			},
 			"AuthRateLimitedResponse": {
 				"description": "Too many requests",
+				"headers": {
+					"Retry-After": {
+						"description": "Seconds until the rate limit window resets; clients should not retry before then.",
+						"schema": {
+							"type": "integer",
+							"minimum": 1
+						}
+					}
+				},
 				"content": {
 					"application/json": {
 						"schema": {
@@ -14524,6 +14536,15 @@
 			},
 			"RateLimitedResponse": {
 				"description": "Too many requests",
+				"headers": {
+					"Retry-After": {
+						"description": "Seconds until the rate limit window resets; clients should not retry before then.",
+						"schema": {
+							"type": "integer",
+							"minimum": 1
+						}
+					}
+				},
 				"content": {
 					"application/json": {
 						"schema": {

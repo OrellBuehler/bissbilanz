@@ -3,6 +3,10 @@ import { ZodError, z } from 'zod';
 import * as Sentry from '@sentry/sveltekit';
 import {
 	ApiError,
+	RateLimitError,
+	rateLimitedResponse,
+	noteRateLimited,
+	retryAfterSeconds,
 	ResultValidationError,
 	unauthorized,
 	notFound,
@@ -17,6 +21,7 @@ import {
 
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: vi.fn(),
+	addBreadcrumb: vi.fn(),
 	logger: { error: vi.fn() }
 }));
 
@@ -43,6 +48,73 @@ describe('ApiError', () => {
 	test('details is undefined when not provided', () => {
 		const err = new ApiError(500, 'Oops');
 		expect(err.details).toBeUndefined();
+	});
+});
+
+describe('RateLimitError', () => {
+	test('is a 429 ApiError carrying how long to wait', () => {
+		const err = new RateLimitError(30);
+		expect(err).toBeInstanceOf(ApiError);
+		expect(err.status).toBe(429);
+		expect(err.message).toBe('Rate limit exceeded');
+		expect(err.name).toBe('RateLimitError');
+		expect(err.retryAfterSeconds).toBe(30);
+	});
+
+	test('keeps a route-specific message', () => {
+		expect(new RateLimitError(30, 'Too many requests').message).toBe('Too many requests');
+	});
+});
+
+describe('retryAfterSeconds', () => {
+	test('reads the reset time off a RateLimitError', () => {
+		expect(retryAfterSeconds(new RateLimitError(17))).toBe(17);
+	});
+
+	test('falls back to a minute for anything else', () => {
+		expect(retryAfterSeconds(new Error('x'))).toBe(60);
+		expect(retryAfterSeconds(undefined)).toBe(60);
+	});
+});
+
+describe('rateLimitedResponse', () => {
+	test('is a 429 with Retry-After and the route-specific body', async () => {
+		const res = rateLimitedResponse(new RateLimitError(9), { message: 'Too many requests' });
+		expect(res.status).toBe(429);
+		expect(res.headers.get('Retry-After')).toBe('9');
+		expect(await res.json()).toEqual({ message: 'Too many requests' });
+	});
+
+	test('leaves a breadcrumb instead of a Sentry issue', () => {
+		vi.mocked(Sentry.captureException).mockClear();
+		vi.mocked(Sentry.addBreadcrumb).mockClear();
+		rateLimitedResponse(new RateLimitError(9), { error: 'x' });
+		expect(Sentry.captureException).not.toHaveBeenCalled();
+		expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				category: 'rate-limit',
+				level: 'warning',
+				data: { retryAfterSeconds: 9 }
+			})
+		);
+	});
+});
+
+describe('noteRateLimited', () => {
+	test('records a breadcrumb for a plain error too', () => {
+		vi.mocked(Sentry.addBreadcrumb).mockClear();
+		noteRateLimited(new Error('boom'));
+		expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ message: 'boom', data: { retryAfterSeconds: 60 } })
+		);
+	});
+
+	test('copes with a non-Error value', () => {
+		vi.mocked(Sentry.addBreadcrumb).mockClear();
+		noteRateLimited('nope');
+		expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ message: 'Rate limit exceeded' })
+		);
 	});
 });
 
@@ -119,6 +191,21 @@ describe('handleApiError', () => {
 		const res = handleApiError(err);
 		const body = await res.json();
 		expect('details' in body).toBe(false);
+	});
+
+	test('answers a RateLimitError with 429, Retry-After and no Sentry issue', async () => {
+		vi.mocked(Sentry.captureException).mockClear();
+		const res = handleApiError(new RateLimitError(25, 'Too many requests'));
+		expect(res.status).toBe(429);
+		expect(res.headers.get('Retry-After')).toBe('25');
+		expect(await res.json()).toEqual({ error: 'Too many requests' });
+		expect(Sentry.captureException).not.toHaveBeenCalled();
+	});
+
+	test('does not add Retry-After to other client errors', () => {
+		const res = handleApiError(new ApiError(429, 'Slow down'));
+		expect(res.status).toBe(429);
+		expect(res.headers.get('Retry-After')).toBeNull();
 	});
 
 	test('handles ResultValidationError as 400 validation response', async () => {

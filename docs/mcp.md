@@ -191,7 +191,7 @@ All resources are `application/json`.
 
 ## Limits and behaviour
 
-- Requests are rate-limited per user; a `429` JSON-RPC error means back off.
+- Requests are rate-limited per user; a `429` JSON-RPC error means back off, and its `Retry-After` header says for how many seconds.
 - Sessions live in server memory. After a deploy, the client receives `404 Session not
 found` and must re-initialise (all mainstream clients do this automatically).
 - Tokens can be revoked per connected application under **Settings → MCP → Connected

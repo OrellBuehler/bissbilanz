@@ -8,6 +8,7 @@ import { validateAccessToken } from '$lib/server/oauth';
 import { createMcpServer } from '$lib/server/mcp/server';
 import { enforceUserSessionCap, sweepExpiredSessions } from '$lib/server/mcp/sweep';
 import { rateLimitMcp } from '$lib/server/rate-limit';
+import { noteRateLimited, retryAfterSeconds } from '$lib/server/errors';
 
 const MCP_SERVER_NAME = 'bissbilanz';
 const REQUIRED_SCOPE = 'mcp:access';
@@ -69,7 +70,13 @@ function unauthorizedResponse(url: URL, message: string): Response {
 	});
 }
 
-function jsonRpcError(status: number, code: number, message: string, id: unknown = null): Response {
+function jsonRpcError(
+	status: number,
+	code: number,
+	message: string,
+	id: unknown = null,
+	headers: Record<string, string> = {}
+): Response {
 	return new Response(
 		JSON.stringify({
 			jsonrpc: '2.0',
@@ -78,7 +85,7 @@ function jsonRpcError(status: number, code: number, message: string, id: unknown
 		}),
 		{
 			status,
-			headers: { 'Content-Type': 'application/json' }
+			headers: { 'Content-Type': 'application/json', ...headers }
 		}
 	);
 }
@@ -153,8 +160,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	try {
 		rateLimitMcp(auth.userId);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
-		return jsonRpcError(429, -32000, 'Rate limit exceeded');
+		noteRateLimited(err);
+		return jsonRpcError(429, -32000, 'Rate limit exceeded', null, {
+			'Retry-After': String(retryAfterSeconds(err))
+		});
 	}
 
 	const sessionId = request.headers.get('mcp-session-id');

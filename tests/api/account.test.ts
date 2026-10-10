@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { RateLimitError } from '$lib/server/errors';
 import { users } from '$lib/server/schema';
 import { createMockEvent } from '../helpers/mock-request-event';
 import { expectResponseContract } from '../helpers/contract';
@@ -108,6 +109,21 @@ describe('api/account', () => {
 			const response = await DELETE(event as any);
 			await expectResponseContract('DELETE', '/api/account', response);
 			expect(response.status).toBe(403);
+			expect(deleted).toBe(false);
+		});
+
+		test('answers 429 with Retry-After and does not delete once rate limited', async () => {
+			let deleted = false;
+			mockOnDelete = () => {
+				deleted = true;
+			};
+			mockRateLimitError = new RateLimitError(42);
+			const event = { ...createMockEvent({ user: TEST_USER }), cookies };
+			const response = await DELETE(event as any);
+			await expectResponseContract('DELETE', '/api/account', response);
+			expect(response.status).toBe(429);
+			expect(response.headers.get('Retry-After')).toBe('42');
+			expect(await response.json()).toEqual({ error: 'Too many requests' });
 			expect(deleted).toBe(false);
 		});
 	});

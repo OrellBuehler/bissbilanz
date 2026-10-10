@@ -7,11 +7,28 @@ import Security
 enum AuthState {
     case unauthenticated
     case authenticated
+    /// Not published any more: every refresh attempt flipped the state through
+    /// here and back, and observers (sync, bulk upload) re-ran on each flip,
+    /// which fed a loop of request, 401, refresh, flip. Kept for routing.
     case refreshing
     /// Was signed in, but the server definitively rejected the refresh token.
     /// The user keeps the app (all data is local) and is prompted to sign in
     /// again — never kicked back to the login screen.
     case expired
+}
+
+/// Where the tokens live: the keychain in the app. Tests swap in memory,
+/// because an unsigned test host cannot write to the keychain.
+struct AuthTokenStorage: Sendable {
+    let load: @Sendable (String) -> String?
+    let save: @Sendable (String, String) -> Void
+    let delete: @Sendable (String) -> Void
+
+    static let keychain = AuthTokenStorage(
+        load: { KeychainHelper.load(key: $0) },
+        save: { KeychainHelper.save(key: $0, value: $1) },
+        delete: { KeychainHelper.delete(key: $0) }
+    )
 }
 
 @MainActor
@@ -21,19 +38,35 @@ final class AuthManager {
 
     private let baseURL: String
     private let session: URLSession
+    private let tokenStorage: AuthTokenStorage
+    private let now: () -> Date
     private var pendingState: String?
     private var pendingCodeVerifier: String?
     /// In-flight refresh, shared by concurrent callers. Refresh tokens rotate
     /// on use, so two parallel refreshes would invalidate each other and kill
     /// the session.
     private var refreshTask: Task<Bool, Never>?
+    /// While set and in the future, `refreshAccessToken` answers false without
+    /// touching the network. A transient failure (429, 5xx, offline) otherwise
+    /// let every queued request, retry and observer ask the token endpoint
+    /// again at once, which is how one throttled device sent the server
+    /// hundreds of refreshes a minute (BISSBILANZ-49).
+    @ObservationIgnored private var refreshBlockedUntil: Date?
+    @ObservationIgnored private var transientRefreshFailures = 0
+    /// The refresh token the server definitively refused. Asking again with
+    /// the same token cannot change the answer, so it is not sent twice.
+    @ObservationIgnored private var rejectedRefreshToken: String?
     /// Shared with `BissbilanzAPI` — see `ClientVersionHeader`/`UpdateRequiredGate`.
     /// This type builds its own requests below (there is no `BissbilanzAPI`
     /// instance yet before sign-in) rather than routing through it.
     private let updateGate: UpdateRequiredGate
 
-    private static let accessTokenKey = "bissbilanz_access_token"
-    private static let refreshTokenKey = "bissbilanz_refresh_token"
+    nonisolated static let accessTokenKey = "bissbilanz_access_token"
+    nonisolated static let refreshTokenKey = "bissbilanz_refresh_token"
+
+    private static let refreshBackoffBase: TimeInterval = 2
+    private static let refreshBackoffCap: TimeInterval = 60
+    private static let maxRetryAfter: TimeInterval = 300
 
     var isAuthenticated: Bool {
         authState == .authenticated
@@ -42,12 +75,16 @@ final class AuthManager {
     init(
         baseURL: String = "https://bissbilanz.orellbuehler.ch",
         session: URLSession = .shared,
-        updateGate: UpdateRequiredGate = UpdateRequiredGate()
+        updateGate: UpdateRequiredGate = UpdateRequiredGate(),
+        tokenStorage: AuthTokenStorage = .keychain,
+        now: @escaping () -> Date = { Date() }
     ) {
         self.baseURL = baseURL
         self.session = session
         self.updateGate = updateGate
-        if KeychainHelper.load(key: Self.accessTokenKey) != nil {
+        self.tokenStorage = tokenStorage
+        self.now = now
+        if tokenStorage.load(Self.accessTokenKey) != nil {
             authState = .authenticated
         }
     }
@@ -75,7 +112,7 @@ final class AuthManager {
 
     var accessToken: String? {
         if accessTokenCacheLoaded { return accessTokenCache }
-        accessTokenCache = KeychainHelper.load(key: Self.accessTokenKey)
+        accessTokenCache = tokenStorage.load(Self.accessTokenKey)
         accessTokenCacheLoaded = true
         return accessTokenCache
     }
@@ -95,7 +132,7 @@ final class AuthManager {
     }
 
     private func storeAccessToken(_ token: String) {
-        KeychainHelper.save(key: Self.accessTokenKey, value: token)
+        tokenStorage.save(Self.accessTokenKey, token)
         accessTokenCache = token
         accessTokenCacheLoaded = true
     }
@@ -206,10 +243,8 @@ final class AuthManager {
             let (data, response) = try await session.data(for: request)
             guard !flagIfUpdateRequired(response, data: data) else { return false }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            storeAccessToken(tokenResponse.accessToken)
-            if let refresh = tokenResponse.refreshToken {
-                KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
-            }
+            storeTokens(tokenResponse)
+            resetRefreshState()
             authState = .authenticated
             return true
         } catch {
@@ -243,10 +278,8 @@ final class AuthManager {
                 return false
             }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            storeAccessToken(tokenResponse.accessToken)
-            if let refresh = tokenResponse.refreshToken {
-                KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
-            }
+            storeTokens(tokenResponse)
+            resetRefreshState()
             authState = .authenticated
             return true
         } catch {
@@ -255,10 +288,21 @@ final class AuthManager {
         }
     }
 
+    /// `rejectedToken` is the access token the failing request was signed with.
+    /// When another caller already replaced it, this request only needs to be
+    /// retried with the current one; refreshing again would rotate the refresh
+    /// token a second time and invalidate the access token the first refresh
+    /// just issued.
     @discardableResult
-    func refreshAccessToken() async -> Bool {
+    func refreshAccessToken(rejecting rejectedToken: String? = nil) async -> Bool {
         if let task = refreshTask {
             return await task.value
+        }
+        if let rejectedToken, let current = accessToken, current != rejectedToken {
+            return true
+        }
+        if let blockedUntil = refreshBlockedUntil, blockedUntil > now() {
+            return false
         }
         let task = Task { await performRefresh() }
         refreshTask = task
@@ -268,15 +312,17 @@ final class AuthManager {
     }
 
     /// Only an explicit rejection of the refresh token ends the session
-    /// (`.expired`). Transient failures — offline, 5xx, malformed response —
-    /// keep the user signed in; the next API call retries the refresh.
+    /// (`.expired`). Transient failures (offline, 429, 5xx, a malformed
+    /// response) keep the user signed in and leave `authState` alone; they
+    /// block the next refresh for a while instead (see `blockRefresh`).
     private func performRefresh() async -> Bool {
-        guard let refreshToken = KeychainHelper.load(key: Self.refreshTokenKey) else {
+        guard let refreshToken = tokenStorage.load(Self.refreshTokenKey) else {
             authState = accessToken != nil ? .expired : .unauthenticated
             return false
         }
-
-        authState = .refreshing
+        if refreshToken == rejectedRefreshToken {
+            return false
+        }
 
         guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else {
             authState = .expired
@@ -297,42 +343,83 @@ final class AuthManager {
             // client build is too old — so this must never fall into the
             // `.expired` branch below and sign the user out over it.
             guard !flagIfUpdateRequired(response, data: data) else {
-                authState = .authenticated
+                blockRefresh(retryAfter: nil)
                 return false
             }
             guard let http = response as? HTTPURLResponse else {
-                authState = .authenticated
+                blockRefresh(retryAfter: nil)
                 return false
             }
             switch http.statusCode {
             case 200 ..< 300:
-                guard let tokenResponse = try? JSONDecoder().decode(TokenResponse.self, from: data) else {
-                    authState = .authenticated
+                do {
+                    let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
+                    storeTokens(tokenResponse)
+                } catch {
+                    ErrorReporter.captureWarning(
+                        "Token refresh response unreadable",
+                        context: ["reason": ErrorReporter.reason(for: error)]
+                    )
+                    blockRefresh(retryAfter: nil)
                     return false
                 }
-                storeAccessToken(tokenResponse.accessToken)
-                if let refresh = tokenResponse.refreshToken {
-                    KeychainHelper.save(key: Self.refreshTokenKey, value: refresh)
+                resetRefreshState()
+                if authState != .authenticated {
+                    authState = .authenticated
                 }
-                authState = .authenticated
                 return true
             case 400, 401, 403:
+                rejectedRefreshToken = refreshToken
+                transientRefreshFailures = 0
+                refreshBlockedUntil = nil
                 authState = .expired
                 return false
+            case 429:
+                let header = http.value(forHTTPHeaderField: "Retry-After")
+                blockRefresh(retryAfter: AiTaskRequestInProgress.retryDelay(header: header, now: now()))
+                return false
             default:
-                authState = .authenticated
+                blockRefresh(retryAfter: nil)
                 return false
             }
         } catch {
             ErrorReporter.captureWarning("Token refresh failed", context: ["reason": ErrorReporter.reason(for: error)])
-            authState = .authenticated
+            blockRefresh(retryAfter: nil)
             return false
         }
     }
 
+    private func storeTokens(_ tokenResponse: TokenResponse) {
+        storeAccessToken(tokenResponse.accessToken)
+        if let refresh = tokenResponse.refreshToken {
+            tokenStorage.save(Self.refreshTokenKey, refresh)
+        }
+    }
+
+    /// Blocks the next refresh for the server's `Retry-After` (capped), or
+    /// else an exponential backoff that grows with each consecutive failure.
+    private func blockRefresh(retryAfter: TimeInterval?) {
+        transientRefreshFailures += 1
+        let delay: TimeInterval
+        if let retryAfter {
+            delay = min(retryAfter, Self.maxRetryAfter)
+        } else {
+            let growth = pow(2.0, Double(min(transientRefreshFailures - 1, 10)))
+            delay = min(Self.refreshBackoffBase * growth, Self.refreshBackoffCap)
+        }
+        refreshBlockedUntil = now().addingTimeInterval(delay)
+    }
+
+    private func resetRefreshState() {
+        transientRefreshFailures = 0
+        refreshBlockedUntil = nil
+        rejectedRefreshToken = nil
+    }
+
     func logout() {
-        KeychainHelper.delete(key: Self.accessTokenKey)
-        KeychainHelper.delete(key: Self.refreshTokenKey)
+        tokenStorage.delete(Self.accessTokenKey)
+        tokenStorage.delete(Self.refreshTokenKey)
+        resetRefreshState()
         accessTokenCache = nil
         accessTokenCacheLoaded = true
         authState = .unauthenticated

@@ -10,6 +10,7 @@ import {
 	isValidCodeVerifier
 } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
+import { rateLimitedResponse } from '$lib/server/errors';
 import { getRequestIp } from '$lib/server/client-ip';
 
 const MAX_FIELD_LENGTH = 2048;
@@ -22,11 +23,11 @@ export const POST: RequestHandler = async (event) => {
 	const { request } = event;
 	try {
 		rateLimit(`oauth:token:${getRequestIp(event)}`, 20, 60_000);
-	} catch {
-		return json(
-			{ error: 'too_many_requests', error_description: 'Rate limit exceeded' },
-			{ status: 429 }
-		);
+	} catch (err) {
+		return rateLimitedResponse(err, {
+			error: 'too_many_requests',
+			error_description: 'Rate limit exceeded'
+		});
 	}
 
 	const formData = await request.formData();

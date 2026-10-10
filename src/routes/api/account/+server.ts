@@ -1,10 +1,16 @@
 import { json } from '@sveltejs/kit';
-import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { deleteAccount, getAccountDataRange } from '$lib/server/account';
 import { getDB, users } from '$lib/server/db';
-import { ApiError, handleApiError, requireAccountAccess, requireAuth } from '$lib/server/errors';
+import {
+	ApiError,
+	RateLimitError,
+	handleApiError,
+	requireAccountAccess,
+	requireAuth,
+	retryAfterSeconds
+} from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -35,8 +41,7 @@ export const DELETE: RequestHandler = async ({ locals, cookies }) => {
 		try {
 			rateLimit(`account:delete:${userId}`, 3, 60_000);
 		} catch (err) {
-			Sentry.captureException(err, { level: 'warning' });
-			throw new ApiError(429, 'Too many requests');
+			throw new RateLimitError(retryAfterSeconds(err), 'Too many requests');
 		}
 
 		await deleteAccount(userId);

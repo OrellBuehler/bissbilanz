@@ -182,9 +182,18 @@ const res409: ZodOpenApiResponseObject = {
 	content: { 'application/json': { schema: conflictErrorResponseSchema } }
 };
 
+const retryAfterHeaders = {
+	'Retry-After': {
+		description:
+			'Seconds until the rate limit window resets; clients should not retry before then.',
+		schema: { type: 'integer' as const, minimum: 1 }
+	}
+};
+
 const res429: ZodOpenApiResponseObject = {
 	id: 'RateLimitedResponse',
 	description: 'Too many requests',
+	headers: retryAfterHeaders,
 	content: { 'application/json': { schema: errorResponseSchema } }
 };
 
@@ -223,6 +232,7 @@ const authRes404: ZodOpenApiResponseObject = {
 const authRes429: ZodOpenApiResponseObject = {
 	id: 'AuthRateLimitedResponse',
 	description: 'Too many requests',
+	headers: retryAfterHeaders,
 	content: { 'application/json': { schema: messageErrorResponseSchema } }
 };
 
@@ -1848,7 +1858,8 @@ export const apiPaths = {
 			responses: {
 				'204': res204,
 				'401': res401,
-				'403': res403
+				'403': res403,
+				'429': res429
 			}
 		}
 	},

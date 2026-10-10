@@ -7,12 +7,66 @@ import {
 	rateLimitUpload,
 	rateLimitWrite
 } from '../../src/lib/server/rate-limit';
+import { RateLimitError } from '../../src/lib/server/errors';
 
 describe('rateLimit', () => {
 	test('blocks after max attempts', () => {
 		const key = 'ip:1';
 		for (let i = 0; i < 5; i++) rateLimit(key, 5, 60_000);
 		expect(() => rateLimit(key, 5, 60_000)).toThrow();
+	});
+
+	describe('retry-after', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		const exceed = (key: string, max: number, windowMs: number) => {
+			for (let i = 0; i < max; i++) rateLimit(key, max, windowMs);
+			try {
+				rateLimit(key, max, windowMs);
+			} catch (err) {
+				return err;
+			}
+			throw new Error('expected the limit to be exceeded');
+		};
+
+		test('is the time left until the window resets', () => {
+			const err = exceed('retry-after:full', 3, 60_000);
+			expect(err).toBeInstanceOf(RateLimitError);
+			expect((err as RateLimitError).status).toBe(429);
+			expect((err as RateLimitError).retryAfterSeconds).toBe(60);
+		});
+
+		test('shrinks as the window runs down and rounds up to whole seconds', () => {
+			const key = 'retry-after:partial';
+			for (let i = 0; i < 3; i++) rateLimit(key, 3, 60_000);
+			vi.advanceTimersByTime(20_500);
+			try {
+				rateLimit(key, 3, 60_000);
+			} catch (err) {
+				expect((err as RateLimitError).retryAfterSeconds).toBe(40);
+				return;
+			}
+			throw new Error('expected the limit to be exceeded');
+		});
+
+		test('is never below one second', () => {
+			const key = 'retry-after:last-ms';
+			for (let i = 0; i < 3; i++) rateLimit(key, 3, 60_000);
+			vi.advanceTimersByTime(59_999);
+			try {
+				rateLimit(key, 3, 60_000);
+			} catch (err) {
+				expect((err as RateLimitError).retryAfterSeconds).toBe(1);
+				return;
+			}
+			throw new Error('expected the limit to be exceeded');
+		});
 	});
 });
 

@@ -66,6 +66,10 @@ class BissbilanzApi(
                         BearerTokens(token, "")
                     }
                     refreshTokens {
+                        val current = authManager.getAccessToken()
+                        if (current != null && current != oldTokens?.accessToken) {
+                            return@refreshTokens BearerTokens(current, "")
+                        }
                         if (!authManager.refreshToken()) throw UnauthorizedException()
                         val token = authManager.getAccessToken() ?: throw UnauthorizedException()
                         BearerTokens(token, "")

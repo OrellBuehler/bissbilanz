@@ -6,6 +6,7 @@ import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/serv
 import { validateAccessToken, cleanupExpiredOAuthData } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
 import { rateLimitWrite } from '$lib/server/rate-limit';
+import { rateLimitedResponse } from '$lib/server/errors';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
@@ -219,8 +220,8 @@ const sessionHandle: Handle = async ({ event, resolve }) => {
 			if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
 				rateLimitWrite(userId, pathname);
 			}
-		} catch {
-			return json({ error: 'Rate limit exceeded' }, { status: 429 });
+		} catch (err) {
+			return rateLimitedResponse(err, { error: 'Rate limit exceeded' });
 		}
 	}
 

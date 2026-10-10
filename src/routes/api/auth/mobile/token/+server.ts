@@ -8,6 +8,7 @@ import {
 	FIRST_PARTY_SCOPES
 } from '$lib/server/oauth';
 import { rateLimit } from '$lib/server/rate-limit';
+import { rateLimitedResponse } from '$lib/server/errors';
 import type { RequestHandler } from './$types';
 import { getRequestIp } from '$lib/server/client-ip';
 import { mobileTokenRequestSchema } from '$lib/server/validation/auth';
@@ -19,8 +20,7 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		rateLimit(`auth:mobile:token:${getRequestIp(event)}`, 10, 60_000);
 	} catch (err) {
-		Sentry.captureException(err, { level: 'warning' });
-		throw error(429, 'Too many requests');
+		return rateLimitedResponse(err, { message: 'Too many requests' });
 	}
 
 	let rawBody: unknown;

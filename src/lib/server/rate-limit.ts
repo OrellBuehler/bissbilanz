@@ -1,4 +1,4 @@
-import { ApiError } from './errors';
+import { RateLimitError } from './errors';
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 let callsSinceCleanup = 0;
@@ -55,6 +55,8 @@ export const rateLimit = (key: string, max: number, windowMs: number) => {
 		buckets.set(key, { count: 1, resetAt: now + windowMs });
 		return;
 	}
-	if (bucket.count >= max) throw new ApiError(429, 'Rate limit exceeded');
+	if (bucket.count >= max) {
+		throw new RateLimitError(Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)));
+	}
 	bucket.count += 1;
 };
