@@ -46,10 +46,10 @@ extension BissbilanzAPI {
         return response.task
     }
 
-    /// Logs the proposed entries Claude suggested. `itemIds` nil accepts all of
-    /// them. 409 means the proposal is no longer open (already accepted, the
-    /// task changed, the processor moved away from Claude, or a proposed food,
-    /// recipe or meal type was deleted).
+    /// Logs exactly the given `itemIds` of Claude's proposal. 400, 404 or 409
+    /// means the proposal is no longer open or its items changed (already
+    /// accepted, the task changed, the processor moved away from Claude, or a
+    /// proposed food, recipe or meal type was deleted).
     func acceptAiTaskProposal(id: String, itemIds: [String]) async throws -> AiTask {
         let response: AiTaskResponse = try await post(
             "/api/ai-tasks/\(id)/proposal/accept",

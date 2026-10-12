@@ -102,12 +102,10 @@ struct ClaudeProcessingTests {
         #expect(task.openProposal == nil)
     }
 
-    @Test("The accept body omits itemIds for accept-all and lists them otherwise")
+    @Test("The accept body always lists the item ids")
     func acceptBodyEncoding() throws {
-        let all = try JSONEncoder().encode(AiTaskProposalAccept(itemIds: nil))
-        #expect(String(decoding: all, as: UTF8.self) == "{}")
-        let some = try JSONEncoder().encode(AiTaskProposalAccept(itemIds: ["i1"]))
-        #expect(String(decoding: some, as: UTF8.self) == #"{"itemIds":["i1"]}"#)
+        let some = try JSONEncoder().encode(AiTaskProposalAccept(itemIds: ["i1", "i2"]))
+        #expect(String(decoding: some, as: UTF8.self) == #"{"itemIds":["i1","i2"]}"#)
     }
 
     // MARK: - Status and badge logic

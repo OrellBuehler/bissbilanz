@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AiTasksView: View {
     @Environment(AiTaskStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isLoading = true
     @State private var error: Error?
@@ -143,7 +144,7 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
-        .task(id: store.hasActiveClaudeWork) { await pollWhileClaudeWorks() }
+        .task(id: store.hasActiveClaudeWork && scenePhase == .active) { await pollWhileClaudeWorks() }
         .sheet(item: $selectedDraftForReview) { draft in
             NavigationStack {
                 AIMealReviewView(
@@ -231,7 +232,12 @@ struct AiTasksView: View {
                 await store.acknowledgeAll()
             } catch {
                 if Task.isCancelled { return }
-                ErrorReporter.capture(error, context: ["op": "pollAiTasks"])
+                ErrorReporter.addBreadcrumb(
+                    "AI task poll failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["reason": ErrorReporter.reason(for: error)]
+                )
             }
         }
     }
@@ -514,7 +520,7 @@ private struct ClaudeProposalCard: View {
     let proposal: AiTaskProposal
     let onNotice: (String) -> Void
 
-    @State private var selected: Set<String>
+    @State private var storedSelection: Set<String>
     @State private var seen: Set<String>
     @State private var isWorking = false
     @State private var inlineMessage: String?
@@ -523,8 +529,16 @@ private struct ClaudeProposalCard: View {
         self.task = task
         self.proposal = proposal
         self.onNotice = onNotice
-        _selected = State(initialValue: Set(proposal.items.map(\.id)))
+        _storedSelection = State(initialValue: Set(proposal.items.map(\.id)))
         _seen = State(initialValue: Set(proposal.items.map(\.id)))
+    }
+
+    /// Reconciled against the proposal on every render, so a regenerated
+    /// proposal never shows a frame with the old selection.
+    private var current: (selected: Set<String>, seen: Set<String>) {
+        AiTaskProposalSelection.reconciled(
+            selected: storedSelection, seen: seen, ids: proposal.items.map(\.id)
+        )
     }
 
     var body: some View {
@@ -564,17 +578,18 @@ private struct ClaudeProposalCard: View {
         .padding(10)
         .background(Color.blue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .onChange(of: proposal.items.map(\.id)) { _, ids in
-            let next = AiTaskProposalSelection.reconciled(selected: selected, seen: seen, ids: ids)
-            selected = next.selected
-            seen = next.seen
+        .onChange(of: proposal.items.map(\.id)) {
+            storedSelection = current.selected
+            seen = current.seen
         }
     }
 
     private func itemRow(_ item: AiTaskProposalItem) -> some View {
-        let isSelected = selected.contains(item.id)
+        let isSelected = current.selected.contains(item.id)
         return Button {
-            selected = AiTaskProposalSelection.toggled(item.id, in: selected)
+            let reconciled = current
+            storedSelection = AiTaskProposalSelection.toggled(item.id, in: reconciled.selected)
+            seen = reconciled.seen
             inlineMessage = nil
         } label: {
             HStack(alignment: .top, spacing: 8) {
@@ -608,7 +623,7 @@ private struct ClaudeProposalCard: View {
     }
 
     private func accept() async {
-        let ids = AiTaskProposalSelection.itemIds(items: proposal.items, selected: selected)
+        let ids = AiTaskProposalSelection.itemIds(items: proposal.items, selected: current.selected)
         guard !ids.isEmpty else {
             inlineMessage = L10n.aiTasksProposalNoneSelected
             return

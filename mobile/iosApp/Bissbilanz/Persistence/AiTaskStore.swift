@@ -403,9 +403,16 @@ final class AiTaskStore {
         AiTaskClaudeState.hasActiveWork(in: tasks)
     }
 
+    /// Bumped whenever a local accept or edit lands, so a list read that started
+    /// earlier (and may predate it) is dropped instead of undoing the change.
+    private var mutationGeneration = 0
+
     func refresh() async throws {
         guard !appMode.isLocal else { return }
-        tasks = try await api.listAiTasks(limit: 100).tasks
+        let generation = mutationGeneration
+        let fetched = try await api.listAiTasks(limit: 100).tasks
+        guard generation == mutationGeneration else { return }
+        tasks = fetched
         await onRefreshed?()
     }
 
@@ -455,6 +462,7 @@ final class AiTaskStore {
     @discardableResult
     func update(id: String, _ patch: AiTaskUpdate) async throws -> AiTask {
         let updated = try await api.updateAiTask(id: id, patch)
+        mutationGeneration += 1
         if let index = tasks.firstIndex(where: { $0.id == id }) {
             tasks[index] = updated
         }
@@ -470,6 +478,7 @@ final class AiTaskStore {
         guard !appMode.isLocal else { return .failed }
         do {
             let updated = try await api.acceptAiTaskProposal(id: id, itemIds: itemIds)
+            mutationGeneration += 1
             if let index = tasks.firstIndex(where: { $0.id == id }) {
                 tasks[index] = updated
             }
