@@ -10,17 +10,29 @@ import { validateMealType } from '$lib/server/entries';
 import { unlinkUploads } from '$lib/server/images';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { todayInTimeZone } from '$lib/utils/dates';
+import type { serializeClaudeProcessing } from '$lib/server/claude/tasks/proposal';
+import { legacyProcessedBy } from '$lib/server/ai-task-kinds';
 
 const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * Response shape for a task. `photoUrls` is the column; `photoUrl` mirrors its
  * first entry so mobile builds shipped before multi-photo keep rendering it.
+ * `processedBy` never carries 'claude' (shipped iOS builds cannot decode it):
+ * the raw value is in `processedByKind`.
  */
-export const serializeAiTask = <T extends { photoUrls: string[] | null }>(task: T) => ({
+export const serializeAiTask = <
+	T extends { photoUrls: string[] | null; processedBy: string | null }
+>(
+	task: T,
+	claudeProcessing: ReturnType<typeof serializeClaudeProcessing> = null
+) => ({
 	...task,
 	photoUrls: task.photoUrls ?? [],
-	photoUrl: task.photoUrls?.[0] ?? null
+	photoUrl: task.photoUrls?.[0] ?? null,
+	processedBy: legacyProcessedBy(task.processedBy),
+	processedByKind: task.processedBy,
+	claudeProcessing
 });
 
 /**

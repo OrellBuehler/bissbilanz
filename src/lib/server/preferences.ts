@@ -17,6 +17,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { normalizeSectionOrder } from '$lib/utils/widget-order';
 import { lwwClamp, lwwStamp } from '$lib/server/sync/conflict';
+import { legacyAiTaskProcessor } from '$lib/server/ai-task-kinds';
 
 type FavoriteMealTimeframePreference = {
 	id: string;
@@ -30,6 +31,7 @@ type FavoriteMealTimeframePreference = {
 };
 
 type PreferencesResponse = typeof userPreferences.$inferSelect & {
+	aiTaskProcessorKind: string;
 	locale: string | null;
 	favoriteMealTimeframes: FavoriteMealTimeframePreference[];
 };
@@ -78,6 +80,7 @@ export const DEFAULT_PREFERENCES = {
 	activityGoalAdjustment: false,
 	activityCreditPercent: 100,
 	aiTaskProcessor: 'assistant' as const,
+	aiTaskProcessorKind: 'assistant' as const,
 	aiTaskAutoLog: false,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
@@ -262,6 +265,8 @@ export const getPreferences = async (userId: string) => {
 
 	return {
 		...prefs,
+		aiTaskProcessor: legacyAiTaskProcessor(prefs.aiTaskProcessor),
+		aiTaskProcessorKind: prefs.aiTaskProcessor,
 		widgetOrder: normalizeSectionOrder(prefs.widgetOrder),
 		mealOrder: normalizeMealOrder(prefs.mealOrder ?? [], customMealNames),
 		locale: user?.locale ?? 'en',

@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
@@ -24,8 +25,10 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param preferences
+ * @param claude
  */
 @Serializable
 data class PreferencesResponse(
     @SerialName(value = "preferences") @Required val preferences: Preferences,
+    @SerialName(value = "claude") val claude: ClaudeCapability? = null,
 )

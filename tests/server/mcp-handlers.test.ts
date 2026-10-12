@@ -97,6 +97,7 @@ let mockCalendarStats: any = null;
 let mockComputedAverages: any = null;
 let mockDateRangeEntries: any[] = [];
 let mockFastingDays: Set<string> = new Set();
+let mockClaudeCapability: any = { available: true, remainingBudgetUsd: 5 };
 let mockAiTasks: any[] = [];
 let mockAiTasksTotal = 0;
 let mockListAiTasksArgs: any = null;
@@ -236,6 +237,7 @@ const mockDeps = {
 		byMeal: {}
 	}),
 	getPreferences: async () => mockPreferences,
+	getClaudeCapability: async () => mockClaudeCapability,
 	todayForUser: async () => '2026-02-10',
 	getSupplementChecklist: async () => {
 		const logMap = new Map(mockSupplementLogs.map((l: any) => [l.supplementId, l]));
@@ -490,6 +492,7 @@ describe('MCP handlers', () => {
 		mockComputedAverages = null;
 		mockDateRangeEntries = [];
 		mockFastingDays = new Set();
+		mockClaudeCapability = { available: true, remainingBudgetUsd: 5 };
 		mockAiTasks = [];
 		mockAiTasksTotal = 0;
 		mockListAiTasksArgs = null;
@@ -2313,6 +2316,32 @@ describe('MCP handlers', () => {
 			mockPreferences = { aiTaskProcessor: 'device' };
 			const result: any = await handleListAiTasks(TEST_USER.id, {});
 			expect(result.note).toContain('iPhone');
+		});
+
+		test('prepends a claude note when pending tasks are routed to available server-side processing', async () => {
+			mockPreferences = { aiTaskProcessor: 'assistant', aiTaskProcessorKind: 'claude' };
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.note).toContain('processing by Claude');
+		});
+
+		test('omits the claude note while Claude is unavailable', async () => {
+			mockPreferences = { aiTaskProcessor: 'assistant', aiTaskProcessorKind: 'claude' };
+			mockClaudeCapability = { available: false };
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.note).toBeUndefined();
+		});
+
+		test('omits the claude note for a non-pending status', async () => {
+			mockPreferences = { aiTaskProcessor: 'assistant', aiTaskProcessorKind: 'claude' };
+			const result: any = await handleListAiTasks(TEST_USER.id, { status: 'completed' });
+			expect(result.note).toBeUndefined();
+		});
+
+		test('keeps the raw processedBy so the agent sees claude', async () => {
+			mockAiTasks = [{ ...TEST_AI_TASK, processedBy: 'claude' }];
+			mockAiTasksTotal = 1;
+			const result: any = await handleListAiTasks(TEST_USER.id, {});
+			expect(result.tasks[0].processedBy).toBe('claude');
 		});
 
 		test('omits the note when the assistant is the processor', async () => {

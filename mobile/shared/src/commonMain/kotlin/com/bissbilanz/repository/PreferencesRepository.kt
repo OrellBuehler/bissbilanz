@@ -161,8 +161,10 @@ class PreferencesRepository(
                     when (it) {
                         PreferencesUpdate.AiTaskProcessor.assistant -> Preferences.AiTaskProcessor.assistant
                         PreferencesUpdate.AiTaskProcessor.device -> Preferences.AiTaskProcessor.device
+                        PreferencesUpdate.AiTaskProcessor.claude -> Preferences.AiTaskProcessor.assistant
                     }
                 } ?: current.aiTaskProcessor,
+            aiTaskProcessorKind = update.aiTaskProcessor?.value ?: current.aiTaskProcessorKind,
             aiTaskAutoLog = update.aiTaskAutoLog ?: current.aiTaskAutoLog,
             biologicalSex =
                 if (PreferencesField.BIOLOGICAL_SEX in cleared) {

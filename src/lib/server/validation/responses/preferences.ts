@@ -1,6 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
-import { aiTaskProcessorValues } from '$lib/server/schema';
+import { aiTaskProcessorKindValues, aiTaskProcessorValues } from '$lib/server/schema';
 
 const favoriteMealTimeframeSchema = z
 	.object({
@@ -42,7 +42,17 @@ const preferencesSchema = z
 		biologicalSex: z.enum(['male', 'female']).nullable().optional(),
 		activityGoalAdjustment: z.boolean(),
 		activityCreditPercent: z.number().int(),
+		// Never 'claude': a stored claude choice reads as 'assistant' here so
+		// shipped clients keep decoding. Read aiTaskProcessorKind for the real value.
 		aiTaskProcessor: z.enum(aiTaskProcessorValues),
+		aiTaskProcessorKind: z
+			.string()
+			.meta({
+				description:
+					"The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.",
+				'x-extensible-enum': [...aiTaskProcessorKindValues]
+			})
+			.optional(),
 		aiTaskAutoLog: z.boolean(),
 		locale: z.string().nullable(),
 		timeZone: z.string(),
@@ -51,8 +61,20 @@ const preferencesSchema = z
 	})
 	.meta({ id: 'Preferences' });
 
+const claudeCapabilitySchema = z
+	.object({
+		available: z.boolean(),
+		remainingBudgetUsd: z.number().optional()
+	})
+	.meta({
+		id: 'ClaudeCapability',
+		description:
+			'Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available.'
+	});
+
 export const preferencesResponseSchema = z
 	.object({
-		preferences: preferencesSchema
+		preferences: preferencesSchema,
+		claude: claudeCapabilitySchema.optional()
 	})
 	.meta({ id: 'PreferencesResponse' });

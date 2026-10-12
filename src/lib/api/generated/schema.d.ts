@@ -1105,6 +1105,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/ai-tasks/{id}/proposal/accept': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. */
+		post: operations['acceptAiTaskProposal'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/ai-tasks/photo': {
 		parameters: {
 			query?: never;
@@ -2090,7 +2107,7 @@ export interface components {
 			activityGoalAdjustment?: boolean;
 			activityCreditPercent?: number;
 			/** @enum {string} */
-			aiTaskProcessor?: 'assistant' | 'device';
+			aiTaskProcessor?: 'assistant' | 'device' | 'claude';
 			aiTaskAutoLog?: boolean;
 			timeZone?: string;
 		};
@@ -2120,6 +2137,9 @@ export interface components {
 		};
 		AiTaskAcknowledge: {
 			ids?: string[];
+		};
+		AiTaskProposalAccept: {
+			itemIds?: string[];
 		};
 		AiTaskUpdate: {
 			/** @enum {string} */
@@ -3075,6 +3095,7 @@ export interface components {
 		};
 		PreferencesResponse: {
 			preferences: components['schemas']['Preferences'];
+			claude?: components['schemas']['ClaudeCapability'];
 		};
 		Preferences: {
 			showChartWidget: boolean;
@@ -3104,6 +3125,8 @@ export interface components {
 			activityCreditPercent: number;
 			/** @enum {string} */
 			aiTaskProcessor: 'assistant' | 'device';
+			/** @description The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor. */
+			aiTaskProcessorKind?: string;
 			aiTaskAutoLog: boolean;
 			locale: string | null;
 			timeZone: string;
@@ -3120,6 +3143,11 @@ export interface components {
 			startTime: string;
 			endTime: string;
 			sortOrder: number;
+		};
+		/** @description Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available. */
+		ClaudeCapability: {
+			available: boolean;
+			remainingBudgetUsd?: number;
 		};
 		MealTypesListResponse: {
 			mealTypes: components['schemas']['MealType'][];
@@ -3319,8 +3347,34 @@ export interface components {
 			dismissedAt: string | null;
 			acknowledgedAt: string | null;
 			processedBy: ('assistant' | 'on_device' | 'private_cloud') | null;
+			/** @description Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy. */
+			processedByKind?: string | null;
+			claudeProcessing?: components['schemas']['AiTaskClaudeProcessing'] | null;
 			createdAt?: string;
 			updatedAt?: string;
+		};
+		AiTaskClaudeProcessing: {
+			/** @description Where server-side Claude processing stands for a pending task. Unknown values should be shown like 'queued'. */
+			state: string;
+			proposal: components['schemas']['AiTaskProposal'] | null;
+		};
+		AiTaskProposal: {
+			summary: string | null;
+			items: components['schemas']['AiTaskProposalItem'][];
+		};
+		AiTaskProposalItem: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			quantityDescription: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			servings: number;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
 		};
 		AiTaskResponse: {
 			task: components['schemas']['AiTask'];
@@ -6067,6 +6121,37 @@ export interface operations {
 			};
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	acceptAiTaskProposal: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				'application/json': components['schemas']['AiTaskProposalAccept'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	uploadAiTaskPhoto: {

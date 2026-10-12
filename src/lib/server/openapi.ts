@@ -141,7 +141,8 @@ import {
 	aiTaskCreateSchema,
 	aiTaskUpdateSchema,
 	aiTaskListQuerySchema,
-	aiTaskAcknowledgeSchema
+	aiTaskAcknowledgeSchema,
+	aiTaskProposalAcceptSchema
 } from './validation/ai-tasks';
 import {
 	aiTaskResponseSchema,
@@ -2021,6 +2022,30 @@ export const apiPaths = {
 				},
 				'400': res400,
 				'401': res401
+			}
+		}
+	},
+	'/api/ai-tasks/{id}/proposal/accept': {
+		post: {
+			operationId: 'acceptAiTaskProposal',
+			tags: ['AiTasks'],
+			description:
+				"Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item.",
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: false,
+				content: { 'application/json': { schema: aiTaskProposalAcceptSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: aiTaskResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409,
+				'429': res429
 			}
 		}
 	},

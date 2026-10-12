@@ -313,7 +313,7 @@ data class PreferencesUpdate(
     /**
      *
      *
-     * Values: assistant,device
+     * Values: assistant,device,claude
      */
     @Serializable
     enum class AiTaskProcessor(
@@ -324,5 +324,8 @@ data class PreferencesUpdate(
 
         @SerialName(value = "device")
         device("device"),
+
+        @SerialName(value = "claude")
+        claude("claude"),
     }
 }

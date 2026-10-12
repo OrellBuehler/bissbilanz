@@ -3535,6 +3535,62 @@
 				}
 			}
 		},
+		"/api/ai-tasks/{id}/proposal/accept": {
+			"post": {
+				"operationId": "acceptAiTaskProposal",
+				"tags": ["AiTasks"],
+				"description": "Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AiTaskProposalAccept"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
 		"/api/ai-tasks/photo": {
 			"post": {
 				"operationId": "uploadAiTaskPhoto",
@@ -8682,7 +8738,7 @@
 					},
 					"aiTaskProcessor": {
 						"type": "string",
-						"enum": ["assistant", "device"]
+						"enum": ["assistant", "device", "claude"]
 					},
 					"aiTaskAutoLog": {
 						"type": "boolean"
@@ -8830,6 +8886,21 @@
 				"properties": {
 					"ids": {
 						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					}
+				}
+			},
+			"AiTaskProposalAccept": {
+				"type": "object",
+				"properties": {
+					"itemIds": {
+						"minItems": 1,
+						"maxItems": 30,
 						"type": "array",
 						"items": {
 							"type": "string",
@@ -12694,6 +12765,9 @@
 				"properties": {
 					"preferences": {
 						"$ref": "#/components/schemas/Preferences"
+					},
+					"claude": {
+						"$ref": "#/components/schemas/ClaudeCapability"
 					}
 				},
 				"required": ["preferences"],
@@ -12814,6 +12888,11 @@
 						"type": "string",
 						"enum": ["assistant", "device"]
 					},
+					"aiTaskProcessorKind": {
+						"type": "string",
+						"description": "The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.",
+						"x-extensible-enum": ["assistant", "device", "claude"]
+					},
 					"aiTaskAutoLog": {
 						"type": "boolean"
 					},
@@ -12919,6 +12998,20 @@
 					"sortOrder"
 				],
 				"additionalProperties": false
+			},
+			"ClaudeCapability": {
+				"type": "object",
+				"properties": {
+					"available": {
+						"type": "boolean"
+					},
+					"remainingBudgetUsd": {
+						"type": "number"
+					}
+				},
+				"required": ["available"],
+				"additionalProperties": false,
+				"description": "Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available."
 			},
 			"MealTypesListResponse": {
 				"type": "object",
@@ -13660,6 +13753,21 @@
 							}
 						]
 					},
+					"processedByKind": {
+						"description": "Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy.",
+						"x-extensible-enum": ["assistant", "on_device", "private_cloud", "claude"],
+						"type": ["string", "null"]
+					},
+					"claudeProcessing": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/AiTaskClaudeProcessing"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -13684,6 +13792,116 @@
 					"dismissedAt",
 					"acknowledgedAt",
 					"processedBy"
+				],
+				"additionalProperties": false
+			},
+			"AiTaskClaudeProcessing": {
+				"type": "object",
+				"properties": {
+					"state": {
+						"type": "string",
+						"description": "Where server-side Claude processing stands for a pending task. Unknown values should be shown like 'queued'.",
+						"x-extensible-enum": ["queued", "running", "retrying", "proposed", "blocked"]
+					},
+					"proposal": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/AiTaskProposal"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["state", "proposal"],
+				"additionalProperties": false
+			},
+			"AiTaskProposal": {
+				"type": "object",
+				"properties": {
+					"summary": {
+						"type": ["string", "null"]
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AiTaskProposalItem"
+						}
+					}
+				},
+				"required": ["summary", "items"],
+				"additionalProperties": false
+			},
+			"AiTaskProposalItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"quantityDescription": {
+						"type": ["string", "null"]
+					},
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servings": {
+						"type": "number"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"quantityDescription",
+					"foodId",
+					"recipeId",
+					"servings",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
 				],
 				"additionalProperties": false
 			},

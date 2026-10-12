@@ -6,6 +6,7 @@ import { TEST_USER } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
 let mockUpdateResult: any = null;
+let mockCapability: any = { available: false };
 
 const mockValidationError = new ZodError([
 	{
@@ -62,6 +63,7 @@ const REAL_DEFAULT_PREFERENCES = {
 	activityGoalAdjustment: false,
 	activityCreditPercent: 100,
 	aiTaskProcessor: 'assistant',
+	aiTaskProcessorKind: 'assistant',
 	aiTaskAutoLog: false,
 	favoriteMealTimeframes: []
 };
@@ -81,12 +83,17 @@ vi.mock('$lib/server/preferences', () => ({
 	DEFAULT_PREFERENCES: REAL_DEFAULT_PREFERENCES
 }));
 
+vi.mock('$lib/server/claude/capability', () => ({
+	getClaudeCapability: async () => mockCapability
+}));
+
 const { GET, PATCH } = await import('../../src/routes/api/preferences/+server');
 
 describe('api/preferences', () => {
 	beforeEach(() => {
 		mockGetResult = null;
 		mockUpdateResult = null;
+		mockCapability = { available: false };
 	});
 
 	describe('GET /api/preferences', () => {
@@ -113,6 +120,29 @@ describe('api/preferences', () => {
 			expect(data.preferences.showChartWidget).toBe(TEST_PREFERENCES.showChartWidget);
 			expect(data.preferences.startPage).toBe(TEST_PREFERENCES.startPage);
 			expect(data.preferences.locale).toBe(TEST_PREFERENCES.locale);
+		});
+
+		test('reports claude as unavailable', async () => {
+			mockGetResult = TEST_PREFERENCES;
+			const response = await GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/preferences', response);
+			const data = await response.json();
+			expect(data.claude).toEqual({ available: false });
+		});
+
+		test('reports claude as available with the remaining budget', async () => {
+			mockGetResult = {
+				...TEST_PREFERENCES,
+				aiTaskProcessor: 'assistant',
+				aiTaskProcessorKind: 'claude'
+			};
+			mockCapability = { available: true, remainingBudgetUsd: 7.5 };
+			const response = await GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/preferences', response);
+			const data = await response.json();
+			expect(data.claude).toEqual({ available: true, remainingBudgetUsd: 7.5 });
+			expect(data.preferences.aiTaskProcessor).toBe('assistant');
+			expect(data.preferences.aiTaskProcessorKind).toBe('claude');
 		});
 
 		test('returns default preferences when user has no preferences', async () => {

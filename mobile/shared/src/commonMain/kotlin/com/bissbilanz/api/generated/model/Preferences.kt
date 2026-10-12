@@ -53,6 +53,7 @@ import kotlinx.serialization.encoding.*
  * @param pinnedInsights
  * @param caloricLagDaysOverride
  * @param biologicalSex
+ * @param aiTaskProcessorKind The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.
  * @param updatedAt
  */
 @Serializable
@@ -87,6 +88,8 @@ data class Preferences(
     @SerialName(value = "pinnedInsights") val pinnedInsights: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "caloricLagDaysOverride") val caloricLagDaysOverride: kotlin.Int? = null,
     @SerialName(value = "biologicalSex") val biologicalSex: Preferences.BiologicalSex? = null,
+    // The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.
+    @SerialName(value = "aiTaskProcessorKind") val aiTaskProcessorKind: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
     /**

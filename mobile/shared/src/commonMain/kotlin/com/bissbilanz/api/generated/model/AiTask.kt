@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.AiTaskClaudeProcessing
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -38,6 +39,8 @@ import kotlinx.serialization.encoding.*
  * @param dismissedAt
  * @param acknowledgedAt
  * @param processedBy
+ * @param processedByKind Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy.
+ * @param claudeProcessing
  * @param createdAt
  * @param updatedAt
  */
@@ -59,6 +62,9 @@ data class AiTask(
     @SerialName(value = "dismissedAt") @Required val dismissedAt: kotlin.String?,
     @SerialName(value = "acknowledgedAt") @Required val acknowledgedAt: kotlin.String?,
     @SerialName(value = "processedBy") @Required val processedBy: AiTask.ProcessedBy?,
+    // Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy.
+    @SerialName(value = "processedByKind") val processedByKind: kotlin.String? = null,
+    @SerialName(value = "claudeProcessing") val claudeProcessing: AiTaskClaudeProcessing? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {

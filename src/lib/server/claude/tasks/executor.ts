@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import { claudeTaskRuns, userPreferences } from '../../schema';
 import { abandonStaleReservations } from '../budget';
@@ -75,14 +75,47 @@ export async function enqueueClaudeTaskIfEligible(userId: string, taskId: string
 	}
 }
 
-export async function requeueRunForEditedTask(taskId: string): Promise<void> {
-	const [run] = await getDB()
+export async function requeueRunForEditedTask(
+	taskId: string,
+	options: { reopened?: boolean } = {}
+): Promise<void> {
+	const db = getDB();
+	const [run] = await db
 		.update(claudeTaskRuns)
-		.set({ state: 'queued', proposal: null, nextAttemptAt: null, updatedAt: sql`now()` })
+		.set({
+			state: 'queued',
+			proposal: null,
+			nextAttemptAt: null,
+			...(options.reopened ? { failures: 0, failureCode: null, failureDetail: null } : {}),
+			updatedAt: sql`now()`
+		})
 		.where(
 			and(
 				eq(claudeTaskRuns.taskId, taskId),
-				inArray(claudeTaskRuns.state, ['queued', 'retry_wait', 'blocked', 'proposed'])
+				options.reopened
+					? and(
+							inArray(claudeTaskRuns.state, [
+								'queued',
+								'retry_wait',
+								'blocked',
+								'proposed',
+								'dismissed',
+								'succeeded',
+								'superseded'
+							]),
+							exists(
+								db
+									.select({ one: sql`1` })
+									.from(userPreferences)
+									.where(
+										and(
+											eq(userPreferences.userId, claudeTaskRuns.userId),
+											eq(userPreferences.aiTaskProcessor, 'claude')
+										)
+									)
+							)
+						)
+					: inArray(claudeTaskRuns.state, ['queued', 'retry_wait', 'blocked', 'proposed'])
 			)
 		)
 		.returning({ userId: claudeTaskRuns.userId });
