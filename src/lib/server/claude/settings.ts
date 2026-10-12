@@ -4,9 +4,11 @@ import { writeAudit, type AdminActor, type AdminDb, type AdminDbOrTx } from '../
 
 const CLAUDE_ENABLED_KEY = 'claude_enabled';
 
+const enabledSql = sql<boolean>`${appSettings.value} = 'true'::jsonb`;
+
 export async function getClaudeEnabled(db: AdminDbOrTx): Promise<boolean> {
 	const [row] = await db
-		.select({ enabled: sql<boolean>`${appSettings.value} = 'true'::jsonb` })
+		.select({ enabled: enabledSql })
 		.from(appSettings)
 		.where(eq(appSettings.key, CLAUDE_ENABLED_KEY));
 	return row?.enabled === true;
@@ -16,16 +18,25 @@ export async function setClaudeEnabled(
 	db: AdminDb,
 	actor: AdminActor,
 	enabled: boolean
-): Promise<void> {
-	await db.transaction(async (tx) => {
-		const before = await getClaudeEnabled(tx);
+): Promise<{ changed: boolean }> {
+	return db.transaction(async (tx) => {
+		// A missing row means off, so seeding it as false changes nothing; it only gives FOR UPDATE a row to lock.
 		await tx
 			.insert(appSettings)
-			.values({ key: CLAUDE_ENABLED_KEY, value: enabled, updatedBy: actor.userId })
-			.onConflictDoUpdate({
-				target: appSettings.key,
-				set: { value: enabled, updatedBy: actor.userId, updatedAt: sql`now()` }
-			});
+			.values({ key: CLAUDE_ENABLED_KEY, value: false })
+			.onConflictDoNothing();
+		const [current] = await tx
+			.select({ enabled: enabledSql })
+			.from(appSettings)
+			.where(eq(appSettings.key, CLAUDE_ENABLED_KEY))
+			.for('update');
+		const before = current?.enabled === true;
+		if (before === enabled) return { changed: false };
+
+		await tx
+			.update(appSettings)
+			.set({ value: enabled, updatedBy: actor.userId, updatedAt: sql`now()` })
+			.where(eq(appSettings.key, CLAUDE_ENABLED_KEY));
 		await writeAudit(tx, {
 			actorUserId: actor.userId,
 			actorLabel: actor.label,
@@ -34,5 +45,6 @@ export async function setClaudeEnabled(
 			before: { enabled: before },
 			after: { enabled }
 		});
+		return { changed: true };
 	});
 }

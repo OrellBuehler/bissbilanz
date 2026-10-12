@@ -1,5 +1,5 @@
 {
-  "id": "50a354cc-d941-44e7-af47-b53d844d3951",
+  "id": "1d530215-6022-4150-a4e2-406ec6382803",
   "prevId": "2a9b2177-5b9a-409e-bc55-d0e2e21e3871",
   "version": "7",
   "dialect": "postgresql",
@@ -1506,6 +1506,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_claude_usage_ai_task": {
+          "name": "idx_claude_usage_ai_task",
+          "columns": [
+            {
+              "expression": "ai_task_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

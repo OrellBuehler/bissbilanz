@@ -5,7 +5,8 @@ import type { AdminDbOrTx } from '../admin/audit';
 import { claudeConfig } from './config';
 
 // Drizzle drops the table prefix of columns in single-table selects, which would
-// silently break correlated subqueries; these fragments always qualify explicitly.
+// silently break correlated subqueries; these fragments always qualify explicitly,
+// so they need claude_usage unaliased in the FROM clause.
 const usageCol = (name: string) => sql.raw(`"claude_usage"."${name}"`);
 const qualified = (col: AnyPgColumn) => sql.raw(`"${getTableName(col.table)}"."${col.name}"`);
 

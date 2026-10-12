@@ -107,7 +107,7 @@ export const users = pgTable('users', {
 	name: text('name'),
 	avatarUrl: text('avatar_url'),
 	locale: text('locale').default('en'),
-	// Only ever set by `bun run admin:grant`; no API can change it.
+	// Only changed by the `admin:*` CLI; no API can change it.
 	isAdmin: boolean('is_admin').notNull().default(false),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
@@ -963,6 +963,7 @@ export const claudeUsage = pgTable(
 	(table) => [
 		index('idx_claude_usage_user_created').on(table.userId, table.createdAt),
 		index('idx_claude_usage_created').on(table.createdAt),
+		index('idx_claude_usage_ai_task').on(table.aiTaskId),
 		index('idx_claude_usage_reserved')
 			.on(table.createdAt)
 			.where(sql`${table.status} = 'reserved'`),

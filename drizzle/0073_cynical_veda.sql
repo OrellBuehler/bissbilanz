@@ -99,6 +99,7 @@ CREATE INDEX "idx_claude_task_runs_state_next" ON "claude_task_runs" USING btree
 CREATE INDEX "idx_claude_task_runs_user" ON "claude_task_runs" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "idx_claude_usage_user_created" ON "claude_usage" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_claude_usage_created" ON "claude_usage" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "idx_claude_usage_ai_task" ON "claude_usage" USING btree ("ai_task_id");--> statement-breakpoint
 CREATE INDEX "idx_claude_usage_reserved" ON "claude_usage" USING btree ("created_at") WHERE "claude_usage"."status" = 'reserved';--> statement-breakpoint
 ALTER TABLE "ai_tasks" ADD CONSTRAINT "ai_tasks_processed_by_valid" CHECK ("ai_tasks"."processed_by" IS NULL OR "ai_tasks"."processed_by" IN ('assistant', 'on_device', 'private_cloud', 'claude'));--> statement-breakpoint
 ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_ai_task_processor_valid" CHECK ("user_preferences"."ai_task_processor" IN ('assistant', 'device', 'claude'));

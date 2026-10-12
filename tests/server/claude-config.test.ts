@@ -106,9 +106,9 @@ describe('claude config', () => {
 	}
 
 	test('defaults with nothing set: unconfigured, opus, 90 / 10', async () => {
-		const { claudeConfig, isClaudeConfigured } = await load({});
+		const { claudeApiKey, claudeConfig, isClaudeConfigured } = await load({});
+		expect(claudeApiKey()).toBeUndefined();
 		expect(claudeConfig()).toEqual({
-			apiKey: undefined,
 			model: 'claude-opus-5-5',
 			globalMonthlyBudgetUsd: 90,
 			defaultUserBudgetUsd: 10,
@@ -118,14 +118,16 @@ describe('claude config', () => {
 	});
 
 	test('reads overrides and marks the key as configured', async () => {
-		const { claudeConfig, isClaudeConfigured } = await load({
+		const { claudeApiKey, claudeConfig, isClaudeConfigured } = await load({
 			ANTHROPIC_API_KEY: ' sk-test ',
 			CLAUDE_MODEL: 'claude-sonnet-5-5',
 			CLAUDE_GLOBAL_MONTHLY_BUDGET_USD: '25.5',
 			CLAUDE_DEFAULT_USER_BUDGET_USD: '2'
 		});
+		expect(claudeApiKey()).toBe('sk-test');
+		expect(claudeConfig()).not.toHaveProperty('apiKey');
+		expect(JSON.stringify(claudeConfig())).not.toContain('sk-test');
 		expect(claudeConfig()).toEqual({
-			apiKey: 'sk-test',
 			model: 'claude-sonnet-5-5',
 			globalMonthlyBudgetUsd: 25.5,
 			defaultUserBudgetUsd: 2,

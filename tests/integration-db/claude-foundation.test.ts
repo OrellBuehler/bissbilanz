@@ -262,9 +262,10 @@ describe('app settings', () => {
 		const admin = await insertUser('boss@example.com');
 		expect(await getClaudeEnabled(db())).toBe(false);
 
-		await setClaudeEnabled(db(), { userId: admin.id, label: 'boss@example.com' }, true);
+		const actor = { userId: admin.id, label: 'boss@example.com' };
+		expect(await setClaudeEnabled(db(), actor, true)).toEqual({ changed: true });
 		expect(await getClaudeEnabled(db())).toBe(true);
-		await setClaudeEnabled(db(), { userId: admin.id, label: 'boss@example.com' }, false);
+		expect(await setClaudeEnabled(db(), actor, false)).toEqual({ changed: true });
 		expect(await getClaudeEnabled(db())).toBe(false);
 
 		const [setting] = await db().select().from(appSettings);
@@ -276,6 +277,34 @@ describe('app settings', () => {
 			['settings.claude_enabled', { enabled: true }, { enabled: false }, null]
 		]);
 		expect(audit[0]).toMatchObject({ actorUserId: admin.id, actorLabel: 'boss@example.com' });
+	});
+
+	it('skips the audit row when the value does not change', async () => {
+		const actor = { userId: null, label: 'cli' };
+		expect(await setClaudeEnabled(db(), actor, false)).toEqual({ changed: false });
+		expect(await setClaudeEnabled(db(), actor, true)).toEqual({ changed: true });
+		expect(await setClaudeEnabled(db(), actor, true)).toEqual({ changed: false });
+		expect(await db().select().from(adminAuditLog)).toHaveLength(1);
+	});
+
+	it('serializes concurrent toggles so every audit before matches the stored state', async () => {
+		const actor = { userId: null, label: 'cli' };
+		const results = await Promise.all(
+			[true, true, false, true, false, false].map((enabled) =>
+				setClaudeEnabled(db(), actor, enabled)
+			)
+		);
+		const remaining = await db().select().from(adminAuditLog);
+		expect(remaining).toHaveLength(results.filter((r) => r.changed).length);
+		let state = false;
+		while (remaining.length > 0) {
+			const next = remaining.findIndex(
+				(row) => (row.before as { enabled: boolean }).enabled === state
+			);
+			expect(next).toBeGreaterThanOrEqual(0);
+			state = (remaining.splice(next, 1)[0].after as { enabled: boolean }).enabled;
+		}
+		expect(await getClaudeEnabled(db())).toBe(state);
 	});
 
 	it('stores a JSON boolean and only reads JSON true as enabled', async () => {

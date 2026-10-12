@@ -170,7 +170,9 @@ Changes and tables (Drizzle; `ts = timestamp(..., { withTimezone: true })`):
   `costUsd numeric(12,6) mode number notNull default 0`; `errorCode text`; `requestId text`;
   `aiTaskId uuid → ai_tasks.id onDelete set null`; `createdAt ts notNull defaultNow`; `settledAt ts`.
   Indexes: `idx_claude_usage_user_created (user_id, created_at)`, `idx_claude_usage_created (created_at)`,
-  partial `idx_claude_usage_reserved (created_at) WHERE status = 'reserved'`.
+  partial `idx_claude_usage_reserved (created_at) WHERE status = 'reserved'`, and (amendment after
+  phase-1 review) `idx_claude_usage_ai_task (ai_task_id)` so deleting an `ai_tasks` row (FK `set null`) does not scan
+  `claude_usage`.
 - `admin_audit_log`: `id uuid pk`; `actorUserId uuid → users.id onDelete set null`; `actorLabel text notNull`
   (actor email at the time, or `'cli'`); `action text notNull` CHECK in `adminAuditActionValues`;
   `targetUserId uuid → users.id onDelete set null`; `before jsonb`; `after jsonb`;
