@@ -1,13 +1,17 @@
 import { browser } from '$app/environment';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
-import { apiFetch } from '$lib/utils/api';
+import { apiFetch, isQueued } from '$lib/utils/api';
+import { db } from '$lib/db';
+import { entryService } from '$lib/services/entry-service.svelte';
+import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
 import type { paths } from '$lib/api/generated/schema';
 
 type AiTasksResponse =
 	paths['/api/ai-tasks']['get']['responses']['200']['content']['application/json'];
 export type AiTask = AiTasksResponse['tasks'][number];
 export type AiTaskStatus = AiTask['status'];
+export type AcceptResult = 'logged' | 'conflict' | 'failed';
 
 // Which dismissals this browser has already announced. Server-side
 // acknowledgement is what clears the badge, and it only happens when the user
@@ -210,16 +214,77 @@ async function update(
 	return data.task;
 }
 
+const isConflict = (status: number) => status === 409 || status === 404;
+
+// apiFetch parks a write in the sync queue when the browser went offline between
+// our check and the request. These calls need the answer now and must not
+// replay later, so take the parked copy back out.
+async function dropQueuedWrite(method: string, url: string): Promise<void> {
+	await db.syncQueue
+		.filter((q) => q.method === method && new URL(q.url, 'http://localhost').pathname === url)
+		.delete();
+}
+
 async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
-	const { data, error } = await api.PATCH('/api/ai-tasks/{id}', {
+	if (browser && !navigator.onLine) throw new Error('offline');
+	const url = `/api/ai-tasks/${id}`;
+	const { data, error, response } = await api.PATCH('/api/ai-tasks/{id}', {
 		params: { path: { id } },
 		body: { status }
 	});
-	if (error || !data) {
+	if (isQueued(response)) {
+		await dropQueuedWrite('PATCH', url);
+		throw new Error('offline');
+	}
+	if (isConflict(response.status)) {
+		Sentry.addBreadcrumb({
+			category: 'ai-task',
+			level: 'info',
+			message: 'ai task update rejected',
+			data: { status: response.status }
+		});
+		await refresh();
+		throw new Error('conflict');
+	}
+	if (error || !data?.task) {
 		throw new Error('update_failed');
 	}
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
 	syncAppBadge();
+}
+
+async function acceptProposal(id: string, body: ProposalAcceptBody = {}): Promise<AcceptResult> {
+	if (browser && !navigator.onLine) return 'failed';
+	try {
+		const { data, response } = await api.POST('/api/ai-tasks/{id}/proposal/accept', {
+			params: { path: { id } },
+			body
+		});
+		if (isQueued(response)) {
+			await dropQueuedWrite('POST', `/api/ai-tasks/${id}/proposal/accept`);
+			return 'failed';
+		}
+		if (isConflict(response.status)) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'info',
+				message: 'ai task proposal accept rejected',
+				data: { status: response.status }
+			});
+			await refresh();
+			return 'conflict';
+		}
+		if (!data?.task) return 'failed';
+		tasks = tasks.map((t) => (t.id === id ? data.task : t));
+		syncAppBadge();
+		void entryService.refresh(data.task.date);
+		return 'logged';
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'ai-task-service.acceptProposal' } });
+		}
+		return 'failed';
+	}
 }
 
 async function acknowledgeAll(): Promise<void> {
@@ -267,6 +332,7 @@ export const aiTaskService = {
 	create,
 	update,
 	updateStatus,
+	acceptProposal,
 	acknowledgeAll,
 	collectNewDismissals,
 	showSystemNotification,

@@ -16,6 +16,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
+	import { activeProcessor } from '$lib/utils/claude-tasks';
 
 	let captureOpen = $state(false);
 	let editOpen = $state(false);
@@ -29,13 +30,14 @@
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
-	const aiTaskProcessor = $derived(
-		cachedPrefs.value?.aiTaskProcessor === 'device' ? 'device' : 'assistant'
-	);
+	const aiTaskProcessor = $derived(activeProcessor(cachedPrefs.value, cachedPrefs.value?.claude));
+	const autoLog = $derived(cachedPrefs.value?.aiTaskAutoLog ?? false);
 	const pageDescription = $derived(
 		aiTaskProcessor === 'device'
 			? m.ai_tasks_page_description_device()
-			: m.ai_tasks_page_description()
+			: aiTaskProcessor === 'claude'
+				? m.ai_tasks_page_description_claude()
+				: m.ai_tasks_page_description()
 	);
 
 	const loadMcpStatus = async () => {
@@ -62,8 +64,15 @@
 		try {
 			await aiTaskService.updateStatus(id, 'dismissed');
 		} catch (err) {
-			Sentry.captureException(err, { extra: { id } });
-			toast.error(m.error_generic());
+			const code = err instanceof Error ? err.message : '';
+			if (code === 'offline') {
+				toast.error(m.ai_tasks_offline_error());
+			} else if (code === 'conflict') {
+				toast.error(m.ai_tasks_proposal_accept_conflict());
+			} else {
+				Sentry.captureException(err, { extra: { id } });
+				toast.error(m.error_generic());
+			}
 		}
 	};
 
@@ -144,6 +153,7 @@
 <AiTaskCaptureModal
 	bind:open={captureOpen}
 	{aiTaskProcessor}
+	{autoLog}
 	onCreated={() => aiTaskService.refresh()}
 />
-<AiTaskCaptureModal bind:open={editOpen} task={editingTask} {aiTaskProcessor} />
+<AiTaskCaptureModal bind:open={editOpen} task={editingTask} {aiTaskProcessor} {autoLog} />

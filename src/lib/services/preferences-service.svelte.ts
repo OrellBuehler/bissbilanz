@@ -4,6 +4,7 @@ import { liveQuery } from 'dexie';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';
+import { storedProcessorFields } from '$lib/utils/claude-tasks';
 import type { DexieUserPreferences } from '$lib/db/types';
 import type { paths } from '$lib/api/generated/schema';
 
@@ -49,6 +50,8 @@ async function refresh() {
 				biologicalSex: p.biologicalSex ?? null,
 				waterGoalMl: p.waterGoalMl ?? null,
 				aiTaskProcessor: p.aiTaskProcessor,
+				aiTaskProcessorKind: p.aiTaskProcessorKind ?? p.aiTaskProcessor,
+				claude: data.claude ?? { available: false },
 				aiTaskAutoLog: p.aiTaskAutoLog,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({
 					id: t.id,
@@ -74,7 +77,12 @@ async function refresh() {
 async function update(prefs: PreferencesPatchBody): Promise<boolean> {
 	const existing = await db.userPreferences.toCollection().first();
 	if (existing) {
-		await db.userPreferences.put({ ...existing, ...prefs } as DexieUserPreferences);
+		const processor = prefs.aiTaskProcessor ? storedProcessorFields(prefs.aiTaskProcessor) : {};
+		await db.userPreferences.put({
+			...existing,
+			...prefs,
+			...processor
+		} as DexieUserPreferences);
 	}
 
 	let ok = true;

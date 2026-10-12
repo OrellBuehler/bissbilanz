@@ -1329,6 +1329,7 @@
     <string name="settings_ai_task_processor_device_hint">Tasks stay pending until the Bissbilanz iPhone app processes them.</string>
     <string name="settings_ai_task_auto_log_label">Log automatically</string>
     <string name="settings_ai_task_auto_log_hint">When off, estimates wait for your review in the iPhone app.</string>
+    <string name="settings_ai_task_auto_log_hint_claude">When off, Claude suggests entries for you to review before anything is logged.</string>
     <string name="settings_ai_task_processor_claude">Claude (automatic)</string>
     <string name="settings_ai_task_processor_claude_unavailable">Claude (unavailable)</string>
     <string name="settings_ai_task_processor_claude_privacy">Meal descriptions and photos are sent to Anthropic to be processed by Claude.</string>

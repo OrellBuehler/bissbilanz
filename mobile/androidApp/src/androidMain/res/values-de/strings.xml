@@ -1327,6 +1327,7 @@
     <string name="settings_ai_task_processor_device_hint">Aufgaben bleiben ausstehend, bis die Bissbilanz-iPhone-App sie verarbeitet.</string>
     <string name="settings_ai_task_auto_log_label">Automatisch eintragen</string>
     <string name="settings_ai_task_auto_log_hint">Ist dies deaktiviert, warten Schätzungen in der iPhone-App auf deine Prüfung.</string>
+    <string name="settings_ai_task_auto_log_hint_claude">Ist dies deaktiviert, schlägt Claude dir Einträge zur Prüfung vor, bevor etwas eingetragen wird.</string>
     <string name="settings_ai_task_processor_claude">Claude (automatisch)</string>
     <string name="settings_ai_task_processor_claude_unavailable">Claude (nicht verfügbar)</string>
     <string name="settings_ai_task_processor_claude_privacy">Mahlzeitbeschreibungen und Fotos werden zur Verarbeitung durch Claude an Anthropic gesendet.</string>

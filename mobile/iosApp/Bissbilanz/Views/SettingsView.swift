@@ -353,7 +353,7 @@ struct SettingsView: View {
                                 Text(L10n.aiTaskProcessorAutoLogFooter)
                             }
                             if !appModeManager.isLocal, claudeOption == .selectable, isClaudeChosen {
-                                Text(claudeAutoLogFooter)
+                                Text(L10n.aiTaskAutoLogFooterClaude)
                             }
                             if PrivateCloudComputeSettings.isSupported {
                                 Text(L10n.aiPrivateCloudToggleFooter)
@@ -557,10 +557,6 @@ struct SettingsView: View {
 
     private var showsAutoLogToggle: Bool {
         preferences.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice || isClaudeChosen
-    }
-
-    private var claudeAutoLogFooter: String {
-        preferences.aiTaskAutoLog ? L10n.aiTasksCaptureHintClaude : L10n.aiTasksCaptureHintClaudeReview
     }
 
     private var autoLogToggle: some View {
