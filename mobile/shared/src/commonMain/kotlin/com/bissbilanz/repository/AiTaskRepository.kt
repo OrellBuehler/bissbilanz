@@ -97,21 +97,21 @@ class AiTaskRepository(
     suspend fun dismiss(id: String): AiTask = update(id, AiTaskUpdate(status = AiTaskUpdate.Status.dismissed))
 
     /**
-     * Logs a Claude proposal and swaps in the resolved task. A 409 (or 404) means the proposal is
+     * Logs a Claude proposal and swaps in the resolved task. A 409, 404 or 400 means the proposal is
      * gone (accepted elsewhere, processor switched, or a proposed food was deleted): the
      * list is re-read so the card disappears, then the exception is rethrown for the
      * caller to explain. Any other failure leaves the list untouched.
      */
     suspend fun acceptProposal(
         id: String,
-        itemIds: List<String>? = null,
+        itemIds: List<String>,
     ): AiTask {
         try {
             val accepted = api.acceptAiTaskProposal(id, itemIds)
             _tasks.value = _tasks.value.map { if (it.id == id) accepted else it }
             return accepted
         } catch (e: ApiException) {
-            if (e.statusCode == 409 || e.statusCode == 404) {
+            if (e.statusCode == 409 || e.statusCode == 404 || e.statusCode == 400) {
                 try {
                     refresh()
                 } catch (refreshError: Exception) {

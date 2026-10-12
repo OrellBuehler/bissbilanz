@@ -134,22 +134,34 @@ class AiTaskRepositoryTest {
             coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
             repository.refresh()
             val reopened = pending.copy(status = AiTask.Status.completed)
-            coEvery { api.acceptAiTaskProposal("1", null) } throws ApiException("conflict", 409)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("conflict", 409)
             coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(reopened), total = 1)
 
-            val error = assertFailsWith<ApiException> { repository.acceptProposal("1") }
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
 
             assertEquals(409, error.statusCode)
             assertEquals(listOf(AiTask.Status.completed), repository.tasks.value.map { it.status })
         }
 
     @Test
-    fun aMissingTaskRefreshesTheListAndRethrows() =
+    fun aRejectedAcceptRefreshesTheListAndRethrows() =
         runTest {
-            coEvery { api.acceptAiTaskProposal("1", null) } throws ApiException("gone", 404)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("stale ids", 400)
             coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = emptyList(), total = 0)
 
-            val error = assertFailsWith<ApiException> { repository.acceptProposal("1") }
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(400, error.statusCode)
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aMissingTaskRefreshesTheListAndRethrows() =
+        runTest {
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("gone", 404)
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = emptyList(), total = 0)
+
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
 
             assertEquals(404, error.statusCode)
             coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
@@ -158,10 +170,10 @@ class AiTaskRepositoryTest {
     @Test
     fun aConflictStillThrowsWhenTheRefreshFailsToo() =
         runTest {
-            coEvery { api.acceptAiTaskProposal("1", null) } throws ApiException("conflict", 409)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("conflict", 409)
             coEvery { api.listAiTasks(limit = 100) } throws RuntimeException("offline")
 
-            val error = assertFailsWith<ApiException> { repository.acceptProposal("1") }
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
 
             assertEquals(409, error.statusCode)
             assertEquals("offline", error.suppressed.single().message)
@@ -173,9 +185,9 @@ class AiTaskRepositoryTest {
             val pending = TestFixtures.aiTask(id = "1")
             coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
             repository.refresh()
-            coEvery { api.acceptAiTaskProposal("1", null) } throws ApiException("boom", 500)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("boom", 500)
 
-            assertFailsWith<ApiException> { repository.acceptProposal("1") }
+            assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
 
             assertEquals(listOf(pending), repository.tasks.value)
             coVerify(exactly = 1) { api.listAiTasks(limit = 100) }

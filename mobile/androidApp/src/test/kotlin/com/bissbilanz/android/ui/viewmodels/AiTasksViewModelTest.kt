@@ -6,6 +6,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskClaudeProcessing
 import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.EntryRepository
 import io.mockk.coEvery
@@ -19,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -102,9 +104,9 @@ class AiTasksViewModelTest {
     fun aConflictShowsTheConflictMessageWithoutReporting() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } throws ApiException("conflict", 409)
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws ApiException("conflict", 409)
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_accept_conflict), messages)
             assertNull(viewModel.busyTaskId.value)
@@ -116,9 +118,9 @@ class AiTasksViewModelTest {
     fun aMissingTaskShowsTheConflictMessageWithoutReporting() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } throws ApiException("gone", 404)
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws ApiException("gone", 404)
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_accept_conflict), messages)
             verify(exactly = 0) { errorReporter.captureException(any()) }
@@ -128,9 +130,9 @@ class AiTasksViewModelTest {
     fun aRateLimitShowsTheFailureMessageWithoutReporting() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } throws ApiException("slow down", 429)
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws ApiException("slow down", 429)
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_accept_failed), messages)
             assertNull(viewModel.busyTaskId.value)
@@ -141,9 +143,9 @@ class AiTasksViewModelTest {
     fun anyOtherFailureIsReportedAndShowsTheFailureMessage() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } throws ApiException("boom", 500)
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws ApiException("boom", 500)
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_accept_failed), messages)
             assertNull(viewModel.busyTaskId.value)
@@ -154,11 +156,24 @@ class AiTasksViewModelTest {
     fun anOfflineFailureIsReportedAndKeepsTheCardUsable() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } throws java.io.IOException("offline")
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws java.io.IOException("offline")
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_accept_failed), messages)
+            assertNull(viewModel.busyTaskId.value)
+        }
+
+    @Test
+    fun aRejectedAcceptIsTreatedLikeAConflict() =
+        runTest {
+            val messages = collectMessages()
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } throws ApiException("stale ids", 400)
+
+            viewModel.acceptProposal("t1", listOf("i1"))
+
+            assertEquals(listOf(R.string.ai_tasks_proposal_accept_conflict), messages)
+            verify(exactly = 0) { errorReporter.captureException(any()) }
             assertNull(viewModel.busyTaskId.value)
         }
 
@@ -166,16 +181,16 @@ class AiTasksViewModelTest {
     fun theBusyStateBlocksASecondRequestAndClearsAfterwards() =
         runTest {
             val gate = CompletableDeferred<AiTask>()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } coAnswers { gate.await() }
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } coAnswers { gate.await() }
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
             assertEquals("t1", viewModel.busyTaskId.value)
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
             viewModel.discardProposal("t1")
             gate.complete(completed)
 
             assertNull(viewModel.busyTaskId.value)
-            coVerify(exactly = 1) { aiTaskRepo.acceptProposal("t1", null) }
+            coVerify(exactly = 1) { aiTaskRepo.acceptProposal("t1", listOf("i1")) }
             coVerify(exactly = 0) { aiTaskRepo.dismiss(any()) }
         }
 
@@ -183,10 +198,10 @@ class AiTasksViewModelTest {
     fun theBusyStateIsClearedBeforeTheEntriesAreRefreshed() =
         runTest {
             val gate = CompletableDeferred<Unit>()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } returns completed
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } returns completed
             coEvery { entryRepo.refresh("2026-10-12") } coAnswers { gate.await() }
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertNull(viewModel.busyTaskId.value)
             gate.complete(Unit)
@@ -196,10 +211,10 @@ class AiTasksViewModelTest {
     fun aFailedEntryRefreshIsReportedButNotShownAsAFailure() =
         runTest {
             val messages = collectMessages()
-            coEvery { aiTaskRepo.acceptProposal("t1", null) } returns completed
+            coEvery { aiTaskRepo.acceptProposal("t1", listOf("i1")) } returns completed
             coEvery { entryRepo.refresh("2026-10-12") } throws RuntimeException("offline")
 
-            viewModel.acceptProposal("t1", null)
+            viewModel.acceptProposal("t1", listOf("i1"))
 
             assertEquals(listOf(R.string.ai_tasks_proposal_logged), messages)
             verify(exactly = 1) { errorReporter.captureException(any()) }
@@ -255,5 +270,56 @@ class AiTasksViewModelTest {
             assertEquals(listOf(R.string.ai_task_save_failed), messages)
             verify(exactly = 1) { errorReporter.captureException(any()) }
             assertNull(viewModel.busyTaskId.value)
+        }
+
+    private fun claudeTask(state: String) =
+        completed.copy(
+            status = AiTask.Status.pending,
+            processedBy = null,
+            processedByKind = null,
+            claudeProcessing = AiTaskClaudeProcessing(state = state, proposal = null),
+        )
+
+    @Test
+    fun pollingRefreshesEveryTenSecondsWhileClaudeIsWorkingAndStopsAfterwards() =
+        runTest {
+            val tasks = MutableStateFlow(listOf(claudeTask("running")))
+            every { aiTaskRepo.tasks } returns tasks
+            backgroundScope.launch(testDispatcher) { viewModel.pollWhileClaudeWorks() }
+
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS - 1)
+            coVerify(exactly = 0) { aiTaskRepo.refresh() }
+            advanceTimeBy(2)
+            coVerify(exactly = 1) { aiTaskRepo.refresh() }
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS)
+            coVerify(exactly = 2) { aiTaskRepo.refresh() }
+
+            tasks.value = listOf(claudeTask("proposed"))
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS * 3)
+            coVerify(exactly = 2) { aiTaskRepo.refresh() }
+        }
+
+    @Test
+    fun pollingNeverStartsWithoutActiveClaudeWork() =
+        runTest {
+            every { aiTaskRepo.tasks } returns MutableStateFlow(listOf(claudeTask("blocked"), completed))
+            backgroundScope.launch(testDispatcher) { viewModel.pollWhileClaudeWorks() }
+
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS * 3)
+
+            coVerify(exactly = 0) { aiTaskRepo.refresh() }
+        }
+
+    @Test
+    fun aFailedPollIsReportedAndRetriedOnTheNextTick() =
+        runTest {
+            every { aiTaskRepo.tasks } returns MutableStateFlow(listOf(claudeTask("queued")))
+            coEvery { aiTaskRepo.refresh() } throws RuntimeException("offline")
+            backgroundScope.launch(testDispatcher) { viewModel.pollWhileClaudeWorks() }
+
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS * 2 + 1)
+
+            coVerify(exactly = 2) { aiTaskRepo.refresh() }
+            verify(exactly = 2) { errorReporter.captureException(any()) }
         }
 }

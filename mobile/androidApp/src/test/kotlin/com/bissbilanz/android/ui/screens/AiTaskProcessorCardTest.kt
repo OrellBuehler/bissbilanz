@@ -185,6 +185,7 @@ class AiTaskProcessorCardTest {
 
         composeTestRule.onNodeWithText(claudeUnavailableLabel).assertIsDisplayed()
         composeTestRule.onNodeWithText(unavailableHint).assertIsDisplayed()
+        composeTestRule.onNodeWithText(privacyNote).assertIsDisplayed()
         assertEquals(emptyList(), changes)
 
         composeTestRule.onNodeWithText(claudeUnavailableLabel).performClick()

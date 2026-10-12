@@ -28,7 +28,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.android.R
@@ -93,6 +96,11 @@ fun AiTasksScreen(navController: NavController) {
     val resources = LocalContext.current.resources
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(resources.getString(it)) }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.pollWhileClaudeWorks() }
     }
 
     LaunchedEffect(Unit) {
@@ -298,7 +306,7 @@ private fun AiTaskListItem(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     proposalBusy: Boolean,
-    onAcceptProposal: (itemIds: List<String>?) -> Unit,
+    onAcceptProposal: (itemIds: List<String>) -> Unit,
     onDiscardProposal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

@@ -67,14 +67,14 @@ interface AiTasksApi : ApiTransport {
     }
 
     /**
-     * Logs the entries of a Claude proposal: the given [itemIds], or every item when null.
-     * 409 means the proposal is no longer open or a proposed food, recipe or meal type was
+     * Logs the entries of a Claude proposal: exactly the given [itemIds], never an empty body,
+     * so a proposal regenerated since the user looked is not accepted blind. 400 or 409 means the proposal is no longer open or a proposed food, recipe or meal type was
      * deleted, so the task has to be re-read.
      */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun acceptAiTaskProposal(
         id: String,
-        itemIds: List<String>? = null,
+        itemIds: List<String>,
         idempotencyKey: String? = null,
     ): AiTask {
         val key = idempotencyKey ?: Uuid.random().toString()

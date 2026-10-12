@@ -69,3 +69,25 @@ fun AiTask.resolver(): TaskResolver? =
                 null -> null
             }
     }
+
+/**
+ * Which items of a Claude proposal the user wants logged. [seen] remembers every id the
+ * proposal ever showed, so an item the user unticked that vanishes and comes back stays
+ * unticked, while a genuinely new item starts selected.
+ */
+data class ProposalSelection(
+    val selected: Set<String>,
+    val seen: Set<String>,
+) {
+    fun reconciled(ids: List<String>): ProposalSelection =
+        ProposalSelection(
+            selected = ids.filterTo(mutableSetOf()) { it !in seen || it in selected },
+            seen = seen + ids,
+        )
+
+    fun toggled(id: String): ProposalSelection = copy(selected = if (id in selected) selected - id else selected + id)
+
+    companion object {
+        fun all(ids: List<String>): ProposalSelection = ProposalSelection(ids.toSet(), ids.toSet())
+    }
+}

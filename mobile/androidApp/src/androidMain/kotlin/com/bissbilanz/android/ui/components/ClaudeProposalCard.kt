@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.api.generated.model.AiTaskProposal
+import com.bissbilanz.util.ProposalSelection
 import kotlin.math.roundToInt
 
 private val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
@@ -38,19 +40,23 @@ private val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
 /**
  * Claude's suggested entries for a pending task. Every item starts selected; the user logs
  * a subset or all of them, or discards the whole suggestion. Servings are not editable
- * here. [onLog] receives null when everything is selected, which the server reads as
- * "accept every item".
+ * here. [onLog] always receives the explicit ids, so a proposal regenerated since the user
+ * looked is never accepted blind. When the items change, the selection keeps what is still
+ * there and starts new items selected.
  */
 @Composable
 fun ClaudeProposalCard(
     proposal: AiTaskProposal,
     busy: Boolean,
-    onLog: (itemIds: List<String>?) -> Unit,
+    onLog: (itemIds: List<String>) -> Unit,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val allIds = proposal.items.map { it.id }
-    var selected by remember(allIds) { mutableStateOf(allIds.toSet()) }
+    var stored by remember { mutableStateOf(ProposalSelection.all(allIds)) }
+    val current = stored.reconciled(allIds)
+    SideEffect { if (current != stored) stored = current }
+    val selected = current.selected
     val chosen = allIds.filter { it in selected }
 
     Surface(
@@ -83,7 +89,7 @@ fun ClaudeProposalCard(
                                 value = isSelected,
                                 enabled = !busy,
                                 role = Role.Checkbox,
-                                onValueChange = { selected = if (it) selected + item.id else selected - item.id },
+                                onValueChange = { stored = current.toggled(item.id) },
                             ).padding(vertical = 4.dp),
                 ) {
                     Checkbox(checked = isSelected, onCheckedChange = null, enabled = !busy)
@@ -134,7 +140,7 @@ fun ClaudeProposalCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
-                    onClick = { onLog(if (chosen.size == allIds.size) null else chosen) },
+                    onClick = { onLog(chosen) },
                     enabled = !busy && chosen.isNotEmpty(),
                     contentPadding = buttonPadding,
                     modifier = Modifier.weight(3f),

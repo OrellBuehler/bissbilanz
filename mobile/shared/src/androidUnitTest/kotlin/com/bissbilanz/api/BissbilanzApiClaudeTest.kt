@@ -108,17 +108,17 @@ class BissbilanzApiClaudeTest {
         }
 
     @Test
-    fun acceptWithoutItemIdsPostsAnEmptyObjectToTheProposalRoute() =
+    fun acceptPostsTheItemIdsToTheProposalRoute() =
         runBlocking {
             val body = """{"task":${taskJson("proposed", "claude")}}"""
 
-            val task = api(HttpStatusCode.OK, body).acceptAiTaskProposal("t1", idempotencyKey = "key-1")
+            val task = api(HttpStatusCode.OK, body).acceptAiTaskProposal("t1", listOf("i1", "i2"), idempotencyKey = "key-1")
 
             val request = requests.single()
             assertEquals(HttpMethod.Post, request.method)
             assertEquals("/api/ai-tasks/t1/proposal/accept", request.url.encodedPath)
             assertEquals("key-1", request.headers["Idempotency-Key"])
-            assertEquals("{}", (request.body as TextContent).text)
+            assertEquals("""{"itemIds":["i1","i2"]}""", (request.body as TextContent).text)
             assertEquals("t1", task.id)
         }
 
@@ -137,7 +137,7 @@ class BissbilanzApiClaudeTest {
         runBlocking<Unit> {
             val error =
                 assertFailsWith<ApiException> {
-                    api(HttpStatusCode.Conflict, """{"error":"gone"}""").acceptAiTaskProposal("t1")
+                    api(HttpStatusCode.Conflict, """{"error":"gone"}""").acceptAiTaskProposal("t1", listOf("i1"))
                 }
 
             assertEquals(409, error.statusCode)

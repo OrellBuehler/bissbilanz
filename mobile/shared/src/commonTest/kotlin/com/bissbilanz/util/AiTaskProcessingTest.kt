@@ -130,4 +130,30 @@ class AiTaskProcessingTest {
         assertEquals(TaskResolver.ON_DEVICE, TestFixtures.aiTask(processedByKind = "on_device").resolver())
         assertEquals(TaskResolver.PRIVATE_CLOUD, TestFixtures.aiTask(processedByKind = "private_cloud").resolver())
     }
+
+    @Test
+    fun aRegeneratedProposalKeepsTheSurvivingSelectionAndSelectsNewItems() {
+        val start = ProposalSelection.all(listOf("a", "b", "c")).toggled("c")
+
+        val next = start.reconciled(listOf("a", "c", "d"))
+
+        assertEquals(setOf("a", "d"), next.selected)
+        assertEquals(setOf("a", "b", "c", "d"), next.seen)
+    }
+
+    @Test
+    fun anItemThatVanishesAndReturnsIsNotReselected() {
+        val start = ProposalSelection.all(listOf("a", "b")).toggled("b")
+
+        val back = start.reconciled(listOf("a")).reconciled(listOf("a", "b"))
+
+        assertEquals(setOf("a"), back.selected)
+    }
+
+    @Test
+    fun anUnchangedProposalKeepsTheSelection() {
+        val start = ProposalSelection.all(listOf("a", "b")).toggled("a")
+
+        assertEquals(start, start.reconciled(listOf("a", "b")))
+    }
 }

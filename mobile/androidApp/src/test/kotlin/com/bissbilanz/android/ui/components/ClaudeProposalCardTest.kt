@@ -50,7 +50,7 @@ class ClaudeProposalCardTest {
 
     private fun show(
         busy: Boolean = false,
-        onLog: (List<String>?) -> Unit = {},
+        onLog: (List<String>) -> Unit = {},
         onDiscard: () -> Unit = {},
     ) {
         composeTestRule.setContent {
@@ -71,24 +71,24 @@ class ClaudeProposalCardTest {
     }
 
     @Test
-    fun loggingWithEverythingSelectedAcceptsAllItems() {
-        val logged = mutableListOf<List<String>?>()
+    fun loggingWithEverythingSelectedSendsEveryItemId() {
+        val logged = mutableListOf<List<String>>()
         show(onLog = { logged += it })
 
         composeTestRule.onNodeWithText("Log selected").performClick()
 
-        assertEquals(listOf<List<String>?>(null), logged)
+        assertEquals(listOf(listOf("a", "b")), logged)
     }
 
     @Test
     fun loggingASubsetSendsOnlyTheSelectedIds() {
-        val logged = mutableListOf<List<String>?>()
+        val logged = mutableListOf<List<String>>()
         show(onLog = { logged += it })
 
         composeTestRule.onNodeWithText("Toast").performClick()
         composeTestRule.onNodeWithText("Log selected").performClick()
 
-        assertEquals(listOf<List<String>?>(listOf("a")), logged)
+        assertEquals(listOf(listOf("a")), logged)
     }
 
     @Test
@@ -103,8 +103,8 @@ class ClaudeProposalCardTest {
     }
 
     @Test
-    fun aDifferentProposalResetsTheSelectionToAllItems() {
-        val logged = mutableListOf<List<String>?>()
+    fun aRegeneratedProposalKeepsTheSurvivingSelectionAndSelectsNewItems() {
+        val logged = mutableListOf<List<String>>()
         var current by mutableStateOf(proposal)
         composeTestRule.setContent {
             BissbilanzTheme {
@@ -113,16 +113,33 @@ class ClaudeProposalCardTest {
         }
         composeTestRule.onNodeWithText("Toast").performClick()
 
-        current = AiTaskProposal(summary = null, items = listOf(item("c", "Egg"), item("d", "Toast")))
+        current = AiTaskProposal(summary = null, items = listOf(item("a", "Egg"), item("b", "Toast"), item("c", "Jam")))
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Log selected").performClick()
 
-        assertEquals(listOf<List<String>?>(null), logged)
+        assertEquals(listOf(listOf("a", "c")), logged)
+    }
+
+    @Test
+    fun anItemThatVanishesIsDroppedFromTheLoggedIds() {
+        val logged = mutableListOf<List<String>>()
+        var current by mutableStateOf(proposal)
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                ClaudeProposalCard(proposal = current, busy = false, onLog = { logged += it }, onDiscard = {})
+            }
+        }
+
+        current = AiTaskProposal(summary = null, items = listOf(item("b", "Toast")))
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Log selected").performClick()
+
+        assertEquals(listOf(listOf("b")), logged)
     }
 
     @Test
     fun theSameProposalKeepsTheSelectionAcrossARefresh() {
-        val logged = mutableListOf<List<String>?>()
+        val logged = mutableListOf<List<String>>()
         var current by mutableStateOf(proposal)
         composeTestRule.setContent {
             BissbilanzTheme {
@@ -135,7 +152,7 @@ class ClaudeProposalCardTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Log selected").performClick()
 
-        assertEquals(listOf<List<String>?>(listOf("a")), logged)
+        assertEquals(listOf(listOf("a")), logged)
     }
 
     @Test

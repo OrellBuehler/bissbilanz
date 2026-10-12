@@ -101,7 +101,7 @@ internal fun AiTaskProcessorCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (claudeAvailable) {
+            if (claudeAvailable || claudeSelected) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.settings_ai_task_processor_claude_privacy),
