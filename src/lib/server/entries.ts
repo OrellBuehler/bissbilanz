@@ -8,12 +8,15 @@ import { roundNutrition } from '$lib/utils/round-nutrition';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { ApiError } from '$lib/server/errors';
-import { assertFoodOwned, assertRecipeOwned } from '$lib/server/ownership';
+import { assertFoodOwned, assertRecipeOwned, type TxOrDb } from '$lib/server/ownership';
 import { buildRecipeMacrosCte, type RecipeMacrosCte } from '$lib/server/recipe-macros';
 
-export const validateMealType = async (userId: string, mealType: string): Promise<boolean> => {
+export const validateMealType = async (
+	userId: string,
+	mealType: string,
+	db: TxOrDb = getDB()
+): Promise<boolean> => {
 	if ((DEFAULT_MEAL_TYPES as readonly string[]).includes(mealType)) return true;
-	const db = getDB();
 	const [found] = await db
 		.select({ id: customMealTypes.id })
 		.from(customMealTypes)
@@ -95,14 +98,16 @@ export const listEntriesByDate = async (
 export const createEntry = async (
 	userId: string,
 	payload: unknown,
-	clientEditedAt?: Date | null
+	clientEditedAt?: Date | null,
+	internal?: { id?: string; tx?: TxOrDb }
 ): Promise<Result<typeof foodEntries.$inferSelect>> => {
 	const result = entryCreateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
 	}
 
-	if (!(await validateMealType(userId, result.data.mealType))) {
+	const db = internal?.tx ?? getDB();
+	if (!(await validateMealType(userId, result.data.mealType, db))) {
 		return {
 			success: false,
 			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
@@ -110,34 +115,44 @@ export const createEntry = async (
 	}
 
 	try {
-		const db = getDB();
 		// Reject references to foods/recipes the caller doesn't own (IDOR).
 		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
 		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
-		const [created] = await db
-			.insert(foodEntries)
-			.values({
-				userId,
-				foodId: result.data.foodId ?? null,
-				recipeId: result.data.recipeId ?? null,
-				mealType: result.data.mealType,
-				servings: result.data.servings,
-				notes: result.data.notes ?? null,
-				date: result.data.date,
-				quickName: result.data.quickName ?? null,
-				quickCalories: result.data.quickCalories ?? null,
-				quickProtein: result.data.quickProtein ?? null,
-				quickCarbs: result.data.quickCarbs ?? null,
-				quickFat: result.data.quickFat ?? null,
-				quickFiber: result.data.quickFiber ?? null,
-				quickNutrients: normalizeQuickNutrients(result.data.quickNutrients),
-				eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date(),
-				// Seed the LWW clock from the client's edit time, not the arrival time:
-				// an offline create drained after an offline edit of the same row would
-				// otherwise out-date that edit and reject it as "server newer".
-				updatedAt: lwwStamp(clientEditedAt)
-			})
-			.returning();
+		const insert = db.insert(foodEntries).values({
+			...(internal?.id ? { id: internal.id } : {}),
+			userId,
+			foodId: result.data.foodId ?? null,
+			recipeId: result.data.recipeId ?? null,
+			mealType: result.data.mealType,
+			servings: result.data.servings,
+			notes: result.data.notes ?? null,
+			date: result.data.date,
+			quickName: result.data.quickName ?? null,
+			quickCalories: result.data.quickCalories ?? null,
+			quickProtein: result.data.quickProtein ?? null,
+			quickCarbs: result.data.quickCarbs ?? null,
+			quickFat: result.data.quickFat ?? null,
+			quickFiber: result.data.quickFiber ?? null,
+			quickNutrients: normalizeQuickNutrients(result.data.quickNutrients),
+			eatenAt: result.data.eatenAt ? new Date(result.data.eatenAt) : new Date(),
+			// Seed the LWW clock from the client's edit time, not the arrival time:
+			// an offline create drained after an offline edit of the same row would
+			// otherwise out-date that edit and reject it as "server newer".
+			updatedAt: lwwStamp(clientEditedAt)
+		});
+		const [inserted] = internal?.id
+			? await insert.onConflictDoNothing({ target: foodEntries.id }).returning()
+			: await insert.returning();
+		const created =
+			inserted ??
+			(internal?.id
+				? (
+						await db
+							.select()
+							.from(foodEntries)
+							.where(and(eq(foodEntries.id, internal.id), eq(foodEntries.userId, userId)))
+					)[0]
+				: undefined);
 		if (!created) {
 			return { success: false, error: new Error('Failed to create entry') };
 		}
@@ -154,7 +169,7 @@ type EntryUpdateInput = typeof entryUpdateSchema._output;
 
 // Puts an instant on `date` keeping its wall-clock time in `timeZone`. Postgres
 // resolves DST, so a meal at 08:30 stays 08:30 across a clock change.
-const eatenAtOnDate = (eatenAt: SQL | Date | AnyColumn, date: string, timeZone: string) =>
+export const eatenAtOnDate = (eatenAt: SQL | Date | AnyColumn, date: string, timeZone: string) =>
 	sql<Date>`((${date}::date + (${eatenAt} AT TIME ZONE ${timeZone})::time) AT TIME ZONE ${timeZone})`;
 
 export const toEntryUpdate = (

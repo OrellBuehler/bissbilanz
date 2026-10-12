@@ -1,5 +1,6 @@
 import { getDB } from '$lib/server/db';
-import { aiTasks, aiTaskStatusValues, type AiTaskProcessedBy } from '$lib/server/schema';
+import { aiTasks, aiTaskStatusValues, type AiTaskProcessedByKind } from '$lib/server/schema';
+import type { TxOrDb } from '$lib/server/ownership';
 import { MAX_AI_TASK_PHOTOS, aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
 import { and, count, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
@@ -214,10 +215,11 @@ export const dismissAiTaskByAgent = async (
 	userId: string,
 	id: string,
 	reason: string,
-	processedBy: AiTaskProcessedBy = 'assistant'
+	processedBy: AiTaskProcessedByKind = 'assistant',
+	options?: { onlyIfPending?: boolean; tx?: TxOrDb; createdEntryIds?: string[] }
 ): Promise<Result<typeof aiTasks.$inferSelect | undefined>> => {
 	try {
-		const db = getDB();
+		const db = options?.tx ?? getDB();
 		const now = new Date();
 		const [updated] = await db
 			.update(aiTasks)
@@ -227,14 +229,48 @@ export const dismissAiTaskByAgent = async (
 				dismissedAt: now,
 				acknowledgedAt: null,
 				processedBy,
-				updatedAt: now
+				updatedAt: now,
+				...(options?.createdEntryIds?.length ? { createdEntryIds: options.createdEntryIds } : {})
 			})
-			.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId)))
+			.where(
+				and(
+					eq(aiTasks.id, id),
+					eq(aiTasks.userId, userId),
+					options?.onlyIfPending ? eq(aiTasks.status, 'pending') : undefined
+				)
+			)
 			.returning();
 		return { success: true, data: updated };
 	} catch (error) {
 		return { success: false, error: error as Error };
 	}
+};
+
+/**
+ * Server-side completion for a processor that logged the entries itself. Only a
+ * still-pending task is touched, so a task resolved meanwhile is never overwritten.
+ */
+export const completeAiTaskBy = async (
+	tx: TxOrDb,
+	userId: string,
+	id: string,
+	input: { resultSummary: string; entryIds: string[]; processedBy: AiTaskProcessedByKind }
+): Promise<typeof aiTasks.$inferSelect | undefined> => {
+	const now = new Date();
+	const [updated] = await tx
+		.update(aiTasks)
+		.set({
+			status: 'completed',
+			completedAt: now,
+			acknowledgedAt: now,
+			processedBy: input.processedBy,
+			createdEntryIds: input.entryIds,
+			resultSummary: input.resultSummary,
+			updatedAt: now
+		})
+		.where(and(eq(aiTasks.id, id), eq(aiTasks.userId, userId), eq(aiTasks.status, 'pending')))
+		.returning();
+	return updated;
 };
 
 /**

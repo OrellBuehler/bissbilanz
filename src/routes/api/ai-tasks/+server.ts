@@ -13,6 +13,7 @@ import {
 	parseJsonBody
 } from '$lib/server/errors';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
+import { enqueueClaudeTaskIfEligible } from '$lib/server/claude/tasks/executor';
 
 /**
  * A meal that never reaches the queue is invisible to the user, so every
@@ -78,6 +79,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			date: task.date,
 			idempotent: readIdempotencyKey(request) !== null
 		});
+		void enqueueClaudeTaskIfEligible(userId, task.id);
 		return json({ task: serializeAiTask(task) }, { status: 201 });
 	} catch (error) {
 		logRejected(request, error, source);
