@@ -186,6 +186,7 @@ class BissbilanzApplication :
                         errorReporter = get(),
                         scope = get(),
                         mcpConnectionStore = get(),
+                        preferencesRepository = get(),
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }
@@ -278,6 +279,7 @@ class BissbilanzApplication :
             koin.get<BulkUploadPreferences>().setPaused(false)
             LocalImageStore.clear(this@BissbilanzApplication)
             mcpConnectionStore.clear()
+            koin.get<PreferencesRepository>().clearClaudeCapability()
         }
         // A diary entry that points at a food still waiting for its bulk upload sends that food first.
         koin.get<SyncManager>().bulkFoodGate = koin.get<BulkFoodUploader>()

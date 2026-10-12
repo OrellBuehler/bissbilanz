@@ -8,11 +8,16 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.repository.AiTaskRepository
+import com.bissbilanz.repository.EntryRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -23,6 +28,7 @@ class AiTasksViewModel(
     private val aiTaskRepo: AiTaskRepository,
     private val uploadQueue: AiTaskUploadQueue,
     private val errorReporter: ErrorReporter,
+    private val entryRepo: EntryRepository,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     enum class Filter(
@@ -106,6 +112,91 @@ class AiTasksViewModel(
         viewModelScope.launch {
             runCatching { aiTaskRepo.delete(id) }
                 .onFailure { errorReporter.captureException(it as? Exception ?: Exception(it)) }
+        }
+    }
+
+    private val _busyTaskId = MutableStateFlow<String?>(null)
+
+    /** The task whose proposal is being logged or discarded; its buttons are disabled meanwhile. */
+    val busyTaskId: StateFlow<String?> = _busyTaskId.asStateFlow()
+
+    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+
+    /** One-shot snackbar messages as string resource ids, resolved by the screen. */
+    val messages: SharedFlow<Int> = _messages.asSharedFlow()
+
+    /**
+     * Logs a Claude proposal. [itemIds] null accepts every item. A failure keeps the card
+     * and the caller's selection so the user can retry. A 409 or 404 means the proposal is
+     * gone: the repository has already re-read the list, and this is an expected outcome,
+     * not an error to report. A 429 is a rate limit and likewise not reported.
+     */
+    fun acceptProposal(
+        taskId: String,
+        itemIds: List<String>?,
+    ) {
+        if (_busyTaskId.value != null) return
+        _busyTaskId.value = taskId
+        viewModelScope.launch {
+            var loggedOn: String? = null
+            try {
+                loggedOn = aiTaskRepo.acceptProposal(taskId, itemIds).date
+                _messages.emit(R.string.ai_tasks_proposal_logged)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                when {
+                    e.isProposalGone() -> _messages.emit(R.string.ai_tasks_proposal_accept_conflict)
+                    e is ApiException && e.statusCode == 429 -> _messages.emit(R.string.ai_tasks_proposal_accept_failed)
+                    else -> {
+                        errorReporter.captureException(e)
+                        _messages.emit(R.string.ai_tasks_proposal_accept_failed)
+                    }
+                }
+            } finally {
+                _busyTaskId.value = null
+            }
+            loggedOn?.let { refreshEntries(it) }
+        }
+    }
+
+    fun discardProposal(taskId: String) {
+        if (_busyTaskId.value != null) return
+        _busyTaskId.value = taskId
+        viewModelScope.launch {
+            try {
+                aiTaskRepo.dismiss(taskId)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e.isProposalGone()) {
+                    refreshTasksAfterConflict()
+                    _messages.emit(R.string.ai_tasks_proposal_accept_conflict)
+                } else {
+                    errorReporter.captureException(e)
+                    _messages.emit(R.string.ai_task_save_failed)
+                }
+            } finally {
+                _busyTaskId.value = null
+            }
+        }
+    }
+
+    private fun Exception.isProposalGone() = this is ApiException && (statusCode == 409 || statusCode == 404)
+
+    private suspend fun refreshTasksAfterConflict() {
+        try {
+            aiTaskRepo.refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
+    }
+
+    private suspend fun refreshEntries(date: String) {
+        try {
+            entryRepo.refresh(date)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 

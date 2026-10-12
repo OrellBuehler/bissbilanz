@@ -1,6 +1,7 @@
 package com.bissbilanz.repository
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskUpdate
@@ -13,9 +14,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * AI tasks, held in memory rather than in SQLDelight.
  *
  * Deliberately not the offline-first pattern the other repositories use: a task is
- * only ever resolved by the MCP assistant server-side, so a local mirror could never
- * be authoritative and there is nothing to queue — the web client made the same call
- * and skips its Dexie mirror. In Local mode the queue does not exist at all.
+ * only ever resolved elsewhere (the MCP assistant, Claude on the server, or the user's
+ * iPhone), so a local mirror could never be authoritative and there is nothing to
+ * queue — the web client made the same call and skips its Dexie mirror. In Local mode
+ * the queue does not exist at all.
  */
 class AiTaskRepository(
     private val api: BissbilanzApi,
@@ -89,6 +91,36 @@ class AiTaskRepository(
         val updated = api.updateAiTask(id, update, clearedKeys = clearedKeys)
         _tasks.value = _tasks.value.map { if (it.id == id) updated else it }
         return updated
+    }
+
+    /** Gives up on a still-open task, the same status change the web list's dismiss button makes. */
+    suspend fun dismiss(id: String): AiTask = update(id, AiTaskUpdate(status = AiTaskUpdate.Status.dismissed))
+
+    /**
+     * Logs a Claude proposal and swaps in the resolved task. A 409 (or 404) means the proposal is
+     * gone (accepted elsewhere, processor switched, or a proposed food was deleted): the
+     * list is re-read so the card disappears, then the exception is rethrown for the
+     * caller to explain. Any other failure leaves the list untouched.
+     */
+    suspend fun acceptProposal(
+        id: String,
+        itemIds: List<String>? = null,
+    ): AiTask {
+        try {
+            val accepted = api.acceptAiTaskProposal(id, itemIds)
+            _tasks.value = _tasks.value.map { if (it.id == id) accepted else it }
+            return accepted
+        } catch (e: ApiException) {
+            if (e.statusCode == 409 || e.statusCode == 404) {
+                try {
+                    refresh()
+                } catch (refreshError: Exception) {
+                    if (refreshError is kotlinx.coroutines.CancellationException) throw refreshError
+                    e.addSuppressed(refreshError)
+                }
+            }
+            throw e
+        }
     }
 
     /** Uploads new photos for an edit, ahead of [update] — mirrors how a new task's photos go up first. */
