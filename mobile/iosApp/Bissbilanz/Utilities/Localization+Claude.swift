@@ -17,6 +17,14 @@ extension L10n {
         )
     }
 
+    static var aiTaskAutoLogFooterClaude: String {
+        localized(
+            "settings_ai_task_auto_log_hint_claude",
+            en: "When off, Claude suggests entries for you to review before anything is logged.",
+            de: "Ist dies deaktiviert, schlägt Claude dir Einträge zur Prüfung vor, bevor etwas eingetragen wird."
+        )
+    }
+
     static var aiTaskProcessorClaudePrivacy: String {
         localized(
             "settings_ai_task_processor_claude_privacy",

@@ -101,7 +101,7 @@ internal fun AiTaskProcessorCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (claudeAvailable || claudeSelected) {
+            if (claudeAvailable) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.settings_ai_task_processor_claude_privacy),
@@ -134,13 +134,11 @@ internal fun AiTaskProcessorCard(
                 ToggleRow(
                     label = stringResource(R.string.settings_ai_task_auto_log_label),
                     supportingText =
-                        stringResource(
-                            when {
-                                deviceSelected -> R.string.settings_ai_task_auto_log_hint
-                                autoLog -> R.string.ai_tasks_capture_hint_claude
-                                else -> R.string.ai_tasks_capture_hint_claude_review
-                            },
-                        ),
+                        when {
+                            deviceSelected -> stringResource(R.string.settings_ai_task_auto_log_hint)
+                            claudeAvailable -> stringResource(R.string.settings_ai_task_auto_log_hint_claude)
+                            else -> null
+                        },
                     checked = autoLog,
                     onCheckedChange = { onAutoLogChange(it) },
                 )
