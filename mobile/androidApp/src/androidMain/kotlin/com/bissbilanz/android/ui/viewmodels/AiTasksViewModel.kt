@@ -116,7 +116,7 @@ class AiTasksViewModel(
     /**
      * While any pending task is queued, running or retrying on Claude's side, re-reads the list
      * every [POLL_INTERVAL_MS]. Runs until cancelled; the screen launches it only while visible.
-     * A failed read is reported and the next tick retries.
+     * A failed read is already reported by the repository; the next tick retries.
      */
     suspend fun pollWhileClaudeWorks() {
         aiTaskRepo.tasks
@@ -130,7 +130,7 @@ class AiTasksViewModel(
                         aiTaskRepo.acknowledgeAll()
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
-                        errorReporter.captureException(e)
+                        // The repository already reported the failure; the next tick retries.
                     }
                 }
             }

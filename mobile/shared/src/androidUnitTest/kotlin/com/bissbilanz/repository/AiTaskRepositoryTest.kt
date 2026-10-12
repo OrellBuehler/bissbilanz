@@ -12,6 +12,9 @@ import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -38,6 +41,26 @@ class AiTaskRepositoryTest {
             repository.refresh()
 
             assertEquals(listOf("1", "2"), repository.tasks.value.map { it.id })
+        }
+
+    @Test
+    fun aListReadThatStartedBeforeALocalAcceptIsDropped() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val staleRead = CompletableDeferred<AiTasksResponse>()
+            coEvery { api.listAiTasks(limit = 100) } coAnswers { staleRead.await() }
+            val completed = pending.copy(status = AiTask.Status.completed)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } returns completed
+
+            val inFlight = launch { repository.refresh() }
+            runCurrent()
+            repository.acceptProposal("1", listOf("i1"))
+            staleRead.complete(AiTasksResponse(tasks = listOf(pending), total = 1))
+            inFlight.join()
+
+            assertEquals(listOf(AiTask.Status.completed), repository.tasks.value.map { it.status })
         }
 
     @Test

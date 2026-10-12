@@ -24,6 +24,13 @@ class AiTaskRepository(
     private val errorReporter: ErrorReporter,
     private val appModeManager: AppModeManager,
 ) {
+    /**
+     * Bumped whenever a local accept or edit lands, so a list read that started earlier
+     * (and may predate it) is dropped instead of undoing the change.
+     */
+    @Volatile
+    private var mutationGeneration = 0
+
     private val _tasks = MutableStateFlow<List<AiTask>>(emptyList())
     val tasks: StateFlow<List<AiTask>> = _tasks.asStateFlow()
 
@@ -42,7 +49,9 @@ class AiTaskRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         try {
+            val generation = mutationGeneration
             val response = api.listAiTasks(limit = 100)
+            if (generation != mutationGeneration) return
             _tasks.value = response.tasks
             val unread = response.tasks.filter { it.isUnreadDismissal() }
             if (unread.isNotEmpty()) {
@@ -89,6 +98,7 @@ class AiTaskRepository(
         clearedKeys: Collection<String> = emptyList(),
     ): AiTask {
         val updated = api.updateAiTask(id, update, clearedKeys = clearedKeys)
+        mutationGeneration++
         _tasks.value = _tasks.value.map { if (it.id == id) updated else it }
         return updated
     }
@@ -108,6 +118,7 @@ class AiTaskRepository(
     ): AiTask {
         try {
             val accepted = api.acceptAiTaskProposal(id, itemIds)
+            mutationGeneration++
             _tasks.value = _tasks.value.map { if (it.id == id) accepted else it }
             return accepted
         } catch (e: ApiException) {

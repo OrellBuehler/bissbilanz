@@ -68,8 +68,9 @@ interface AiTasksApi : ApiTransport {
 
     /**
      * Logs the entries of a Claude proposal: exactly the given [itemIds], never an empty body,
-     * so a proposal regenerated since the user looked is not accepted blind. 400 or 409 means the proposal is no longer open or a proposed food, recipe or meal type was
-     * deleted, so the task has to be re-read.
+     * so a proposal regenerated since the user looked is not accepted blind. 400, 404 or 409
+     * means the proposal is no longer open, its items changed, or a proposed food, recipe or
+     * meal type was deleted, so the task has to be re-read.
      */
     @OptIn(ExperimentalUuidApi::class)
     suspend fun acceptAiTaskProposal(

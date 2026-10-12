@@ -311,7 +311,7 @@ class AiTasksViewModelTest {
         }
 
     @Test
-    fun aFailedPollIsReportedAndRetriedOnTheNextTick() =
+    fun aFailedPollIsRetriedOnTheNextTickWithoutAnotherReport() =
         runTest {
             every { aiTaskRepo.tasks } returns MutableStateFlow(listOf(claudeTask("queued")))
             coEvery { aiTaskRepo.refresh() } throws RuntimeException("offline")
@@ -320,6 +320,6 @@ class AiTasksViewModelTest {
             advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS * 2 + 1)
 
             coVerify(exactly = 2) { aiTaskRepo.refresh() }
-            verify(exactly = 2) { errorReporter.captureException(any()) }
+            verify(exactly = 0) { errorReporter.captureException(any()) }
         }
 }
