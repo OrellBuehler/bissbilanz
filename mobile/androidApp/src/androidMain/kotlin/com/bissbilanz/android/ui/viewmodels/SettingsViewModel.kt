@@ -252,6 +252,8 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
+            } finally {
+                prefsRepo.clearClaudeCapability()
             }
             authManager.logout()
             // Reset the mode so the next start shows the login screen with the mode choice again.
@@ -319,6 +321,8 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
+            } finally {
+                prefsRepo.clearClaudeCapability()
             }
             authManager.logout()
             appModeManager.clear()

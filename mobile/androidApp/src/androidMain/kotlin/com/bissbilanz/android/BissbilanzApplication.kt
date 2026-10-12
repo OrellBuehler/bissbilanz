@@ -186,6 +186,7 @@ class BissbilanzApplication :
                         errorReporter = get(),
                         scope = get(),
                         mcpConnectionStore = get(),
+                        preferencesRepository = get(),
                     )
                 }
                 single { FastingSessionStore(androidContext(), get()) }

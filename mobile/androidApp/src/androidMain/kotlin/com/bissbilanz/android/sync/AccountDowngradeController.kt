@@ -5,6 +5,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.migration.AccountDowngrader
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.sync.SyncManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class AccountDowngradeController(
     private val errorReporter: ErrorReporter,
     private val scope: CoroutineScope,
     private val mcpConnectionStore: McpConnectionStore,
+    private val preferencesRepository: PreferencesRepository,
 ) {
     sealed interface State {
         data object Idle : State
@@ -65,6 +67,7 @@ class AccountDowngradeController(
                 // The account is gone, so its connected assistants are too; the local
                 // database stays, which is why this is not left to LocalDataWiper.
                 mcpConnectionStore.clear()
+                preferencesRepository.clearClaudeCapability()
                 _state.value = State.Done
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

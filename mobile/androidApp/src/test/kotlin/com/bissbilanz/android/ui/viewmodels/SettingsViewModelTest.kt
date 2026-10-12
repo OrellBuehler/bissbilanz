@@ -112,6 +112,7 @@ class SettingsViewModelTest {
                 errorReporter = errorReporter,
                 scope = CoroutineScope(testDispatcher),
                 mcpConnectionStore = mockk(relaxed = true),
+                preferencesRepository = mockk(relaxed = true),
             ),
         )
 

@@ -6,11 +6,14 @@ import com.bissbilanz.api.generated.model.Preferences
 
 const val PROCESSOR_CLAUDE = "claude"
 
+private val knownProcessorKinds = setOf("assistant", "device", PROCESSOR_CLAUDE)
+
 /**
  * The processor the user really chose. The legacy [Preferences.aiTaskProcessor] enum
- * reads "assistant" while Claude is stored, so the kind wins whenever the server sent it.
+ * reads "assistant" while Claude is stored, so a known kind wins whenever the server sent
+ * it; a kind this build does not know falls back to the legacy value.
  */
-fun Preferences.effectiveAiTaskProcessor(): String = aiTaskProcessorKind ?: aiTaskProcessor.value
+fun Preferences.effectiveAiTaskProcessor(): String = aiTaskProcessorKind?.takeIf { it in knownProcessorKinds } ?: aiTaskProcessor.value
 
 fun Preferences.isClaudeSelected(): Boolean = effectiveAiTaskProcessor() == PROCESSOR_CLAUDE
 
@@ -38,7 +41,7 @@ fun AiTask.claudeTaskState(): ClaudeTaskState? {
     return when (processing.state) {
         "running" -> ClaudeTaskState.RUNNING
         "retrying" -> ClaudeTaskState.RETRYING
-        "proposed" -> if (processing.proposal != null) ClaudeTaskState.PROPOSED else ClaudeTaskState.QUEUED
+        "proposed" -> ClaudeTaskState.PROPOSED
         "blocked" -> ClaudeTaskState.BLOCKED
         else -> ClaudeTaskState.QUEUED
     }

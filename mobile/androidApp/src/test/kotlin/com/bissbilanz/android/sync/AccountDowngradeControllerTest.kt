@@ -4,6 +4,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.migration.AccountDowngrader
+import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.sync.SyncManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -22,6 +23,7 @@ class AccountDowngradeControllerTest {
     private lateinit var downgrader: AccountDowngrader
     private lateinit var syncManager: SyncManager
     private lateinit var mcpConnectionStore: McpConnectionStore
+    private lateinit var preferencesRepository: PreferencesRepository
     private lateinit var controller: AccountDowngradeController
 
     @BeforeTest
@@ -29,6 +31,7 @@ class AccountDowngradeControllerTest {
         downgrader = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         mcpConnectionStore = mockk(relaxed = true)
+        preferencesRepository = mockk(relaxed = true)
         controller =
             AccountDowngradeController(
                 downgrader,
@@ -36,6 +39,7 @@ class AccountDowngradeControllerTest {
                 mockk<ErrorReporter>(relaxed = true),
                 CoroutineScope(UnconfinedTestDispatcher()),
                 mcpConnectionStore,
+                preferencesRepository,
             )
     }
 
@@ -50,6 +54,7 @@ class AccountDowngradeControllerTest {
             coVerifyOrder {
                 downgrader.finalize()
                 mcpConnectionStore.clear()
+                preferencesRepository.clearClaudeCapability()
             }
         }
 

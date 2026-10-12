@@ -14,9 +14,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * AI tasks, held in memory rather than in SQLDelight.
  *
  * Deliberately not the offline-first pattern the other repositories use: a task is
- * only ever resolved by the MCP assistant server-side, so a local mirror could never
- * be authoritative and there is nothing to queue — the web client made the same call
- * and skips its Dexie mirror. In Local mode the queue does not exist at all.
+ * only ever resolved elsewhere (the MCP assistant, Claude on the server, or the user's
+ * iPhone), so a local mirror could never be authoritative and there is nothing to
+ * queue — the web client made the same call and skips its Dexie mirror. In Local mode
+ * the queue does not exist at all.
  */
 class AiTaskRepository(
     private val api: BissbilanzApi,

@@ -57,8 +57,15 @@ class PreferencesRepository(
      */
     val claudeCapability: StateFlow<ClaudeCapability?> = _claudeCapability.asStateFlow()
 
-    /** Called on sign-out and account switches so one account's capability never shows for the next. */
+    private var accountGeneration = 0
+
+    /**
+     * Called on sign-out and account switches so one account's capability never shows for
+     * the next. A refresh already in flight belongs to the previous account and is dropped
+     * when it lands.
+     */
     fun clearClaudeCapability() {
+        accountGeneration++
         _claudeCapability.value = null
     }
 
@@ -67,7 +74,9 @@ class PreferencesRepository(
             _claudeCapability.value = null
             return
         }
+        val generation = accountGeneration
         val response = api.getPreferencesResponse()
+        if (generation != accountGeneration) return
         _claudeCapability.value = response.claude
         withContext(Dispatchers.IO) { cachePreferences(response.preferences) }
     }
@@ -79,7 +88,9 @@ class PreferencesRepository(
      */
     suspend fun reportTimeZone(deviceTimeZone: String) {
         if (appModeManager.isLocal) return
+        val generation = accountGeneration
         val response = api.getPreferencesResponse()
+        if (generation != accountGeneration) return
         _claudeCapability.value = response.claude
         val current = response.preferences
         if (current.timeZone == deviceTimeZone) return

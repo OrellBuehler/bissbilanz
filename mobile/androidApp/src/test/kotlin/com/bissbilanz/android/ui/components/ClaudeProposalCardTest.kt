@@ -1,6 +1,9 @@
 package com.bissbilanz.android.ui.components
 
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -97,6 +100,42 @@ class ClaudeProposalCardTest {
 
         composeTestRule.onNodeWithText("Select at least one entry.").assertIsDisplayed()
         composeTestRule.onNodeWithText("Log selected").assertIsNotEnabled()
+    }
+
+    @Test
+    fun aDifferentProposalResetsTheSelectionToAllItems() {
+        val logged = mutableListOf<List<String>?>()
+        var current by mutableStateOf(proposal)
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                ClaudeProposalCard(proposal = current, busy = false, onLog = { logged += it }, onDiscard = {})
+            }
+        }
+        composeTestRule.onNodeWithText("Toast").performClick()
+
+        current = AiTaskProposal(summary = null, items = listOf(item("c", "Egg"), item("d", "Toast")))
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Log selected").performClick()
+
+        assertEquals(listOf<List<String>?>(null), logged)
+    }
+
+    @Test
+    fun theSameProposalKeepsTheSelectionAcrossARefresh() {
+        val logged = mutableListOf<List<String>?>()
+        var current by mutableStateOf(proposal)
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                ClaudeProposalCard(proposal = current, busy = false, onLog = { logged += it }, onDiscard = {})
+            }
+        }
+        composeTestRule.onNodeWithText("Toast").performClick()
+
+        current = proposal.copy(summary = "Updated summary")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Log selected").performClick()
+
+        assertEquals(listOf<List<String>?>(listOf("a")), logged)
     }
 
     @Test

@@ -38,11 +38,13 @@ class AiTaskProcessingTest {
     }
 
     @Test
-    fun anUnknownKindIsNeitherClaudeNorACrash() {
-        val prefs = TestFixtures.preferences(processorKind = "future_processor")
+    fun anUnknownKindFallsBackToTheLegacyProcessor() {
+        val device = TestFixtures.preferences(Preferences.AiTaskProcessor.device, processorKind = "future_processor")
+        val assistant = TestFixtures.preferences(processorKind = "future_processor")
 
-        assertEquals("future_processor", prefs.effectiveAiTaskProcessor())
-        assertFalse(prefs.isClaudeSelected())
+        assertEquals("device", device.effectiveAiTaskProcessor())
+        assertEquals("assistant", assistant.effectiveAiTaskProcessor())
+        assertFalse(assistant.isClaudeSelected())
     }
 
     @Test
@@ -81,8 +83,8 @@ class AiTaskProcessingTest {
     }
 
     @Test
-    fun aProposedStateWithoutAProposalReadsAsQueued() {
-        assertEquals(ClaudeTaskState.QUEUED, pendingWith("proposed", withProposal = false).claudeTaskState())
+    fun aProposedStateWithoutAProposalStillShowsTheProposedChip() {
+        assertEquals(ClaudeTaskState.PROPOSED, pendingWith("proposed", withProposal = false).claudeTaskState())
     }
 
     @Test

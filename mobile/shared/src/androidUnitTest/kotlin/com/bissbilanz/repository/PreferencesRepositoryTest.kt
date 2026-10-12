@@ -217,6 +217,23 @@ class PreferencesRepositoryTest {
         }
 
     @Test
+    fun aRefreshInFlightDuringASignOutIsDropped() =
+        runTest {
+            coEvery { api.getPreferencesResponse() } coAnswers {
+                repository.clearClaudeCapability()
+                PreferencesResponse(
+                    TestFixtures.preferences(processorKind = "claude"),
+                    ClaudeCapability(available = true),
+                )
+            }
+
+            repository.refresh()
+
+            assertNull(repository.claudeCapability.value)
+            assertNull(cached())
+        }
+
+    @Test
     fun aServerWithoutTheCapabilityLeavesItUnknown() =
         runTest {
             coEvery { api.getPreferencesResponse() } returns PreferencesResponse(TestFixtures.preferences())
