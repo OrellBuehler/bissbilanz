@@ -41,10 +41,10 @@ interface PreferencesApi : ApiTransport {
         return response.goals
     }
 
-    suspend fun getPreferences(): Preferences {
-        val response: PreferencesResponse = get("/api/preferences")
-        return response.preferences
-    }
+    /** The envelope carries the `claude` capability, which only GET returns. */
+    suspend fun getPreferencesResponse(): PreferencesResponse = get("/api/preferences")
+
+    suspend fun getPreferences(): Preferences = getPreferencesResponse().preferences
 
     /** See [updateEntry] for what [clearedKeys] does. */
     @OptIn(ExperimentalUuidApi::class)

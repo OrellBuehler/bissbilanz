@@ -1,8 +1,11 @@
 package com.bissbilanz.test
 
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskClaudeProcessing
+import com.bissbilanz.api.generated.model.AiTaskProposalItem
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
+import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
 
@@ -64,6 +67,9 @@ object TestFixtures {
         date: String = "2024-01-15",
         mealType: String? = "Breakfast",
         eatenAt: String? = null,
+        processedBy: AiTask.ProcessedBy? = null,
+        processedByKind: String? = null,
+        claudeProcessing: AiTaskClaudeProcessing? = null,
     ) = AiTask(
         id = id,
         userId = "user-1",
@@ -80,7 +86,60 @@ object TestFixtures {
         completedAt = null,
         dismissedAt = null,
         acknowledgedAt = null,
-        processedBy = null,
+        processedBy = processedBy,
+        processedByKind = processedByKind,
+        claudeProcessing = claudeProcessing,
+    )
+
+    fun proposalItem(
+        id: String = "item-1",
+        name: String = "Egg",
+    ) = AiTaskProposalItem(
+        id = id,
+        name = name,
+        quantityDescription = "2 eggs",
+        foodId = null,
+        recipeId = null,
+        servings = 2.0,
+        calories = 156.0,
+        protein = 12.6,
+        carbs = 1.2,
+        fat = 10.6,
+        fiber = 0.0,
+    )
+
+    fun preferences(
+        processor: Preferences.AiTaskProcessor = Preferences.AiTaskProcessor.assistant,
+        processorKind: String? = null,
+    ) = Preferences(
+        showChartWidget = true,
+        showFavoritesWidget = true,
+        showRecipeSuggestionsWidget = true,
+        showSupplementsWidget = true,
+        showWeightWidget = true,
+        showMealBreakdownWidget = true,
+        showTopFoodsWidget = true,
+        showSleepWidget = true,
+        showFastingWidget = true,
+        showDayPropertiesWidget = true,
+        showWaterWidget = true,
+        showActivityWidget = true,
+        showNotesWidget = true,
+        widgetOrder = emptyList(),
+        mealOrder = emptyList(),
+        startPage = "dashboard",
+        favoriteTapAction = "instant",
+        favoriteMealAssignmentMode = "time_based",
+        visibleNutrients = emptyList(),
+        waterGoalMl = 2000,
+        locale = null,
+        timeZone = "UTC",
+        favoriteMealTimeframes = emptyList(),
+        activityGoalAdjustment = false,
+        activityCreditPercent = 100,
+        aiTaskProcessor = processor,
+        aiTaskAutoLog = false,
+        aiTaskProcessorKind = processorKind,
     )
 
     fun offProduct(

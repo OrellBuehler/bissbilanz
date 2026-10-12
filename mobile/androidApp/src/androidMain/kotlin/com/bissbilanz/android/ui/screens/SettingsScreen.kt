@@ -51,6 +51,7 @@ fun SettingsScreen(navController: NavController) {
     val isLocalMode = mode == AppMode.LOCAL
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
+    val claudeCapability by viewModel.claudeCapability.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
@@ -213,6 +214,7 @@ fun SettingsScreen(navController: NavController) {
                         prefs = prefs,
                         onProcessorChange = { viewModel.updateAiTaskProcessor(it) },
                         onAutoLogChange = { viewModel.updateAiTaskAutoLog(it) },
+                        claude = claudeCapability,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))

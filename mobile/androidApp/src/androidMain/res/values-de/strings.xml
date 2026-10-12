@@ -247,6 +247,21 @@
     <string name="ai_tasks_processed_by_assistant">Verarbeitet von deinem KI-Assistenten</string>
     <string name="ai_tasks_processed_by_on_device">Auf deinem iPhone verarbeitet</string>
     <string name="ai_tasks_processed_by_private_cloud">Über Private Cloud Compute verarbeitet</string>
+    <string name="ai_tasks_processed_by_claude">Von Claude verarbeitet</string>
+    <string name="ai_tasks_claude_state_queued">Wartet auf Claude</string>
+    <string name="ai_tasks_claude_state_running">Claude verarbeitet diese Mahlzeit</string>
+    <string name="ai_tasks_claude_state_retrying">Claude versucht es gleich erneut</string>
+    <string name="ai_tasks_claude_state_proposed">Vorschlag bereit zur Prüfung</string>
+    <string name="ai_tasks_claude_state_blocked">Claude ist nicht verfügbar, wartet</string>
+    <string name="ai_tasks_proposal_title">Vorgeschlagene Einträge</string>
+    <string name="ai_tasks_proposal_log">Auswahl eintragen</string>
+    <string name="ai_tasks_proposal_discard">Verwerfen</string>
+    <string name="ai_tasks_proposal_none_selected">Wähle mindestens einen Eintrag aus.</string>
+    <string name="ai_tasks_proposal_logged">Einträge eingetragen</string>
+    <string name="ai_tasks_proposal_accept_conflict">Dieser Vorschlag ist nicht mehr verfügbar. Die Liste wurde aktualisiert.</string>
+    <string name="ai_tasks_proposal_accept_failed">Die Einträge konnten nicht eingetragen werden. Prüfe deine Verbindung und versuche es erneut.</string>
+    <string name="ai_tasks_capture_hint_claude">Claude verarbeitet diese Mahlzeit auf dem Server und trägt sie für dich ein.</string>
+    <string name="ai_tasks_capture_hint_claude_review">Claude verarbeitet diese Mahlzeit auf dem Server und schlägt dir Einträge zur Prüfung vor.</string>
     <string name="ai_tasks_unread">Neu</string>
     <string name="ai_tasks_edit">Aufgabe bearbeiten</string>
     <string name="ai_tasks_delete">Aufgabe löschen</string>
@@ -1312,6 +1327,11 @@
     <string name="settings_ai_task_processor_device_hint">Aufgaben bleiben ausstehend, bis die Bissbilanz-iPhone-App sie verarbeitet.</string>
     <string name="settings_ai_task_auto_log_label">Automatisch eintragen</string>
     <string name="settings_ai_task_auto_log_hint">Ist dies deaktiviert, warten Schätzungen in der iPhone-App auf deine Prüfung.</string>
+    <string name="settings_ai_task_processor_claude">Claude (automatisch)</string>
+    <string name="settings_ai_task_processor_claude_unavailable">Claude (nicht verfügbar)</string>
+    <string name="settings_ai_task_processor_claude_privacy">Mahlzeitbeschreibungen und Fotos werden zur Verarbeitung durch Claude an Anthropic gesendet.</string>
+    <string name="settings_ai_task_processor_claude_unavailable_hint">Claude ist für dein Konto gerade nicht verfügbar. Erfasste Mahlzeiten warten, bis es wieder verfügbar ist, oder auf deinen KI-Assistenten.</string>
+    <string name="settings_ai_task_processor_claude_remaining">Diesen Monat noch %1$s</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Tägliches Wasserziel</string>
     <string name="settings_water_goal_desc">Wird als Fortschrittsbalken im Tagesprotokoll angezeigt</string>
