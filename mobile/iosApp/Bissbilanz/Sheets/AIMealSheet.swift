@@ -123,6 +123,17 @@ struct AIMealSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
+                        if !appMode.isLocal, isClaudeProcessor {
+                            Label {
+                                Text(claudeCaptureHint)
+                            } icon: {
+                                Image(systemName: "sparkles")
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
                         if showsAssistantConnectionHint {
                             Label {
                                 Text(L10n.aiTaskNoAssistantConnected)
@@ -267,7 +278,21 @@ struct AIMealSheet: View {
     /// assistant — the queue button stays useful (and relabels itself) even
     /// with no assistant connected at all.
     private var isDeviceProcessor: Bool {
-        preferencesRepository.preferences()?.aiTaskProcessor == Preferences.aiTaskProcessorDevice
+        preferencesRepository.preferences()?.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice
+    }
+
+    /// Claude processes queued tasks on the server: chosen and available. A
+    /// chosen-but-unavailable Claude behaves like the assistant processor.
+    private var isClaudeProcessor: Bool {
+        ClaudeProcessorOption.isActive(
+            effective: preferencesRepository.preferences()?.effectiveAiTaskProcessor ?? "",
+            capability: preferencesRepository.claudeCapability
+        )
+    }
+
+    private var claudeCaptureHint: String {
+        let autoLog = preferencesRepository.preferences()?.aiTaskAutoLog ?? false
+        return autoLog ? L10n.aiTasksCaptureHintClaude : L10n.aiTasksCaptureHintClaudeReview
     }
 
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
@@ -288,7 +313,7 @@ struct AIMealSheet: View {
         }
         .disabled(
             !canSendToAssistant || isSendingToAssistant || isEstimating
-                || !(isDeviceProcessor || mcpConnectionStatus.isConnected)
+                || !(isDeviceProcessor || isClaudeProcessor || mcpConnectionStatus.isConnected)
         )
 
         if mealEstimator.canEstimate {
@@ -376,7 +401,7 @@ struct AIMealSheet: View {
     /// when this iPhone is the processor — the task always has someone to
     /// pick it up in that case.
     private var showsAssistantConnectionHint: Bool {
-        !appMode.isLocal && !isDeviceProcessor && !mcpConnectionStatus.isConnected
+        !appMode.isLocal && !isDeviceProcessor && !isClaudeProcessor && !mcpConnectionStatus.isConnected
     }
 
     /// Empty once an estimate can actually be produced (on-device or, absent

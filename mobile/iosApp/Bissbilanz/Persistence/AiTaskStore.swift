@@ -455,4 +455,32 @@ final class AiTaskStore {
         AiTaskDraftDisk.remove(taskId: id)
         return updated
     }
+
+    /// Logs the entries Claude proposed and swaps the completed task into the
+    /// list. A 409 means the proposal is no longer open, so the list is
+    /// refreshed to show what the server has now; any other failure leaves the
+    /// task as it was so the caller can keep the selection and offer a retry.
+    func acceptProposal(id: String, itemIds: [String]) async -> AiTaskProposalAcceptResult {
+        guard !appMode.isLocal else { return .failed }
+        do {
+            let updated = try await api.acceptAiTaskProposal(id: id, itemIds: itemIds)
+            if let index = tasks.firstIndex(where: { $0.id == id }) {
+                tasks[index] = updated
+            }
+            return .logged
+        } catch {
+            guard Self.isConflict(error) else { return .failed }
+            do {
+                try await refresh()
+            } catch {
+                ErrorReporter.capture(error, context: ["op": "refreshAfterProposalConflict"])
+            }
+            return .conflict
+        }
+    }
+
+    nonisolated static func isConflict(_ error: Error) -> Bool {
+        guard let apiError = error as? APIError, case .conflict = apiError else { return false }
+        return true
+    }
 }

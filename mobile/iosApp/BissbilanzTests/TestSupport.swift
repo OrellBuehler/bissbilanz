@@ -296,7 +296,9 @@ struct RepositoryHarness {
     }
 
     var preferencesRepository: PreferencesRepository {
-        PreferencesRepository(context: context, api: api, appMode: appMode, syncManager: syncManager)
+        PreferencesRepository(
+            context: context, api: api, appMode: appMode, syncManager: syncManager, defaults: defaults
+        )
     }
 
     var migrator: LocalDataMigrator {

@@ -1682,6 +1682,63 @@ struct RepositoryTests {
         #expect(merged.showDayPropertiesWidget == true)
     }
 
+    @Test("Choosing Claude stores the kind and keeps the legacy field on assistant")
+    func preferencesClaudeChoiceMapsLegacyField() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        harness.context.insert(LocalPreferences(preferences: .defaults))
+        try harness.context.save()
+        harness.stub("PATCH", "/api/preferences", status: 500, json: #"{"error": "boom"}"#)
+
+        var update = PreferencesUpdate()
+        update.aiTaskProcessor = Preferences.aiTaskProcessorClaude
+        _ = try await repo.update(update)
+        await harness.syncManager.drainPendingQueue()
+
+        let claude = try #require(repo.preferences())
+        #expect(claude.aiTaskProcessorKind == "claude")
+        #expect(claude.aiTaskProcessor == "assistant")
+        #expect(claude.effectiveAiTaskProcessor == "claude")
+
+        var device = PreferencesUpdate()
+        device.aiTaskProcessor = Preferences.aiTaskProcessorDevice
+        _ = try await repo.update(device)
+        await harness.syncManager.drainPendingQueue()
+
+        let switched = try #require(repo.preferences())
+        #expect(switched.aiTaskProcessorKind == "device")
+        #expect(switched.aiTaskProcessor == "device")
+        #expect(switched.effectiveAiTaskProcessor == "device")
+    }
+
+    @Test("Refresh keeps the Claude capability from GET, persists it and clears it when omitted")
+    func preferencesRefreshStoresClaudeCapability() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        #expect(repo.claudeCapability == nil)
+
+        let withClaude = PreferencesResponse(
+            preferences: .defaults, claude: ClaudeCapability(available: true, remainingBudgetUsd: 8.31)
+        )
+        let withClaudeJSON = String(decoding: try JSONEncoder().encode(withClaude), as: UTF8.self)
+        harness.stub("GET", "/api/preferences", json: withClaudeJSON)
+        try await repo.refresh()
+        #expect(repo.claudeCapability == ClaudeCapability(available: true, remainingBudgetUsd: 8.31))
+
+        let reloaded = PreferencesRepository.decodeCapability(
+            harness.defaults.data(forKey: PreferencesRepository.claudeCapabilityKey)
+        )
+        #expect(reloaded == ClaudeCapability(available: true, remainingBudgetUsd: 8.31))
+        #expect(harness.preferencesRepository.claudeCapability == reloaded)
+
+        let without = PreferencesResponse(preferences: .defaults, claude: nil)
+        let withoutJSON = String(decoding: try JSONEncoder().encode(without), as: UTF8.self)
+        harness.stub("GET", "/api/preferences", json: withoutJSON)
+        try await repo.refresh()
+        #expect(repo.claudeCapability == nil)
+        #expect(harness.defaults.data(forKey: PreferencesRepository.claudeCapabilityKey) == nil)
+    }
+
     // MARK: Local mode
 
     @Test("Local mode repositories never hit the network and never enqueue")
