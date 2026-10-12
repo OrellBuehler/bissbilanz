@@ -151,6 +151,19 @@ import {
 } from './validation/responses/ai-tasks';
 import { mcpStatusResponseSchema } from './validation/responses/mcp';
 import {
+	adminUserListQuerySchema,
+	adminUserDetailQuerySchema,
+	adminClaudeAccessUpdateSchema,
+	adminClaudeSettingsUpdateSchema
+} from './validation/admin';
+import {
+	adminUsersResponseSchema,
+	adminUserDetailResponseSchema,
+	adminClaudeAccessResponseSchema,
+	adminClaudeOverviewResponseSchema,
+	adminClaudeSettingsResponseSchema
+} from './validation/responses/admin';
+import {
 	authProvidersResponseSchema,
 	mobileTokenResponseSchema
 } from './validation/responses/auth';
@@ -2422,6 +2435,100 @@ export const apiPaths = {
 				'400': res400,
 				'401': res401,
 				'404': res404
+			}
+		}
+	},
+
+	// ── Admin ─────────────────────────────────────────────
+	// Web-only: an admin cookie session is required. Every other caller (bearer
+	// tokens, non-admins, unknown users) gets the same 404.
+	'/api/admin/users': {
+		get: {
+			operationId: 'adminListUsers',
+			tags: ['Admin'],
+			description:
+				'List users with their Claude access and month-to-date spend. Admin cookie session only; everyone else gets 404.',
+			requestParams: { query: adminUserListQuerySchema },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: adminUsersResponseSchema } }
+				},
+				'400': res400,
+				'404': res404
+			}
+		}
+	},
+	'/api/admin/users/{id}': {
+		get: {
+			operationId: 'adminGetUser',
+			tags: ['Admin'],
+			description:
+				'One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404.',
+			requestParams: { path: uuidPathId, query: adminUserDetailQuerySchema },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: adminUserDetailResponseSchema } }
+				},
+				'400': res400,
+				'404': res404
+			}
+		}
+	},
+	'/api/admin/users/{id}/claude-access': {
+		patch: {
+			operationId: 'adminUpdateClaudeAccess',
+			tags: ['Admin'],
+			description:
+				"Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: adminClaudeAccessUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: adminClaudeAccessResponseSchema } }
+				},
+				'400': res400,
+				'404': res404,
+				'429': res429
+			}
+		}
+	},
+	'/api/admin/claude': {
+		get: {
+			operationId: 'adminGetClaudeOverview',
+			tags: ['Admin'],
+			description:
+				'Global Claude state: kill switch, configured model, month-to-date spend against the global budget, top users and task run counts. Never contains the API key. Admin cookie session only; everyone else gets 404.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: adminClaudeOverviewResponseSchema } }
+				},
+				'404': res404
+			}
+		},
+		patch: {
+			operationId: 'adminUpdateClaudeSettings',
+			tags: ['Admin'],
+			description:
+				'Turn the global Claude kill switch on or off. Turning it off stops all in-flight Claude runs. Admin cookie session only; everyone else gets 404.',
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: adminClaudeSettingsUpdateSchema } }
+			},
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: adminClaudeSettingsResponseSchema } }
+				},
+				'400': res400,
+				'404': res404,
+				'429': res429
 			}
 		}
 	}

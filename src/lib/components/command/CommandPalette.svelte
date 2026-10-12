@@ -8,6 +8,7 @@
 	import { foodService } from '$lib/services/food-service.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { getNavItems } from '$lib/config/navigation';
+	import { getUser } from '$lib/stores/auth.svelte';
 	import { commandPalette, requestQuickAction } from '$lib/stores/command-palette.svelte';
 	import { parseDateQuery, rankByQuery } from '$lib/utils/command-palette';
 	import { formatDateLabel, yesterday } from '$lib/utils/dates';
@@ -166,7 +167,11 @@
 		}
 	]);
 
-	const pages = $derived(rankByQuery(getNavItems(), query, (item) => item.title()));
+	const pages = $derived(
+		rankByQuery(getNavItems({ isAdmin: getUser()?.isAdmin === true }), query, (item) =>
+			item.title()
+		)
+	);
 	const matchedActions = $derived(rankByQuery(actions, query, (action) => action.label));
 	const parsedDate = $derived(parseDateQuery(query));
 

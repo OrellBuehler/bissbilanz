@@ -29,7 +29,8 @@
 		new: () => m.foods_new(),
 		maintenance: () => m.nav_maintenance(),
 		help: () => m.nav_help(),
-		mcp: () => 'MCP'
+		mcp: () => 'MCP',
+		admin: () => m.nav_admin()
 	};
 
 	const isHome = $derived(deLocalizeHref($page.url.pathname) === '/home');
@@ -39,6 +40,7 @@
 		const segments = pathname.split('/').filter(Boolean);
 		const last = segments[segments.length - 1];
 		const guide = segments[0] === 'help' && segments.length === 2 ? getHelpGuide(last) : undefined;
+		if (segments[0] === 'admin' && /^[0-9a-f]{8}-/i.test(last ?? '')) return labelMap.admin();
 		return guide?.title() ?? labelMap[last]?.() ?? last ?? '';
 	});
 

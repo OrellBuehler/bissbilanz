@@ -48,6 +48,10 @@ rm -f "$OUTPUT_DIR"/CatalogByBarcode200Response.kt \
   "$OUTPUT_DIR"/CatalogByBarcode404Response.kt \
   "$OUTPUT_DIR"/CatalogSearch200Response.kt
 
+# The admin endpoints are web-only (admin cookie session; bearer tokens get 404).
+# Inline schemas are named after the admin* operationId, so the glob catches them.
+rm -f "$OUTPUT_DIR"/Admin*.kt
+
 # Fix duplicate @Serializable annotation (openapi-generator multiplatform bug)
 # and strip JVM-only imports. Use `sed -i.bak` (portable across GNU + BSD/macOS),
 # then remove the backups.

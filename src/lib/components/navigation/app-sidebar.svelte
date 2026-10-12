@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { beforeNavigate } from '$app/navigation';
 	import { getNavGroups } from '$lib/config/navigation';
+	import { getUser } from '$lib/stores/auth.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	import X from '@lucide/svelte/icons/x';
@@ -14,7 +15,7 @@
 
 	let { ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 
-	const navGroups = getNavGroups();
+	const navGroups = $derived(getNavGroups({ isAdmin: getUser()?.isAdmin === true }));
 	const sidebar = useSidebar();
 
 	beforeNavigate(() => {
