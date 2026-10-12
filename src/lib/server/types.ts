@@ -5,6 +5,7 @@ export interface UserProfile {
 	email: string | null;
 	name: string | null;
 	avatarUrl: string | null;
+	isAdmin?: boolean;
 }
 
 export type SuccessResult<T> = { success: true; data: T };
