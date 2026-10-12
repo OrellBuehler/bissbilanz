@@ -1682,6 +1682,166 @@ struct RepositoryTests {
         #expect(merged.showDayPropertiesWidget == true)
     }
 
+    @Test("Choosing Claude stores the kind and keeps the legacy field on assistant")
+    func preferencesClaudeChoiceMapsLegacyField() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        harness.context.insert(LocalPreferences(preferences: .defaults))
+        try harness.context.save()
+        harness.stub("PATCH", "/api/preferences", status: 500, json: #"{"error": "boom"}"#)
+
+        var update = PreferencesUpdate()
+        update.aiTaskProcessor = Preferences.aiTaskProcessorClaude
+        _ = try await repo.update(update)
+        await harness.syncManager.drainPendingQueue()
+
+        let claude = try #require(repo.preferences())
+        #expect(claude.aiTaskProcessorKind == "claude")
+        #expect(claude.aiTaskProcessor == "assistant")
+        #expect(claude.effectiveAiTaskProcessor == "claude")
+
+        var device = PreferencesUpdate()
+        device.aiTaskProcessor = Preferences.aiTaskProcessorDevice
+        _ = try await repo.update(device)
+        await harness.syncManager.drainPendingQueue()
+
+        let switched = try #require(repo.preferences())
+        #expect(switched.aiTaskProcessorKind == "device")
+        #expect(switched.aiTaskProcessor == "device")
+        #expect(switched.effectiveAiTaskProcessor == "device")
+    }
+
+    @Test("Refresh keeps the Claude capability from GET, persists it and clears it when omitted")
+    func preferencesRefreshStoresClaudeCapability() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        #expect(repo.claudeCapability == nil)
+
+        let withClaude = PreferencesResponse(
+            preferences: .defaults, claude: ClaudeCapability(available: true, remainingBudgetUsd: 8.31)
+        )
+        let withClaudeJSON = String(decoding: try JSONEncoder().encode(withClaude), as: UTF8.self)
+        harness.stub("GET", "/api/preferences", json: withClaudeJSON)
+        try await repo.refresh()
+        #expect(repo.claudeCapability == ClaudeCapability(available: true, remainingBudgetUsd: 8.31))
+
+        let reloaded = PreferencesRepository.decodeCapability(
+            harness.defaults.data(forKey: PreferencesRepository.claudeCapabilityKey)
+        )
+        #expect(reloaded == ClaudeCapability(available: true, remainingBudgetUsd: 8.31))
+        #expect(harness.preferencesRepository.claudeCapability == reloaded)
+
+        let without = PreferencesResponse(preferences: .defaults, claude: nil)
+        let withoutJSON = String(decoding: try JSONEncoder().encode(without), as: UTF8.self)
+        harness.stub("GET", "/api/preferences", json: withoutJSON)
+        try await repo.refresh()
+        #expect(repo.claudeCapability == nil)
+        #expect(harness.defaults.data(forKey: PreferencesRepository.claudeCapabilityKey) == nil)
+    }
+
+    // MARK: AI task proposals
+
+    private static func proposalTask(status: String = "pending", proposed: Bool = true) -> AiTask {
+        let item = AiTaskProposalItem(
+            id: "i1", name: "Egg", quantityDescription: nil, foodId: nil, recipeId: nil,
+            servings: 1, calories: 78, protein: 6, carbs: 0.6, fat: 5, fiber: 0
+        )
+        let second = AiTaskProposalItem(
+            id: "i2", name: "Toast", quantityDescription: nil, foodId: nil, recipeId: nil,
+            servings: 1, calories: 80, protein: 3, carbs: 15, fat: 1, fiber: 1
+        )
+        let processing = proposed
+            ? AiTaskClaudeProcessing(state: "proposed", proposal: AiTaskProposal(summary: nil, items: [item, second]))
+            : nil
+        return AiTask(
+            id: "t1", userId: "u1", status: status, description: "eggs", photoUrl: nil, photoUrls: [],
+            date: "2026-10-12", mealType: nil, eatenAt: nil, source: nil, resultSummary: nil,
+            createdEntryIds: nil, completedAt: nil, dismissedAt: nil, acknowledgedAt: nil, processedBy: nil,
+            createdAt: nil, updatedAt: nil, claudeProcessing: processing
+        )
+    }
+
+    private static func json(_ value: some Encodable) throws -> String {
+        String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
+    }
+
+    private func storeWithProposal(_ harness: RepositoryHarness) async throws -> AiTaskStore {
+        let store = harness.aiTaskStore
+        let listed = AiTasksResponse(tasks: [Self.proposalTask()], total: 1)
+        harness.stub("GET", "/api/ai-tasks", json: try Self.json(listed))
+        try await store.refresh()
+        #expect(store.tasks.first?.openProposal != nil)
+        return store
+    }
+
+    @Test("Accepting a proposal posts only the selected ids and replaces the task")
+    func acceptProposalSuccess() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await storeWithProposal(harness)
+        var completed = Self.proposalTask(status: "completed", proposed: false)
+        completed.processedByKind = "claude"
+        harness.stub(
+            "POST", "/api/ai-tasks/t1/proposal/accept", json: try Self.json(AiTaskResponse(task: completed))
+        )
+
+        let result = await store.acceptProposal(id: "t1", itemIds: ["i2"])
+
+        #expect(result == .logged)
+        #expect(store.tasks.first?.status == "completed")
+        #expect(store.tasks.first?.isProcessedByClaude == true)
+        let bodies = harness.recordedBodies("POST", "/api/ai-tasks/t1/proposal/accept")
+        #expect(bodies.count == 1)
+        let sent = try JSONDecoder().decode(AiTaskProposalAccept.self, from: try #require(bodies.first))
+        #expect(sent.itemIds == ["i2"])
+    }
+
+    @Test("A 409 or 404 on accept refreshes the list and reports a conflict")
+    func acceptProposalGone() async throws {
+        for status in [409, 404] {
+            let harness = try RepositoryHarness()
+            let store = try await storeWithProposal(harness)
+            let reopened = AiTasksResponse(tasks: [Self.proposalTask(status: "dismissed", proposed: false)], total: 1)
+            harness.stub("GET", "/api/ai-tasks", json: try Self.json(reopened))
+            harness.stub("POST", "/api/ai-tasks/t1/proposal/accept", status: status, json: #"{"error": "gone"}"#)
+
+            let result = await store.acceptProposal(id: "t1", itemIds: ["i1"])
+
+            #expect(result == .conflict)
+            #expect(store.tasks.first?.status == "dismissed")
+            #expect(harness.recordedRequests.filter { $0 == "GET /api/ai-tasks" }.count == 2)
+        }
+    }
+
+    @Test("A server error or an offline accept fails and leaves the list unchanged")
+    func acceptProposalFailure() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await storeWithProposal(harness)
+
+        harness.stub("POST", "/api/ai-tasks/t1/proposal/accept", status: 500, json: #"{"error": "boom"}"#)
+        #expect(await store.acceptProposal(id: "t1", itemIds: ["i1"]) == .failed)
+        #expect(store.tasks.first?.openProposal != nil)
+
+        harness.stubError("POST", "/api/ai-tasks/t1/proposal/accept", code: .notConnectedToInternet)
+        #expect(await store.acceptProposal(id: "t1", itemIds: ["i1"]) == .failed)
+        #expect(store.tasks.first?.openProposal != nil)
+        #expect(harness.recordedRequests.filter { $0 == "GET /api/ai-tasks" }.count == 1)
+    }
+
+    @Test("Clearing the Claude capability drops it from memory and from storage")
+    func clearClaudeCapability() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.preferencesRepository
+        let response = PreferencesResponse(preferences: .defaults, claude: ClaudeCapability(available: true))
+        harness.stub("GET", "/api/preferences", json: try Self.json(response))
+        try await repo.refresh()
+        #expect(repo.claudeCapability != nil)
+
+        repo.clearClaudeCapability()
+
+        #expect(repo.claudeCapability == nil)
+        #expect(harness.defaults.data(forKey: PreferencesRepository.claudeCapabilityKey) == nil)
+    }
+
     // MARK: Local mode
 
     @Test("Local mode repositories never hit the network and never enqueue")

@@ -193,6 +193,7 @@ final class LocalDataMigrator {
         // account's photos into the next.
         LocalImageStore.clear()
         defaults.removeObject(forKey: Self.normalizedMarkerKey)
+        defaults.removeObject(forKey: PreferencesRepository.claudeCapabilityKey)
         FoodMirrorState.reset(defaults)
         BulkUploadState.reset(defaults)
     }

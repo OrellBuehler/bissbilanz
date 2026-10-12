@@ -23,10 +23,15 @@ extension BissbilanzAPI {
     // MARK: - Preferences
 
     func getPreferences() async throws -> Preferences {
-        // The server wraps the body as `{ preferences: {...} }` (like every other
-        // endpoint), so decode the envelope rather than a bare `Preferences`.
-        let response: PreferencesResponse = try await get("/api/preferences")
-        return response.preferences
+        try await getPreferencesResponse().preferences
+    }
+
+    /// The whole GET envelope, including the `claude` capability that PATCH
+    /// responses omit. The server wraps the body as `{ preferences: {...} }`
+    /// (like every other endpoint), so decode the envelope rather than a bare
+    /// `Preferences`.
+    func getPreferencesResponse() async throws -> PreferencesResponse {
+        try await get("/api/preferences")
     }
 
     func updatePreferences(

@@ -69,9 +69,34 @@ struct Preferences: Codable, Equatable {
     /// held for the user to review first (`false`, the default — matches the
     /// server default). Meaningless when `aiTaskProcessor` is the assistant.
     var aiTaskAutoLog: Bool = false
+    /// The real processor, including values the legacy `aiTaskProcessor`
+    /// enum cannot express (`"claude"`; the server reads `"assistant"` there).
+    /// A free string because the server's set of kinds is extensible — read
+    /// it through `effectiveAiTaskProcessor`, never directly. Nil on a cached
+    /// row or an older server that predates it.
+    var aiTaskProcessorKind: String? = nil
 
     static let aiTaskProcessorAssistant = "assistant"
     static let aiTaskProcessorDevice = "device"
+    static let aiTaskProcessorClaude = "claude"
+
+    /// The processor the user actually chose: the kind when it is one this
+    /// build knows, otherwise the legacy field. An unknown future kind falls
+    /// back to the legacy value so it can never route work to this device.
+    var effectiveAiTaskProcessor: String {
+        Preferences.effectiveAiTaskProcessor(kind: aiTaskProcessorKind, legacy: aiTaskProcessor)
+    }
+
+    static func effectiveAiTaskProcessor(kind: String?, legacy: String) -> String {
+        let known = [aiTaskProcessorAssistant, aiTaskProcessorDevice, aiTaskProcessorClaude]
+        guard let kind, known.contains(kind) else { return legacy }
+        return kind
+    }
+
+    /// What the server's legacy `aiTaskProcessor` field reads for a stored kind.
+    static func legacyAiTaskProcessor(forKind kind: String) -> String {
+        kind == aiTaskProcessorClaude ? aiTaskProcessorAssistant : kind
+    }
 
     static let defaults = Preferences(
         showChartWidget: true,
@@ -99,7 +124,8 @@ struct Preferences: Codable, Equatable {
         activityGoalAdjustment: false,
         activityCreditPercent: 100,
         aiTaskProcessor: aiTaskProcessorAssistant,
-        aiTaskAutoLog: false
+        aiTaskAutoLog: false,
+        aiTaskProcessorKind: nil
     )
 }
 
@@ -117,7 +143,7 @@ extension Preferences {
         case widgetOrder, startPage, favoriteTapAction, favoriteMealAssignmentMode
         case visibleNutrients, biologicalSex, locale, timeZone, waterGoalMl
         case activityGoalAdjustment, activityCreditPercent
-        case aiTaskProcessor, aiTaskAutoLog
+        case aiTaskProcessor, aiTaskAutoLog, aiTaskProcessorKind
     }
 
     init(from decoder: Decoder) throws {
@@ -153,6 +179,7 @@ extension Preferences {
         aiTaskProcessor = try container.decodeIfPresent(String.self, forKey: .aiTaskProcessor)
             ?? Preferences.aiTaskProcessorAssistant
         aiTaskAutoLog = try container.decodeIfPresent(Bool.self, forKey: .aiTaskAutoLog) ?? false
+        aiTaskProcessorKind = try container.decodeIfPresent(String.self, forKey: .aiTaskProcessorKind)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -183,13 +210,56 @@ extension Preferences {
         try container.encode(activityCreditPercent, forKey: .activityCreditPercent)
         try container.encode(aiTaskProcessor, forKey: .aiTaskProcessor)
         try container.encode(aiTaskAutoLog, forKey: .aiTaskAutoLog)
+        try container.encodeIfPresent(aiTaskProcessorKind, forKey: .aiTaskProcessorKind)
     }
 }
 
 /// The server wraps the preferences body as `{ preferences: {...} }` on both GET
-/// and PATCH; decode this envelope, not a bare `Preferences`.
+/// and PATCH; decode this envelope, not a bare `Preferences`. `claude` is on
+/// GET only — a PATCH response omits it, so callers keep the last GET's value.
 struct PreferencesResponse: Codable {
     let preferences: Preferences
+    var claude: ClaudeCapability?
+}
+
+/// Whether the server would run Claude for this user right now, and how much
+/// of their monthly budget is left in USD (only sent while available).
+struct ClaudeCapability: Codable, Equatable, Sendable {
+    var available: Bool
+    var remainingBudgetUsd: Double?
+
+    init(available: Bool, remainingBudgetUsd: Double? = nil) {
+        self.available = available
+        self.remainingBudgetUsd = remainingBudgetUsd
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        available = try container.decodeIfPresent(Bool.self, forKey: .available) ?? false
+        remainingBudgetUsd = try container.decodeIfPresent(Double.self, forKey: .remainingBudgetUsd)
+    }
+}
+
+/// How the processor picker treats Claude, derived from the stored choice and
+/// the last-known capability. Pure so it can be tested without a view.
+enum ClaudeProcessorOption: Equatable {
+    /// Not offered: Claude is unavailable and not the stored choice.
+    case hidden
+    /// Offered and selectable.
+    case selectable
+    /// The stored choice, but the server will not run it right now: shown as
+    /// a disabled row with an explanation.
+    case unavailable
+
+    static func resolve(effective: String, capability: ClaudeCapability?) -> ClaudeProcessorOption {
+        if capability?.available == true { return .selectable }
+        return effective == Preferences.aiTaskProcessorClaude ? .unavailable : .hidden
+    }
+
+    /// Claude will actually process queued tasks: chosen and available.
+    static func isActive(effective: String, capability: ClaudeCapability?) -> Bool {
+        effective == Preferences.aiTaskProcessorClaude && capability?.available == true
+    }
 }
 
 struct PreferencesUpdate: Codable {

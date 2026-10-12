@@ -12,12 +12,51 @@ final class PreferencesRepository {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let syncManager: SyncManager
+    private let defaults: UserDefaults
 
-    init(context: ModelContext, api: BissbilanzAPI, appMode: AppModeManager, syncManager: SyncManager) {
+    /// Whether the server would run Claude for this user, from the last GET
+    /// (PATCH responses omit it). Persisted so it survives a relaunch while
+    /// offline; nil means unknown, which every caller treats as unavailable.
+    private(set) var claudeCapability: ClaudeCapability?
+
+    nonisolated static let claudeCapabilityKey = "claudeCapability"
+
+    init(
+        context: ModelContext,
+        api: BissbilanzAPI,
+        appMode: AppModeManager,
+        syncManager: SyncManager,
+        defaults: UserDefaults = .standard
+    ) {
         self.context = context
         self.api = api
         self.appMode = appMode
         self.syncManager = syncManager
+        self.defaults = defaults
+        claudeCapability = Self.decodeCapability(defaults.data(forKey: Self.claudeCapabilityKey))
+    }
+
+    nonisolated static func encodeCapability(_ capability: ClaudeCapability?) -> Data? {
+        guard let capability else { return nil }
+        return try? JSONEncoder().encode(capability)
+    }
+
+    nonisolated static func decodeCapability(_ data: Data?) -> ClaudeCapability? {
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(ClaudeCapability.self, from: data)
+    }
+
+    func clearClaudeCapability() {
+        storeCapability(nil)
+    }
+
+    private func storeCapability(_ capability: ClaudeCapability?) {
+        claudeCapability = capability
+        if let data = Self.encodeCapability(capability) {
+            defaults.set(data, forKey: Self.claudeCapabilityKey)
+        } else {
+            defaults.removeObject(forKey: Self.claudeCapabilityKey)
+        }
     }
 
     func preferences() -> Preferences? {
@@ -26,7 +65,9 @@ final class PreferencesRepository {
 
     func refresh() async throws {
         guard !appMode.isLocal else { return }
-        let prefs = try await api.getPreferences()
+        let response = try await api.getPreferencesResponse()
+        let prefs = response.preferences
+        storeCapability(response.claude)
         // Singleton row — a queued updatePreferences carries no affectedId, so
         // presence is the only guard available (see GoalsRepository.refresh).
         guard !syncManager.hasPending(table: "preferences") else { return }
@@ -57,6 +98,10 @@ final class PreferencesRepository {
             patch["showNotesWidget"] = legacy
         }
         var merged = (try? JSONPatch.merged(Preferences.self, base: current, patch: patch)) ?? current
+        if let processor = update.aiTaskProcessor {
+            merged.aiTaskProcessorKind = processor
+            merged.aiTaskProcessor = Preferences.legacyAiTaskProcessor(forKind: processor)
+        }
         merged.showDayPropertiesWidget = merged.showWaterWidget || merged.showActivityWidget || merged.showNotesWidget
         upsert(merged)
         save()
