@@ -53,7 +53,10 @@
 		"catalog:import": "bun run scripts/catalog.ts import",
 		"catalog:grant": "bun run scripts/catalog.ts grant",
 		"catalog:revoke": "bun run scripts/catalog.ts revoke",
-		"catalog:list": "bun run scripts/catalog.ts list"
+		"catalog:list": "bun run scripts/catalog.ts list",
+		"admin:grant": "bun run scripts/admin.ts grant",
+		"admin:revoke": "bun run scripts/admin.ts revoke",
+		"admin:list": "bun run scripts/admin.ts list"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
