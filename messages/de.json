@@ -1679,5 +1679,10 @@
 	"add_from_recipe_load_failed": "Die Zutaten dieses Rezepts konnten nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
 	"add_from_recipe_no_ingredients": "Dieses Rezept hat keine Zutaten.",
 	"add_from_recipe_too_many": "Ein Rezept kann höchstens {max} Zutaten haben. Mit diesen wären es {count}.",
-	"add_from_recipe_invalid_amount": "Gib eine Menge grösser als null ein."
+	"add_from_recipe_invalid_amount": "Gib eine Menge grösser als null ein.",
+	"claude_task_reason_failed": "Claude konnte diese Mahlzeit nach mehreren Versuchen nicht verarbeiten. Bitte trage sie selbst ein.",
+	"claude_task_reason_refused": "Claude hat die Verarbeitung dieser Mahlzeit abgelehnt. Bitte trage sie selbst ein.",
+	"claude_task_reason_incomplete": "Claude konnte diese Mahlzeit nicht abschliessen. Bitte prüfe dein Tagebuch und trage Fehlendes nach.",
+	"claude_task_reason_stopped": "Die Claude-Verarbeitung wurde gestoppt, bevor diese Mahlzeit fertig war. Bitte prüfe dein Tagebuch und trage Fehlendes nach.",
+	"claude_task_partial_suffix": "Bereits eingetragen: {items}."
 }

@@ -1679,5 +1679,10 @@
 	"add_from_recipe_load_failed": "Couldn't load this recipe's ingredients. Check your connection and try again.",
 	"add_from_recipe_no_ingredients": "This recipe has no ingredients.",
 	"add_from_recipe_too_many": "A recipe can have at most {max} ingredients. Adding these would make {count}.",
-	"add_from_recipe_invalid_amount": "Enter an amount greater than zero."
+	"add_from_recipe_invalid_amount": "Enter an amount greater than zero.",
+	"claude_task_reason_failed": "Claude could not process this meal after several attempts. Please log it yourself.",
+	"claude_task_reason_refused": "Claude declined to process this meal. Please log it yourself.",
+	"claude_task_reason_incomplete": "Claude could not finish this meal. Please check your diary and log anything missing.",
+	"claude_task_reason_stopped": "Claude processing was stopped before this meal was finished. Please check your diary and log anything missing.",
+	"claude_task_partial_suffix": "Already logged: {items}."
 }
