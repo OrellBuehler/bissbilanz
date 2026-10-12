@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import * as Sentry from '@sentry/sveltekit';
 	import { toast } from 'svelte-sonner';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
@@ -47,7 +47,6 @@
 	let loading = $state(true);
 	let failed = $state(false);
 	let saving = $state<string[]>([]);
-	let mounted = $state(false);
 	let sequence = 0;
 
 	const accessOptions = $derived([
@@ -95,10 +94,6 @@
 		}
 	}
 
-	onMount(() => {
-		mounted = true;
-	});
-
 	$effect(() => {
 		const value = qInput;
 		const timer = setTimeout(() => {
@@ -111,7 +106,6 @@
 	});
 
 	$effect(() => {
-		if (!mounted) return;
 		const params = { q, access, sort, order, page };
 		untrack(() => void load(params));
 	});
@@ -188,6 +182,8 @@
 		);
 	}
 
+	const displayName = (row: AdminUserRow) => row.name || row.email || row.id;
+
 	const sortIcon = (column: typeof sort) =>
 		sort !== column ? ArrowUpDown : order === 'asc' ? ArrowUp : ArrowDown;
 </script>
@@ -226,9 +222,9 @@
 	</div>
 {/snippet}
 
-{#snippet accessSwitch(row: AdminUserRow, label: string)}
+{#snippet accessSwitch(row: AdminUserRow)}
 	<Switch
-		aria-label={label}
+		aria-label={m.admin_users_access_for({ user: displayName(row) })}
 		disabled={saving.includes(row.id)}
 		bind:checked={() => row.claude.enabled, (value) => void setEnabled(row, value)}
 	/>
@@ -238,6 +234,7 @@
 	<BudgetInput
 		value={row.claude.monthlyBudgetUsd}
 		{defaultBudget}
+		label={m.admin_users_budget_for({ user: displayName(row) })}
 		disabled={saving.includes(row.id)}
 		class="h-8 w-40 text-right text-sm tabular-nums"
 		onSave={(value) => setBudget(row, value)}
@@ -348,7 +345,7 @@
 				<div class="space-y-3 rounded-xl border p-3" data-testid="admin-user-card">
 					<div class="flex items-center justify-between gap-3">
 						{@render userCell(row)}
-						{@render accessSwitch(row, m.admin_users_col_access())}
+						{@render accessSwitch(row)}
 					</div>
 					{@render providerBadges(row)}
 					<dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -418,7 +415,7 @@
 							</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{row.entryCount}</Table.Cell>
 							<Table.Cell class="text-right tabular-nums">{row.openAiTaskCount}</Table.Cell>
-							<Table.Cell>{@render accessSwitch(row, m.admin_users_col_access())}</Table.Cell>
+							<Table.Cell>{@render accessSwitch(row)}</Table.Cell>
 							<Table.Cell class="text-right">{@render spend(row)}</Table.Cell>
 							<Table.Cell class="text-right">
 								<div class="flex justify-end">{@render budgetField(row)}</div>

@@ -24,6 +24,7 @@ export function adminEvent({ as = 'admin', ...options }: AdminEventOptions = {})
 			event.locals.session = SESSION;
 			break;
 		case 'bearer-admin':
+			event.locals.session = SESSION;
 			event.locals.tokenScopes = ['mcp:access', 'account:manage'];
 			break;
 	}

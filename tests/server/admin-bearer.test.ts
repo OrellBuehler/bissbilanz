@@ -104,11 +104,17 @@ describe('admin API with a bearer token (real hooks)', () => {
 		getUserById.mockResolvedValue(ADMIN_USER);
 		const event = request('/api/admin/claude', 'PATCH');
 
+		let reachedHandler = false;
+
 		const response = await handle({
 			event,
-			resolve: async (resolved) => adminClaude.PATCH(resolved as never)
+			resolve: async (resolved) => {
+				reachedHandler = true;
+				return adminClaude.PATCH(resolved as never);
+			}
 		});
 
+		expect(reachedHandler).toBe(true);
 		expect(response.status).toBe(404);
 	});
 });

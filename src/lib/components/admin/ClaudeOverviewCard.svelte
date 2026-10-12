@@ -6,6 +6,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
@@ -114,9 +115,9 @@
 			</div>
 		{:else}
 			<div class="flex items-center justify-between gap-3">
-				<label for="admin-claude-kill-switch" class="text-sm font-medium">
+				<Label for="admin-claude-kill-switch" class="text-sm font-medium">
 					{m.admin_claude_kill_switch()}
-				</label>
+				</Label>
 				<Switch
 					id="admin-claude-kill-switch"
 					disabled={saving}
@@ -209,7 +210,10 @@
 			<AlertDialog.Cancel>{m.cancel()}</AlertDialog.Cancel>
 			<AlertDialog.Action
 				class={buttonVariants({ variant: 'destructive' })}
-				onclick={() => setEnabled(false)}
+				onclick={() => {
+					confirmOpen = false;
+					void setEnabled(false);
+				}}
 			>
 				{m.admin_claude_kill_switch_stop()}
 			</AlertDialog.Action>

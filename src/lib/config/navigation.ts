@@ -50,7 +50,9 @@ export const breadcrumbLabelKeys = [
 	'mcp',
 	'ai-tasks',
 	'recipe-suggestions',
-	'reminders'
+	'reminders',
+	'admin',
+	'users'
 ] as const;
 
 export type NavOptions = { isAdmin?: boolean };

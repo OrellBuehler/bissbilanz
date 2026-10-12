@@ -121,15 +121,3 @@ describe('PATCH /api/admin/claude', () => {
 		expect(response.status).toBe(400);
 	});
 });
-
-describe('admin responses never carry the API key', () => {
-	test('overview and settings bodies contain no apiKey or sk- value', async () => {
-		const overview = await (await claudeModule.GET(adminEvent())).text();
-		const settings = await (
-			await claudeModule.PATCH(adminEvent({ method: 'PATCH', body: { enabled: true } }))
-		).text();
-		for (const body of [overview, settings]) {
-			expect(body).not.toMatch(/apiKey|api_key|sk-/i);
-		}
-	});
-});

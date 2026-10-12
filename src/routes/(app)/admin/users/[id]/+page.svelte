@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { page } from '$app/stores';
 	import * as Sentry from '@sentry/sveltekit';
 	import { toast } from 'svelte-sonner';
@@ -15,8 +15,8 @@
 	import RecentCallsTable from '$lib/components/admin/RecentCallsTable.svelte';
 	import UserUsageChart from '$lib/components/admin/UserUsageChart.svelte';
 	import {
-		fetchClaudeOverview,
 		fetchUserDetail,
+		AdminRequestError,
 		isUnexpectedFailure,
 		patchClaudeAccess,
 		runOptimistic,
@@ -38,35 +38,46 @@
 	let detail = $state<AdminUserDetail | null>(null);
 	let days = $state(30);
 	let failed = $state(false);
+	let notFound = $state(false);
 	let saving = $state(false);
 	let dialogOpen = $state(false);
 	let defaultBudget = $state<number | null>(null);
 	let sequence = 0;
 
-	async function loadDefaultBudget() {
-		try {
-			defaultBudget = (await fetchClaudeOverview()).defaultUserBudgetUsd;
-		} catch (error) {
-			if (isUnexpectedFailure(error)) Sentry.captureException(error);
-		}
-	}
-
 	async function load(userId: string, range: number) {
 		const current = ++sequence;
 		failed = false;
+		notFound = false;
 		try {
 			const result = await fetchUserDetail(userId, range);
-			if (current === sequence) detail = result;
+			if (current !== sequence) return;
+			detail = result;
+			learnDefaultBudget(result.user.claude);
 		} catch (error) {
 			if (current !== sequence) return;
+			if (error instanceof AdminRequestError && error.status === 404) {
+				notFound = true;
+				return;
+			}
 			failed = true;
 			if (isUnexpectedFailure(error)) Sentry.captureException(error);
 		}
 	}
 
-	onMount(() => {
-		void load(id, days);
-		void loadDefaultBudget();
+	function learnDefaultBudget(claude: {
+		monthlyBudgetUsd: number | null;
+		effectiveBudgetUsd: number;
+	}) {
+		if (claude.monthlyBudgetUsd === null) defaultBudget = claude.effectiveBudgetUsd;
+	}
+
+	$effect(() => {
+		const userId = id;
+		untrack(() => {
+			detail = null;
+			defaultBudget = null;
+			void load(userId, days);
+		});
 	});
 
 	function changeRange(value: string) {
@@ -87,6 +98,7 @@
 			detail.user.claude.monthlyBudgetUsd = access.monthlyBudgetUsd;
 			detail.user.claude.effectiveBudgetUsd = access.effectiveBudgetUsd;
 			detail.user.claude.note = access.note;
+			learnDefaultBudget(detail.user.claude);
 			toast.success(m.admin_saved(), { duration: 1500 });
 			void load(id, days);
 			return true;
@@ -101,19 +113,10 @@
 
 	async function confirmAccess(note: string | null) {
 		if (!detail) return;
-		const claude = detail.user.claude;
-		const previous = { enabled: claude.enabled, note: claude.note };
-		const enabled = !claude.enabled;
 		const ok = await save(
-			{ enabled, note },
-			() => {
-				claude.enabled = enabled;
-				claude.note = note;
-			},
-			() => {
-				claude.enabled = previous.enabled;
-				claude.note = previous.note;
-			}
+			{ enabled: !detail.user.claude.enabled, note },
+			() => {},
+			() => {}
 		);
 		if (ok) dialogOpen = false;
 	}
@@ -147,6 +150,8 @@
 				{m.admin_retry()}
 			</Button>
 		</div>
+	{:else if notFound}
+		<p class="text-muted-foreground py-8 text-center text-sm">{m.admin_users_empty()}</p>
 	{:else if !detail}
 		<div class="space-y-3">
 			<Skeleton class="h-16 w-full" />
