@@ -94,7 +94,7 @@
 	$effect(() => {
 		if (!polling) return;
 		const poll = () => {
-			if (document.visibilityState === 'visible') void aiTaskService.refresh();
+			if (document.visibilityState === 'visible') void aiTaskService.poll();
 		};
 		const timer = setInterval(poll, POLL_INTERVAL_MS);
 		document.addEventListener('visibilitychange', poll);

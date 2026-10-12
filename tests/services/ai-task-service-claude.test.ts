@@ -209,3 +209,74 @@ describe('aiTaskService.updateStatus', () => {
 		await expect(aiTaskService.updateStatus('t1', 'dismissed')).rejects.toThrow('update_failed');
 	});
 });
+
+describe('aiTaskService stale reads', () => {
+	test('a list read that started before a local accept is dropped', async () => {
+		mockApi.GET.mockResolvedValue({ data: { tasks: [task()], total: 1 } });
+		await aiTaskService.refresh();
+		let release: (value: unknown) => void = () => {};
+		mockApi.GET.mockReturnValue(new Promise((resolve) => (release = resolve)));
+		const stale = aiTaskService.refresh();
+		mockApi.POST.mockResolvedValue({
+			data: { task: task({ status: 'completed' }) },
+			response: new Response(null, { status: 200 })
+		});
+
+		await aiTaskService.acceptProposal('t1', { itemIds: ['a'] });
+		release({ data: { tasks: [task()], total: 1 } });
+		await stale;
+
+		expect(aiTaskService.tasks[0].status).toBe('completed');
+	});
+
+	test('a list read that started before a local dismiss is dropped', async () => {
+		mockApi.GET.mockResolvedValue({ data: { tasks: [task()], total: 1 } });
+		await aiTaskService.refresh();
+		let release: (value: unknown) => void = () => {};
+		mockApi.GET.mockReturnValue(new Promise((resolve) => (release = resolve)));
+		const stale = aiTaskService.refresh();
+		mockApi.PATCH.mockResolvedValue({
+			data: { task: task({ status: 'dismissed' }) },
+			response: new Response(null, { status: 200 })
+		});
+
+		await aiTaskService.updateStatus('t1', 'dismissed');
+		release({ data: { tasks: [task()], total: 1 } });
+		await stale;
+
+		expect(aiTaskService.tasks[0].status).toBe('dismissed');
+	});
+});
+
+describe('aiTaskService.poll', () => {
+	test('never overlaps and breadcrumbs failures instead of reporting them', async () => {
+		let release: (value: unknown) => void = () => {};
+		mockApi.GET.mockReturnValue(new Promise((resolve) => (release = resolve)));
+
+		const first = aiTaskService.poll();
+		await aiTaskService.poll();
+		expect(mockApi.GET).toHaveBeenCalledTimes(1);
+
+		release({ data: { tasks: [task()], total: 1 } });
+		await first;
+		expect(Sentry.captureException).not.toHaveBeenCalled();
+
+		mockApi.GET.mockRejectedValue(new TypeError('Failed to fetch'));
+		await aiTaskService.poll();
+		expect(Sentry.captureException).not.toHaveBeenCalled();
+		expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ category: 'ai-task', message: 'ai task poll failed' })
+		);
+	});
+
+	test('acknowledges unread dismissals after the refresh', async () => {
+		mockApi.GET.mockResolvedValue({
+			data: { tasks: [task({ status: 'dismissed', acknowledgedAt: null })], total: 1 }
+		});
+		mockApi.POST.mockResolvedValue({ data: {}, response: new Response(null, { status: 200 }) });
+
+		await aiTaskService.poll();
+
+		expect(mockApi.POST).toHaveBeenCalledWith('/api/ai-tasks/acknowledge', { body: {} });
+	});
+});

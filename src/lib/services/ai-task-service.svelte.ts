@@ -22,6 +22,11 @@ let tasks = $state<AiTask[]>([]);
 let loading = $state(false);
 let loaded = $state(false);
 
+// Bumped whenever a local accept or edit lands, so a list read that started
+// earlier (and may predate it) is dropped instead of undoing the change.
+let mutationGeneration = 0;
+let pollInFlight = false;
+
 const isUnread = (task: AiTask) => task.status === 'dismissed' && !task.acknowledgedAt;
 
 function readNotified(): Set<string> {
@@ -106,15 +111,23 @@ async function collectNewDismissals(): Promise<AiTask[]> {
 	return fresh;
 }
 
-async function refresh(): Promise<void> {
+async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser) return;
 	loading = true;
+	const generation = mutationGeneration;
 	try {
 		const { data } = await api.GET('/api/ai-tasks', { params: { query: { limit: 100 } } });
-		if (data) tasks = data.tasks;
+		if (data && generation === mutationGeneration) tasks = data.tasks;
 	} catch (err) {
 		// fire-and-forget — offline or network error; keep showing stale state
-		if (!(browser && !navigator.onLine)) {
+		if (options.quiet) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'warning',
+				message: 'ai task poll failed',
+				data: { reason: err instanceof Error ? err.message : String(err) }
+			});
+		} else if (!(browser && !navigator.onLine)) {
 			Sentry.captureException(err, { extra: { context: 'ai-task-service.refresh' } });
 		}
 	} finally {
@@ -209,6 +222,7 @@ async function update(
 	if (error || !data) {
 		throw new Error('update_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
 	return data.task;
 }
@@ -246,6 +260,7 @@ async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 	if (error || !data?.task) {
 		throw new Error('update_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
 	syncAppBadge();
 }
@@ -269,6 +284,7 @@ async function acceptProposal(id: string, body: ProposalAcceptBody): Promise<Acc
 			return 'conflict';
 		}
 		if (!data?.task) return 'failed';
+		mutationGeneration++;
 		tasks = tasks.map((t) => (t.id === id ? data.task : t));
 		syncAppBadge();
 		void entryService.refresh(data.task.date);
@@ -278,6 +294,18 @@ async function acceptProposal(id: string, body: ProposalAcceptBody): Promise<Acc
 			Sentry.captureException(err, { extra: { context: 'ai-task-service.acceptProposal' } });
 		}
 		return 'failed';
+	}
+}
+
+/** Poll tick: one read at a time, failures are breadcrumbs, then clears the unread badge like opening the list. */
+async function poll(): Promise<void> {
+	if (pollInFlight) return;
+	pollInFlight = true;
+	try {
+		await refresh({ quiet: true });
+		await acknowledgeAll();
+	} finally {
+		pollInFlight = false;
 	}
 }
 
@@ -323,6 +351,7 @@ export const aiTaskService = {
 	},
 	isUnread,
 	refresh,
+	poll,
 	create,
 	update,
 	updateStatus,

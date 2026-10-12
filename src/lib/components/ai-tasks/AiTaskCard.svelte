@@ -38,18 +38,20 @@
 	);
 
 	const processedByLabel = $derived(
-		isProcessedByClaude(task)
-			? m.ai_tasks_processed_by_claude()
-			: task.processedBy === 'assistant'
-				? m.ai_tasks_processed_by_assistant()
-				: task.processedBy === 'on_device'
-					? m.ai_tasks_processed_by_on_device()
-					: task.processedBy === 'private_cloud'
-						? m.ai_tasks_processed_by_private_cloud()
-						: null
+		task.status === 'pending'
+			? null
+			: isProcessedByClaude(task)
+				? m.ai_tasks_processed_by_claude()
+				: task.processedBy === 'assistant'
+					? m.ai_tasks_processed_by_assistant()
+					: task.processedBy === 'on_device'
+						? m.ai_tasks_processed_by_on_device()
+						: task.processedBy === 'private_cloud'
+							? m.ai_tasks_processed_by_private_cloud()
+							: null
 	);
 
-	const chipState = $derived(claudeChipState(task));
+	const chipState = $derived(task.status === 'pending' ? claudeChipState(task) : null);
 	const proposal = $derived(
 		chipState === 'proposed' ? (task.claudeProcessing?.proposal ?? null) : null
 	);
