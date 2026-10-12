@@ -928,3 +928,106 @@ Deploy order: server (phases 1–3) first; mobile builds after.
 10. **Timeout:** 450 s per call follows the SDK's non-streaming expectation for 16 000 tokens; if the
     SDK rejects the non-streaming request at that `max_tokens`, phase 2b switches to
     `client.messages.stream(...).finalMessage()` with the same settlement logic and reports it.
+
+## 14. Client contract (final, shipped in phase 3)
+
+Everything below is additive and optional in the spec (generated Kotlin has `= null` defaults); the
+server always sends the fields it can compute. Clients decode every `*Kind` and `state` string
+leniently and fall back to the legacy field / no label for unknown values.
+
+**`GET /api/preferences`**
+
+```json
+{
+	"preferences": {
+		"aiTaskProcessor": "assistant",
+		"aiTaskProcessorKind": "claude",
+		"aiTaskAutoLog": false
+	},
+	"claude": { "available": true, "remainingBudgetUsd": 8.31 }
+}
+```
+
+(`preferences` carries all existing fields; only the AI ones are shown.) `aiTaskProcessor` is the
+legacy enum (`assistant | device`) and reads `assistant` when Claude is stored; `aiTaskProcessorKind`
+(`x-extensible-enum`: `assistant | device | claude`) is the real value. Effective processor =
+`aiTaskProcessorKind ?? aiTaskProcessor`. `claude` is `{ "available": false }` when the key, kill
+switch, access or a budget fails (no `remainingBudgetUsd`). It is on GET only; PATCH responses omit
+it, so clients keep the last GET's value. `PATCH /api/preferences` accepts `"aiTaskProcessor":
+"claude"` (also while unavailable) and returns the same `preferences` shape (`aiTaskProcessor`
+`assistant`, `aiTaskProcessorKind` `claude`).
+
+**AI task** (`GET /api/ai-tasks`, `PATCH /api/ai-tasks/{id}`, accept response; `POST /api/ai-tasks`
+returns the same shape with `claudeProcessing: null` because the run is created asynchronously):
+
+```json
+{
+	"id": "6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01",
+	"status": "pending",
+	"description": "2 eggs and toast",
+	"photoUrl": null,
+	"photoUrls": [],
+	"date": "2026-10-12",
+	"mealType": "Breakfast",
+	"eatenAt": null,
+	"source": "ios",
+	"resultSummary": null,
+	"createdEntryIds": null,
+	"completedAt": null,
+	"dismissedAt": null,
+	"acknowledgedAt": null,
+	"processedBy": null,
+	"processedByKind": null,
+	"claudeProcessing": {
+		"state": "proposed",
+		"proposal": {
+			"summary": "Two eggs and a slice of toast",
+			"items": [
+				{
+					"id": "0b0f6d9e-7b6e-4b61-9d52-3a1d1f6c9b02",
+					"name": "Egg",
+					"quantityDescription": "2 eggs",
+					"foodId": "a3b2c1d0-1111-4222-8333-444455556666",
+					"recipeId": null,
+					"servings": 2,
+					"calories": 156,
+					"protein": 12.6,
+					"carbs": 1.2,
+					"fat": 10.6,
+					"fiber": 0
+				}
+			]
+		}
+	}
+}
+```
+
+- `claudeProcessing` is `null` unless the task is `pending` and has an active run. `state`
+  (`x-extensible-enum`) is `queued | running | retrying | proposed | blocked`; `proposal` is non-null
+  only for `proposed`. Items never contain the internal `entry`.
+- `processedBy` never reads `claude` (a task Claude resolved reads `assistant`); `processedByKind`
+  (`x-extensible-enum`: `assistant | on_device | private_cloud | claude`) is the raw value, `null` for
+  unresolved tasks. A Claude-resolved task shows "Claude" when `processedByKind == "claude"`.
+- A proposal item `id` is also the id of the food entry it creates on accept.
+- Setting a task back to `pending` through `PATCH` (status `pending`) hands it to Claude again when
+  the processor is Claude (the previous run is reset); editing a pending task requeues its run.
+
+**`POST /api/ai-tasks/{id}/proposal/accept`** (operationId `acceptAiTaskProposal`)
+
+Request body is optional: none, `{}` or `{ "itemIds": ["<uuid>", ...] }` (1 to 30 ids). No body or
+`{}` accepts every proposed item; `itemIds` accepts only those.
+
+Response `200`: `{ "task": <AI task> }` with `status: "completed"`, `processedBy: "assistant"`,
+`processedByKind: "claude"`, `resultSummary` = the proposal summary, `createdEntryIds` = the accepted
+item ids, `claudeProcessing: null`.
+
+| Status | When                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 400    | `itemIds` empty or not uuids, an id not in the proposal, or invalid JSON (`{ "error": ... }`)                                                                |
+| 401    | not signed in                                                                                                                                                |
+| 404    | task or run not found for this user                                                                                                                          |
+| 409    | no open proposal (already accepted, running, dismissed), task no longer pending, or the user switched the processor away from Claude (the run is superseded) |
+| 429    | the global write rate limit                                                                                                                                  |
+
+Accepting needs no Claude access or budget; replaying a request after a network failure is safe
+(entries use the item ids) and answers 409 once the first one succeeded.
