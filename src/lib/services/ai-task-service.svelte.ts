@@ -2,12 +2,15 @@ import { browser } from '$app/environment';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
 import { apiFetch } from '$lib/utils/api';
+import { entryService } from '$lib/services/entry-service.svelte';
+import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
 import type { paths } from '$lib/api/generated/schema';
 
 type AiTasksResponse =
 	paths['/api/ai-tasks']['get']['responses']['200']['content']['application/json'];
 export type AiTask = AiTasksResponse['tasks'][number];
 export type AiTaskStatus = AiTask['status'];
+export type AcceptResult = 'logged' | 'conflict' | 'failed';
 
 // Which dismissals this browser has already announced. Server-side
 // acknowledgement is what clears the badge, and it only happens when the user
@@ -222,6 +225,30 @@ async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 	syncAppBadge();
 }
 
+async function acceptProposal(id: string, body: ProposalAcceptBody = {}): Promise<AcceptResult> {
+	if (browser && !navigator.onLine) return 'failed';
+	try {
+		const { data, response } = await api.POST('/api/ai-tasks/{id}/proposal/accept', {
+			params: { path: { id } },
+			body
+		});
+		if (response.status === 409 || response.status === 404) {
+			await refresh();
+			return 'conflict';
+		}
+		if (!data?.task) return 'failed';
+		tasks = tasks.map((t) => (t.id === id ? data.task : t));
+		syncAppBadge();
+		void entryService.refresh(data.task.date);
+		return 'logged';
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'ai-task-service.acceptProposal' } });
+		}
+		return 'failed';
+	}
+}
+
 async function acknowledgeAll(): Promise<void> {
 	if (!browser || !tasks.some(isUnread)) return;
 	try {
@@ -267,6 +294,7 @@ export const aiTaskService = {
 	create,
 	update,
 	updateStatus,
+	acceptProposal,
 	acknowledgeAll,
 	collectNewDismissals,
 	showSystemNotification,

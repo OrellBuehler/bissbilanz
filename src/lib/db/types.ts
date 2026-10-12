@@ -209,6 +209,8 @@ export type DexieUserPreferences = {
 	activityGoalAdjustment?: boolean;
 	activityCreditPercent?: number;
 	aiTaskProcessor?: string;
+	aiTaskProcessorKind?: string;
+	claude?: { available: boolean; remainingBudgetUsd?: number };
 	aiTaskAutoLog?: boolean;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
