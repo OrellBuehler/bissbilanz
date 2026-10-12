@@ -49,6 +49,8 @@ struct AiTasksView: View {
         }
     }
 
+    private static let pollInterval = Duration.seconds(10)
+
     private var visibleTasks: [AiTask] {
         store.tasks.filter { $0.status == selectedFilter.status }
     }
@@ -141,6 +143,7 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
+        .task(id: store.hasActiveClaudeWork) { await pollWhileClaudeWorks() }
         .sheet(item: $selectedDraftForReview) { draft in
             NavigationStack {
                 AIMealReviewView(
@@ -212,6 +215,24 @@ struct AiTasksView: View {
             try await store.delete(id: task.id)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// While Claude works on a pending task, re-reads the list every
+    /// `pollInterval`. SwiftUI cancels this task when the view disappears and
+    /// restarts it when `hasActiveClaudeWork` flips.
+    private func pollWhileClaudeWorks() async {
+        while store.hasActiveClaudeWork {
+            try? await Task.sleep(for: Self.pollInterval)
+            guard !Task.isCancelled else { return }
+            do {
+                try await store.refresh()
+                readyForReviewDrafts = AiTaskDraftDisk.loadAll()
+                await store.acknowledgeAll()
+            } catch {
+                if Task.isCancelled { return }
+                ErrorReporter.capture(error, context: ["op": "pollAiTasks"])
+            }
         }
     }
 
@@ -321,7 +342,6 @@ private struct AiTaskRow: View {
             textContent
             if let proposal = task.openProposal {
                 ClaudeProposalCard(task: task, proposal: proposal, onNotice: onProposalNotice)
-                    .id(proposal.items.map(\.id))
             }
         }
         .padding(.vertical, 4)
@@ -495,6 +515,7 @@ private struct ClaudeProposalCard: View {
     let onNotice: (String) -> Void
 
     @State private var selected: Set<String>
+    @State private var seen: Set<String>
     @State private var isWorking = false
     @State private var inlineMessage: String?
 
@@ -503,6 +524,7 @@ private struct ClaudeProposalCard: View {
         self.proposal = proposal
         self.onNotice = onNotice
         _selected = State(initialValue: Set(proposal.items.map(\.id)))
+        _seen = State(initialValue: Set(proposal.items.map(\.id)))
     }
 
     var body: some View {
@@ -542,6 +564,11 @@ private struct ClaudeProposalCard: View {
         .padding(10)
         .background(Color.blue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onChange(of: proposal.items.map(\.id)) { _, ids in
+            let next = AiTaskProposalSelection.reconciled(selected: selected, seen: seen, ids: ids)
+            selected = next.selected
+            seen = next.seen
+        }
     }
 
     private func itemRow(_ item: AiTaskProposalItem) -> some View {

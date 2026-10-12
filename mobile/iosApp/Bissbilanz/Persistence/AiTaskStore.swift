@@ -397,6 +397,12 @@ final class AiTaskStore {
         tasks.filter(\.isUnreadDismissal)
     }
 
+    /// A pending task Claude has queued, is running or is retrying — the list
+    /// is polled while this holds.
+    var hasActiveClaudeWork: Bool {
+        AiTaskClaudeState.hasActiveWork(in: tasks)
+    }
+
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         tasks = try await api.listAiTasks(limit: 100).tasks
@@ -457,7 +463,7 @@ final class AiTaskStore {
     }
 
     /// Logs the entries Claude proposed and swaps the completed task into the
-    /// list. A 409 or 404 means the proposal is no longer open, so the list is
+    /// list. A 409, 404 or 400 means the proposal is no longer open or its items changed, so the list is
     /// refreshed to show what the server has now; any other failure leaves the
     /// task as it was so the caller can keep the selection and offer a retry.
     func acceptProposal(id: String, itemIds: [String]) async -> AiTaskProposalAcceptResult {
@@ -481,7 +487,7 @@ final class AiTaskStore {
 
     nonisolated static func isProposalGone(_ error: Error) -> Bool {
         switch error as? APIError {
-        case .conflict, .notFound: true
+        case .conflict, .notFound, .badRequest: true
         default: false
         }
     }

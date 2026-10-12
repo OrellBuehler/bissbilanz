@@ -50,7 +50,7 @@ extension BissbilanzAPI {
     /// them. 409 means the proposal is no longer open (already accepted, the
     /// task changed, the processor moved away from Claude, or a proposed food,
     /// recipe or meal type was deleted).
-    func acceptAiTaskProposal(id: String, itemIds: [String]? = nil) async throws -> AiTask {
+    func acceptAiTaskProposal(id: String, itemIds: [String]) async throws -> AiTask {
         let response: AiTaskResponse = try await post(
             "/api/ai-tasks/\(id)/proposal/accept",
             body: AiTaskProposalAccept(itemIds: itemIds)

@@ -1795,9 +1795,9 @@ struct RepositoryTests {
         #expect(sent.itemIds == ["i2"])
     }
 
-    @Test("A 409 or 404 on accept refreshes the list and reports a conflict")
+    @Test("A 409, 404 or 400 on accept refreshes the list and reports a conflict")
     func acceptProposalGone() async throws {
-        for status in [409, 404] {
+        for status in [409, 404, 400] {
             let harness = try RepositoryHarness()
             let store = try await storeWithProposal(harness)
             let reopened = AiTasksResponse(tasks: [Self.proposalTask(status: "dismissed", proposed: false)], total: 1)

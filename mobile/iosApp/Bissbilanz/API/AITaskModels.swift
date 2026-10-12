@@ -88,10 +88,10 @@ struct AiTaskProposalItem: Codable, Hashable, Identifiable {
     let fiber: Double
 }
 
-/// Optional body of `POST /api/ai-tasks/{id}/proposal/accept`; no ids (or an
-/// empty object) accepts every item.
+/// Body of `POST /api/ai-tasks/{id}/proposal/accept`. The ids are always sent
+/// explicitly, so a proposal regenerated since the user looked is never accepted blind.
 struct AiTaskProposalAccept: Codable {
-    var itemIds: [String]?
+    var itemIds: [String]
 }
 
 /// What a pending task's Claude run is doing, for the status chip.
@@ -122,6 +122,18 @@ enum AiTaskClaudeState: Equatable {
         guard task.status == "pending" else { return nil }
         return AiTaskClaudeState(rawState: task.claudeProcessing?.state)
     }
+
+    /// Claude is still working on the task: the list is worth re-reading.
+    var isActive: Bool {
+        switch self {
+        case .queued, .running, .retrying, .other: true
+        case .proposed, .blocked: false
+        }
+    }
+
+    static func hasActiveWork(in tasks: [AiTask]) -> Bool {
+        tasks.contains { display(for: $0)?.isActive == true }
+    }
 }
 
 /// Selection helpers for the proposal card.
@@ -135,6 +147,18 @@ enum AiTaskProposalSelection {
     static func format(_ value: Double) -> String {
         let isWhole = value.isFinite && value.rounded() == value && abs(value) < 1_000_000_000
         return isWhole ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
+    /// The selection after the proposal's items changed: what the user kept among
+    /// the surviving ids, plus ids never seen before. `seen` remembers every id the
+    /// proposal ever showed, so an unticked item that vanishes and returns stays unticked.
+    static func reconciled(
+        selected: Set<String>,
+        seen: Set<String>,
+        ids: [String]
+    ) -> (selected: Set<String>, seen: Set<String>) {
+        let next = ids.filter { !seen.contains($0) || selected.contains($0) }
+        return (Set(next), seen.union(ids))
     }
 
     static func toggled(_ id: String, in selected: Set<String>) -> Set<String> {
@@ -151,7 +175,7 @@ enum AiTaskProposalSelection {
 /// How the store reports an accept attempt; the view picks the message.
 enum AiTaskProposalAcceptResult: Equatable {
     case logged
-    /// 409: the proposal is no longer open. The store has already refreshed.
+    /// 409, 404 or 400: the proposal is no longer open or its items changed. The store has already refreshed.
     case conflict
     case failed
 }

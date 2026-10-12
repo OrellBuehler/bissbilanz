@@ -175,6 +175,44 @@ struct ClaudeProcessingTests {
         #expect(AiTaskProposalSelection.toggled("a", in: ["a", "b"]) == ["b"])
     }
 
+    @Test("A regenerated proposal keeps the surviving selection and selects new items")
+    func selectionReconcile() {
+        let next = AiTaskProposalSelection.reconciled(
+            selected: ["a", "c"], seen: ["a", "b", "c"], ids: ["a", "b", "d"]
+        )
+        #expect(next.selected == ["a", "d"])
+        #expect(next.seen == ["a", "b", "c", "d"])
+    }
+
+    @Test("An unticked item that vanishes and returns is not reselected")
+    func selectionReconcileReturningItem() {
+        let dropped = AiTaskProposalSelection.reconciled(selected: ["a"], seen: ["a", "b"], ids: ["a"])
+        let back = AiTaskProposalSelection.reconciled(selected: dropped.selected, seen: dropped.seen, ids: ["a", "b"])
+        #expect(back.selected == ["a"])
+    }
+
+    @Test("An unchanged item list keeps the selection")
+    func selectionReconcileUnchanged() {
+        let next = AiTaskProposalSelection.reconciled(selected: ["b"], seen: ["a", "b"], ids: ["a", "b"])
+        #expect(next.selected == ["b"])
+    }
+
+    @Test("Only queued, running, retrying and unknown states keep the list polling")
+    func activeWork() {
+        func pending(_ state: String) -> AiTask {
+            Self.task(claudeProcessing: AiTaskClaudeProcessing(state: state, proposal: nil))
+        }
+        #expect(AiTaskClaudeState.hasActiveWork(in: [pending("queued")]))
+        #expect(AiTaskClaudeState.hasActiveWork(in: [pending("running")]))
+        #expect(AiTaskClaudeState.hasActiveWork(in: [pending("retrying")]))
+        #expect(AiTaskClaudeState.hasActiveWork(in: [pending("later")]))
+        #expect(!AiTaskClaudeState.hasActiveWork(in: [pending("proposed"), pending("blocked")]))
+        #expect(!AiTaskClaudeState.hasActiveWork(in: [Self.task()]))
+        let done = Self.task(status: "completed", claudeProcessing: AiTaskClaudeProcessing(state: "running", proposal: nil))
+        #expect(!AiTaskClaudeState.hasActiveWork(in: [done]))
+        #expect(!AiTaskClaudeState.hasActiveWork(in: []))
+    }
+
     @Test("Macro numbers drop a trailing .0 and keep one decimal otherwise")
     func macroFormat() {
         #expect(AiTaskProposalSelection.format(156) == "156")
@@ -182,10 +220,11 @@ struct ClaudeProcessingTests {
         #expect(AiTaskProposalSelection.format(.nan).isEmpty == false)
     }
 
-    @Test("A 409 or 404 means the proposal is gone; other errors do not")
+    @Test("A 409, 404 or 400 means the proposal is gone; other errors do not")
     func conflictClassification() {
         #expect(AiTaskStore.isProposalGone(APIError.conflict(serverNewer: false, body: nil)))
         #expect(AiTaskStore.isProposalGone(APIError.notFound))
+        #expect(AiTaskStore.isProposalGone(APIError.badRequest("stale ids")))
         #expect(AiTaskStore.isProposalGone(APIError.serverError(500, nil)) == false)
         #expect(AiTaskStore.isProposalGone(URLError(.notConnectedToInternet)) == false)
     }

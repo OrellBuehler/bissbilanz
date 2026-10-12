@@ -603,6 +603,9 @@ struct SettingsView: View {
             }
             .font(.footnote)
             .foregroundStyle(.orange)
+            Text(L10n.aiTaskProcessorClaudePrivacy)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         case .selectable:
             Text(L10n.aiTaskProcessorClaudePrivacy)
                 .font(.footnote)
