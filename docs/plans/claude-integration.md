@@ -587,8 +587,11 @@ ON CONFLICT DO NOTHING`, then `SELECT entry_id` for `(task, key)` — a retry ge
 Commit → `{ entryId }`. A validation error rolls the whole transaction back (no ledger row). Because the
 ledger row and the entry commit together, and a retried call maps to the same key and therefore the
 same entry id, a retried or resumed loop never logs an item twice. Reconciliation is "does the entry
-with that id exist": ledger rows whose entry was later deleted by the user are not re-logged and are
-left out of `createdEntryIds` and of the "already logged" line. Ledger rows are never deleted.
+with that id exist": a ledger row whose entry still exists returns that entry (never a duplicate,
+also after a reopen); a row whose entry was deleted by the user is free again, so the same key gets a
+new entry id (the row's `entry_id` is updated in the same fenced transaction) and the item is logged
+again. Deleted entries are left out of `createdEntryIds` and of the "already logged" line. Ledger rows
+are never deleted.
 
 **`log_food`, review mode.** `entryCreateSchema.safeParse(payload)`, `validateMealType`, food/recipe
 ownership via `getFood`/`getRecipe`; in a fenced transaction append to `claude_task_runs.proposal.items`:
@@ -631,7 +634,7 @@ the clients show the unavailable hint, §10); it is picked up again by the sweep
 `pending/∅ →(enqueue) pending/queued →(claim) pending/running →` one of `completed/succeeded`,
 `pending/proposed`, `dismissed/dismissed`, `pending/retry_wait →(sweep) running`, `pending/blocked →(sweep) running`,
 `*/superseded`. `pending/proposed →(accept) completed/succeeded`; `→(user dismiss/delete) dismissed|∅ / superseded`;
-`→(edit) pending/queued`. Who sets what: worker (claim, running outcomes), accept endpoint (succeeded),
+`→(content edit) pending/queued` (open runs only; a running run is left alone); `completed|dismissed/succeeded|dismissed|superseded →(PATCH status pending) pending/queued` (failure counters cleared, only while the processor is Claude); `pending/proposed →(accept fails: stale items) pending/proposed` with the stale items removed, or `pending/queued` when none is left. Who sets what: worker (claim, running outcomes), accept endpoint (succeeded),
 PATCH route (requeue), sweep (lease reclaim, abandoned reservations).
 
 ### 7.6 Accepting a proposal (`tasks/proposal.ts`, route in phase 3)
@@ -649,7 +652,12 @@ PATCH route (requeue), sweep (lease reclaim, abandoned reservations).
 6. `completeAiTaskBy(tx, …, { processedBy: 'claude', resultSummary: proposal.summary, entryIds })`,
    run → `succeeded`.
 
-Any error rolls everything back. No Claude call and no access gate: a user whose access was revoked can
+Any error rolls everything back. If entry creation fails because a food, recipe or meal type was
+deleted, the call answers 409 ("Proposal can no longer be accepted: …"). After the rollback a second,
+locked transaction (task row, then run row) re-checks every item, removes the stale ones from the
+proposal, and, only when no item remains, sets the run back to `queued` (guarded by `state =
+'proposed'`, the `attempt` seen by the failed call and a still pending task) so the worker proposes
+again. Clients refresh and can accept the remaining items. No Claude call and no access gate: a user whose access was revoked can
 still accept an existing proposal (but not after switching the processor away from Claude).
 
 ## 8. Capability field
@@ -928,6 +936,10 @@ Deploy order: server (phases 1–3) first; mobile builds after.
 10. **Timeout:** 450 s per call follows the SDK's non-streaming expectation for 16 000 tokens; if the
     SDK rejects the non-streaming request at that `max_tokens`, phase 2b switches to
     `client.messages.stream(...).finalMessage()` with the same settlement logic and reports it.
+11. **Resolved by hand mid-run, then reopened:** if the MCP assistant resolves a task while its run is
+    `running` (the run ends `superseded`) and the user later reopens it, the reopen requeues the run
+    and Claude starts over; entries the assistant logged are not known to the ledger, so Claude can log
+    the meal a second time. Accepted for now; the user sees both entries in the day log.
 
 ## 14. Client contract (final, shipped in phase 3)
 
@@ -1012,12 +1024,15 @@ returns the same shape with `claudeProcessing: null` because the run is created 
   resolution. A Claude-resolved task shows "Claude" when `processedByKind == "claude"`; do not use it
   to decide whether Claude is working on a pending task, read `claudeProcessing` for that.
 - A proposal item `id` is also the id of the food entry it creates on accept.
-- Setting a resolved task back to `pending` through `PATCH` (status `pending`, previous status not
-  `pending`) hands it to Claude again when the processor is Claude: the run is reset and starts a new
-  generation, so items are logged afresh (entries from the earlier resolution are not removed and not
-  counted). Editing `description`, `photoUrls`, `date`, `mealType` or `eatenAt` of a pending task
-  requeues its run; any other PATCH (for example `acknowledged`, or `status: "pending"` on an already
-  pending task) leaves the run alone.
+- Setting a resolved task back to `pending` through `PATCH` (`status: "pending"`) hands it to Claude
+  again when the processor is Claude: if the run is `succeeded`, `dismissed` or `superseded` (or the
+  task never had one) it is reset to `queued` with its failure counters cleared. The decision is made
+  atomically after the update, not from the previous status. Items are matched against the task's
+  earlier ledger: an item whose entry still exists is not logged twice, an item whose entry was
+  deleted is logged again; the completion lists every still-existing entry of the task. Editing
+  `description`, `photoUrls`, `date`, `mealType` or `eatenAt` of a pending task requeues an open run
+  (`queued`, `retry_wait`, `blocked`, `proposed`); a `running` run is left alone. Any other PATCH (for
+  example `acknowledged`) never touches the run.
 
 **`POST /api/ai-tasks/{id}/proposal/accept`** (operationId `acceptAiTaskProposal`)
 
@@ -1028,15 +1043,14 @@ Response `200`: `{ "task": <AI task> }` with `status: "completed"`, `processedBy
 `processedByKind: "claude"`, `resultSummary` = the proposal summary, `createdEntryIds` = the accepted
 item ids, `claudeProcessing: null`.
 
-| Status                                                                                                                           | When                                                                                                                                                                                 |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 400                                                                                                                              | `itemIds` empty or not uuids, an id not in the proposal, or invalid JSON (`{ "error": ... }`)                                                                                        |
-| 401                                                                                                                              | not signed in                                                                                                                                                                        |
-| 404                                                                                                                              | task or run not found for this user                                                                                                                                                  |
-| 409                                                                                                                              | no open proposal (already accepted, running, dismissed), task no longer pending, the user switched the processor away from Claude (the run is superseded), or a food, recipe or meal |
-| type of the proposal no longer exists (error text starts with "Proposal can no longer be accepted";                              |
-| nothing is logged, and the run is requeued so Claude proposes again: refresh the task, `claudeProcessing` goes back to `queued`) |
-| 429                                                                                                                              | the global write rate limit                                                                                                                                                          |
+Statuses:
+
+- **400:** `itemIds` empty or not uuids, an id not in the proposal, or invalid JSON (`{ "error": ... }`).
+- **401:** not signed in.
+- **404:** task or run not found for this user.
+- **409:** no open proposal (already accepted, running, dismissed), the task is no longer pending, or the user switched the processor away from Claude (the run is superseded).
+- **409, "Proposal can no longer be accepted: ...":** a food, recipe or meal type of the proposal was deleted. Nothing is logged. The server removes the stale items from the proposal and keeps the rest, so refresh the task and accept again. If no item is left, the run is requeued and Claude proposes again (`claudeProcessing` goes back to `queued`).
+- **429:** the global write rate limit.
 
 Accepting needs no Claude access or budget; replaying a request after a network failure is safe
 (entries use the item ids) and answers 409 once the first one succeeded.

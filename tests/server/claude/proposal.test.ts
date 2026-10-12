@@ -4,14 +4,16 @@ import { createMockDB } from '../../helpers/mock-db';
 const h = vi.hoisted(() => ({
 	createEntry: vi.fn(),
 	completeAiTaskBy: vi.fn(),
-	requeue: vi.fn()
+	dropStale: vi.fn()
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/entries', () => ({ createEntry: h.createEntry }));
-vi.mock('$lib/server/claude/tasks/executor', () => ({ requeueRunForEditedTask: h.requeue }));
+vi.mock('$lib/server/claude/tasks/proposal-stale', () => ({
+	dropStaleProposalItems: h.dropStale
+}));
 vi.mock('$lib/server/ai-tasks', () => ({ completeAiTaskBy: h.completeAiTaskBy }));
 
 const { ApiError } = await import('$lib/server/errors');
@@ -37,7 +39,7 @@ const proposal = { summary: 'Suggested', items: [item('a'), item('b')] };
 const queueAccept = (overrides: { run?: unknown; task?: unknown; prefs?: unknown } = {}) =>
 	queueResults([
 		'task' in overrides ? overrides.task : [{ status: 'pending' }],
-		'run' in overrides ? overrides.run : [{ state: 'proposed', proposal }],
+		'run' in overrides ? overrides.run : [{ state: 'proposed', attempt: 2, proposal }],
 		'prefs' in overrides ? overrides.prefs : [{ processor: 'claude' }]
 	]);
 
@@ -45,7 +47,7 @@ beforeEach(() => {
 	reset();
 	h.createEntry.mockReset().mockResolvedValue({ success: true, data: {} });
 	h.completeAiTaskBy.mockReset().mockResolvedValue({ id: 'task-1', status: 'completed' });
-	h.requeue.mockReset().mockResolvedValue(undefined);
+	h.dropStale.mockReset().mockResolvedValue(undefined);
 });
 
 describe('serializeClaudeProcessing', () => {
@@ -164,7 +166,7 @@ describe('acceptProposal', () => {
 			message: expect.stringContaining(error.message)
 		});
 		expect(h.completeAiTaskBy).not.toHaveBeenCalled();
-		expect(h.requeue).toHaveBeenCalledWith('task-1');
+		expect(h.dropStale).toHaveBeenCalledWith('user-1', 'task-1', 2, 'a');
 	});
 
 	test('still answers 409 when handing the run back fails', async () => {
@@ -173,7 +175,7 @@ describe('acceptProposal', () => {
 			success: false,
 			error: new ApiError(404, 'Food not found')
 		});
-		h.requeue.mockRejectedValue(new Error('db down'));
+		h.dropStale.mockRejectedValue(new Error('db down'));
 		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
 	});
 
@@ -183,7 +185,7 @@ describe('acceptProposal', () => {
 		await expect(acceptProposal('user-1', 'task-1')).rejects.toThrow('bad entry');
 		queueAccept({ run: [{ state: 'running', proposal: null }] });
 		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
-		expect(h.requeue).not.toHaveBeenCalled();
+		expect(h.dropStale).not.toHaveBeenCalled();
 	});
 
 	test('fails when the task cannot be completed any more', async () => {

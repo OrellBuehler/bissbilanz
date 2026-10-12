@@ -251,7 +251,7 @@ export const {
 	getBiologicalSex,
 	getUserTimeZone,
 	getPreferences,
-	getClaudeCapability: getClaudeCapabilitySafe,
+	getClaudeCapabilitySafe,
 	listMealTypes,
 	getDayProperties,
 	getDayPropertiesRange,

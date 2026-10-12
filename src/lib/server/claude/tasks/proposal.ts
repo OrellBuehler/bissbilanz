@@ -5,7 +5,7 @@ import { getDB } from '../../db';
 import { createEntry } from '../../entries';
 import { ApiError } from '../../errors';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
-import { requeueRunForEditedTask } from './executor';
+import { dropStaleProposalItems } from './proposal-stale';
 import type { ClaudeRun, Proposal } from './types';
 
 type ClaudeProcessingState = 'queued' | 'running' | 'retrying' | 'proposed' | 'blocked';
@@ -38,7 +38,11 @@ export function serializeClaudeProcessing(
 }
 
 class StaleProposalError extends ApiError {
-	constructor(message: string) {
+	constructor(
+		message: string,
+		readonly attempt: number,
+		readonly itemId: string
+	) {
 		super(409, message);
 	}
 }
@@ -49,10 +53,10 @@ export async function acceptProposal(userId: string, taskId: string, itemIds?: s
 	} catch (error) {
 		if (error instanceof StaleProposalError) {
 			try {
-				await requeueRunForEditedTask(taskId);
-			} catch (requeueError) {
-				Sentry.captureException(requeueError, {
-					tags: { job: 'claude-requeue' },
+				await dropStaleProposalItems(userId, taskId, error.attempt, error.itemId);
+			} catch (staleError) {
+				Sentry.captureException(staleError, {
+					tags: { job: 'claude-proposal-stale' },
 					extra: { taskId }
 				});
 			}
@@ -107,7 +111,11 @@ async function acceptInTransaction(userId: string, taskId: string, itemIds?: str
 			if (!created.success) {
 				const error = created.error;
 				if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
-					throw new StaleProposalError(`Proposal can no longer be accepted: ${error.message}`);
+					throw new StaleProposalError(
+						`Proposal can no longer be accepted: ${error.message}`,
+						run.attempt,
+						item.id
+					);
 				}
 				throw error;
 			}

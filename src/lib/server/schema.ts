@@ -1024,7 +1024,6 @@ export const claudeTaskRuns = pgTable(
 		mode: text('mode'),
 		attempt: integer('attempt').notNull().default(0),
 		failures: integer('failures').notNull().default(0),
-		generation: integer('generation').notNull().default(0),
 		leaseOwner: text('lease_owner'),
 		leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
 		nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),

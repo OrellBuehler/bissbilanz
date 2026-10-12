@@ -29,7 +29,6 @@ let mockCreateResult: any = null;
 let mockUpdateResult: any = undefined;
 let mockAcknowledgedCount = 0;
 let mockRuns: any[] = [];
-let mockPreviousStatus: string = 'completed';
 const requeue = vi.fn();
 const captureException = vi.hoisted(() => vi.fn());
 const enqueue = vi.fn();
@@ -43,7 +42,6 @@ vi.mock('$lib/server/ai-tasks', async (importOriginal) => {
 	return {
 		...original,
 		listAiTasks: async () => mockListResult,
-		getAiTask: async () => ({ ...TEST_AI_TASK, status: mockPreviousStatus }),
 		createAiTask: async () =>
 			mockCreateResult
 				? { success: true, data: mockCreateResult }
@@ -87,7 +85,6 @@ describe('api/ai-tasks', () => {
 		mockUpdateResult = undefined;
 		mockAcknowledgedCount = 0;
 		mockRuns = [];
-		mockPreviousStatus = 'completed';
 		requeue.mockReset();
 		captureException.mockReset();
 		enqueue.mockReset();
@@ -239,93 +236,44 @@ describe('api/ai-tasks', () => {
 			expect(response.status).toBe(200);
 		});
 
+		const patch = (body: Record<string, unknown>) =>
+			aiTaskIdModule.PATCH(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_AI_TASK.id },
+					body,
+					method: 'PATCH'
+				})
+			);
+
 		test('requeues the claude run of an edited pending task', async () => {
 			mockUpdateResult = TEST_AI_TASK;
-			const response = await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { description: 'More salad' },
-					method: 'PATCH'
-				})
-			);
+			const response = await patch({ description: 'More salad' });
 			await expectResponseContract('PATCH', '/api/ai-tasks/{id}', response);
-			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { reopened: false });
-			expect(enqueue).not.toHaveBeenCalled();
-		});
-
-		test('reopens the claude run when the task goes back to pending', async () => {
-			mockUpdateResult = TEST_AI_TASK;
-			const response = await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { status: 'pending' },
-					method: 'PATCH'
-				})
-			);
-			expect(response.status).toBe(200);
-			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { reopened: true });
+			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { contentEdited: true });
 			expect(enqueue).toHaveBeenCalledWith(TEST_USER.id, TEST_AI_TASK.id);
 		});
 
-		test('does not requeue for an edit that touches no content field', async () => {
+		test('lets the executor decide on a reopen when the status is set back to pending', async () => {
 			mockUpdateResult = TEST_AI_TASK;
-			const response = await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { acknowledged: true, resultSummary: 'seen' },
-					method: 'PATCH'
-				})
-			);
+			const response = await patch({ status: 'pending' });
 			expect(response.status).toBe(200);
-			expect(requeue).not.toHaveBeenCalled();
-			expect(enqueue).not.toHaveBeenCalled();
+			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { contentEdited: false });
+			expect(enqueue).toHaveBeenCalledWith(TEST_USER.id, TEST_AI_TASK.id);
 		});
 
-		test('does not treat a pending to pending status PATCH as a reopen', async () => {
+		test('does not touch the run for an edit that is neither content nor a status change', async () => {
 			mockUpdateResult = TEST_AI_TASK;
-			mockPreviousStatus = 'pending';
-			const response = await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { status: 'pending' },
-					method: 'PATCH'
-				})
-			);
+			const response = await patch({ acknowledged: true, resultSummary: 'seen' });
 			expect(response.status).toBe(200);
 			expect(requeue).not.toHaveBeenCalled();
-			expect(enqueue).not.toHaveBeenCalled();
-		});
-
-		test('requeues without reopening when a pending task is edited and re-sent as pending', async () => {
-			mockUpdateResult = TEST_AI_TASK;
-			mockPreviousStatus = 'pending';
-			await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { status: 'pending', mealType: 'Dinner' },
-					method: 'PATCH'
-				})
-			);
-			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { reopened: false });
 			expect(enqueue).not.toHaveBeenCalled();
 		});
 
 		test('still answers when handing the task back to claude fails', async () => {
 			mockUpdateResult = TEST_AI_TASK;
 			requeue.mockRejectedValue(new Error('db down'));
-			const response = await aiTaskIdModule.PATCH(
-				createMockEvent({
-					user: TEST_USER,
-					params: { id: TEST_AI_TASK.id },
-					body: { status: 'pending' },
-					method: 'PATCH'
-				})
-			);
+			const response = await patch({ status: 'pending' });
 			await expectResponseContract('PATCH', '/api/ai-tasks/{id}', response);
 			expect(response.status).toBe(200);
 			expect(captureException).toHaveBeenCalled();

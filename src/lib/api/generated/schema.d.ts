@@ -1114,7 +1114,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. Answers 409 when there is no open proposal, the processor moved away from Claude, or a food, recipe or meal type of the proposal no longer exists (nothing is logged; Claude is asked to propose again, so refresh the task). */
+		/** @description Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. Answers 409 when there is no open proposal, the processor moved away from Claude, or a food, recipe or meal type of the proposal no longer exists (nothing is logged; the stale items are removed from the proposal, or Claude proposes again if none is left, so refresh the task and accept again). */
 		post: operations['acceptAiTaskProposal'];
 		delete?: never;
 		options?: never;

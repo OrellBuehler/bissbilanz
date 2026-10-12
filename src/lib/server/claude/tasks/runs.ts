@@ -175,11 +175,19 @@ export async function ledgerGetOrCreate(
 		.returning({ entryId: claudeTaskLedger.entryId });
 	if (inserted) return { entryId: inserted.entryId, created: true };
 	const [existing] = await tx
-		.select({ entryId: claudeTaskLedger.entryId })
+		.select({ entryId: claudeTaskLedger.entryId, present: foodEntries.id })
 		.from(claudeTaskLedger)
+		.leftJoin(foodEntries, eq(foodEntries.id, claudeTaskLedger.entryId))
 		.where(and(eq(claudeTaskLedger.taskId, fence.taskId), eq(claudeTaskLedger.key, key)));
 	if (!existing) throw new Error('Ledger row vanished');
-	return { entryId: existing.entryId, created: false };
+	if (existing.present) return { entryId: existing.entryId, created: false };
+	// The entry this key logged is gone (deleted by the user), so the key is free again.
+	const entryId = crypto.randomUUID();
+	await tx
+		.update(claudeTaskLedger)
+		.set({ entryId, summary, createdAt: sql`now()` })
+		.where(and(eq(claudeTaskLedger.taskId, fence.taskId), eq(claudeTaskLedger.key, key)));
+	return { entryId, created: true };
 }
 
 export async function listLoggedLedger(
@@ -190,16 +198,10 @@ export async function listLoggedLedger(
 	return db
 		.select({ entryId: claudeTaskLedger.entryId, summary: claudeTaskLedger.summary })
 		.from(claudeTaskLedger)
-		.innerJoin(claudeTaskRuns, eq(claudeTaskRuns.taskId, claudeTaskLedger.taskId))
 		.innerJoin(
 			foodEntries,
 			and(eq(foodEntries.id, claudeTaskLedger.entryId), eq(foodEntries.userId, userId))
 		)
-		.where(
-			and(
-				eq(claudeTaskLedger.taskId, taskId),
-				sql`${claudeTaskLedger.key} LIKE 'log:' || ${claudeTaskRuns.generation} || ':%'`
-			)
-		)
+		.where(eq(claudeTaskLedger.taskId, taskId))
 		.orderBy(claudeTaskLedger.createdAt);
 }

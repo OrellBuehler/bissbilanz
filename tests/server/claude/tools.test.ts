@@ -63,7 +63,6 @@ const makeCtx = (overrides: Record<string, unknown> = {}) => ({
 	timeZone: 'Europe/Zurich',
 	locale: 'en',
 	fence,
-	generation: 0,
 	seen: new Map<string, number>(),
 	...overrides
 });
@@ -344,7 +343,7 @@ describe('log_food in auto mode', () => {
 		);
 		expect(result.body).toEqual({ entryId: 'entry-1' });
 		const [, key, summary] = h.ledgerGetOrCreate.mock.calls[0]!.slice(1);
-		expect(key).toMatch(/^log:0:[0-9a-f]{64}:0$/);
+		expect(key).toMatch(/^log:[0-9a-f]{64}:0$/);
 		expect(summary).toBe('Greek yogurt (200 g)');
 		expect(h.createEntry).toHaveBeenCalledWith(
 			'user-1',

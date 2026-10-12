@@ -1,1 +1,0 @@
-ALTER TABLE "claude_task_runs" ADD COLUMN "generation" integer DEFAULT 0 NOT NULL;

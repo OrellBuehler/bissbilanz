@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, eq, exists, inArray, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, or, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
-import { claudeTaskRuns, userPreferences } from '../../schema';
+import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
 import { abandonStaleReservations } from '../budget';
 import { assertClaudeAllowed, getClaudeCapability } from '../capability';
 import { ClaudeGateError, ClaudeProcessorChangedError } from '../errors';
@@ -75,54 +75,56 @@ export async function enqueueClaudeTaskIfEligible(userId: string, taskId: string
 	}
 }
 
+const RESOLVED_RUN_STATES = ['succeeded', 'dismissed', 'superseded'];
+const OPEN_RUN_STATES = ['queued', 'retry_wait', 'blocked', 'proposed'];
+
+export function wakeClaudeRun(taskId: string, userId: string): void {
+	push({ taskId, userId });
+}
+
 export async function requeueRunForEditedTask(
 	taskId: string,
-	options: { reopened?: boolean } = {}
+	options: { contentEdited?: boolean } = {}
 ): Promise<void> {
 	const db = getDB();
+	const resolved = inArray(claudeTaskRuns.state, RESOLVED_RUN_STATES);
 	const [run] = await db
 		.update(claudeTaskRuns)
 		.set({
 			state: 'queued',
 			proposal: null,
 			nextAttemptAt: null,
-			...(options.reopened
-				? {
-						failures: 0,
-						failureCode: null,
-						failureDetail: null,
-						generation: sql`${claudeTaskRuns.generation} + 1`
-					}
-				: {}),
+			failures: sql`CASE WHEN ${resolved} THEN 0 ELSE ${claudeTaskRuns.failures} END`,
+			failureCode: sql`CASE WHEN ${resolved} THEN NULL ELSE ${claudeTaskRuns.failureCode} END`,
+			failureDetail: sql`CASE WHEN ${resolved} THEN NULL ELSE ${claudeTaskRuns.failureDetail} END`,
 			updatedAt: sql`now()`
 		})
 		.where(
 			and(
 				eq(claudeTaskRuns.taskId, taskId),
-				options.reopened
-					? and(
-							inArray(claudeTaskRuns.state, [
-								'queued',
-								'retry_wait',
-								'blocked',
-								'proposed',
-								'dismissed',
-								'succeeded',
-								'superseded'
-							]),
-							exists(
-								db
-									.select({ one: sql`1` })
-									.from(userPreferences)
-									.where(
-										and(
-											eq(userPreferences.userId, claudeTaskRuns.userId),
-											eq(userPreferences.aiTaskProcessor, 'claude')
-										)
+				exists(
+					db
+						.select({ one: sql`1` })
+						.from(aiTasks)
+						.where(and(eq(aiTasks.id, claudeTaskRuns.taskId), eq(aiTasks.status, 'pending')))
+				),
+				or(
+					and(
+						resolved,
+						exists(
+							db
+								.select({ one: sql`1` })
+								.from(userPreferences)
+								.where(
+									and(
+										eq(userPreferences.userId, claudeTaskRuns.userId),
+										eq(userPreferences.aiTaskProcessor, 'claude')
 									)
-							)
+								)
 						)
-					: inArray(claudeTaskRuns.state, ['queued', 'retry_wait', 'blocked', 'proposed'])
+					),
+					options.contentEdited ? inArray(claudeTaskRuns.state, OPEN_RUN_STATES) : undefined
+				)
 			)
 		)
 		.returning({ userId: claudeTaskRuns.userId });

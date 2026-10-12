@@ -653,7 +653,7 @@ describe('idempotency', () => {
 		expect(await db.select().from(claudeTaskLedger)).toHaveLength(2);
 	});
 
-	it('does not re-log an entry the user deleted in between', async () => {
+	it('logs an item again when its entry was deleted before the retry', async () => {
 		const user = await seedUser(db);
 		const task = await seedTask(db, user.id);
 		startFake([quickLog(), new Anthropic.APIConnectionError({ message: 'lost' })]);
@@ -672,13 +672,61 @@ describe('idempotency', () => {
 		expect(userText.text).toContain(
 			'Already logged in an earlier attempt (do not log again): nothing'
 		);
-		expect(await entriesOf(user.id)).toHaveLength(0);
-		expect(await taskOf(task.id)).toMatchObject({ status: 'dismissed', processedBy: 'claude' });
+		const entries = await entriesOf(user.id);
+		expect(entries).toHaveLength(1);
+		expect(entries[0]!.id).not.toBe(entry!.id);
+		expect(await db.select().from(claudeTaskLedger)).toHaveLength(1);
+		expect(await taskOf(task.id)).toMatchObject({
+			status: 'completed',
+			createdEntryIds: [entries[0]!.id]
+		});
+	});
+
+	it('returns the same entry for a replayed log while it still exists', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		startFake([quickLog(), new Anthropic.APIConnectionError({ message: 'lost' })]);
+		await execute(user.id, task.id);
+		const [entry] = await entriesOf(user.id);
+		await db
+			.update(claudeTaskRuns)
+			.set({ nextAttemptAt: sql`now() - interval '1 second'` })
+			.where(eq(claudeTaskRuns.taskId, task.id));
+		startFake([quickLog(), completeStep('Logged toast')]);
+		await execute(user.id, task.id);
+		expect((await entriesOf(user.id)).map((row) => row.id)).toEqual([entry!.id]);
+		expect((await taskOf(task.id)).createdEntryIds).toEqual([entry!.id]);
 	});
 });
 
 describe('leases and fencing', () => {
 	const claimAs = (taskId: string, instance: string) => runs.claimRun(taskId, instance);
+
+	it('reuses the ledger keys when a run is reclaimed after its lease expired', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		startFake([quickLog(), new Anthropic.APIConnectionError({ message: 'lost' })]);
+		await execute(user.id, task.id);
+		const [entry] = await entriesOf(user.id);
+		await db
+			.update(claudeTaskRuns)
+			.set({
+				state: 'running',
+				leaseOwner: 'crashed',
+				leaseExpiresAt: sql`now() - interval '1 second'`
+			})
+			.where(eq(claudeTaskRuns.taskId, task.id));
+
+		startFake([quickLog(), completeStep('Logged toast')]);
+		await execute(user.id, task.id);
+		expect((await entriesOf(user.id)).map((row) => row.id)).toEqual([entry!.id]);
+		expect(await db.select().from(claudeTaskLedger)).toHaveLength(1);
+		expect(await taskOf(task.id)).toMatchObject({
+			status: 'completed',
+			createdEntryIds: [entry!.id]
+		});
+		expect((await runOf(task.id)).failures).toBe(2);
+	});
 
 	it('does not count a normal claim as a failure but counts a reclaimed lease', async () => {
 		const user = await seedUser(db);
@@ -724,7 +772,6 @@ describe('leases and fencing', () => {
 			timeZone: 'UTC',
 			locale: 'en',
 			fence: stale,
-			generation: 0,
 			seen: new Map<string, number>()
 		};
 		await expect(
@@ -1231,7 +1278,7 @@ describe('executor', () => {
 		await execute(user.id, task.id);
 		expect((await runOf(task.id)).state).toBe('proposed');
 		startFake([dismissStep('edited, nothing to log')]);
-		await executor.requeueRunForEditedTask(task.id);
+		await executor.requeueRunForEditedTask(task.id, { contentEdited: true });
 		await vi.waitFor(async () => expect((await runOf(task.id)).state).toBe('dismissed'), {
 			timeout: 15_000,
 			interval: 100

@@ -237,7 +237,7 @@ const mockDeps = {
 		byMeal: {}
 	}),
 	getPreferences: async () => mockPreferences,
-	getClaudeCapability: async () => mockClaudeCapability,
+	getClaudeCapabilitySafe: async () => mockClaudeCapability,
 	todayForUser: async () => '2026-02-10',
 	getSupplementChecklist: async () => {
 		const logMap = new Map(mockSupplementLogs.map((l: any) => [l.supplementId, l]));

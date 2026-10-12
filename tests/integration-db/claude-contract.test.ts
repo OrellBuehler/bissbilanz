@@ -40,6 +40,7 @@ let closePool: () => Promise<void>;
 let callModule: typeof import('$lib/server/claude/call');
 let runs: typeof import('$lib/server/claude/tasks/runs');
 let processor: typeof import('$lib/server/claude/tasks/processor');
+let stale: typeof import('$lib/server/claude/tasks/proposal-stale');
 let serialize: typeof import('$lib/server/claude/tasks/serialize');
 let prefsModule: typeof import('$lib/server/preferences');
 let taskRoute: typeof import('../../src/routes/api/ai-tasks/[id]/+server');
@@ -60,6 +61,7 @@ beforeAll(async () => {
 	callModule = await import('$lib/server/claude/call');
 	runs = await import('$lib/server/claude/tasks/runs');
 	processor = await import('$lib/server/claude/tasks/processor');
+	stale = await import('$lib/server/claude/tasks/proposal-stale');
 	serialize = await import('$lib/server/claude/tasks/serialize');
 	prefsModule = await import('$lib/server/preferences');
 	taskRoute = await import('../../src/routes/api/ai-tasks/[id]/+server');
@@ -90,23 +92,23 @@ const startFake = (steps: FakeStep[]) => {
 };
 
 const toolStep = (...blocks: Record<string, unknown>[]) => message(blocks, 'tool_use');
+const logToolUse = (name = 'Toast', foodId: string | null = null) =>
+	toolUse('log_food', {
+		foodId,
+		recipeId: null,
+		servings: 1,
+		mealType: null,
+		eatenAt: null,
+		quickName: name,
+		quickCalories: 120,
+		quickProtein: null,
+		quickCarbs: null,
+		quickFat: null,
+		quickFiber: null,
+		quantityDescription: null
+	});
 const logStep = (name = 'Toast', foodId: string | null = null) =>
-	toolStep(
-		toolUse('log_food', {
-			foodId,
-			recipeId: null,
-			servings: 1,
-			mealType: null,
-			eatenAt: null,
-			quickName: name,
-			quickCalories: 120,
-			quickProtein: null,
-			quickCarbs: null,
-			quickFat: null,
-			quickFiber: null,
-			quantityDescription: null
-		})
-	);
+	toolStep(logToolUse(name, foodId));
 const completeStep = (summary = 'Logged your meal') =>
 	toolStep(toolUse('complete_ai_task', { resultSummary: summary }));
 const dismissStep = (reason = 'Not enough information') =>
@@ -158,22 +160,42 @@ const seedFood = async (userId: string) => {
 };
 
 describe('reopening a task through PATCH', () => {
-	it('logs an item again after its entry was deleted and the task reopened', async () => {
-		const user = await seedUser(db);
-		const task = await seedTask(db, user.id);
-		await runs.ensureRun(user.id, task.id);
-		startFake([logStep('Toast'), completeStep('first')]);
-		await processor.processTask(task.id, {
+	const runOnce = async (userId: string, taskId: string, steps: FakeStep[]) => {
+		await runs.ensureRun(userId, taskId);
+		startFake(steps);
+		await processor.processTask(taskId, {
 			signal: new AbortController().signal,
 			instanceId: 'worker-contract'
 		});
+	};
+
+	it('does not log an item twice when the task is reopened and its entry still exists', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runOnce(user.id, task.id, [logStep('Toast'), completeStep('first')]);
 		const [first] = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
-		expect(first).toBeDefined();
-		await db.delete(foodEntries).where(eq(foodEntries.userId, user.id));
 
 		const fake = startFake([logStep('Toast'), completeStep('second')]);
-		const response = await patchTask(user, task.id, { status: 'pending' });
-		expect(response.status).toBe(200);
+		expect((await patchTask(user, task.id, { status: 'pending' })).status).toBe(200);
+		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
+			timeout: 15_000,
+			interval: 100
+		});
+		const entries = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(entries.map((entry) => entry.id)).toEqual([first!.id]);
+		expect((await taskOf(task.id)).createdEntryIds).toEqual([first!.id]);
+		expect(fake.calls).toHaveLength(2);
+	});
+
+	it('logs an item again when its entry was deleted before the reopen', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runOnce(user.id, task.id, [logStep('Toast'), completeStep('first')]);
+		const [first] = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		await db.delete(foodEntries).where(eq(foodEntries.userId, user.id));
+
+		startFake([logStep('Toast'), completeStep('second')]);
+		expect((await patchTask(user, task.id, { status: 'pending' })).status).toBe(200);
 		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
 			timeout: 15_000,
 			interval: 100
@@ -182,19 +204,12 @@ describe('reopening a task through PATCH', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]!.id).not.toBe(first!.id);
 		expect((await taskOf(task.id)).createdEntryIds).toEqual([entries[0]!.id]);
-		expect(fake.calls).toHaveLength(2);
-		expect((await runOf(task.id))?.generation).toBe(1);
 	});
 
-	it('counts only the new generation when the old entries still exist', async () => {
+	it('keeps earlier entries and adds new ones when a reopened task logs something else', async () => {
 		const user = await seedUser(db);
 		const task = await seedTask(db, user.id);
-		await runs.ensureRun(user.id, task.id);
-		startFake([logStep('Toast'), completeStep('first')]);
-		await processor.processTask(task.id, {
-			signal: new AbortController().signal,
-			instanceId: 'worker-contract'
-		});
+		await runOnce(user.id, task.id, [logStep('Toast'), completeStep('first')]);
 		const before = (await taskOf(task.id)).createdEntryIds!;
 
 		startFake([logStep('Eggs'), completeStep('second')]);
@@ -204,8 +219,50 @@ describe('reopening a task through PATCH', () => {
 			interval: 100
 		});
 		const after = (await taskOf(task.id)).createdEntryIds!;
-		expect(after).toHaveLength(1);
-		expect(before).not.toContain(after[0]);
+		expect(after).toHaveLength(2);
+		expect(after).toEqual(expect.arrayContaining(before));
+	});
+
+	it('requeues a run left resolved on a task that is already pending', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runOnce(user.id, task.id, [dismissStep('first')]);
+		await db
+			.update(aiTasks)
+			.set({ status: 'pending', resultSummary: null })
+			.where(eq(aiTasks.id, task.id));
+		expect((await runOf(task.id))?.state).toBe('dismissed');
+
+		startFake([dismissStep('second')]);
+		expect((await patchTask(user, task.id, { status: 'pending' })).status).toBe(200);
+		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
+			timeout: 15_000,
+			interval: 100
+		});
+	});
+
+	it('leaves a running run alone', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runs.ensureRun(user.id, task.id);
+		await db
+			.update(claudeTaskRuns)
+			.set({
+				state: 'running',
+				attempt: 1,
+				leaseOwner: 'other',
+				leaseExpiresAt: new Date(Date.now() + 3_600_000)
+			})
+			.where(eq(claudeTaskRuns.taskId, task.id));
+		const fake = startFake([]);
+
+		expect((await patchTask(user, task.id, { status: 'pending' })).status).toBe(200);
+		expect((await patchTask(user, task.id, { description: '3 eggs' })).status).toBe(200);
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		const run = await runOf(task.id);
+		expect(run?.state).toBe('running');
+		expect(run?.leaseOwner).toBe('other');
+		expect(fake.calls).toHaveLength(0);
 	});
 
 	it('does not requeue or reset failures for edits that are not content or a reopen', async () => {
@@ -224,7 +281,6 @@ describe('reopening a task through PATCH', () => {
 		const run = await runOf(task.id);
 		expect(run?.state).toBe('retry_wait');
 		expect(run?.failures).toBe(2);
-		expect(run?.generation).toBe(0);
 		expect(fake.calls).toHaveLength(0);
 	});
 
@@ -473,18 +529,30 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 		expect(again.status).toBe(409);
 	});
 
-	it('returns 409 with a message when a proposed food was deleted meanwhile', async () => {
+	const proposeFoods = async (count: number) => {
 		const user = await seedUser(db, { autoLog: false });
-		const food = await seedFood(user.id);
+		const seeded = await Promise.all(Array.from({ length: count }, () => seedFood(user.id)));
 		const task = await seedTask(db, user.id);
-		startFake([logStep('Yogurt', food.id), completeStep('Suggested yogurt')]);
+		startFake([
+			toolStep(...seeded.map((food, index) => logToolUse(`Item ${index}`, food.id))),
+			completeStep('Suggested')
+		]);
 		await runs.ensureRun(user.id, task.id);
 		await processor.processTask(task.id, {
 			signal: new AbortController().signal,
 			instanceId: 'worker-contract'
 		});
-		await db.delete(foods).where(eq(foods.id, food.id));
-		startFake([dismissStep('stop')]);
+		return { user, task, foods: seeded };
+	};
+
+	const proposalItems = async (taskId: string) =>
+		((await runOf(taskId))?.proposal as { items: { id: string; foodId: string }[] }).items;
+
+	it('drops only the stale items and lets the rest be accepted', async () => {
+		const { user, task, foods: seeded } = await proposeFoods(2);
+		const items = await proposalItems(task.id);
+		await db.delete(foods).where(eq(foods.id, seeded[0]!.id));
+		const fake = startFake([]);
 
 		const response = await accept(user, task.id);
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/proposal/accept', response);
@@ -493,24 +561,23 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 		expect(await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id))).toHaveLength(
 			0
 		);
-		await vi.waitFor(async () => expect((await runOf(task.id))?.state).toBe('dismissed'), {
-			timeout: 15_000,
-			interval: 100
-		});
+		const run = await runOf(task.id);
+		expect(run?.state).toBe('proposed');
+		expect((await proposalItems(task.id)).map((item) => item.id)).toEqual([items[1]!.id]);
+		expect((await taskOf(task.id)).status).toBe('pending');
+
+		const retry = await accept(user, task.id);
+		expect(retry.status).toBe(200);
+		const entries = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(entries.map((entry) => entry.id)).toEqual([items[1]!.id]);
+		expect(fake.calls).toHaveLength(0);
 	});
 
-	it('hands the run back to claude after a stale proposal so it proposes again', async () => {
-		const user = await seedUser(db, { autoLog: false });
-		const food = await seedFood(user.id);
-		const task = await seedTask(db, user.id);
-		startFake([logStep('Yogurt', food.id), completeStep('Suggested yogurt')]);
-		await runs.ensureRun(user.id, task.id);
-		await processor.processTask(task.id, {
-			signal: new AbortController().signal,
-			instanceId: 'worker-contract'
-		});
+	it('requeues the run when every proposed item went stale', async () => {
+		const { user, task, foods: seeded } = await proposeFoods(2);
 		await db.update(claudeTaskRuns).set({ failures: 1 }).where(eq(claudeTaskRuns.taskId, task.id));
-		await db.delete(foods).where(eq(foods.id, food.id));
+		await db.delete(foods).where(eq(foods.userId, user.id));
+		expect(seeded).toHaveLength(2);
 
 		const fake = startFake([logStep('Yogurt'), completeStep('Suggested again')]);
 		const response = await accept(user, task.id);
@@ -526,6 +593,20 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 		expect(fake.calls).toHaveLength(2);
 		expect((await runOf(task.id))?.failures).toBe(1);
 		expect((await taskOf(task.id)).status).toBe('pending');
+	});
+
+	it('leaves the run alone when it moved on since the failed accept', async () => {
+		const { user, task, foods: seeded } = await proposeFoods(1);
+		const items = await proposalItems(task.id);
+		const run = (await runOf(task.id))!;
+		await db.delete(foods).where(eq(foods.id, seeded[0]!.id));
+
+		await stale.dropStaleProposalItems(user.id, task.id, run.attempt + 1, items[0]!.id);
+		expect((await runOf(task.id))?.state).toBe('proposed');
+		expect(await proposalItems(task.id)).toHaveLength(1);
+
+		await stale.dropStaleProposalItems(user.id, task.id, run.attempt, items[0]!.id);
+		expect((await runOf(task.id))?.state).not.toBe('proposed');
 	});
 
 	it('returns 409 and supersedes the run once the processor moved away', async () => {

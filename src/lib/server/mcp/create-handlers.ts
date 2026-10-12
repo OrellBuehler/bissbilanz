@@ -216,7 +216,7 @@ export type HandlerDeps = {
 	listMealTypes: typeof listMealTypes;
 	// Preferences (activity goal adjustment)
 	getPreferences: typeof getPreferences;
-	getClaudeCapability: typeof getClaudeCapabilitySafe;
+	getClaudeCapabilitySafe: typeof getClaudeCapabilitySafe;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
 	getDayPropertiesRange: typeof getDayPropertiesRange;
@@ -1789,7 +1789,7 @@ export function createHandlers(d: HandlerDeps) {
 				if (preferences?.aiTaskProcessor === 'device') {
 					note = DEVICE_PROCESSOR_NOTE;
 				} else if (preferences?.aiTaskProcessorKind === 'claude') {
-					const capability = await d.getClaudeCapability(userId);
+					const capability = await d.getClaudeCapabilitySafe(userId);
 					if (capability.available) note = CLAUDE_PROCESSOR_NOTE;
 				}
 			}

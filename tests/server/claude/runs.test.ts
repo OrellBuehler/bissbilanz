@@ -120,10 +120,22 @@ describe('ledgerGetOrCreate', () => {
 	});
 
 	test('returns the id written the first time for a known key', async () => {
-		queueResults([[], [{ entryId: 'e0' }]]);
+		queueResults([[], [{ entryId: 'e0', present: 'e0' }]]);
 		expect(await runs.ledgerGetOrCreate(db as never, fence, 'k', 's')).toEqual({
 			entryId: 'e0',
 			created: false
+		});
+	});
+
+	test('frees a key whose entry no longer exists and hands out a new entry id', async () => {
+		queueResults([[], [{ entryId: 'e0', present: null }]]);
+		const result = await runs.ledgerGetOrCreate(db as never, fence, 'k', 'new summary');
+		expect(result.created).toBe(true);
+		expect(result.entryId).not.toBe('e0');
+		expect(result.entryId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(getCalls().find((call) => call.method === 'set')!.args[0]).toMatchObject({
+			entryId: result.entryId,
+			summary: 'new summary'
 		});
 	});
 
