@@ -721,6 +721,7 @@ describe('leases and fencing', () => {
 			timeZone: 'UTC',
 			locale: 'en',
 			fence: stale,
+			generation: 0,
 			seen: new Map<string, number>()
 		};
 		await expect(
