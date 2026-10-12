@@ -16,6 +16,7 @@ import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempo
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
 import { startReminderScheduler } from '$lib/server/push/scheduler';
+import { startClaudeWorker } from '$lib/server/claude/tasks/executor';
 import { acceptsBearerAuth } from '$lib/server/auth-paths';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
 import {
@@ -80,6 +81,7 @@ export async function init() {
 	runCleanup();
 	setInterval(runCleanup, 3600000);
 	startReminderScheduler();
+	startClaudeWorker();
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>
