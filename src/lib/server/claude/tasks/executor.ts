@@ -3,7 +3,8 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import { claudeTaskRuns, userPreferences } from '../../schema';
 import { abandonStaleReservations } from '../budget';
-import { getClaudeCapability } from '../capability';
+import { assertClaudeAllowed, getClaudeCapability } from '../capability';
+import { ClaudeGateError, ClaudeProcessorChangedError } from '../errors';
 import { isClaudeConfigured } from '../config';
 import { onClaudeAccessChanged } from '../events';
 import { processTask } from './processor';
@@ -37,15 +38,18 @@ async function runJob(job: Job): Promise<void> {
 	const controller = new AbortController();
 	controllers.set(job.taskId, { userId: job.userId, controller });
 	activeUsers.add(job.userId);
+	let again = false;
 	try {
-		await processTask(job.taskId, { signal: controller.signal, instanceId });
+		again =
+			(await processTask(job.taskId, { signal: controller.signal, instanceId })) === 'requeued';
 	} catch (error) {
 		Sentry.captureException(error, { tags: { job: 'claude-task' }, extra: { taskId: job.taskId } });
 	} finally {
 		controllers.delete(job.taskId);
 		activeUsers.delete(job.userId);
 		queuedIds.delete(job.taskId);
-		pump();
+		if (again) push(job);
+		else pump();
 	}
 }
 
@@ -91,6 +95,22 @@ export function abortClaudeRuns(userId?: string): void {
 	}
 }
 
+export async function abortClaudeRunsWhereGated(userId?: string): Promise<void> {
+	const owners = new Set(
+		[...controllers.values()]
+			.map((run) => run.userId)
+			.filter((owner) => !userId || owner === userId)
+	);
+	for (const owner of owners) {
+		try {
+			await assertClaudeAllowed(owner);
+		} catch (error) {
+			if (error instanceof ClaudeGateError) abortClaudeRuns(owner);
+			else if (!(error instanceof ClaudeProcessorChangedError)) throw error;
+		}
+	}
+}
+
 type Candidate = { id: string; user_id: string };
 
 export async function sweepClaudeTasks(): Promise<void> {
@@ -102,7 +122,7 @@ export async function sweepClaudeTasks(): Promise<void> {
 		WHERE t.status = 'pending'
 			AND ((r.task_id IS NULL AND t.created_at > now() - interval '7 days')
 				OR r.state IN ('queued', 'blocked')
-				OR (r.state = 'superseded')
+				OR (r.state = 'superseded' AND t.created_at > now() - interval '7 days')
 				OR (r.state = 'retry_wait' AND r.next_attempt_at <= now())
 				OR (r.state = 'running' AND r.lease_expires_at < now()))
 		ORDER BY t.created_at
@@ -123,7 +143,7 @@ export async function sweepClaudeTasks(): Promise<void> {
 export function startClaudeWorker(): void {
 	if (started || !isClaudeConfigured()) return;
 	started = true;
-	onClaudeAccessChanged(({ userId }) => abortClaudeRuns(userId));
+	onClaudeAccessChanged(({ userId }) => abortClaudeRunsWhereGated(userId));
 	const sweep = () => {
 		sweepClaudeTasks().catch((error) => {
 			console.error('[claude-sweep] Error:', error);

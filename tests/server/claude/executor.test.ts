@@ -5,6 +5,7 @@ const h = vi.hoisted(() => ({
 	processTask: vi.fn(),
 	ensureRun: vi.fn(),
 	getClaudeCapability: vi.fn(),
+	assertClaudeAllowed: vi.fn(),
 	abandonStaleReservations: vi.fn(),
 	captureException: vi.fn(),
 	configured: { value: true }
@@ -21,18 +22,22 @@ vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/config', () => ({ isClaudeConfigured: () => h.configured.value }));
 vi.mock('$lib/server/claude/tasks/processor', () => ({ processTask: h.processTask }));
 vi.mock('$lib/server/claude/tasks/runs', () => ({ ensureRun: h.ensureRun }));
-vi.mock('$lib/server/claude/capability', () => ({ getClaudeCapability: h.getClaudeCapability }));
+vi.mock('$lib/server/claude/capability', () => ({
+	getClaudeCapability: h.getClaudeCapability,
+	assertClaudeAllowed: h.assertClaudeAllowed
+}));
 vi.mock('$lib/server/claude/budget', () => ({
 	abandonStaleReservations: h.abandonStaleReservations
 }));
 
 const load = async () => {
 	vi.resetModules();
-	const [executor, events] = await Promise.all([
+	const [executor, events, errors] = await Promise.all([
 		import('$lib/server/claude/tasks/executor'),
-		import('$lib/server/claude/events')
+		import('$lib/server/claude/events'),
+		import('$lib/server/claude/errors')
 	]);
-	return { executor, events };
+	return { executor, events, errors };
 };
 
 const deferred = () => {
@@ -51,6 +56,7 @@ beforeEach(() => {
 		h.processTask,
 		h.ensureRun,
 		h.getClaudeCapability,
+		h.assertClaudeAllowed,
 		h.abandonStaleReservations,
 		h.captureException
 	]) {
@@ -61,6 +67,7 @@ beforeEach(() => {
 	h.ensureRun.mockResolvedValue(undefined);
 	h.abandonStaleReservations.mockResolvedValue(0);
 	h.getClaudeCapability.mockResolvedValue({ available: true, remainingBudgetUsd: 5 });
+	h.assertClaudeAllowed.mockResolvedValue(undefined);
 	queueResults([[{ processor: 'claude' }]]);
 });
 
@@ -185,6 +192,56 @@ describe('abortClaudeRuns', () => {
 	});
 });
 
+describe('abortClaudeRunsWhereGated', () => {
+	const start = async () => {
+		const { executor, errors } = await load();
+		const signals = new Map<string, AbortSignal>();
+		h.processTask.mockImplementation((taskId: string, options: { signal: AbortSignal }) => {
+			signals.set(taskId, options.signal);
+			return new Promise(() => {});
+		});
+		queueResults([[{ processor: 'claude' }], [{ processor: 'claude' }]]);
+		await executor.enqueueClaudeTaskIfEligible('user-a', 'a1');
+		await executor.enqueueClaudeTaskIfEligible('user-b', 'b1');
+		await settle();
+		return { executor, errors, signals };
+	};
+
+	test('aborts only owners whose gates now fail', async () => {
+		const { executor, errors, signals } = await start();
+		h.assertClaudeAllowed.mockImplementation(async (owner: string) => {
+			if (owner === 'user-b') throw new errors.ClaudeGateError('no_access');
+		});
+		await executor.abortClaudeRunsWhereGated();
+		expect(signals.get('a1')!.aborted).toBe(false);
+		expect(signals.get('b1')!.aborted).toBe(true);
+	});
+
+	test('keeps runs alive when the gates still pass or only the processor changed', async () => {
+		const { executor, errors, signals } = await start();
+		await executor.abortClaudeRunsWhereGated('user-a');
+		h.assertClaudeAllowed.mockRejectedValue(new errors.ClaudeProcessorChangedError());
+		await executor.abortClaudeRunsWhereGated('user-b');
+		expect([...signals.values()].some((signal) => signal.aborted)).toBe(false);
+	});
+
+	test('surfaces unexpected failures', async () => {
+		const { executor } = await start();
+		h.assertClaudeAllowed.mockRejectedValue(new Error('db down'));
+		await expect(executor.abortClaudeRunsWhereGated('user-a')).rejects.toThrow('db down');
+	});
+});
+
+describe('requeued runs', () => {
+	test('a run that asks to be requeued is processed again', async () => {
+		const { executor } = await load();
+		h.processTask.mockResolvedValueOnce('requeued').mockResolvedValue(undefined);
+		await executor.enqueueClaudeTaskIfEligible('user-a', 'a1');
+		await settle();
+		expect(h.processTask).toHaveBeenCalledTimes(2);
+	});
+});
+
 describe('requeueRunForEditedTask', () => {
 	test('puts a waiting run back in the queue', async () => {
 		const { executor } = await load();
@@ -249,7 +306,7 @@ describe('startClaudeWorker', () => {
 
 	test('reports a failing sweep and aborts runs when access changes', async () => {
 		vi.useFakeTimers();
-		const { executor, events } = await load();
+		const { executor, events, errors } = await load();
 		const signals: AbortSignal[] = [];
 		h.processTask.mockImplementation((_taskId: string, options: { signal: AbortSignal }) => {
 			signals.push(options.signal);
@@ -267,8 +324,16 @@ describe('startClaudeWorker', () => {
 		await vi.advanceTimersByTimeAsync(0);
 		expect(signals).toHaveLength(1);
 		events.emitClaudeAccessChanged({ userId: 'someone-else' });
+		await vi.advanceTimersByTimeAsync(0);
 		expect(signals[0]!.aborted).toBe(false);
+
 		events.emitClaudeAccessChanged({ userId: 'user-a' });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(signals[0]!.aborted).toBe(false);
+
+		h.assertClaudeAllowed.mockRejectedValue(new errors.ClaudeGateError('no_access'));
+		events.emitClaudeAccessChanged({});
+		await vi.advanceTimersByTimeAsync(0);
 		expect(signals[0]!.aborted).toBe(true);
 	});
 });

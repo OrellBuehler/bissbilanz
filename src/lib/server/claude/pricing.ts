@@ -1,5 +1,6 @@
 export type ModelPricing = { input: number; output: number; cacheWrite: number; cacheRead: number };
 
+// Haiku's higher rate above 100K prompt tokens is not modelled; our prompts stay far below it.
 export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelPricing> = {
 	'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
 	'claude-sonnet-5-5': { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },

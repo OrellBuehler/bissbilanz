@@ -373,7 +373,7 @@ describe('log_food in auto mode', () => {
 			logInput({ quickName: 'x', quickCalories: 1, mealType: 'dinner' }),
 			ctx
 		);
-		expect(h.createEntry.mock.calls[1]![1].mealType).toBe('dinner');
+		expect(h.createEntry.mock.calls[1]![1].mealType).toBe('Dinner');
 		expect(
 			(await parsed(runTaskTool('log_food', logInput({ quickName: 'x', quickCalories: 1 }), ctx)))
 				.body.error
@@ -498,6 +498,24 @@ describe('eatenAt', () => {
 		await runTaskTool('log_food', logInput({ quickName: 'x', quickCalories: 1 }), ctx);
 		const query = render(h.execute.mock.calls.at(-1)![0]);
 		expect(query.params).toEqual(['2026-10-12', time, 'Europe/Zurich']);
+	});
+});
+
+describe('meal type normalization', () => {
+	const ctxFor = (mealType: string) =>
+		makeCtx({ task: { id: 'task-1', date: '2026-10-12', mealType, eatenAt: null } });
+	const input = logInput({ quickName: 'x', quickCalories: 1 });
+
+	test('uses the normalized meal type for the default time and the ledger key', async () => {
+		await runTaskTool('log_food', input, ctxFor('lunch'));
+		await runTaskTool('log_food', input, ctxFor('Lunch'));
+		expect(render(h.execute.mock.calls[0]![0]).params).toEqual([
+			'2026-10-12',
+			'12:30',
+			'Europe/Zurich'
+		]);
+		const [first, second] = h.ledgerGetOrCreate.mock.calls.map((call) => call[2]);
+		expect(first).toBe(second);
 	});
 });
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import Anthropic from '@anthropic-ai/sdk';
 
 const KEY = 'sk-ant-unit-test-secret';
-const config = { model: 'claude-opus-5-5', configured: true };
+const config = { model: 'claude-opus-5-5', configured: true, apiKey: KEY as string | undefined };
 
 const sentry = vi.hoisted(() => ({
 	captureException: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@sentry/sveltekit', () => sentry);
 vi.mock('$lib/server/claude/budget', () => budget);
 vi.mock('$lib/server/claude/config', () => ({
 	claudeConfig: () => config,
-	claudeApiKey: () => KEY,
+	claudeApiKey: () => config.apiKey,
 	isClaudeConfigured: () => config.configured
 }));
 
@@ -46,6 +46,7 @@ const load = async (fresh = false) => {
 beforeEach(() => {
 	config.model = 'claude-opus-5-5';
 	config.configured = true;
+	config.apiKey = KEY;
 	budget.reserveCall.mockReset().mockResolvedValue('usage-1');
 	budget.settleCall.mockReset().mockResolvedValue(undefined);
 	for (const fn of [sentry.captureException, sentry.addBreadcrumb, sentry.logger.info])
@@ -341,6 +342,16 @@ describe('callClaude against the SDK boundary', () => {
 		expect(reported.message).toBe('Claude API error: invalid_request (400)');
 		expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain(KEY);
 		expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('private prompt');
+	});
+
+	test('treats a missing client as never sent and charges nothing', async () => {
+		config.apiKey = undefined;
+		const mod = await load(true);
+		await expect(call(mod)).rejects.toMatchObject({ code: 'not_configured' });
+		expect(budget.settleCall).toHaveBeenCalledWith(
+			'usage-1',
+			expect.objectContaining({ costUsd: 0, errorCode: 'not_sent' })
+		);
 	});
 
 	test('fails with not_configured before reserving when there is no key', async () => {

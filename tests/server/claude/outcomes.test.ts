@@ -248,3 +248,31 @@ describe('stopOrBlockRun', () => {
 		expect(transitions().map((patch) => patch.state)).toEqual(['blocked', 'blocked']);
 	});
 });
+
+describe('supersedeOrStopRun and requeueRun', () => {
+	test('supersedes when nothing was logged or outside auto mode', async () => {
+		await expect(outcomes.supersedeOrStopRun(ctx(), 'auto_log')).resolves.toBe('superseded');
+		h.listLoggedLedger.mockResolvedValue(logged);
+		await expect(outcomes.supersedeOrStopRun(ctx(), 'review')).resolves.toBe('superseded');
+		expect(transitions().map((patch) => patch.state)).toEqual(['superseded', 'superseded']);
+	});
+
+	test('stops with a partial note when entries were logged before the processor changed', async () => {
+		h.listLoggedLedger.mockResolvedValue(logged);
+		await expect(outcomes.supersedeOrStopRun(ctx(), 'auto_log')).resolves.toBe('dismissed');
+		expect(h.dismissAiTaskByAgent.mock.calls[0]![4].createdEntryIds).toEqual(['e1', 'e2']);
+		expect(transitions()).toEqual([
+			{
+				state: 'dismissed',
+				proposal: null,
+				failureCode: 'claude_stopped',
+				failureDetail: 'processor_changed'
+			}
+		]);
+	});
+
+	test('requeueRun returns the run to the queue without touching failures', async () => {
+		await outcomes.requeueRun(ctx());
+		expect(transitions()).toEqual([{ state: 'queued', proposal: null }]);
+	});
+});

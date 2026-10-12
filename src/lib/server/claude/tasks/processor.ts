@@ -19,8 +19,10 @@ import {
 } from '../errors';
 import {
 	dismissRun,
+	requeueRun,
 	retryOrDismissRun,
 	stopOrBlockRun,
+	supersedeOrStopRun,
 	supersedeRun,
 	type OutcomeContext
 } from './outcomes';
@@ -33,15 +35,19 @@ import {
 	listLoggedLedger,
 	supersedeIfProcessorChanged
 } from './runs';
-import { TASK_TOOLS, TOOL_RESULT_MAX_CHARS, runTaskTool, type TaskToolContext } from './tools';
+import { TASK_TOOLS, isTerminalTool, runTaskTool, type TaskToolContext } from './tools';
 import type { ClaudeRun, Fence, TaskMode } from './types';
 
 export const MAX_ITERATIONS = 10;
 export const HEARTBEAT_INTERVAL_MS = 60_000;
+export const MAX_TOOL_CALLS_PER_RESPONSE = 20;
+export const MAX_LOG_CALLS_PER_RUN = 30;
 
 const NUDGE =
 	'Your reply was cut off. Keep it short: call complete_ai_task or dismiss_ai_task now.';
 const NUDGE_NO_TERMINAL = 'You have not finished. Call complete_ai_task or dismiss_ai_task now.';
+
+export type ProcessResult = 'requeued' | void;
 
 export type ProcessOptions = {
 	signal: AbortSignal;
@@ -158,6 +164,7 @@ async function runLoop(
 		seen: new Map()
 	};
 	let nudged = false;
+	let logCalls = 0;
 
 	const regate = async (): Promise<boolean> => {
 		await assertClaudeAllowed(run.userId);
@@ -183,10 +190,12 @@ async function runLoop(
 			return;
 		}
 
-		messages.push({
-			role: 'assistant',
-			content: response.content as Anthropic.ContentBlockParam[]
-		});
+		if (response.content.length > 0) {
+			messages.push({
+				role: 'assistant',
+				content: response.content as Anthropic.ContentBlockParam[]
+			});
+		}
 		const toolUses = response.content.filter(
 			(block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
 		);
@@ -194,14 +203,35 @@ async function runLoop(
 		if (response.stop_reason === 'tool_use' && toolUses.length > 0) {
 			if (!(await regate())) return;
 			const results: Anthropic.ToolResultBlockParam[] = [];
-			for (const block of toolUses) {
+			let failed = false;
+			for (const [index, block] of toolUses.entries()) {
 				if (signal.aborted) throw new ClaudeAbortedError();
+				const rejection =
+					index >= MAX_TOOL_CALLS_PER_RESPONSE
+						? 'Too many tool calls in one response. Make fewer calls per turn.'
+						: block.name === 'log_food' && logCalls >= MAX_LOG_CALLS_PER_RUN
+							? 'Too many log_food calls for this meal. Finish with complete_ai_task or dismiss_ai_task.'
+							: isTerminalTool(block.name) && failed
+								? 'Fix the failed call first, then finish.'
+								: null;
+				if (rejection) {
+					failed = true;
+					results.push({
+						type: 'tool_result',
+						tool_use_id: block.id,
+						content: JSON.stringify({ error: rejection }),
+						is_error: true
+					});
+					continue;
+				}
+				if (block.name === 'log_food') logCalls++;
 				const result = await runTaskTool(block.name, block.input, toolCtx);
 				if (result.outcome) return;
+				if (result.isError) failed = true;
 				results.push({
 					type: 'tool_result',
 					tool_use_id: block.id,
-					content: result.content.slice(0, TOOL_RESULT_MAX_CHARS),
+					content: result.content,
 					...(result.isError ? { is_error: true } : {})
 				});
 			}
@@ -254,8 +284,11 @@ async function handleFailure(
 	run: ClaudeRun,
 	ctx: OutcomeContext,
 	mode: TaskMode
-): Promise<void> {
-	if (error instanceof ClaudeProcessorChangedError) return supersedeRun(ctx);
+): Promise<ProcessResult> {
+	if (error instanceof ClaudeProcessorChangedError) {
+		await supersedeOrStopRun(ctx, mode);
+		return;
+	}
 	if (error instanceof ClaudeGateError) {
 		await stopOrBlockRun(ctx, mode, error.code);
 		return;
@@ -268,11 +301,14 @@ async function handleFailure(
 				await stopOrBlockRun(ctx, mode, gate.code);
 				return;
 			}
-			if (gate instanceof ClaudeProcessorChangedError) return supersedeRun(ctx);
+			if (gate instanceof ClaudeProcessorChangedError) {
+				await supersedeOrStopRun(ctx, mode);
+				return;
+			}
 			throw gate;
 		}
-		await stopOrBlockRun(ctx, mode, 'no_access');
-		return;
+		await requeueRun(ctx);
+		return 'requeued';
 	}
 	if (error instanceof ClaudeApiError) {
 		if (error.retryable) await retryOrDismissRun(ctx, run.failures, failureDetail(error));
@@ -283,7 +319,7 @@ async function handleFailure(
 	await retryOrDismissRun(ctx, run.failures, failureDetail(error));
 }
 
-export async function processTask(taskId: string, options: ProcessOptions): Promise<void> {
+export async function processTask(taskId: string, options: ProcessOptions): Promise<ProcessResult> {
 	const run = await claimRun(taskId, options.instanceId);
 	if (!run) {
 		await supersedeIfProcessorChanged(taskId);
@@ -313,7 +349,7 @@ export async function processTask(taskId: string, options: ProcessOptions): Prom
 	} catch (error) {
 		if (error instanceof LeaseLostError || lease.isLost()) return;
 		try {
-			await handleFailure(error, run, ctx, mode);
+			return await handleFailure(error, run, ctx, mode);
 		} catch (followUp) {
 			if (followUp instanceof LeaseLostError) return;
 			throw followUp;

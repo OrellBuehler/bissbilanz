@@ -37,6 +37,13 @@ export function serializeClaudeProcessing(
 
 export async function acceptProposal(userId: string, taskId: string, itemIds?: string[]) {
 	const switched = await getDB().transaction(async (tx) => {
+		const [task] = await tx
+			.select({ status: aiTasks.status })
+			.from(aiTasks)
+			.where(and(eq(aiTasks.id, taskId), eq(aiTasks.userId, userId)))
+			.for('update');
+		if (!task) throw new ApiError(404, 'Not found');
+
 		const [run] = await tx
 			.select()
 			.from(claudeTaskRuns)
@@ -44,13 +51,7 @@ export async function acceptProposal(userId: string, taskId: string, itemIds?: s
 			.for('update');
 		if (!run) throw new ApiError(404, 'Not found');
 		if (run.state !== 'proposed') throw new ApiError(409, 'No proposal to accept');
-
-		const [task] = await tx
-			.select({ status: aiTasks.status })
-			.from(aiTasks)
-			.where(and(eq(aiTasks.id, taskId), eq(aiTasks.userId, userId)))
-			.for('update');
-		if (!task || task.status !== 'pending') throw new ApiError(409, 'Task is no longer pending');
+		if (task.status !== 'pending') throw new ApiError(409, 'Task is no longer pending');
 
 		const [prefs] = await tx
 			.select({ processor: userPreferences.aiTaskProcessor })

@@ -173,18 +173,39 @@ export async function retryOrDismissRun(
 	return 'retry_wait';
 }
 
+async function hasLoggedEntries(ctx: OutcomeContext, mode: TaskMode): Promise<boolean> {
+	if (mode !== 'auto_log') return false;
+	const logged = await withFence(ctx.fence, (tx) => listLoggedLedger(tx, ctx.taskId, ctx.userId));
+	return logged.length > 0;
+}
+
 export async function stopOrBlockRun(
 	ctx: OutcomeContext,
 	mode: TaskMode,
 	code: ClaudeGateCode
 ): Promise<'blocked' | TaskOutcome> {
-	if (mode === 'auto_log') {
-		const logged = await withFence(ctx.fence, (tx) => listLoggedLedger(tx, ctx.taskId, ctx.userId));
-		if (logged.length > 0) {
-			await dismissRun(ctx, 'claude_stopped', code);
-			return 'dismissed';
-		}
+	if (await hasLoggedEntries(ctx, mode)) {
+		await dismissRun(ctx, 'claude_stopped', code);
+		return 'dismissed';
 	}
 	await blockRun(ctx, code);
 	return 'blocked';
+}
+
+export async function supersedeOrStopRun(
+	ctx: OutcomeContext,
+	mode: TaskMode
+): Promise<TaskOutcome> {
+	if (await hasLoggedEntries(ctx, mode)) {
+		await dismissRun(ctx, 'claude_stopped', 'processor_changed');
+		return 'dismissed';
+	}
+	await supersedeRun(ctx);
+	return 'superseded';
+}
+
+export async function requeueRun(ctx: OutcomeContext): Promise<void> {
+	await withFence(ctx.fence, (tx) =>
+		transitionFenced(tx, ctx.fence, { state: 'queued', proposal: null })
+	);
 }

@@ -24,7 +24,7 @@ export const TOOL_RESULT_MAX_CHARS = 8000;
 
 type JsonType = 'string' | 'number' | 'integer';
 const nullable = (type: JsonType, description: string) => ({
-	type: [type, 'null'],
+	anyOf: [{ type }, { type: 'null' }],
 	description
 });
 const text = (description: string) => ({ type: 'string', description });
@@ -162,7 +162,8 @@ export type TaskToolContext = {
 
 export type ToolResult = { content: string; isError: boolean; outcome?: TaskOutcome };
 
-export const TERMINAL_TOOLS = ['complete_ai_task', 'dismiss_ai_task'];
+export const isTerminalTool = (name: string) =>
+	name === 'complete_ai_task' || name === 'dismiss_ai_task';
 
 class ToolInputError extends Error {}
 
@@ -282,9 +283,10 @@ async function logFood(
 		throw new ToolInputError(`Invalid meal type: ${parsed.data.mealType}`);
 	}
 
+	const normalizedPayload = { ...payloadWithoutTime, mealType: parsed.data.mealType };
 	const name = input.quickName ?? food?.name ?? recipe?.name ?? 'entry';
-	const eatenAt = await resolveEatenAt(ctx, mealType, input.eatenAt);
-	const payload = { ...payloadWithoutTime, eatenAt };
+	const eatenAt = await resolveEatenAt(ctx, parsed.data.mealType, input.eatenAt);
+	const payload = { ...normalizedPayload, eatenAt };
 
 	if (ctx.mode === 'review') {
 		const per = food ?? {
@@ -329,7 +331,7 @@ async function logFood(
 		return { proposalItemId: item.id };
 	}
 
-	const hash = hashPayload(payloadWithoutTime);
+	const hash = hashPayload(normalizedPayload);
 	const occurrence = ctx.seen.get(hash) ?? 0;
 	const summary = input.quantityDescription
 		? `${name} (${input.quantityDescription})`
@@ -419,7 +421,7 @@ export async function runTaskTool(
 	ctx: TaskToolContext
 ): Promise<ToolResult> {
 	try {
-		if (name === 'complete_ai_task' || name === 'dismiss_ai_task') {
+		if (isTerminalTool(name)) {
 			const outcomeCtx: OutcomeContext = {
 				fence: ctx.fence,
 				userId: ctx.userId,

@@ -192,8 +192,9 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	let failure: unknown;
 	try {
 		if (signal?.aborted) throw new ClaudeAbortedError();
+		const claude = getClient();
 		sent = true;
-		response = await getClient().messages.create(request, { signal });
+		response = await claude.messages.create(request, { signal });
 		Sentry.logger.info('Claude call finished', {
 			taskId: options.aiTaskId ?? '',
 			model: response.model,

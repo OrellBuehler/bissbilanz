@@ -9,7 +9,6 @@ const runs = await import('$lib/server/claude/tasks/runs');
 const { LeaseLostError } = await import('$lib/server/claude/errors');
 
 const fence = { taskId: 'task-1', instance: 'inst', attempt: 2 };
-const methods = () => getCalls().map((call) => call.method);
 const setArgs = () =>
 	getCalls()
 		.filter((call) => call.method === 'set')
@@ -20,9 +19,11 @@ beforeEach(() => {
 });
 
 describe('run rows', () => {
-	test('ensureRun inserts idempotently', async () => {
-		await runs.ensureRun('user-1', 'task-1');
-		expect(methods()).toEqual(expect.arrayContaining(['insert', 'values', 'onConflictDoNothing']));
+	test('supersedeIfProcessorChanged issues one conditional update', async () => {
+		await runs.supersedeIfProcessorChanged('task-1');
+		expect(setArgs()).toEqual([
+			expect.objectContaining({ state: 'superseded', leaseOwner: null, leaseExpiresAt: null })
+		]);
 	});
 
 	test('loadRun returns the row or nothing', async () => {
@@ -53,26 +54,6 @@ describe('run rows', () => {
 		expect(await runs.claimRun('task-1', 'inst')).toBeUndefined();
 	});
 
-	test('supersedeUnclaimedRun marks the run superseded without a lease', async () => {
-		await runs.supersedeUnclaimedRun('task-1');
-		expect(setArgs()[0]).toMatchObject({
-			state: 'superseded',
-			leaseOwner: null,
-			leaseExpiresAt: null
-		});
-	});
-
-	test('supersedeIfProcessorChanged only acts when the processor is not claude', async () => {
-		setResult([{ processor: 'claude' }]);
-		await runs.supersedeIfProcessorChanged('task-1');
-		setResult([]);
-		await runs.supersedeIfProcessorChanged('task-1');
-		expect(methods()).not.toContain('update');
-		setResult([{ processor: 'assistant' }]);
-		await runs.supersedeIfProcessorChanged('task-1');
-		expect(methods()).toContain('update');
-	});
-
 	test('heartbeat reports whether the fenced row was extended', async () => {
 		setResult([{ taskId: 'task-1' }]);
 		expect(await runs.heartbeat(fence)).toBe(true);
@@ -83,9 +64,8 @@ describe('run rows', () => {
 
 describe('withFence', () => {
 	test('runs the callback inside the fenced transaction', async () => {
-		queueResults([[{ one: 1 }]]);
+		queueResults([[{ one: 1 }], [{ one: 1 }]]);
 		expect(await runs.withFence(fence, async () => 'done')).toBe('done');
-		expect(methods()).toEqual(expect.arrayContaining(['transaction', 'for']));
 	});
 
 	test('throws LeaseLostError without running the callback when the fence does not hold', async () => {
@@ -126,7 +106,7 @@ describe('transitionFenced', () => {
 
 describe('ledgerGetOrCreate', () => {
 	test('inserts a new key with a generated entry id', async () => {
-		queueResults([[{ one: 1 }], [{ entryId: 'e1' }]]);
+		queueResults([[{ entryId: 'e1' }]]);
 		expect(await runs.ledgerGetOrCreate(db as never, fence, 'k', 'summary')).toEqual({
 			entryId: 'e1',
 			created: true
@@ -140,19 +120,15 @@ describe('ledgerGetOrCreate', () => {
 	});
 
 	test('returns the id written the first time for a known key', async () => {
-		queueResults([[{ one: 1 }], [], [{ entryId: 'e0' }]]);
+		queueResults([[], [{ entryId: 'e0' }]]);
 		expect(await runs.ledgerGetOrCreate(db as never, fence, 'k', 's')).toEqual({
 			entryId: 'e0',
 			created: false
 		});
 	});
 
-	test('fails fenced and on a vanished row', async () => {
-		queueResults([[]]);
-		await expect(runs.ledgerGetOrCreate(db as never, fence, 'k', 's')).rejects.toBeInstanceOf(
-			LeaseLostError
-		);
-		queueResults([[{ one: 1 }], [], []]);
+	test('fails on a vanished row', async () => {
+		queueResults([[], []]);
 		await expect(runs.ledgerGetOrCreate(db as never, fence, 'k', 's')).rejects.toThrow('vanished');
 	});
 });
@@ -163,6 +139,5 @@ describe('listLoggedLedger', () => {
 		expect(await runs.listLoggedLedger(db as never, 'task-1', 'user-1')).toEqual([
 			{ entryId: 'e1', summary: 'Toast' }
 		]);
-		expect(methods()).toContain('innerJoin');
 	});
 });

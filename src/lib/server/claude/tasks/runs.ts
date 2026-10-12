@@ -1,6 +1,7 @@
-import { and, eq, exists, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, lt, lte, notExists, or, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import {
+	aiTasks,
 	claudeTaskLedger,
 	claudeTaskRuns,
 	foodEntries,
@@ -77,28 +78,31 @@ export async function claimRun(taskId: string, instance: string): Promise<Claude
 	return claimed;
 }
 
-export async function supersedeUnclaimedRun(taskId: string): Promise<void> {
-	await getDB()
+export async function supersedeIfProcessorChanged(taskId: string): Promise<void> {
+	const db = getDB();
+	await db
 		.update(claudeTaskRuns)
 		.set({ state: 'superseded', leaseOwner: null, leaseExpiresAt: null, updatedAt: sql`now()` })
 		.where(
 			and(
 				eq(claudeTaskRuns.taskId, taskId),
 				or(
-					inArray(claudeTaskRuns.state, ['queued', 'blocked', 'retry_wait', 'proposed']),
+					inArray(claudeTaskRuns.state, ['queued', 'blocked', 'retry_wait']),
 					and(eq(claudeTaskRuns.state, 'running'), lt(claudeTaskRuns.leaseExpiresAt, sql`now()`))
+				),
+				notExists(
+					db
+						.select({ one: sql`1` })
+						.from(userPreferences)
+						.where(
+							and(
+								eq(userPreferences.userId, claudeTaskRuns.userId),
+								eq(userPreferences.aiTaskProcessor, 'claude')
+							)
+						)
 				)
 			)
 		);
-}
-
-export async function supersedeIfProcessorChanged(taskId: string): Promise<void> {
-	const [row] = await getDB()
-		.select({ processor: userPreferences.aiTaskProcessor })
-		.from(claudeTaskRuns)
-		.leftJoin(userPreferences, eq(userPreferences.userId, claudeTaskRuns.userId))
-		.where(eq(claudeTaskRuns.taskId, taskId));
-	if (row && row.processor !== 'claude') await supersedeUnclaimedRun(taskId);
 }
 
 const fenceWhere = (fence: Fence) =>
@@ -119,6 +123,12 @@ export async function heartbeat(fence: Fence): Promise<boolean> {
 
 export async function withFence<T>(fence: Fence, fn: (tx: RunTx) => Promise<T>): Promise<T> {
 	return getDB().transaction(async (tx) => {
+		// Same order as acceptProposal: task row first, then the run row.
+		await tx
+			.select({ one: sql`1` })
+			.from(aiTasks)
+			.where(eq(aiTasks.id, fence.taskId))
+			.for('update');
 		const held = await tx
 			.select({ one: sql`1` })
 			.from(claudeTaskRuns)
@@ -158,11 +168,6 @@ export async function ledgerGetOrCreate(
 	key: string,
 	summary: string
 ): Promise<{ entryId: string; created: boolean }> {
-	const held = await tx
-		.select({ one: sql`1` })
-		.from(claudeTaskRuns)
-		.where(fenceWhere(fence));
-	if (held.length === 0) throw new LeaseLostError();
 	const [inserted] = await tx
 		.insert(claudeTaskLedger)
 		.values({ taskId: fence.taskId, key, entryId: crypto.randomUUID(), summary })

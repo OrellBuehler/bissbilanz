@@ -30,8 +30,8 @@ const proposal = { summary: 'Suggested', items: [item('a'), item('b')] };
 
 const queueAccept = (overrides: { run?: unknown; task?: unknown; prefs?: unknown } = {}) =>
 	queueResults([
-		'run' in overrides ? overrides.run : [{ state: 'proposed', proposal }],
 		'task' in overrides ? overrides.task : [{ status: 'pending' }],
+		'run' in overrides ? overrides.run : [{ state: 'proposed', proposal }],
 		'prefs' in overrides ? overrides.prefs : [{ processor: 'claude' }]
 	]);
 
@@ -114,7 +114,7 @@ describe('acceptProposal', () => {
 	test.each([
 		['no run', { run: [] }, 404],
 		['a run that is not proposed', { run: [{ state: 'running', proposal: null }] }, 409],
-		['a missing task', { task: [] }, 409],
+		['a missing task', { task: [] }, 404],
 		['a resolved task', { task: [{ status: 'completed' }] }, 409],
 		['a switched processor', { prefs: [{ processor: 'assistant' }] }, 409],
 		['no preferences', { prefs: [] }, 409]

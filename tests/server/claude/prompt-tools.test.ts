@@ -17,7 +17,8 @@ const ALLOWED_SCHEMA_KEYS = new Set([
 	'required',
 	'enum',
 	'description',
-	'additionalProperties'
+	'additionalProperties',
+	'anyOf'
 ]);
 
 describe('TASK_TOOLS', () => {
@@ -61,12 +62,24 @@ describe('TASK_TOOLS', () => {
 		expect(TASK_SYSTEM[0]!.text).toBe(TASK_SYSTEM_PROMPT);
 	});
 
-	test('optional inputs are nullable instead of omitted', () => {
+	test('optional inputs are nullable through anyOf instead of omitted', () => {
 		const log = TASK_TOOLS.find((tool) => tool.name === 'log_food')!;
-		const properties = log.input_schema.properties as Record<string, { type: unknown }>;
-		expect(properties.foodId!.type).toEqual(['string', 'null']);
-		expect(properties.quickCalories!.type).toEqual(['number', 'null']);
+		const properties = log.input_schema.properties as Record<string, Record<string, unknown>>;
+		expect(properties.foodId!.anyOf).toEqual([{ type: 'string' }, { type: 'null' }]);
+		expect(properties.quickCalories!.anyOf).toEqual([{ type: 'number' }, { type: 'null' }]);
 		expect(properties.servings!.type).toBe('number');
+	});
+
+	test('no schema uses a type array', () => {
+		const hasTypeArray = (value: unknown): boolean =>
+			Array.isArray(value)
+				? value.some(hasTypeArray)
+				: value !== null && typeof value === 'object'
+					? Object.entries(value).some(
+							([key, inner]) => (key === 'type' && Array.isArray(inner)) || hasTypeArray(inner)
+						)
+					: false;
+		expect(TASK_TOOLS.some((tool) => hasTypeArray(tool.input_schema))).toBe(false);
 	});
 });
 
@@ -109,7 +122,7 @@ describe('prompt and tools are byte-stable', () => {
 
 	test('stay identical to the reviewed text', () => {
 		expect(createHash('sha256').update(serialized).digest('hex')).toMatchInlineSnapshot(
-			`"8d929f59a58249f8c6da541bb2ad6c47bcca82a2f5f5911a493a0831919d0be7"`
+			`"60d139dde0b356c339d71032f0ebc3de13a482bb31305cda50805f1a1fd8c887"`
 		);
 	});
 });

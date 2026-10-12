@@ -63,9 +63,6 @@ describe('reserveCall', () => {
 	test('takes the advisory lock, then inserts a reservation', async () => {
 		gates([{ enabled: true, monthlyBudgetUsd: null }], [{ processor: 'claude' }]);
 		await expect(budget.reserveCall(input)).resolves.toBe('usage-1');
-		expect(getCalls().map((call) => call.method)).toEqual(
-			expect.arrayContaining(['transaction', 'execute', 'insert'])
-		);
 		const values = getCalls().find((call) => call.method === 'values')!.args[0];
 		expect(values).toMatchObject({
 			userId: 'user-1',

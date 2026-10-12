@@ -1278,3 +1278,159 @@ describe('executor', () => {
 		).toHaveLength(0);
 	});
 });
+
+describe('access changes while a run is in flight', () => {
+	it('requeues instead of blocking when an abort finds every gate open', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const controller = new AbortController();
+		startFake([
+			async (_params, options) => {
+				controller.abort();
+				return abortable(options.signal, () => new Anthropic.APIUserAbortError());
+			}
+		]);
+		await runs.ensureRun(user.id, task.id);
+		const result = await processor.processTask(task.id, {
+			signal: controller.signal,
+			instanceId: INSTANCE
+		});
+		expect(result).toBe('requeued');
+		expect(await runOf(task.id)).toMatchObject({
+			state: 'queued',
+			failures: 0,
+			leaseOwner: null,
+			failureCode: null
+		});
+		expect((await taskOf(task.id)).status).toBe('pending');
+
+		startFake([quickLog(), completeStep('Logged toast')]);
+		await execute(user.id, task.id);
+		expect(await runOf(task.id)).toMatchObject({ state: 'succeeded', failures: 0 });
+	});
+
+	it('does not abort runs when a change leaves every gate open', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		let release: () => void = () => {};
+		const released = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let aborted = false;
+		startFake([
+			async (_params, options) => {
+				options.signal?.addEventListener('abort', () => {
+					aborted = true;
+				});
+				await released;
+				return completeStep('nothing to log');
+			}
+		]);
+		executor.startClaudeWorker();
+		await executor.enqueueClaudeTaskIfEligible(user.id, task.id);
+		await vi.waitFor(async () => expect((await runOf(task.id)).state).toBe('running'), {
+			timeout: 15_000,
+			interval: 50
+		});
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		await db.execute(
+			sql`UPDATE claude_access SET monthly_budget_usd = 50 WHERE user_id = ${user.id}`
+		);
+		events.emitClaudeAccessChanged({ userId: user.id });
+		events.emitClaudeAccessChanged({});
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(aborted).toBe(false);
+
+		release();
+		await vi.waitFor(async () => expect((await runOf(task.id)).state).toBe('dismissed'), {
+			timeout: 15_000,
+			interval: 50
+		});
+		expect((await runOf(task.id)).failureCode).toBeNull();
+	});
+
+	it('stops with a partial note when the processor changes after something was logged', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		startFake([
+			quickLog({ quantityDescription: '1 slice' }),
+			async () => {
+				await db
+					.update(userPreferences)
+					.set({ aiTaskProcessor: 'assistant' })
+					.where(eq(userPreferences.userId, user.id));
+				return toolStep(toolUse('search_foods', { query: 'toast', limit: null }));
+			},
+			completeStep()
+		]);
+		await execute(user.id, task.id);
+		const entries = await entriesOf(user.id);
+		expect(entries).toHaveLength(1);
+		expect(await runOf(task.id)).toMatchObject({
+			state: 'dismissed',
+			failureCode: 'claude_stopped'
+		});
+		const done = await taskOf(task.id);
+		expect(done).toMatchObject({
+			status: 'dismissed',
+			processedBy: 'claude',
+			acknowledgedAt: null
+		});
+		expect(done.createdEntryIds).toEqual([entries[0]!.id]);
+		expect(done.resultSummary).toContain('Already logged: Toast (1 slice).');
+	});
+
+	it('normalizes the meal type and answers terminal calls after failures', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id, { mealType: 'lunch' });
+		const fake = startFake([
+			toolStep(
+				toolUse('log_food', logInput({ foodId: randomUUID() }), 'toolu_bad'),
+				toolUse('complete_ai_task', { resultSummary: 'done' }, 'toolu_done')
+			),
+			quickLog(),
+			completeStep('Logged toast')
+		]);
+		await execute(user.id, task.id);
+		const results = fake.calls[1]!.messages[2]!.content as Anthropic.ToolResultBlockParam[];
+		expect(results.map((block) => block.is_error)).toEqual([true, true]);
+		expect(String(results[1]!.content)).toContain('Fix the failed call first');
+		const [entry] = await entriesOf(user.id);
+		expect(entry!.mealType).toBe('Lunch');
+		expect(entry!.eatenAt.toISOString()).toBe('2026-10-12T10:30:00.000Z');
+		expect((await taskOf(task.id)).status).toBe('completed');
+	});
+
+	it('only re-picks superseded runs of recent tasks', async () => {
+		const user = await seedUser(db);
+		const old = await seedTask(db, user.id, { createdAt: sql`now() - interval '8 days'` as never });
+		const recent = await seedTask(db, user.id);
+		for (const task of [old, recent]) {
+			await runs.ensureRun(user.id, task.id);
+			await db
+				.update(claudeTaskRuns)
+				.set({ state: 'superseded' })
+				.where(eq(claudeTaskRuns.taskId, task.id));
+		}
+		startFake([quickLog(), completeStep('Logged toast')]);
+		await executor.sweepClaudeTasks();
+		await vi.waitFor(async () => expect((await runOf(recent.id)).state).toBe('succeeded'), {
+			timeout: 15_000,
+			interval: 100
+		});
+		expect((await runOf(old.id)).state).toBe('superseded');
+	});
+
+	it('leaves a proposed run alone when the processor is gone', async () => {
+		const user = await seedUser(db, { processor: 'device', autoLog: false });
+		const task = await seedTask(db, user.id);
+		await runs.ensureRun(user.id, task.id);
+		await db
+			.update(claudeTaskRuns)
+			.set({ state: 'proposed' })
+			.where(eq(claudeTaskRuns.taskId, task.id));
+		await runs.supersedeIfProcessorChanged(task.id);
+		expect((await runOf(task.id)).state).toBe('proposed');
+	});
+});

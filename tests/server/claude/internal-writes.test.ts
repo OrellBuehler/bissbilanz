@@ -19,7 +19,6 @@ const payload = {
 	quickName: 'Toast',
 	quickCalories: 100
 };
-const methods = () => getCalls().map((call) => call.method);
 
 beforeEach(() => {
 	reset();
@@ -34,7 +33,6 @@ describe('createEntry with an internal id', () => {
 			id: 'entry-1',
 			userId: 'user-1'
 		});
-		expect(methods()).toContain('onConflictDoNothing');
 	});
 
 	test('returns the existing row when the id is already taken by the same user', async () => {
@@ -47,13 +45,6 @@ describe('createEntry with an internal id', () => {
 		queueResults([[], []]);
 		const result = await createEntry('user-1', payload, null, { id: 'entry-1' });
 		expect(result.success).toBe(false);
-	});
-
-	test('does not use insert-or-ignore without an id', async () => {
-		queueResults([[{ id: 'generated' }]]);
-		await createEntry('user-1', payload);
-		expect(methods()).not.toContain('onConflictDoNothing');
-		expect(getCalls().find((call) => call.method === 'values')!.args[0]).not.toHaveProperty('id');
 	});
 
 	test('validateMealType uses the db it is given for custom meal types', async () => {

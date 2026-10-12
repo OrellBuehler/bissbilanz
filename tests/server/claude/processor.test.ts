@@ -10,6 +10,8 @@ const h = vi.hoisted(() => ({
 	retryOrDismissRun: vi.fn(),
 	stopOrBlockRun: vi.fn(),
 	supersedeRun: vi.fn(),
+	supersedeOrStopRun: vi.fn(),
+	requeueRun: vi.fn(),
 	runTaskTool: vi.fn(),
 	callClaude: vi.fn(),
 	assertClaudeAllowed: vi.fn(),
@@ -39,11 +41,13 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	dismissRun: h.dismissRun,
 	retryOrDismissRun: h.retryOrDismissRun,
 	stopOrBlockRun: h.stopOrBlockRun,
-	supersedeRun: h.supersedeRun
+	supersedeRun: h.supersedeRun,
+	supersedeOrStopRun: h.supersedeOrStopRun,
+	requeueRun: h.requeueRun
 }));
 vi.mock('$lib/server/claude/tasks/tools', () => ({
 	TASK_TOOLS: [{ name: 'tool' }],
-	TOOL_RESULT_MAX_CHARS: 8000,
+	isTerminalTool: (name: string) => name === 'complete_ai_task' || name === 'dismiss_ai_task',
 	runTaskTool: h.runTaskTool
 }));
 vi.mock('$lib/server/claude/call', () => ({ callClaude: h.callClaude }));
@@ -283,6 +287,59 @@ describe('the loop', () => {
 		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
 	});
 
+	test('answers a terminal tool with an error when an earlier call in the batch failed', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(
+				response('tool_use', [
+					toolUse('toolu_a', 'log_food'),
+					toolUse('toolu_b', 'complete_ai_task')
+				])
+			)
+			.mockResolvedValueOnce(response('refusal'));
+		h.runTaskTool.mockResolvedValueOnce({ content: '{"error":"bad"}', isError: true });
+		await processTask(TASK_ID, options());
+		expect(h.runTaskTool).toHaveBeenCalledTimes(1);
+		const results = h.callClaude.mock.calls[1]![0].params.messages[2].content;
+		expect(results[1]).toMatchObject({ tool_use_id: 'toolu_b', is_error: true });
+		expect(results[1].content).toContain('Fix the failed call first');
+	});
+
+	test('caps the tool calls of one response', async () => {
+		const blocks = Array.from({ length: 22 }, (_, i) => toolUse(`toolu_${i}`));
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', blocks))
+			.mockResolvedValueOnce(response('refusal'));
+		await processTask(TASK_ID, options());
+		expect(h.runTaskTool).toHaveBeenCalledTimes(20);
+		const results = h.callClaude.mock.calls[1]![0].params.messages[2].content;
+		expect(results).toHaveLength(22);
+		expect(results[21]).toMatchObject({ is_error: true });
+		expect(results[21].content).toContain('Too many tool calls');
+	});
+
+	test('caps log_food calls per run', async () => {
+		const logs = Array.from({ length: 16 }, (_, i) => toolUse(`toolu_${i}`, 'log_food'));
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', logs))
+			.mockResolvedValueOnce(response('tool_use', logs))
+			.mockResolvedValueOnce(response('refusal'));
+		await processTask(TASK_ID, options());
+		expect(h.runTaskTool).toHaveBeenCalledTimes(30);
+		const results = h.callClaude.mock.calls[2]![0].params.messages[4].content;
+		expect(results.slice(-2).every((block: { is_error?: boolean }) => block.is_error)).toBe(true);
+		expect(results.at(-1).content).toContain('Too many log_food calls');
+	});
+
+	test('never appends an empty assistant turn', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('end_turn', []))
+			.mockResolvedValueOnce(response('refusal'));
+		await processTask(TASK_ID, options());
+		const messages = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(messages.map((message: { role: string }) => message.role)).toEqual(['user', 'user']);
+		expect(messages[1].content[0].text).toContain('not finished');
+	});
+
 	test('stops after the iteration cap', async () => {
 		h.callClaude.mockResolvedValue(response('tool_use', [toolUse()]));
 		await processTask(TASK_ID, options());
@@ -294,10 +351,11 @@ describe('the loop', () => {
 		const controller = new AbortController();
 		h.callClaude.mockResolvedValueOnce(response('tool_use', [toolUse()]));
 		controller.abort();
-		h.assertClaudeAllowed.mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined);
-		await processTask(TASK_ID, { signal: controller.signal, instanceId: 'inst' });
+		h.assertClaudeAllowed.mockResolvedValue(undefined);
+		const result = await processTask(TASK_ID, { signal: controller.signal, instanceId: 'inst' });
 		expect(h.runTaskTool).not.toHaveBeenCalled();
-		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'no_access');
+		expect(h.requeueRun).toHaveBeenCalledTimes(1);
+		expect(result).toBe('requeued');
 	});
 });
 
@@ -307,9 +365,9 @@ describe('failures', () => {
 		await processTask(TASK_ID, options());
 	};
 
-	test('a processor change supersedes the run', async () => {
+	test('a processor change supersedes the run unless entries were logged', async () => {
 		await fail(new errors.ClaudeProcessorChangedError());
-		expect(h.supersedeRun).toHaveBeenCalledTimes(1);
+		expect(h.supersedeOrStopRun).toHaveBeenCalledWith(expect.anything(), 'auto_log');
 	});
 
 	test('a closed gate blocks or stops', async () => {
@@ -330,12 +388,15 @@ describe('failures', () => {
 			.mockResolvedValueOnce(undefined)
 			.mockRejectedValueOnce(new errors.ClaudeProcessorChangedError());
 		await fail(new errors.ClaudeAbortedError());
-		expect(h.supersedeRun).toHaveBeenCalledTimes(1);
+		expect(h.supersedeOrStopRun).toHaveBeenCalledWith(expect.anything(), 'auto_log');
 	});
 
-	test('an abort with every gate open still blocks as no_access', async () => {
-		await fail(new errors.ClaudeAbortedError());
-		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'no_access');
+	test('an abort with every gate open requeues the run instead of blocking it', async () => {
+		h.callClaude.mockRejectedValueOnce(new errors.ClaudeAbortedError());
+		await expect(processTask(TASK_ID, options())).resolves.toBe('requeued');
+		expect(h.requeueRun).toHaveBeenCalledTimes(1);
+		expect(h.stopOrBlockRun).not.toHaveBeenCalled();
+		expect(h.retryOrDismissRun).not.toHaveBeenCalled();
 	});
 
 	test('an unexpected error while checking the gate after an abort surfaces', async () => {
