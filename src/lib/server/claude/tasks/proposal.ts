@@ -1,9 +1,11 @@
+import * as Sentry from '@sentry/sveltekit';
 import { and, eq, sql } from 'drizzle-orm';
 import { completeAiTaskBy } from '../../ai-tasks';
 import { getDB } from '../../db';
 import { createEntry } from '../../entries';
 import { ApiError } from '../../errors';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
+import { requeueRunForEditedTask } from './executor';
 import type { ClaudeRun, Proposal } from './types';
 
 type ClaudeProcessingState = 'queued' | 'running' | 'retrying' | 'proposed' | 'blocked';
@@ -35,7 +37,31 @@ export function serializeClaudeProcessing(
 	};
 }
 
+class StaleProposalError extends ApiError {
+	constructor(message: string) {
+		super(409, message);
+	}
+}
+
 export async function acceptProposal(userId: string, taskId: string, itemIds?: string[]) {
+	try {
+		return await acceptInTransaction(userId, taskId, itemIds);
+	} catch (error) {
+		if (error instanceof StaleProposalError) {
+			try {
+				await requeueRunForEditedTask(taskId);
+			} catch (requeueError) {
+				Sentry.captureException(requeueError, {
+					tags: { job: 'claude-requeue' },
+					extra: { taskId }
+				});
+			}
+		}
+		throw error;
+	}
+}
+
+async function acceptInTransaction(userId: string, taskId: string, itemIds?: string[]) {
 	const switched = await getDB().transaction(async (tx) => {
 		const [task] = await tx
 			.select({ status: aiTasks.status })
@@ -81,7 +107,7 @@ export async function acceptProposal(userId: string, taskId: string, itemIds?: s
 			if (!created.success) {
 				const error = created.error;
 				if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
-					throw new ApiError(409, `Proposal can no longer be accepted: ${error.message}`);
+					throw new StaleProposalError(`Proposal can no longer be accepted: ${error.message}`);
 				}
 				throw error;
 			}

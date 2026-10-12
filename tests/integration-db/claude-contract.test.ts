@@ -484,16 +484,48 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 			instanceId: 'worker-contract'
 		});
 		await db.delete(foods).where(eq(foods.id, food.id));
+		startFake([dismissStep('stop')]);
 
 		const response = await accept(user, task.id);
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/proposal/accept', response);
 		expect(response.status).toBe(409);
 		expect((await response.json()).error).toContain('no longer be accepted');
-		expect((await runOf(task.id))?.state).toBe('proposed');
-		expect((await taskOf(task.id)).status).toBe('pending');
 		expect(await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id))).toHaveLength(
 			0
 		);
+		await vi.waitFor(async () => expect((await runOf(task.id))?.state).toBe('dismissed'), {
+			timeout: 15_000,
+			interval: 100
+		});
+	});
+
+	it('hands the run back to claude after a stale proposal so it proposes again', async () => {
+		const user = await seedUser(db, { autoLog: false });
+		const food = await seedFood(user.id);
+		const task = await seedTask(db, user.id);
+		startFake([logStep('Yogurt', food.id), completeStep('Suggested yogurt')]);
+		await runs.ensureRun(user.id, task.id);
+		await processor.processTask(task.id, {
+			signal: new AbortController().signal,
+			instanceId: 'worker-contract'
+		});
+		await db.update(claudeTaskRuns).set({ failures: 1 }).where(eq(claudeTaskRuns.taskId, task.id));
+		await db.delete(foods).where(eq(foods.id, food.id));
+
+		const fake = startFake([logStep('Yogurt'), completeStep('Suggested again')]);
+		const response = await accept(user, task.id);
+		expect(response.status).toBe(409);
+		await vi.waitFor(
+			async () => {
+				const run = await runOf(task.id);
+				expect(run?.state).toBe('proposed');
+				expect((run?.proposal as { summary: string }).summary).toBe('Suggested again');
+			},
+			{ timeout: 15_000, interval: 100 }
+		);
+		expect(fake.calls).toHaveLength(2);
+		expect((await runOf(task.id))?.failures).toBe(1);
+		expect((await taskOf(task.id)).status).toBe('pending');
 	});
 
 	it('returns 409 and supersedes the run once the processor moved away', async () => {

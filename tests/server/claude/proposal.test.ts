@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockDB } from '../../helpers/mock-db';
 
-const h = vi.hoisted(() => ({ createEntry: vi.fn(), completeAiTaskBy: vi.fn() }));
+const h = vi.hoisted(() => ({
+	createEntry: vi.fn(),
+	completeAiTaskBy: vi.fn(),
+	requeue: vi.fn()
+}));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/entries', () => ({ createEntry: h.createEntry }));
+vi.mock('$lib/server/claude/tasks/executor', () => ({ requeueRunForEditedTask: h.requeue }));
 vi.mock('$lib/server/ai-tasks', () => ({ completeAiTaskBy: h.completeAiTaskBy }));
 
 const { ApiError } = await import('$lib/server/errors');
@@ -40,6 +45,7 @@ beforeEach(() => {
 	reset();
 	h.createEntry.mockReset().mockResolvedValue({ success: true, data: {} });
 	h.completeAiTaskBy.mockReset().mockResolvedValue({ id: 'task-1', status: 'completed' });
+	h.requeue.mockReset().mockResolvedValue(undefined);
 });
 
 describe('serializeClaudeProcessing', () => {
@@ -158,6 +164,26 @@ describe('acceptProposal', () => {
 			message: expect.stringContaining(error.message)
 		});
 		expect(h.completeAiTaskBy).not.toHaveBeenCalled();
+		expect(h.requeue).toHaveBeenCalledWith('task-1');
+	});
+
+	test('still answers 409 when handing the run back fails', async () => {
+		queueAccept();
+		h.createEntry.mockResolvedValueOnce({
+			success: false,
+			error: new ApiError(404, 'Food not found')
+		});
+		h.requeue.mockRejectedValue(new Error('db down'));
+		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
+	});
+
+	test('does not requeue for other failures', async () => {
+		queueAccept();
+		h.createEntry.mockResolvedValueOnce({ success: false, error: new Error('bad entry') });
+		await expect(acceptProposal('user-1', 'task-1')).rejects.toThrow('bad entry');
+		queueAccept({ run: [{ state: 'running', proposal: null }] });
+		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
+		expect(h.requeue).not.toHaveBeenCalled();
 	});
 
 	test('fails when the task cannot be completed any more', async () => {

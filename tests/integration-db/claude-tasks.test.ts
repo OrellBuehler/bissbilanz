@@ -543,10 +543,13 @@ describe('review mode', () => {
 	it('rolls everything back when an entry cannot be created', async () => {
 		const { user, food, task } = await propose([{ servings: 2 }, { servings: 1 }]);
 		await db.delete(foods).where(eq(foods.id, food.id));
-		await expect(proposal.acceptProposal(user.id, task.id)).rejects.toBeDefined();
+		startFake([dismissStep('nothing left to propose')]);
+		await expect(proposal.acceptProposal(user.id, task.id)).rejects.toMatchObject({ status: 409 });
 		expect(await entriesOf(user.id)).toHaveLength(0);
-		expect((await taskOf(task.id)).status).toBe('pending');
-		expect((await runOf(task.id)).state).toBe('proposed');
+		await vi.waitFor(async () => expect((await runOf(task.id)).state).toBe('dismissed'), {
+			timeout: 15_000,
+			interval: 100
+		});
 	});
 
 	it('answers 404 for another user and 409 once the processor switched', async () => {
