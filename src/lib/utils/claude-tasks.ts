@@ -13,7 +13,9 @@ export type ClaudeState = 'queued' | 'running' | 'retrying' | 'proposed' | 'bloc
 
 export type ProposalItemLike = { id: string };
 
-export type ProposalAcceptBody = { itemIds?: string[] };
+export type ProposalAcceptBody = { itemIds: string[] };
+
+export type ProposalSelection = { selected: Set<string>; seen: Set<string> };
 
 const KNOWN_PROCESSORS: readonly string[] = ['assistant', 'device', 'claude'];
 const CLAUDE_STATES: readonly string[] = ['queued', 'running', 'retrying', 'proposed', 'blocked'];
@@ -83,6 +85,23 @@ export function allSelected(items: ProposalItemLike[]): Set<string> {
 	return new Set(items.map((item) => item.id));
 }
 
+export function initialSelection(items: ProposalItemLike[]): ProposalSelection {
+	return { selected: allSelected(items), seen: allSelected(items) };
+}
+
+export function reconcileSelection(
+	previous: ProposalSelection,
+	items: ProposalItemLike[]
+): ProposalSelection {
+	const selected = new Set<string>();
+	const seen = new Set(previous.seen);
+	for (const { id } of items) {
+		if (!previous.seen.has(id) || previous.selected.has(id)) selected.add(id);
+		seen.add(id);
+	}
+	return { selected, seen };
+}
+
 export function toggleSelection(selected: Set<string>, id: string): Set<string> {
 	const next = new Set(selected);
 	if (next.has(id)) next.delete(id);
@@ -100,5 +119,15 @@ export function acceptBody(
 ): ProposalAcceptBody | null {
 	const ids = selectedIds(items, selected);
 	if (ids.length === 0) return null;
-	return ids.length === items.length ? {} : { itemIds: ids };
+	return { itemIds: ids };
+}
+
+const ACTIVE_STATES: readonly ClaudeState[] = ['queued', 'running', 'retrying'];
+
+export function hasActiveClaudeWork(tasks: TaskLike[]): boolean {
+	return tasks.some((task) => {
+		if (task.status !== 'pending') return false;
+		const state = claudeChipState(task);
+		return state !== null && ACTIVE_STATES.includes(state);
+	});
 }

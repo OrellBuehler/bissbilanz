@@ -7,6 +7,13 @@ import {
 	reloadForUpdate
 } from '$lib/utils/client-version';
 
+export const NO_QUEUE_HEADER = 'x-no-queue';
+
+function withoutNoQueue(headers: Headers): Headers {
+	headers.delete(NO_QUEUE_HEADER);
+	return headers;
+}
+
 /**
  * Stamp idempotency + edit-time headers on online writes so they get the same
  * dedup + last-write-wins treatment as queued (offline) writes. Existing headers
@@ -60,7 +67,7 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 
 	if (browser && !navigator.onLine && isWrite) {
 		const contentType = request.headers.get('content-type') ?? '';
-		if (contentType.includes('multipart/form-data')) {
+		if (contentType.includes('multipart/form-data') || request.headers.has(NO_QUEUE_HEADER)) {
 			throw new TypeError('Failed to fetch');
 		}
 		const bodyText = await request.clone().text();
@@ -75,7 +82,7 @@ async function apiFetchRequest(request: Request): Promise<Response> {
 
 	if (browser) {
 		const headers = applySyncHeaders(
-			applyClientVersionHeaders(new Headers(request.headers)),
+			applyClientVersionHeaders(withoutNoQueue(new Headers(request.headers))),
 			isWrite
 		);
 		try {
@@ -95,7 +102,7 @@ async function apiFetchString(url: string, options: RequestInit = {}): Promise<R
 		method === 'POST' || method === 'PATCH' || method === 'DELETE' || method === 'PUT';
 
 	if (browser && !navigator.onLine && isWrite) {
-		if (options.body instanceof FormData) {
+		if (options.body instanceof FormData || new Headers(options.headers).has(NO_QUEUE_HEADER)) {
 			throw new TypeError('Failed to fetch');
 		}
 
@@ -110,7 +117,7 @@ async function apiFetchString(url: string, options: RequestInit = {}): Promise<R
 
 	if (browser) {
 		const headers = applySyncHeaders(
-			applyClientVersionHeaders(new Headers(options.headers)),
+			applyClientVersionHeaders(withoutNoQueue(new Headers(options.headers))),
 			isWrite
 		);
 		try {

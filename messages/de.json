@@ -1396,6 +1396,7 @@
 	"ai_tasks_proposal_discard": "Verwerfen",
 	"ai_tasks_proposal_none_selected": "Wähle mindestens einen Eintrag aus.",
 	"ai_tasks_proposal_logged": "Einträge eingetragen",
+	"ai_tasks_dismiss_conflict": "Diese Aufgabe wurde anderswo geändert. Die Liste wurde aktualisiert.",
 	"ai_tasks_proposal_accept_conflict": "Dieser Vorschlag ist nicht mehr verfügbar. Die Liste wurde aktualisiert.",
 	"ai_tasks_proposal_accept_failed": "Die Einträge konnten nicht eingetragen werden. Prüfe deine Verbindung und versuche es erneut.",
 	"ai_tasks_capture_hint_claude": "Claude verarbeitet diese Mahlzeit auf dem Server und trägt sie für dich ein.",

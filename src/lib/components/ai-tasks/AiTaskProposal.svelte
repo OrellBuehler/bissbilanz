@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -7,7 +8,13 @@
 	import X from '@lucide/svelte/icons/x';
 	import { toast } from 'svelte-sonner';
 	import { aiTaskService, type AiTask } from '$lib/services/ai-task-service.svelte';
-	import { acceptBody, allSelected, proposalKey, toggleSelection } from '$lib/utils/claude-tasks';
+	import {
+		acceptBody,
+		initialSelection,
+		proposalKey,
+		reconcileSelection,
+		toggleSelection
+	} from '$lib/utils/claude-tasks';
 	import * as m from '$lib/paraglide/messages';
 
 	type Proposal = NonNullable<NonNullable<AiTask['claudeProcessing']>['proposal']>;
@@ -21,8 +28,16 @@
 	let { taskId, proposal, onDiscard }: Props = $props();
 
 	const key = $derived(proposalKey(proposal.items));
-	let override = $state<{ key: string; ids: Set<string> } | null>(null);
-	const selected = $derived(override?.key === key ? override.ids : allSelected(proposal.items));
+	let selection = $state(initialSelection(untrack(() => proposal.items)));
+	const selected = $derived(selection.selected);
+
+	$effect.pre(() => {
+		void key;
+		selection = reconcileSelection(
+			untrack(() => selection),
+			untrack(() => proposal.items)
+		);
+	});
 
 	let accepting = $state(false);
 	let discarding = $state(false);
@@ -30,7 +45,7 @@
 	let message = $state<string | null>(null);
 
 	const toggle = (id: string) => {
-		override = { key, ids: toggleSelection(selected, id) };
+		selection = { ...selection, selected: toggleSelection(selected, id) };
 		message = null;
 	};
 

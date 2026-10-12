@@ -6,11 +6,14 @@ import {
 	claudeChipState,
 	claudeOption,
 	effectiveProcessor,
+	hasActiveClaudeWork,
+	initialSelection,
 	isClaudeAvailable,
 	isProcessedByClaude,
 	legacyProcessor,
 	normalizeClaudeState,
 	proposalKey,
+	reconcileSelection,
 	selectedIds,
 	storedProcessorFields,
 	toggleSelection
@@ -146,8 +149,8 @@ describe('proposal selection', () => {
 		expect(selectedIds(items, new Set(['c', 'a', 'gone']))).toEqual(['a', 'c']);
 	});
 
-	test('accept body is empty when everything is selected', () => {
-		expect(acceptBody(items, allSelected(items))).toEqual({});
+	test('accept body lists every id when everything is selected', () => {
+		expect(acceptBody(items, allSelected(items))).toEqual({ itemIds: ['a', 'b', 'c'] });
 	});
 
 	test('accept body lists ids for a partial selection', () => {
@@ -162,6 +165,55 @@ describe('proposal selection', () => {
 	test('a changed proposal has a different key', () => {
 		expect(proposalKey(items)).toBe('a,b,c');
 		expect(proposalKey(items)).not.toBe(proposalKey([{ id: 'a' }, { id: 'd' }]));
+	});
+});
+
+describe('selection reconciliation', () => {
+	test('keeps the intersection of the previous selection and the new ids', () => {
+		const previous = { selected: new Set(['a', 'c']), seen: new Set(['a', 'b', 'c']) };
+		const next = reconcileSelection(previous, [{ id: 'a' }, { id: 'b' }]);
+		expect([...next.selected]).toEqual(['a']);
+	});
+
+	test('ids never seen before start selected', () => {
+		const previous = { selected: new Set(['a']), seen: new Set(['a', 'b']) };
+		const next = reconcileSelection(previous, [{ id: 'a' }, { id: 'b' }, { id: 'd' }]);
+		expect([...next.selected]).toEqual(['a', 'd']);
+		expect(next.seen.has('d')).toBe(true);
+	});
+
+	test('a deselected item that vanishes and returns stays seen but is not reselected', () => {
+		const start = { selected: new Set(['a']), seen: new Set(['a', 'b']) };
+		const dropped = reconcileSelection(start, [{ id: 'a' }]);
+		const back = reconcileSelection(dropped, [{ id: 'a' }, { id: 'b' }]);
+		expect([...back.selected]).toEqual(['a']);
+	});
+
+	test('an unchanged item list keeps the selection', () => {
+		const start = initialSelection(items);
+		const toggled = { ...start, selected: toggleSelection(start.selected, 'b') };
+		expect([...reconcileSelection(toggled, items).selected]).toEqual(['a', 'c']);
+	});
+});
+
+describe('active claude work', () => {
+	const pending = (state: string) => ({ status: 'pending', claudeProcessing: { state } });
+
+	test.each(['queued', 'running', 'retrying'])('%s keeps polling', (state) => {
+		expect(hasActiveClaudeWork([pending(state)])).toBe(true);
+	});
+
+	test('proposed, blocked, no processing and non-pending tasks do not', () => {
+		expect(hasActiveClaudeWork([pending('proposed'), pending('blocked')])).toBe(false);
+		expect(hasActiveClaudeWork([{ status: 'pending', claudeProcessing: null }])).toBe(false);
+		expect(
+			hasActiveClaudeWork([{ status: 'completed', claudeProcessing: { state: 'running' } }])
+		).toBe(false);
+		expect(hasActiveClaudeWork([])).toBe(false);
+	});
+
+	test('an unknown state counts as queued', () => {
+		expect(hasActiveClaudeWork([pending('mystery')])).toBe(true);
 	});
 });
 

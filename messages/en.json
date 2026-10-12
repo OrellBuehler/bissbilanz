@@ -1396,6 +1396,7 @@
 	"ai_tasks_proposal_discard": "Discard",
 	"ai_tasks_proposal_none_selected": "Select at least one entry.",
 	"ai_tasks_proposal_logged": "Entries logged",
+	"ai_tasks_dismiss_conflict": "This task was changed elsewhere. The list has been refreshed.",
 	"ai_tasks_proposal_accept_conflict": "This suggestion is no longer available. The list has been refreshed.",
 	"ai_tasks_proposal_accept_failed": "The entries could not be logged. Check your connection and try again.",
 	"ai_tasks_capture_hint_claude": "Claude processes this meal on the server and logs it for you.",

@@ -1,8 +1,7 @@
 import { browser } from '$app/environment';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
-import { apiFetch, isQueued } from '$lib/utils/api';
-import { db } from '$lib/db';
+import { apiFetch, NO_QUEUE_HEADER } from '$lib/utils/api';
 import { entryService } from '$lib/services/entry-service.svelte';
 import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
 import type { paths } from '$lib/api/generated/schema';
@@ -216,26 +215,24 @@ async function update(
 
 const isConflict = (status: number) => status === 409 || status === 404;
 
-// apiFetch parks a write in the sync queue when the browser went offline between
-// our check and the request. These calls need the answer now and must not
-// replay later, so take the parked copy back out.
-async function dropQueuedWrite(method: string, url: string): Promise<void> {
-	await db.syncQueue
-		.filter((q) => q.method === method && new URL(q.url, 'http://localhost').pathname === url)
-		.delete();
-}
+const isAcceptConflict = (status: number) => isConflict(status) || status === 400;
+
+const noQueue = { [NO_QUEUE_HEADER]: '1' };
 
 async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 	if (browser && !navigator.onLine) throw new Error('offline');
-	const url = `/api/ai-tasks/${id}`;
-	const { data, error, response } = await api.PATCH('/api/ai-tasks/{id}', {
-		params: { path: { id } },
-		body: { status }
-	});
-	if (isQueued(response)) {
-		await dropQueuedWrite('PATCH', url);
-		throw new Error('offline');
+	let result;
+	try {
+		result = await api.PATCH('/api/ai-tasks/{id}', {
+			params: { path: { id } },
+			body: { status },
+			headers: noQueue
+		});
+	} catch (err) {
+		if (browser && !navigator.onLine) throw new Error('offline');
+		throw err;
 	}
+	const { data, error, response } = result;
 	if (isConflict(response.status)) {
 		Sentry.addBreadcrumb({
 			category: 'ai-task',
@@ -253,18 +250,15 @@ async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
 	syncAppBadge();
 }
 
-async function acceptProposal(id: string, body: ProposalAcceptBody = {}): Promise<AcceptResult> {
+async function acceptProposal(id: string, body: ProposalAcceptBody): Promise<AcceptResult> {
 	if (browser && !navigator.onLine) return 'failed';
 	try {
 		const { data, response } = await api.POST('/api/ai-tasks/{id}/proposal/accept', {
 			params: { path: { id } },
-			body
+			body,
+			headers: noQueue
 		});
-		if (isQueued(response)) {
-			await dropQueuedWrite('POST', `/api/ai-tasks/${id}/proposal/accept`);
-			return 'failed';
-		}
-		if (isConflict(response.status)) {
+		if (isAcceptConflict(response.status)) {
 			Sentry.addBreadcrumb({
 				category: 'ai-task',
 				level: 'info',

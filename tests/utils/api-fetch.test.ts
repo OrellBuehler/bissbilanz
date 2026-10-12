@@ -136,7 +136,7 @@ vi.mock('$lib/stores/offline-queue', () => ({
 	enqueue: vi.fn().mockResolvedValue(undefined)
 }));
 
-import { apiFetch, sentWriteHeaders } from '../../src/lib/utils/api';
+import { apiFetch, sentWriteHeaders, NO_QUEUE_HEADER } from '../../src/lib/utils/api';
 import { enqueue } from '$lib/stores/offline-queue';
 
 describe('apiFetch', () => {
@@ -223,6 +223,52 @@ describe('apiFetch', () => {
 			).rejects.toThrow(TypeError);
 
 			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('throws TypeError instead of queueing when the no-queue header is set', async () => {
+			setOnline(false);
+
+			await expect(
+				apiFetch('/api/ai-tasks/t1', {
+					method: 'PATCH',
+					headers: { [NO_QUEUE_HEADER]: '1' },
+					body: JSON.stringify({ status: 'dismissed' })
+				})
+			).rejects.toThrow(TypeError);
+
+			const request = new Request('http://localhost/api/ai-tasks/t1', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', [NO_QUEUE_HEADER]: '1' },
+				body: '{}'
+			});
+			await expect(apiFetch(request)).rejects.toThrow(TypeError);
+
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('strips the no-queue header before sending online', async () => {
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('{}', { status: 200 }));
+
+			await apiFetch('/api/ai-tasks/t1', {
+				method: 'PATCH',
+				headers: { [NO_QUEUE_HEADER]: '1' },
+				body: '{}'
+			});
+			await apiFetch(
+				new Request('http://localhost/api/ai-tasks/t1', {
+					method: 'PATCH',
+					headers: { [NO_QUEUE_HEADER]: '1' },
+					body: '{}'
+				})
+			);
+
+			const stringHeaders = fetchSpy.mock.calls[0][1]!.headers as Headers;
+			expect(stringHeaders.has(NO_QUEUE_HEADER)).toBe(false);
+			const sentRequest = fetchSpy.mock.calls[1][0] as Request;
+			expect(sentRequest.headers.has(NO_QUEUE_HEADER)).toBe(false);
+			fetchSpy.mockRestore();
 		});
 
 		test('queued response body contains { queued: true }', async () => {

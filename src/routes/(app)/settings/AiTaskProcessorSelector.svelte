@@ -104,17 +104,18 @@
 				<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />
 				{m.settings_ai_task_processor_claude_unavailable_hint()}
 			</p>
-		{:else if claudeOption === 'selectable'}
+		{/if}
+		{#if claudeOption !== 'hidden'}
 			<p class="text-xs text-muted-foreground" data-testid="claude-privacy-note">
 				{m.settings_ai_task_processor_claude_privacy()}
 			</p>
-			{#if processor === 'claude' && claude?.remainingBudgetUsd != null}
-				<p class="text-xs text-muted-foreground" data-testid="claude-remaining-budget">
-					{m.settings_ai_task_processor_claude_remaining({
-						amount: formatUsd(claude.remainingBudgetUsd)
-					})}
-				</p>
-			{/if}
+		{/if}
+		{#if claudeOption === 'selectable' && processor === 'claude' && claude?.remainingBudgetUsd != null}
+			<p class="text-xs text-muted-foreground" data-testid="claude-remaining-budget">
+				{m.settings_ai_task_processor_claude_remaining({
+					amount: formatUsd(claude.remainingBudgetUsd)
+				})}
+			</p>
 		{/if}
 
 		{#if processor === 'device'}

@@ -16,7 +16,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
-	import { activeProcessor } from '$lib/utils/claude-tasks';
+	import { activeProcessor, hasActiveClaudeWork } from '$lib/utils/claude-tasks';
 
 	let captureOpen = $state(false);
 	let editOpen = $state(false);
@@ -61,6 +61,7 @@
 	};
 
 	const dismissTask = async (id: string) => {
+		const hadProposal = aiTaskService.tasks.find((t) => t.id === id)?.claudeProcessing?.proposal;
 		try {
 			await aiTaskService.updateStatus(id, 'dismissed');
 		} catch (err) {
@@ -68,7 +69,9 @@
 			if (code === 'offline') {
 				toast.error(m.ai_tasks_offline_error());
 			} else if (code === 'conflict') {
-				toast.error(m.ai_tasks_proposal_accept_conflict());
+				toast.error(
+					hadProposal ? m.ai_tasks_proposal_accept_conflict() : m.ai_tasks_dismiss_conflict()
+				);
 			} else {
 				Sentry.captureException(err, { extra: { id } });
 				toast.error(m.error_generic());
@@ -84,6 +87,22 @@
 			toast.error(m.error_generic());
 		}
 	};
+
+	const POLL_INTERVAL_MS = 10_000;
+	const polling = $derived(hasActiveClaudeWork(aiTaskService.tasks));
+
+	$effect(() => {
+		if (!polling) return;
+		const poll = () => {
+			if (document.visibilityState === 'visible') void aiTaskService.refresh();
+		};
+		const timer = setInterval(poll, POLL_INTERVAL_MS);
+		document.addEventListener('visibilitychange', poll);
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', poll);
+		};
+	});
 
 	onMount(async () => {
 		notificationPermission =
