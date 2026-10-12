@@ -13,7 +13,8 @@ import {
 	primaryKey,
 	uniqueIndex,
 	unique,
-	check
+	check,
+	numeric
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -48,10 +49,55 @@ export const reminderKindEnum = pgEnum('reminder_kind', reminderKindValues);
 export const aiTaskProcessorValues = ['assistant', 'device'] as const;
 export type AiTaskProcessor = (typeof aiTaskProcessorValues)[number];
 
+// What the database, requests and the extensible Kind fields accept. The legacy
+// arrays above keep driving the legacy response enums so shipped clients never
+// see 'claude' there.
+export const aiTaskProcessorKindValues = ['assistant', 'device', 'claude'] as const;
+export type AiTaskProcessorKind = (typeof aiTaskProcessorKindValues)[number];
+
 // Which processor actually resolved a given task, recorded for display once it
 // is completed or dismissed.
 export const aiTaskProcessedByValues = ['assistant', 'on_device', 'private_cloud'] as const;
 export type AiTaskProcessedBy = (typeof aiTaskProcessedByValues)[number];
+export const aiTaskProcessedByKindValues = [...aiTaskProcessedByValues, 'claude'] as const;
+export type AiTaskProcessedByKind = (typeof aiTaskProcessedByKindValues)[number];
+
+export const claudeUsageStatusValues = ['reserved', 'succeeded', 'failed', 'abandoned'] as const;
+export type ClaudeUsageStatus = (typeof claudeUsageStatusValues)[number];
+export const claudeRunStateValues = [
+	'queued',
+	'running',
+	'retry_wait',
+	'blocked',
+	'proposed',
+	'succeeded',
+	'dismissed',
+	'superseded'
+] as const;
+export type ClaudeRunState = (typeof claudeRunStateValues)[number];
+export const claudeFailureCodeValues = [
+	'not_configured',
+	'disabled',
+	'no_access',
+	'user_budget_exhausted',
+	'global_budget_exhausted',
+	'claude_error',
+	'claude_refused',
+	'claude_incomplete',
+	'claude_stopped'
+] as const;
+export type ClaudeFailureCode = (typeof claudeFailureCodeValues)[number];
+export const adminAuditActionValues = [
+	'admin.grant',
+	'admin.revoke',
+	'claude_access.grant',
+	'claude_access.revoke',
+	'claude_access.update',
+	'settings.claude_enabled'
+] as const;
+export type AdminAuditAction = (typeof adminAuditActionValues)[number];
+
+const sqlInList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 // Users (identified via one or more linked OIDC identities)
 export const users = pgTable('users', {
@@ -61,6 +107,8 @@ export const users = pgTable('users', {
 	name: text('name'),
 	avatarUrl: text('avatar_url'),
 	locale: text('locale').default('en'),
+	// Only ever set by `bun run admin:grant`; no API can change it.
+	isAdmin: boolean('is_admin').notNull().default(false),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 });
@@ -444,7 +492,7 @@ export const userPreferences = pgTable(
 		),
 		check(
 			'user_preferences_ai_task_processor_valid',
-			sql`${table.aiTaskProcessor} IN ('assistant', 'device')`
+			sql`${table.aiTaskProcessor} IN (${sqlInList(aiTaskProcessorKindValues)})`
 		)
 	]
 );
@@ -850,13 +898,178 @@ export const aiTasks = pgTable(
 		),
 		check(
 			'ai_tasks_processed_by_valid',
-			sql`${table.processedBy} IS NULL OR ${table.processedBy} IN ('assistant', 'on_device', 'private_cloud')`
+			sql`${table.processedBy} IS NULL OR ${table.processedBy} IN (${sqlInList(aiTaskProcessedByKindValues)})`
 		)
 	]
 );
 
 export type AiTask = typeof aiTasks.$inferSelect;
 export type NewAiTask = typeof aiTasks.$inferInsert;
+
+// Claude integration. Access, spend and run state live in their own tables so
+// the public ai_tasks shape does not grow.
+export const claudeAccess = pgTable(
+	'claude_access',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.unique()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		enabled: boolean('enabled').notNull().default(false),
+		// Null falls back to the default user budget from the environment.
+		monthlyBudgetUsd: numeric('monthly_budget_usd', { precision: 10, scale: 2, mode: 'number' }),
+		grantedBy: uuid('granted_by').references(() => users.id, { onDelete: 'set null' }),
+		grantedAt: timestamp('granted_at', { withTimezone: true }),
+		note: text('note'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		check(
+			'claude_access_budget_range',
+			sql`${table.monthlyBudgetUsd} IS NULL OR (${table.monthlyBudgetUsd} >= 0 AND ${table.monthlyBudgetUsd} <= 1000)`
+		)
+	]
+);
+
+export type ClaudeAccess = typeof claudeAccess.$inferSelect;
+export type NewClaudeAccess = typeof claudeAccess.$inferInsert;
+
+// userId is nullable on purpose: deleting an account anonymizes its rows but
+// keeps the spend in the global month total.
+export const claudeUsage = pgTable(
+	'claude_usage',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+		feature: text('feature').notNull(),
+		model: text('model').notNull(),
+		status: text('status').notNull().default('reserved'),
+		inputTokens: integer('input_tokens').notNull().default(0),
+		outputTokens: integer('output_tokens').notNull().default(0),
+		cacheReadInputTokens: integer('cache_read_input_tokens').notNull().default(0),
+		cacheCreationInputTokens: integer('cache_creation_input_tokens').notNull().default(0),
+		reservedUsd: numeric('reserved_usd', { precision: 12, scale: 6, mode: 'number' })
+			.notNull()
+			.default(0),
+		costUsd: numeric('cost_usd', { precision: 12, scale: 6, mode: 'number' }).notNull().default(0),
+		errorCode: text('error_code'),
+		requestId: text('request_id'),
+		aiTaskId: uuid('ai_task_id').references(() => aiTasks.id, { onDelete: 'set null' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		settledAt: timestamp('settled_at', { withTimezone: true })
+	},
+	(table) => [
+		index('idx_claude_usage_user_created').on(table.userId, table.createdAt),
+		index('idx_claude_usage_created').on(table.createdAt),
+		index('idx_claude_usage_reserved')
+			.on(table.createdAt)
+			.where(sql`${table.status} = 'reserved'`),
+		check(
+			'claude_usage_status_valid',
+			sql`${table.status} IN (${sqlInList(claudeUsageStatusValues)})`
+		)
+	]
+);
+
+export type ClaudeUsage = typeof claudeUsage.$inferSelect;
+export type NewClaudeUsage = typeof claudeUsage.$inferInsert;
+
+export const adminAuditLog = pgTable(
+	'admin_audit_log',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+		// Actor email at the time of the action, or 'cli'.
+		actorLabel: text('actor_label').notNull(),
+		action: text('action').notNull(),
+		targetUserId: uuid('target_user_id').references(() => users.id, { onDelete: 'set null' }),
+		before: jsonb('before'),
+		after: jsonb('after'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_admin_audit_log_target_created').on(table.targetUserId, table.createdAt),
+		index('idx_admin_audit_log_created').on(table.createdAt),
+		check(
+			'admin_audit_log_action_valid',
+			sql`${table.action} IN (${sqlInList(adminAuditActionValues)})`
+		)
+	]
+);
+
+export type AdminAuditLogEntry = typeof adminAuditLog.$inferSelect;
+
+// Only key today: 'claude_enabled' (JSON boolean). A missing row means off.
+export const appSettings = pgTable('app_settings', {
+	key: text('key').primaryKey(),
+	value: jsonb('value').notNull(),
+	updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+// One row per task, internal. attempt is the fencing token: +1 on every claim.
+export const claudeTaskRuns = pgTable(
+	'claude_task_runs',
+	{
+		taskId: uuid('task_id')
+			.primaryKey()
+			.references(() => aiTasks.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		state: text('state').notNull().default('queued'),
+		mode: text('mode'),
+		attempt: integer('attempt').notNull().default(0),
+		failures: integer('failures').notNull().default(0),
+		leaseOwner: text('lease_owner'),
+		leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+		nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+		proposal: jsonb('proposal'),
+		failureCode: text('failure_code'),
+		failureDetail: text('failure_detail'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_claude_task_runs_state_next').on(table.state, table.nextAttemptAt),
+		index('idx_claude_task_runs_user').on(table.userId),
+		check(
+			'claude_task_runs_state_valid',
+			sql`${table.state} IN (${sqlInList(claudeRunStateValues)})`
+		),
+		check(
+			'claude_task_runs_mode_valid',
+			sql`${table.mode} IS NULL OR ${table.mode} IN ('auto_log', 'review')`
+		),
+		check(
+			'claude_task_runs_failure_code_valid',
+			sql`${table.failureCode} IS NULL OR ${table.failureCode} IN (${sqlInList(claudeFailureCodeValues)})`
+		)
+	]
+);
+
+export type ClaudeTaskRun = typeof claudeTaskRuns.$inferSelect;
+export type NewClaudeTaskRun = typeof claudeTaskRuns.$inferInsert;
+
+// entryId is pre-generated before the insert and deliberately has no FK (same
+// reasoning as ai_tasks.created_entry_ids). Rows are only removed by cascade.
+export const claudeTaskLedger = pgTable(
+	'claude_task_ledger',
+	{
+		taskId: uuid('task_id')
+			.notNull()
+			.references(() => aiTasks.id, { onDelete: 'cascade' }),
+		key: text('key').notNull(),
+		entryId: uuid('entry_id').notNull(),
+		summary: text('summary').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [primaryKey({ columns: [table.taskId, table.key] })]
+);
+
+export type ClaudeTaskLedgerRow = typeof claudeTaskLedger.$inferSelect;
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(
