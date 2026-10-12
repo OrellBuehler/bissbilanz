@@ -457,7 +457,7 @@ final class AiTaskStore {
     }
 
     /// Logs the entries Claude proposed and swaps the completed task into the
-    /// list. A 409 means the proposal is no longer open, so the list is
+    /// list. A 409 or 404 means the proposal is no longer open, so the list is
     /// refreshed to show what the server has now; any other failure leaves the
     /// task as it was so the caller can keep the selection and offer a retry.
     func acceptProposal(id: String, itemIds: [String]) async -> AiTaskProposalAcceptResult {
@@ -469,7 +469,7 @@ final class AiTaskStore {
             }
             return .logged
         } catch {
-            guard Self.isConflict(error) else { return .failed }
+            guard Self.isProposalGone(error) else { return .failed }
             do {
                 try await refresh()
             } catch {
@@ -479,8 +479,10 @@ final class AiTaskStore {
         }
     }
 
-    nonisolated static func isConflict(_ error: Error) -> Bool {
-        guard let apiError = error as? APIError, case .conflict = apiError else { return false }
-        return true
+    nonisolated static func isProposalGone(_ error: Error) -> Bool {
+        switch error as? APIError {
+        case .conflict, .notFound: true
+        default: false
+        }
     }
 }

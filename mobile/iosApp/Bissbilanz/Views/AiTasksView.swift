@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AiTasksView: View {
     @Environment(AiTaskStore.self) private var store
-    @Environment(PreferencesRepository.self) private var preferencesRepository
 
     @State private var isLoading = true
     @State private var error: Error?
@@ -68,10 +67,6 @@ struct AiTasksView: View {
         return readyForReviewDrafts.filter { pendingTaskIds.contains($0.taskId) }
     }
 
-    private var processorIsClaude: Bool {
-        preferencesRepository.preferences()?.effectiveAiTaskProcessor == Preferences.aiTaskProcessorClaude
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedFilter) {
@@ -118,7 +113,7 @@ struct AiTasksView: View {
                         ForEach(visibleTasks) { task in
                             AiTaskRow(
                                 task: task,
-                                claudeState: AiTaskClaudeState.display(for: task, processorIsClaude: processorIsClaude),
+                                claudeState: AiTaskClaudeState.display(for: task),
                                 onEdit: editHandler(for: task),
                                 onProposalNotice: { proposalNotice = $0 }
                             )
@@ -305,6 +300,7 @@ private struct AiTaskRow: View {
     /// Claude is checked first: it stores `processedBy` as `"assistant"`, which
     /// would otherwise read as the MCP assistant.
     private var processedByLabel: String? {
+        guard task.status != "pending" else { return nil }
         if task.isProcessedByClaude { return L10n.aiTasksProcessedByClaude }
         return task.processedBy.flatMap { L10n.aiTasksProcessedBy($0) }
     }
@@ -325,6 +321,7 @@ private struct AiTaskRow: View {
             textContent
             if let proposal = task.openProposal {
                 ClaudeProposalCard(task: task, proposal: proposal, onNotice: onProposalNotice)
+                    .id(proposal.items.map(\.id))
             }
         }
         .padding(.vertical, 4)
@@ -606,7 +603,8 @@ private struct ClaudeProposalCard: View {
         do {
             try await store.update(id: task.id, AiTaskUpdate(status: "dismissed"))
         } catch {
-            inlineMessage = error.localizedDescription
+            ErrorReporter.captureWarning("Proposal discard failed", context: ["reason": ErrorReporter.reason(for: error)])
+            inlineMessage = L10n.somethingWentWrong
         }
     }
 }

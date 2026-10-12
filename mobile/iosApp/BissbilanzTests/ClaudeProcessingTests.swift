@@ -98,7 +98,7 @@ struct ClaudeProcessingTests {
         #expect(task.processedByKind == "quantum")
         #expect(task.isProcessedByClaude == false)
         #expect(task.claudeProcessing?.state == "meditating")
-        #expect(AiTaskClaudeState.display(for: task, processorIsClaude: true) == .other)
+        #expect(AiTaskClaudeState.display(for: task) == .other)
         #expect(task.openProposal == nil)
     }
 
@@ -123,19 +123,15 @@ struct ClaudeProcessingTests {
         #expect(AiTaskClaudeState(rawState: nil) == nil)
     }
 
-    @Test("A pending task shows its run state, or queued while Claude is the processor")
+    @Test("A pending task shows its run state and never an invented chip")
     func displayState() {
         let running = Self.task(claudeProcessing: AiTaskClaudeProcessing(state: "running", proposal: nil))
-        #expect(AiTaskClaudeState.display(for: running, processorIsClaude: false) == .running)
-        #expect(AiTaskClaudeState.display(for: running, processorIsClaude: true) == .running)
-
-        let noRun = Self.task()
-        #expect(AiTaskClaudeState.display(for: noRun, processorIsClaude: true) == .queued)
-        #expect(AiTaskClaudeState.display(for: noRun, processorIsClaude: false) == nil)
+        #expect(AiTaskClaudeState.display(for: running) == .running)
+        #expect(AiTaskClaudeState.display(for: Self.task()) == nil)
 
         let finished = AiTaskClaudeProcessing(state: "running", proposal: nil)
         let done = Self.task(status: "completed", claudeProcessing: finished)
-        #expect(AiTaskClaudeState.display(for: done, processorIsClaude: true) == nil)
+        #expect(AiTaskClaudeState.display(for: done) == nil)
     }
 
     @Test("Processed by Claude needs a resolved task: a reopened pending task keeps its stale kind")
@@ -186,12 +182,12 @@ struct ClaudeProcessingTests {
         #expect(AiTaskProposalSelection.format(.nan).isEmpty == false)
     }
 
-    @Test("Only a 409 counts as an accept conflict")
+    @Test("A 409 or 404 means the proposal is gone; other errors do not")
     func conflictClassification() {
-        #expect(AiTaskStore.isConflict(APIError.conflict(serverNewer: false, body: nil)))
-        #expect(AiTaskStore.isConflict(APIError.notFound) == false)
-        #expect(AiTaskStore.isConflict(APIError.serverError(500, nil)) == false)
-        #expect(AiTaskStore.isConflict(URLError(.notConnectedToInternet)) == false)
+        #expect(AiTaskStore.isProposalGone(APIError.conflict(serverNewer: false, body: nil)))
+        #expect(AiTaskStore.isProposalGone(APIError.notFound))
+        #expect(AiTaskStore.isProposalGone(APIError.serverError(500, nil)) == false)
+        #expect(AiTaskStore.isProposalGone(URLError(.notConnectedToInternet)) == false)
     }
 }
 

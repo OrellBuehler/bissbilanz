@@ -596,24 +596,25 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var claudeProcessorDetails: some View {
-        if isClaudeChosen {
-            if claudeOption == .unavailable {
-                Label {
-                    Text(L10n.aiTaskProcessorClaudeUnavailableHint)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle")
-                }
+        switch claudeOption {
+        case .hidden:
+            EmptyView()
+        case .unavailable:
+            Label {
+                Text(L10n.aiTaskProcessorClaudeUnavailableHint)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            .font(.footnote)
+            .foregroundStyle(.orange)
+        case .selectable:
+            Text(L10n.aiTaskProcessorClaudePrivacy)
                 .font(.footnote)
-                .foregroundStyle(.orange)
-            } else {
-                Text(L10n.aiTaskProcessorClaudePrivacy)
+                .foregroundStyle(.secondary)
+            if isClaudeChosen, let remaining = preferencesRepository.claudeCapability?.remainingBudgetUsd {
+                Text(L10n.aiTaskProcessorClaudeRemaining(remaining))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                if let remaining = preferencesRepository.claudeCapability?.remainingBudgetUsd {
-                    Text(L10n.aiTaskProcessorClaudeRemaining(remaining))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
     }
@@ -730,6 +731,7 @@ struct SettingsView: View {
                 // account).
                 bulkUploadManager.reset()
                 migrator.wipeLocalData()
+                preferencesRepository.clearClaudeCapability()
                 // wipeLocalData clears the files; this also
                 // drops the decoded images the loader still
                 // holds in memory, which outlive them.
@@ -1075,6 +1077,7 @@ struct SettingsView: View {
                 // state so nothing leaks into the next session.
                 bulkUploadManager.reset()
                 migrator.wipeLocalData()
+                preferencesRepository.clearClaudeCapability()
                 foodImageLoader.clear()
                 authManager.logout()
                 appModeManager.clear()

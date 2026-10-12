@@ -307,7 +307,7 @@ struct AIMealSheet: View {
             actionLabel(
                 title: isSendingToAssistant
                     ? L10n.aiTaskSending
-                    : (isDeviceProcessor ? L10n.aiTaskProcessLaterButton : L10n.aiTaskSendButton),
+                    : (isDeviceProcessor || isClaudeProcessor ? L10n.aiTaskProcessLaterButton : L10n.aiTaskSendButton),
                 showsProgress: isSendingToAssistant
             )
         }

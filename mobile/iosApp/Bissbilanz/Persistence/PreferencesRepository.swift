@@ -46,6 +46,10 @@ final class PreferencesRepository {
         return try? JSONDecoder().decode(ClaudeCapability.self, from: data)
     }
 
+    func clearClaudeCapability() {
+        storeCapability(nil)
+    }
+
     private func storeCapability(_ capability: ClaudeCapability?) {
         claudeCapability = capability
         if let data = Self.encodeCapability(capability) {

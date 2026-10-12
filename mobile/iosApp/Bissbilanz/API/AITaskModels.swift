@@ -101,7 +101,7 @@ enum AiTaskClaudeState: Equatable {
     case retrying
     case proposed
     case blocked
-    /// A state this build does not know; shown as generic "processing".
+    /// A state this build does not know; shown with the queued label.
     case other
 
     init?(rawState: String?) {
@@ -116,15 +116,11 @@ enum AiTaskClaudeState: Equatable {
         }
     }
 
-    /// The chip for a task row, or nil when Claude has nothing to say. A
-    /// pending task without a run yet (just created, `claudeProcessing` null)
-    /// reads as queued while Claude is the chosen processor.
-    static func display(for task: AiTask, processorIsClaude: Bool) -> AiTaskClaudeState? {
+    /// The chip for a task row: only a pending task with an active run has
+    /// one. A null `claudeProcessing` never gets an invented chip.
+    static func display(for task: AiTask) -> AiTaskClaudeState? {
         guard task.status == "pending" else { return nil }
-        if let processing = task.claudeProcessing {
-            return AiTaskClaudeState(rawState: processing.state)
-        }
-        return processorIsClaude ? .queued : nil
+        return AiTaskClaudeState(rawState: task.claudeProcessing?.state)
     }
 }
 

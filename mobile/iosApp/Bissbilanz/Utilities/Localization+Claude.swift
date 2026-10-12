@@ -55,9 +55,9 @@ extension L10n {
 
     static func aiTasksClaudeState(_ state: AiTaskClaudeState) -> String {
         switch state {
-        case .queued:
+        case .queued, .other:
             localized("ai_tasks_claude_state_queued", en: "Waiting for Claude", de: "Wartet auf Claude")
-        case .running, .other:
+        case .running:
             localized(
                 "ai_tasks_claude_state_running",
                 en: "Claude is processing this meal",
