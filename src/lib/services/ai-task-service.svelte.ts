@@ -303,13 +303,13 @@ async function poll(): Promise<void> {
 	pollInFlight = true;
 	try {
 		await refresh({ quiet: true });
-		await acknowledgeAll();
+		await acknowledgeAll({ quiet: true });
 	} finally {
 		pollInFlight = false;
 	}
 }
 
-async function acknowledgeAll(): Promise<void> {
+async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser || !tasks.some(isUnread)) return;
 	try {
 		await api.POST('/api/ai-tasks/acknowledge', { body: {} });
@@ -317,7 +317,14 @@ async function acknowledgeAll(): Promise<void> {
 		tasks = tasks.map((t) => (isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t));
 	} catch (err) {
 		// Leave the badge up rather than pretending it was read.
-		if (!(browser && !navigator.onLine)) {
+		if (options.quiet) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'warning',
+				message: 'ai task acknowledge failed',
+				data: { reason: err instanceof Error ? err.message : String(err) }
+			});
+		} else if (!(browser && !navigator.onLine)) {
 			Sentry.captureException(err, { extra: { context: 'ai-task-service.acknowledgeAll' } });
 		}
 	} finally {
@@ -332,6 +339,7 @@ async function remove(id: string): Promise<void> {
 	if (!response.ok) {
 		throw new Error('delete_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.filter((t) => t.id !== id);
 	syncAppBadge();
 }

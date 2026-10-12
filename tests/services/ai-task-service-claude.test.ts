@@ -20,6 +20,7 @@ const mockApi = api as unknown as {
 	GET: ReturnType<typeof vi.fn>;
 	POST: ReturnType<typeof vi.fn>;
 	PATCH: ReturnType<typeof vi.fn>;
+	DELETE: ReturnType<typeof vi.fn>;
 };
 
 const task = (overrides: Partial<AiTask> = {}) =>
@@ -278,5 +279,36 @@ describe('aiTaskService.poll', () => {
 		await aiTaskService.poll();
 
 		expect(mockApi.POST).toHaveBeenCalledWith('/api/ai-tasks/acknowledge', { body: {} });
+	});
+});
+
+describe('aiTaskService delete and quiet acknowledge', () => {
+	test('a list read that started before a local delete is dropped', async () => {
+		mockApi.GET.mockResolvedValue({ data: { tasks: [task()], total: 1 } });
+		await aiTaskService.refresh();
+		let release: (value: unknown) => void = () => {};
+		mockApi.GET.mockReturnValue(new Promise((resolve) => (release = resolve)));
+		const stale = aiTaskService.refresh();
+		mockApi.DELETE.mockResolvedValue({ response: new Response(null, { status: 200 }) });
+
+		await aiTaskService.remove('t1');
+		release({ data: { tasks: [task()], total: 1 }, response: new Response(null) });
+		await stale;
+
+		expect(aiTaskService.tasks).toHaveLength(0);
+	});
+
+	test('a failed poll acknowledge leaves a breadcrumb and no report', async () => {
+		mockApi.GET.mockResolvedValue({
+			data: { tasks: [task({ status: 'dismissed', acknowledgedAt: null })], total: 1 }
+		});
+		mockApi.POST.mockRejectedValue(new TypeError('Failed to fetch'));
+
+		await aiTaskService.poll();
+
+		expect(Sentry.captureException).not.toHaveBeenCalled();
+		expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ message: 'ai task acknowledge failed' })
+		);
 	});
 });

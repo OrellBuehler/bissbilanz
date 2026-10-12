@@ -405,7 +405,7 @@ final class AiTaskStore {
 
     /// Bumped whenever a local accept or edit lands, so a list read that started
     /// earlier (and may predate it) is dropped instead of undoing the change.
-    private var mutationGeneration = 0
+    @ObservationIgnored private var mutationGeneration = 0
 
     func refresh() async throws {
         guard !appMode.isLocal else { return }
@@ -419,20 +419,32 @@ final class AiTaskStore {
     /// Clears the unread badge for every resolved task. Called when the user opens the
     /// list — posting a notification does not count as reading it, which is what lets
     /// each of the user's devices announce the same dismissal once.
-    func acknowledgeAll() async {
+    /// `quiet` records a breadcrumb instead of a report, for the poll loop that
+    /// retries on its next tick.
+    func acknowledgeAll(quiet: Bool = false) async {
         guard !appMode.isLocal, !unreadDismissals.isEmpty else { return }
         do {
             try await api.acknowledgeAiTasks()
             try await refresh()
         } catch {
             // Leave the badge up rather than pretending it was read.
-            ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
+            if quiet {
+                ErrorReporter.addBreadcrumb(
+                    "AI task acknowledge failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["reason": ErrorReporter.reason(for: error)]
+                )
+            } else {
+                ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
+            }
         }
     }
 
     func delete(id: String) async throws {
         guard !appMode.isLocal else { return }
         try await api.deleteAiTask(id: id)
+        mutationGeneration += 1
         tasks.removeAll { $0.id == id }
         // Nothing left to review once the task itself is gone.
         AiTaskDraftDisk.remove(taskId: id)
@@ -444,6 +456,7 @@ final class AiTaskStore {
     /// flight, so without this a trigger landing before the next `refresh()`
     /// would see the task as still pending and could double-process it.
     func markResolvedLocally(id: String) {
+        mutationGeneration += 1
         tasks.removeAll { $0.id == id }
     }
 

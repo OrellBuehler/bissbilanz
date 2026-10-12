@@ -127,7 +127,7 @@ class AiTasksViewModel(
                     delay(POLL_INTERVAL_MS)
                     try {
                         aiTaskRepo.refresh()
-                        aiTaskRepo.acknowledgeAll()
+                        aiTaskRepo.acknowledgeAll(quiet = true)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         // The repository already reported the failure; the next tick retries.

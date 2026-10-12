@@ -9,6 +9,7 @@ import com.bissbilanz.mode.AppModeManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.concurrent.Volatile
 
 /**
  * AI tasks, held in memory rather than in SQLDelight.
@@ -67,9 +68,10 @@ class AiTaskRepository(
     /**
      * Clears the unread badge for every resolved task. Called when the user opens the
      * list — posting a notification does not count as reading it, which is what lets
-     * each device announce the same dismissal once.
+     * each device announce the same dismissal once. [quiet] skips the report, for the poll
+     * loop that retries on its next tick.
      */
-    suspend fun acknowledgeAll() {
+    suspend fun acknowledgeAll(quiet: Boolean = false) {
         if (appModeManager.isLocal) return
         if (_tasks.value.none { it.isUnreadDismissal() }) return
         try {
@@ -77,13 +79,14 @@ class AiTaskRepository(
             refresh()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
+            if (!quiet) errorReporter.captureException(e)
         }
     }
 
     suspend fun delete(id: String) {
         if (appModeManager.isLocal) return
         api.deleteAiTask(id)
+        mutationGeneration++
         _tasks.value = _tasks.value.filterNot { it.id == id }
     }
 

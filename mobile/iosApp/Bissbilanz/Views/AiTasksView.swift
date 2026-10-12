@@ -50,6 +50,10 @@ struct AiTasksView: View {
         }
     }
 
+    private var shouldPoll: Bool {
+        store.hasActiveClaudeWork && scenePhase == .active
+    }
+
     private static let pollInterval = Duration.seconds(10)
 
     private var visibleTasks: [AiTask] {
@@ -144,7 +148,10 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
-        .task(id: store.hasActiveClaudeWork && scenePhase == .active) { await pollWhileClaudeWorks() }
+        .task(id: shouldPoll) {
+            guard shouldPoll else { return }
+            await pollWhileClaudeWorks()
+        }
         .sheet(item: $selectedDraftForReview) { draft in
             NavigationStack {
                 AIMealReviewView(
@@ -221,15 +228,16 @@ struct AiTasksView: View {
 
     /// While Claude works on a pending task, re-reads the list every
     /// `pollInterval`. SwiftUI cancels this task when the view disappears and
-    /// restarts it when `hasActiveClaudeWork` flips.
+    /// restarts it when `shouldPoll` flips (Claude work starts or ends, or the scene
+    /// leaves the active phase).
     private func pollWhileClaudeWorks() async {
-        while store.hasActiveClaudeWork {
+        while !Task.isCancelled, store.hasActiveClaudeWork {
             try? await Task.sleep(for: Self.pollInterval)
             guard !Task.isCancelled else { return }
             do {
                 try await store.refresh()
                 readyForReviewDrafts = AiTaskDraftDisk.loadAll()
-                await store.acknowledgeAll()
+                await store.acknowledgeAll(quiet: true)
             } catch {
                 if Task.isCancelled { return }
                 ErrorReporter.addBreadcrumb(

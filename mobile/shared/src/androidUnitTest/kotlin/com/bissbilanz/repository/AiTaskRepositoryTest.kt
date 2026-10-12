@@ -64,6 +64,25 @@ class AiTaskRepositoryTest {
         }
 
     @Test
+    fun aListReadThatStartedBeforeALocalDeleteIsDropped() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val staleRead = CompletableDeferred<AiTasksResponse>()
+            coEvery { api.listAiTasks(limit = 100) } coAnswers { staleRead.await() }
+            coEvery { api.deleteAiTask("1") } returns Unit
+
+            val inFlight = launch { repository.refresh() }
+            runCurrent()
+            repository.delete("1")
+            staleRead.complete(AiTasksResponse(tasks = listOf(pending), total = 1))
+            inFlight.join()
+
+            assertEquals(emptyList(), repository.tasks.value)
+        }
+
+    @Test
     fun refreshRethrowsInsteadOfSwallowing() =
         runTest {
             coEvery { api.listAiTasks(limit = 100) } throws RuntimeException("network down")
