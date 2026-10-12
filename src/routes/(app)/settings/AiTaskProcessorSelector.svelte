@@ -127,13 +127,15 @@
 			<div class="flex items-center justify-between gap-3 rounded-md border p-3">
 				<div class="space-y-0.5">
 					<Label for="ai-task-auto-log">{m.settings_ai_task_auto_log_label()}</Label>
-					<p class="text-xs text-muted-foreground">
-						{#if processor === 'claude'}
-							{autoLog ? m.ai_tasks_capture_hint_claude() : m.ai_tasks_capture_hint_claude_review()}
-						{:else}
-							{m.settings_ai_task_auto_log_hint()}
+					{#if processor === 'claude'}
+						{#if claudeOption === 'selectable'}
+							<p class="text-xs text-muted-foreground">
+								{m.settings_ai_task_auto_log_hint_claude()}
+							</p>
 						{/if}
-					</p>
+					{:else}
+						<p class="text-xs text-muted-foreground">{m.settings_ai_task_auto_log_hint()}</p>
+					{/if}
 				</div>
 				<Switch id="ai-task-auto-log" checked={autoLog} onCheckedChange={toggleAutoLog} />
 			</div>

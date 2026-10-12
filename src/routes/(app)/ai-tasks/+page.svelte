@@ -64,8 +64,15 @@
 		try {
 			await aiTaskService.updateStatus(id, 'dismissed');
 		} catch (err) {
-			Sentry.captureException(err, { extra: { id } });
-			toast.error(m.error_generic());
+			const code = err instanceof Error ? err.message : '';
+			if (code === 'offline') {
+				toast.error(m.ai_tasks_offline_error());
+			} else if (code === 'conflict') {
+				toast.error(m.ai_tasks_proposal_accept_conflict());
+			} else {
+				Sentry.captureException(err, { extra: { id } });
+				toast.error(m.error_generic());
+			}
 		}
 	};
 

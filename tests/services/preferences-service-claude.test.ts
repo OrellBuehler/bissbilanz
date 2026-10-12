@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, test, beforeEach, vi } from 'vitest';
-import { db } from '../../src/lib/db/index';
+import { db, clearAllData } from '../../src/lib/db/index';
 
 vi.mock('$lib/api/client', () => ({
 	api: { GET: vi.fn(), PATCH: vi.fn() }
@@ -109,5 +109,20 @@ describe('preferencesService claude fields', () => {
 		await preferencesService.update({ aiTaskProcessor: 'device' });
 		const row = await db.userPreferences.toCollection().first();
 		expect(effectiveProcessor(row)).toBe('device');
+	});
+
+	test('clearAllData drops the cached capability and kind', async () => {
+		mockApi.GET.mockResolvedValue({
+			data: {
+				preferences: serverPrefs({ aiTaskProcessorKind: 'claude' }),
+				claude: { available: true, remainingBudgetUsd: 8.31 }
+			}
+		});
+		await preferencesService.refresh();
+		expect(await db.userPreferences.count()).toBe(1);
+
+		await clearAllData();
+
+		expect(await db.userPreferences.count()).toBe(0);
 	});
 });

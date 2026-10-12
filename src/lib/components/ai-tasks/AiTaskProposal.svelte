@@ -24,7 +24,9 @@
 	let override = $state<{ key: string; ids: Set<string> } | null>(null);
 	const selected = $derived(override?.key === key ? override.ids : allSelected(proposal.items));
 
-	let working = $state(false);
+	let accepting = $state(false);
+	let discarding = $state(false);
+	const working = $derived(accepting || discarding);
 	let message = $state<string | null>(null);
 
 	const toggle = (id: string) => {
@@ -39,24 +41,24 @@
 			return;
 		}
 		message = null;
-		working = true;
+		accepting = true;
 		try {
 			const result = await aiTaskService.acceptProposal(taskId, body);
 			if (result === 'logged') toast.success(m.ai_tasks_proposal_logged());
 			else if (result === 'conflict') toast.error(m.ai_tasks_proposal_accept_conflict());
 			else toast.error(m.ai_tasks_proposal_accept_failed());
 		} finally {
-			working = false;
+			accepting = false;
 		}
 	};
 
 	const discard = async () => {
 		message = null;
-		working = true;
+		discarding = true;
 		try {
 			await onDiscard(taskId);
 		} finally {
-			working = false;
+			discarding = false;
 		}
 	};
 </script>
@@ -78,6 +80,7 @@
 				<label class="flex cursor-pointer items-start gap-3 py-1">
 					<Checkbox
 						class="mt-0.5"
+						aria-label={item.name}
 						checked={selected.has(item.id)}
 						onCheckedChange={() => toggle(item.id)}
 						disabled={working}
@@ -108,11 +111,15 @@
 
 	<div class="flex gap-2">
 		<Button variant="outline" class="flex-1" disabled={working} onclick={discard}>
-			<X class="mr-1 size-4" />
+			{#if discarding}
+				<Spinner class="mr-1 size-4" />
+			{:else}
+				<X class="mr-1 size-4" />
+			{/if}
 			{m.ai_tasks_proposal_discard()}
 		</Button>
 		<Button class="flex-1" disabled={working} onclick={accept}>
-			{#if working}
+			{#if accepting}
 				<Spinner class="mr-1 size-4" />
 			{:else}
 				<Check class="mr-1 size-4" />

@@ -1,7 +1,8 @@
 import { browser } from '$app/environment';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
-import { apiFetch } from '$lib/utils/api';
+import { apiFetch, isQueued } from '$lib/utils/api';
+import { db } from '$lib/db';
 import { entryService } from '$lib/services/entry-service.svelte';
 import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
 import type { paths } from '$lib/api/generated/schema';
@@ -213,12 +214,39 @@ async function update(
 	return data.task;
 }
 
+const isConflict = (status: number) => status === 409 || status === 404;
+
+// apiFetch parks a write in the sync queue when the browser went offline between
+// our check and the request. These calls need the answer now and must not
+// replay later, so take the parked copy back out.
+async function dropQueuedWrite(method: string, url: string): Promise<void> {
+	await db.syncQueue
+		.filter((q) => q.method === method && new URL(q.url, 'http://localhost').pathname === url)
+		.delete();
+}
+
 async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
-	const { data, error } = await api.PATCH('/api/ai-tasks/{id}', {
+	if (browser && !navigator.onLine) throw new Error('offline');
+	const url = `/api/ai-tasks/${id}`;
+	const { data, error, response } = await api.PATCH('/api/ai-tasks/{id}', {
 		params: { path: { id } },
 		body: { status }
 	});
-	if (error || !data) {
+	if (isQueued(response)) {
+		await dropQueuedWrite('PATCH', url);
+		throw new Error('offline');
+	}
+	if (isConflict(response.status)) {
+		Sentry.addBreadcrumb({
+			category: 'ai-task',
+			level: 'info',
+			message: 'ai task update rejected',
+			data: { status: response.status }
+		});
+		await refresh();
+		throw new Error('conflict');
+	}
+	if (error || !data?.task) {
 		throw new Error('update_failed');
 	}
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
@@ -232,7 +260,17 @@ async function acceptProposal(id: string, body: ProposalAcceptBody = {}): Promis
 			params: { path: { id } },
 			body
 		});
-		if (response.status === 409 || response.status === 404) {
+		if (isQueued(response)) {
+			await dropQueuedWrite('POST', `/api/ai-tasks/${id}/proposal/accept`);
+			return 'failed';
+		}
+		if (isConflict(response.status)) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'info',
+				message: 'ai task proposal accept rejected',
+				data: { status: response.status }
+			});
 			await refresh();
 			return 'conflict';
 		}

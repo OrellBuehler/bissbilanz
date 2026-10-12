@@ -37,18 +37,18 @@
 				: m.ai_tasks_status_pending()
 	);
 
-	const processedByClaude = $derived(isProcessedByClaude(task));
-
 	const processedByLabel = $derived(
 		task.status === 'pending'
 			? null
-			: task.processedBy === 'assistant'
-				? m.ai_tasks_processed_by_assistant()
-				: task.processedBy === 'on_device'
-					? m.ai_tasks_processed_by_on_device()
-					: task.processedBy === 'private_cloud'
-						? m.ai_tasks_processed_by_private_cloud()
-						: null
+			: isProcessedByClaude(task)
+				? m.ai_tasks_processed_by_claude()
+				: task.processedBy === 'assistant'
+					? m.ai_tasks_processed_by_assistant()
+					: task.processedBy === 'on_device'
+						? m.ai_tasks_processed_by_on_device()
+						: task.processedBy === 'private_cloud'
+							? m.ai_tasks_processed_by_private_cloud()
+							: null
 	);
 
 	const chipState = $derived(task.status === 'pending' ? claudeChipState(task) : null);
@@ -166,12 +166,7 @@
 					{/if}
 				{/if}
 
-				{#if processedByClaude}
-					<Badge variant="secondary" data-testid="ai-task-processed-by-claude">
-						<Sparkles />
-						{m.ai_tasks_processed_by_claude()}
-					</Badge>
-				{:else if processedByLabel}
+				{#if processedByLabel}
 					<p class="text-xs text-muted-foreground">{processedByLabel}</p>
 				{/if}
 			</div>
