@@ -51,6 +51,8 @@ import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.AiTaskField
+import com.bissbilanz.util.claudeProcessingEnabled
+import com.bissbilanz.util.effectiveAiTaskProcessor
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.mealTypes
 import kotlinx.coroutines.CancellationException
@@ -102,7 +104,9 @@ fun AiMealSheet(
     val isEditing = task != null
 
     val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
-    val processorIsDevice = prefs?.aiTaskProcessor?.value == "device"
+    val processorIsDevice = prefs?.effectiveAiTaskProcessor() == "device"
+    val claudeCapability by prefsRepo.claudeCapability.collectAsStateWithLifecycle()
+    val claudeEnabled = claudeProcessingEnabled(prefs, claudeCapability)
     // Fails closed: the last known answer (default "not connected") is used until the
     // refresh below succeeds, so an unreachable server never enables sending.
     val connectionStore: McpConnectionStore = koinInject()
@@ -118,7 +122,7 @@ fun AiMealSheet(
             errorReporter.captureException(e)
         }
     }
-    val canProcess = processorIsDevice || mcpConnected
+    val canProcess = processorIsDevice || claudeEnabled || mcpConnected
 
     var description by remember(task?.id) { mutableStateOf(task?.description ?: "") }
     var mealType by remember(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
@@ -290,6 +294,8 @@ fun AiMealSheet(
             )
             Text(
                 when {
+                    claudeEnabled && prefs?.aiTaskAutoLog == true -> stringResource(R.string.ai_tasks_capture_hint_claude)
+                    claudeEnabled -> stringResource(R.string.ai_tasks_capture_hint_claude_review)
                     isEditing && processorIsDevice -> stringResource(R.string.ai_task_edit_subtitle_device)
                     isEditing -> stringResource(R.string.ai_task_edit_subtitle)
                     processorIsDevice -> stringResource(R.string.ai_task_subtitle_device)
@@ -298,7 +304,7 @@ fun AiMealSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (!isEditing && !processorIsDevice && !mcpConnected) {
+            if (!isEditing && !canProcess) {
                 Text(
                     stringResource(R.string.ai_task_mcp_not_connected),
                     style = MaterialTheme.typography.bodySmall,
@@ -600,7 +606,7 @@ fun AiMealSheet(
                             stringResource(
                                 when {
                                     isEditing -> R.string.weight_save
-                                    processorIsDevice -> R.string.ai_task_send_device
+                                    processorIsDevice || claudeEnabled -> R.string.ai_task_send_device
                                     else -> R.string.ai_task_send
                                 },
                             ),

@@ -7,6 +7,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.LocalDataWiper
@@ -51,6 +52,8 @@ class SettingsViewModel(
         prefsRepo
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val claudeCapability: StateFlow<ClaudeCapability?> = prefsRepo.claudeCapability
 
     private val _customMealTypes = MutableStateFlow<List<MealType>>(emptyList())
     val customMealTypes: StateFlow<List<MealType>> = _customMealTypes.asStateFlow()

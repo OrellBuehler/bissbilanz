@@ -1,17 +1,21 @@
 package com.bissbilanz.repository
 
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
+import com.bissbilanz.api.generated.model.PreferencesResponse
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
+import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.PreferencesField
 import com.bissbilanz.util.decodeOrNull
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -20,6 +24,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
@@ -124,5 +129,113 @@ class PreferencesRepositoryTest {
             assertEquals(false, updated.showWaterWidget)
             assertEquals(false, updated.showActivityWidget)
             assertEquals(false, updated.showNotesWidget)
+        }
+
+    @Test
+    fun choosingClaudeKeepsTheLegacyFieldOnAssistantAndStoresTheKind() =
+        runTest {
+            val updated =
+                repository.updatePreferences(PreferencesUpdate(aiTaskProcessor = PreferencesUpdate.AiTaskProcessor.claude))
+
+            assertEquals(Preferences.AiTaskProcessor.assistant, updated.aiTaskProcessor)
+            assertEquals("claude", updated.aiTaskProcessorKind)
+            assertEquals("claude", cached()?.aiTaskProcessorKind)
+            val op = syncQueue.drain().last().operation as SyncOperation.UpdatePreferences
+            assertEquals("""{"aiTaskProcessor":"claude"}""", op.body)
+        }
+
+    @Test
+    fun switchingFromClaudeBackToTheAssistantReplacesTheKind() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(aiTaskProcessor = PreferencesUpdate.AiTaskProcessor.claude))
+
+            val updated =
+                repository.updatePreferences(PreferencesUpdate(aiTaskProcessor = PreferencesUpdate.AiTaskProcessor.assistant))
+
+            assertEquals(Preferences.AiTaskProcessor.assistant, updated.aiTaskProcessor)
+            assertEquals("assistant", updated.aiTaskProcessorKind)
+            assertEquals("assistant", cached()?.aiTaskProcessorKind)
+        }
+
+    @Test
+    fun anUnrelatedUpdateKeepsTheStoredKind() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(aiTaskProcessor = PreferencesUpdate.AiTaskProcessor.claude))
+
+            val updated = repository.updatePreferences(PreferencesUpdate(timeZone = "Europe/Zurich"))
+
+            assertEquals("claude", updated.aiTaskProcessorKind)
+        }
+
+    @Test
+    fun aCachedRowFromBeforeTheKindExistedStillDecodes() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(timeZone = "Europe/Zurich"))
+            val legacy =
+                Json
+                    .parseToJsonElement(
+                        db.userDataDatabaseQueries
+                            .selectPreferences()
+                            .executeAsOne()
+                            .jsonData,
+                    ).jsonObject
+                    .filterKeys { it != "aiTaskProcessorKind" }
+            db.userDataDatabaseQueries.insertPreferences(JsonObject(legacy).toString())
+
+            assertNull(cached()?.aiTaskProcessorKind)
+            assertEquals("Europe/Zurich", cached()?.timeZone)
+        }
+
+    @Test
+    fun refreshKeepsTheCapabilityFromTheLatestGet() =
+        runTest {
+            val prefs = TestFixtures.preferences(processorKind = "claude")
+            coEvery { api.getPreferencesResponse() } returns
+                PreferencesResponse(prefs, ClaudeCapability(available = true, remainingBudgetUsd = 8.31))
+
+            repository.refresh()
+
+            assertEquals(ClaudeCapability(available = true, remainingBudgetUsd = 8.31), repository.claudeCapability.value)
+            assertEquals("claude", cached()?.aiTaskProcessorKind)
+
+            coEvery { api.getPreferencesResponse() } returns PreferencesResponse(prefs, ClaudeCapability(available = false))
+            repository.refresh()
+
+            assertEquals(ClaudeCapability(available = false), repository.claudeCapability.value)
+        }
+
+    @Test
+    fun clearingTheCapabilityForgetsTheLastAccount() =
+        runTest {
+            coEvery { api.getPreferencesResponse() } returns
+                PreferencesResponse(TestFixtures.preferences(), ClaudeCapability(available = true))
+            repository.refresh()
+
+            repository.clearClaudeCapability()
+
+            assertNull(repository.claudeCapability.value)
+        }
+
+    @Test
+    fun aServerWithoutTheCapabilityLeavesItUnknown() =
+        runTest {
+            coEvery { api.getPreferencesResponse() } returns PreferencesResponse(TestFixtures.preferences())
+
+            repository.refresh()
+
+            assertNull(repository.claudeCapability.value)
+        }
+
+    @Test
+    fun aFailedRefreshKeepsTheLastCapability() =
+        runTest {
+            coEvery { api.getPreferencesResponse() } returns
+                PreferencesResponse(TestFixtures.preferences(), ClaudeCapability(available = true))
+            repository.refresh()
+            coEvery { api.getPreferencesResponse() } throws RuntimeException("offline")
+
+            assertFailsWith<RuntimeException> { repository.refresh() }
+
+            assertEquals(ClaudeCapability(available = true), repository.claudeCapability.value)
         }
 }

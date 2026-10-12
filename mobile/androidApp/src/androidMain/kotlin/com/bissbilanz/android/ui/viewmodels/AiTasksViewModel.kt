@@ -8,11 +8,16 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
+import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.repository.AiTaskRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -23,6 +28,7 @@ class AiTasksViewModel(
     private val aiTaskRepo: AiTaskRepository,
     private val uploadQueue: AiTaskUploadQueue,
     private val errorReporter: ErrorReporter,
+    private val refreshManager: RefreshManager,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     enum class Filter(
@@ -106,6 +112,62 @@ class AiTasksViewModel(
         viewModelScope.launch {
             runCatching { aiTaskRepo.delete(id) }
                 .onFailure { errorReporter.captureException(it as? Exception ?: Exception(it)) }
+        }
+    }
+
+    private val _busyTaskId = MutableStateFlow<String?>(null)
+
+    /** The task whose proposal is being logged or discarded; its buttons are disabled meanwhile. */
+    val busyTaskId: StateFlow<String?> = _busyTaskId.asStateFlow()
+
+    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+
+    /** One-shot snackbar messages as string resource ids, resolved by the screen. */
+    val messages: SharedFlow<Int> = _messages.asSharedFlow()
+
+    /**
+     * Logs a Claude proposal. [itemIds] null accepts every item. A failure keeps the card
+     * and the caller's selection so the user can retry; a 409 means the proposal is gone
+     * and the repository has already refreshed the list.
+     */
+    fun acceptProposal(
+        taskId: String,
+        itemIds: List<String>?,
+    ) {
+        if (_busyTaskId.value != null) return
+        _busyTaskId.value = taskId
+        viewModelScope.launch {
+            try {
+                aiTaskRepo.acceptProposal(taskId, itemIds)
+                _messages.emit(R.string.ai_tasks_proposal_logged)
+                refreshManager.refreshAll()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is ApiException && (e.statusCode == 409 || e.statusCode == 404)) {
+                    _messages.emit(R.string.ai_tasks_proposal_accept_conflict)
+                } else {
+                    errorReporter.captureException(e)
+                    _messages.emit(R.string.ai_tasks_proposal_accept_failed)
+                }
+            } finally {
+                _busyTaskId.value = null
+            }
+        }
+    }
+
+    fun discardProposal(taskId: String) {
+        if (_busyTaskId.value != null) return
+        _busyTaskId.value = taskId
+        viewModelScope.launch {
+            try {
+                aiTaskRepo.dismiss(taskId)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _messages.emit(R.string.ai_task_save_failed)
+            } finally {
+                _busyTaskId.value = null
+            }
         }
     }
 
