@@ -98,7 +98,7 @@ import type {
 } from '$lib/server/analytics';
 import type { listMealTypes } from '$lib/server/meal-types';
 import type { getPreferences } from '$lib/server/preferences';
-import type { getClaudeCapability } from '$lib/server/claude/capability';
+import type { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import type {
 	getDayProperties,
 	getDayPropertiesRange,
@@ -216,7 +216,7 @@ export type HandlerDeps = {
 	listMealTypes: typeof listMealTypes;
 	// Preferences (activity goal adjustment)
 	getPreferences: typeof getPreferences;
-	getClaudeCapability: typeof getClaudeCapability;
+	getClaudeCapability: typeof getClaudeCapabilitySafe;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
 	getDayPropertiesRange: typeof getDayPropertiesRange;

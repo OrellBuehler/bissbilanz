@@ -161,6 +161,7 @@ async function runLoop(
 		timeZone: loaded.timeZone,
 		locale: loaded.locale,
 		fence: ctx.fence,
+		generation: run.generation,
 		seen: new Map()
 	};
 	let nudged = false;

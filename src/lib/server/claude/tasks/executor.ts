@@ -86,7 +86,14 @@ export async function requeueRunForEditedTask(
 			state: 'queued',
 			proposal: null,
 			nextAttemptAt: null,
-			...(options.reopened ? { failures: 0, failureCode: null, failureDetail: null } : {}),
+			...(options.reopened
+				? {
+						failures: 0,
+						failureCode: null,
+						failureDetail: null,
+						generation: sql`${claudeTaskRuns.generation} + 1`
+					}
+				: {}),
 			updatedAt: sql`now()`
 		})
 		.where(

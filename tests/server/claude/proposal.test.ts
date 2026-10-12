@@ -9,6 +9,7 @@ vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/entries', () => ({ createEntry: h.createEntry }));
 vi.mock('$lib/server/ai-tasks', () => ({ completeAiTaskBy: h.completeAiTaskBy }));
 
+const { ApiError } = await import('$lib/server/errors');
 const { acceptProposal, serializeClaudeProcessing } =
 	await import('$lib/server/claude/tasks/proposal');
 
@@ -143,6 +144,19 @@ describe('acceptProposal', () => {
 		h.createEntry.mockResolvedValueOnce({ success: true, data: {} });
 		h.createEntry.mockResolvedValueOnce({ success: false, error: new Error('bad entry') });
 		await expect(acceptProposal('user-1', 'task-1')).rejects.toThrow('bad entry');
+		expect(h.completeAiTaskBy).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		['a deleted food', new ApiError(404, 'Food not found')],
+		['a deleted meal type', new ApiError(400, 'Invalid meal type: Brunch')]
+	])('answers 409 with a clear message for %s', async (_name, error) => {
+		queueAccept();
+		h.createEntry.mockResolvedValueOnce({ success: false, error });
+		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({
+			status: 409,
+			message: expect.stringContaining(error.message)
+		});
 		expect(h.completeAiTaskBy).not.toHaveBeenCalled();
 	});
 

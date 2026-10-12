@@ -78,7 +78,13 @@ export async function acceptProposal(userId: string, taskId: string, itemIds?: s
 
 		for (const item of selected) {
 			const created = await createEntry(userId, item.entry, null, { id: item.id, tx });
-			if (!created.success) throw created.error;
+			if (!created.success) {
+				const error = created.error;
+				if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
+					throw new ApiError(409, `Proposal can no longer be accepted: ${error.message}`);
+				}
+				throw error;
+			}
 		}
 
 		const completed = await completeAiTaskBy(tx, userId, taskId, {

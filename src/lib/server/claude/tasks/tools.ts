@@ -157,6 +157,7 @@ export type TaskToolContext = {
 	timeZone: string;
 	locale: string | null;
 	fence: Fence;
+	generation: number;
 	seen: Map<string, number>;
 };
 
@@ -340,7 +341,7 @@ async function logFood(
 		const { entryId, created } = await ledgerGetOrCreate(
 			tx,
 			ctx.fence,
-			`log:${hash}:${occurrence}`,
+			`log:${ctx.generation}:${hash}:${occurrence}`,
 			summary
 		);
 		if (!created) return { entryId, alreadyLogged: true };

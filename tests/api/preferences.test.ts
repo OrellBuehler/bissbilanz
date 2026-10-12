@@ -84,7 +84,7 @@ vi.mock('$lib/server/preferences', () => ({
 }));
 
 vi.mock('$lib/server/claude/capability', () => ({
-	getClaudeCapability: async () => mockCapability
+	getClaudeCapabilitySafe: async () => mockCapability
 }));
 
 const { GET, PATCH } = await import('../../src/routes/api/preferences/+server');

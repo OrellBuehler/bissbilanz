@@ -182,7 +182,7 @@ Changes and tables (Drizzle; `ts = timestamp(..., { withTimezone: true })`):
 - `claude_task_runs` (one row per task, internal): `taskId uuid pk → ai_tasks.id onDelete cascade`;
   `userId uuid notNull → users.id onDelete cascade`; `state text notNull default 'queued'` CHECK in
   `claudeRunStateValues`; `mode text` CHECK `IS NULL OR IN ('auto_log','review')`;
-  `attempt integer notNull default 0` (fencing token, +1 on every claim); `failures integer notNull default 0`
+  `attempt integer notNull default 0` (fencing token, +1 on every claim); `failures integer notNull default 0`; `generation integer notNull default 0` (ledger scope, bumped on reopen, migration 0074)
   (counts failed attempts only); `leaseOwner text`; `leaseExpiresAt ts`; `nextAttemptAt ts`; `proposal jsonb`;
   `failureCode text` CHECK `IS NULL OR IN (claudeFailureCodeValues)`; `failureDetail text`;
   `createdAt`/`updatedAt ts notNull defaultNow`. Indexes `(state, next_attempt_at)`, `(user_id)`.
@@ -576,7 +576,7 @@ Already logged in an earlier attempt (do not log again): <ledger summaries or "n
 
 **`log_food`, auto mode.** Build the payload (§7.3 rules); `hash = sha256(canonical JSON of payload
 minus eatenAt)`; `occurrence` = how many times this hash was already seen in this attempt;
-`key = log:<hash>:<occurrence>`. One fenced transaction:
+`key = log:<generation>:<hash>:<occurrence>` (`generation` is a `claude_task_runs` counter that a reopen bumps, so a reopened task logs afresh). One fenced transaction:
 
 1. fence check (§7.1);
 2. `INSERT INTO claude_task_ledger (task_id, key, entry_id, summary) VALUES ($t, $key, gen_random_uuid(), $summary)
@@ -1006,11 +1006,18 @@ returns the same shape with `claudeProcessing: null` because the run is created 
   (`x-extensible-enum`) is `queued | running | retrying | proposed | blocked`; `proposal` is non-null
   only for `proposed`. Items never contain the internal `entry`.
 - `processedBy` never reads `claude` (a task Claude resolved reads `assistant`); `processedByKind`
-  (`x-extensible-enum`: `assistant | on_device | private_cloud | claude`) is the raw value, `null` for
-  unresolved tasks. A Claude-resolved task shows "Claude" when `processedByKind == "claude"`.
+  (`x-extensible-enum`: `assistant | on_device | private_cloud | claude`) is the raw value of the
+  last resolver, `null` for a task never resolved. It is not cleared when a task is reopened, so a
+  `pending` task can carry a non-null `processedByKind` (and `resultSummary`) from its previous
+  resolution. A Claude-resolved task shows "Claude" when `processedByKind == "claude"`; do not use it
+  to decide whether Claude is working on a pending task, read `claudeProcessing` for that.
 - A proposal item `id` is also the id of the food entry it creates on accept.
-- Setting a task back to `pending` through `PATCH` (status `pending`) hands it to Claude again when
-  the processor is Claude (the previous run is reset); editing a pending task requeues its run.
+- Setting a resolved task back to `pending` through `PATCH` (status `pending`, previous status not
+  `pending`) hands it to Claude again when the processor is Claude: the run is reset and starts a new
+  generation, so items are logged afresh (entries from the earlier resolution are not removed and not
+  counted). Editing `description`, `photoUrls`, `date`, `mealType` or `eatenAt` of a pending task
+  requeues its run; any other PATCH (for example `acknowledged`, or `status: "pending"` on an already
+  pending task) leaves the run alone.
 
 **`POST /api/ai-tasks/{id}/proposal/accept`** (operationId `acceptAiTaskProposal`)
 
@@ -1021,13 +1028,15 @@ Response `200`: `{ "task": <AI task> }` with `status: "completed"`, `processedBy
 `processedByKind: "claude"`, `resultSummary` = the proposal summary, `createdEntryIds` = the accepted
 item ids, `claudeProcessing: null`.
 
-| Status | When                                                                                                                                                         |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 400    | `itemIds` empty or not uuids, an id not in the proposal, or invalid JSON (`{ "error": ... }`)                                                                |
-| 401    | not signed in                                                                                                                                                |
-| 404    | task or run not found for this user                                                                                                                          |
-| 409    | no open proposal (already accepted, running, dismissed), task no longer pending, or the user switched the processor away from Claude (the run is superseded) |
-| 429    | the global write rate limit                                                                                                                                  |
+| Status                                                                                              | When                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 400                                                                                                 | `itemIds` empty or not uuids, an id not in the proposal, or invalid JSON (`{ "error": ... }`)                                                                                        |
+| 401                                                                                                 | not signed in                                                                                                                                                                        |
+| 404                                                                                                 | task or run not found for this user                                                                                                                                                  |
+| 409                                                                                                 | no open proposal (already accepted, running, dismissed), task no longer pending, the user switched the processor away from Claude (the run is superseded), or a food, recipe or meal |
+| type of the proposal no longer exists (error text starts with "Proposal can no longer be accepted"; |
+| nothing is logged and the proposal stays open)                                                      |
+| 429                                                                                                 | the global write rate limit                                                                                                                                                          |
 
 Accepting needs no Claude access or budget; replaying a request after a network failure is safe
 (entries use the item ids) and answers 409 once the first one succeeded.

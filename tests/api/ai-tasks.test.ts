@@ -29,7 +29,9 @@ let mockCreateResult: any = null;
 let mockUpdateResult: any = undefined;
 let mockAcknowledgedCount = 0;
 let mockRuns: any[] = [];
+let mockPreviousStatus: string = 'completed';
 const requeue = vi.fn();
+const captureException = vi.hoisted(() => vi.fn());
 const enqueue = vi.fn();
 
 const mockValidationError = new ZodError([
@@ -41,6 +43,7 @@ vi.mock('$lib/server/ai-tasks', async (importOriginal) => {
 	return {
 		...original,
 		listAiTasks: async () => mockListResult,
+		getAiTask: async () => ({ ...TEST_AI_TASK, status: mockPreviousStatus }),
 		createAiTask: async () =>
 			mockCreateResult
 				? { success: true, data: mockCreateResult }
@@ -53,6 +56,11 @@ vi.mock('$lib/server/ai-tasks', async (importOriginal) => {
 		deleteAiTask: async () => {}
 	};
 });
+
+vi.mock('@sentry/sveltekit', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@sentry/sveltekit')>()),
+	captureException
+}));
 
 vi.mock('$lib/server/claude/tasks/runs', () => ({
 	listRunsByTaskIds: async () => mockRuns
@@ -79,7 +87,9 @@ describe('api/ai-tasks', () => {
 		mockUpdateResult = undefined;
 		mockAcknowledgedCount = 0;
 		mockRuns = [];
+		mockPreviousStatus = 'completed';
 		requeue.mockReset();
+		captureException.mockReset();
 		enqueue.mockReset();
 	});
 
@@ -257,6 +267,68 @@ describe('api/ai-tasks', () => {
 			expect(response.status).toBe(200);
 			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { reopened: true });
 			expect(enqueue).toHaveBeenCalledWith(TEST_USER.id, TEST_AI_TASK.id);
+		});
+
+		test('does not requeue for an edit that touches no content field', async () => {
+			mockUpdateResult = TEST_AI_TASK;
+			const response = await aiTaskIdModule.PATCH(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_AI_TASK.id },
+					body: { acknowledged: true, resultSummary: 'seen' },
+					method: 'PATCH'
+				})
+			);
+			expect(response.status).toBe(200);
+			expect(requeue).not.toHaveBeenCalled();
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('does not treat a pending to pending status PATCH as a reopen', async () => {
+			mockUpdateResult = TEST_AI_TASK;
+			mockPreviousStatus = 'pending';
+			const response = await aiTaskIdModule.PATCH(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_AI_TASK.id },
+					body: { status: 'pending' },
+					method: 'PATCH'
+				})
+			);
+			expect(response.status).toBe(200);
+			expect(requeue).not.toHaveBeenCalled();
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('requeues without reopening when a pending task is edited and re-sent as pending', async () => {
+			mockUpdateResult = TEST_AI_TASK;
+			mockPreviousStatus = 'pending';
+			await aiTaskIdModule.PATCH(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_AI_TASK.id },
+					body: { status: 'pending', mealType: 'Dinner' },
+					method: 'PATCH'
+				})
+			);
+			expect(requeue).toHaveBeenCalledWith(TEST_AI_TASK.id, { reopened: false });
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		test('still answers when handing the task back to claude fails', async () => {
+			mockUpdateResult = TEST_AI_TASK;
+			requeue.mockRejectedValue(new Error('db down'));
+			const response = await aiTaskIdModule.PATCH(
+				createMockEvent({
+					user: TEST_USER,
+					params: { id: TEST_AI_TASK.id },
+					body: { status: 'pending' },
+					method: 'PATCH'
+				})
+			);
+			await expectResponseContract('PATCH', '/api/ai-tasks/{id}', response);
+			expect(response.status).toBe(200);
+			expect(captureException).toHaveBeenCalled();
 		});
 
 		test('leaves the claude run alone when the task is no longer pending', async () => {

@@ -190,10 +190,16 @@ export async function listLoggedLedger(
 	return db
 		.select({ entryId: claudeTaskLedger.entryId, summary: claudeTaskLedger.summary })
 		.from(claudeTaskLedger)
+		.innerJoin(claudeTaskRuns, eq(claudeTaskRuns.taskId, claudeTaskLedger.taskId))
 		.innerJoin(
 			foodEntries,
 			and(eq(foodEntries.id, claudeTaskLedger.entryId), eq(foodEntries.userId, userId))
 		)
-		.where(eq(claudeTaskLedger.taskId, taskId))
+		.where(
+			and(
+				eq(claudeTaskLedger.taskId, taskId),
+				sql`${claudeTaskLedger.key} LIKE 'log:' || ${claudeTaskRuns.generation} || ':%'`
+			)
+		)
 		.orderBy(claudeTaskLedger.createdAt);
 }

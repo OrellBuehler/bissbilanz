@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createMockDB } from '../../helpers/mock-db';
 
 const h = vi.hoisted(() => ({
+	captureException: vi.fn(),
 	getClaudeEnabled: vi.fn(),
 	getMonthSpend: vi.fn(),
 	config: {
@@ -14,6 +15,10 @@ const h = vi.hoisted(() => ({
 
 const { db, queueResults, setResult, reset, getCalls } = createMockDB();
 
+vi.mock('@sentry/sveltekit', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@sentry/sveltekit')>()),
+	captureException: h.captureException
+}));
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => h.config }));
 vi.mock('$lib/server/claude/settings', () => ({ getClaudeEnabled: h.getClaudeEnabled }));
@@ -215,6 +220,12 @@ describe('capability', () => {
 	test('rethrows unexpected failures while checking', async () => {
 		h.getClaudeEnabled.mockRejectedValue(new Error('db down'));
 		await expect(capability.getClaudeCapability('user-1')).rejects.toThrow('db down');
+	});
+
+	test('getClaudeCapabilitySafe turns a failure into unavailable and reports it', async () => {
+		h.getClaudeEnabled.mockRejectedValue(new Error('db down'));
+		expect(await capability.getClaudeCapabilitySafe('user-1')).toEqual({ available: false });
+		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), expect.anything());
 	});
 
 	test('assertClaudeAllowed checks the gates and the processor', async () => {

@@ -2,7 +2,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { aiTasks, claudeTaskRuns, claudeUsage, foodEntries, users } from '$lib/server/schema';
+import {
+	aiTasks,
+	claudeTaskRuns,
+	claudeUsage,
+	foodEntries,
+	foods,
+	users
+} from '$lib/server/schema';
 import { closeTestDB, createTestDatabase, dropTestDatabase, runTestMigrations } from './helpers';
 import {
 	claudeConfigMock,
@@ -83,10 +90,10 @@ const startFake = (steps: FakeStep[]) => {
 };
 
 const toolStep = (...blocks: Record<string, unknown>[]) => message(blocks, 'tool_use');
-const logStep = (name = 'Toast') =>
+const logStep = (name = 'Toast', foodId: string | null = null) =>
 	toolStep(
 		toolUse('log_food', {
-			foodId: null,
+			foodId,
 			recipeId: null,
 			servings: 1,
 			mealType: null,
@@ -132,7 +139,95 @@ const propose = async () => {
 	return { user, task };
 };
 
+const seedFood = async (userId: string) => {
+	const [food] = await db
+		.insert(foods)
+		.values({
+			userId,
+			name: 'Greek yogurt',
+			servingSize: 100,
+			servingUnit: 'g',
+			calories: 60,
+			protein: 10,
+			carbs: 4,
+			fat: 0.5,
+			fiber: 0
+		})
+		.returning();
+	return food!;
+};
+
 describe('reopening a task through PATCH', () => {
+	it('logs an item again after its entry was deleted and the task reopened', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runs.ensureRun(user.id, task.id);
+		startFake([logStep('Toast'), completeStep('first')]);
+		await processor.processTask(task.id, {
+			signal: new AbortController().signal,
+			instanceId: 'worker-contract'
+		});
+		const [first] = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(first).toBeDefined();
+		await db.delete(foodEntries).where(eq(foodEntries.userId, user.id));
+
+		const fake = startFake([logStep('Toast'), completeStep('second')]);
+		const response = await patchTask(user, task.id, { status: 'pending' });
+		expect(response.status).toBe(200);
+		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
+			timeout: 15_000,
+			interval: 100
+		});
+		const entries = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(entries).toHaveLength(1);
+		expect(entries[0]!.id).not.toBe(first!.id);
+		expect((await taskOf(task.id)).createdEntryIds).toEqual([entries[0]!.id]);
+		expect(fake.calls).toHaveLength(2);
+		expect((await runOf(task.id))?.generation).toBe(1);
+	});
+
+	it('counts only the new generation when the old entries still exist', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runs.ensureRun(user.id, task.id);
+		startFake([logStep('Toast'), completeStep('first')]);
+		await processor.processTask(task.id, {
+			signal: new AbortController().signal,
+			instanceId: 'worker-contract'
+		});
+		const before = (await taskOf(task.id)).createdEntryIds!;
+
+		startFake([logStep('Eggs'), completeStep('second')]);
+		await patchTask(user, task.id, { status: 'pending' });
+		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
+			timeout: 15_000,
+			interval: 100
+		});
+		const after = (await taskOf(task.id)).createdEntryIds!;
+		expect(after).toHaveLength(1);
+		expect(before).not.toContain(after[0]);
+	});
+
+	it('does not requeue or reset failures for edits that are not content or a reopen', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await runs.ensureRun(user.id, task.id);
+		await db
+			.update(claudeTaskRuns)
+			.set({ state: 'retry_wait', failures: 2, nextAttemptAt: new Date(Date.now() + 3_600_000) })
+			.where(eq(claudeTaskRuns.taskId, task.id));
+		const fake = startFake([]);
+
+		expect((await patchTask(user, task.id, { acknowledged: true })).status).toBe(200);
+		expect((await patchTask(user, task.id, { status: 'pending' })).status).toBe(200);
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		const run = await runOf(task.id);
+		expect(run?.state).toBe('retry_wait');
+		expect(run?.failures).toBe(2);
+		expect(run?.generation).toBe(0);
+		expect(fake.calls).toHaveLength(0);
+	});
+
 	it('hands a dismissed claude task back to claude', async () => {
 		const user = await seedUser(db);
 		const task = await seedTask(db, user.id);
@@ -174,7 +269,7 @@ describe('reopening a task through PATCH', () => {
 		expect((await runOf(task.id))?.state).toBe('succeeded');
 		expect((await taskOf(task.id)).status).toBe('completed');
 
-		startFake([completeStep('second')]);
+		startFake([logStep('Eggs'), completeStep('second')]);
 		const response = await patchTask(user, task.id, { status: 'pending' });
 		expect(response.status).toBe(200);
 		await vi.waitFor(async () => expect((await taskOf(task.id)).resultSummary).toBe('second'), {
@@ -376,6 +471,29 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 		const again = await accept(user, task.id);
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/proposal/accept', again);
 		expect(again.status).toBe(409);
+	});
+
+	it('returns 409 with a message when a proposed food was deleted meanwhile', async () => {
+		const user = await seedUser(db, { autoLog: false });
+		const food = await seedFood(user.id);
+		const task = await seedTask(db, user.id);
+		startFake([logStep('Yogurt', food.id), completeStep('Suggested yogurt')]);
+		await runs.ensureRun(user.id, task.id);
+		await processor.processTask(task.id, {
+			signal: new AbortController().signal,
+			instanceId: 'worker-contract'
+		});
+		await db.delete(foods).where(eq(foods.id, food.id));
+
+		const response = await accept(user, task.id);
+		await expectResponseContract('POST', '/api/ai-tasks/{id}/proposal/accept', response);
+		expect(response.status).toBe(409);
+		expect((await response.json()).error).toContain('no longer be accepted');
+		expect((await runOf(task.id))?.state).toBe('proposed');
+		expect((await taskOf(task.id)).status).toBe('pending');
+		expect(await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id))).toHaveLength(
+			0
+		);
 	});
 
 	it('returns 409 and supersedes the run once the processor moved away', async () => {

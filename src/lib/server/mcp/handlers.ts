@@ -48,7 +48,7 @@ import {
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { todayInTimeZone } from '$lib/utils/dates';
 import { getUserTimeZone, getPreferences } from '$lib/server/preferences';
-import { getClaudeCapability } from '$lib/server/claude/capability';
+import { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import {
 	createSupplement,
 	listSupplements,
@@ -251,7 +251,7 @@ export const {
 	getBiologicalSex,
 	getUserTimeZone,
 	getPreferences,
-	getClaudeCapability,
+	getClaudeCapability: getClaudeCapabilitySafe,
 	listMealTypes,
 	getDayProperties,
 	getDayPropertiesRange,

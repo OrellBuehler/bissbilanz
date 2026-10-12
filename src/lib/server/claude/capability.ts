@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '../db';
 import { claudeAccess, userPreferences } from '../schema';
@@ -55,4 +56,13 @@ export async function getClaudeCapability(userId: string): Promise<ClaudeCapabil
 	);
 	if (remainingUsd < minTaskCallUsd()) return { available: false };
 	return { available: true, remainingBudgetUsd: round2(Math.max(0, remainingUsd)) };
+}
+
+export async function getClaudeCapabilitySafe(userId: string): Promise<ClaudeCapability> {
+	try {
+		return await getClaudeCapability(userId);
+	} catch (error) {
+		Sentry.captureException(error, { tags: { job: 'claude-capability' } });
+		return { available: false };
+	}
 }
