@@ -27,6 +27,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import NutrientSelector from './NutrientSelector.svelte';
 	import AiTaskProcessorSelector from './AiTaskProcessorSelector.svelte';
+	import { effectiveProcessor, type AiProcessor } from '$lib/utils/claude-tasks';
 	import FavoriteMealTimeframeManager, {
 		type AssignmentMode,
 		type TimeframeDraft
@@ -160,7 +161,7 @@
 	};
 
 	const saveAiTaskProcessor = async (values: {
-		aiTaskProcessor: 'assistant' | 'device';
+		aiTaskProcessor: AiProcessor;
 		aiTaskAutoLog: boolean;
 	}) => {
 		return preferencesService.update(values);
@@ -401,7 +402,8 @@
 	/>
 
 	<AiTaskProcessorSelector
-		initialProcessor={cachedPrefs.value?.aiTaskProcessor as 'assistant' | 'device' | undefined}
+		initialProcessor={cachedPrefs.value ? effectiveProcessor(cachedPrefs.value) : undefined}
+		claude={cachedPrefs.value?.claude}
 		initialAutoLog={cachedPrefs.value?.aiTaskAutoLog}
 		onSave={saveAiTaskProcessor}
 	/>

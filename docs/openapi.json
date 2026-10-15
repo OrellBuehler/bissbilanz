@@ -3535,6 +3535,62 @@
 				}
 			}
 		},
+		"/api/ai-tasks/{id}/proposal/accept": {
+			"post": {
+				"operationId": "acceptAiTaskProposal",
+				"tags": ["AiTasks"],
+				"description": "Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. Answers 409 when there is no open proposal, the processor moved away from Claude, or a food, recipe or meal type of the proposal no longer exists (nothing is logged; the stale items are removed from the proposal, or Claude proposes again if none is left, so refresh the task and accept again).",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AiTaskProposalAccept"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AiTaskResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
 		"/api/ai-tasks/photo": {
 			"post": {
 				"operationId": "uploadAiTaskPhoto",
@@ -4462,6 +4518,243 @@
 					},
 					"404": {
 						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			}
+		},
+		"/api/admin/users": {
+			"get": {
+				"operationId": "adminListUsers",
+				"tags": ["Admin"],
+				"description": "List users with their Claude access and month-to-date spend. Admin cookie session only; everyone else gets 404.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "q",
+						"schema": {
+							"type": "string",
+							"maxLength": 100
+						}
+					},
+					{
+						"in": "query",
+						"name": "access",
+						"schema": {
+							"default": "all",
+							"type": "string",
+							"enum": ["all", "enabled", "disabled"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "sort",
+						"schema": {
+							"default": "createdAt",
+							"type": "string",
+							"enum": ["createdAt", "lastActiveAt", "name", "email", "monthSpendUsd", "entryCount"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "order",
+						"schema": {
+							"default": "desc",
+							"type": "string",
+							"enum": ["asc", "desc"]
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"default": 25,
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100
+						}
+					},
+					{
+						"in": "query",
+						"name": "offset",
+						"schema": {
+							"default": 0,
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AdminUsersResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			}
+		},
+		"/api/admin/users/{id}": {
+			"get": {
+				"operationId": "adminGetUser",
+				"tags": ["Admin"],
+				"description": "One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					},
+					{
+						"in": "query",
+						"name": "days",
+						"schema": {
+							"default": 30,
+							"type": "integer",
+							"minimum": 7,
+							"maximum": 90
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AdminUserDetailResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			}
+		},
+		"/api/admin/users/{id}/claude-access": {
+			"patch": {
+				"operationId": "adminUpdateClaudeAccess",
+				"tags": ["Admin"],
+				"description": "Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminClaudeAccessUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AdminClaudeAccessResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/admin/claude": {
+			"get": {
+				"operationId": "adminGetClaudeOverview",
+				"tags": ["Admin"],
+				"description": "Global Claude state: kill switch, configured model, month-to-date spend against the global budget, top users and task run counts. Never contains the API key. Admin cookie session only; everyone else gets 404.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AdminClaudeOverviewResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			},
+			"patch": {
+				"operationId": "adminUpdateClaudeSettings",
+				"tags": ["Admin"],
+				"description": "Turn the global Claude kill switch on or off. Turning it off stops all in-flight Claude runs. Admin cookie session only; everyone else gets 404.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/AdminClaudeSettingsUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AdminClaudeSettingsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
 					}
 				}
 			}
@@ -8445,7 +8738,7 @@
 					},
 					"aiTaskProcessor": {
 						"type": "string",
-						"enum": ["assistant", "device"]
+						"enum": ["assistant", "device", "claude"]
 					},
 					"aiTaskAutoLog": {
 						"type": "boolean"
@@ -8593,6 +8886,21 @@
 				"properties": {
 					"ids": {
 						"maxItems": 100,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						}
+					}
+				}
+			},
+			"AiTaskProposalAccept": {
+				"type": "object",
+				"properties": {
+					"itemIds": {
+						"minItems": 1,
+						"maxItems": 30,
 						"type": "array",
 						"items": {
 							"type": "string",
@@ -8823,6 +9131,47 @@
 						]
 					}
 				}
+			},
+			"AdminClaudeAccessUpdate": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean"
+					},
+					"monthlyBudgetUsd": {
+						"anyOf": [
+							{
+								"type": "number",
+								"minimum": 0,
+								"maximum": 1000,
+								"multipleOf": 0.01
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"note": {
+						"anyOf": [
+							{
+								"type": "string",
+								"maxLength": 500
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"AdminClaudeSettingsUpdate": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean"
+					}
+				},
+				"required": ["enabled"]
 			},
 			"AuthProvidersResponse": {
 				"type": "object",
@@ -12416,6 +12765,9 @@
 				"properties": {
 					"preferences": {
 						"$ref": "#/components/schemas/Preferences"
+					},
+					"claude": {
+						"$ref": "#/components/schemas/ClaudeCapability"
 					}
 				},
 				"required": ["preferences"],
@@ -12536,6 +12888,11 @@
 						"type": "string",
 						"enum": ["assistant", "device"]
 					},
+					"aiTaskProcessorKind": {
+						"type": "string",
+						"description": "The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.",
+						"x-extensible-enum": ["assistant", "device", "claude"]
+					},
 					"aiTaskAutoLog": {
 						"type": "boolean"
 					},
@@ -12641,6 +12998,20 @@
 					"sortOrder"
 				],
 				"additionalProperties": false
+			},
+			"ClaudeCapability": {
+				"type": "object",
+				"properties": {
+					"available": {
+						"type": "boolean"
+					},
+					"remainingBudgetUsd": {
+						"type": "number"
+					}
+				},
+				"required": ["available"],
+				"additionalProperties": false,
+				"description": "Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available."
 			},
 			"MealTypesListResponse": {
 				"type": "object",
@@ -13382,6 +13753,21 @@
 							}
 						]
 					},
+					"processedByKind": {
+						"description": "Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy.",
+						"x-extensible-enum": ["assistant", "on_device", "private_cloud", "claude"],
+						"type": ["string", "null"]
+					},
+					"claudeProcessing": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/AiTaskClaudeProcessing"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
 					"createdAt": {
 						"type": "string"
 					},
@@ -13406,6 +13792,116 @@
 					"dismissedAt",
 					"acknowledgedAt",
 					"processedBy"
+				],
+				"additionalProperties": false
+			},
+			"AiTaskClaudeProcessing": {
+				"type": "object",
+				"properties": {
+					"state": {
+						"type": "string",
+						"description": "Where server-side Claude processing stands for a pending task. Unknown values should be shown like 'queued'.",
+						"x-extensible-enum": ["queued", "running", "retrying", "proposed", "blocked"]
+					},
+					"proposal": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/AiTaskProposal"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["state", "proposal"],
+				"additionalProperties": false
+			},
+			"AiTaskProposal": {
+				"type": "object",
+				"properties": {
+					"summary": {
+						"type": ["string", "null"]
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AiTaskProposalItem"
+						}
+					}
+				},
+				"required": ["summary", "items"],
+				"additionalProperties": false
+			},
+			"AiTaskProposalItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": "string"
+					},
+					"quantityDescription": {
+						"type": ["string", "null"]
+					},
+					"foodId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"recipeId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"servings": {
+						"type": "number"
+					},
+					"calories": {
+						"type": "number"
+					},
+					"protein": {
+						"type": "number"
+					},
+					"carbs": {
+						"type": "number"
+					},
+					"fat": {
+						"type": "number"
+					},
+					"fiber": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"quantityDescription",
+					"foodId",
+					"recipeId",
+					"servings",
+					"calories",
+					"protein",
+					"carbs",
+					"fat",
+					"fiber"
 				],
 				"additionalProperties": false
 			},
@@ -14428,6 +14924,474 @@
 					}
 				},
 				"required": ["product"],
+				"additionalProperties": false
+			},
+			"AdminUsersResponse": {
+				"type": "object",
+				"properties": {
+					"users": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminUserRow"
+						}
+					},
+					"total": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["users", "total"],
+				"additionalProperties": false
+			},
+			"AdminUserRow": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"name": {
+						"type": ["string", "null"]
+					},
+					"email": {
+						"type": ["string", "null"]
+					},
+					"avatarUrl": {
+						"type": ["string", "null"]
+					},
+					"isAdmin": {
+						"type": "boolean"
+					},
+					"providers": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"createdAt": {
+						"type": ["string", "null"]
+					},
+					"lastActiveAt": {
+						"type": ["string", "null"]
+					},
+					"entryCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"openAiTaskCount": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"claude": {
+						"$ref": "#/components/schemas/AdminUserClaude"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"email",
+					"avatarUrl",
+					"isAdmin",
+					"providers",
+					"createdAt",
+					"lastActiveAt",
+					"entryCount",
+					"openAiTaskCount",
+					"claude"
+				],
+				"additionalProperties": false
+			},
+			"AdminUserClaude": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean"
+					},
+					"monthlyBudgetUsd": {
+						"type": ["number", "null"]
+					},
+					"effectiveBudgetUsd": {
+						"type": "number"
+					},
+					"monthSpendUsd": {
+						"type": "number"
+					},
+					"monthCalls": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"note": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"enabled",
+					"monthlyBudgetUsd",
+					"effectiveBudgetUsd",
+					"monthSpendUsd",
+					"monthCalls",
+					"note"
+				],
+				"additionalProperties": false
+			},
+			"AdminUserDetailResponse": {
+				"type": "object",
+				"properties": {
+					"user": {
+						"$ref": "#/components/schemas/AdminUserRow"
+					},
+					"dailyUsage": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminDailyUsage"
+						}
+					},
+					"recentCalls": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminRecentCall"
+						}
+					},
+					"auditLog": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminAuditEntry"
+						}
+					}
+				},
+				"required": ["user", "dailyUsage", "recentCalls", "auditLog"],
+				"additionalProperties": false
+			},
+			"AdminDailyUsage": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string"
+					},
+					"costUsd": {
+						"type": "number"
+					},
+					"calls": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["date", "costUsd", "calls"],
+				"additionalProperties": false
+			},
+			"AdminRecentCall": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"feature": {
+						"type": "string"
+					},
+					"model": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string"
+					},
+					"inputTokens": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"outputTokens": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"cacheReadInputTokens": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"cacheCreationInputTokens": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"costUsd": {
+						"type": "number"
+					},
+					"errorCode": {
+						"type": ["string", "null"]
+					},
+					"aiTaskId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"aiTaskStatus": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"createdAt",
+					"feature",
+					"model",
+					"status",
+					"inputTokens",
+					"outputTokens",
+					"cacheReadInputTokens",
+					"cacheCreationInputTokens",
+					"costUsd",
+					"errorCode",
+					"aiTaskId",
+					"aiTaskStatus"
+				],
+				"additionalProperties": false
+			},
+			"AdminAuditEntry": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"action": {
+						"type": "string"
+					},
+					"actorLabel": {
+						"type": "string"
+					},
+					"before": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {}
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"after": {
+						"anyOf": [
+							{
+								"type": "object",
+								"propertyNames": {
+									"type": "string"
+								},
+								"additionalProperties": {}
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["id", "createdAt", "action", "actorLabel", "before", "after"],
+				"additionalProperties": false
+			},
+			"AdminClaudeAccessResponse": {
+				"type": "object",
+				"properties": {
+					"access": {
+						"$ref": "#/components/schemas/AdminClaudeAccess"
+					}
+				},
+				"required": ["access"],
+				"additionalProperties": false
+			},
+			"AdminClaudeAccess": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean"
+					},
+					"monthlyBudgetUsd": {
+						"type": ["number", "null"]
+					},
+					"effectiveBudgetUsd": {
+						"type": "number"
+					},
+					"note": {
+						"type": ["string", "null"]
+					},
+					"grantedAt": {
+						"type": ["string", "null"]
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"enabled",
+					"monthlyBudgetUsd",
+					"effectiveBudgetUsd",
+					"note",
+					"grantedAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"AdminClaudeOverviewResponse": {
+				"type": "object",
+				"properties": {
+					"configured": {
+						"type": "boolean"
+					},
+					"enabled": {
+						"type": "boolean"
+					},
+					"model": {
+						"type": "string"
+					},
+					"monthStart": {
+						"type": "string"
+					},
+					"globalBudgetUsd": {
+						"type": "number"
+					},
+					"defaultUserBudgetUsd": {
+						"type": "number"
+					},
+					"monthSpendUsd": {
+						"type": "number"
+					},
+					"monthCalls": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"openReservations": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"topUsers": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminTopUser"
+						}
+					},
+					"runs": {
+						"$ref": "#/components/schemas/AdminClaudeRuns"
+					}
+				},
+				"required": [
+					"configured",
+					"enabled",
+					"model",
+					"monthStart",
+					"globalBudgetUsd",
+					"defaultUserBudgetUsd",
+					"monthSpendUsd",
+					"monthCalls",
+					"openReservations",
+					"topUsers",
+					"runs"
+				],
+				"additionalProperties": false
+			},
+			"AdminTopUser": {
+				"type": "object",
+				"properties": {
+					"userId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"name": {
+						"type": ["string", "null"]
+					},
+					"email": {
+						"type": ["string", "null"]
+					},
+					"spendUsd": {
+						"type": "number"
+					},
+					"calls": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["userId", "name", "email", "spendUsd", "calls"],
+				"additionalProperties": false
+			},
+			"AdminClaudeRuns": {
+				"type": "object",
+				"properties": {
+					"queued": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"running": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"retryWait": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"blocked": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"proposed": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"dismissedThisMonth": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["queued", "running", "retryWait", "blocked", "proposed", "dismissedThisMonth"],
+				"additionalProperties": false
+			},
+			"AdminClaudeSettingsResponse": {
+				"type": "object",
+				"properties": {
+					"enabled": {
+						"type": "boolean"
+					}
+				},
+				"required": ["enabled"],
 				"additionalProperties": false
 			}
 		},

@@ -249,6 +249,21 @@
     <string name="ai_tasks_processed_by_assistant">Processed by your AI assistant</string>
     <string name="ai_tasks_processed_by_on_device">Processed on your iPhone</string>
     <string name="ai_tasks_processed_by_private_cloud">Processed via Private Cloud Compute</string>
+    <string name="ai_tasks_processed_by_claude">Processed by Claude</string>
+    <string name="ai_tasks_claude_state_queued">Waiting for Claude</string>
+    <string name="ai_tasks_claude_state_running">Claude is processing this meal</string>
+    <string name="ai_tasks_claude_state_retrying">Claude will try again shortly</string>
+    <string name="ai_tasks_claude_state_proposed">Suggestion ready for review</string>
+    <string name="ai_tasks_claude_state_blocked">Claude is unavailable, waiting</string>
+    <string name="ai_tasks_proposal_title">Suggested entries</string>
+    <string name="ai_tasks_proposal_log">Log selected</string>
+    <string name="ai_tasks_proposal_discard">Discard</string>
+    <string name="ai_tasks_proposal_none_selected">Select at least one entry.</string>
+    <string name="ai_tasks_proposal_logged">Entries logged</string>
+    <string name="ai_tasks_proposal_accept_conflict">This suggestion is no longer available. The list has been refreshed.</string>
+    <string name="ai_tasks_proposal_accept_failed">The entries could not be logged. Check your connection and try again.</string>
+    <string name="ai_tasks_capture_hint_claude">Claude processes this meal on the server and logs it for you.</string>
+    <string name="ai_tasks_capture_hint_claude_review">Claude processes this meal on the server and suggests entries for you to review.</string>
     <string name="ai_tasks_unread">New</string>
     <string name="ai_tasks_edit">Edit task</string>
     <string name="ai_tasks_delete">Delete task</string>
@@ -1314,6 +1329,12 @@
     <string name="settings_ai_task_processor_device_hint">Tasks stay pending until the Bissbilanz iPhone app processes them.</string>
     <string name="settings_ai_task_auto_log_label">Log automatically</string>
     <string name="settings_ai_task_auto_log_hint">When off, estimates wait for your review in the iPhone app.</string>
+    <string name="settings_ai_task_auto_log_hint_claude">When off, Claude suggests entries for you to review before anything is logged.</string>
+    <string name="settings_ai_task_processor_claude">Claude (automatic)</string>
+    <string name="settings_ai_task_processor_claude_unavailable">Claude (unavailable)</string>
+    <string name="settings_ai_task_processor_claude_privacy">Meal descriptions and photos are sent to Anthropic to be processed by Claude.</string>
+    <string name="settings_ai_task_processor_claude_unavailable_hint">Claude is not available for your account right now. Queued meals wait until it is back or for your AI assistant.</string>
+    <string name="settings_ai_task_processor_claude_remaining">%1$s left this month</string>
     <!-- Settings: water goal -->
     <string name="settings_water_goal">Daily water goal</string>
     <string name="settings_water_goal_desc">Shown as a progress bar on the day log</string>

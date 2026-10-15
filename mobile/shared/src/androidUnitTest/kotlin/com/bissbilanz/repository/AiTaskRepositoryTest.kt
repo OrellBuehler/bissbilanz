@@ -1,6 +1,8 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.mode.AppMode
@@ -10,10 +12,14 @@ import com.bissbilanz.test.appModeManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class AiTaskRepositoryTest {
@@ -35,6 +41,45 @@ class AiTaskRepositoryTest {
             repository.refresh()
 
             assertEquals(listOf("1", "2"), repository.tasks.value.map { it.id })
+        }
+
+    @Test
+    fun aListReadThatStartedBeforeALocalAcceptIsDropped() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val staleRead = CompletableDeferred<AiTasksResponse>()
+            coEvery { api.listAiTasks(limit = 100) } coAnswers { staleRead.await() }
+            val completed = pending.copy(status = AiTask.Status.completed)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } returns completed
+
+            val inFlight = launch { repository.refresh() }
+            runCurrent()
+            repository.acceptProposal("1", listOf("i1"))
+            staleRead.complete(AiTasksResponse(tasks = listOf(pending), total = 1))
+            inFlight.join()
+
+            assertEquals(listOf(AiTask.Status.completed), repository.tasks.value.map { it.status })
+        }
+
+    @Test
+    fun aListReadThatStartedBeforeALocalDeleteIsDropped() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val staleRead = CompletableDeferred<AiTasksResponse>()
+            coEvery { api.listAiTasks(limit = 100) } coAnswers { staleRead.await() }
+            coEvery { api.deleteAiTask("1") } returns Unit
+
+            val inFlight = launch { repository.refresh() }
+            runCurrent()
+            repository.delete("1")
+            staleRead.complete(AiTasksResponse(tasks = listOf(pending), total = 1))
+            inFlight.join()
+
+            assertEquals(emptyList(), repository.tasks.value)
         }
 
     @Test
@@ -106,5 +151,101 @@ class AiTaskRepositoryTest {
 
             assertEquals(listOf("/uploads/new.webp"), urls)
             coVerify { api.uploadAiTaskPhotos(photos) }
+        }
+
+    @Test
+    fun acceptingAProposalSwapsInTheCompletedTask() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val completed =
+                pending.copy(status = AiTask.Status.completed, processedBy = AiTask.ProcessedBy.assistant, processedByKind = "claude")
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } returns completed
+
+            val result = repository.acceptProposal("1", listOf("i1"))
+
+            assertEquals(completed, result)
+            assertEquals(listOf(AiTask.Status.completed), repository.tasks.value.map { it.status })
+        }
+
+    @Test
+    fun aConflictRefreshesTheListAndRethrows() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val reopened = pending.copy(status = AiTask.Status.completed)
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("conflict", 409)
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(reopened), total = 1)
+
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(409, error.statusCode)
+            assertEquals(listOf(AiTask.Status.completed), repository.tasks.value.map { it.status })
+        }
+
+    @Test
+    fun aRejectedAcceptRefreshesTheListAndRethrows() =
+        runTest {
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("stale ids", 400)
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = emptyList(), total = 0)
+
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(400, error.statusCode)
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aMissingTaskRefreshesTheListAndRethrows() =
+        runTest {
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("gone", 404)
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = emptyList(), total = 0)
+
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(404, error.statusCode)
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aConflictStillThrowsWhenTheRefreshFailsToo() =
+        runTest {
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("conflict", 409)
+            coEvery { api.listAiTasks(limit = 100) } throws RuntimeException("offline")
+
+            val error = assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(409, error.statusCode)
+            assertEquals("offline", error.suppressed.single().message)
+        }
+
+    @Test
+    fun anotherFailureLeavesTheListAlone() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            coEvery { api.acceptAiTaskProposal("1", listOf("i1")) } throws ApiException("boom", 500)
+
+            assertFailsWith<ApiException> { repository.acceptProposal("1", listOf("i1")) }
+
+            assertEquals(listOf(pending), repository.tasks.value)
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun dismissingSendsTheDismissedStatus() =
+        runTest {
+            val pending = TestFixtures.aiTask(id = "1")
+            coEvery { api.listAiTasks(limit = 100) } returns AiTasksResponse(tasks = listOf(pending), total = 1)
+            repository.refresh()
+            val update = AiTaskUpdate(status = AiTaskUpdate.Status.dismissed)
+            coEvery { api.updateAiTask("1", update, clearedKeys = emptyList()) } returns pending.copy(status = AiTask.Status.dismissed)
+
+            repository.dismiss("1")
+
+            assertEquals(listOf(AiTask.Status.dismissed), repository.tasks.value.map { it.status })
         }
 }

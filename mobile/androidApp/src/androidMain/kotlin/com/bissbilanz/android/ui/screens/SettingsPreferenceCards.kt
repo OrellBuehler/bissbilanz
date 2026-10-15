@@ -16,20 +16,26 @@ import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
+import com.bissbilanz.android.util.formatUsd
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.model.MealType
 import com.bissbilanz.model.Preferences
+import com.bissbilanz.util.effectiveAiTaskProcessor
+import com.bissbilanz.util.isClaudeAvailable
 import com.bissbilanz.api.generated.model.PreferencesUpdate as GenPreferencesUpdate
 
 /**
  * AI task processor: who resolves the meal-logging tasks queued from the AI meal sheet,
- * the MCP assistant or the user's own iPhone running Foundation Models on-device (or
- * Private Cloud Compute). Only the assistant can be chosen here; see the dropdown below.
+ * the MCP assistant, Claude on the server, or the user's own iPhone running Foundation
+ * Models on-device (or Private Cloud Compute). The iPhone cannot be chosen here; see the
+ * dropdown below.
  */
 @Composable
 internal fun AiTaskProcessorCard(
     prefs: Preferences?,
     onProcessorChange: (GenPreferencesUpdate.AiTaskProcessor) -> Unit,
     onAutoLogChange: (Boolean) -> Unit,
+    claude: ClaudeCapability? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -45,22 +51,45 @@ internal fun AiTaskProcessorCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(8.dp))
+            // The legacy aiTaskProcessor reads "assistant" while Claude is stored, so the
+            // selection is compared against the effective processor, never the legacy field.
+            val effective = prefs?.effectiveAiTaskProcessor()
             // The device processor is iPhone-only, so Android never offers it. An account
             // that already has it set still lists it, so the stored value stays visible
             // and is only replaced by an explicit pick of the assistant.
-            val deviceSelected = prefs?.aiTaskProcessor?.value == GenPreferencesUpdate.AiTaskProcessor.device.value
+            val deviceSelected = effective == GenPreferencesUpdate.AiTaskProcessor.device.value
+            val claudeSelected = effective == GenPreferencesUpdate.AiTaskProcessor.claude.value
+            val claudeAvailable = claude.isClaudeAvailable()
             val assistantOption =
                 stringResource(R.string.settings_ai_task_processor_assistant) to
                     GenPreferencesUpdate.AiTaskProcessor.assistant
             val deviceOption =
                 stringResource(R.string.settings_ai_task_processor_device) to
                     GenPreferencesUpdate.AiTaskProcessor.device
+            val claudeOption =
+                stringResource(
+                    if (claudeAvailable) {
+                        R.string.settings_ai_task_processor_claude
+                    } else {
+                        R.string.settings_ai_task_processor_claude_unavailable
+                    },
+                ) to GenPreferencesUpdate.AiTaskProcessor.claude
             val processorOptions =
-                if (deviceSelected) listOf(assistantOption, deviceOption) else listOf(assistantOption)
+                buildList {
+                    add(assistantOption)
+                    if (deviceSelected) add(deviceOption)
+                    if (claudeAvailable || claudeSelected) add(claudeOption)
+                }
             ChoiceDropdown(
-                selectedLabel = if (deviceSelected) deviceOption.first else assistantOption.first,
+                selectedLabel =
+                    when {
+                        deviceSelected -> deviceOption.first
+                        claudeSelected -> claudeOption.first
+                        else -> assistantOption.first
+                    },
                 options = processorOptions,
-                onSelect = { if (it.value != prefs?.aiTaskProcessor?.value) onProcessorChange(it) },
+                onSelect = { if (it.value != effective) onProcessorChange(it) },
+                enabledOf = { it != GenPreferencesUpdate.AiTaskProcessor.claude || claudeAvailable },
             )
             if (deviceSelected) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -71,11 +100,46 @@ internal fun AiTaskProcessorCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (claudeAvailable || claudeSelected) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.settings_ai_task_processor_claude_privacy),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (claudeSelected) {
+                if (!claudeAvailable) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.settings_ai_task_processor_claude_unavailable_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    claude?.remainingBudgetUsd?.let { remaining ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.settings_ai_task_processor_claude_remaining, formatUsd(remaining)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            if (deviceSelected || claudeSelected) {
+                val autoLog = prefs?.aiTaskAutoLog ?: false
                 Spacer(modifier = Modifier.height(8.dp))
                 ToggleRow(
                     label = stringResource(R.string.settings_ai_task_auto_log_label),
-                    supportingText = stringResource(R.string.settings_ai_task_auto_log_hint),
-                    checked = prefs?.aiTaskAutoLog ?: false,
+                    supportingText =
+                        when {
+                            deviceSelected -> stringResource(R.string.settings_ai_task_auto_log_hint)
+                            claudeAvailable -> stringResource(R.string.settings_ai_task_auto_log_hint_claude)
+                            else -> null
+                        },
+                    checked = autoLog,
                     onCheckedChange = { onAutoLogChange(it) },
                 )
             }

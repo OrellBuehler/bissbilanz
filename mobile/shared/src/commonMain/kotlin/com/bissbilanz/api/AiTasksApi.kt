@@ -5,6 +5,7 @@ import com.bissbilanz.api.generated.model.AiTaskAcknowledge
 import com.bissbilanz.api.generated.model.AiTaskAcknowledgeResponse
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
+import com.bissbilanz.api.generated.model.AiTaskProposalAccept
 import com.bissbilanz.api.generated.model.AiTaskResponse
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
@@ -62,6 +63,24 @@ interface AiTasksApi : ApiTransport {
                 key,
                 editedAt,
             )
+        return response.task
+    }
+
+    /**
+     * Logs the entries of a Claude proposal: exactly the given [itemIds], never an empty body,
+     * so a proposal regenerated since the user looked is not accepted blind. 400, 404 or 409
+     * means the proposal is no longer open, its items changed, or a proposed food, recipe or
+     * meal type was deleted, so the task has to be re-read.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun acceptAiTaskProposal(
+        id: String,
+        itemIds: List<String>,
+        idempotencyKey: String? = null,
+    ): AiTask {
+        val key = idempotencyKey ?: Uuid.random().toString()
+        val response: AiTaskResponse =
+            post("/api/ai-tasks/$id/proposal/accept", AiTaskProposalAccept(itemIds = itemIds), key, null)
         return response.task
     }
 

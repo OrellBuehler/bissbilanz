@@ -1105,6 +1105,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/ai-tasks/{id}/proposal/accept': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. Answers 409 when there is no open proposal, the processor moved away from Claude, or a food, recipe or meal type of the proposal no longer exists (nothing is logged; the stale items are removed from the proposal, or Claude proposes again if none is left, so refresh the task and accept again). */
+		post: operations['acceptAiTaskProposal'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/ai-tasks/photo': {
 		parameters: {
 			query?: never;
@@ -1412,6 +1429,75 @@ export interface paths {
 		options?: never;
 		head?: never;
 		patch?: never;
+		trace?: never;
+	};
+	'/api/admin/users': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List users with their Claude access and month-to-date spend. Admin cookie session only; everyone else gets 404. */
+		get: operations['adminListUsers'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/admin/users/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404. */
+		get: operations['adminGetUser'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/admin/users/{id}/claude-access': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** @description Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404. */
+		patch: operations['adminUpdateClaudeAccess'];
+		trace?: never;
+	};
+	'/api/admin/claude': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Global Claude state: kill switch, configured model, month-to-date spend against the global budget, top users and task run counts. Never contains the API key. Admin cookie session only; everyone else gets 404. */
+		get: operations['adminGetClaudeOverview'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/** @description Turn the global Claude kill switch on or off. Turning it off stops all in-flight Claude runs. Admin cookie session only; everyone else gets 404. */
+		patch: operations['adminUpdateClaudeSettings'];
 		trace?: never;
 	};
 }
@@ -2021,7 +2107,7 @@ export interface components {
 			activityGoalAdjustment?: boolean;
 			activityCreditPercent?: number;
 			/** @enum {string} */
-			aiTaskProcessor?: 'assistant' | 'device';
+			aiTaskProcessor?: 'assistant' | 'device' | 'claude';
 			aiTaskAutoLog?: boolean;
 			timeZone?: string;
 		};
@@ -2051,6 +2137,9 @@ export interface components {
 		};
 		AiTaskAcknowledge: {
 			ids?: string[];
+		};
+		AiTaskProposalAccept: {
+			itemIds?: string[];
 		};
 		AiTaskUpdate: {
 			/** @enum {string} */
@@ -2083,6 +2172,14 @@ export interface components {
 			wakeTime?: string | null;
 			wakeUps?: number | null;
 			notes?: string | null;
+		};
+		AdminClaudeAccessUpdate: {
+			enabled?: boolean;
+			monthlyBudgetUsd?: number | null;
+			note?: string | null;
+		};
+		AdminClaudeSettingsUpdate: {
+			enabled: boolean;
 		};
 		AuthProvidersResponse: {
 			providers: string[];
@@ -2998,6 +3095,7 @@ export interface components {
 		};
 		PreferencesResponse: {
 			preferences: components['schemas']['Preferences'];
+			claude?: components['schemas']['ClaudeCapability'];
 		};
 		Preferences: {
 			showChartWidget: boolean;
@@ -3027,6 +3125,8 @@ export interface components {
 			activityCreditPercent: number;
 			/** @enum {string} */
 			aiTaskProcessor: 'assistant' | 'device';
+			/** @description The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor. */
+			aiTaskProcessorKind?: string;
 			aiTaskAutoLog: boolean;
 			locale: string | null;
 			timeZone: string;
@@ -3043,6 +3143,11 @@ export interface components {
 			startTime: string;
 			endTime: string;
 			sortOrder: number;
+		};
+		/** @description Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available. */
+		ClaudeCapability: {
+			available: boolean;
+			remainingBudgetUsd?: number;
 		};
 		MealTypesListResponse: {
 			mealTypes: components['schemas']['MealType'][];
@@ -3242,8 +3347,34 @@ export interface components {
 			dismissedAt: string | null;
 			acknowledgedAt: string | null;
 			processedBy: ('assistant' | 'on_device' | 'private_cloud') | null;
+			/** @description Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy. */
+			processedByKind?: string | null;
+			claudeProcessing?: components['schemas']['AiTaskClaudeProcessing'] | null;
 			createdAt?: string;
 			updatedAt?: string;
+		};
+		AiTaskClaudeProcessing: {
+			/** @description Where server-side Claude processing stands for a pending task. Unknown values should be shown like 'queued'. */
+			state: string;
+			proposal: components['schemas']['AiTaskProposal'] | null;
+		};
+		AiTaskProposal: {
+			summary: string | null;
+			items: components['schemas']['AiTaskProposalItem'][];
+		};
+		AiTaskProposalItem: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			quantityDescription: string | null;
+			foodId: string | null;
+			recipeId: string | null;
+			servings: number;
+			calories: number;
+			protein: number;
+			carbs: number;
+			fat: number;
+			fiber: number;
 		};
 		AiTaskResponse: {
 			task: components['schemas']['AiTask'];
@@ -3496,6 +3627,114 @@ export interface components {
 		};
 		OpenFoodFactsResponse: {
 			product: components['schemas']['OpenFoodFactsProduct'];
+		};
+		AdminUsersResponse: {
+			users: components['schemas']['AdminUserRow'][];
+			total: number;
+		};
+		AdminUserRow: {
+			/** Format: uuid */
+			id: string;
+			name: string | null;
+			email: string | null;
+			avatarUrl: string | null;
+			isAdmin: boolean;
+			providers: string[];
+			createdAt: string | null;
+			lastActiveAt: string | null;
+			entryCount: number;
+			openAiTaskCount: number;
+			claude: components['schemas']['AdminUserClaude'];
+		};
+		AdminUserClaude: {
+			enabled: boolean;
+			monthlyBudgetUsd: number | null;
+			effectiveBudgetUsd: number;
+			monthSpendUsd: number;
+			monthCalls: number;
+			note: string | null;
+		};
+		AdminUserDetailResponse: {
+			user: components['schemas']['AdminUserRow'];
+			dailyUsage: components['schemas']['AdminDailyUsage'][];
+			recentCalls: components['schemas']['AdminRecentCall'][];
+			auditLog: components['schemas']['AdminAuditEntry'][];
+		};
+		AdminDailyUsage: {
+			date: string;
+			costUsd: number;
+			calls: number;
+		};
+		AdminRecentCall: {
+			/** Format: uuid */
+			id: string;
+			createdAt: string;
+			feature: string;
+			model: string;
+			status: string;
+			inputTokens: number;
+			outputTokens: number;
+			cacheReadInputTokens: number;
+			cacheCreationInputTokens: number;
+			costUsd: number;
+			errorCode: string | null;
+			aiTaskId: string | null;
+			aiTaskStatus: string | null;
+		};
+		AdminAuditEntry: {
+			/** Format: uuid */
+			id: string;
+			createdAt: string;
+			action: string;
+			actorLabel: string;
+			before: {
+				[key: string]: unknown;
+			} | null;
+			after: {
+				[key: string]: unknown;
+			} | null;
+		};
+		AdminClaudeAccessResponse: {
+			access: components['schemas']['AdminClaudeAccess'];
+		};
+		AdminClaudeAccess: {
+			enabled: boolean;
+			monthlyBudgetUsd: number | null;
+			effectiveBudgetUsd: number;
+			note: string | null;
+			grantedAt: string | null;
+			updatedAt: string;
+		};
+		AdminClaudeOverviewResponse: {
+			configured: boolean;
+			enabled: boolean;
+			model: string;
+			monthStart: string;
+			globalBudgetUsd: number;
+			defaultUserBudgetUsd: number;
+			monthSpendUsd: number;
+			monthCalls: number;
+			openReservations: number;
+			topUsers: components['schemas']['AdminTopUser'][];
+			runs: components['schemas']['AdminClaudeRuns'];
+		};
+		AdminTopUser: {
+			userId: string | null;
+			name: string | null;
+			email: string | null;
+			spendUsd: number;
+			calls: number;
+		};
+		AdminClaudeRuns: {
+			queued: number;
+			running: number;
+			retryWait: number;
+			blocked: number;
+			proposed: number;
+			dismissedThisMonth: number;
+		};
+		AdminClaudeSettingsResponse: {
+			enabled: boolean;
 		};
 	};
 	responses: {
@@ -5884,6 +6123,37 @@ export interface operations {
 			401: components['responses']['UnauthorizedResponse'];
 		};
 	};
+	acceptAiTaskProposal: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				'application/json': components['schemas']['AiTaskProposalAccept'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
 	uploadAiTaskPhoto: {
 		parameters: {
 			query?: never;
@@ -6427,6 +6697,138 @@ export interface operations {
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	adminListUsers: {
+		parameters: {
+			query?: {
+				q?: string;
+				access?: 'all' | 'enabled' | 'disabled';
+				sort?: 'createdAt' | 'lastActiveAt' | 'name' | 'email' | 'monthSpendUsd' | 'entryCount';
+				order?: 'asc' | 'desc';
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AdminUsersResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	adminGetUser: {
+		parameters: {
+			query?: {
+				days?: number;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AdminUserDetailResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	adminUpdateClaudeAccess: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AdminClaudeAccessUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AdminClaudeAccessResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			404: components['responses']['NotFoundResponse'];
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	adminGetClaudeOverview: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AdminClaudeOverviewResponse'];
+				};
+			};
+			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	adminUpdateClaudeSettings: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AdminClaudeSettingsUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AdminClaudeSettingsResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			404: components['responses']['NotFoundResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 }

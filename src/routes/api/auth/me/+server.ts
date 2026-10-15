@@ -20,7 +20,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		id: result.user.id,
 		email: result.user.email,
 		name: result.user.name,
-		avatarUrl: result.user.avatarUrl
+		avatarUrl: result.user.avatarUrl,
+		isAdmin: result.user.isAdmin
 	};
 
 	return json({ user: userProfile });

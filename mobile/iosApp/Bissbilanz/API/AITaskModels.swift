@@ -33,10 +33,151 @@ struct AiTask: Codable, Identifiable, Hashable {
     let processedBy: String?
     let createdAt: String?
     let updatedAt: String?
+    /// The raw resolver, an extensible string: `"assistant"`, `"on_device"`,
+    /// `"private_cloud"`, `"claude"` or a future value. `processedBy` above
+    /// reads `"assistant"` for a Claude-resolved task, so check this first.
+    /// Reflects the last resolver, so it can be set on a task that has since
+    /// been reopened as pending.
+    var processedByKind: String? = nil
+    /// Claude's server-side progress; null unless the task is pending and has
+    /// an active run (and always null on the response to creating a task).
+    var claudeProcessing: AiTaskClaudeProcessing? = nil
 
     var isUnreadDismissal: Bool {
         status == "dismissed" && acknowledgedAt == nil
     }
+
+    /// Claude resolved this task. A pending task is excluded because
+    /// `processedByKind` outlives a reopen and would read as stale.
+    var isProcessedByClaude: Bool {
+        status != "pending" && processedByKind == Preferences.aiTaskProcessorClaude
+    }
+
+    /// The proposal waiting for review, if Claude has one ready.
+    var openProposal: AiTaskProposal? {
+        guard status == "pending", AiTaskClaudeState(rawState: claudeProcessing?.state) == .proposed else {
+            return nil
+        }
+        return claudeProcessing?.proposal
+    }
+}
+
+struct AiTaskClaudeProcessing: Codable, Hashable {
+    /// An extensible string — map it through `AiTaskClaudeState`.
+    let state: String
+    let proposal: AiTaskProposal?
+}
+
+struct AiTaskProposal: Codable, Hashable {
+    let summary: String?
+    let items: [AiTaskProposalItem]
+}
+
+struct AiTaskProposalItem: Codable, Hashable, Identifiable {
+    /// Also the id of the food entry accepting this item creates.
+    let id: String
+    let name: String
+    let quantityDescription: String?
+    let foodId: String?
+    let recipeId: String?
+    let servings: Double
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let fiber: Double
+}
+
+/// Body of `POST /api/ai-tasks/{id}/proposal/accept`. The ids are always sent
+/// explicitly, so a proposal regenerated since the user looked is never accepted blind.
+struct AiTaskProposalAccept: Codable {
+    var itemIds: [String]
+}
+
+/// What a pending task's Claude run is doing, for the status chip.
+enum AiTaskClaudeState: Equatable {
+    case queued
+    case running
+    case retrying
+    case proposed
+    case blocked
+    /// A state this build does not know; shown with the queued label.
+    case other
+
+    init?(rawState: String?) {
+        guard let rawState else { return nil }
+        switch rawState {
+        case "queued": self = .queued
+        case "running": self = .running
+        case "retrying": self = .retrying
+        case "proposed": self = .proposed
+        case "blocked": self = .blocked
+        default: self = .other
+        }
+    }
+
+    /// The chip for a task row: only a pending task with an active run has
+    /// one. A null `claudeProcessing` never gets an invented chip.
+    static func display(for task: AiTask) -> AiTaskClaudeState? {
+        guard task.status == "pending" else { return nil }
+        return AiTaskClaudeState(rawState: task.claudeProcessing?.state)
+    }
+
+    /// Claude is still working on the task: the list is worth re-reading.
+    var isActive: Bool {
+        switch self {
+        case .queued, .running, .retrying, .other: true
+        case .proposed, .blocked: false
+        }
+    }
+
+    static func hasActiveWork(in tasks: [AiTask]) -> Bool {
+        tasks.contains { display(for: $0)?.isActive == true }
+    }
+}
+
+/// Selection helpers for the proposal card.
+enum AiTaskProposalSelection {
+    /// Ids to send, in the proposal's own order, limited to items still in it.
+    static func itemIds(items: [AiTaskProposalItem], selected: Set<String>) -> [String] {
+        items.map(\.id).filter { selected.contains($0) }
+    }
+
+    /// Whole numbers without a decimal point, everything else with one.
+    static func format(_ value: Double) -> String {
+        let isWhole = value.isFinite && value.rounded() == value && abs(value) < 1_000_000_000
+        return isWhole ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
+    /// The selection after the proposal's items changed: what the user kept among
+    /// the surviving ids, plus ids never seen before. `seen` remembers every id the
+    /// proposal ever showed, so an unticked item that vanishes and returns stays unticked.
+    static func reconciled(
+        selected: Set<String>,
+        seen: Set<String>,
+        ids: [String]
+    ) -> (selected: Set<String>, seen: Set<String>) {
+        let next = ids.filter { !seen.contains($0) || selected.contains($0) }
+        return (Set(next), seen.union(ids))
+    }
+
+    static func toggled(_ id: String, in selected: Set<String>) -> Set<String> {
+        var next = selected
+        if next.contains(id) {
+            next.remove(id)
+        } else {
+            next.insert(id)
+        }
+        return next
+    }
+}
+
+/// How the store reports an accept attempt; the view picks the message.
+enum AiTaskProposalAcceptResult: Equatable {
+    case logged
+    /// 409, 404 or 400: the proposal is no longer open or its items changed. The store has already refreshed.
+    case conflict
+    case failed
 }
 
 /// Matches `aiTaskUpdateSchema`. Every field is optional — a PATCH carries only

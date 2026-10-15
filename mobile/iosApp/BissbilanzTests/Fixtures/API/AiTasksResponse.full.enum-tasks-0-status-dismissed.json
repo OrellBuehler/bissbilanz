@@ -2,6 +2,27 @@
 	"tasks": [
 		{
 			"acknowledgedAt": "sample-acknowledgedAt",
+			"claudeProcessing": {
+				"proposal": {
+					"items": [
+						{
+							"calories": 450,
+							"carbs": 50,
+							"fat": 15,
+							"fiber": 8,
+							"foodId": "02bf86f4-db62-4e1d-8a01-389224adc263",
+							"id": "d9ea9564-31be-43cd-8439-8482f1693793",
+							"name": "sample-name",
+							"protein": 30,
+							"quantityDescription": "sample-quantityDescription",
+							"recipeId": "66c369aa-2ee1-499b-8926-b13868c8b511",
+							"servings": 12.5
+						}
+					],
+					"summary": "sample-summary"
+				},
+				"state": "sample-state"
+			},
 			"completedAt": "sample-completedAt",
 			"createdAt": "sample-createdAt",
 			"createdEntryIds": ["sample-createdEntryIds"],
@@ -14,6 +35,7 @@
 			"photoUrl": "sample-photoUrl",
 			"photoUrls": ["sample-photoUrls"],
 			"processedBy": "assistant",
+			"processedByKind": "sample-processedByKind",
 			"resultSummary": "sample-resultSummary",
 			"source": "sample-source",
 			"status": "dismissed",

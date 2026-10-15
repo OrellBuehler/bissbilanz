@@ -55,7 +55,9 @@
 		help: () => m.nav_help(),
 		mcp: () => 'MCP',
 		'ai-tasks': () => m.nav_ai_tasks(),
-		reminders: () => m.nav_reminders()
+		reminders: () => m.nav_reminders(),
+		admin: () => m.nav_admin(),
+		users: () => m.admin_users_title()
 	};
 
 	const UUID_RE = /^[0-9a-f]{8}-/i;

@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
@@ -16,6 +17,9 @@ import com.bissbilanz.util.jsonKeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -44,10 +48,37 @@ class PreferencesRepository(
                 }
             }
 
+    private val _claudeCapability = MutableStateFlow<ClaudeCapability?>(null)
+
+    /**
+     * Whether server-side Claude can run for this account. Only the preferences GET
+     * carries it, so it is kept in memory and refreshed with them; null means unknown
+     * and is treated as unavailable.
+     */
+    val claudeCapability: StateFlow<ClaudeCapability?> = _claudeCapability.asStateFlow()
+
+    private var accountGeneration = 0
+
+    /**
+     * Called on sign-out and account switches so one account's capability never shows for
+     * the next. A refresh already in flight belongs to the previous account and is dropped
+     * when it lands.
+     */
+    fun clearClaudeCapability() {
+        accountGeneration++
+        _claudeCapability.value = null
+    }
+
     suspend fun refresh() {
-        if (appModeManager.isLocal) return
-        val prefs = api.getPreferences()
-        withContext(Dispatchers.IO) { cachePreferences(prefs) }
+        if (appModeManager.isLocal) {
+            _claudeCapability.value = null
+            return
+        }
+        val generation = accountGeneration
+        val response = api.getPreferencesResponse()
+        if (generation != accountGeneration) return
+        _claudeCapability.value = response.claude
+        withContext(Dispatchers.IO) { cachePreferences(response.preferences) }
     }
 
     /**
@@ -57,7 +88,11 @@ class PreferencesRepository(
      */
     suspend fun reportTimeZone(deviceTimeZone: String) {
         if (appModeManager.isLocal) return
-        val current = api.getPreferences()
+        val generation = accountGeneration
+        val response = api.getPreferencesResponse()
+        if (generation != accountGeneration) return
+        _claudeCapability.value = response.claude
+        val current = response.preferences
         if (current.timeZone == deviceTimeZone) return
         updatePreferences(PreferencesUpdate(timeZone = deviceTimeZone))
     }
@@ -161,8 +196,10 @@ class PreferencesRepository(
                     when (it) {
                         PreferencesUpdate.AiTaskProcessor.assistant -> Preferences.AiTaskProcessor.assistant
                         PreferencesUpdate.AiTaskProcessor.device -> Preferences.AiTaskProcessor.device
+                        PreferencesUpdate.AiTaskProcessor.claude -> Preferences.AiTaskProcessor.assistant
                     }
                 } ?: current.aiTaskProcessor,
+            aiTaskProcessorKind = update.aiTaskProcessor?.value ?: current.aiTaskProcessorKind,
             aiTaskAutoLog = update.aiTaskAutoLog ?: current.aiTaskAutoLog,
             biologicalSex =
                 if (PreferencesField.BIOLOGICAL_SEX in cleared) {

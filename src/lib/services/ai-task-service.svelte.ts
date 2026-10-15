@@ -1,13 +1,16 @@
 import { browser } from '$app/environment';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
-import { apiFetch } from '$lib/utils/api';
+import { apiFetch, NO_QUEUE_HEADER } from '$lib/utils/api';
+import { entryService } from '$lib/services/entry-service.svelte';
+import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
 import type { paths } from '$lib/api/generated/schema';
 
 type AiTasksResponse =
 	paths['/api/ai-tasks']['get']['responses']['200']['content']['application/json'];
 export type AiTask = AiTasksResponse['tasks'][number];
 export type AiTaskStatus = AiTask['status'];
+export type AcceptResult = 'logged' | 'conflict' | 'failed';
 
 // Which dismissals this browser has already announced. Server-side
 // acknowledgement is what clears the badge, and it only happens when the user
@@ -18,6 +21,11 @@ const NOTIFIED_KEY = 'ai-task-notified';
 let tasks = $state<AiTask[]>([]);
 let loading = $state(false);
 let loaded = $state(false);
+
+// Bumped whenever a local accept or edit lands, so a list read that started
+// earlier (and may predate it) is dropped instead of undoing the change.
+let mutationGeneration = 0;
+let pollInFlight = false;
 
 const isUnread = (task: AiTask) => task.status === 'dismissed' && !task.acknowledgedAt;
 
@@ -103,15 +111,23 @@ async function collectNewDismissals(): Promise<AiTask[]> {
 	return fresh;
 }
 
-async function refresh(): Promise<void> {
+async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser) return;
 	loading = true;
+	const generation = mutationGeneration;
 	try {
 		const { data } = await api.GET('/api/ai-tasks', { params: { query: { limit: 100 } } });
-		if (data) tasks = data.tasks;
+		if (data && generation === mutationGeneration) tasks = data.tasks;
 	} catch (err) {
 		// fire-and-forget — offline or network error; keep showing stale state
-		if (!(browser && !navigator.onLine)) {
+		if (options.quiet) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'warning',
+				message: 'ai task poll failed',
+				data: { reason: err instanceof Error ? err.message : String(err) }
+			});
+		} else if (!(browser && !navigator.onLine)) {
 			Sentry.captureException(err, { extra: { context: 'ai-task-service.refresh' } });
 		}
 	} finally {
@@ -206,23 +222,94 @@ async function update(
 	if (error || !data) {
 		throw new Error('update_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
 	return data.task;
 }
 
+const isConflict = (status: number) => status === 409 || status === 404;
+
+const isAcceptConflict = (status: number) => isConflict(status) || status === 400;
+
+const noQueue = { [NO_QUEUE_HEADER]: '1' };
+
 async function updateStatus(id: string, status: AiTaskStatus): Promise<void> {
-	const { data, error } = await api.PATCH('/api/ai-tasks/{id}', {
-		params: { path: { id } },
-		body: { status }
-	});
-	if (error || !data) {
+	if (browser && !navigator.onLine) throw new Error('offline');
+	let result;
+	try {
+		result = await api.PATCH('/api/ai-tasks/{id}', {
+			params: { path: { id } },
+			body: { status },
+			headers: noQueue
+		});
+	} catch (err) {
+		if (browser && !navigator.onLine) throw new Error('offline');
+		throw err;
+	}
+	const { data, error, response } = result;
+	if (isConflict(response.status)) {
+		Sentry.addBreadcrumb({
+			category: 'ai-task',
+			level: 'info',
+			message: 'ai task update rejected',
+			data: { status: response.status }
+		});
+		await refresh();
+		throw new Error('conflict');
+	}
+	if (error || !data?.task) {
 		throw new Error('update_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.map((t) => (t.id === id ? data.task : t));
 	syncAppBadge();
 }
 
-async function acknowledgeAll(): Promise<void> {
+async function acceptProposal(id: string, body: ProposalAcceptBody): Promise<AcceptResult> {
+	if (browser && !navigator.onLine) return 'failed';
+	try {
+		const { data, response } = await api.POST('/api/ai-tasks/{id}/proposal/accept', {
+			params: { path: { id } },
+			body,
+			headers: noQueue
+		});
+		if (isAcceptConflict(response.status)) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'info',
+				message: 'ai task proposal accept rejected',
+				data: { status: response.status }
+			});
+			await refresh();
+			return 'conflict';
+		}
+		if (!data?.task) return 'failed';
+		mutationGeneration++;
+		tasks = tasks.map((t) => (t.id === id ? data.task : t));
+		syncAppBadge();
+		void entryService.refresh(data.task.date);
+		return 'logged';
+	} catch (err) {
+		if (!(browser && !navigator.onLine)) {
+			Sentry.captureException(err, { extra: { context: 'ai-task-service.acceptProposal' } });
+		}
+		return 'failed';
+	}
+}
+
+/** Poll tick: one read at a time, failures are breadcrumbs, then clears the unread badge like opening the list. */
+async function poll(): Promise<void> {
+	if (pollInFlight) return;
+	pollInFlight = true;
+	try {
+		await refresh({ quiet: true });
+		await acknowledgeAll({ quiet: true });
+	} finally {
+		pollInFlight = false;
+	}
+}
+
+async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser || !tasks.some(isUnread)) return;
 	try {
 		await api.POST('/api/ai-tasks/acknowledge', { body: {} });
@@ -230,7 +317,14 @@ async function acknowledgeAll(): Promise<void> {
 		tasks = tasks.map((t) => (isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t));
 	} catch (err) {
 		// Leave the badge up rather than pretending it was read.
-		if (!(browser && !navigator.onLine)) {
+		if (options.quiet) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'warning',
+				message: 'ai task acknowledge failed',
+				data: { reason: err instanceof Error ? err.message : String(err) }
+			});
+		} else if (!(browser && !navigator.onLine)) {
 			Sentry.captureException(err, { extra: { context: 'ai-task-service.acknowledgeAll' } });
 		}
 	} finally {
@@ -245,6 +339,7 @@ async function remove(id: string): Promise<void> {
 	if (!response.ok) {
 		throw new Error('delete_failed');
 	}
+	mutationGeneration++;
 	tasks = tasks.filter((t) => t.id !== id);
 	syncAppBadge();
 }
@@ -264,9 +359,11 @@ export const aiTaskService = {
 	},
 	isUnread,
 	refresh,
+	poll,
 	create,
 	update,
 	updateStatus,
+	acceptProposal,
 	acknowledgeAll,
 	collectNewDismissals,
 	showSystemNotification,

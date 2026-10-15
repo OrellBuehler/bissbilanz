@@ -16,6 +16,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
+	import { activeProcessor, hasActiveClaudeWork } from '$lib/utils/claude-tasks';
 
 	let captureOpen = $state(false);
 	let editOpen = $state(false);
@@ -29,13 +30,14 @@
 	let notificationPermission = $state<NotificationPermission | 'unsupported'>('unsupported');
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
-	const aiTaskProcessor = $derived(
-		cachedPrefs.value?.aiTaskProcessor === 'device' ? 'device' : 'assistant'
-	);
+	const aiTaskProcessor = $derived(activeProcessor(cachedPrefs.value, cachedPrefs.value?.claude));
+	const autoLog = $derived(cachedPrefs.value?.aiTaskAutoLog ?? false);
 	const pageDescription = $derived(
 		aiTaskProcessor === 'device'
 			? m.ai_tasks_page_description_device()
-			: m.ai_tasks_page_description()
+			: aiTaskProcessor === 'claude'
+				? m.ai_tasks_page_description_claude()
+				: m.ai_tasks_page_description()
 	);
 
 	const loadMcpStatus = async () => {
@@ -59,11 +61,21 @@
 	};
 
 	const dismissTask = async (id: string) => {
+		const hadProposal = aiTaskService.tasks.find((t) => t.id === id)?.claudeProcessing?.proposal;
 		try {
 			await aiTaskService.updateStatus(id, 'dismissed');
 		} catch (err) {
-			Sentry.captureException(err, { extra: { id } });
-			toast.error(m.error_generic());
+			const code = err instanceof Error ? err.message : '';
+			if (code === 'offline') {
+				toast.error(m.ai_tasks_offline_error());
+			} else if (code === 'conflict') {
+				toast.error(
+					hadProposal ? m.ai_tasks_proposal_accept_conflict() : m.ai_tasks_dismiss_conflict()
+				);
+			} else {
+				Sentry.captureException(err, { extra: { id } });
+				toast.error(m.error_generic());
+			}
 		}
 	};
 
@@ -75,6 +87,22 @@
 			toast.error(m.error_generic());
 		}
 	};
+
+	const POLL_INTERVAL_MS = 10_000;
+	const polling = $derived(hasActiveClaudeWork(aiTaskService.tasks));
+
+	$effect(() => {
+		if (!polling) return;
+		const poll = () => {
+			if (document.visibilityState === 'visible') void aiTaskService.poll();
+		};
+		const timer = setInterval(poll, POLL_INTERVAL_MS);
+		document.addEventListener('visibilitychange', poll);
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', poll);
+		};
+	});
 
 	onMount(async () => {
 		notificationPermission =
@@ -144,6 +172,7 @@
 <AiTaskCaptureModal
 	bind:open={captureOpen}
 	{aiTaskProcessor}
+	{autoLog}
 	onCreated={() => aiTaskService.refresh()}
 />
-<AiTaskCaptureModal bind:open={editOpen} task={editingTask} {aiTaskProcessor} />
+<AiTaskCaptureModal bind:open={editOpen} task={editingTask} {aiTaskProcessor} {autoLog} />

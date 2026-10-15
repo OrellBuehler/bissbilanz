@@ -24,6 +24,17 @@ const REQUIRED_VARS = [
 	'PUBLIC_APP_URL'
 ] as const;
 
+const CLAUDE_DEFAULT_MODEL = 'claude-opus-5-5';
+const CLAUDE_DEFAULT_GLOBAL_BUDGET_USD = 90;
+const CLAUDE_DEFAULT_USER_BUDGET_USD = 10;
+
+// Unset or blank falls back to the default; anything else must be a finite number >= 0.
+const parseClaudeBudget = (value: string | undefined, fallback: number): number | null => {
+	if (!value) return fallback;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
 export function validateEnv(env: Record<string, string | undefined> = process.env): string[] {
 	const problems: string[] = [];
 	for (const key of REQUIRED_VARS) {
@@ -58,6 +69,24 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 	const appleSet = appleVars.filter((key) => env[key]?.trim());
 	if (appleSet.length > 0 && appleSet.length < appleVars.length) {
 		problems.push(`${appleVars.join(', ')} must be set together (or all left unset)`);
+	}
+	const claudeModel = env.CLAUDE_MODEL?.trim();
+	if (claudeModel && !/^claude-[a-z0-9-]+$/.test(claudeModel)) {
+		problems.push('CLAUDE_MODEL must look like claude-<name>');
+	}
+	const globalBudgetRaw = env.CLAUDE_GLOBAL_MONTHLY_BUDGET_USD?.trim();
+	const globalBudget = parseClaudeBudget(globalBudgetRaw, CLAUDE_DEFAULT_GLOBAL_BUDGET_USD);
+	if (globalBudget === null || globalBudget > 10_000) {
+		problems.push('CLAUDE_GLOBAL_MONTHLY_BUDGET_USD must be a number between 0 and 10000');
+	}
+	const userBudget = parseClaudeBudget(
+		env.CLAUDE_DEFAULT_USER_BUDGET_USD?.trim(),
+		CLAUDE_DEFAULT_USER_BUDGET_USD
+	);
+	if (userBudget === null || (globalBudget !== null && userBudget > globalBudget)) {
+		problems.push(
+			'CLAUDE_DEFAULT_USER_BUDGET_USD must be a number between 0 and CLAUDE_GLOBAL_MONTHLY_BUDGET_USD'
+		);
 	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
@@ -108,6 +137,21 @@ export const config = {
 		publicKey: process.env.VAPID_PUBLIC_KEY?.trim(),
 		privateKey: process.env.VAPID_PRIVATE_KEY?.trim(),
 		subject: process.env.VAPID_SUBJECT?.trim()
+	},
+	// Claude (optional): no API key keeps the feature off everywhere. Budgets are
+	// validated at startup by validateEnv, so the fallbacks only cover unset vars.
+	claude: {
+		apiKey: process.env.ANTHROPIC_API_KEY?.trim() || undefined,
+		model: process.env.CLAUDE_MODEL?.trim() || CLAUDE_DEFAULT_MODEL,
+		globalMonthlyBudgetUsd: toNumber(
+			process.env.CLAUDE_GLOBAL_MONTHLY_BUDGET_USD?.trim() || undefined,
+			CLAUDE_DEFAULT_GLOBAL_BUDGET_USD
+		),
+		defaultUserBudgetUsd: toNumber(
+			process.env.CLAUDE_DEFAULT_USER_BUDGET_USD?.trim() || undefined,
+			CLAUDE_DEFAULT_USER_BUDGET_USD
+		),
+		configured: !!process.env.ANTHROPIC_API_KEY?.trim()
 	},
 	testMode: process.env.TEST_MODE === 'true',
 	testAuthToken: process.env.TEST_AUTH_TOKEN,

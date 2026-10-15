@@ -1,9 +1,14 @@
 {
+	"claude": {
+		"available": true,
+		"remainingBudgetUsd": 12.5
+	},
 	"preferences": {
 		"activityCreditPercent": 100,
 		"activityGoalAdjustment": true,
 		"aiTaskAutoLog": true,
 		"aiTaskProcessor": "assistant",
+		"aiTaskProcessorKind": "sample-aiTaskProcessorKind",
 		"biologicalSex": "female",
 		"caloricLagDaysOverride": 3,
 		"favoriteMealAssignmentMode": "sample-favoriteMealAssignmentMode",

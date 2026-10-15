@@ -98,6 +98,7 @@ import type {
 } from '$lib/server/analytics';
 import type { listMealTypes } from '$lib/server/meal-types';
 import type { getPreferences } from '$lib/server/preferences';
+import type { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import type {
 	getDayProperties,
 	getDayPropertiesRange,
@@ -215,6 +216,7 @@ export type HandlerDeps = {
 	listMealTypes: typeof listMealTypes;
 	// Preferences (activity goal adjustment)
 	getPreferences: typeof getPreferences;
+	getClaudeCapabilitySafe: typeof getClaudeCapabilitySafe;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
 	getDayPropertiesRange: typeof getDayPropertiesRange;
@@ -1766,6 +1768,9 @@ export function createHandlers(d: HandlerDeps) {
 	const DEVICE_PROCESSOR_NOTE =
 		"The user has routed queued tasks to their iPhone's on-device model, so do not process them unless the user explicitly asks in this conversation.";
 
+	const CLAUDE_PROCESSOR_NOTE =
+		'The user has routed queued tasks to automatic server-side processing by Claude, so do not process them unless the user explicitly asks in this conversation.';
+
 	const handleListAiTasks = async (
 		userId: string,
 		args: { status?: AiTaskStatus; limit?: number; offset?: number }
@@ -1783,6 +1788,9 @@ export function createHandlers(d: HandlerDeps) {
 				const preferences = await d.getPreferences(userId);
 				if (preferences?.aiTaskProcessor === 'device') {
 					note = DEVICE_PROCESSOR_NOTE;
+				} else if (preferences?.aiTaskProcessorKind === 'claude') {
+					const capability = await d.getClaudeCapabilitySafe(userId);
+					if (capability.available) note = CLAUDE_PROCESSOR_NOTE;
 				}
 			}
 

@@ -512,6 +512,13 @@
       "when": 1791271049514,
       "tag": "0072_special_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791829431670,
+      "tag": "0073_cynical_veda",
+      "breakpoints": true
     }
   ]
 }

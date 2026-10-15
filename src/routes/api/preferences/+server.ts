@@ -3,13 +3,17 @@ import type { RequestHandler } from './$types';
 import { getPreferences, updatePreferences, DEFAULT_PREFERENCES } from '$lib/server/preferences';
 import { handleApiError, requireAuth, unwrapResult, parseJsonBody } from '$lib/server/errors';
 import { respondUpdate } from '$lib/server/sync/conflict';
+import { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		const userId = requireAuth(locals);
-		const preferences = await getPreferences(userId);
-		return json({ preferences: preferences ?? DEFAULT_PREFERENCES });
+		const [preferences, claude] = await Promise.all([
+			getPreferences(userId),
+			getClaudeCapabilitySafe(userId)
+		]);
+		return json({ preferences: preferences ?? DEFAULT_PREFERENCES, claude });
 	} catch (error) {
 		return handleApiError(error);
 	}

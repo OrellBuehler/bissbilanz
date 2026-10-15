@@ -285,7 +285,7 @@ struct SettingsView: View {
                     Section {
                         if !appModeManager.isLocal {
                             Picker(selection: Binding(
-                                get: { preferences.aiTaskProcessor },
+                                get: { preferences.effectiveAiTaskProcessor },
                                 set: { newValue in
                                     Task {
                                         var update = PreferencesUpdate()
@@ -297,24 +297,19 @@ struct SettingsView: View {
                             )) {
                                 Text(L10n.aiTaskProcessorOptionAssistant).tag(Preferences.aiTaskProcessorAssistant)
                                 Text(L10n.aiTaskProcessorOptionDevice).tag(Preferences.aiTaskProcessorDevice)
+                                claudePickerOption
                             } label: {
                                 Label(L10n.aiTaskProcessorPickerLabel, systemImage: "sparkles")
                             }
                             .pickerStyle(.menu)
 
-                            if preferences.aiTaskProcessor == Preferences.aiTaskProcessorDevice {
-                                Toggle(L10n.aiTaskProcessorAutoLogToggle, isOn: Binding(
-                                    get: { preferences.aiTaskAutoLog },
-                                    set: { newValue in
-                                        Task {
-                                            var update = PreferencesUpdate()
-                                            update.aiTaskAutoLog = newValue
-                                            preferences = await (try? preferencesRepository.update(update))
-                                                ?? (preferencesRepository.preferences() ?? .defaults)
-                                        }
-                                    }
-                                ))
+                            claudeProcessorDetails
 
+                            if showsAutoLogToggle {
+                                autoLogToggle
+                            }
+
+                            if preferences.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice {
                                 // Still allowed when this device can't currently estimate at
                                 // all — it may simply be waiting on the model to finish
                                 // downloading, or on Apple Intelligence being turned on.
@@ -352,8 +347,13 @@ struct SettingsView: View {
                         Text(L10n.aiTaskProcessorSectionTitle)
                     } footer: {
                         VStack(alignment: .leading, spacing: 4) {
-                            if !appModeManager.isLocal, preferences.aiTaskProcessor == Preferences.aiTaskProcessorDevice {
+                            if !appModeManager.isLocal,
+                               preferences.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice
+                            {
                                 Text(L10n.aiTaskProcessorAutoLogFooter)
+                            }
+                            if !appModeManager.isLocal, claudeOption == .selectable, isClaudeChosen {
+                                Text(L10n.aiTaskAutoLogFooterClaude)
                             }
                             if PrivateCloudComputeSettings.isSupported {
                                 Text(L10n.aiPrivateCloudToggleFooter)
@@ -544,6 +544,80 @@ struct SettingsView: View {
         .font(.footnote)
     }
 
+    private var claudeOption: ClaudeProcessorOption {
+        ClaudeProcessorOption.resolve(
+            effective: preferences.effectiveAiTaskProcessor,
+            capability: preferencesRepository.claudeCapability
+        )
+    }
+
+    private var isClaudeChosen: Bool {
+        preferences.effectiveAiTaskProcessor == Preferences.aiTaskProcessorClaude
+    }
+
+    private var showsAutoLogToggle: Bool {
+        preferences.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice || isClaudeChosen
+    }
+
+    private var autoLogToggle: some View {
+        Toggle(L10n.aiTaskProcessorAutoLogToggle, isOn: Binding(
+            get: { preferences.aiTaskAutoLog },
+            set: { newValue in
+                Task {
+                    var update = PreferencesUpdate()
+                    update.aiTaskAutoLog = newValue
+                    preferences = await (try? preferencesRepository.update(update))
+                        ?? (preferencesRepository.preferences() ?? .defaults)
+                }
+            }
+        ))
+    }
+
+    /// Claude is offered only while the server says it is available. When it
+    /// is the stored choice but not available, the row stays (so the picker
+    /// still shows the real choice) but cannot be selected again.
+    @ViewBuilder
+    private var claudePickerOption: some View {
+        switch claudeOption {
+        case .hidden:
+            EmptyView()
+        case .selectable:
+            Text(L10n.aiTaskProcessorOptionClaude).tag(Preferences.aiTaskProcessorClaude)
+        case .unavailable:
+            Text(L10n.aiTaskProcessorOptionClaudeUnavailable)
+                .tag(Preferences.aiTaskProcessorClaude)
+                .disabled(true)
+        }
+    }
+
+    @ViewBuilder
+    private var claudeProcessorDetails: some View {
+        switch claudeOption {
+        case .hidden:
+            EmptyView()
+        case .unavailable:
+            Label {
+                Text(L10n.aiTaskProcessorClaudeUnavailableHint)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            .font(.footnote)
+            .foregroundStyle(.orange)
+            Text(L10n.aiTaskProcessorClaudePrivacy)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case .selectable:
+            Text(L10n.aiTaskProcessorClaudePrivacy)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if isClaudeChosen, let remaining = preferencesRepository.claudeCapability?.remainingBudgetUsd {
+                Text(L10n.aiTaskProcessorClaudeRemaining(remaining))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var onDeviceCapabilityText: String {
         switch mealEstimator.availability {
         case .available: L10n.aiTaskProcessorOnDeviceAvailable
@@ -656,6 +730,7 @@ struct SettingsView: View {
                 // account).
                 bulkUploadManager.reset()
                 migrator.wipeLocalData()
+                preferencesRepository.clearClaudeCapability()
                 // wipeLocalData clears the files; this also
                 // drops the decoded images the loader still
                 // holds in memory, which outlive them.
@@ -1001,6 +1076,7 @@ struct SettingsView: View {
                 // state so nothing leaks into the next session.
                 bulkUploadManager.reset()
                 migrator.wipeLocalData()
+                preferencesRepository.clearClaudeCapability()
                 foodImageLoader.clear()
                 authManager.logout()
                 appModeManager.clear()

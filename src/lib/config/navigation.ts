@@ -14,6 +14,7 @@ import Calculator from '@lucide/svelte/icons/calculator';
 import Calendar from '@lucide/svelte/icons/calendar';
 import Settings from '@lucide/svelte/icons/settings';
 import CircleHelp from '@lucide/svelte/icons/circle-help';
+import ShieldCheck from '@lucide/svelte/icons/shield-check';
 import * as m from '$lib/paraglide/messages';
 import type { Component } from 'svelte';
 
@@ -49,11 +50,15 @@ export const breadcrumbLabelKeys = [
 	'mcp',
 	'ai-tasks',
 	'recipe-suggestions',
-	'reminders'
+	'reminders',
+	'admin',
+	'users'
 ] as const;
 
-export function getNavGroups(): NavGroup[] {
-	return [
+export type NavOptions = { isAdmin?: boolean };
+
+export function getNavGroups({ isAdmin = false }: NavOptions = {}): NavGroup[] {
+	const groups: NavGroup[] = [
 		{
 			items: [
 				{
@@ -185,10 +190,22 @@ export function getNavGroups(): NavGroup[] {
 			]
 		}
 	];
+
+	if (isAdmin) {
+		groups[groups.length - 1].items.push({
+			title: () => m.nav_admin(),
+			href: '/admin',
+			icon: ShieldCheck,
+			badgeColor: 'bg-rose-100 text-rose-600',
+			activeRing: 'ring-2 ring-inset ring-rose-300/80 dark:ring-rose-700/80'
+		});
+	}
+
+	return groups;
 }
 
-export function getNavItems(): NavItem[] {
-	return getNavGroups().flatMap((g) => g.items);
+export function getNavItems(options: NavOptions = {}): NavItem[] {
+	return getNavGroups(options).flatMap((g) => g.items);
 }
 
 export type BottomNavTab = {

@@ -10,7 +10,7 @@
 	type Props = {
 		tasks: AiTask[];
 		onEdit?: (task: AiTask) => void;
-		onDismiss?: (id: string) => void;
+		onDismiss?: (id: string) => void | Promise<void>;
 		onDelete: (id: string) => void;
 	};
 

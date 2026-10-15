@@ -23,7 +23,8 @@
 	type Props = {
 		open?: boolean;
 		task?: AiTask | null;
-		aiTaskProcessor?: 'assistant' | 'device';
+		aiTaskProcessor?: 'assistant' | 'device' | 'claude';
+		autoLog?: boolean;
 		onClose?: () => void;
 		onCreated?: () => void;
 	};
@@ -32,6 +33,7 @@
 		open = $bindable(false),
 		task = null,
 		aiTaskProcessor = 'assistant',
+		autoLog = false,
 		onClose,
 		onCreated
 	}: Props = $props();
@@ -251,7 +253,13 @@
 
 		<p class="flex items-start gap-1.5 text-xs text-muted-foreground">
 			<Sparkles class="mt-0.5 size-3.5 shrink-0" />
-			{aiTaskProcessor === 'device' ? m.ai_tasks_capture_hint_device() : m.ai_tasks_capture_hint()}
+			{#if aiTaskProcessor === 'device'}
+				{m.ai_tasks_capture_hint_device()}
+			{:else if aiTaskProcessor === 'claude'}
+				{autoLog ? m.ai_tasks_capture_hint_claude() : m.ai_tasks_capture_hint_claude_review()}
+			{:else}
+				{m.ai_tasks_capture_hint()}
+			{/if}
 		</p>
 
 		<Button class="w-full" disabled={!canSubmit} onclick={submit}>

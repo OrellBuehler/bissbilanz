@@ -28,7 +28,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bissbilanz.android.R
@@ -38,6 +41,7 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
+import com.bissbilanz.android.ui.components.ClaudeProposalCard
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -45,6 +49,10 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.util.ClaudeTaskState
+import com.bissbilanz.util.TaskResolver
+import com.bissbilanz.util.claudeTaskState
+import com.bissbilanz.util.resolver
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -62,6 +70,7 @@ fun AiTasksScreen(navController: NavController) {
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
+    val busyTaskId by viewModel.busyTaskId.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
@@ -83,6 +92,15 @@ fun AiTasksScreen(navController: NavController) {
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(loadFailed) {
         if (loadFailed) snackbarHostState.showSnackbar(loadFailedMessage)
+    }
+    val resources = LocalContext.current.resources
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { snackbarHostState.showSnackbar(resources.getString(it)) }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.pollWhileClaudeWorks() }
     }
 
     LaunchedEffect(Unit) {
@@ -171,6 +189,9 @@ fun AiTasksScreen(navController: NavController) {
                                     task = task,
                                     onDelete = { taskToDelete = task },
                                     onEdit = { taskToEdit = task },
+                                    proposalBusy = busyTaskId == task.id,
+                                    onAcceptProposal = { viewModel.acceptProposal(task.id, it) },
+                                    onDiscardProposal = { viewModel.discardProposal(task.id) },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -284,6 +305,9 @@ private fun AiTaskListItem(
     task: AiTask,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
+    proposalBusy: Boolean,
+    onAcceptProposal: (itemIds: List<String>) -> Unit,
+    onDiscardProposal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isUnread = task.status == AiTask.Status.dismissed && task.acknowledgedAt == null
@@ -400,20 +424,64 @@ private fun AiTaskListItem(
                 }
             }
 
-            // Who resolved this — only ever set once the task leaves pending,
-            // so this line appears alongside the assistant's comment above,
-            // never before it. Mirrors the web AiTaskCard's own label.
-            task.processedBy?.let { processedBy ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    when (processedBy) {
-                        AiTask.ProcessedBy.assistant -> stringResource(R.string.ai_tasks_processed_by_assistant)
-                        AiTask.ProcessedBy.on_device -> stringResource(R.string.ai_tasks_processed_by_on_device)
-                        AiTask.ProcessedBy.private_cloud -> stringResource(R.string.ai_tasks_processed_by_private_cloud)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            // Pending tasks handed to Claude show where its run stands; a ready suggestion
+            // opens as a review card instead of waiting for the assistant.
+            val claudeState = task.claudeTaskState()
+            if (claudeState != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        stringResource(
+                            when (claudeState) {
+                                ClaudeTaskState.QUEUED -> R.string.ai_tasks_claude_state_queued
+                                ClaudeTaskState.RUNNING -> R.string.ai_tasks_claude_state_running
+                                ClaudeTaskState.RETRYING -> R.string.ai_tasks_claude_state_retrying
+                                ClaudeTaskState.PROPOSED -> R.string.ai_tasks_claude_state_proposed
+                                ClaudeTaskState.BLOCKED -> R.string.ai_tasks_claude_state_blocked
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                val proposal = task.claudeProcessing?.proposal
+                if (claudeState == ClaudeTaskState.PROPOSED && proposal != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ClaudeProposalCard(
+                        proposal = proposal,
+                        busy = proposalBusy,
+                        onLog = onAcceptProposal,
+                        onDiscard = onDiscardProposal,
+                    )
+                }
+            }
+
+            // Who resolved this. The kind can still be set on a task that was reopened to
+            // pending (it names the last resolver), so only a task that has left pending
+            // gets the line, alongside the assistant's comment above, never before it.
+            // Mirrors the web AiTaskCard's own label.
+            if (task.status != AiTask.Status.pending) {
+                task.resolver()?.let { resolver ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(
+                            when (resolver) {
+                                TaskResolver.CLAUDE -> R.string.ai_tasks_processed_by_claude
+                                TaskResolver.ASSISTANT -> R.string.ai_tasks_processed_by_assistant
+                                TaskResolver.ON_DEVICE -> R.string.ai_tasks_processed_by_on_device
+                                TaskResolver.PRIVATE_CLOUD -> R.string.ai_tasks_processed_by_private_cloud
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

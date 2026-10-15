@@ -255,6 +255,19 @@ describe('Auth /me route', () => {
 		expect(data.user.id).toBe(TEST_USER.id);
 		expect(data.user.email).toBe(TEST_USER.email);
 		expect(data.user.name).toBe(TEST_USER.name);
+		expect(data.user.isAdmin).toBe(false);
+	});
+
+	test('exposes isAdmin for an admin session', async () => {
+		mockGetSessionWithUser.mockReturnValue(
+			Promise.resolve({ session: TEST_SESSION, user: { ...TEST_USER, isAdmin: true } })
+		);
+
+		const response = await meModule.GET({
+			cookies: { get: (name: string) => (name === 'session' ? 'session-123' : undefined) }
+		} as any);
+
+		expect((await response.json()).user.isAdmin).toBe(true);
 	});
 
 	test('returns null user when no session cookie', async () => {

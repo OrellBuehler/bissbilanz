@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { INSIGHT_CARD_IDS, MAX_PINNED_INSIGHTS } from '$lib/insights/card-ids';
-import { aiTaskProcessorValues } from '$lib/server/schema';
+import { aiTaskProcessorKindValues } from '$lib/server/schema';
 
 const timeStringSchema = z.string().regex(/^\d{2}:\d{2}$/);
 
@@ -71,8 +71,9 @@ export const preferencesUpdateSchema = z
 		// day_properties. See $lib/utils/activity-goals.ts for the formula.
 		activityGoalAdjustment: z.boolean().optional(),
 		activityCreditPercent: z.number().int().min(0).max(100).optional(),
-		// Who resolves queued AI tasks — the MCP assistant or the user's iPhone.
-		aiTaskProcessor: z.enum(aiTaskProcessorValues).optional(),
+		// Who resolves queued AI tasks — the MCP assistant, the user's iPhone, or
+		// server-side Claude. 'claude' is accepted whether or not it is available.
+		aiTaskProcessor: z.enum(aiTaskProcessorKindValues).optional(),
 		// Only meaningful when aiTaskProcessor is 'device': log estimates
 		// straight away instead of leaving them for review first.
 		aiTaskAutoLog: z.boolean().optional(),

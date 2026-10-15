@@ -7,6 +7,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.cache.LocalDataWiper
@@ -51,6 +52,8 @@ class SettingsViewModel(
         prefsRepo
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val claudeCapability: StateFlow<ClaudeCapability?> = prefsRepo.claudeCapability
 
     private val _customMealTypes = MutableStateFlow<List<MealType>>(emptyList())
     val customMealTypes: StateFlow<List<MealType>> = _customMealTypes.asStateFlow()
@@ -249,6 +252,8 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
+            } finally {
+                prefsRepo.clearClaudeCapability()
             }
             authManager.logout()
             // Reset the mode so the next start shows the login screen with the mode choice again.
@@ -316,6 +321,8 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
+            } finally {
+                prefsRepo.clearClaudeCapability()
             }
             authManager.logout()
             appModeManager.clear()

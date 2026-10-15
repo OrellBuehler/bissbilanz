@@ -92,7 +92,7 @@ final class AiTaskProcessor {
     /// actually produce an estimate on-device or via Private Cloud Compute.
     var isEnabled: Bool {
         guard !appMode.isLocal, mealEstimator.canEstimate else { return false }
-        return preferencesRepository.preferences()?.aiTaskProcessor == Preferences.aiTaskProcessorDevice
+        return preferencesRepository.preferences()?.effectiveAiTaskProcessor == Preferences.aiTaskProcessorDevice
     }
 
     /// Processes every pending task not already in flight or already sitting

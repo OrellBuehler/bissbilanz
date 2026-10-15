@@ -13,6 +13,8 @@ import {
 	parseJsonBody
 } from '$lib/server/errors';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
+import { enqueueClaudeTaskIfEligible } from '$lib/server/claude/tasks/executor';
+import { serializeAiTasksWithRuns } from '$lib/server/claude/tasks/serialize';
 
 /**
  * A meal that never reaches the queue is invisible to the user, so every
@@ -54,7 +56,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const { status, acknowledged, limit, offset } = queryResult.data;
 		const { tasks, total } = await listAiTasks(userId, { status, acknowledged, limit, offset });
-		return json({ tasks: tasks.map(serializeAiTask), total });
+		return json({ tasks: await serializeAiTasksWithRuns(tasks), total });
 	} catch (error) {
 		return handleApiError(error);
 	}
@@ -78,6 +80,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			date: task.date,
 			idempotent: readIdempotencyKey(request) !== null
 		});
+		void enqueueClaudeTaskIfEligible(userId, task.id);
 		return json({ task: serializeAiTask(task) }, { status: 201 });
 	} catch (error) {
 		logRejected(request, error, source);

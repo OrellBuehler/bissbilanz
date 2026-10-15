@@ -12,6 +12,7 @@ export const TEST_USER: User = {
 	name: 'Test User',
 	avatarUrl: null,
 	locale: 'en',
+	isAdmin: false,
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };
@@ -23,6 +24,7 @@ export const TEST_USER_2: User = {
 	name: 'Other User',
 	avatarUrl: null,
 	locale: 'en',
+	isAdmin: false,
 	createdAt: new Date('2026-01-01T00:00:00Z'),
 	updatedAt: new Date('2026-01-01T00:00:00Z')
 };

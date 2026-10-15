@@ -397,29 +397,54 @@ final class AiTaskStore {
         tasks.filter(\.isUnreadDismissal)
     }
 
+    /// A pending task Claude has queued, is running or is retrying — the list
+    /// is polled while this holds.
+    var hasActiveClaudeWork: Bool {
+        AiTaskClaudeState.hasActiveWork(in: tasks)
+    }
+
+    /// Bumped whenever a local accept or edit lands, so a list read that started
+    /// earlier (and may predate it) is dropped instead of undoing the change.
+    @ObservationIgnored private var mutationGeneration = 0
+
     func refresh() async throws {
         guard !appMode.isLocal else { return }
-        tasks = try await api.listAiTasks(limit: 100).tasks
+        let generation = mutationGeneration
+        let fetched = try await api.listAiTasks(limit: 100).tasks
+        guard generation == mutationGeneration else { return }
+        tasks = fetched
         await onRefreshed?()
     }
 
     /// Clears the unread badge for every resolved task. Called when the user opens the
     /// list — posting a notification does not count as reading it, which is what lets
     /// each of the user's devices announce the same dismissal once.
-    func acknowledgeAll() async {
+    /// `quiet` records a breadcrumb instead of a report, for the poll loop that
+    /// retries on its next tick.
+    func acknowledgeAll(quiet: Bool = false) async {
         guard !appMode.isLocal, !unreadDismissals.isEmpty else { return }
         do {
             try await api.acknowledgeAiTasks()
             try await refresh()
         } catch {
             // Leave the badge up rather than pretending it was read.
-            ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
+            if quiet {
+                ErrorReporter.addBreadcrumb(
+                    "AI task acknowledge failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["reason": ErrorReporter.reason(for: error)]
+                )
+            } else {
+                ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
+            }
         }
     }
 
     func delete(id: String) async throws {
         guard !appMode.isLocal else { return }
         try await api.deleteAiTask(id: id)
+        mutationGeneration += 1
         tasks.removeAll { $0.id == id }
         // Nothing left to review once the task itself is gone.
         AiTaskDraftDisk.remove(taskId: id)
@@ -431,6 +456,7 @@ final class AiTaskStore {
     /// flight, so without this a trigger landing before the next `refresh()`
     /// would see the task as still pending and could double-process it.
     func markResolvedLocally(id: String) {
+        mutationGeneration += 1
         tasks.removeAll { $0.id == id }
     }
 
@@ -449,10 +475,42 @@ final class AiTaskStore {
     @discardableResult
     func update(id: String, _ patch: AiTaskUpdate) async throws -> AiTask {
         let updated = try await api.updateAiTask(id: id, patch)
+        mutationGeneration += 1
         if let index = tasks.firstIndex(where: { $0.id == id }) {
             tasks[index] = updated
         }
         AiTaskDraftDisk.remove(taskId: id)
         return updated
+    }
+
+    /// Logs the entries Claude proposed and swaps the completed task into the
+    /// list. A 409, 404 or 400 means the proposal is no longer open or its items changed, so the list is
+    /// refreshed to show what the server has now; any other failure leaves the
+    /// task as it was so the caller can keep the selection and offer a retry.
+    func acceptProposal(id: String, itemIds: [String]) async -> AiTaskProposalAcceptResult {
+        guard !appMode.isLocal else { return .failed }
+        do {
+            let updated = try await api.acceptAiTaskProposal(id: id, itemIds: itemIds)
+            mutationGeneration += 1
+            if let index = tasks.firstIndex(where: { $0.id == id }) {
+                tasks[index] = updated
+            }
+            return .logged
+        } catch {
+            guard Self.isProposalGone(error) else { return .failed }
+            do {
+                try await refresh()
+            } catch {
+                ErrorReporter.capture(error, context: ["op": "refreshAfterProposalConflict"])
+            }
+            return .conflict
+        }
+    }
+
+    nonisolated static func isProposalGone(_ error: Error) -> Bool {
+        switch error as? APIError {
+        case .conflict, .notFound, .badRequest: true
+        default: false
+        }
     }
 }
