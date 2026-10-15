@@ -44,9 +44,8 @@ enum ErrorReporter {
             // blocking stacktrace. On by default; set explicitly so it can't be
             // lost to a future default change.
             options.enableAppHangTracking = true
-            let maxBreadcrumbs = options.maxBreadcrumbs
             options.beforeSend = { event in
-                ErrorReporter.filterAppHang(event, maxBreadcrumbs: maxBreadcrumbs)
+                ErrorReporter.filterAppHang(event)
             }
             // Let Sentry ingest MetricKit *diagnostics* — OS-sampled crashes,
             // hangs, CPU and disk-write exceptions — as events with stack
@@ -78,6 +77,20 @@ enum ErrorReporter {
         user.userId = id
         SentrySDK.setUser(user)
     }
+
+    /// Tags the scope once the app has been active in this process, called on
+    /// every scene activation. The SDK applies the scope to an app-hang event
+    /// when it detects the hang and stores it with the event, so the tag also
+    /// reaches fatal hangs sent on the next launch, where `beforeSend` runs in a
+    /// different process. No-op when Sentry is disabled.
+    static func markForeground() {
+        guard isEnabled else { return }
+        SentrySDK.configureScope { scope in
+            scope.setTag(value: "true", key: foregroundTag)
+        }
+    }
+
+    static let foregroundTag = "app.was_foreground"
 
     /// Detaches the user on sign-out / session expiry, so events from a
     /// shared-device "logged out" state aren't misattributed.
@@ -231,25 +244,21 @@ enum ErrorReporter {
     }
 
     /// A background launch (BGAppRefresh woken by a charger change, a silent
-    /// push) never posts the foreground/active notifications, so its breadcrumb
-    /// trail carries no `app.lifecycle` crumb with state "foreground" or
-    /// "active" (BISSBILANZ-48/35/3X). The SDK reports hangs, fatal and
-    /// non-fatal alike, with mechanism "AppHang"; with no foreground phase the
-    /// user never saw the app stall, so these are not defects. Only trusted
-    /// while the trail is shorter than the SDK's cap, otherwise the crumb may
-    /// simply have been evicted by newer ones.
-    static func isBackgroundLaunchHang(_ event: Event, maxBreadcrumbs: UInt) -> Bool {
+    /// push) never becomes active, so the user never saw the app stall
+    /// (BISSBILANZ-48/35/3X). The SDK reports hangs, fatal and non-fatal alike,
+    /// with mechanism "AppHang". The `foregroundTag` answers whether the
+    /// process was ever active regardless of how many breadcrumbs followed:
+    /// repeated background refreshes fill the trail and evict any lifecycle
+    /// crumb (BISSBILANZ-35). An `app.lifecycle` crumb with state "foreground"
+    /// or "active" still keeps the hang, for events stored by a build that
+    /// predates the tag.
+    static func isBackgroundLaunchHang(_ event: Event) -> Bool {
         guard event.exceptions?.first?.mechanism?.type == "AppHang" else { return false }
-        let crumbs = event.breadcrumbs ?? []
-        let lifecycleStates = crumbs.compactMap { crumb -> String? in
+        let lifecycleStates = (event.breadcrumbs ?? []).compactMap { crumb -> String? in
             guard crumb.category == lifecycleCrumbCategory else { return nil }
             return crumb.data?["state"] as? String
         }
-        return hasNoForegroundPhase(
-            lifecycleStates: lifecycleStates,
-            breadcrumbCount: crumbs.count,
-            maxBreadcrumbs: maxBreadcrumbs
-        )
+        return hasNoForegroundPhase(tags: event.tags, lifecycleStates: lifecycleStates)
     }
 
     /// The SDK's own breadcrumb category for UIApplication lifecycle changes
@@ -257,23 +266,19 @@ enum ErrorReporter {
     /// "inactive" or "background".
     private static let lifecycleCrumbCategory = "app.lifecycle"
 
-    static func hasNoForegroundPhase(
-        lifecycleStates: [String],
-        breadcrumbCount: Int,
-        maxBreadcrumbs: UInt
-    ) -> Bool {
-        guard UInt(breadcrumbCount) < maxBreadcrumbs else { return false }
+    static func hasNoForegroundPhase(tags: [String: String]?, lifecycleStates: [String]) -> Bool {
+        guard tags?[foregroundTag] == nil else { return false }
         return !lifecycleStates.contains { $0 == "foreground" || $0 == "active" }
     }
 
     /// `beforeSend` hook: drops app-hang noise and leaves a breadcrumb saying
     /// why, so the next real event shows that a report was suppressed.
-    static func filterAppHang(_ event: Event, maxBreadcrumbs: UInt) -> Event? {
+    static func filterAppHang(_ event: Event) -> Event? {
         if isSuspensionArtifactHang(event) {
             addBreadcrumb("dropped app hang: suspension artifact", category: "sentry", level: .debug)
             return nil
         }
-        if isBackgroundLaunchHang(event, maxBreadcrumbs: maxBreadcrumbs) {
+        if isBackgroundLaunchHang(event) {
             addBreadcrumb("dropped app hang: background launch", category: "sentry", level: .debug)
             return nil
         }

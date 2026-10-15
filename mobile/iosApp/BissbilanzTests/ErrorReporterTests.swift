@@ -63,7 +63,6 @@ struct AppHangFilteringTests {
 
     @Test("A trail without a foreground or active crumb is a background launch")
     func dropsBackgroundLaunchHangs() {
-        #expect(hasNoForegroundPhase([], count: 0))
         #expect(hasNoForegroundPhase([]))
         #expect(hasNoForegroundPhase(["inactive", "background"]))
     }
@@ -74,14 +73,22 @@ struct AppHangFilteringTests {
         #expect(!hasNoForegroundPhase(["foreground", "active", "background"]))
     }
 
-    @Test("A full trail may have evicted the lifecycle crumb, so the hang is kept")
-    func keepsHangsWithAFullTrail() {
-        #expect(hasNoForegroundPhase([], count: 99))
-        #expect(!hasNoForegroundPhase([], count: 100))
+    @Test("A full trail with no foreground crumb and no foreground tag is a background launch")
+    func dropsHangsWithAFullTrailAndNoForegroundTag() {
+        let trail = Array(repeating: "background", count: 100)
+        #expect(hasNoForegroundPhase(trail))
+        #expect(hasNoForegroundPhase(trail, tags: ["environment": "production"]))
     }
 
-    private func hasNoForegroundPhase(_ states: [String], count: Int = 40) -> Bool {
-        ErrorReporter.hasNoForegroundPhase(lifecycleStates: states, breadcrumbCount: count, maxBreadcrumbs: 100)
+    @Test("The foreground tag keeps the hang whatever the trail holds")
+    func keepsHangsWithTheForegroundTag() {
+        let tags = [ErrorReporter.foregroundTag: "true"]
+        #expect(!hasNoForegroundPhase([], tags: tags))
+        #expect(!hasNoForegroundPhase(Array(repeating: "background", count: 100), tags: tags))
+    }
+
+    private func hasNoForegroundPhase(_ states: [String], tags: [String: String]? = nil) -> Bool {
+        ErrorReporter.hasNoForegroundPhase(tags: tags, lifecycleStates: states)
     }
 
     private func hang(_ seconds: Double) -> String {

@@ -519,6 +519,9 @@ struct BissbilanzApp: App {
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    ErrorReporter.markForeground()
+                }
                 guard storeUnavailable == nil else { return }
                 if phase == .active {
                     syncManager.scheduleDrain()
