@@ -128,7 +128,7 @@
 		"bcrypt": "^6.0.0",
 		"dexie": "^4.4.6",
 		"drizzle-orm": "^0.45.2",
-		"express-rate-limit": "^8.7.0",
+		"express-rate-limit": "^8.7.1",
 		"fflate": "^0.8.3",
 		"hono": "^4.13.12",
 		"jose": "^6.2.12",
