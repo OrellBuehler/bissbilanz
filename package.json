@@ -122,7 +122,7 @@
 		"@inlang/paraglide-js": "^2.25.4",
 		"@modelcontextprotocol/sdk": "^1.31.0",
 		"@rodrigodagostino/svelte-sortable-list": "^2.2.6",
-		"@sentry/sveltekit": "^11.1.0",
+		"@sentry/sveltekit": "^11.6.0",
 		"@zxing/browser": "^0.2.1",
 		"@zxing/library": "^0.23.0",
 		"bcrypt": "^6.0.0",
