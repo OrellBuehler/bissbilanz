@@ -364,7 +364,7 @@ export async function commitFoodPackageImport(
 	} catch (error) {
 		await dropUploadFiles(written);
 		// Another import (or an edit) took a barcode between the plan and the write.
-		if (isDuplicateBarcodeError(error)) {
+		if (isDuplicateBarcodeError(error) || isDuplicateBarcodeError((error as Error)?.cause)) {
 			throw new ApiError(409, 'stale_preview');
 		}
 		throw error;
