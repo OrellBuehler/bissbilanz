@@ -211,6 +211,7 @@
     <string name="ai_task_description_placeholder">e.g. a bowl of porridge with banana and honey</string>
     <string name="ai_task_send">Send</string>
     <string name="ai_task_send_device">Queue for later</string>
+    <string name="ai_task_send_to_claude">Send to Claude</string>
     <string name="ai_task_sending">Sending…</string>
     <string name="ai_task_send_failed">Could not send to the assistant</string>
     <string name="ai_task_queued">Sent to the assistant</string>
@@ -262,8 +263,8 @@
     <string name="ai_tasks_proposal_logged">Entries logged</string>
     <string name="ai_tasks_proposal_accept_conflict">This suggestion is no longer available. The list has been refreshed.</string>
     <string name="ai_tasks_proposal_accept_failed">The entries could not be logged. Check your connection and try again.</string>
-    <string name="ai_tasks_capture_hint_claude">Claude processes this meal on the server and logs it for you.</string>
-    <string name="ai_tasks_capture_hint_claude_review">Claude processes this meal on the server and suggests entries for you to review.</string>
+    <string name="ai_tasks_capture_hint_claude">Send to Claude: Claude logs this meal for you on the server, no review needed.</string>
+    <string name="ai_tasks_capture_hint_claude_review">Send to Claude: Claude suggests entries on the server for you to review in AI Tasks.</string>
     <string name="ai_tasks_unread">New</string>
     <string name="ai_tasks_edit">Edit task</string>
     <string name="ai_tasks_delete">Delete task</string>

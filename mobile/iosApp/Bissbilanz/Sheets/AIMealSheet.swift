@@ -295,6 +295,11 @@ struct AIMealSheet: View {
         return autoLog ? L10n.aiTasksCaptureHintClaude : L10n.aiTasksCaptureHintClaudeReview
     }
 
+    private var queueButtonTitle: String {
+        if isClaudeProcessor { return L10n.aiTaskSendToClaudeButton }
+        return isDeviceProcessor ? L10n.aiTaskProcessLaterButton : L10n.aiTaskSendButton
+    }
+
     /// `.buttonStyle(.bordered)` and `.buttonStyle(.borderedProminent)` are
     /// distinct concrete types, so the style can't be chosen with a ternary —
     /// branching the whole button through `@ViewBuilder` is the pattern that
@@ -307,7 +312,7 @@ struct AIMealSheet: View {
             actionLabel(
                 title: isSendingToAssistant
                     ? L10n.aiTaskSending
-                    : (isDeviceProcessor || isClaudeProcessor ? L10n.aiTaskProcessLaterButton : L10n.aiTaskSendButton),
+                    : queueButtonTitle,
                 showsProgress: isSendingToAssistant
             )
         }
