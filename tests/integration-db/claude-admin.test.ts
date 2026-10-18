@@ -570,7 +570,7 @@ describe('getClaudeOverview', () => {
 		expect(overview).toMatchObject({
 			configured: true,
 			enabled: false,
-			model: 'claude-opus-5-5',
+			model: 'claude-sonnet-5-5',
 			globalBudgetUsd: 90,
 			defaultUserBudgetUsd: 10,
 			monthCalls: 5,
