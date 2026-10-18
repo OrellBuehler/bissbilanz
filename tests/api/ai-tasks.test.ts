@@ -147,6 +147,27 @@ describe('api/ai-tasks', () => {
 								fat: 18,
 								fiber: 4,
 								entry: { quickName: 'Chicken salad' }
+							},
+							{
+								id: '10000000-0000-4000-8000-0000000000c2',
+								name: 'Skyr',
+								quantityDescription: null,
+								foodId: '10000000-0000-4000-8000-0000000000f1',
+								recipeId: null,
+								servings: 1,
+								calories: 90,
+								protein: 16,
+								carbs: 5,
+								fat: 0.2,
+								fiber: 0,
+								entry: { foodId: '10000000-0000-4000-8000-0000000000f1' },
+								food: {
+									name: 'Skyr',
+									brand: 'Emmi',
+									servingSize: 150,
+									servingUnit: 'g',
+									sodium: 40
+								}
 							}
 						]
 					}
@@ -159,6 +180,16 @@ describe('api/ai-tasks', () => {
 			expect(data.tasks[0].claudeProcessing.proposal.summary).toBe('Suggested lunch');
 			expect(data.tasks[0].claudeProcessing.proposal.items[0].calories).toBe(350);
 			expect(data.tasks[0].claudeProcessing.proposal.items[0]).not.toHaveProperty('entry');
+			const [plain, created] = data.tasks[0].claudeProcessing.proposal.items;
+			expect(plain.newFood).toBeNull();
+			expect(created.newFood).toEqual({
+				name: 'Skyr',
+				brand: 'Emmi',
+				servingSize: 150,
+				servingUnit: 'g'
+			});
+			expect(created).not.toHaveProperty('food');
+			expect(created).not.toHaveProperty('entry');
 		});
 
 		test('shows a retrying run as retrying', async () => {

@@ -9,6 +9,15 @@ import {
 const aiTaskStatusSchema = z.enum(aiTaskStatusValues);
 const aiTaskProcessedBySchema = z.enum(aiTaskProcessedByValues);
 
+const aiTaskProposalNewFoodSchema = z
+	.object({
+		name: z.string(),
+		brand: z.string().nullable(),
+		servingSize: z.number(),
+		servingUnit: z.string()
+	})
+	.meta({ id: 'AiTaskProposalNewFood' });
+
 const aiTaskProposalItemSchema = z
 	.object({
 		id: z.string().uuid(),
@@ -21,7 +30,8 @@ const aiTaskProposalItemSchema = z
 		protein: z.number(),
 		carbs: z.number(),
 		fat: z.number(),
-		fiber: z.number()
+		fiber: z.number(),
+		newFood: aiTaskProposalNewFoodSchema.nullable()
 	})
 	.meta({ id: 'AiTaskProposalItem' });
 

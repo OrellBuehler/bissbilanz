@@ -4,6 +4,8 @@
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import MacroValue from '$lib/components/shared/MacroValue.svelte';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Check from '@lucide/svelte/icons/check';
 	import X from '@lucide/svelte/icons/x';
 	import { toast } from 'svelte-sonner';
@@ -102,6 +104,12 @@
 					/>
 					<span class="min-w-0 flex-1 space-y-0.5">
 						<span class="block text-sm font-medium break-words">{item.name}</span>
+						{#if item.newFood}
+							<Badge variant="secondary" class="gap-1" data-testid="ai-task-proposal-new-food">
+								<Plus />
+								{m.ai_tasks_proposal_new_food()}
+							</Badge>
+						{/if}
 						{#if item.quantityDescription}
 							<span class="block text-xs break-words text-muted-foreground">
 								{item.quantityDescription}

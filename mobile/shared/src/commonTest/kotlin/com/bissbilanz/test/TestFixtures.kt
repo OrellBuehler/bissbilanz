@@ -106,6 +106,7 @@ object TestFixtures {
         carbs = 1.2,
         fat = 10.6,
         fiber = 0.0,
+        newFood = null,
     )
 
     fun preferences(

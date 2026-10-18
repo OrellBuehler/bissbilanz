@@ -13888,6 +13888,16 @@
 					},
 					"fiber": {
 						"type": "number"
+					},
+					"newFood": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/AiTaskProposalNewFood"
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				},
 				"required": [
@@ -13901,8 +13911,28 @@
 					"protein",
 					"carbs",
 					"fat",
-					"fiber"
+					"fiber",
+					"newFood"
 				],
+				"additionalProperties": false
+			},
+			"AiTaskProposalNewFood": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string"
+					},
+					"brand": {
+						"type": ["string", "null"]
+					},
+					"servingSize": {
+						"type": "number"
+					},
+					"servingUnit": {
+						"type": "string"
+					}
+				},
+				"required": ["name", "brand", "servingSize", "servingUnit"],
 				"additionalProperties": false
 			},
 			"AiTaskResponse": {

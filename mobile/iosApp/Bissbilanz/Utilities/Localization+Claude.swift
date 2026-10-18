@@ -100,6 +100,10 @@ extension L10n {
         localized("ai_tasks_proposal_log", en: "Log selected", de: "Auswahl eintragen")
     }
 
+    static var aiTasksProposalNewFood: String {
+        localized("ai_tasks_proposal_new_food", en: "New food", de: "Neues Lebensmittel")
+    }
+
     static var aiTasksProposalDiscard: String {
         localized("ai_tasks_proposal_discard", en: "Discard", de: "Verwerfen")
     }

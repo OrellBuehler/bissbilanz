@@ -4,13 +4,19 @@ import { createMockDB } from '../../helpers/mock-db';
 const h = vi.hoisted(() => ({
 	createEntry: vi.fn(),
 	completeAiTaskBy: vi.fn(),
-	dropStale: vi.fn()
+	dropStale: vi.fn(),
+	createFood: vi.fn(),
+	findFoodByBarcode: vi.fn()
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/entries', () => ({ createEntry: h.createEntry }));
+vi.mock('$lib/server/foods', () => ({
+	createFood: h.createFood,
+	findFoodByBarcode: h.findFoodByBarcode
+}));
 vi.mock('$lib/server/claude/tasks/proposal-stale', () => ({
 	dropStaleProposalItems: h.dropStale
 }));
@@ -48,6 +54,8 @@ beforeEach(() => {
 	h.createEntry.mockReset().mockResolvedValue({ success: true, data: {} });
 	h.completeAiTaskBy.mockReset().mockResolvedValue({ id: 'task-1', status: 'completed' });
 	h.dropStale.mockReset().mockResolvedValue(undefined);
+	h.createFood.mockReset().mockResolvedValue({ success: true, data: { id: 'new-food' } });
+	h.findFoodByBarcode.mockReset().mockResolvedValue(null);
 });
 
 describe('serializeClaudeProcessing', () => {
@@ -75,6 +83,32 @@ describe('serializeClaudeProcessing', () => {
 		expect(
 			serializeClaudeProcessing({ state: 'proposed', proposal: null } as never)?.proposal
 		).toBeNull();
+	});
+
+	test('exposes a new food without its payload and null for plain items', () => {
+		const withFood = {
+			...item('f'),
+			food: { name: 'Skyr', brand: 'Emmi', servingSize: 150, servingUnit: 'g', calories: 90 }
+		};
+		const result = serializeClaudeProcessing({
+			state: 'proposed',
+			proposal: { summary: null, items: [item('a'), withFood] }
+		} as never);
+		expect(result?.proposal?.items[0]).toMatchObject({ newFood: null });
+		expect(result?.proposal?.items[1]).toMatchObject({
+			newFood: { name: 'Skyr', brand: 'Emmi', servingSize: 150, servingUnit: 'g' }
+		});
+		expect(result?.proposal?.items[1]).not.toHaveProperty('food');
+		expect(result?.proposal?.items[1]).not.toHaveProperty('entry');
+		expect(
+			serializeClaudeProcessing({
+				state: 'proposed',
+				proposal: {
+					summary: null,
+					items: [{ ...item('g'), food: { name: 'X', servingSize: 1, servingUnit: 'ml' } }]
+				}
+			} as never)?.proposal?.items[0]?.newFood
+		).toEqual({ name: 'X', brand: null, servingSize: 1, servingUnit: 'ml' });
 	});
 
 	test('hides terminal runs, missing runs and non-pending tasks', () => {
@@ -192,5 +226,64 @@ describe('acceptProposal', () => {
 		queueAccept();
 		h.completeAiTaskBy.mockResolvedValue(undefined);
 		await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
+	});
+
+	describe('items that create a new food', () => {
+		const PROVISIONAL = '33333333-3333-4333-8333-333333333333';
+		const food = { name: 'Skyr', brand: null, servingSize: 150, servingUnit: 'g', barcode: '761' };
+		const withFood = (id: string, provisional = PROVISIONAL) => ({
+			...item(id),
+			foodId: provisional,
+			food,
+			entry: { foodId: provisional, mealType: 'Lunch', servings: 1 }
+		});
+		const newFoodProposal = {
+			summary: 'Skyr',
+			items: [withFood('a'), withFood('b'), item('c')]
+		};
+		const queueNew = () =>
+			queueAccept({ run: [{ state: 'proposed', attempt: 2, proposal: newFoodProposal }] });
+
+		test('creates the food once inside the transaction and points every entry at it', async () => {
+			queueNew();
+			await acceptProposal('user-1', 'task-1');
+			expect(h.createFood).toHaveBeenCalledTimes(1);
+			expect(h.createFood.mock.calls[0]![1]).toEqual(food);
+			expect(h.createFood.mock.calls[0]![2]).toBe(h.createEntry.mock.calls[0]![3].tx);
+			expect(h.createEntry.mock.calls.map((call) => call[1].foodId)).toEqual([
+				'new-food',
+				'new-food',
+				undefined
+			]);
+		});
+
+		test('creates nothing for items that were not selected', async () => {
+			queueNew();
+			await acceptProposal('user-1', 'task-1', ['c']);
+			expect(h.createFood).not.toHaveBeenCalled();
+		});
+
+		test('reuses a food that already has the barcode', async () => {
+			queueNew();
+			h.findFoodByBarcode.mockResolvedValue({ id: 'existing' });
+			await acceptProposal('user-1', 'task-1', ['a']);
+			expect(h.createFood).not.toHaveBeenCalled();
+			expect(h.createEntry.mock.calls[0]![1].foodId).toBe('existing');
+		});
+
+		test('treats a food that cannot be created as a stale proposal', async () => {
+			queueNew();
+			h.createFood.mockResolvedValue({ success: false, error: new ApiError(400, 'bad food') });
+			await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
+			expect(h.createEntry).not.toHaveBeenCalled();
+			expect(h.dropStale).toHaveBeenCalledWith('user-1', 'task-1', 2, 'a');
+		});
+
+		test('rethrows an unexpected food failure', async () => {
+			queueNew();
+			h.createFood.mockResolvedValue({ success: false, error: new Error('db down') });
+			await expect(acceptProposal('user-1', 'task-1')).rejects.toThrow('db down');
+			expect(h.dropStale).not.toHaveBeenCalled();
+		});
 	});
 });

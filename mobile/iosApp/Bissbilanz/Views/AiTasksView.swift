@@ -606,6 +606,11 @@ private struct ClaudeProposalCard: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name).font(.subheadline)
+                    if item.newFood != nil {
+                        Text(L10n.aiTasksProposalNewFood)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
                     if let quantity = item.quantityDescription, !quantity.isEmpty {
                         Text(quantity).font(.caption).foregroundStyle(.secondary)
                     }

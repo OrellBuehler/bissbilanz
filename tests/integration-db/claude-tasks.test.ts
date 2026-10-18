@@ -233,7 +233,12 @@ describe('auto mode', () => {
 		expect(firstCall).not.toHaveProperty('thinking');
 		expect(firstCall).not.toHaveProperty('tool_choice');
 		expect(firstCall).not.toHaveProperty('temperature');
-		for (const tool of firstCall!.tools!) {
+		expect(firstCall!.tools![0]).toEqual({
+			type: 'web_search_20260209',
+			name: 'web_search',
+			max_uses: 3
+		});
+		for (const tool of firstCall!.tools!.slice(1)) {
 			const definition = tool as Anthropic.Tool;
 			expect(definition.strict).toBe(true);
 			expect(definition.input_schema.additionalProperties).toBe(false);
@@ -448,6 +453,245 @@ describe('auto mode', () => {
 		await execute(user.id, task.id);
 		const results = fake.calls[1]!.messages[2]!.content as Anthropic.ToolResultBlockParam[];
 		expect(String(results[0]!.content).length).toBeLessThanOrEqual(8000);
+	});
+});
+
+const foodToolInput = (overrides: Record<string, unknown> = {}) => ({
+	name: 'Skyr Natur',
+	brand: 'Emmi',
+	servingSize: 150,
+	servingUnit: 'g',
+	calories: 90,
+	protein: 16,
+	carbs: 5,
+	fat: 0.2,
+	fiber: 0,
+	nutrients: [
+		{ nutrient: 'sodium', amount: 40 },
+		{ nutrient: 'calcium', amount: 120 }
+	],
+	barcode: '7610000000017',
+	ingredientsText: 'Skim milk, cultures',
+	...overrides
+});
+
+const createFoodStep = (overrides: Record<string, unknown> = {}, id?: string) =>
+	toolStep(toolUse('create_food', foodToolInput(overrides), id));
+
+const userFoods = (userId: string) => db.select().from(foods).where(eq(foods.userId, userId));
+
+const createdFoodId = (params: Anthropic.MessageCreateParamsNonStreaming): string => {
+	const results = params.messages.at(-1)!.content as Anthropic.ToolResultBlockParam[];
+	return JSON.parse(String(results[0]!.content)).foodId;
+};
+
+const expectedReservation = async (request: Anthropic.MessageCreateParamsNonStreaming) => {
+	const pricing = await import('$lib/server/claude/pricing');
+	const constants = await import('$lib/server/claude/constants');
+	return pricing.maxCallCostUsd(
+		claudeTestConfig.model,
+		callModule.estimateInputTokens(
+			{
+				system: request.system as Anthropic.TextBlockParam[],
+				tools: request.tools!,
+				messages: request.messages
+			},
+			0
+		),
+		constants.TASK_MAX_TOKENS,
+		callModule.maxWebSearchesOf(request.tools!)
+	);
+};
+
+describe('create_food in auto mode', () => {
+	it('creates the food with its nutrients and lets the model log it by id', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		let foodId = '';
+		startFake([
+			createFoodStep({}, 'toolu_create'),
+			(params) => {
+				foodId = createdFoodId(params);
+				return logStep({ foodId, servings: 2, quantityDescription: '300 g' });
+			},
+			completeStep('Logged your skyr')
+		]);
+		await execute(user.id, task.id);
+
+		const created = await userFoods(user.id);
+		expect(created).toHaveLength(1);
+		expect(created[0]).toMatchObject({
+			id: foodId,
+			name: 'Skyr Natur',
+			brand: 'Emmi',
+			servingSize: 150,
+			servingUnit: 'g',
+			calories: 90,
+			barcode: '7610000000017',
+			sodium: 40,
+			calcium: 120,
+			ingredientsText: 'Skim milk, cultures'
+		});
+		const entries = await entriesOf(user.id);
+		expect(entries).toHaveLength(1);
+		expect(entries[0]).toMatchObject({ foodId, servings: 2 });
+		expect((await taskOf(task.id)).status).toBe('completed');
+	});
+
+	it('returns a duplicate barcode to the model as a tool error', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		await seedFood(user.id, { name: 'Existing skyr', barcode: '7610000000017' });
+		const fake = startFake([createFoodStep(), dismissStep('already there')]);
+		await execute(user.id, task.id);
+		const results = fake.calls[1]!.messages.at(-1)!.content as Anthropic.ToolResultBlockParam[];
+		expect(results[0]).toMatchObject({ is_error: true });
+		expect(String(results[0]!.content)).toContain('Existing skyr');
+		expect(await userFoods(user.id)).toHaveLength(1);
+	});
+
+	it('creates an identical food only once when the model asks twice', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		startFake([
+			toolStep(toolUse('create_food', foodToolInput()), toolUse('create_food', foodToolInput())),
+			dismissStep('done')
+		]);
+		await execute(user.id, task.id);
+		expect(await userFoods(user.id)).toHaveLength(1);
+	});
+});
+
+describe('create_food in review mode', () => {
+	const proposeNewFood = async (
+		logs: Record<string, unknown>[] = [{ servings: 1 }, { servings: 2 }],
+		extra: Record<string, unknown>[] = []
+	) => {
+		const user = await seedUser(db, { autoLog: false });
+		const task = await seedTask(db, user.id);
+		const existing = extra.length > 0 ? await seedFood(user.id) : null;
+		let foodId = '';
+		startFake([
+			createFoodStep({}, 'toolu_create'),
+			(params) => {
+				foodId = createdFoodId(params);
+				return toolStep(
+					...logs.map((log) => toolUse('log_food', logInput({ foodId, ...log }))),
+					...extra.map((log) => toolUse('log_food', logInput({ foodId: existing!.id, ...log })))
+				);
+			},
+			completeStep('Suggested your skyr')
+		]);
+		await execute(user.id, task.id);
+		return { user, task, existing, foodId: () => foodId };
+	};
+
+	it('writes no food while proposing and exposes only the public newFood', async () => {
+		const { user, task, foodId } = await proposeNewFood();
+		expect(await userFoods(user.id)).toHaveLength(0);
+		expect(await entriesOf(user.id)).toHaveLength(0);
+		const run = await runOf(task.id);
+		expect(run.state).toBe('proposed');
+		const stored = run.proposal as { items: { foodId: string; food: Record<string, unknown> }[] };
+		expect(stored.items.map((item) => item.foodId)).toEqual([foodId(), foodId()]);
+		expect(stored.items[0]!.food).toMatchObject({ name: 'Skyr Natur', sodium: 40 });
+		const serialized = proposal.serializeClaudeProcessing(run);
+		expect(serialized?.proposal?.items[0]?.newFood).toEqual({
+			name: 'Skyr Natur',
+			brand: 'Emmi',
+			servingSize: 150,
+			servingUnit: 'g'
+		});
+		expect(JSON.stringify(serialized)).not.toContain('"food"');
+		expect(JSON.stringify(serialized)).not.toContain('sodium');
+	});
+
+	it('creates the food once on accept and points every entry at it', async () => {
+		const { user, task, foodId } = await proposeNewFood();
+		await proposal.acceptProposal(user.id, task.id);
+		const created = await userFoods(user.id);
+		expect(created).toHaveLength(1);
+		expect(created[0]!.id).not.toBe(foodId());
+		expect(created[0]).toMatchObject({ name: 'Skyr Natur', sodium: 40, calcium: 120 });
+		const entries = await entriesOf(user.id);
+		expect(entries).toHaveLength(2);
+		expect(entries.every((entry) => entry.foodId === created[0]!.id)).toBe(true);
+	});
+
+	it('creates the food when only one of the items using it is accepted', async () => {
+		const { user, task } = await proposeNewFood();
+		const items = ((await runOf(task.id)).proposal as { items: { id: string }[] }).items;
+		await proposal.acceptProposal(user.id, task.id, [items[1]!.id]);
+		expect(await userFoods(user.id)).toHaveLength(1);
+		expect(await entriesOf(user.id)).toHaveLength(1);
+	});
+
+	it('creates no food for items that are not accepted', async () => {
+		const { user, task } = await proposeNewFood([{ servings: 1 }], [{ servings: 1 }]);
+		const items = ((await runOf(task.id)).proposal as { items: { id: string }[] }).items;
+		await proposal.acceptProposal(user.id, task.id, [items[1]!.id]);
+		expect(await userFoods(user.id)).toHaveLength(1);
+		expect((await userFoods(user.id))[0]!.name).toBe('Greek yogurt');
+		expect(await entriesOf(user.id)).toHaveLength(1);
+	});
+
+	it('reuses a food that got the same barcode in the meantime', async () => {
+		const { user, task } = await proposeNewFood([{ servings: 1 }]);
+		const existing = await seedFood(user.id, { name: 'Added by hand', barcode: '7610000000017' });
+		await proposal.acceptProposal(user.id, task.id);
+		expect(await userFoods(user.id)).toHaveLength(1);
+		const entries = await entriesOf(user.id);
+		expect(entries[0]!.foodId).toBe(existing.id);
+	});
+
+	it('rolls the new food back when another item of the proposal cannot be created', async () => {
+		const { user, task, existing } = await proposeNewFood([{ servings: 1 }], [{ servings: 1 }]);
+		await db.delete(foods).where(eq(foods.id, existing!.id));
+		startFake([dismissStep('nothing left to propose')]);
+		await expect(proposal.acceptProposal(user.id, task.id)).rejects.toMatchObject({ status: 409 });
+		expect(await userFoods(user.id)).toHaveLength(0);
+		expect(await entriesOf(user.id)).toHaveLength(0);
+	});
+});
+
+describe('web search', () => {
+	it('keeps server tool blocks, continues paused turns and bills the searches', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const serverBlocks = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'skyr' } },
+			{ type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] }
+		];
+		const fake = startFake([
+			message(serverBlocks, 'pause_turn', {
+				usage: { server_tool_use: { web_search_requests: 2, web_fetch_requests: 0 } }
+			}),
+			completeStep()
+		]);
+		await execute(user.id, task.id);
+		expect(fake.calls).toHaveLength(2);
+		expect(fake.calls[1]!.messages[1]).toEqual({ role: 'assistant', content: serverBlocks });
+		const rows = (await db.select().from(claudeUsage)).sort(
+			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+		);
+		const tokens = (1000 * 4 + 200 * 20) / 1e6;
+		expect(rows[0]!.costUsd).toBeCloseTo(tokens + 0.02, 6);
+		expect(rows[1]!.costUsd).toBeCloseTo(tokens, 6);
+		expect(rows[0]!.reservedUsd).toBeCloseTo(await expectedReservation(fake.calls[0]!), 6);
+		expect(rows[0]!.reservedUsd).toBeGreaterThan(0.03);
+	});
+
+	it('sends no web search tool and reserves no search allowance when disabled', async () => {
+		claudeTestConfig.maxWebSearches = 0;
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const fake = startFake([completeStep()]);
+		await execute(user.id, task.id);
+		expect(
+			fake.calls[0]!.tools!.some((tool) => 'type' in tool && tool.type?.startsWith('web_search'))
+		).toBe(false);
+		const [row] = await db.select().from(claudeUsage);
+		expect(row!.reservedUsd).toBeCloseTo(await expectedReservation(fake.calls[0]!), 6);
 	});
 });
 
@@ -773,7 +1017,9 @@ describe('leases and fencing', () => {
 			timeZone: 'UTC',
 			locale: 'en',
 			fence: stale,
-			seen: new Map<string, number>()
+			seen: new Map<string, number>(),
+			foods: new Map<string, Record<string, unknown>>(),
+			createdFoods: new Map<string, Record<string, unknown>>()
 		};
 		await expect(
 			tools.runTaskTool('log_food', logInput({ quickName: 'Toast', quickCalories: 100 }), context)
@@ -1112,7 +1358,7 @@ describe('outcomes', () => {
 	it('treats other stop reasons as incomplete', async () => {
 		const user = await seedUser(db);
 		const task = await seedTask(db, user.id);
-		startFake([message([textBlock('paused')], 'pause_turn')]);
+		startFake([message([textBlock('stopped')], 'stop_sequence')]);
 		await execute(user.id, task.id);
 		expect(await runOf(task.id)).toMatchObject({
 			state: 'dismissed',

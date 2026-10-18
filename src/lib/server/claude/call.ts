@@ -19,7 +19,7 @@ import { maxCallCostUsd, priceUsage } from './pricing';
 
 export type ClaudeCallParams = {
 	system: Anthropic.TextBlockParam[];
-	tools: Anthropic.Tool[];
+	tools: Anthropic.ToolUnion[];
 	messages: Anthropic.MessageParam[];
 };
 
@@ -67,6 +67,16 @@ export function estimateInputTokens(params: ClaudeCallParams, imageCount: number
 		Math.ceil(Buffer.byteLength(text, 'utf8') / 2) +
 		TOOL_USE_OVERHEAD_TOKENS +
 		IMAGE_TOKEN_BOUND * imageCount
+	);
+}
+
+export function maxWebSearchesOf(tools: Anthropic.ToolUnion[]): number {
+	return tools.reduce(
+		(sum, tool) =>
+			'type' in tool && tool.type?.startsWith('web_search') && 'max_uses' in tool
+				? sum + (tool.max_uses ?? 0)
+				: sum,
+		0
 	);
 }
 
@@ -162,7 +172,8 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	const reservedUsd = maxCallCostUsd(
 		model,
 		estimateInputTokens(params, options.imageCount),
-		TASK_MAX_TOKENS
+		TASK_MAX_TOKENS,
+		maxWebSearchesOf(params.tools)
 	);
 
 	let usageId: string;

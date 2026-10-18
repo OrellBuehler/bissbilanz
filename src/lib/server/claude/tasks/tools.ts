@@ -5,16 +5,19 @@ import { z } from 'zod';
 import { getDB } from '../../db';
 import { createEntry, eatenAtOnDate, validateMealType } from '../../entries';
 import { ApiError, isZodError, McpUserError } from '../../errors';
-import { getFood } from '../../foods';
+import { findFoodByBarcode, getFood } from '../../foods';
 import { getRecipe } from '../../recipes';
 import {
+	handleCreateFood,
 	handleFindFoodByBarcode,
 	handleGetRecipe,
 	handleListRecipes,
 	handleSearchFoods,
 	handleSearchOpenFoodFacts
 } from '../../mcp/handlers';
-import { entryCreateSchema } from '../../validation';
+import { ALL_NUTRIENTS } from '$lib/nutrients';
+import { servingUnitValues } from '$lib/units';
+import { entryCreateSchema, foodCreateSchema } from '../../validation';
 import { LeaseLostError } from '../errors';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
@@ -45,6 +48,43 @@ const strictTool = (
 	}
 });
 
+const CREATE_FOOD_DESCRIPTION =
+	"Create a new food in the user's food database, with nutrition per serving. Use it only after search_foods, find_food_by_barcode and search_openfoodfacts found nothing that fits, the user will likely eat the item again, and you have real nutrition data (label photo, Open Food Facts, or web research). Fill in every nutrient you know; use null or omit the rest. Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.";
+
+const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
+const NUTRIENT_LIST = ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ');
+
+const createFoodTool = strictTool('create_food', CREATE_FOOD_DESCRIPTION, {
+	name: text('Food name'),
+	brand: nullable('string', 'Brand name'),
+	servingSize: { type: 'number', description: 'Serving size amount, greater than 0' },
+	servingUnit: {
+		type: 'string',
+		enum: [...servingUnitValues],
+		description: 'Unit of the serving size'
+	},
+	calories: { type: 'number', description: 'Calories per serving' },
+	protein: { type: 'number', description: 'Protein in grams per serving' },
+	carbs: { type: 'number', description: 'Carbohydrates in grams per serving' },
+	fat: { type: 'number', description: 'Fat in grams per serving' },
+	fiber: { type: 'number', description: 'Fiber in grams per serving' },
+	nutrients: {
+		type: 'array',
+		items: {
+			type: 'object',
+			properties: {
+				nutrient: { type: 'string', enum: NUTRIENT_KEYS },
+				amount: { type: 'number' }
+			},
+			required: ['nutrient', 'amount'],
+			additionalProperties: false
+		},
+		description: `Every other nutrient you know, per serving, in the unit shown: ${NUTRIENT_LIST}. Empty array when none are known.`
+	},
+	barcode: nullable('string', 'Barcode digits, when visible'),
+	ingredientsText: text('Full ingredients text, or an empty string when unknown')
+});
+
 const TOOL_DEFINITIONS: Anthropic.Tool[] = [
 	strictTool(
 		'search_foods',
@@ -64,7 +104,7 @@ const TOOL_DEFINITIONS: Anthropic.Tool[] = [
 	),
 	strictTool(
 		'find_food_by_barcode',
-		"Look up a barcode in the user's foods, then in Open Food Facts. Open Food Facts products are not saved: log them as quick entries with the returned per-serving values.",
+		"Look up a barcode in the user's foods, then in Open Food Facts. Open Food Facts products are not saved: create them with create_food using the returned values when the user will likely eat them again, otherwise log a quick entry.",
 		{ barcode: text('The barcode digits') }
 	),
 	strictTool(
@@ -75,6 +115,7 @@ const TOOL_DEFINITIONS: Anthropic.Tool[] = [
 			limit: nullable('integer', 'Maximum number of results, at most 5. Default 5.')
 		}
 	),
+	createFoodTool,
 	strictTool(
 		'log_food',
 		"Log one food, recipe or quick entry for the meal. Give foodId or recipeId, or the quick values for a one-off estimate. servings is the number of servings of the food's own serving size. Quick values are per serving. Use null for anything that does not apply.",
@@ -132,6 +173,24 @@ const inputSchemas = {
 		query: z.string().min(1).max(200),
 		limit: z.number().int().min(1).nullish()
 	}),
+	create_food: z.object({
+		name: z.string(),
+		brand: z.string().nullish(),
+		servingSize: z.number(),
+		servingUnit: z.string(),
+		calories: z.number(),
+		protein: z.number(),
+		carbs: z.number(),
+		fat: z.number(),
+		fiber: z.number(),
+		nutrients: z
+			.array(
+				z.object({ nutrient: z.enum(NUTRIENT_KEYS as [string, ...string[]]), amount: z.number() })
+			)
+			.default([]),
+		barcode: z.string().nullish(),
+		ingredientsText: z.string().default('')
+	}),
 	log_food: z.object({
 		foodId: z.string().uuid().nullish(),
 		recipeId: z.string().uuid().nullish(),
@@ -158,7 +217,12 @@ export type TaskToolContext = {
 	locale: string | null;
 	fence: Fence;
 	seen: Map<string, number>;
+	foods: Map<string, ProvisionalFood>;
+	createdFoods: Map<string, FoodToolResult>;
 };
+
+type ProvisionalFood = Record<string, unknown>;
+type FoodToolResult = Record<string, unknown>;
 
 export type ToolResult = { content: string; isError: boolean; outcome?: TaskOutcome };
 
@@ -192,7 +256,8 @@ const trimBarcodeResult = (result: Record<string, unknown>) => {
 		Object.entries(result).filter(([key, value]) => value !== null && !BARCODE_OMIT.test(key))
 	);
 	if (result.source === 'openfoodfacts') {
-		trimmed.hint = 'Log it as a quick entry with these per-serving values.';
+		trimmed.hint =
+			'Not saved. If the user will likely eat it again, save it with create_food using these per-serving values and the barcode; otherwise log a quick entry.';
 	}
 	return trimmed;
 };
@@ -252,6 +317,63 @@ function canonical(value: unknown): unknown {
 	return value;
 }
 
+const FOOD_RESULT_FIELDS = [
+	'name',
+	'brand',
+	'servingSize',
+	'servingUnit',
+	'calories',
+	'protein',
+	'carbs',
+	'fat',
+	'fiber'
+] as const;
+
+async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
+	const { nutrients, ...fields } = inputSchemas.create_food.parse(input);
+	const parsed = foodCreateSchema.safeParse({
+		...Object.fromEntries(
+			Object.entries(fields).filter(([, value]) => value !== null && value !== '')
+		),
+		...Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]))
+	});
+	if (!parsed.success) throw parsed.error;
+	const data = parsed.data;
+
+	const hash = hashPayload(data);
+	const known = ctx.createdFoods.get(hash);
+	if (known) return known;
+
+	if (data.barcode) {
+		const existing = await findFoodByBarcode(ctx.userId, data.barcode);
+		if (existing) {
+			throw new ToolInputError(
+				`A food with barcode ${data.barcode} already exists: "${existing.name}" (foodId ${existing.id}). Log that foodId instead.`
+			);
+		}
+	}
+
+	let result: FoodToolResult;
+	if (ctx.mode === 'review') {
+		const foodId = crypto.randomUUID();
+		ctx.foods.set(foodId, data);
+		result = {
+			foodId,
+			...pick(data, FOOD_RESULT_FIELDS),
+			note: 'Not saved yet: the food is created only if the user accepts the logged item. Pass this foodId to log_food.'
+		};
+	} else {
+		await withFence(ctx.fence, async () => undefined);
+		const created = asRecord(await handleCreateFood(ctx.userId, data));
+		if (!created.success) {
+			throw new ToolInputError(String(created.error ?? 'Could not create the food'));
+		}
+		result = { foodId: created.foodId, ...pick(asRecord(created.food), FOOD_RESULT_FIELDS) };
+	}
+	ctx.createdFoods.set(hash, result);
+	return result;
+}
+
 async function logFood(
 	input: z.infer<(typeof inputSchemas)['log_food']>,
 	ctx: TaskToolContext
@@ -259,7 +381,8 @@ async function logFood(
 	const mealType = ctx.task.mealType ?? input.mealType;
 	if (!mealType) throw new ToolInputError('mealType is required because the task has none');
 
-	const food = input.foodId ? await getFood(ctx.userId, input.foodId) : null;
+	const provisional = input.foodId ? ctx.foods.get(input.foodId) : undefined;
+	const food = provisional ?? (input.foodId ? await getFood(ctx.userId, input.foodId) : null);
 	if (input.foodId && !food) throw new ToolInputError('Food not found');
 	const recipe = input.recipeId ? await getRecipe(ctx.userId, input.recipeId) : null;
 	if (input.recipeId && !recipe) throw new ToolInputError('Recipe not found');
@@ -284,7 +407,7 @@ async function logFood(
 	}
 
 	const normalizedPayload = { ...payloadWithoutTime, mealType: parsed.data.mealType };
-	const name = input.quickName ?? food?.name ?? recipe?.name ?? 'entry';
+	const name = input.quickName ?? String(food?.name ?? recipe?.name ?? 'entry');
 	const eatenAt = await resolveEatenAt(ctx, parsed.data.mealType, input.eatenAt);
 	const payload = { ...normalizedPayload, eatenAt };
 
@@ -319,7 +442,8 @@ async function logFood(
 			carbs: macros('carbs'),
 			fat: macros('fat'),
 			fiber: macros('fiber'),
-			entry: { ...parsed.data, eatenAt }
+			entry: { ...parsed.data, eatenAt },
+			...(provisional ? { food: provisional } : {})
 		};
 		await withFence(ctx.fence, async (tx) => {
 			const run = await loadRun(ctx.fence.taskId, tx);
@@ -400,6 +524,8 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 			const products = (result.products as Record<string, unknown>[] | undefined) ?? [];
 			return { products: products.map(trimBarcodeResult) };
 		}
+		case 'create_food':
+			return createFoodForTask(input, ctx);
 		case 'log_food':
 			return logFood(inputSchemas.log_food.parse(input), ctx);
 		default:

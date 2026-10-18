@@ -72,7 +72,8 @@ struct ClaudeProcessingTests {
                     "servings": 2, "calories": 156, "protein": 12.6, "carbs": 1.2, "fat": 10.6, "fiber": 0
                 }, {
                     "id": "i2", "name": "Toast", "quantityDescription": null, "foodId": null, "recipeId": "r1",
-                    "servings": 1, "calories": 80, "protein": 3, "carbs": 15, "fat": 1, "fiber": 1.5
+                    "servings": 1, "calories": 80, "protein": 3, "carbs": 15, "fat": 1, "fiber": 1.5,
+                    "newFood": { "name": "Toast", "brand": null, "servingSize": 30, "servingUnit": "g" }
                 }]
             }
         }
@@ -86,6 +87,10 @@ struct ClaudeProcessingTests {
         #expect(proposal.items[1].quantityDescription == nil)
         #expect(proposal.items[1].recipeId == "r1")
         #expect(proposal.items[0].protein == 12.6)
+        #expect(proposal.items[0].newFood == nil)
+        #expect(proposal.items[1].newFood == AiTaskProposalNewFood(
+            name: "Toast", brand: nil, servingSize: 30, servingUnit: "g"
+        ))
     }
 
     @Test("An unknown state and an unknown processedByKind decode without failing")

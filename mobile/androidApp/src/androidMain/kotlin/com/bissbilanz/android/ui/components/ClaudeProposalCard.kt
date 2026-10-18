@@ -100,6 +100,14 @@ fun ClaudeProposalCard(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        if (item.newFood != null) {
+                            Text(
+                                stringResource(R.string.ai_tasks_proposal_new_food),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                            )
+                        }
                         item.quantityDescription?.takeIf { it.isNotBlank() }?.let {
                             Text(
                                 it,

@@ -18,7 +18,8 @@ const ALLOWED_SCHEMA_KEYS = new Set([
 	'enum',
 	'description',
 	'additionalProperties',
-	'anyOf'
+	'anyOf',
+	'items'
 ]);
 
 describe('TASK_TOOLS', () => {
@@ -29,6 +30,7 @@ describe('TASK_TOOLS', () => {
 			'get_recipe',
 			'find_food_by_barcode',
 			'search_openfoodfacts',
+			'create_food',
 			'log_food',
 			'complete_ai_task',
 			'dismiss_ai_task'
@@ -93,7 +95,6 @@ describe('prompt and tools are byte-stable', () => {
 
 	test('do not mention tools that do not exist here', () => {
 		for (const forbidden of [
-			'create_food',
 			'list_meal_types',
 			'supplement',
 			'set_food_labels',
@@ -122,7 +123,7 @@ describe('prompt and tools are byte-stable', () => {
 
 	test('stay identical to the reviewed text', () => {
 		expect(createHash('sha256').update(serialized).digest('hex')).toMatchInlineSnapshot(
-			`"60d139dde0b356c339d71032f0ebc3de13a482bb31305cda50805f1a1fd8c887"`
+			`"53bce423fe492277325e441c912fa275b4466fd23fa252926c2a6ba284994446"`
 		);
 	});
 });

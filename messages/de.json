@@ -1395,6 +1395,7 @@
 	"ai_tasks_proposal_title": "Vorgeschlagene Einträge",
 	"ai_tasks_proposal_log": "Auswahl eintragen",
 	"ai_tasks_proposal_discard": "Verwerfen",
+	"ai_tasks_proposal_new_food": "Neues Lebensmittel",
 	"ai_tasks_proposal_none_selected": "Wähle mindestens einen Eintrag aus.",
 	"ai_tasks_proposal_logged": "Einträge eingetragen",
 	"ai_tasks_dismiss_conflict": "Diese Aufgabe wurde anderswo geändert. Die Liste wurde aktualisiert.",

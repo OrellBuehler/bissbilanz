@@ -86,6 +86,15 @@ struct AiTaskProposalItem: Codable, Hashable, Identifiable {
     let carbs: Double
     let fat: Double
     let fiber: Double
+    /// Set when accepting this item also creates a new food; nil on responses from older servers.
+    var newFood: AiTaskProposalNewFood?
+}
+
+struct AiTaskProposalNewFood: Codable, Hashable {
+    let name: String
+    let brand: String?
+    let servingSize: Double
+    let servingUnit: String
 }
 
 /// Body of `POST /api/ai-tasks/{id}/proposal/accept`. The ids are always sent

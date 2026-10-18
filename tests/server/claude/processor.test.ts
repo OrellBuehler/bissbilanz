@@ -19,7 +19,8 @@ const h = vi.hoisted(() => ({
 	listMealTypes: vi.fn(),
 	getUserTimeZone: vi.fn(),
 	loadTaskPhotos: vi.fn(),
-	captureException: vi.fn()
+	captureException: vi.fn(),
+	config: { maxIterations: 5, maxWebSearches: 3 }
 }));
 
 const { db, queueResults, reset } = createMockDB();
@@ -51,7 +52,9 @@ vi.mock('$lib/server/claude/tasks/tools', () => ({
 	runTaskTool: h.runTaskTool
 }));
 vi.mock('$lib/server/claude/call', () => ({ callClaude: h.callClaude }));
-vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => ({ maxIterations: 5 }) }));
+vi.mock('$lib/server/claude/config', () => ({
+	claudeConfig: () => h.config
+}));
 vi.mock('$lib/server/claude/capability', () => ({ assertClaudeAllowed: h.assertClaudeAllowed }));
 vi.mock('$lib/server/ai-tasks', () => ({ getAiTask: h.getAiTask }));
 vi.mock('$lib/server/meal-types', () => ({ listMealTypes: h.listMealTypes }));
@@ -97,7 +100,8 @@ const fence = { taskId: TASK_ID, instance: 'inst', attempt: 1 };
 
 beforeEach(() => {
 	reset();
-	for (const fn of Object.values(h)) fn.mockReset();
+	h.config.maxWebSearches = 3;
+	for (const fn of Object.values(h)) if (typeof fn === 'function') fn.mockReset();
 	queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
 	h.claimRun.mockResolvedValue(run());
 	h.heartbeat.mockResolvedValue(true);
@@ -134,6 +138,31 @@ describe('claiming', () => {
 		await processTask(TASK_ID, options());
 		expect(h.supersedeRun).toHaveBeenCalledTimes(1);
 		expect(h.callClaude).not.toHaveBeenCalled();
+	});
+});
+
+describe('web search', () => {
+	const finish = () => {
+		h.callClaude.mockResolvedValueOnce(
+			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
+		);
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+	};
+
+	test('puts the capped server web search tool in front of the task tools', async () => {
+		finish();
+		await processTask(TASK_ID, options());
+		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([
+			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+			{ name: 'tool' }
+		]);
+	});
+
+	test('leaves it out when disabled', async () => {
+		h.config.maxWebSearches = 0;
+		finish();
+		await processTask(TASK_ID, options());
+		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([{ name: 'tool' }]);
 	});
 });
 
@@ -272,7 +301,7 @@ describe('the loop', () => {
 		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
 	});
 
-	test.each(['pause_turn', 'stop_sequence', 'model_context_window_exceeded'])(
+	test.each(['stop_sequence', 'model_context_window_exceeded'])(
 		'treats %s as unfinished',
 		async (reason) => {
 			h.callClaude.mockResolvedValueOnce(response(reason));
@@ -281,6 +310,41 @@ describe('the loop', () => {
 			expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
 		}
 	);
+
+	test('continues a paused turn with the assistant content unchanged', async () => {
+		const serverBlocks = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'skyr' } },
+			{ type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('pause_turn', serverBlocks))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		const messages = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(messages[1]).toEqual({ role: 'assistant', content: serverBlocks });
+		expect(h.dismissRun).not.toHaveBeenCalled();
+	});
+
+	test('keeps server tool blocks next to tool_use blocks in the assistant message', async () => {
+		const content = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'q' } },
+			{ type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+			toolUse('toolu_a', 'search_foods')
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', content))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const messages = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(messages[1]).toEqual({ role: 'assistant', content });
+		expect(messages[2].content).toHaveLength(1);
+		expect(messages[2].content[0]).toMatchObject({ tool_use_id: 'toolu_a' });
+	});
 
 	test('treats tool_use without tool blocks as unfinished', async () => {
 		h.callClaude.mockResolvedValueOnce(response('tool_use', [{ type: 'text', text: 'hm' }]));

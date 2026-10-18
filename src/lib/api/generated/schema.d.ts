@@ -3375,6 +3375,13 @@ export interface components {
 			carbs: number;
 			fat: number;
 			fiber: number;
+			newFood: components['schemas']['AiTaskProposalNewFood'] | null;
+		};
+		AiTaskProposalNewFood: {
+			name: string;
+			brand: string | null;
+			servingSize: number;
+			servingUnit: string;
 		};
 		AiTaskResponse: {
 			task: components['schemas']['AiTask'];

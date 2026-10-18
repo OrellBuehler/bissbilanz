@@ -12,6 +12,12 @@
 						"foodId": "ec1948d3-2126-4c10-8b8f-e3093566990e",
 						"id": "dbd9c60b-ed92-4ce8-8a46-ef0138cc41a6",
 						"name": "sample-name",
+						"newFood": {
+							"brand": "sample-brand",
+							"name": "sample-name",
+							"servingSize": 100,
+							"servingUnit": "sample-servingUnit"
+						},
 						"protein": 30,
 						"quantityDescription": "sample-quantityDescription",
 						"recipeId": "5235f15d-bb70-4ad2-8608-07a3bed11aa0",

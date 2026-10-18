@@ -35,6 +35,15 @@ describe('priceUsage', () => {
 		).toBe(0.014);
 	});
 
+	test('bills web searches at ten dollars per thousand on top of tokens', () => {
+		const base = { input_tokens: 1000, output_tokens: 500 };
+		expect(
+			priceUsage('claude-opus-5-5', { ...base, server_tool_use: { web_search_requests: 3 } })
+		).toBe(0.044);
+		expect(priceUsage('claude-opus-5-5', { ...base, server_tool_use: null })).toBe(0.014);
+		expect(priceUsage('claude-opus-5-5', { ...base, server_tool_use: {} })).toBe(0.014);
+	});
+
 	test('rounds to six decimals', () => {
 		expect(priceUsage('claude-haiku-5-5', { input_tokens: 1, output_tokens: 1 })).toBe(0.000001);
 	});
@@ -54,6 +63,13 @@ describe('maxCallCostUsd', () => {
 	test('uses the cache write rate for input and the output rate for max tokens', () => {
 		expect(maxCallCostUsd('claude-opus-5-5', 20_000, 16_000)).toBe(0.42);
 		expect(maxCallCostUsd('claude-sonnet-5-5', 20_000, 16_000)).toBe(0.21);
+	});
+
+	test('reserves the per-search fee and a result token bound for every allowed search', () => {
+		const without = maxCallCostUsd('claude-sonnet-5-5', 20_000, 16_000);
+		const withSearches = maxCallCostUsd('claude-sonnet-5-5', 20_000, 16_000, 3);
+		expect(withSearches - without).toBeCloseTo(3 * (0.01 + (10_000 * 2.5) / 1e6), 6);
+		expect(maxCallCostUsd('claude-sonnet-5-5', 20_000, 16_000, 0)).toBe(without);
 	});
 
 	test('falls back to the most expensive row for unknown models', () => {
