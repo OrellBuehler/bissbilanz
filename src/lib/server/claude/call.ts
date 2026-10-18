@@ -149,12 +149,12 @@ const kindOf = (error: unknown): string => {
 
 export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.Message> {
 	if (!isClaudeConfigured()) throw new ClaudeGateError('not_configured');
-	const model = claudeConfig().model;
+	const { model, effort } = claudeConfig();
 	const { params, signal } = options;
 	const request: Anthropic.MessageCreateParamsNonStreaming = {
 		model,
 		max_tokens: TASK_MAX_TOKENS,
-		output_config: { effort: 'low' },
+		output_config: { effort },
 		system: params.system,
 		tools: params.tools,
 		messages: params.messages

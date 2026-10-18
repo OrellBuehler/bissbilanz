@@ -24,9 +24,22 @@ const REQUIRED_VARS = [
 	'PUBLIC_APP_URL'
 ] as const;
 
-const CLAUDE_DEFAULT_MODEL = 'claude-opus-5-5';
+const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-5-5';
 const CLAUDE_DEFAULT_GLOBAL_BUDGET_USD = 90;
 const CLAUDE_DEFAULT_USER_BUDGET_USD = 10;
+const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
+const CLAUDE_DEFAULT_EFFORT: ClaudeEffort = 'medium';
+const CLAUDE_DEFAULT_MAX_ITERATIONS = 20;
+const CLAUDE_MAX_ITERATIONS_LIMIT = 50;
+
+const isClaudeEffort = (value: string): value is ClaudeEffort =>
+	(CLAUDE_EFFORTS as readonly string[]).includes(value);
+
+const parseClaudeEffort = (value: string | undefined): ClaudeEffort => {
+	const trimmed = value?.trim();
+	return trimmed && isClaudeEffort(trimmed) ? trimmed : CLAUDE_DEFAULT_EFFORT;
+};
 
 // Unset or blank falls back to the default; anything else must be a finite number >= 0.
 const parseClaudeBudget = (value: string | undefined, fallback: number): number | null => {
@@ -88,6 +101,23 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 			'CLAUDE_DEFAULT_USER_BUDGET_USD must be a number between 0 and CLAUDE_GLOBAL_MONTHLY_BUDGET_USD'
 		);
 	}
+	const claudeEffort = env.CLAUDE_EFFORT?.trim();
+	if (claudeEffort && !isClaudeEffort(claudeEffort)) {
+		problems.push(`CLAUDE_EFFORT must be one of ${CLAUDE_EFFORTS.join(', ')}`);
+	}
+	const maxIterations = env.CLAUDE_MAX_ITERATIONS?.trim();
+	if (
+		maxIterations &&
+		!(
+			/^\d+$/.test(maxIterations) &&
+			Number(maxIterations) >= 1 &&
+			Number(maxIterations) <= CLAUDE_MAX_ITERATIONS_LIMIT
+		)
+	) {
+		problems.push(
+			`CLAUDE_MAX_ITERATIONS must be a whole number between 1 and ${CLAUDE_MAX_ITERATIONS_LIMIT}`
+		);
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -143,6 +173,11 @@ export const config = {
 	claude: {
 		apiKey: process.env.ANTHROPIC_API_KEY?.trim() || undefined,
 		model: process.env.CLAUDE_MODEL?.trim() || CLAUDE_DEFAULT_MODEL,
+		effort: parseClaudeEffort(process.env.CLAUDE_EFFORT),
+		maxIterations: toNumber(
+			process.env.CLAUDE_MAX_ITERATIONS?.trim() || undefined,
+			CLAUDE_DEFAULT_MAX_ITERATIONS
+		),
 		globalMonthlyBudgetUsd: toNumber(
 			process.env.CLAUDE_GLOBAL_MONTHLY_BUDGET_USD?.trim() || undefined,
 			CLAUDE_DEFAULT_GLOBAL_BUDGET_USD

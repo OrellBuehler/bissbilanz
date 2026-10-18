@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import Anthropic from '@anthropic-ai/sdk';
 
 const KEY = 'sk-ant-unit-test-secret';
-const config = { model: 'claude-opus-5-5', configured: true, apiKey: KEY as string | undefined };
+const config = {
+	model: 'claude-opus-5-5',
+	effort: 'medium',
+	configured: true,
+	apiKey: KEY as string | undefined
+};
 
 const sentry = vi.hoisted(() => ({
 	captureException: vi.fn(),
@@ -278,7 +283,7 @@ describe('callClaude against the SDK boundary', () => {
 		expect(body).toMatchObject({
 			model: 'claude-opus-5-5',
 			max_tokens: 16000,
-			output_config: { effort: 'low' },
+			output_config: { effort: 'medium' },
 			system: params.system,
 			messages: params.messages
 		});
