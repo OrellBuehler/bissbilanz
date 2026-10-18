@@ -40,10 +40,12 @@ import { unlinkUpload } from '$lib/server/images';
 
 type FoodCreateInput = typeof foodCreateSchema._output;
 
+// Drizzle wraps the Postgres error in a "Failed query" error, so the cause is checked too.
 export function isDuplicateBarcodeError(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
 	const msg = error.message;
-	return msg.includes('unique constraint') && msg.includes('barcode');
+	if (msg.includes('unique constraint') && msg.includes('barcode')) return true;
+	return error.cause !== error && isDuplicateBarcodeError(error.cause);
 }
 
 async function handleBarcodeConflict(

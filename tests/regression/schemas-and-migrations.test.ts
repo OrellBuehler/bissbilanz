@@ -144,6 +144,14 @@ describe('81e55e6e / f5ae76c4 duplicate barcode detection', () => {
 		).toBe(true);
 	});
 
+	test('recognises the Postgres error when Drizzle wraps it as the cause', () => {
+		const pgError = new Error('duplicate key value violates unique constraint "idx_foods_barcode"');
+		const wrapped = new Error('Failed query: insert into "foods" ("barcode") values ($1)', {
+			cause: pgError
+		});
+		expect(isDuplicateBarcodeError(wrapped)).toBe(true);
+	});
+
 	test('does not fire for other unique constraints or non-errors', () => {
 		expect(isDuplicateBarcodeError(new Error('violates unique constraint "foods_pkey" (id)'))).toBe(
 			false
