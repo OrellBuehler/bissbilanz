@@ -3609,7 +3609,7 @@ enum L10n {
     }
 
     static var aiMealEstimateButton: String {
-        localized("ai_meal_estimate_button", en: "Estimate", de: "Schätzen")
+        localized("ai_meal_estimate_button", en: "Estimate & Review", de: "Schätzen & prüfen")
     }
 
     static var aiMealEstimating: String {

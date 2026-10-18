@@ -273,7 +273,13 @@
 			{#if task}
 				{saving ? m.ai_tasks_edit_saving() : m.ai_tasks_edit_submit()}
 			{:else}
-				{saving ? m.ai_tasks_capture_saving() : m.ai_tasks_capture_submit()}
+				{#if saving}
+					{m.ai_tasks_capture_saving()}
+				{:else if aiTaskProcessor === 'claude'}
+					{m.ai_tasks_capture_submit_claude()}
+				{:else}
+					{m.ai_tasks_capture_submit()}
+				{/if}
 			{/if}
 		</Button>
 	</div>

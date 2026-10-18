@@ -135,17 +135,21 @@ extension L10n {
     static var aiTasksCaptureHintClaude: String {
         localized(
             "ai_tasks_capture_hint_claude",
-            en: "Claude processes this meal on the server and logs it for you.",
-            de: "Claude verarbeitet diese Mahlzeit auf dem Server und trägt sie für dich ein."
+            en: "Send to Claude: Claude logs this meal for you on the server, no review needed.",
+            de: "An Claude senden: Claude trägt diese Mahlzeit auf dem Server für dich ein, ohne Prüfung."
         )
     }
 
     static var aiTasksCaptureHintClaudeReview: String {
         localized(
             "ai_tasks_capture_hint_claude_review",
-            en: "Claude processes this meal on the server and suggests entries for you to review.",
-            de: "Claude verarbeitet diese Mahlzeit auf dem Server und schlägt dir Einträge zur Prüfung vor."
+            en: "Send to Claude: Claude suggests entries on the server for you to review in AI Tasks.",
+            de: "An Claude senden: Claude schlägt dir auf dem Server Einträge vor, die du in den KI-Aufgaben prüfst."
         )
+    }
+
+    static var aiTaskSendToClaudeButton: String {
+        localized("ai_task_send_to_claude_button", en: "Send to Claude", de: "An Claude senden")
     }
 
     private static func localized(_ key: String, en: String, de: String) -> String {

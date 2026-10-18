@@ -606,7 +606,8 @@ fun AiMealSheet(
                             stringResource(
                                 when {
                                     isEditing -> R.string.weight_save
-                                    processorIsDevice || claudeEnabled -> R.string.ai_task_send_device
+                                    claudeEnabled -> R.string.ai_task_send_to_claude
+                                    processorIsDevice -> R.string.ai_task_send_device
                                     else -> R.string.ai_task_send
                                 },
                             ),
