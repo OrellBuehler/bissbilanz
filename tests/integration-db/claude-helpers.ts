@@ -7,6 +7,8 @@ export type PoolDB = ReturnType<typeof drizzle<typeof schema>>;
 
 export const claudeTestConfig = {
 	model: 'claude-opus-5-5',
+	effort: 'medium' as const,
+	maxIterations: 10,
 	globalMonthlyBudgetUsd: 90,
 	defaultUserBudgetUsd: 10,
 	configured: true
@@ -22,6 +24,7 @@ export const claudeConfigMock = () => ({
 
 export function resetClaudeTestConfig() {
 	claudeTestConfig.model = 'claude-opus-5-5';
+	claudeTestConfig.maxIterations = 10;
 	claudeTestConfig.globalMonthlyBudgetUsd = 90;
 	claudeTestConfig.defaultUserBudgetUsd = 10;
 	claudeTestConfig.configured = true;

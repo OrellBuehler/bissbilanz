@@ -1,8 +1,9 @@
 import { config } from '$lib/server/env';
 
 export function claudeConfig() {
-	const { model, globalMonthlyBudgetUsd, defaultUserBudgetUsd, configured } = config.claude;
-	return { model, globalMonthlyBudgetUsd, defaultUserBudgetUsd, configured };
+	const { model, effort, maxIterations, globalMonthlyBudgetUsd, defaultUserBudgetUsd, configured } =
+		config.claude;
+	return { model, effort, maxIterations, globalMonthlyBudgetUsd, defaultUserBudgetUsd, configured };
 }
 
 export function claudeApiKey(): string | undefined {

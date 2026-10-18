@@ -24,6 +24,7 @@ import {
 	TEST_API_KEY,
 	abortable,
 	claudeConfigMock,
+	claudeTestConfig,
 	createFakeClaude,
 	message,
 	openPool,
@@ -227,7 +228,7 @@ describe('auto mode', () => {
 		expect(firstCall).toMatchObject({
 			model: 'claude-opus-5-5',
 			max_tokens: 16000,
-			output_config: { effort: 'low' }
+			output_config: { effort: 'medium' }
 		});
 		expect(firstCall).not.toHaveProperty('thinking');
 		expect(firstCall).not.toHaveProperty('tool_choice');
@@ -1052,7 +1053,7 @@ describe('outcomes', () => {
 			)
 		);
 		await execute(user.id, task.id);
-		expect(fake.calls).toHaveLength(processor.MAX_ITERATIONS);
+		expect(fake.calls).toHaveLength(claudeTestConfig.maxIterations);
 		expect(await runOf(task.id)).toMatchObject({
 			state: 'dismissed',
 			failureCode: 'claude_incomplete'

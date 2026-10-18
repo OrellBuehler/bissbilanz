@@ -9,6 +9,7 @@ import { getUserTimeZone } from '../../preferences';
 import { userPreferences, users } from '../../schema';
 import { assertClaudeAllowed } from '../capability';
 import { callClaude } from '../call';
+import { claudeConfig } from '../config';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -38,7 +39,6 @@ import {
 import { TASK_TOOLS, isTerminalTool, runTaskTool, type TaskToolContext } from './tools';
 import type { ClaudeRun, Fence, TaskMode } from './types';
 
-export const MAX_ITERATIONS = 10;
 export const HEARTBEAT_INTERVAL_MS = 60_000;
 export const MAX_TOOL_CALLS_PER_RESPONSE = 20;
 export const MAX_LOG_CALLS_PER_RUN = 30;
@@ -173,7 +173,8 @@ async function runLoop(
 		return false;
 	};
 
-	for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+	const { maxIterations } = claudeConfig();
+	for (let iteration = 0; iteration < maxIterations; iteration++) {
 		if (!(await regate())) return;
 
 		const response = await callClaude({

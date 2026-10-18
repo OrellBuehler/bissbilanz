@@ -51,13 +51,14 @@ vi.mock('$lib/server/claude/tasks/tools', () => ({
 	runTaskTool: h.runTaskTool
 }));
 vi.mock('$lib/server/claude/call', () => ({ callClaude: h.callClaude }));
+vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => ({ maxIterations: 5 }) }));
 vi.mock('$lib/server/claude/capability', () => ({ assertClaudeAllowed: h.assertClaudeAllowed }));
 vi.mock('$lib/server/ai-tasks', () => ({ getAiTask: h.getAiTask }));
 vi.mock('$lib/server/meal-types', () => ({ listMealTypes: h.listMealTypes }));
 vi.mock('$lib/server/preferences', () => ({ getUserTimeZone: h.getUserTimeZone }));
 vi.mock('$lib/server/claude/tasks/photos', () => ({ loadTaskPhotos: h.loadTaskPhotos }));
 
-const { processTask, MAX_ITERATIONS } = await import('$lib/server/claude/tasks/processor');
+const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
 
 const TASK_ID = 'task-1';
@@ -343,7 +344,7 @@ describe('the loop', () => {
 	test('stops after the iteration cap', async () => {
 		h.callClaude.mockResolvedValue(response('tool_use', [toolUse()]));
 		await processTask(TASK_ID, options());
-		expect(h.callClaude).toHaveBeenCalledTimes(MAX_ITERATIONS);
+		expect(h.callClaude).toHaveBeenCalledTimes(5);
 		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
 	});
 
