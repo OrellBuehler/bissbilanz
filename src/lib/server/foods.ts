@@ -50,7 +50,7 @@ async function handleBarcodeConflict(
 	error: unknown,
 	userId: string,
 	barcode: string | null | undefined,
-	dbOverride?: ReturnType<typeof getDB>
+	dbOverride?: TxOrDb
 ): Promise<ApiError | null> {
 	if (!isDuplicateBarcodeError(error) || !barcode) return null;
 	const existing = await findFoodByBarcode(userId, barcode, dbOverride).catch((err) => {
@@ -243,7 +243,7 @@ export const listFoods = async (
 export const createFood = (
 	userId: string,
 	payload: unknown,
-	dbOverride?: ReturnType<typeof getDB>,
+	dbOverride?: TxOrDb,
 	clientEditedAt?: Date | null
 ): Promise<Result<FoodWithLabels>> =>
 	withValidation(foodCreateSchema, payload, async (data) => {
@@ -439,11 +439,7 @@ export const deleteFood = async (
 	return result.deleted;
 };
 
-export const findFoodByBarcode = async (
-	userId: string,
-	barcode: string,
-	dbOverride?: ReturnType<typeof getDB>
-) => {
+export const findFoodByBarcode = async (userId: string, barcode: string, dbOverride?: TxOrDb) => {
 	const db = dbOverride ?? getDB();
 	const [food] = await db
 		.select(foodColumnsWithLabels)

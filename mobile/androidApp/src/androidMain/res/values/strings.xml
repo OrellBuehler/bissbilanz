@@ -259,6 +259,7 @@
     <string name="ai_tasks_proposal_title">Suggested entries</string>
     <string name="ai_tasks_proposal_log">Log selected</string>
     <string name="ai_tasks_proposal_discard">Discard</string>
+    <string name="ai_tasks_proposal_new_food">New food</string>
     <string name="ai_tasks_proposal_none_selected">Select at least one entry.</string>
     <string name="ai_tasks_proposal_logged">Entries logged</string>
     <string name="ai_tasks_proposal_accept_conflict">This suggestion is no longer available. The list has been refreshed.</string>

@@ -32,6 +32,8 @@ export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
 const CLAUDE_DEFAULT_EFFORT: ClaudeEffort = 'medium';
 const CLAUDE_DEFAULT_MAX_ITERATIONS = 20;
 const CLAUDE_MAX_ITERATIONS_LIMIT = 50;
+const CLAUDE_DEFAULT_MAX_WEB_SEARCHES = 3;
+const CLAUDE_MAX_WEB_SEARCHES_LIMIT = 10;
 
 const isClaudeEffort = (value: string): value is ClaudeEffort =>
 	(CLAUDE_EFFORTS as readonly string[]).includes(value);
@@ -118,6 +120,15 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 			`CLAUDE_MAX_ITERATIONS must be a whole number between 1 and ${CLAUDE_MAX_ITERATIONS_LIMIT}`
 		);
 	}
+	const maxWebSearches = env.CLAUDE_MAX_WEB_SEARCHES?.trim();
+	if (
+		maxWebSearches &&
+		!(/^\d+$/.test(maxWebSearches) && Number(maxWebSearches) <= CLAUDE_MAX_WEB_SEARCHES_LIMIT)
+	) {
+		problems.push(
+			`CLAUDE_MAX_WEB_SEARCHES must be a whole number between 0 and ${CLAUDE_MAX_WEB_SEARCHES_LIMIT}`
+		);
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -177,6 +188,10 @@ export const config = {
 		maxIterations: toNumber(
 			process.env.CLAUDE_MAX_ITERATIONS?.trim() || undefined,
 			CLAUDE_DEFAULT_MAX_ITERATIONS
+		),
+		maxWebSearches: toNumber(
+			process.env.CLAUDE_MAX_WEB_SEARCHES?.trim() || undefined,
+			CLAUDE_DEFAULT_MAX_WEB_SEARCHES
 		),
 		globalMonthlyBudgetUsd: toNumber(
 			process.env.CLAUDE_GLOBAL_MONTHLY_BUDGET_USD?.trim() || undefined,

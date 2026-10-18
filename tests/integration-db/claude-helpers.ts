@@ -9,6 +9,7 @@ export const claudeTestConfig = {
 	model: 'claude-opus-5-5',
 	effort: 'medium' as const,
 	maxIterations: 10,
+	maxWebSearches: 3,
 	globalMonthlyBudgetUsd: 90,
 	defaultUserBudgetUsd: 10,
 	configured: true
@@ -25,6 +26,7 @@ export const claudeConfigMock = () => ({
 export function resetClaudeTestConfig() {
 	claudeTestConfig.model = 'claude-opus-5-5';
 	claudeTestConfig.maxIterations = 10;
+	claudeTestConfig.maxWebSearches = 3;
 	claudeTestConfig.globalMonthlyBudgetUsd = 90;
 	claudeTestConfig.defaultUserBudgetUsd = 10;
 	claudeTestConfig.configured = true;

@@ -24,7 +24,8 @@ describe('validateEnv claude group', () => {
 				CLAUDE_GLOBAL_MONTHLY_BUDGET_USD: '120.5',
 				CLAUDE_DEFAULT_USER_BUDGET_USD: '12',
 				CLAUDE_EFFORT: 'high',
-				CLAUDE_MAX_ITERATIONS: '30'
+				CLAUDE_MAX_ITERATIONS: '30',
+				CLAUDE_MAX_WEB_SEARCHES: '5'
 			})
 		).toEqual([]);
 	});
@@ -38,6 +39,16 @@ describe('validateEnv claude group', () => {
 	test.each(['0', '51', '2.5', 'abc', '-3'])('rejects max iterations %s', (value) => {
 		expect(validateEnv({ ...validEnv, CLAUDE_MAX_ITERATIONS: value })).toContain(
 			'CLAUDE_MAX_ITERATIONS must be a whole number between 1 and 50'
+		);
+	});
+
+	test.each(['0', '3', '10'])('accepts max web searches %s', (value) => {
+		expect(validateEnv({ ...validEnv, CLAUDE_MAX_WEB_SEARCHES: value })).toEqual([]);
+	});
+
+	test.each(['11', '2.5', 'abc', '-1'])('rejects max web searches %s', (value) => {
+		expect(validateEnv({ ...validEnv, CLAUDE_MAX_WEB_SEARCHES: value })).toContain(
+			'CLAUDE_MAX_WEB_SEARCHES must be a whole number between 0 and 10'
 		);
 	});
 
@@ -116,6 +127,7 @@ describe('claude config', () => {
 			'CLAUDE_GLOBAL_MONTHLY_BUDGET_USD',
 			'CLAUDE_EFFORT',
 			'CLAUDE_MAX_ITERATIONS',
+			'CLAUDE_MAX_WEB_SEARCHES',
 			'CLAUDE_DEFAULT_USER_BUDGET_USD'
 		]) {
 			vi.stubEnv(key, env[key] ?? '');
@@ -130,6 +142,7 @@ describe('claude config', () => {
 			model: 'claude-sonnet-5-5',
 			effort: 'medium',
 			maxIterations: 20,
+			maxWebSearches: 3,
 			globalMonthlyBudgetUsd: 90,
 			defaultUserBudgetUsd: 10,
 			configured: false
@@ -144,7 +157,8 @@ describe('claude config', () => {
 			CLAUDE_GLOBAL_MONTHLY_BUDGET_USD: '25.5',
 			CLAUDE_DEFAULT_USER_BUDGET_USD: '2',
 			CLAUDE_EFFORT: 'high',
-			CLAUDE_MAX_ITERATIONS: '8'
+			CLAUDE_MAX_ITERATIONS: '8',
+			CLAUDE_MAX_WEB_SEARCHES: '0'
 		});
 		expect(claudeApiKey()).toBe('sk-test');
 		expect(claudeConfig()).not.toHaveProperty('apiKey');
@@ -153,6 +167,7 @@ describe('claude config', () => {
 			model: 'claude-sonnet-5-5',
 			effort: 'high',
 			maxIterations: 8,
+			maxWebSearches: 0,
 			globalMonthlyBudgetUsd: 25.5,
 			defaultUserBudgetUsd: 2,
 			configured: true

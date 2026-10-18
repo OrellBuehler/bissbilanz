@@ -3,6 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { completeAiTaskBy } from '../../ai-tasks';
 import { getDB } from '../../db';
 import { createEntry } from '../../entries';
+import { createFood, findFoodByBarcode } from '../../foods';
 import { ApiError } from '../../errors';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
 import { dropStaleProposalItems } from './proposal-stale';
@@ -31,7 +32,17 @@ export function serializeClaudeProcessing(
 		proposal: proposal
 			? {
 					summary: proposal.summary,
-					items: proposal.items.map(({ entry: _entry, ...item }) => item)
+					items: proposal.items.map(({ entry: _entry, food, ...item }) => ({
+						...item,
+						newFood: food
+							? {
+									name: String(food.name),
+									brand: (food.brand as string | null | undefined) ?? null,
+									servingSize: Number(food.servingSize),
+									servingUnit: String(food.servingUnit)
+								}
+							: null
+					}))
 				}
 			: null
 	};
@@ -106,19 +117,39 @@ async function acceptInTransaction(userId: string, taskId: string, itemIds?: str
 		}
 		if (selected.length === 0) throw new ApiError(400, 'Nothing to accept');
 
-		for (const item of selected) {
-			const created = await createEntry(userId, item.entry, null, { id: item.id, tx });
-			if (!created.success) {
-				const error = created.error;
-				if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
-					throw new StaleProposalError(
-						`Proposal can no longer be accepted: ${error.message}`,
-						run.attempt,
-						item.id
-					);
-				}
-				throw error;
+		const stale = (error: unknown, itemId: string) => {
+			if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
+				return new StaleProposalError(
+					`Proposal can no longer be accepted: ${error.message}`,
+					run.attempt,
+					itemId
+				);
 			}
+			return error;
+		};
+
+		const createdFoodIds = new Map<string, string>();
+		for (const item of selected) {
+			let entry = item.entry;
+			if (item.food) {
+				const provisionalId = String(entry.foodId);
+				let foodId = createdFoodIds.get(provisionalId);
+				if (!foodId) {
+					const barcode = item.food.barcode as string | null | undefined;
+					const existing = barcode ? await findFoodByBarcode(userId, barcode, tx) : null;
+					if (existing) {
+						foodId = existing.id;
+					} else {
+						const food = await createFood(userId, item.food, tx);
+						if (!food.success) throw stale(food.error, item.id);
+						foodId = food.data.id;
+					}
+					createdFoodIds.set(provisionalId, foodId);
+				}
+				entry = { ...entry, foodId };
+			}
+			const created = await createEntry(userId, entry, null, { id: item.id, tx });
+			if (!created.success) throw stale(created.error, item.id);
 		}
 
 		const completed = await completeAiTaskBy(tx, userId, taskId, {

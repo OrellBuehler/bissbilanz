@@ -14,7 +14,14 @@ async function findStaleItemIds(
 	userId: string,
 	items: ProposalItem[]
 ): Promise<Set<string>> {
-	const foodIds = [...new Set(items.map((i) => entryOf(i).foodId).filter(Boolean))] as string[];
+	const foodIds = [
+		...new Set(
+			items
+				.filter((i) => !i.food)
+				.map((i) => entryOf(i).foodId)
+				.filter(Boolean)
+		)
+	] as string[];
 	const recipeIds = [...new Set(items.map((i) => entryOf(i).recipeId).filter(Boolean))] as string[];
 	const [foodRows, recipeRows] = await Promise.all([
 		foodIds.length
@@ -36,7 +43,9 @@ async function findStaleItemIds(
 	const stale = new Set<string>();
 	for (const item of items) {
 		const { foodId, recipeId, mealType } = entryOf(item);
-		let ok = (!foodId || liveFoods.has(foodId)) && (!recipeId || liveRecipes.has(recipeId));
+		let ok =
+			(!foodId || item.food != null || liveFoods.has(foodId)) &&
+			(!recipeId || liveRecipes.has(recipeId));
 		if (ok && mealType) {
 			if (!mealTypeOk.has(mealType)) {
 				mealTypeOk.set(mealType, await validateMealType(userId, mealType, tx));

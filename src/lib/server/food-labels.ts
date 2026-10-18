@@ -1,4 +1,5 @@
 import { getDB } from '$lib/server/db';
+import type { TxOrDb } from '$lib/server/ownership';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { foodLabels, foods, recipeLabels, recipes, type LabelSource } from '$lib/server/schema';
 import { and, count, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm';
@@ -28,7 +29,7 @@ export const foodLabelsExpr = sql<string[]>`COALESCE((
  */
 export const foodColumnsWithLabels = { ...getTableColumns(foods), labels: foodLabelsExpr };
 
-type DB = ReturnType<typeof getDB>;
+type DB = TxOrDb;
 
 /**
  * Foods and recipes share one label implementation: the write rules below are

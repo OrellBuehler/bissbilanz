@@ -19,6 +19,7 @@ export type ProposalItem = {
 	fat: number;
 	fiber: number;
 	entry: Record<string, unknown>;
+	food?: Record<string, unknown> | null;
 };
 
 export type Proposal = { summary: string | null; items: ProposalItem[] };

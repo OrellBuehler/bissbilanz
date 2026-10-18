@@ -4,15 +4,18 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.api.generated.model.AiTaskProposal
 import com.bissbilanz.api.generated.model.AiTaskProposalItem
+import com.bissbilanz.api.generated.model.AiTaskProposalNewFood
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,6 +46,7 @@ class ClaudeProposalCardTest {
         carbs = 1.2,
         fat = 10.6,
         fiber = 0.0,
+        newFood = null,
     )
 
     private val proposal =
@@ -68,6 +72,23 @@ class ClaudeProposalCardTest {
         composeTestRule.onNodeWithText("Two eggs and toast").assertIsDisplayed()
         composeTestRule.onNodeWithText("Egg").assertIsDisplayed()
         composeTestRule.onNodeWithText("Toast").assertIsDisplayed()
+    }
+
+    @Test
+    fun anItemThatCreatesAFoodIsMarkedAsNew() {
+        val created = item("a", "Egg").copy(newFood = AiTaskProposalNewFood("Egg", null, 1.0, "g"))
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                ClaudeProposalCard(
+                    proposal = AiTaskProposal(summary = null, items = listOf(created, item("b", "Toast"))),
+                    busy = false,
+                    onLog = {},
+                    onDiscard = {},
+                )
+            }
+        }
+
+        composeTestRule.onAllNodesWithText("New food").assertCountEquals(1)
     }
 
     @Test

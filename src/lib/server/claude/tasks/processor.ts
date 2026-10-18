@@ -161,7 +161,9 @@ async function runLoop(
 		timeZone: loaded.timeZone,
 		locale: loaded.locale,
 		fence: ctx.fence,
-		seen: new Map()
+		seen: new Map(),
+		foods: new Map(),
+		createdFoods: new Map()
 	};
 	let nudged = false;
 	let logCalls = 0;
@@ -173,7 +175,14 @@ async function runLoop(
 		return false;
 	};
 
-	const { maxIterations } = claudeConfig();
+	const { maxIterations, maxWebSearches } = claudeConfig();
+	const tools: Anthropic.ToolUnion[] =
+		maxWebSearches > 0
+			? [
+					{ type: 'web_search_20260209', name: 'web_search', max_uses: maxWebSearches },
+					...TASK_TOOLS
+				]
+			: TASK_TOOLS;
 	for (let iteration = 0; iteration < maxIterations; iteration++) {
 		if (!(await regate())) return;
 
@@ -181,7 +190,7 @@ async function runLoop(
 			userId: run.userId,
 			feature: AI_TASK_FEATURE,
 			aiTaskId: task.id,
-			params: { system: TASK_SYSTEM, tools: TASK_TOOLS, messages: withCacheBreakpoint(messages) },
+			params: { system: TASK_SYSTEM, tools, messages: withCacheBreakpoint(messages) },
 			imageCount: loaded.imageCount,
 			signal
 		});
@@ -239,6 +248,8 @@ async function runLoop(
 			messages.push({ role: 'user', content: results });
 			continue;
 		}
+
+		if (response.stop_reason === 'pause_turn') continue;
 
 		if (response.stop_reason === 'max_tokens' || response.stop_reason === 'end_turn') {
 			if (nudged) break;

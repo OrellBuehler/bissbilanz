@@ -304,6 +304,49 @@ describe('callClaude against the SDK boundary', () => {
 		);
 	});
 
+	test('reserves the web search allowance and settles the searches that ran', async () => {
+		const webSearch = { type: 'web_search_20260209', name: 'web_search', max_uses: 3 };
+		const fetchMock = vi.fn(async () =>
+			Response.json(
+				message({
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 200,
+						server_tool_use: { web_search_requests: 2, web_fetch_requests: 0 }
+					}
+				})
+			)
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		const mod = await load(true);
+		const plain = await import('$lib/server/claude/pricing');
+		await call(mod);
+		await call(mod, { params: { ...params, tools: [webSearch] } });
+		const [plainReservation, searchReservation] = budget.reserveCall.mock.calls.map(
+			(entry) => entry[0].reservedUsd
+		);
+		expect(searchReservation).toBeGreaterThan(plainReservation + 3 * 0.01);
+		const body = JSON.parse(
+			String((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].body)
+		);
+		expect(body.tools).toEqual([webSearch]);
+		expect(budget.settleCall.mock.calls[1]![1].costUsd).toBe(
+			plain.priceUsage('claude-opus-5-5', { input_tokens: 1000, output_tokens: 200 }) + 0.02
+		);
+	});
+
+	test('counts only web search tools in the allowance', async () => {
+		const { maxWebSearchesOf } = await load();
+		expect(
+			maxWebSearchesOf([
+				{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 },
+				{ name: 'x', input_schema: { type: 'object' } }
+			])
+		).toBe(4);
+		expect(maxWebSearchesOf([{ type: 'web_search_20260209', name: 'web_search' }])).toBe(0);
+		expect(maxWebSearchesOf([])).toBe(0);
+	});
+
 	test('does not retry server errors inside the SDK and settles them as free', async () => {
 		const fetchMock = vi.fn(async () =>
 			Response.json({ type: 'error', error: { type: 'api_error', message: KEY } }, { status: 500 })

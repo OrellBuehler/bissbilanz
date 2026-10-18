@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
 	handleGetRecipe: vi.fn(),
 	handleFindFoodByBarcode: vi.fn(),
 	handleSearchOpenFoodFacts: vi.fn(),
+	handleCreateFood: vi.fn(),
+	findFoodByBarcode: vi.fn(),
 	getFood: vi.fn(),
 	getRecipe: vi.fn(),
 	createEntry: vi.fn(),
@@ -27,9 +29,13 @@ vi.mock('$lib/server/mcp/handlers', () => ({
 	handleListRecipes: h.handleListRecipes,
 	handleGetRecipe: h.handleGetRecipe,
 	handleFindFoodByBarcode: h.handleFindFoodByBarcode,
-	handleSearchOpenFoodFacts: h.handleSearchOpenFoodFacts
+	handleSearchOpenFoodFacts: h.handleSearchOpenFoodFacts,
+	handleCreateFood: h.handleCreateFood
 }));
-vi.mock('$lib/server/foods', () => ({ getFood: h.getFood }));
+vi.mock('$lib/server/foods', () => ({
+	getFood: h.getFood,
+	findFoodByBarcode: h.findFoodByBarcode
+}));
 vi.mock('$lib/server/recipes', () => ({ getRecipe: h.getRecipe }));
 vi.mock('$lib/server/entries', () => ({
 	createEntry: h.createEntry,
@@ -64,6 +70,8 @@ const makeCtx = (overrides: Record<string, unknown> = {}) => ({
 	locale: 'en',
 	fence,
 	seen: new Map<string, number>(),
+	foods: new Map<string, Record<string, unknown>>(),
+	createdFoods: new Map<string, Record<string, unknown>>(),
 	...overrides
 });
 
@@ -229,7 +237,7 @@ describe('read tools', () => {
 			source: 'openfoodfacts',
 			name: 'Bar',
 			calories: 100,
-			hint: 'Log it as a quick entry with these per-serving values.'
+			hint: 'Not saved. If the user will likely eat it again, save it with create_food using these per-serving values and the barcode; otherwise log a quick entry.'
 		});
 		h.handleFindFoodByBarcode.mockResolvedValue({ found: false });
 		expect(
@@ -608,8 +616,156 @@ describe('log_food in review mode', () => {
 	});
 });
 
+const foodInput = (overrides: Record<string, unknown> = {}) => ({
+	name: 'Skyr',
+	brand: 'Emmi',
+	servingSize: 150,
+	servingUnit: 'g',
+	calories: 90,
+	protein: 16,
+	carbs: 5,
+	fat: 0.2,
+	fiber: 0,
+	nutrients: [{ nutrient: 'sodium', amount: 40 }],
+	barcode: null,
+	ingredientsText: '',
+	...overrides
+});
+
+describe('create_food', () => {
+	beforeEach(() => {
+		h.findFoodByBarcode.mockResolvedValue(null);
+	});
+
+	test('auto log creates the food through the MCP handler and returns its id', async () => {
+		h.handleCreateFood.mockResolvedValue({
+			success: true,
+			foodId: FOOD_ID,
+			food: { id: FOOD_ID, name: 'Skyr', servingSize: 150, servingUnit: 'g', calories: 90 }
+		});
+		const result = await parsed(runTaskTool('create_food', foodInput(), makeCtx()));
+		expect(result.isError).toBe(false);
+		expect(result.body).toMatchObject({ foodId: FOOD_ID, name: 'Skyr', calories: 90 });
+		const payload = h.handleCreateFood.mock.calls[0]![1];
+		expect(h.handleCreateFood.mock.calls[0]![0]).toBe('user-1');
+		expect(payload).toMatchObject({ name: 'Skyr', sodium: 40, servingSize: 150 });
+		expect(payload).not.toHaveProperty('barcode');
+		expect(payload).not.toHaveProperty('ingredientsText');
+	});
+
+	test('auto log creates an identical food only once per run', async () => {
+		h.handleCreateFood.mockResolvedValue({
+			success: true,
+			foodId: FOOD_ID,
+			food: { name: 'Skyr' }
+		});
+		const ctx = makeCtx();
+		const first = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		const second = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		expect(second.body).toEqual(first.body);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+	});
+
+	test('surfaces a rejected create as a tool error', async () => {
+		h.handleCreateFood.mockResolvedValue({
+			error: 'A food with barcode 1 already exists: "Skyr"'
+		});
+		const result = await parsed(runTaskTool('create_food', foodInput({ barcode: '1' }), makeCtx()));
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain('already exists');
+	});
+
+	test('rejects invalid nutrition values with validation issues', async () => {
+		const result = await parsed(
+			runTaskTool('create_food', foodInput({ servingUnit: 'bucket', calories: -1 }), makeCtx())
+		);
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toBe('validation_failed');
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+
+	test('review mode writes nothing and returns a provisional id', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const result = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		expect(result.isError).toBe(false);
+		expect(result.body.foodId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(result.body.note).toContain('only if the user accepts');
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+		expect(h.transitionFenced).not.toHaveBeenCalled();
+		expect(ctx.foods.get(result.body.foodId)).toMatchObject({ name: 'Skyr', sodium: 40 });
+	});
+
+	test('review mode returns the same provisional id for an identical food', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const first = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		const second = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		expect(second.body.foodId).toBe(first.body.foodId);
+		expect(ctx.foods.size).toBe(1);
+	});
+
+	test('review mode points to an existing food with the same barcode', async () => {
+		h.findFoodByBarcode.mockResolvedValue({ id: FOOD_ID, name: 'Skyr' });
+		const result = await parsed(
+			runTaskTool('create_food', foodInput({ barcode: '7612345' }), makeCtx({ mode: 'review' }))
+		);
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain(FOOD_ID);
+	});
+
+	test('a provisional food can be logged and the proposal item carries the food payload', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const created = await parsed(runTaskTool('create_food', foodInput(), ctx));
+		const logged = await parsed(
+			runTaskTool('log_food', logInput({ foodId: created.body.foodId, servings: 2 }), ctx)
+		);
+		expect(logged.isError).toBe(false);
+		expect(h.getFood).not.toHaveBeenCalled();
+		const item = h.transitionFenced.mock.calls.at(-1)![2].proposal.items.at(-1);
+		expect(item).toMatchObject({
+			name: 'Skyr',
+			foodId: created.body.foodId,
+			calories: 180,
+			protein: 32,
+			food: { name: 'Skyr', brand: 'Emmi', servingSize: 150, servingUnit: 'g' }
+		});
+		expect(item.entry).toMatchObject({ foodId: created.body.foodId });
+	});
+
+	test('an unknown foodId is still rejected in review mode', async () => {
+		h.getFood.mockResolvedValue(null);
+		const result = await parsed(
+			runTaskTool('log_food', logInput({ foodId: FOOD_ID }), makeCtx({ mode: 'review' }))
+		);
+		expect(result.isError).toBe(true);
+	});
+
+	test('offers the whole nutrient catalog through the nutrients list', () => {
+		const tool = TASK_TOOLS.find((candidate) => candidate.name === 'create_food')!;
+		const schema = tool.input_schema as {
+			properties: Record<string, { items?: { properties: { nutrient: { enum: string[] } } } }>;
+		};
+		expect(tool.strict).toBe(true);
+		expect(schema.properties.nutrients!.items!.properties.nutrient.enum).toEqual(
+			expect.arrayContaining(['sodium', 'calcium', 'vitaminD', 'omega3'])
+		);
+		expect(Object.keys(schema.properties)).not.toContain('isFavorite');
+	});
+
+	test('rejects a nutrient that is not in the catalog', async () => {
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				foodInput({ nutrients: [{ nutrient: 'magic', amount: 1 }] }),
+				makeCtx()
+			)
+		);
+		expect(result.isError).toBe(true);
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+});
+
 describe('TASK_TOOLS', () => {
 	test('has a definition for every tool the executor handles', () => {
-		expect(TASK_TOOLS).toHaveLength(8);
+		expect(TASK_TOOLS).toHaveLength(9);
 	});
 });

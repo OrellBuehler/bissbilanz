@@ -1395,6 +1395,7 @@
 	"ai_tasks_proposal_title": "Suggested entries",
 	"ai_tasks_proposal_log": "Log selected",
 	"ai_tasks_proposal_discard": "Discard",
+	"ai_tasks_proposal_new_food": "New food",
 	"ai_tasks_proposal_none_selected": "Select at least one entry.",
 	"ai_tasks_proposal_logged": "Entries logged",
 	"ai_tasks_dismiss_conflict": "This task was changed elsewhere. The list has been refreshed.",

@@ -548,6 +548,53 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 	const proposalItems = async (taskId: string) =>
 		((await runOf(taskId))?.proposal as { items: { id: string; foodId: string }[] }).items;
 
+	it('keeps an item that creates a new food when its siblings go stale', async () => {
+		const { user, task, foods: seeded } = await proposeFoods(2);
+		const items = (await runOf(task.id))!.proposal as {
+			summary: string;
+			items: Record<string, unknown>[];
+		};
+		const provisional = randomUUID();
+		const withFood = {
+			...(items.items[1] as { id: string }),
+			foodId: provisional,
+			entry: { ...(items.items[1]!.entry as Record<string, unknown>), foodId: provisional },
+			food: {
+				name: 'Skyr Natur',
+				brand: null,
+				servingSize: 150,
+				servingUnit: 'g',
+				calories: 90,
+				protein: 16,
+				carbs: 5,
+				fat: 0.2,
+				fiber: 0
+			}
+		};
+		await db
+			.update(claudeTaskRuns)
+			.set({ proposal: { ...items, items: [items.items[0], withFood] } })
+			.where(eq(claudeTaskRuns.taskId, task.id));
+		await db.delete(foods).where(eq(foods.id, seeded[0]!.id));
+		startFake([]);
+
+		const response = await accept(user, task.id);
+		expect(response.status).toBe(409);
+		expect((await proposalItems(task.id)).map((item) => item.id)).toEqual([withFood.id as string]);
+		expect(await db.select().from(foods).where(eq(foods.userId, user.id))).toHaveLength(1);
+
+		const retry = await accept(user, task.id);
+		expect(retry.status).toBe(200);
+		const created = (await db.select().from(foods).where(eq(foods.userId, user.id))).filter(
+			(food) => food.name === 'Skyr Natur'
+		);
+		expect(created).toHaveLength(1);
+		const entries = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(entries.map((entry) => [entry.id, entry.foodId])).toEqual([
+			[withFood.id, created[0]!.id]
+		]);
+	});
+
 	it('drops only the stale items and lets the rest be accepted', async () => {
 		const { user, task, foods: seeded } = await proposeFoods(2);
 		const items = await proposalItems(task.id);

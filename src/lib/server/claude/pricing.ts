@@ -17,7 +17,11 @@ export type TokenUsage = {
 	output_tokens: number;
 	cache_creation_input_tokens?: number | null;
 	cache_read_input_tokens?: number | null;
+	server_tool_use?: { web_search_requests?: number | null } | null;
 };
+
+export const WEB_SEARCH_USD_PER_REQUEST = 0.01;
+export const WEB_SEARCH_RESULT_TOKEN_BOUND = 10_000;
 
 const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
 
@@ -32,11 +36,23 @@ export function priceUsage(model: string, usage: TokenUsage): number {
 			usage.output_tokens * price.output +
 			(usage.cache_creation_input_tokens ?? 0) * price.cacheWrite +
 			(usage.cache_read_input_tokens ?? 0) * price.cacheRead) /
-			1e6
+			1e6 +
+			(usage.server_tool_use?.web_search_requests ?? 0) * WEB_SEARCH_USD_PER_REQUEST
 	);
 }
 
-export function maxCallCostUsd(model: string, inputTokens: number, maxTokens: number): number {
+export function maxCallCostUsd(
+	model: string,
+	inputTokens: number,
+	maxTokens: number,
+	maxWebSearches = 0
+): number {
 	const price = pricingFor(model);
-	return round6((inputTokens * price.cacheWrite + maxTokens * price.output) / 1e6);
+	return round6(
+		(inputTokens * price.cacheWrite +
+			maxTokens * price.output +
+			maxWebSearches * WEB_SEARCH_RESULT_TOKEN_BOUND * price.cacheWrite) /
+			1e6 +
+			maxWebSearches * WEB_SEARCH_USD_PER_REQUEST
+	);
 }

@@ -33,6 +33,7 @@ import kotlinx.serialization.encoding.*
  * @param carbs
  * @param fat
  * @param fiber
+ * @param newFood
  */
 @Serializable
 data class AiTaskProposalItem(
@@ -47,4 +48,5 @@ data class AiTaskProposalItem(
     @SerialName(value = "carbs") @Required val carbs: kotlin.Double,
     @SerialName(value = "fat") @Required val fat: kotlin.Double,
     @SerialName(value = "fiber") @Required val fiber: kotlin.Double,
+    @SerialName(value = "newFood") @Required val newFood: AiTaskProposalNewFood?,
 )
