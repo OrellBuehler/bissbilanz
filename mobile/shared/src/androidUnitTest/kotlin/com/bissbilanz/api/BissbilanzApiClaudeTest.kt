@@ -46,7 +46,8 @@ class BissbilanzApiClaudeTest {
          "processedBy":null,"processedByKind":${kind?.let { "\"$it\"" } ?: "null"},
          "claudeProcessing":{"state":"$state","proposal":{"summary":"Eggs","items":[
            {"id":"i1","name":"Egg","quantityDescription":"2 eggs","foodId":null,"recipeId":null,
-            "servings":2,"calories":156,"protein":12.6,"carbs":1.2,"fat":10.6,"fiber":0}]}}}
+            "servings":2,"calories":156,"protein":12.6,"carbs":1.2,"fat":10.6,"fiber":0,
+            "newFood":{"name":"Egg","brand":null,"servingSize":50,"servingUnit":"g"}}]}}}
         """.trimIndent()
 
     private fun api(
@@ -105,6 +106,16 @@ class BissbilanzApiClaudeTest {
                     ?.single()
                     ?.name,
             )
+            val newFood =
+                task.claudeProcessing
+                    ?.proposal
+                    ?.items
+                    ?.single()
+                    ?.newFood
+            assertEquals("Egg", newFood?.name)
+            assertNull(newFood?.brand)
+            assertEquals(50.0, newFood?.servingSize)
+            assertEquals("g", newFood?.servingUnit)
         }
 
     @Test

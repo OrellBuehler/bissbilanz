@@ -666,6 +666,14 @@ describe('create_food', () => {
 		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
 	});
 
+	test('auto log refuses a barcode the user already has and names that food', async () => {
+		h.findFoodByBarcode.mockResolvedValue({ id: FOOD_ID, name: 'Skyr' });
+		const result = await parsed(runTaskTool('create_food', foodInput({ barcode: '1' }), makeCtx()));
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain(FOOD_ID);
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+
 	test('surfaces a rejected create as a tool error', async () => {
 		h.handleCreateFood.mockResolvedValue({
 			error: 'A food with barcode 1 already exists: "Skyr"'

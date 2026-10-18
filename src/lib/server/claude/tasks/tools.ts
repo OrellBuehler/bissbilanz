@@ -344,16 +344,17 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 
+	if (data.barcode) {
+		const existing = await findFoodByBarcode(ctx.userId, data.barcode);
+		if (existing) {
+			throw new ToolInputError(
+				`A food with barcode ${data.barcode} already exists: "${existing.name}" (foodId ${existing.id}). Log that foodId instead.`
+			);
+		}
+	}
+
 	let result: FoodToolResult;
 	if (ctx.mode === 'review') {
-		if (data.barcode) {
-			const existing = await findFoodByBarcode(ctx.userId, data.barcode);
-			if (existing) {
-				throw new ToolInputError(
-					`A food with barcode ${data.barcode} already exists: "${existing.name}" (foodId ${existing.id}). Log that foodId instead.`
-				);
-			}
-		}
 		const foodId = crypto.randomUUID();
 		ctx.foods.set(foodId, data);
 		result = {
