@@ -99,7 +99,7 @@
 		"svelte": "^5.57.1",
 		"svelte-adapter-bun": "^1.0.1",
 		"svelte-check": "^4.7.6",
-		"svelte-eslint-parser": "^1.8.1",
+		"svelte-eslint-parser": "^1.9.0",
 		"svelte-gestures": "^5.2.2",
 		"svelte-sonner": "^1.2.1",
 		"sveltekit-superforms": "^2.30.2",
