@@ -163,6 +163,7 @@ class DashboardViewModel(
         currentDateString.value = dateStr
         viewModelScope.launch {
             _isLoading.value = true
+            applyDayProperties(entryRepo.localDayProperties(dateStr))
             try {
                 entryRepo.refresh(dateStr)
                 goalsRepo.refresh()
@@ -193,13 +194,7 @@ class DashboardViewModel(
 
     private suspend fun loadDayProperties(date: String) {
         try {
-            val props = entryRepo.getDayProperties(date)
-            _isFastingDay.value = props?.isFastingDay ?: false
-            _notes.value = props?.notes ?: ""
-            _waterMl.value = props?.waterMl
-            _activityCalories.value = props?.activityCalories
-            _activityCaloriesSource.value = props?.activityCaloriesSource
-            _activityNote.value = props?.activityNote
+            applyDayProperties(entryRepo.getDayProperties(date))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -210,6 +205,15 @@ class DashboardViewModel(
             _activityCaloriesSource.value = null
             _activityNote.value = null
         }
+    }
+
+    private fun applyDayProperties(props: DayProperties?) {
+        _isFastingDay.value = props?.isFastingDay ?: false
+        _notes.value = props?.notes ?: ""
+        _waterMl.value = props?.waterMl
+        _activityCalories.value = props?.activityCalories
+        _activityCaloriesSource.value = props?.activityCaloriesSource
+        _activityNote.value = props?.activityNote
     }
 
     fun toggleFastingDay() {

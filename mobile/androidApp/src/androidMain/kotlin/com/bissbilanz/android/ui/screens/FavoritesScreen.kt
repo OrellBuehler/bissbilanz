@@ -167,7 +167,7 @@ fun FavoritesScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Crossfade(targetState = isLoading, label = "favorites") { loading ->
+                Crossfade(targetState = isLoading && favorites.isEmpty() && recipes.isEmpty(), label = "favorites") { loading ->
                     if (loading) {
                         FavoritesSkeleton()
                     } else if (selectedTab == 0) {

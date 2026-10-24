@@ -94,11 +94,13 @@ fun RecipeSuggestionsScreen(navController: NavController) {
             onRefresh = { refreshManager.refreshAll() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "recipe-suggestions") { loading ->
+            Crossfade(targetState = isLoading && recipes.isEmpty(), label = "recipe-suggestions") { loading ->
                 when {
-                    loading -> LoadingScreen()
+                    loading -> {
+                        LoadingScreen()
+                    }
 
-                    goals == null ->
+                    goals == null -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_no_goals),
                             icon = Icons.Filled.Flag,
@@ -108,8 +110,9 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                                 }
                             },
                         )
+                    }
 
-                    recipes.isEmpty() ->
+                    recipes.isEmpty() -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_no_recipes),
                             icon = Icons.AutoMirrored.Filled.MenuBook,
@@ -119,14 +122,16 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                                 }
                             },
                         )
+                    }
 
-                    suggestions.isEmpty() ->
+                    suggestions.isEmpty() -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_goal_reached),
                             icon = Icons.Filled.CheckCircle,
                         )
+                    }
 
-                    else ->
+                    else -> {
                         Column(
                             modifier =
                                 Modifier
@@ -143,6 +148,7 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                         }
+                    }
                 }
             }
         }
