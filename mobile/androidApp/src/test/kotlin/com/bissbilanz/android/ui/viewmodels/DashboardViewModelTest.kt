@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
@@ -16,6 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -66,6 +68,28 @@ class DashboardViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun cachedDayPropertiesShowWhileNetworkHangs() =
+        runTest {
+            coEvery { entryRepo.refresh(any()) } coAnswers { awaitCancellation() }
+            coEvery { entryRepo.localDayProperties(any()) } answers {
+                DayProperties(
+                    date = firstArg(),
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = 750,
+                    activityCalories = null,
+                    activityCaloriesSource = null,
+                    activityNote = null,
+                )
+            }
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+
+            assertEquals(true, viewModel.isFastingDay.value)
+            assertEquals(750, viewModel.waterMl.value)
+        }
 
     @Test
     fun initialDateIsToday() =

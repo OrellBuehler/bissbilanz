@@ -114,6 +114,8 @@ class WeightViewModel(
     private fun loadTrend() {
         viewModelScope.launch {
             _isLoading.value = true
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            _trendData.value = weightRepo.localTrend(rangeStartDate().toString(), today.toString())
             try {
                 weightRepo.refresh()
                 applyTrend()

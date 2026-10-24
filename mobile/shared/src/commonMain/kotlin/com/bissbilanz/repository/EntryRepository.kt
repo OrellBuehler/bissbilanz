@@ -197,6 +197,12 @@ class EntryRepository(
     }
 
     /**
+     * The cached day properties only, never the network. For widgets, the watch and
+     * first paint: a slow connection must not hold them up for the HTTP timeout.
+     */
+    suspend fun localDayProperties(date: String): DayProperties? = withContext(Dispatchers.IO) { cachedDayProperties(date) }
+
+    /**
      * PATCH-style: a parameter left `null` and not named in [cleared] keeps its
      * currently cached/stored value; a parameter named in [cleared] is cleared
      * regardless of the value passed for it. See `com.bissbilanz.util.PartialUpdate`.

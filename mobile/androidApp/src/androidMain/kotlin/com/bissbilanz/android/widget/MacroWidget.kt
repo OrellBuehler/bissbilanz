@@ -62,7 +62,7 @@ class MacroWidget : GlanceAppWidget() {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
         val entries = entryRepo.entriesByDateOnce(today)
         val rawGoals = goalsRepo.goalsOnce()
-        val dayProperties = entryRepo.getDayProperties(today)
+        val dayProperties = entryRepo.localDayProperties(today)
         val prefs = prefsRepo.preferences().first()
         val goals =
             adjustGoalsForActivity(
