@@ -1,10 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.ExperimentalGetImage
 import androidx.compose.foundation.layout.Arrangement
@@ -43,15 +38,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.CameraPreview
 import com.bissbilanz.android.ui.theme.rememberHaptic
-import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import org.koin.compose.koinInject
 
@@ -68,16 +59,10 @@ fun BarcodeCaptureDialog(
     onScanned: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    val activity = LocalActivity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val errorReporter: ErrorReporter = koinInject()
     val haptic = rememberHaptic()
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
-        )
-    }
-    var permanentlyDenied by remember { mutableStateOf(false) }
+    val cameraPermission = rememberCameraPermission()
     var camera by remember { mutableStateOf<Camera?>(null) }
     var cameraError by remember { mutableStateOf(false) }
     var torchOn by remember { mutableStateOf(false) }
@@ -86,23 +71,6 @@ fun BarcodeCaptureDialog(
 
     LaunchedEffect(camera, torchOn) {
         camera?.cameraControl?.enableTorch(torchOn)
-    }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            hasPermission = granted
-            if (!granted) permanentlyDenied = activity.isPermanentlyDenied(Manifest.permission.CAMERA)
-        }
-
-    // The permission can be granted (or revoked) in the system settings while this
-    // screen is in the background; the "Open settings" path depends on it.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission) permanentlyDenied = false
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     Dialog(
@@ -142,7 +110,7 @@ fun BarcodeCaptureDialog(
             },
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                if (hasPermission && !cameraError) {
+                if (cameraPermission.granted && !cameraError) {
                     CameraPreview(
                         lifecycleOwner = lifecycleOwner,
                         isScanning = { !delivered },
@@ -190,12 +158,12 @@ fun BarcodeCaptureDialog(
                             )
                             if (!cameraError) {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                if (permanentlyDenied) {
+                                if (cameraPermission.permanentlyDenied) {
                                     Button(onClick = { context.openAppSettings() }) {
                                         Text(stringResource(R.string.scan_barcode_open_settings))
                                     }
                                 } else {
-                                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                                    Button(onClick = cameraPermission::request) {
                                         Text(stringResource(R.string.scan_barcode_grant_permission))
                                     }
                                 }
