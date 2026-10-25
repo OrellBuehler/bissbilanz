@@ -71,8 +71,11 @@ class DayOverviewWidget : GlanceAppWidget() {
     override val sizeMode =
         SizeMode.Responsive(
             setOf(
+                DpSize(250.dp, 150.dp),
                 DpSize(250.dp, 180.dp),
+                DpSize(250.dp, 220.dp),
                 DpSize(250.dp, 250.dp),
+                DpSize(250.dp, 300.dp),
             ),
         )
 
@@ -122,6 +125,13 @@ class DayOverviewWidget : GlanceAppWidget() {
 }
 
 /**
+ * How many meal rows fit above the macro totals and the "Log food" button. Those two,
+ * the header and the padding take ~135dp; a meal row ~22dp. A fixed four rows pushed
+ * the button out of a widget at its 150-180dp minimum height.
+ */
+internal fun visibleMealRows(heightDp: Float): Int = ((heightDp - 135f) / 22f).toInt().coerceIn(0, 7)
+
+/**
  * The four default meals always show, at zero when nothing was logged, so the layout
  * doesn't jump around during the day. Custom meal types only appear once they hold
  * something, sorted by name so their order is stable across refreshes.
@@ -147,8 +157,7 @@ private fun DayOverviewContent(
     goals: Goals?,
 ) {
     val context = LocalContext.current
-    val compact = LocalSize.current.height < 220.dp
-    val visibleMeals = meals.take(if (compact) 4 else 7)
+    val visibleMeals = meals.take(visibleMealRows(LocalSize.current.height.value))
 
     Column(
         modifier =
