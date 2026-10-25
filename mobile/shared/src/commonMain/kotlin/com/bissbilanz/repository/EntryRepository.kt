@@ -111,13 +111,14 @@ class EntryRepository(
         entry: EntryUpdate,
         cleared: Set<EntryField> = emptySet(),
     ): Entry {
+        val currentId = resolveId(id)
         // Look the row up by id rather than by the viewed date: the shared
         // `currentDate` is reset to today by the post-sync refresh, so a date-based
         // lookup misses entries edited on any other day and silently drops the
         // optimistic write (the edit then only appears after a manual refresh).
         val existing =
             db.userDataDatabaseQueries
-                .selectEntryById(id)
+                .selectEntryById(currentId)
                 .executeAsOneOrNull()
                 ?.let { json.decodeOrNull<Entry>(it.jsonData) }
         val result =
@@ -127,31 +128,39 @@ class EntryRepository(
                 updated
             } else {
                 Entry(
-                    id = id,
+                    id = currentId,
                     userId = "",
                     date = entry.date ?: currentDate ?: "",
                     mealType = entry.mealType ?: "",
                     servings = entry.servings ?: 1.0,
                 )
             }
-        if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry, cleared)
+        if (currentId.isTempId()) {
+            coalesceQueuedCreate(currentId, entry, cleared)
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry), cleared.jsonKeys()))
+            syncQueue.enqueue(SyncOperation.UpdateEntry(currentId, json.encodeToString(entry), cleared.jsonKeys()))
         }
         onEntryChanged?.invoke()
         return result
     }
 
     suspend fun deleteEntry(id: String) {
-        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(id) }
-        if (id.isTempId()) {
-            syncQueue.removeByAffected("entries", id)
+        val currentId = resolveId(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(currentId) }
+        if (currentId.isTempId()) {
+            syncQueue.removeByAffected("entries", currentId)
         } else {
-            syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+            syncQueue.enqueue(SyncOperation.DeleteEntry(currentId))
         }
         onEntryChanged?.invoke()
     }
+
+    /**
+     * The id [id] is stored under now: a temp id whose create has uploaded maps to the
+     * server id that replaced it. Callers holding an id from before the upload resolve
+     * it here; [updateEntry] and [deleteEntry] already do.
+     */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
 
     /**
      * Rewrites the still-queued Create operation for a temp-id entry so the eventual
@@ -319,6 +328,14 @@ class EntryRepository(
         toDate: String,
         timeZone: TimeZone = TimeZone.currentSystemDefault(),
     ): Int {
+        // The source day may have been logged on the web or another device and never
+        // opened here, so its cache can be empty or partial. Offline, copy what is cached.
+        try {
+            refresh(fromDate)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
         val source = entriesByDateOnce(fromDate)
         var count = 0
         for (entry in source) {

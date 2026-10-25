@@ -40,6 +40,7 @@ class EntryRepositoryTest {
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
+        coEvery { syncQueue.resolveId(any()) } answers { firstArg() }
         repository = EntryRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
     }
 

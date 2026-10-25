@@ -277,6 +277,7 @@ class SyncManager(
                     val remap = execute(op, req.idempotencyKey, req.clientEditedAt)
                     if (remap != null) {
                         remaps[remap.tempId] = remap.serverId
+                        syncQueue.recordTempIdRemap(remap.tempId, remap.serverId)
                         rewriteQueuedReferences(remap.tempId, remap.serverId)
                     }
                     syncQueue.remove(req.id)

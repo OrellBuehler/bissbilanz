@@ -33,6 +33,12 @@ class SyncQueue(
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
+    // Temp ids whose create has uploaded, mapped to the server id that replaced them.
+    // A screen or sheet opened before the upload still holds the temp id; without this
+    // its later update/delete would target a row and queued op that no longer exist.
+    // Temp ids are random UUIDs, so one flat map cannot collide across entity types.
+    private val resolvedTempIds = mutableMapOf<String, String>()
+
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
@@ -55,6 +61,16 @@ class SyncQueue(
             _enqueueSignal.tryEmit(Unit)
         }
     }
+
+    suspend fun recordTempIdRemap(
+        tempId: String,
+        serverId: String,
+    ) {
+        mutex.withLock { resolvedTempIds[tempId] = serverId }
+    }
+
+    /** The server id a drained create gave [id], or [id] itself when it was never remapped. */
+    suspend fun resolveId(id: String): String = mutex.withLock { resolvedTempIds[id] ?: id }
 
     suspend fun drain(): List<QueuedRequest> =
         mutex.withLock {
@@ -249,6 +265,7 @@ class SyncQueue(
     suspend fun clear() =
         mutex.withLock {
             inProgress.clear()
+            resolvedTempIds.clear()
             db.bissbilanzDatabaseQueries.clearSyncQueue()
         }
 }
