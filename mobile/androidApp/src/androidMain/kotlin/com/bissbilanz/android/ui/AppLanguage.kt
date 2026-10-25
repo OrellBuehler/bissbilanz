@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui
 
 import android.app.Activity
+import android.app.LocaleManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
@@ -48,6 +49,18 @@ object AppLanguage {
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .getString(KEY_TAG, SYSTEM)
                 ?: SYSTEM
+        return if (tag in SUPPORTED_TAGS) tag else SYSTEM
+    }
+
+    /**
+     * The language actually in effect. On API 33+ the platform owns the per-app language
+     * and the user can change it in Android's app settings, bypassing [apply], so the
+     * stored tag may be stale there.
+     */
+    fun current(context: Context): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return stored(context)
+        val locales = context.getSystemService(LocaleManager::class.java)?.applicationLocales
+        val tag = if (locales == null || locales.isEmpty) SYSTEM else locales[0].language
         return if (tag in SUPPORTED_TAGS) tag else SYSTEM
     }
 
