@@ -14,11 +14,9 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
@@ -83,53 +81,59 @@ class DayOverviewWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
-        if (!widgetsSignedIn()) provideContent { GlanceTheme { SignedOutWidgetContent() } }
-
-        val koin =
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-        val entryRepo = koin.get<EntryRepository>()
-        val goalsRepo = koin.get<GoalsRepository>()
-        val prefsRepo = koin.get<PreferencesRepository>()
-
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-        val entries = entryRepo.entriesByDateOnce(today)
-        val rawGoals = goalsRepo.goalsOnce()
-        val dayProperties = entryRepo.getDayProperties(today)
-        val prefs = prefsRepo.preferences().first()
-        val goals =
-            adjustGoalsForActivity(
-                rawGoals,
-                dayProperties?.activityCalories,
-                enabled = prefs?.activityGoalAdjustment ?: false,
-                creditPercent = prefs?.activityCreditPercent ?: 100,
-            )?.goals ?: rawGoals
-
-        val meals = mealBreakdown(entries)
-        val totals = entries.totalMacros()
-
-        provideContent {
+        provideWidgetData(context, id, { loadDayOverview() }) { data ->
             GlanceTheme {
-                DayOverviewContent(meals, totals, goals)
+                if (data == null) SignedOutWidgetContent() else DayOverviewContent(data.meals, data.totals, data.goals)
             }
         }
     }
 
     companion object {
-        suspend fun updateAllWidgets(context: Context) {
-            val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(DayOverviewWidget::class.java)
-            ids.forEach { id -> DayOverviewWidget().update(context, id) }
-        }
+        suspend fun updateAllWidgets(context: Context) = refreshWidgets(context, DayOverviewWidget())
     }
 }
 
+private data class DayOverviewData(
+    val meals: List<MealCalories>,
+    val totals: MacroTotals,
+    val goals: Goals?,
+)
+
+/** Null when signed out. */
+private suspend fun loadDayOverview(): DayOverviewData? {
+    if (!widgetsSignedIn()) return null
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    val entryRepo = koin.get<EntryRepository>()
+    val goalsRepo = koin.get<GoalsRepository>()
+    val prefsRepo = koin.get<PreferencesRepository>()
+
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+    val entries = entryRepo.entriesByDateOnce(today)
+    val rawGoals = goalsRepo.goalsOnce()
+    val dayProperties = entryRepo.getDayProperties(today)
+    val prefs = prefsRepo.preferences().first()
+    val goals =
+        adjustGoalsForActivity(
+            rawGoals,
+            dayProperties?.activityCalories,
+            enabled = prefs?.activityGoalAdjustment ?: false,
+            creditPercent = prefs?.activityCreditPercent ?: 100,
+        )?.goals ?: rawGoals
+    return DayOverviewData(mealBreakdown(entries), entries.totalMacros(), goals)
+}
+
+/** The three section gaps, tightened below 180dp so the smallest size still fits a meal. */
+internal fun sectionGapDp(heightDp: Float): Float = if (heightDp < 180f) 4f else 8f
+
 /**
- * How many meal rows fit above the macro totals and the "Log food" button. Those two,
- * the header and the padding take ~135dp; a meal row ~22dp. A fixed four rows pushed
- * the button out of a widget at its 150-180dp minimum height.
+ * How many meal rows fit above the macro totals and the "Log food" button. Padding
+ * (24dp), header (19), divider (1), macro totals (33) and button (34) take ~112dp plus
+ * the three section gaps; a meal row takes ~22dp. A fixed four rows pushed the button
+ * out of a widget at its 150-180dp minimum height.
  */
-internal fun visibleMealRows(heightDp: Float): Int = ((heightDp - 135f) / 22f).toInt().coerceIn(0, 7)
+internal fun visibleMealRows(heightDp: Float): Int = ((heightDp - 112f - 3 * sectionGapDp(heightDp)) / 22f).toInt().coerceIn(0, 7)
 
 /**
  * The four default meals always show, at zero when nothing was logged, so the layout
@@ -157,7 +161,9 @@ private fun DayOverviewContent(
     goals: Goals?,
 ) {
     val context = LocalContext.current
-    val visibleMeals = meals.take(visibleMealRows(LocalSize.current.height.value))
+    val height = LocalSize.current.height.value
+    val visibleMeals = meals.take(visibleMealRows(height))
+    val gap = sectionGapDp(height).dp
 
     Column(
         modifier =
@@ -194,13 +200,13 @@ private fun DayOverviewContent(
             )
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(gap))
 
         visibleMeals.forEach { meal ->
             MealRow(meal, context)
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(gap))
         Spacer(
             modifier =
                 GlanceModifier
@@ -208,7 +214,7 @@ private fun DayOverviewContent(
                     .height(1.dp)
                     .background(GlanceTheme.colors.outline),
         )
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(gap))
 
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             MacroValue(

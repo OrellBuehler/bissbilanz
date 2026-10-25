@@ -16,9 +16,7 @@ import androidx.glance.LocalContext
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -54,32 +52,9 @@ class MacroWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
-        if (!widgetsSignedIn()) provideContent { GlanceTheme { SignedOutWidgetContent() } }
-
-        val koin =
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-        val entryRepo = koin.get<EntryRepository>()
-        val goalsRepo = koin.get<GoalsRepository>()
-        val prefsRepo = koin.get<PreferencesRepository>()
-
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-        val entries = entryRepo.entriesByDateOnce(today)
-        val rawGoals = goalsRepo.goalsOnce()
-        val dayProperties = entryRepo.getDayProperties(today)
-        val prefs = prefsRepo.preferences().first()
-        val goals =
-            adjustGoalsForActivity(
-                rawGoals,
-                dayProperties?.activityCalories,
-                enabled = prefs?.activityGoalAdjustment ?: false,
-                creditPercent = prefs?.activityCreditPercent ?: 100,
-            )?.goals ?: rawGoals
-        val totals = entries.totalMacros()
-
-        provideContent {
+        provideWidgetData(context, id, { loadMacroData() }) { data ->
             GlanceTheme {
-                MacroWidgetContent(totals, goals)
+                if (data == null) SignedOutWidgetContent() else MacroWidgetContent(data.totals, data.goals)
             }
         }
     }
@@ -97,12 +72,38 @@ class MacroWidget : GlanceAppWidget() {
         val FatColor = FatYellow.toArgb()
         val FiberColor = FiberGreen.toArgb()
 
-        suspend fun updateAllWidgets(context: Context) {
-            val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(MacroWidget::class.java)
-            ids.forEach { id -> MacroWidget().update(context, id) }
-        }
+        suspend fun updateAllWidgets(context: Context) = refreshWidgets(context, MacroWidget())
     }
+}
+
+private data class MacroData(
+    val totals: MacroTotals,
+    val goals: Goals?,
+)
+
+/** Null when signed out. */
+private suspend fun loadMacroData(): MacroData? {
+    if (!widgetsSignedIn()) return null
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    val entryRepo = koin.get<EntryRepository>()
+    val goalsRepo = koin.get<GoalsRepository>()
+    val prefsRepo = koin.get<PreferencesRepository>()
+
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+    val entries = entryRepo.entriesByDateOnce(today)
+    val rawGoals = goalsRepo.goalsOnce()
+    val dayProperties = entryRepo.getDayProperties(today)
+    val prefs = prefsRepo.preferences().first()
+    val goals =
+        adjustGoalsForActivity(
+            rawGoals,
+            dayProperties?.activityCalories,
+            enabled = prefs?.activityGoalAdjustment ?: false,
+            creditPercent = prefs?.activityCreditPercent ?: 100,
+        )?.goals ?: rawGoals
+    return MacroData(entries.totalMacros(), goals)
 }
 
 @Composable

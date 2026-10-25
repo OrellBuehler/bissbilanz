@@ -295,12 +295,10 @@ class BissbilanzApplication :
             LocalImageStore.clear(this@BissbilanzApplication)
             mcpConnectionStore.clear()
             koin.get<PreferencesRepository>().clearClaudeCapability()
-            // Shortcuts, thumbnails and widgets were all drawn from the data just wiped.
-            // The widgets redraw again once the logout drops the token (see the
-            // signed-in observer below) and then show the signed-out state.
+            // Shortcuts and thumbnails were drawn from the data just wiped. The widgets
+            // redraw once the logout drops the token (see the signed-in observer below).
             FoodShortcutPublisher.clear(this@BissbilanzApplication)
             WidgetFoodImages.clear(this@BissbilanzApplication)
-            WidgetRefresher.refreshAll(this@BissbilanzApplication)
         }
         // A diary entry that points at a food still waiting for its bulk upload sends that food first.
         koin.get<SyncManager>().bulkFoodGate = koin.get<BulkFoodUploader>()
@@ -464,10 +462,9 @@ class BissbilanzApplication :
         if (locales == lastLocales && nightMode == lastNightMode) return
         lastLocales = locales
         lastNightMode = nightMode
-        org.koin.java.KoinJavaComponent
-            .getKoin()
-            .get<CoroutineScope>()
-            .launch { WidgetRefresher.refreshAll(this@BissbilanzApplication) }
+        // Through the worker, so it collapses with the LOCALE_CHANGED broadcast that
+        // follows a system language change.
+        WidgetRolloverWorker.runNow(this)
     }
 
     /** The widgets that measure today's totals against the (activity-adjusted) goal. */

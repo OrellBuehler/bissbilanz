@@ -21,11 +21,24 @@ import kotlin.time.Clock
 object WidgetRefresher {
     /** Every home-screen widget that draws user data or depends on the day. */
     suspend fun refreshAll(context: Context) {
-        MacroWidget.updateAllWidgets(context)
-        DayOverviewWidget.updateAllWidgets(context)
-        QuickAddWidget.updateAllWidgets(context)
-        FavoritesWidget.updateAllWidgets(context)
-        QuickWeightWidget.updateAllWidgets(context)
+        // One at a time, so a widget that fails to load does not leave the rest stale.
+        listOf<suspend (Context) -> Unit>(
+            MacroWidget::updateAllWidgets,
+            DayOverviewWidget::updateAllWidgets,
+            QuickAddWidget::updateAllWidgets,
+            FavoritesWidget::updateAllWidgets,
+            QuickWeightWidget::updateAllWidgets,
+        ).forEach { update ->
+            try {
+                update(context)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                org.koin.java.KoinJavaComponent
+                    .getKoin()
+                    .get<ErrorReporter>()
+                    .captureException(e)
+            }
+        }
     }
 }
 
@@ -40,15 +53,7 @@ class WidgetRolloverWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        try {
-            WidgetRefresher.refreshAll(applicationContext)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-                .get<ErrorReporter>()
-                .captureException(e)
-        }
+        WidgetRefresher.refreshAll(applicationContext)
         enqueue(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE, nextMidnightDelayMs())
         return Result.success()
     }
@@ -56,12 +61,18 @@ class WidgetRolloverWorker(
     companion object {
         private const val UNIQUE_NAME = "widget_midnight_rollover"
         private const val SLACK_MS = 60_000L
+        private const val DEBOUNCE_MS = 2_000L
 
         /** Arms the next rollover unless one is already pending. Called on every app start. */
         fun schedule(context: Context) = enqueue(context, ExistingWorkPolicy.KEEP, nextMidnightDelayMs())
 
-        /** The clock or the zone moved: redraw now, then re-arm against the new midnight. */
-        fun runNow(context: Context) = enqueue(context, ExistingWorkPolicy.REPLACE, 0L)
+        /**
+         * The clock, the zone or the language moved: redraw, then re-arm against the new
+         * midnight. The short delay lets REPLACE fold a burst (TIME_SET with
+         * TIMEZONE_CHANGED, a language change seen by the receiver and the app) into
+         * one redraw.
+         */
+        fun runNow(context: Context) = enqueue(context, ExistingWorkPolicy.REPLACE, DEBOUNCE_MS)
 
         private fun enqueue(
             context: Context,

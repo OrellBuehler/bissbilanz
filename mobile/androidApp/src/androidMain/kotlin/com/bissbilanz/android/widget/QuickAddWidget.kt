@@ -18,12 +18,10 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -55,6 +53,14 @@ private data class QuickAddRow(
     val name: String,
     val calories: Double,
     val imageProvider: ImageProvider?,
+    val logged: Boolean,
+)
+
+private data class QuickAddData(
+    val rows: List<QuickAddRow>,
+    val plusProvider: ImageProvider,
+    val checkProvider: ImageProvider,
+    val askForMeal: Boolean,
 )
 
 /** Also the number of foods the image worker pre-scales thumbnails for. */
@@ -81,54 +87,58 @@ class QuickAddWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
-        if (!widgetsSignedIn()) provideContent { GlanceTheme { SignedOutWidgetContent() } }
-
-        val koin =
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-        val db = koin.get<UserDataDatabase>()
-        val json = koin.get<Json>()
-
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        val rows =
-            RecentFoods
-                .load(db, json, today, QUICK_ADD_MAX_ROWS)
-                .map { food ->
-                    // Decoded here rather than in the composable: a widget renders with
-                    // no chance to load anything, so the bitmap has to be in hand.
-                    val thumbnail =
-                        WidgetFoodImages
-                            .cached(context, food.id)
-                            ?.let { BitmapFactory.decodeFile(it.absolutePath) }
-                            ?.let { ImageProvider(it) }
-                    QuickAddRow(food.id, food.name, food.calories, thumbnail)
-                }
-
-        val density = context.resources.displayMetrics.density
-        val iconPx = (24 * density).toInt()
-        val isDark =
-            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
-
-        val askForMeal = tilesAlwaysAskForMeal(db, json)
-
-        val plusProvider = ImageProvider(PlusPlaceholderRenderer.render(iconPx, isDark))
-        val checkProvider = ImageProvider(CheckmarkRenderer.render(iconPx))
-
-        provideContent {
+        provideWidgetData(context, id, { loadQuickAdd(context) }) { data ->
             GlanceTheme {
-                QuickAddContent(rows, plusProvider, checkProvider, askForMeal)
+                if (data == null) {
+                    SignedOutWidgetContent()
+                } else {
+                    QuickAddContent(data.rows, data.plusProvider, data.checkProvider, data.askForMeal)
+                }
             }
         }
     }
 
     companion object {
-        suspend fun updateAllWidgets(context: Context) {
-            val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(QuickAddWidget::class.java)
-            ids.forEach { id -> QuickAddWidget().update(context, id) }
-        }
+        suspend fun updateAllWidgets(context: Context) = refreshWidgets(context, QuickAddWidget())
     }
+}
+
+/** Null when signed out. */
+private suspend fun loadQuickAdd(context: Context): QuickAddData? {
+    if (!widgetsSignedIn()) return null
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    val db = koin.get<UserDataDatabase>()
+    val json = koin.get<Json>()
+
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val rows =
+        RecentFoods
+            .load(db, json, today, QUICK_ADD_MAX_ROWS)
+            .map { food ->
+                // Decoded here rather than in the composable: a widget renders with
+                // no chance to load anything, so the bitmap has to be in hand.
+                val thumbnail =
+                    WidgetFoodImages
+                        .cached(context, food.id)
+                        ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                        ?.let { ImageProvider(it) }
+                QuickAddRow(food.id, food.name, food.calories, thumbnail, LogFavoriteFoodAction.isRecentlyLogged(food.id))
+            }
+
+    val density = context.resources.displayMetrics.density
+    val iconPx = (24 * density).toInt()
+    val isDark =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
+    val askForMeal = tilesAlwaysAskForMeal(db, json)
+
+    val plusProvider = ImageProvider(PlusPlaceholderRenderer.render(iconPx, isDark))
+    val checkProvider = ImageProvider(CheckmarkRenderer.render(iconPx))
+
+    return QuickAddData(rows, plusProvider, checkProvider, askForMeal)
 }
 
 @Composable
@@ -193,7 +203,7 @@ private fun QuickAddRowItem(
     askForMeal: Boolean,
     context: Context,
 ) {
-    val logged = LogFavoriteFoodAction.isRecentlyLogged(row.id)
+    val logged = row.logged
     Row(
         modifier =
             GlanceModifier
