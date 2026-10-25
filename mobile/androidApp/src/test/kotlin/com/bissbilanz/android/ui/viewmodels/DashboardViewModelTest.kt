@@ -3,7 +3,9 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.Goals
@@ -14,6 +16,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,13 +24,16 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.todayIn
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.time.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -254,7 +260,66 @@ class DashboardViewModelTest {
             viewModel.toggleFastingDay()
 
             assertEquals(false, viewModel.isFastingDay.value)
-            assertEquals("Failed to update fasting day", viewModel.snackbarMessage.value)
+            assertEquals(R.string.dashboard_fasting_update_failed, viewModel.snackbarMessageRes.value)
+        }
+
+    @Test
+    fun entriesRefreshFailureStillLoadsDayProperties() =
+        runTest {
+            coEvery { entryRepo.refresh(any()) } throws RuntimeException("offline")
+            coEvery { entryRepo.getDayProperties(any()) } answers { dayProperties(firstArg(), waterMl = 1500) }
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+
+            assertEquals(1500, viewModel.waterMl.value)
+            assertEquals(true, viewModel.refreshFailed.value)
+            viewModel.addWater(250)
+            coVerify { entryRepo.setDayProperties(viewModel.selectedDate.value.toString(), waterMl = 1750) }
+        }
+
+    @Test
+    fun switchingDaysNeverAddsWaterOntoTheOtherDaysValue() =
+        runTest {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
+            val yesterdayProps = CompletableDeferred<DayProperties?>()
+            coEvery { entryRepo.getDayProperties(today.toString()) } returns dayProperties(today.toString(), waterMl = 1500)
+            coEvery { entryRepo.getDayProperties(yesterday) } coAnswers { yesterdayProps.await() }
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            assertEquals(1500, viewModel.waterMl.value)
+
+            viewModel.previousDay()
+            assertNull(viewModel.waterMl.value)
+            viewModel.addWater(250)
+            coVerify(exactly = 0) { entryRepo.setDayProperties(yesterday, waterMl = any()) }
+
+            yesterdayProps.complete(dayProperties(yesterday, waterMl = 500))
+            assertEquals(500, viewModel.waterMl.value)
+        }
+
+    @Test
+    fun aDashboardLeftOnTodayMovesToTheNewToday() =
+        runTest {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
+            val state = SavedStateHandle(mapOf("selectedDate" to yesterday, "todayAtLastCheck" to yesterday))
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, state)
+
+            assertEquals(today, viewModel.selectedDate.value)
+        }
+
+    @Test
+    fun aDeliberatelyPickedPastDayStaysSelectedAfterMidnight() =
+        runTest {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val yesterday = today.minus(1, DateTimeUnit.DAY)
+            val earlier = today.minus(3, DateTimeUnit.DAY)
+            val state = SavedStateHandle(mapOf("selectedDate" to earlier.toString(), "todayAtLastCheck" to yesterday.toString()))
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, state)
+
+            assertEquals(earlier, viewModel.selectedDate.value)
         }
 
     @Test
@@ -280,6 +345,19 @@ class DashboardViewModelTest {
             assertEquals(MAX_WATER_ML, viewModel.waterMl.value)
             coVerify { entryRepo.setDayProperties(date, waterMl = MAX_WATER_ML) }
         }
+
+    private fun dayProperties(
+        date: String,
+        waterMl: Int? = null,
+    ) = DayProperties(
+        date = date,
+        isFastingDay = false,
+        notes = null,
+        waterMl = waterMl,
+        activityCalories = null,
+        activityNote = null,
+        activityCaloriesSource = null,
+    )
 
     @Test
     fun entriesWithCapitalizedMealTypeGroupCorrectly() =

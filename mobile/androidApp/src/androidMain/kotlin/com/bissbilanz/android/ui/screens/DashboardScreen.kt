@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
@@ -66,6 +70,7 @@ import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.util.DashboardSection
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.millisUntilNextDay
 import com.bissbilanz.android.util.resolveDashboardSections
 import com.bissbilanz.android.widget.DayOverviewWidgetReceiver
 import com.bissbilanz.mode.AppMode
@@ -79,6 +84,7 @@ import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -108,6 +114,7 @@ fun DashboardScreen(navController: NavController) {
     val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
     val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = rememberHaptic()
@@ -118,12 +125,30 @@ fun DashboardScreen(navController: NavController) {
             viewModel.clearSnackbar()
         }
     }
+    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
+    LaunchedEffect(snackbarMessageText) {
+        snackbarMessageText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbarRes()
+        }
+    }
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
-    val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
     val copiedFormat = stringResource(R.string.dashboard_copied_count)
     val loggedFormat = stringResource(R.string.dashboard_favorite_logged)
     val copyEntries = {
-        viewModel.copyEntriesFromYesterday({ count -> copiedFormat.format(count) }, copyFailedMessage)
+        viewModel.copyEntriesFromYesterday { count -> copiedFormat.format(count) }
+    }
+
+    // Re-checked on every resume and again at each midnight while the dashboard stays
+    // on screen, so "today" follows the calendar instead of turning into yesterday.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                viewModel.rollOverToToday()
+                delay(millisUntilNextDay())
+            }
+        }
     }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -189,9 +214,11 @@ fun DashboardScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    // An icon rather than a text button: "Zu heute springen" left the
+                    // centred title no room on a German phone.
                     if (selectedDate != today) {
-                        TextButton(onClick = { viewModel.goToToday() }) {
-                            Text(stringResource(R.string.dashboard_go_to_today))
+                        IconButton(onClick = { viewModel.goToToday() }) {
+                            Icon(Icons.Default.Today, stringResource(R.string.dashboard_go_to_today))
                         }
                     }
                     IconButton(
@@ -541,34 +568,46 @@ fun DashboardScreen(navController: NavController) {
                                             }
                                         }
 
+                                        // Keyed by day so a draft never carries over to the
+                                        // next day, and a draft saved while switching days is
+                                        // written to the day it was typed on.
                                         DashboardSection.WATER -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            WaterCard(
-                                                waterMl = waterMl,
-                                                waterGoalMl = waterGoalMl,
-                                                onAddWater = { viewModel.addWater(it) },
-                                                onSetWater = { viewModel.setWater(it) },
-                                                onClearWater = { viewModel.clearWater() },
-                                            )
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                WaterCard(
+                                                    waterMl = waterMl,
+                                                    waterGoalMl = waterGoalMl,
+                                                    onAddWater = { viewModel.addWater(it) },
+                                                    onSetWater = { viewModel.setWater(it, day) },
+                                                    onClearWater = { viewModel.setWater(null, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.ACTIVITY -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            ActivityCard(
-                                                activityCalories = activityCalories,
-                                                activityCaloriesSource = activityCaloriesSource,
-                                                activityNote = activityNote,
-                                                onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
-                                                onClearActivity = { viewModel.clearActivity() },
-                                            )
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                ActivityCard(
+                                                    activityCalories = activityCalories,
+                                                    activityCaloriesSource = activityCaloriesSource,
+                                                    activityNote = activityNote,
+                                                    onSetActivity = { cal, note -> viewModel.setActivity(cal, note, day) },
+                                                    onClearActivity = { viewModel.setActivity(null, null, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.NOTES -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            NotesCard(
-                                                notes = notes,
-                                                onNotesChanged = { viewModel.setNotes(it) },
-                                            )
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                NotesCard(
+                                                    notes = notes,
+                                                    onNotesChanged = { viewModel.setNotes(it, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.DAYLOG -> {
