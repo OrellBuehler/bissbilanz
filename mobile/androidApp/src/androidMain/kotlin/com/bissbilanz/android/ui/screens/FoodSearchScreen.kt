@@ -53,6 +53,7 @@ import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -88,7 +89,9 @@ fun FoodSearchScreen(navController: NavController) {
     var foodToEdit by remember { mutableStateOf<Food?>(null) }
 
     LaunchedEffect(Unit) {
-        PendingNavigation.consumeFoodQuery()?.let { viewModel.updateQuery(it) }
+        PendingNavigation.foodQuery.filterNotNull().collect {
+            PendingNavigation.consumeFoodQuery()?.let { viewModel.updateQuery(it) }
+        }
     }
 
     LaunchedEffect(snackbarMessage) {

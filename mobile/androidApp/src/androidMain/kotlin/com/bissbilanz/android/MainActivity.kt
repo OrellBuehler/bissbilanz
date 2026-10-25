@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,8 +27,10 @@ import com.bissbilanz.android.widget.AssistantFoodLogger
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.util.resolvedCalories
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import kotlin.math.roundToInt
 
@@ -36,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private val healthImporter: HealthImporter by inject()
     private val assistantFoodLogger: AssistantFoodLogger by inject()
     private val errorReporter: ErrorReporter by inject()
+    private val appScope: CoroutineScope by inject()
 
     // Below API 33 the platform has no per-app language, so the in-app choice has to be
     // pushed into this activity's own resources before anything is inflated.
@@ -91,7 +95,9 @@ class MainActivity : ComponentActivity() {
         if (foodId != null || foodName != null) {
             intent.removeExtra(EXTRA_FOOD_ID)
             intent.removeExtra(EXTRA_FOOD_NAME)
-            logFoodFromAssistant(foodId, foodName)
+            // A restored activity gets the original intent back, extras and all: the food
+            // was logged when it first arrived.
+            if (isFreshLaunch) logFoodFromAssistant(foodId, foodName)
             return
         }
 
@@ -113,8 +119,15 @@ class MainActivity : ComponentActivity() {
                 return
             }
             val code = uri.getQueryParameter("code") ?: return
-            lifecycleScope.launch(Dispatchers.IO) {
-                authManager.handleCallback(code)
+            // Resolved here: this activity's context carries the in-app language below API 33.
+            val failedMessage = getString(R.string.login_failed)
+            // App-scoped so a rotation or a finished activity does not cancel the code exchange.
+            appScope.launch(Dispatchers.IO) {
+                if (!authManager.handleCallback(code)) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(applicationContext, failedMessage, Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }

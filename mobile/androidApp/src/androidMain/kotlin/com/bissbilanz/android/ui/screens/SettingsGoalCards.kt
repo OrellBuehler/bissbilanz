@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -47,24 +48,26 @@ internal fun DailyGoalsCard(
                 calsPerGram: Int,
             ): Int = if (cals <= 0) 0 else ((grams * calsPerGram) / cals * 100).roundToInt()
 
-            var editCalories by remember(goals) {
-                mutableStateOf(goals?.calorieGoal?.toInt()?.toString() ?: "2000")
+            var editCalories by rememberSaveable(goals) {
+                mutableStateOf(goals?.calorieGoal?.toInt()?.toString() ?: "")
             }
-            var editProteinPct by remember(goals) {
+            var editProteinPct by rememberSaveable(goals) {
                 mutableStateOf(
                     goals?.let { g -> calcPct(g.proteinGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 30,
                 )
             }
-            var editCarbsPct by remember(goals) {
+            var editCarbsPct by rememberSaveable(goals) {
                 mutableStateOf(
                     goals?.let { g -> calcPct(g.carbGoal, g.calorieGoal, 4).coerceIn(5, 80) } ?: 40,
                 )
             }
-            var editFiberG by remember(goals) {
+            var editFiberG by rememberSaveable(goals) {
                 mutableStateOf(goals?.fiberGoal?.toInt() ?: 30)
             }
 
-            val cals = editCalories.toIntOrNull() ?: 2000
+            val parsedCals = editCalories.trim().toIntOrNull()?.takeIf { it > 0 }
+            val caloriesInvalid = parsedCals == null && editCalories.isNotBlank()
+            val cals = parsedCals ?: 0
             val fatPct = (100 - editProteinPct - editCarbsPct).coerceAtLeast(0)
             val totalPct = editProteinPct + editCarbsPct + fatPct
             val isValid = totalPct == 100
@@ -78,6 +81,13 @@ internal fun DailyGoalsCard(
                 value = editCalories,
                 onValueChange = { editCalories = it },
                 label = { Text(stringResource(R.string.settings_calories_kcal)) },
+                isError = caloriesInvalid,
+                supportingText =
+                    if (caloriesInvalid) {
+                        { Text(stringResource(R.string.settings_calorie_goal_invalid)) }
+                    } else {
+                        null
+                    },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -170,7 +180,7 @@ internal fun DailyGoalsCard(
                             ),
                         )
                     },
-                    enabled = isValid,
+                    enabled = isValid && parsedCals != null,
                 ) {
                     Text(stringResource(R.string.weight_save))
                 }
@@ -287,9 +297,12 @@ internal fun WaterGoalCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             var waterGoalDraft by
-                remember(waterGoalMl) {
-                    mutableStateOf((waterGoalMl ?: 2000).toString())
+                rememberSaveable(waterGoalMl) {
+                    mutableStateOf(waterGoalMl?.toString() ?: "")
                 }
+            // onFocusChanged also fires once, unfocused, when the field is first laid out;
+            // only a real focused -> unfocused transition commits the draft.
+            var wasFocused by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = waterGoalDraft,
                 onValueChange = { waterGoalDraft = it },
@@ -298,11 +311,13 @@ internal fun WaterGoalCard(
                 singleLine = true,
                 modifier =
                     Modifier.fillMaxWidth().onFocusChanged { focus ->
-                        if (!focus.isFocused) {
-                            waterGoalDraft.toIntOrNull()?.coerceIn(250, 10000)?.let {
-                                onUpdate(it)
-                                waterGoalDraft = it.toString()
-                            }
+                        if (focus.isFocused) {
+                            wasFocused = true
+                        } else if (wasFocused) {
+                            wasFocused = false
+                            val parsed = waterGoalDraft.trim().toIntOrNull()?.coerceIn(250, 10000)
+                            waterGoalDraft = (parsed ?: waterGoalMl)?.toString() ?: ""
+                            if (parsed != null && parsed != waterGoalMl) onUpdate(parsed)
                         }
                     },
             )

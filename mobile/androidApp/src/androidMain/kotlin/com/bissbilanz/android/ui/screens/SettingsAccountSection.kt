@@ -18,6 +18,7 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
 
 @Composable
@@ -27,6 +28,7 @@ internal fun AccountCard(
     authState: AuthState,
     pendingSyncCount: Long,
     exportingData: Boolean,
+    signOutEnabled: Boolean,
     onSignIn: () -> Unit,
     onExportData: () -> Unit,
     onSignOut: () -> Unit,
@@ -94,7 +96,7 @@ internal fun AccountCard(
                         stringResource(R.string.pending_sync_row, pendingSyncCount),
                         Icons.Default.Sync,
                     ) {
-                        navController.navigate("pending-sync")
+                        navController.navigate("pending-sync") { launchSingleTop = true }
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -115,6 +117,7 @@ internal fun AccountCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { onSignOut() },
+                    enabled = signOutEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {
@@ -174,6 +177,27 @@ internal fun SettingsFooter(onShowTipsAgain: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
         )
     }
+}
+
+/** Lets the user pick the provider their account uses; the same buttons the login screen shows. */
+@Composable
+internal fun SignInProviderDialog(
+    authManager: AuthManager,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val enabledProviders by produceState(defaultEnabledProviders, authManager) {
+        authManager.fetchLoginProviders()?.let { value = it }
+    }
+    AlertDialog(
+        onDismissRequest = { onDismiss() },
+        title = { Text(stringResource(R.string.settings_sign_in_choose_provider)) },
+        text = { Column { LoginProviderButtons(enabledProviders, onSelect) } },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -263,10 +287,7 @@ internal fun DowngradeDialog(
     onConfirm: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val downgradeInProgress =
-        downgradeState == AccountDowngradeController.State.Syncing ||
-            downgradeState == AccountDowngradeController.State.Downloading ||
-            downgradeState == AccountDowngradeController.State.Deleting
+    val downgradeInProgress = downgradeState.isInProgress
     AlertDialog(
         onDismissRequest = {
             if (!downgradeInProgress) {

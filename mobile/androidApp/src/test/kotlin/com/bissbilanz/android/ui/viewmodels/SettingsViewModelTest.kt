@@ -137,6 +137,19 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun loadDataSurvivesOfflineRefreshes() =
+        runTest {
+            appModeManager.setMode(AppMode.SYNCED)
+            coEvery { goalsRepo.refresh() } throws java.io.IOException("offline")
+            coEvery { prefsRepo.refresh() } throws java.io.IOException("offline")
+
+            createViewModel()
+
+            coVerify(exactly = 2) { errorReporter.captureException(any()) }
+            coVerify(atLeast = 1) { api.getMealTypes() }
+        }
+
+    @Test
     fun loadDataSkipsMealTypesInLocalMode() =
         runTest {
             appModeManager.setMode(AppMode.LOCAL)
