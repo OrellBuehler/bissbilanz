@@ -81,6 +81,8 @@ class FoodPackageViewModel(
         val labelOptions: List<FoodLabelStat> = emptyList(),
         val summary: FoodPackageSummaryResponse? = null,
         val loadingSummary: Boolean = false,
+        /** The summary could not be loaded (e.g. offline); the sheet offers a retry. */
+        val summaryFailed: Boolean = false,
         val exporting: Boolean = false,
     ) {
         val hasSelection get() = foodIds.isNotEmpty() || recipeIds.isNotEmpty()
@@ -130,6 +132,7 @@ class FoodPackageViewModel(
     val messageRes: StateFlow<Int?> = _messageRes.asStateFlow()
 
     private var summaryJob: Job? = null
+    private var exportJob: Job? = null
     private var facetsLoaded = false
 
     fun startExport(
@@ -137,6 +140,9 @@ class FoodPackageViewModel(
         recipeIds: List<String> = emptyList(),
         recipesOnly: Boolean = false,
     ) {
+        // A package from an earlier, dismissed sheet must not be shared by this one.
+        exportJob?.cancel()
+        _exportedFile.value = null
         val selection = foodIds.isNotEmpty() || recipeIds.isNotEmpty()
         _exportState.value =
             ExportState(
@@ -196,24 +202,28 @@ class FoodPackageViewModel(
         }
     }
 
+    fun retrySummary() = refreshSummary()
+
     private fun refreshSummary() {
         summaryJob?.cancel()
         val selection = _exportState.value.selection()
         if (selection == null) {
-            _exportState.update { it.copy(summary = null, loadingSummary = false) }
+            _exportState.update { it.copy(summary = null, loadingSummary = false, summaryFailed = false) }
             return
         }
         summaryJob =
             viewModelScope.launch {
-                _exportState.update { it.copy(loadingSummary = true) }
+                _exportState.update { it.copy(loadingSummary = true, summaryFailed = false) }
                 delay(300)
                 try {
                     val summary = if (isLocalMode) localPackages.summarize(selection) else api.summarizeFoodPackage(selection)
                     _exportState.update { it.copy(summary = summary) }
+                } catch (e: FoodPackageException) {
+                    _exportState.update { it.copy(summary = null) }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
-                    if (e !is FoodPackageException) errorReporter.captureException(e)
-                    _exportState.update { it.copy(summary = null) }
+                    errorReporter.captureException(e)
+                    _exportState.update { it.copy(summary = null, summaryFailed = true) }
                 }
                 _exportState.update { it.copy(loadingSummary = false) }
             }
@@ -222,30 +232,31 @@ class FoodPackageViewModel(
     fun exportPackage(cacheDir: File) {
         val selection = _exportState.value.selection() ?: return
         if (_exportState.value.exporting) return
-        viewModelScope.launch {
-            _exportState.update { it.copy(exporting = true) }
-            try {
-                val (bytes, fileName) =
-                    if (isLocalMode) {
-                        localPackages.export(selection).let { it.bytes to it.fileName }
-                    } else {
-                        api.exportFoodPackage(selection).let { it.bytes to it.fileName }
-                    }
-                _exportedFile.value =
-                    withContext(Dispatchers.IO) {
-                        val dir = File(cacheDir, "exports").apply { mkdirs() }
-                        // The name is what the receiver sees in the chat or the mail, so it is kept.
-                        File(dir, fileName).apply { writeBytes(bytes) }
-                    }
-            } catch (e: FoodPackageException) {
-                _messageRes.value = exportMessage(e)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _messageRes.value = R.string.food_package_export_failed
+        exportJob =
+            viewModelScope.launch {
+                _exportState.update { it.copy(exporting = true) }
+                try {
+                    val (bytes, fileName) =
+                        if (isLocalMode) {
+                            localPackages.export(selection).let { it.bytes to it.fileName }
+                        } else {
+                            api.exportFoodPackage(selection).let { it.bytes to it.fileName }
+                        }
+                    _exportedFile.value =
+                        withContext(Dispatchers.IO) {
+                            val dir = File(cacheDir, "exports").apply { mkdirs() }
+                            // The name is what the receiver sees in the chat or the mail, so it is kept.
+                            File(dir, fileName).apply { writeBytes(bytes) }
+                        }
+                } catch (e: FoodPackageException) {
+                    _messageRes.value = exportMessage(e)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _messageRes.value = R.string.food_package_export_failed
+                }
+                _exportState.update { it.copy(exporting = false) }
             }
-            _exportState.update { it.copy(exporting = false) }
-        }
     }
 
     private fun exportMessage(e: FoodPackageException): Int =
@@ -257,6 +268,13 @@ class FoodPackageViewModel(
 
     fun clearExportedFile() {
         _exportedFile.value = null
+    }
+
+    /** The sheet was closed: an export still running is abandoned rather than shared later. */
+    fun cancelExport() {
+        exportJob?.cancel()
+        summaryJob?.cancel()
+        _exportState.update { it.copy(exporting = false, loadingSummary = false) }
     }
 
     // ── Import ────────────────────────────────────────────────────────────
@@ -279,7 +297,12 @@ class FoodPackageViewModel(
         val error: String? = null,
         /** Why the file could not be opened, as a string resource. */
         val errorRes: Int? = null,
-    )
+        /** The preview failed for a passing reason (e.g. offline): the same file can be tried again. */
+        val retryable: Boolean = false,
+    ) {
+        /** This screen holds the package handed to the background import, or none at all. */
+        val showsBulkOutcome get() = fileName == null || (bulk != null && path == null && importing)
+    }
 
     private val _importState = MutableStateFlow(ImportState())
     val importState: StateFlow<ImportState> = _importState.asStateFlow()
@@ -288,11 +311,31 @@ class FoodPackageViewModel(
     val bulkStatus: StateFlow<BulkImportStatus> =
         bulkImports.status.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), BulkImportStatus.Idle)
 
-    fun resetImport() {
-        previewJob?.cancel()
-        IncomingPackageFiles.delete(_importState.value.path)
+    private var bulkOutcomeSeen = false
+
+    /** The finished or failed background import is on screen; leaving it counts as seen. */
+    fun bulkOutcomeShown() {
+        bulkOutcomeSeen = true
+    }
+
+    /** Done on the bulk outcome: forget the run, without touching a package opened since. */
+    fun finishBulkImport() {
+        bulkImports.acknowledge()
+        bulkOutcomeSeen = false
+        if (_importState.value.showsBulkOutcome) _importState.value = ImportState()
+    }
+
+    fun cancelBulkImport() {
+        bulkImports.cancel()
         _importState.value = ImportState()
-        if (bulkStatus.value !is BulkImportStatus.Running) bulkImports.acknowledge()
+    }
+
+    /** A newly opened package takes over the screen from an earlier run's outcome. */
+    private fun dropFinishedBulkImport() {
+        if (bulkStatus.value is BulkImportStatus.Finished || bulkStatus.value is BulkImportStatus.Failed) {
+            bulkImports.acknowledge()
+            bulkOutcomeSeen = false
+        }
     }
 
     /**
@@ -323,6 +366,7 @@ class FoodPackageViewModel(
     fun openIncoming(request: PendingPackageImport.Request) {
         val path = request.path
         if (path == null) {
+            dropFinishedBulkImport()
             IncomingPackageFiles.delete(_importState.value.path)
             _importState.value =
                 ImportState(
@@ -345,9 +389,12 @@ class FoodPackageViewModel(
     ) {
         val previous = _importState.value.path
         if (previous != null && previous != path) IncomingPackageFiles.delete(previous)
+        dropFinishedBulkImport()
         _importState.value = ImportState(fileName = fileName, path = path, analyzing = true)
         runPreview()
     }
+
+    fun retryPreview() = runPreview()
 
     /** Report a file that could not even be copied (too large, unreadable). */
     fun fileRejected(messageRes: Int) {
@@ -363,7 +410,7 @@ class FoodPackageViewModel(
         // A newer package supersedes the one still being analyzed; its late result must not
         // land on the new import.
         previewJob?.cancel()
-        _importState.update { it.copy(analyzing = true, error = null, errorRes = null) }
+        _importState.update { it.copy(analyzing = true, error = null, errorRes = null, retryable = false) }
         previewJob =
             viewModelScope.launch {
                 try {
@@ -391,12 +438,18 @@ class FoodPackageViewModel(
                     _importState.update { it.copy(preview = null, errorRes = openErrorRes(e)) }
                 } catch (e: ApiException) {
                     errorReporter.captureException(e)
-                    _importState.update { it.copy(preview = null, error = serverError(e)) }
-                    if (serverError(e) == null) _messageRes.value = R.string.food_package_import_failed
+                    val message = serverError(e)
+                    _importState.update {
+                        if (message != null) {
+                            it.copy(preview = null, error = message)
+                        } else {
+                            it.copy(preview = null, errorRes = R.string.food_package_preview_failed, retryable = true)
+                        }
+                    }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
-                    _messageRes.value = R.string.food_package_import_failed
+                    _importState.update { it.copy(preview = null, errorRes = R.string.food_package_preview_failed, retryable = true) }
                 }
                 _importState.update { it.copy(analyzing = false) }
             }
@@ -484,13 +537,14 @@ class FoodPackageViewModel(
                             api.importFoodPackage(state.fileName ?: IncomingPackageFiles.DEFAULT_NAME, File(path).readBytes(), resolutions)
                         }
                     }
-                _importState.update { it.copy(result = result) }
+                // A package opened meanwhile owns the screen now; this result is not its.
+                _importState.update { if (it.path == path) it.copy(result = result) else it }
                 afterImport()
             } catch (e: FoodPackageException) {
                 if (e.kind == FoodPackageException.Kind.STALE_PREVIEW) {
                     // The data changed since the preview: review again.
                     _messageRes.value = R.string.food_package_stale
-                    runPreview()
+                    if (_importState.value.path == path) runPreview()
                 } else {
                     errorReporter.captureException(e)
                     _messageRes.value = R.string.food_package_import_failed
@@ -500,7 +554,7 @@ class FoodPackageViewModel(
                 if (e.statusCode == 409) {
                     // The account changed since the preview: review again.
                     _messageRes.value = R.string.food_package_stale
-                    runPreview()
+                    if (_importState.value.path == path) runPreview()
                 } else {
                     _messageRes.value = R.string.food_package_import_failed
                 }
@@ -509,7 +563,7 @@ class FoodPackageViewModel(
                 errorReporter.captureException(e)
                 _messageRes.value = R.string.food_package_import_failed
             }
-            _importState.update { it.copy(importing = false) }
+            _importState.update { if (it.path == path) it.copy(importing = false) else it }
         }
     }
 
@@ -527,6 +581,7 @@ class FoodPackageViewModel(
 
     override fun onCleared() {
         IncomingPackageFiles.delete(_importState.value.path)
+        if (bulkOutcomeSeen) bulkImports.acknowledge()
         super.onCleared()
     }
 

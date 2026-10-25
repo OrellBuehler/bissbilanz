@@ -1442,6 +1442,7 @@
     <string name="food_package_ingredients_added">+%1$d Zutaten, die von den Rezepten benötigt werden</string>
     <string name="food_package_too_large">Zu gross für einmal — schränke die Auswahl ein.</string>
     <string name="food_package_nothing_selected">Noch nichts ausgewählt.</string>
+    <string name="food_package_summary_failed">Paketgröße konnte nicht berechnet werden.</string>
     <string name="food_package_export_button">Exportieren und teilen</string>
     <string name="food_package_export_failed">Export fehlgeschlagen. Bitte versuche es erneut.</string>
     <string name="food_package_import_title">Lebensmittelpaket importieren</string>
@@ -1474,6 +1475,7 @@
     <string name="food_package_ingredients">%1$d Zutaten</string>
     <string name="food_package_import_button">Importieren</string>
     <string name="food_package_import_failed">Import fehlgeschlagen. Bitte versuche es erneut.</string>
+    <string name="food_package_preview_failed">Paket konnte nicht geprüft werden. Bitte versuche es erneut.</string>
     <string name="food_package_stale">Deine Daten haben sich inzwischen geändert — bitte erneut prüfen.</string>
     <string name="food_package_result_title">Import abgeschlossen</string>
     <string name="food_package_result_foods">Lebensmittel: %1$d neu · %2$d ersetzt · %3$d beide behalten · %4$d übersprungen</string>
@@ -1511,6 +1513,7 @@
     <string name="bulk_import_button">%1$s Lebensmittel importieren</string>
     <string name="bulk_import_running_title">Lebensmittel werden importiert…</string>
     <string name="bulk_import_running_hint">Du kannst diesen Bildschirm verlassen. Der Import läuft im Hintergrund weiter.</string>
+    <string name="bulk_import_cancel">Import abbrechen</string>
     <string name="bulk_import_result_title">Import abgeschlossen</string>
     <string name="bulk_import_result_foods">%1$s neu · %2$s schon vorhanden · %3$s ungültig</string>
     <string name="bulk_import_result_images">%1$s Fotos hinzugefügt</string>

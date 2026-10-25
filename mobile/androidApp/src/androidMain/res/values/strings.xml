@@ -1444,6 +1444,7 @@
     <string name="food_package_ingredients_added">+%1$d ingredient foods needed by the recipes</string>
     <string name="food_package_too_large">Too large to share at once — narrow the selection.</string>
     <string name="food_package_nothing_selected">Nothing selected yet.</string>
+    <string name="food_package_summary_failed">Couldn\'t calculate the package size.</string>
     <string name="food_package_export_button">Export and share</string>
     <string name="food_package_export_failed">Export failed. Please try again.</string>
     <string name="food_package_import_title">Import food package</string>
@@ -1476,6 +1477,7 @@
     <string name="food_package_ingredients">%1$d ingredients</string>
     <string name="food_package_import_button">Import</string>
     <string name="food_package_import_failed">Import failed. Please try again.</string>
+    <string name="food_package_preview_failed">Couldn\'t check the package. Please try again.</string>
     <string name="food_package_stale">Your data changed meanwhile — please review again.</string>
     <string name="food_package_result_title">Import complete</string>
     <string name="food_package_result_foods">Foods: %1$d new · %2$d replaced · %3$d kept both · %4$d skipped</string>
@@ -1513,6 +1515,7 @@
     <string name="bulk_import_button">Import %1$s foods</string>
     <string name="bulk_import_running_title">Importing foods…</string>
     <string name="bulk_import_running_hint">You can leave this screen. The import continues in the background.</string>
+    <string name="bulk_import_cancel">Stop import</string>
     <string name="bulk_import_result_title">Import complete</string>
     <string name="bulk_import_result_foods">%1$s new · %2$s already there · %3$s invalid</string>
     <string name="bulk_import_result_images">%1$s photos added</string>

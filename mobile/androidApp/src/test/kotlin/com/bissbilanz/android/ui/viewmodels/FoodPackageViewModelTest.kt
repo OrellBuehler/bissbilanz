@@ -18,6 +18,7 @@ import com.bissbilanz.api.generated.model.FoodPackageNewRecipes
 import com.bissbilanz.api.generated.model.FoodPackagePreviewResponse
 import com.bissbilanz.api.generated.model.FoodPackageResolutions
 import com.bissbilanz.api.generated.model.FoodPackageSelection
+import com.bissbilanz.api.generated.model.FoodPackageSummaryResponse
 import com.bissbilanz.api.generated.model.FoodPackageTotals
 import com.bissbilanz.foodpackage.BulkManifestInfo
 import com.bissbilanz.foodpackage.BulkPackageImporter
@@ -55,6 +56,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -77,10 +79,11 @@ class FoodPackageViewModelTest {
     private lateinit var bulkImporter: BulkPackageImporter
     private lateinit var bulkImports: BulkImportScheduler
     private lateinit var pkg: File
+    private val mainDispatcher = UnconfinedTestDispatcher()
 
     @BeforeTest
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(mainDispatcher)
         api = mockk(relaxed = true)
         refreshManager = mockk(relaxed = true)
         local = mockk(relaxed = true)
@@ -425,5 +428,105 @@ class FoodPackageViewModelTest {
             assertEquals(R.string.food_package_error_not_a_package, vm.bulkErrorRes("NOT_A_PACKAGE"))
             assertEquals(R.string.food_package_error_invalid, vm.bulkErrorRes("DAMAGED"))
             assertEquals(R.string.bulk_import_error_failed, vm.bulkErrorRes("SOMETHING_NEW"))
+        }
+
+    @Test
+    fun aPreviewThatFailedForAPassingReasonCanBeRetried() =
+        runBlocking<Unit> {
+            coEvery { local.preview(pkg.path) } throws IllegalStateException("offline") andThen preview()
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyzed()
+            assertEquals(R.string.food_package_preview_failed, vm.importState.value.errorRes)
+            assertTrue(vm.importState.value.retryable)
+
+            vm.retryPreview()
+            awaitState(vm.importState) { it.preview != null && !it.analyzing }
+            assertNull(vm.importState.value.errorRes)
+        }
+
+    @Test
+    fun aCommitResultDoesNotLandOnAPackageOpenedMeanwhile() =
+        runBlocking<Unit> {
+            val second = File.createTempFile("package2", ".pkg").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+            coEvery { local.preview(any()) } returns preview()
+            coEvery { local.commit(pkg.path, any()) } coAnswers {
+                kotlinx.coroutines.delay(300)
+                result
+            }
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.analyzed()
+            vm.commit()
+            vm.analyze("b.bissbilanz", second.path)
+            awaitState(vm.importState) { it.preview != null && !it.analyzing }
+            kotlinx.coroutines.delay(600)
+
+            assertEquals("b.bissbilanz", vm.importState.value.fileName)
+            assertNull(vm.importState.value.result)
+            assertFalse(vm.importState.value.importing)
+            second.delete()
+        }
+
+    @Test
+    fun aFailedSummaryOffersARetry() =
+        runBlocking<Unit> {
+            coEvery { api.summarizeFoodPackage(any()) } throws IllegalStateException("offline") andThen
+                mockk<FoodPackageSummaryResponse>(relaxed = true)
+            val vm = viewModel(AppMode.SYNCED)
+
+            vm.startExport()
+            mainDispatcher.scheduler.advanceUntilIdle()
+            assertTrue(vm.exportState.value.summaryFailed)
+
+            vm.retrySummary()
+            mainDispatcher.scheduler.advanceUntilIdle()
+            assertFalse(vm.exportState.value.summaryFailed)
+            assertNotNull(vm.exportState.value.summary)
+        }
+
+    @Test
+    fun startingAnExportDropsAPackageAnEarlierSheetLeftBehind() =
+        runBlocking<Unit> {
+            coEvery { local.export(any(), any()) } returns ExportedPackage(byteArrayOf(5, 6), "Lasagne.bissbilanz", 0, 1)
+            val cache = createTempDirectory().toFile()
+            val vm = viewModel(AppMode.LOCAL)
+
+            vm.startExport(recipeIds = listOf("temp_r1"), recipesOnly = true)
+            vm.exportPackage(cache)
+            awaitState(vm.exportedFile) { it != null }
+            vm.startExport(recipeIds = listOf("temp_r2"), recipesOnly = true)
+
+            assertNull(vm.exportedFile.value)
+            cache.deleteRecursively()
+        }
+
+    @Test
+    fun doneOnABulkOutcomeKeepsAPackageOpenedSince() =
+        runBlocking<Unit> {
+            coEvery { local.preview(pkg.path) } returns preview()
+            val vm = viewModel(AppMode.LOCAL)
+            vm.analyzed()
+
+            vm.finishBulkImport()
+
+            verify { bulkImports.acknowledge() }
+            assertEquals(pkg.path, vm.importState.value.path)
+            assertNotNull(vm.importState.value.preview)
+            assertTrue(pkg.exists())
+        }
+
+    @Test
+    fun cancellingABulkImportStopsTheJobAndClearsTheScreen() =
+        runBlocking<Unit> {
+            coEvery { bulkImporter.peek(pkg.path) } returns BulkManifestInfo(null, 48_000, 0)
+            val vm = viewModel(AppMode.SYNCED)
+            vm.analyzed("huge.bissbilanz")
+            vm.startBulkImport()
+
+            vm.cancelBulkImport()
+
+            verify { bulkImports.cancel() }
+            assertEquals(FoodPackageViewModel.ImportState(), vm.importState.value)
         }
 }

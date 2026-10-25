@@ -88,7 +88,10 @@ internal fun BulkReadyView(
 }
 
 @Composable
-internal fun BulkRunningView(status: BulkImportStatus.Running) {
+internal fun BulkRunningView(
+    status: BulkImportStatus.Running,
+    onCancel: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -105,6 +108,9 @@ internal fun BulkRunningView(status: BulkImportStatus.Running) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         SmallText(stringResource(R.string.bulk_import_running_hint))
+        OutlinedButton(onClick = onCancel) {
+            Text(stringResource(R.string.bulk_import_cancel), maxLines = 1)
+        }
     }
 }
 

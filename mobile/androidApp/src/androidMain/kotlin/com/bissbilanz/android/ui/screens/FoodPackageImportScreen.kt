@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -39,9 +42,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -79,6 +79,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.BulkImportStatus
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingPackageImport
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPickerSheet
 import com.bissbilanz.android.ui.theme.MacroColors
@@ -173,7 +174,7 @@ fun FoodPackageImportScreen(navController: NavController) {
         bottomBar = {
             val preview = state.preview
             if (preview != null && state.result == null) {
-                Box(Modifier.fillMaxWidth().padding(16.dp)) {
+                Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp)) {
                     Button(
                         onClick = { viewModel.commit() },
                         enabled = !state.importing && !state.analyzing,
@@ -193,19 +194,26 @@ fun FoodPackageImportScreen(navController: NavController) {
             val preview = state.preview
             val result = state.result
             val finishBulk: () -> Unit = {
-                viewModel.resetImport()
+                viewModel.finishBulkImport()
                 navController.popBackStack()
             }
             val bulk = bulkStatus
+            // An earlier run's outcome gives way to a package opened since.
             when {
-                bulk is BulkImportStatus.Running -> BulkRunningView(bulk)
-                bulk is BulkImportStatus.Finished -> BulkFinishedView(bulk.summary, onDone = finishBulk)
-                bulk is BulkImportStatus.Failed -> BulkFailedView(viewModel.bulkErrorRes(bulk.kind), onDone = finishBulk)
+                bulk is BulkImportStatus.Running -> BulkRunningView(bulk, onCancel = viewModel::cancelBulkImport)
+                bulk is BulkImportStatus.Finished && state.showsBulkOutcome -> {
+                    LaunchedEffect(bulk) { viewModel.bulkOutcomeShown() }
+                    BulkFinishedView(bulk.summary, onDone = finishBulk)
+                }
+                bulk is BulkImportStatus.Failed && state.showsBulkOutcome -> {
+                    LaunchedEffect(bulk) { viewModel.bulkOutcomeShown() }
+                    BulkFailedView(viewModel.bulkErrorRes(bulk.kind), onDone = finishBulk)
+                }
                 state.bulk != null ->
                     BulkReadyView(viewModel, state, isLocalMode = appModeManager.isLocal, onPickAnother = { picker.launch(mimeTypes) })
                 result != null ->
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -272,6 +280,11 @@ fun FoodPackageImportScreen(navController: NavController) {
                         }
                         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         state.errorRes?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+                        if (state.retryable && state.path != null) {
+                            OutlinedButton(onClick = viewModel::retryPreview) {
+                                Text(stringResource(R.string.action_retry), maxLines = 1)
+                            }
+                        }
                         Button(onClick = { picker.launch(mimeTypes) }) {
                             Icon(Icons.Outlined.FileOpen, null, modifier = Modifier.size(18.dp))
                             Text(stringResource(R.string.food_package_choose_file), modifier = Modifier.padding(start = 8.dp))
@@ -455,6 +468,7 @@ private fun NewFoodCard(
 ) {
     val colors = MacroColors.current
     val unit = item.servingUnit.value.replace('_', ' ')
+    val kcal = stringResource(R.string.format_kcal, fmt(item.calories))
     if (searching) {
         FoodPickerSheet(
             title = stringResource(R.string.food_package_use_own),
@@ -481,7 +495,7 @@ private fun NewFoodCard(
                         buildAnnotatedString {
                             item.brand?.let { append("$it · ") }
                             append("${fmt(item.servingSize)} $unit · ")
-                            withStyle(SpanStyle(color = colors.calories)) { append("${fmt(item.calories)} kcal") }
+                            withStyle(SpanStyle(color = colors.calories)) { append(kcal) }
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -562,10 +576,12 @@ private fun ApplyAllRow(
     value: FoodPackageAction?,
     onChange: (FoodPackageAction) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SmallText(stringResource(R.string.food_package_apply_all))
-        ResolutionButtons(value = value, allowed = FoodPackageAction.entries, onChange = onChange)
-    }
+    ResolutionButtons(
+        value = value,
+        allowed = FoodPackageAction.entries,
+        onChange = onChange,
+        label = stringResource(R.string.food_package_apply_all),
+    )
 }
 
 @Composable
@@ -573,30 +589,24 @@ private fun ResolutionButtons(
     value: FoodPackageAction?,
     allowed: List<FoodPackageAction>,
     onChange: (FoodPackageAction) -> Unit,
+    label: String? = null,
 ) {
-    val options = FoodPackageAction.entries
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, action ->
-            SegmentedButton(
-                selected = value == action,
-                onClick = { onChange(action) },
-                enabled = action in allowed,
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                icon = {},
-            ) {
-                Text(
-                    when (action) {
-                        FoodPackageAction.skip -> stringResource(R.string.food_package_skip)
-                        FoodPackageAction.replace -> stringResource(R.string.food_package_replace)
-                        FoodPackageAction.keep_both -> stringResource(R.string.food_package_keep_both)
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
+    val options =
+        FoodPackageAction.entries.map { action ->
+            when (action) {
+                FoodPackageAction.skip -> stringResource(R.string.food_package_skip)
+                FoodPackageAction.replace -> stringResource(R.string.food_package_replace)
+                FoodPackageAction.keep_both -> stringResource(R.string.food_package_keep_both)
+            } to action
         }
-    }
+    // Mixed choices (apply-all over differing items) show no value, only the label.
+    ChoiceDropdown(
+        selectedLabel = options.firstOrNull { it.second == value }?.first.orEmpty(),
+        options = options,
+        onSelect = onChange,
+        label = label,
+        enabledOf = { it in allowed },
+    )
 }
 
 @Composable
@@ -784,10 +794,22 @@ private fun FoodSide(
         SmallText(serving)
         val colors = MacroColors.current
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("${fmt(macros[0])} kcal", color = colors.calories, style = MaterialTheme.typography.labelSmall)
-            Text("${fmt(macros[1])}P", color = colors.protein, style = MaterialTheme.typography.labelSmall)
-            Text("${fmt(macros[2])}C", color = colors.carbs, style = MaterialTheme.typography.labelSmall)
-            Text("${fmt(macros[3])}F", color = colors.fat, style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.format_kcal, fmt(macros[0])), color = colors.calories, style = MaterialTheme.typography.labelSmall)
+            Text(
+                "${fmt(macros[1])}${stringResource(R.string.macro_chip_protein)}",
+                color = colors.protein,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                "${fmt(macros[2])}${stringResource(R.string.macro_chip_carbs)}",
+                color = colors.carbs,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                "${fmt(macros[3])}${stringResource(R.string.macro_chip_fat)}",
+                color = colors.fat,
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
         barcode?.let { SmallText(it) }
     }

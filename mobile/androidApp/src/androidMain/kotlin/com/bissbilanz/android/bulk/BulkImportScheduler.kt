@@ -53,6 +53,11 @@ class BulkImportScheduler(
                 .getWorkInfosForUniqueWorkFlow(BulkImportWorker.UNIQUE_NAME)
                 .map { infos -> statusOf(infos.lastOrNull()) }
 
+    /** The user stopped the import; the worker drops the package and its checkpoint. */
+    fun cancel() {
+        WorkManager.getInstance(context).cancelUniqueWork(BulkImportWorker.UNIQUE_NAME)
+    }
+
     /** The user has seen how it ended: forget the finished run. */
     fun acknowledge() {
         WorkManager.getInstance(context).pruneWork()
