@@ -32,7 +32,7 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.rememberJsonStateSaver
-import com.bissbilanz.android.util.formatDecimal
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
@@ -254,7 +254,7 @@ fun RecipeListItem(
                 Text(
                     stringResource(
                         R.string.recipe_list_item_summary,
-                        formatDecimal(recipe.totalServings),
+                        formatLocalizedNumber(recipe.totalServings, 2),
                         recipe.ingredients.size,
                     ),
                     style = MaterialTheme.typography.bodySmall,

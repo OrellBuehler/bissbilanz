@@ -39,7 +39,7 @@ import com.bissbilanz.android.ui.components.RecipeDeleteBlockedDialog
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
-import com.bissbilanz.android.util.formatDecimal
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.DeleteOutcome
@@ -369,7 +369,7 @@ fun RecipeDetailScreen(
                         }
 
                         Text(
-                            stringResource(R.string.recipe_detail_servings, formatDecimal(r.totalServings)),
+                            stringResource(R.string.recipe_detail_servings, formatLocalizedNumber(r.totalServings, 2)),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

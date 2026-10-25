@@ -1,5 +1,6 @@
 package com.bissbilanz.android.util
 
+import com.bissbilanz.android.ui.components.formatBytes
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,5 +20,18 @@ class LocalizedNumberTest {
     @Test
     fun wholeNumbersAreRoundedWithoutGrouping() {
         assertEquals("2346", formatLocalizedNumber(2345.6, 0, Locale.GERMANY))
+    }
+
+    @Test
+    fun keepsUpToTheRequestedDecimals() {
+        assertEquals("0,33", formatLocalizedNumber(1.0 / 3, 2, Locale.GERMANY))
+        assertEquals("2.5", formatLocalizedNumber(2.5, 2, Locale.US))
+    }
+
+    @Test
+    fun packageSizesAreLocalized() {
+        assertEquals("1,5 MB", formatBytes(1_572_864, Locale.GERMANY))
+        assertEquals("1.5 MB", formatBytes(1_572_864, Locale.US))
+        assertEquals("2 KB", formatBytes(2048, Locale.GERMANY))
     }
 }

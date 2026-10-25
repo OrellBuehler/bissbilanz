@@ -46,7 +46,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.util.shareFile
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel.ExportMode
-import com.bissbilanz.android.util.formatDecimal
+import com.bissbilanz.android.util.formatLocalizedNumber
 
 /**
  * Export foods and recipes as a shareable package, mirroring the web's
@@ -290,5 +290,5 @@ internal fun formatBytes(
     if (bytes < 1024 * 1024) {
         "${maxOf(1, bytes / 1024)} KB"
     } else {
-        "${formatDecimal(bytes / 1024.0 / 1024.0, maxDecimals = 1, locale = locale)} MB"
+        "${formatLocalizedNumber(bytes / 1024.0 / 1024.0, 1, locale)} MB"
     }

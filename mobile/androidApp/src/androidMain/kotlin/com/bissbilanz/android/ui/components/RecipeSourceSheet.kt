@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
-import com.bissbilanz.android.util.formatDecimal
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.RecipeRepository
@@ -190,7 +190,7 @@ fun RecipeSourceSheet(
                                         Text(
                                             stringResource(
                                                 R.string.recipe_list_item_summary,
-                                                formatDecimal(recipe.totalServings),
+                                                formatLocalizedNumber(recipe.totalServings, 2),
                                                 recipe.ingredients.size,
                                             ),
                                             style = MaterialTheme.typography.bodySmall,
