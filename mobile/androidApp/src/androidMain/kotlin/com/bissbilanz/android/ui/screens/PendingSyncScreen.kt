@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncOperation
@@ -43,15 +44,15 @@ fun PendingSyncScreen(navController: NavController) {
     val syncState by syncManager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    var pending by remember { mutableStateOf<List<QueuedRequest>>(emptyList()) }
+    var pending by remember { mutableStateOf<List<QueuedRequest>?>(null) }
 
     // Re-read whenever the queue drains or something new is enqueued, so the
     // list tracks the same state the sync manager reports.
     LaunchedEffect(syncState.pendingCount, syncState.failedCount, syncState.isSyncing) {
         pending = syncQueue.all()
     }
-    val parked = pending.filter { it.failedAt != null }
-    val waiting = pending.filter { it.failedAt == null }
+    val parked = pending.orEmpty().filter { it.failedAt != null }
+    val waiting = pending.orEmpty().filter { it.failedAt == null }
 
     Scaffold(
         topBar = {
@@ -75,7 +76,11 @@ fun PendingSyncScreen(navController: NavController) {
             )
         },
     ) { padding ->
-        if (pending.isEmpty()) {
+        if (pending == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen()
+            }
+        } else if (pending.isNullOrEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
