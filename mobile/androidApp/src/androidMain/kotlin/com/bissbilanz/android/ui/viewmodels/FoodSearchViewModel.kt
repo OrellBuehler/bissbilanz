@@ -12,7 +12,6 @@ import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,26 +44,7 @@ class FoodSearchViewModel(
     private var allFoodsFromCache = false
     private val togglingFavoriteIds = mutableSetOf<String>()
     private var paginationJob: Job? = null
-    private var searchJob: Job? = null
     private val pageSize = 20
-
-    private val _query = MutableStateFlow("")
-    val query: StateFlow<String> = _query.asStateFlow()
-
-    private val _searchResults = MutableStateFlow<List<Food>>(emptyList())
-    val searchResults: StateFlow<List<Food>> = _searchResults.asStateFlow()
-
-    private val _isSearching = MutableStateFlow(false)
-    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
-
-    private val _offResults = MutableStateFlow<List<OpenFoodFactsProduct>>(emptyList())
-    val offResults: StateFlow<List<OpenFoodFactsProduct>> = _offResults.asStateFlow()
-
-    private val _isSearchingOff = MutableStateFlow(false)
-    val isSearchingOff: StateFlow<Boolean> = _isSearchingOff.asStateFlow()
-
-    private val _isResolvingOff = MutableStateFlow(false)
-    val isResolvingOff: StateFlow<Boolean> = _isResolvingOff.asStateFlow()
 
     /**
      * False for pickers whose result must already be one of the user's own foods
@@ -77,6 +57,14 @@ class FoodSearchViewModel(
 
     private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
     val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
+
+    private val search = FoodSearch(viewModelScope, foodRepo, errorReporter) { _snackbarMessage.value = it }
+    val query: StateFlow<String> = search.query
+    val searchResults: StateFlow<List<Food>> = search.results
+    val isSearching: StateFlow<Boolean> = search.isSearching
+    val offResults: StateFlow<List<OpenFoodFactsProduct>> = search.offResults
+    val isSearchingOff: StateFlow<Boolean> = search.isSearchingOff
+    val isResolvingOff: StateFlow<Boolean> = search.isResolvingOff
 
     init {
         loadAllFoods()
@@ -136,54 +124,11 @@ class FoodSearchViewModel(
         _isLoadingMore.value = false
     }
 
-    fun updateQuery(newQuery: String) {
-        _query.value = newQuery
-        searchJob?.cancel()
-        searchJob =
-            viewModelScope.launch {
-                if (newQuery.length >= 2) {
-                    // Searching from the first keystroke, so the debounce never shows
-                    // the previous query's "no results".
-                    _isSearching.value = true
-                    _offResults.value = emptyList()
-                    delay(300)
-                    val results =
-                        try {
-                            foodRepo.searchFoods(newQuery)
-                        } catch (e: Exception) {
-                            if (e is kotlinx.coroutines.CancellationException) throw e
-                            errorReporter.captureException(e)
-                            _snackbarMessage.value = UiMessage(R.string.food_search_failed)
-                            emptyList()
-                        }
-                    _searchResults.value = results
-                    _isSearching.value = false
-                    // Mirrors the web FoodPicker: only fall back to Open Food Facts
-                    // when the user's own database has few matches.
-                    if (openFoodFactsFallback && results.size < OFF_FALLBACK_THRESHOLD) {
-                        _isSearchingOff.value = true
-                        try {
-                            _offResults.value = foodRepo.searchOpenFoodFacts(newQuery)
-                        } finally {
-                            _isSearchingOff.value = false
-                        }
-                    }
-                } else {
-                    _isSearching.value = false
-                    _searchResults.value = emptyList()
-                    _offResults.value = emptyList()
-                }
-            }
-    }
+    fun updateQuery(newQuery: String) = search.update(newQuery, openFoodFacts = openFoodFactsFallback)
 
     /** Back to an empty search on the All tab, for a picker sheet reopened on a kept instance. */
     fun resetSearch() {
-        searchJob?.cancel()
-        _query.value = ""
-        _searchResults.value = emptyList()
-        _offResults.value = emptyList()
-        _isSearching.value = false
-        _isSearchingOff.value = false
+        search.reset()
         _selectedTab.value = TAB_ALL
         loadAllFoods()
     }
@@ -230,7 +175,7 @@ class FoodSearchViewModel(
                 // back to the top, and a stale row would make the next toggle a no-op.
                 // The repository updates its recents itself.
                 _allFoods.value = _allFoods.value.withFavorite(food.id, isFavorite)
-                _searchResults.value = _searchResults.value.withFavorite(food.id, isFavorite)
+                search.updateResults { it.withFavorite(food.id, isFavorite) }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -246,34 +191,10 @@ class FoodSearchViewModel(
         isFavorite: Boolean,
     ): List<Food> = map { if (it.id == id) it.copy(isFavorite = isFavorite) else it }
 
-    /**
-     * Copy-on-use: an Open Food Facts hit becomes a food in the user's database
-     * (or resolves to the one already carrying that barcode) before it can be
-     * logged or opened.
-     */
     fun selectOffProduct(
         product: OpenFoodFactsProduct,
         onResolved: (Food) -> Unit,
-    ) {
-        if (_isResolvingOff.value) return
-        _isResolvingOff.value = true
-        viewModelScope.launch {
-            try {
-                val food = foodRepo.findOrCreateByBarcode(product.barcode)
-                if (food != null) {
-                    onResolved(food)
-                } else {
-                    _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
-                }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
-            } finally {
-                _isResolvingOff.value = false
-            }
-        }
-    }
+    ) = search.selectOffProduct(product, onResolved)
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
@@ -297,6 +218,5 @@ class FoodSearchViewModel(
         const val TAB_ALL = 0
         const val TAB_RECENT = 1
         const val TAB_FAVORITES = 2
-        private const val OFF_FALLBACK_THRESHOLD = 5
     }
 }
