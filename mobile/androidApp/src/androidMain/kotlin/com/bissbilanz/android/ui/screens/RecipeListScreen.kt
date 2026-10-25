@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -22,6 +23,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -29,6 +31,8 @@ import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
+import com.bissbilanz.android.ui.components.rememberJsonStateSaver
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
@@ -48,11 +52,11 @@ fun RecipeListScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
-    var sortBy by remember { mutableStateOf(RecipeSort.NAME) }
-    var showSortMenu by remember { mutableStateOf(false) }
+    var recipeToLog by rememberSaveable(stateSaver = rememberJsonStateSaver<Recipe>()) { mutableStateOf<Recipe?>(null) }
+    var showCreateSheet by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var sortBy by rememberSaveable { mutableStateOf(RecipeSort.NAME) }
+    var isDuplicating by remember { mutableStateOf(false) }
     val loadFailedMessage = stringResource(R.string.recipe_list_load_failed)
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
     val logFailedMessage = stringResource(R.string.recipe_list_log_failed)
@@ -115,6 +119,8 @@ fun RecipeListScreen(navController: NavController) {
     }
 
     fun duplicateRecipe(recipe: Recipe) {
+        if (isDuplicating) return
+        isDuplicating = true
         scope.launch {
             try {
                 val copy = recipeRepo.duplicateRecipe(recipe.id, String.format(copyNameTemplate, recipe.name))
@@ -124,6 +130,7 @@ fun RecipeListScreen(navController: NavController) {
                 errorReporter.captureException(e)
                 snackbarHostState.showSnackbar(duplicateFailedMessage)
             }
+            isDuplicating = false
         }
     }
 
@@ -160,7 +167,8 @@ fun RecipeListScreen(navController: NavController) {
             onRefresh = { refreshManager.refreshAll() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "recipes") { loading ->
+            // The cached list stays on screen while it refreshes; the spinner is for a first load only.
+            Crossfade(targetState = isLoading && recipes.isEmpty(), label = "recipes") { loading ->
                 if (loading) {
                     LoadingScreen()
                 } else if (recipes.isEmpty()) {
@@ -172,9 +180,9 @@ fun RecipeListScreen(navController: NavController) {
                         contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
                     ) {
                         item(key = "recipe-search-sort") {
-                            Row(
+                            Column(
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 OutlinedTextField(
                                     value = query,
@@ -182,40 +190,15 @@ fun RecipeListScreen(navController: NavController) {
                                     placeholder = { Text(stringResource(R.string.recipe_list_search_placeholder)) },
                                     leadingIcon = { Icon(Icons.Default.Search, null) },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
-                                ExposedDropdownMenuBox(
-                                    expanded = showSortMenu,
-                                    onExpandedChange = { showSortMenu = it },
-                                ) {
-                                    OutlinedTextField(
-                                        value = stringResource(sortBy.labelRes),
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSortMenu)
-                                        },
-                                        modifier =
-                                            Modifier
-                                                .width(150.dp)
-                                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                        singleLine = true,
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = showSortMenu,
-                                        onDismissRequest = { showSortMenu = false },
-                                    ) {
-                                        RecipeSort.entries.forEach { option ->
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(option.labelRes)) },
-                                                onClick = {
-                                                    sortBy = option
-                                                    showSortMenu = false
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
+                                val sortOptions = RecipeSort.entries.map { stringResource(it.labelRes) to it }
+                                ChoiceDropdown(
+                                    selectedLabel = stringResource(sortBy.labelRes),
+                                    options = sortOptions,
+                                    onSelect = { sortBy = it },
+                                    label = stringResource(R.string.recipe_list_sort_label),
+                                )
                             }
                         }
                         if (visibleRecipes.isEmpty()) {
@@ -229,6 +212,7 @@ fun RecipeListScreen(navController: NavController) {
                                 onClick = { navController.navigate("recipe/${recipe.id}") },
                                 onQuickLog = { recipeToLog = recipe },
                                 onDuplicate = { duplicateRecipe(recipe) },
+                                duplicateEnabled = !isDuplicating,
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -246,6 +230,7 @@ fun RecipeListItem(
     onQuickLog: () -> Unit,
     onDuplicate: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    duplicateEnabled: Boolean = true,
 ) {
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Row(
@@ -267,7 +252,11 @@ fun RecipeListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(recipe.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 Text(
-                    stringResource(R.string.recipe_list_item_summary, recipe.totalServings.toInt(), recipe.ingredients?.size ?: 0),
+                    stringResource(
+                        R.string.recipe_list_item_summary,
+                        formatLocalizedNumber(recipe.totalServings, 2),
+                        recipe.ingredients.size,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -280,7 +269,7 @@ fun RecipeListItem(
                 }
             }
             onDuplicate?.let { duplicate ->
-                IconButton(onClick = duplicate) {
+                IconButton(onClick = duplicate, enabled = duplicateEnabled) {
                     Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_list_duplicate))
                 }
             }
@@ -300,8 +289,7 @@ private enum class RecipeSort(
         R.string.recipe_list_sort_recent,
         compareByDescending { it.updatedAt ?: it.createdAt ?: "" },
     ),
-    CALORIES(
-        R.string.recipe_list_sort_calories,
-        compareBy { it.calories / it.totalServings.coerceAtLeast(1.0) },
-    ),
+
+    // The cached recipe already carries per-serving macros.
+    CALORIES(R.string.recipe_list_sort_calories, compareBy { it.calories }),
 }

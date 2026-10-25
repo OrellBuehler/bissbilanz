@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -43,19 +44,19 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SimpleLineChart
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
+import com.bissbilanz.android.util.SleepTimes
 import com.bissbilanz.android.util.formatIsoDate
+import com.bissbilanz.android.util.resolveSleepTimes
+import com.bissbilanz.android.util.sameMinute
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.minus
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -93,19 +94,7 @@ fun SleepScreen(navController: NavController) {
 
     val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
 
-    val loggedMessage = stringResource(R.string.sleep_logged)
-    val logFailedMessage = stringResource(R.string.sleep_log_failed)
-    val updatedMessage = stringResource(R.string.sleep_updated)
-    val updateFailedMessage = stringResource(R.string.sleep_update_failed)
-    val deletedMessage = stringResource(R.string.sleep_deleted)
-    val deleteFailedMessage = stringResource(R.string.sleep_delete_failed)
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     if (showAddSheet) {
         SleepEditSheet(
@@ -113,7 +102,7 @@ fun SleepScreen(navController: NavController) {
             onDismiss = { showAddSheet = false },
             onSave = { create ->
                 haptic(HapticFeedbackType.LongPress)
-                viewModel.createEntry(create, loggedMessage, logFailedMessage)
+                viewModel.createEntry(create)
                 showAddSheet = false
             },
         )
@@ -135,8 +124,6 @@ fun SleepScreen(navController: NavController) {
                         wakeUps = create.wakeUps,
                         notes = create.notes,
                     ),
-                    updatedMessage,
-                    updateFailedMessage,
                 )
                 entryToEdit = null
             },
@@ -151,7 +138,7 @@ fun SleepScreen(navController: NavController) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteEntry(entry.id, deletedMessage, deleteFailedMessage)
+                        viewModel.deleteEntry(entry.id)
                         entryToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -250,6 +237,7 @@ fun SleepScreen(navController: NavController) {
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxWidth().height(120.dp),
                                             unit = "h",
+                                            decimals = 1,
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
@@ -433,6 +421,33 @@ private fun SleepEditSheet(
     var timesEnabled by remember { mutableStateOf(existingBed != null && existingWake != null) }
     var bedtime by remember { mutableStateOf(existingBed ?: LocalTime(23, 0)) }
     var wakeTime by remember { mutableStateOf(existingWake ?: LocalTime(7, 0)) }
+    val originalTimes =
+        remember(existing) {
+            val bed = existing?.bedtime?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            val wake = existing?.wakeTime?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            if (bed != null && wake != null) SleepTimes(bed, wake) else null
+        }
+    val originalEntryDate = remember(existing) { existing?.entryDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } }
+
+    fun currentTimes(): SleepTimes =
+        resolveSleepTimes(
+            entryDate = runCatching { LocalDate.parse(date) }.getOrDefault(today),
+            bedtime = bedtime,
+            wakeTime = wakeTime,
+            zone = zone,
+            original = originalTimes,
+            originalEntryDate = originalEntryDate,
+        )
+
+    // Picking a bed or wake time rewrites the duration so the two never disagree; the
+    // fields stay editable for nights with time awake in bed. Back on the stored times,
+    // the stored (asleep) duration comes back rather than the time in bed.
+    fun syncDurationFromTimes() {
+        val times = currentTimes()
+        val slept = if (existing != null && times == originalTimes) existing.durationMinutes else times.durationMinutes
+        hours = (slept / 60).toString()
+        minutes = (slept % 60).toString()
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showBedtimePicker by remember { mutableStateOf(false) }
@@ -470,9 +485,12 @@ private fun SleepEditSheet(
             initial = bedtime,
             title = stringResource(R.string.sleep_bedtime_label),
             onDismiss = { showBedtimePicker = false },
-            onConfirm = {
-                bedtime = it
+            onConfirm = { picked ->
                 showBedtimePicker = false
+                if (!sameMinute(picked, bedtime)) {
+                    bedtime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }
@@ -482,9 +500,12 @@ private fun SleepEditSheet(
             initial = wakeTime,
             title = stringResource(R.string.sleep_wake_time_label),
             onDismiss = { showWakePicker = false },
-            onConfirm = {
-                wakeTime = it
+            onConfirm = { picked ->
                 showWakePicker = false
+                if (!sameMinute(picked, wakeTime)) {
+                    wakeTime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }
@@ -572,26 +593,43 @@ private fun SleepEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.sleep_bed_and_wake_times), style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = timesEnabled, onCheckedChange = { timesEnabled = it })
+                Switch(
+                    checked = timesEnabled,
+                    onCheckedChange = {
+                        timesEnabled = it
+                        if (it) syncDurationFromTimes()
+                    },
+                )
             }
 
             if (timesEnabled) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                ) {
                     OutlinedButton(
                         onClick = { showBedtimePicker = true },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
                         Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.sleep_bedtime_value, formatLocalTime(bedtime)))
+                        Text(
+                            stringResource(R.string.sleep_bedtime_value, formatLocalTime(bedtime)),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     OutlinedButton(
                         onClick = { showWakePicker = true },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
                         Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.sleep_wake_time_value, formatLocalTime(wakeTime)))
+                        Text(
+                            stringResource(R.string.sleep_wake_time_value, formatLocalTime(wakeTime)),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
@@ -619,28 +657,14 @@ private fun SleepEditSheet(
                 }
                 Button(
                     onClick = {
-                        val entryDate = runCatching { LocalDate.parse(date) }.getOrDefault(today)
+                        val times = if (timesEnabled) currentTimes() else null
                         onSave(
                             SleepCreate(
                                 durationMinutes = totalMinutes,
                                 quality = quality.roundToInt().toDouble(),
                                 entryDate = date,
-                                // Bedtime belongs to the evening before the entry date;
-                                // wake time to the entry date itself.
-                                bedtime =
-                                    if (timesEnabled) {
-                                        LocalDateTime(entryDate.minus(1, DateTimeUnit.DAY), bedtime)
-                                            .toInstant(zone)
-                                            .toString()
-                                    } else {
-                                        null
-                                    },
-                                wakeTime =
-                                    if (timesEnabled) {
-                                        LocalDateTime(entryDate, wakeTime).toInstant(zone).toString()
-                                    } else {
-                                        null
-                                    },
+                                bedtime = times?.bedtime?.toString(),
+                                wakeTime = times?.wakeTime?.toString(),
                                 wakeUps = wakeUpsText.toIntOrNull(),
                                 notes = notes.trim().ifBlank { null },
                             ),

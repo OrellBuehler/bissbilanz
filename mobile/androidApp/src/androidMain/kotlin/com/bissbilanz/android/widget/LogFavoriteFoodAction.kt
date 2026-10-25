@@ -1,18 +1,21 @@
 package com.bissbilanz.android.widget
 
 import android.content.Context
-import android.content.Intent
+import android.widget.Toast
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.userdata.UserDataDatabase
-import com.bissbilanz.util.decodeOrNull
+import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.resolveDefaultMeal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
@@ -21,13 +24,6 @@ import kotlin.time.Clock
 val FoodIdKey = ActionParameters.Key<String>("food_id")
 val FoodNameKey = ActionParameters.Key<String>("food_name")
 
-/**
- * Where to send the user when no meal can be resolved and the log has to be finished
- * by hand. Defaults to the favorites screen, which is where the favorites widget's
- * tiles came from; [QuickAddWidget] overrides it with the food's own screen.
- */
-val FallbackRouteKey = ActionParameters.Key<String>("fallback_route")
-
 class LogFavoriteFoodAction : ActionCallback {
     override suspend fun onAction(
         context: Context,
@@ -35,49 +31,51 @@ class LogFavoriteFoodAction : ActionCallback {
         parameters: ActionParameters,
     ) {
         val foodId = parameters[FoodIdKey] ?: return
-        val foodName = parameters[FoodNameKey] ?: ""
 
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
-        val entryRepo = koin.get<EntryRepository>()
         val db = koin.get<UserDataDatabase>()
         val json = koin.get<Json>()
         val errorReporter = koin.get<ErrorReporter>()
 
-        val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
-        val prefs = cached?.let { json.decodeOrNull<com.bissbilanz.api.generated.model.Preferences>(it.jsonData) }
-        val meal = resolveDefaultMeal(prefs)
+        // A tile drawn before a sign-out or a switch to "ask for meal" still carries
+        // this callback. Neither may log, and a callback cannot open the app, so the
+        // redraw is what turns the tile into the signed-out state or an app launch.
+        val prefs = cachedWidgetPreferences(db, json)
+        if (!widgetsSignedIn() || prefs == null || tilesAlwaysAskForMeal(prefs)) {
+            showConfirmation(context)
+            return
+        }
 
-        if (meal != null) {
-            try {
-                val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-                val entry = EntryCreate(foodId = foodId, mealType = meal, servings = 1.0, date = today)
-                entryRepo.createEntry(entry)
+        // Claimed before the write so a second tap inside the checkmark window is
+        // dropped instead of logging the food twice.
+        if (!markLogged(foodId)) return
 
-                markLogged(foodId)
-                showConfirmation(context)
+        try {
+            val meal = resolveDefaultMeal(prefs) ?: mealForCurrentTime()
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+            val food = koin.get<FoodRepository>().getFoodCached(foodId)
+            // The day widgets and the food shortcuts are redrawn by the app's
+            // onEntryChanged hook, which createEntry fires.
+            koin.get<EntryRepository>().createEntry(
+                EntryCreate(foodId = foodId, mealType = meal, servings = 1.0, date = today),
+                food = food,
+            )
 
-                delay(1200)
-
-                clearLogged(foodId)
-                showConfirmation(context)
-
-                // The day-overview widget and the food shortcuts are already redrawn by
-                // the app's onEntryChanged hook, which createEntry fired above.
-                MacroWidget.updateAllWidgets(context)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
+            showConfirmation(context)
+            delay(1200)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+            // The tile reverts without a checkmark either way; only this says the tap failed.
+            val name = parameters[FoodNameKey].orEmpty()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, context.getString(R.string.quick_add_widget_log_failed, name), Toast.LENGTH_SHORT).show()
             }
-        } else {
-            val intent =
-                Intent(context, MainActivity::class.java).apply {
-                    putExtra(MainActivity.EXTRA_NAVIGATE_TO, parameters[FallbackRouteKey] ?: "favorites")
-                    putExtra(MainActivity.EXTRA_FOOD_ID, foodId)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-            context.startActivity(intent)
+        } finally {
+            clearLogged(foodId)
+            showConfirmation(context)
         }
     }
 
@@ -97,9 +95,8 @@ class LogFavoriteFoodAction : ActionCallback {
 
         fun isRecentlyLogged(foodId: String): Boolean = recentlyLogged.contains(foodId)
 
-        internal fun markLogged(foodId: String) {
-            recentlyLogged.add(foodId)
-        }
+        /** False when the food is already marked, i.e. a log for it is still in flight. */
+        internal fun markLogged(foodId: String): Boolean = recentlyLogged.add(foodId)
 
         internal fun clearLogged(foodId: String) {
             recentlyLogged.remove(foodId)

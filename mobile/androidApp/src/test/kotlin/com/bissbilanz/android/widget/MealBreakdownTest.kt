@@ -12,6 +12,13 @@ import kotlin.test.assertEquals
  */
 class MealBreakdownTest {
     @Test
+    fun dropsMealRowsSoTheLogButtonFitsAtMinimumHeight() {
+        assertEquals(1, visibleMealRows(150f))
+        assertEquals(2, visibleMealRows(180f))
+        assertEquals(7, visibleMealRows(400f))
+    }
+
+    @Test
     fun alwaysShowsTheFourDefaultMealsInOrder() {
         val rows = mealBreakdown(emptyList())
 

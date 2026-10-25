@@ -16,6 +16,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -73,10 +74,15 @@ class ReminderRepository(
         return temp
     }
 
+    /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
     suspend fun updateReminder(
         id: String,
         reminder: ReminderUpdate,
     ): Reminder {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val existing =
             db.userDataDatabaseQueries
                 .selectAllReminders()
@@ -86,7 +92,15 @@ class ReminderRepository(
         val result = mergeUpdate(existing, id, reminder)
         withContext(Dispatchers.IO) { cacheReminder(result) }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, reminder)
+            // The create finished uploading meanwhile: the edit belongs to the server record,
+            // and the temp row written above must not linger next to it.
+            if (!coalesceQueuedCreate(id, reminder)) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteReminder(id) }
+                    return updateReminder(uploadedId, reminder)
+                }
+            }
         } else {
             syncQueue.enqueue(SyncOperation.UpdateReminder(id, json.encodeToString(reminder)))
         }
@@ -94,10 +108,15 @@ class ReminderRepository(
     }
 
     suspend fun deleteReminder(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteReminder(id) }
-        onRemindersChanged?.invoke()
+        errorReporter.runHook { onRemindersChanged?.invoke() }
         if (id.isTempId()) {
-            syncQueue.removeByAffected("reminders", id)
+            if (syncQueue.removeByAffected("reminders", id) == 0) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) return deleteReminder(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteReminder(id))
         }
@@ -112,13 +131,12 @@ class ReminderRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: ReminderUpdate,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("reminders", tempId) { op ->
             val create = op as? SyncOperation.CreateReminder ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<ReminderCreate>(create.body) ?: return@rewriteQueuedCreate null
             create.copy(body = json.encodeToString(mergeCreate(body, update)))
         }
-    }
 
     private fun cacheReminder(reminder: Reminder) {
         db.userDataDatabaseQueries.insertReminder(
@@ -127,7 +145,7 @@ class ReminderRepository(
             enabled = if (reminder.enabled) 1L else 0L,
             jsonData = json.encodeToString(reminder),
         )
-        onRemindersChanged?.invoke()
+        errorReporter.runHook { onRemindersChanged?.invoke() }
     }
 
     private suspend fun cacheReminders(reminders: List<Reminder>) {

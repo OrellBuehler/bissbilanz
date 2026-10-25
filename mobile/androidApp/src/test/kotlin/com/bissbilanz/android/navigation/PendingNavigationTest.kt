@@ -88,6 +88,15 @@ class PendingNavigationTest {
     }
 
     @Test
+    fun foodQueryIsObservableUntilConsumed() {
+        PendingNavigation.requestFoodSearch("apple")
+
+        assertEquals("apple", PendingNavigation.foodQuery.value)
+        PendingNavigation.consumeFoodQuery()
+        assertNull(PendingNavigation.foodQuery.value)
+    }
+
+    @Test
     fun pendingLogConfirmationIsClearedOnceConsumed() {
         PendingLogConfirmation.request("entry-1", "Logged Banana")
 

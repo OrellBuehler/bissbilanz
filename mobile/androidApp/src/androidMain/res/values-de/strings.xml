@@ -14,6 +14,7 @@
     <string name="weight_log_title">Gewicht erfassen</string>
     <string name="weight_edit_title">Gewicht bearbeiten</string>
     <string name="weight_input_label">Gewicht (kg)</string>
+    <string name="weight_input_invalid">Gewicht zwischen 0 und 500 kg eingeben</string>
     <string name="weight_notes_label">Notizen (optional)</string>
     <string name="weight_save">Speichern</string>
     <string name="weight_cancel">Abbrechen</string>
@@ -133,7 +134,12 @@
     <string name="dashboard_refresh_failed_body">Dein Log konnte nicht aktualisiert werden.</string>
     <string name="dashboard_retry">Erneut versuchen</string>
     <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
-    <string name="dashboard_copy_failed">Keine Einträge von gestern zum Kopieren</string>
+    <string name="dashboard_copy_nothing">Keine Einträge von gestern zum Kopieren</string>
+    <string name="dashboard_copy_error">Einträge von gestern konnten nicht kopiert werden</string>
+    <string name="dashboard_fasting_update_failed">Fastentag konnte nicht gespeichert werden</string>
+    <string name="dashboard_water_update_failed">Wasser konnte nicht gespeichert werden</string>
+    <string name="dashboard_activity_update_failed">Aktivität konnte nicht gespeichert werden</string>
+    <string name="dashboard_notes_update_failed">Notizen konnten nicht gespeichert werden</string>
 
     <!-- Warteschlange der Synchronisierung -->
     <string name="pending_sync_title">Ausstehende Änderungen</string>
@@ -360,6 +366,8 @@
     <string name="food_image_label">Lebensmittelfoto</string>
     <string name="recipe_image_label">Rezeptfoto</string>
     <string name="food_image_remove">Foto entfernen</string>
+    <string name="food_image_take_photo">Foto aufnehmen</string>
+    <string name="food_image_choose_photo">Foto auswählen</string>
     <string name="food_image_upload_failed">Foto konnte nicht gespeichert werden.</string>
     <string name="photo_read_failed">Foto konnte nicht gelesen werden. Bitte erneut aufnehmen.</string>
     <string name="food_image_save_failed">Gespeichert, aber das Foto konnte nicht aktualisiert werden.</string>
@@ -429,6 +437,7 @@
     <string name="login_continue_without_account">Ohne Konto fortfahren</string>
     <string name="login_local_mode_description">Deine Daten bleiben auf diesem Gerät. Melde dich später jederzeit an, um zu synchronisieren.</string>
     <string name="session_expired_message">Sitzung abgelaufen, bitte melde dich erneut an</string>
+    <string name="login_failed">Anmeldung fehlgeschlagen. Bitte erneut versuchen.</string>
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Erhaltungsrechner</string>
@@ -528,6 +537,9 @@
     <string name="daylog_copy_dialog_text">Dies kopiert alle Einträge von %1$s nach %2$s. Bestehende Einträge bleiben unverändert.</string>
     <string name="daylog_copied_entries">%1$d Einträge kopiert</string>
     <string name="daylog_no_entries_to_copy">Keine Einträge zum Kopieren</string>
+    <string name="daylog_load_failed">Einträge konnten nicht geladen werden</string>
+    <string name="daylog_delete_failed">Eintrag konnte nicht gelöscht werden</string>
+    <string name="daylog_restore_failed">Eintrag konnte nicht wiederhergestellt werden</string>
     <string name="daylog_quick_add">Schnell hinzufügen</string>
     <string name="daylog_no_entries_for_day">Keine Einträge für diesen Tag</string>
     <string name="daylog_delete_entry">Eintrag löschen</string>
@@ -541,6 +553,7 @@
     <string name="favorites_select_servings">Portionen wählen</string>
     <string name="favorites_no_foods">Noch keine favorisierten Lebensmittel.\nMarkiere Lebensmittel als Favorit, um sie hier zu sehen.</string>
     <string name="favorites_no_recipes">Noch keine favorisierten Rezepte.\nMarkiere Rezepte als Favorit, um sie hier zu sehen.</string>
+    <string name="favorites_load_failed">Favoriten konnten nicht geladen werden</string>
 
     <!-- Recipe suggestions -->
     <string name="recipe_suggestions_title">Rezeptvorschläge</string>
@@ -643,6 +656,7 @@
     <string name="food_form_remove_nutrient">Nährstoff entfernen</string>
     <string name="food_form_hide_advanced">Erweiterte Nährwerte ausblenden</string>
     <string name="food_form_load_failed">Lebensmittel konnte nicht geladen werden</string>
+    <string name="food_form_deleted">Dieses Lebensmittel existiert nicht mehr.</string>
     <string name="food_form_name_required_error">Name ist erforderlich</string>
     <string name="food_form_required_fields_error">Kalorien, Protein, Kohlenhydrate, Fett und Portionsgröße sind erforderlich</string>
     <string name="food_form_save_failed">Lebensmittel konnte nicht gespeichert werden</string>
@@ -724,6 +738,11 @@
     <string name="food_search_no_foods">Noch keine Lebensmittel</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>
     <string name="food_search_quick_log">Schnell erfassen</string>
+    <string name="food_search_load_failed">Lebensmittel konnten nicht geladen werden</string>
+    <string name="food_search_load_recent_failed">Zuletzt verwendete Lebensmittel konnten nicht geladen werden</string>
+    <string name="food_search_failed">Suche fehlgeschlagen</string>
+    <string name="food_search_refresh_failed">Aktualisieren fehlgeschlagen</string>
+    <string name="food_search_favorite_failed">Favorit konnte nicht geändert werden</string>
 
     <!-- Recipe list screen -->
     <string name="recipe_list_title">Rezepte</string>
@@ -731,9 +750,10 @@
     <string name="recipe_list_load_failed">Rezepte konnten nicht geladen werden</string>
     <string name="recipe_list_log_failed">Rezept konnte nicht erfasst werden</string>
     <string name="recipe_list_empty">Noch keine Rezepte.\nTippe auf +, um eines zu erstellen.</string>
-    <string name="recipe_list_item_summary">%1$d Portionen  ·  %2$d Zutaten</string>
+    <string name="recipe_list_item_summary">%1$s Portionen  ·  %2$d Zutaten</string>
     <string name="recipe_list_log_content_desc">Rezept erfassen</string>
     <string name="recipe_list_search_placeholder">Rezepte suchen</string>
+    <string name="recipe_list_sort_label">Sortieren nach</string>
     <string name="recipe_list_no_results">Keine Rezepte gefunden.</string>
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
@@ -749,7 +769,7 @@
     <string name="recipe_detail_delete_text">Möchtest du \"%1$s\" wirklich löschen?</string>
     <string name="recipe_detail_default_title">Rezept</string>
     <string name="recipe_detail_log_recipe">Rezept erfassen</string>
-    <string name="recipe_detail_servings">%1$d Portionen</string>
+    <string name="recipe_detail_servings">%1$s Portionen</string>
     <string name="recipe_detail_duplicate">Rezept duplizieren</string>
     <string name="recipe_detail_duplicate_failed">Rezept konnte nicht dupliziert werden</string>
     <string name="recipe_detail_cooked_weight">%1$d g gegart · ~%2$d kcal/100g</string>
@@ -782,6 +802,7 @@
     <string name="recipe_edit_amount">Menge</string>
     <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
+    <string name="recipe_edit_too_many_ingredients">Ein Rezept kann höchstens %1$d Zutaten haben.</string>
     <string name="recipe_edit_steps_count">Schritte (%1$d)</string>
     <string name="recipe_edit_no_steps">Noch keine Schritte.\nFüge Schritte hinzu, um das Rezept Schritt für Schritt zu kochen.</string>
     <string name="recipe_edit_steps_unavailable">Die Schritte können erst bearbeitet werden, wenn dieses Rezept einmal online geöffnet wurde.</string>
@@ -810,7 +831,7 @@
     <string name="recipe_cook_finished_title">Fertig gekocht</string>
     <string name="recipe_cook_finished_text">Guten Appetit. Erfasse das Gericht, damit dein Tagebuch aktuell bleibt.</string>
     <string name="recipe_cook_no_steps">Dieses Rezept hat noch keine Schritte. Ergänze sie im Bearbeiten-Dialog.</string>
-    <string name="recipe_cook_servings">Ergibt %1$d Portionen</string>
+    <string name="recipe_cook_servings">Ergibt %1$s Portionen</string>
     <string name="recipe_cook_step_photo">Foto zu Schritt %1$d</string>
 
     <!-- Supplements screen -->
@@ -870,6 +891,7 @@
     <string name="reminders_delete_title">Erinnerung löschen</string>
     <string name="reminders_delete_text">Diese Erinnerung wird dauerhaft gelöscht.</string>
     <string name="reminders_load_failed">Erinnerung konnte nicht geladen werden.</string>
+    <string name="reminders_list_load_failed">Erinnerungen konnten nicht geladen werden.</string>
     <string name="reminders_save_failed">Erinnerung konnte nicht gespeichert werden. Bitte versuche es erneut.</string>
     <string name="reminders_delete_failed">Erinnerung konnte nicht gelöscht werden. Bitte versuche es erneut.</string>
     <string name="reminders_days_required">Mindestens einen Tag auswählen.</string>
@@ -923,6 +945,7 @@
     <string name="weight_log_failed">Gewicht konnte nicht erfasst werden</string>
     <string name="weight_update_success">Gewicht aktualisiert</string>
     <string name="weight_update_failed">Gewicht konnte nicht aktualisiert werden</string>
+    <string name="weight_load_failed">Gewichtsdaten konnten nicht geladen werden</string>
     <string name="weight_screen_title">Gewichtsverlauf</string>
     <string name="weight_add_content_desc">Gewicht hinzufügen</string>
     <string name="weight_empty">Noch keine Gewichtseinträge.\nTippe auf +, um dein Gewicht zu erfassen.</string>
@@ -947,6 +970,8 @@
     <string name="weight_target_kg_label">Zielgewicht (kg)</string>
     <string name="weight_target_date_label">Zieldatum (optional)</string>
     <string name="weight_target_clear">Ziel löschen</string>
+    <string name="weight_target_update_failed">Ziel konnte nicht aktualisiert werden</string>
+    <string name="weight_target_invalid">Gültiges Gewicht eingeben</string>
 
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Einfach ungesättigte Fettsäuren</string>
@@ -1034,6 +1059,7 @@
     <string name="add_food_quick_protein">Protein (g)</string>
     <string name="add_food_quick_carbs">Kohlenhydrate (g)</string>
     <string name="add_food_quick_fat">Fett (g)</string>
+    <string name="add_food_quick_log_failed">Eintrag konnte nicht erfasst werden</string>
     <string name="quick_add_more_nutrients">Weitere Nährstoffe</string>
 
     <!-- Entry edit sheet -->
@@ -1041,6 +1067,7 @@
     <string name="entry_edit_delete_failed">Eintrag konnte nicht gelöscht werden</string>
     <string name="entry_edit_save_failed">Eintrag konnte nicht gespeichert werden</string>
     <string name="entry_edit_calories_required">Ein Schnelleintrag braucht Kalorien.</string>
+    <string name="entry_edit_servings_invalid">Portionen müssen größer als 0 sein.</string>
     <string name="entry_edit_delete_title">Eintrag löschen</string>
     <string name="entry_edit_delete_text">\"%1$s\" aus deinem Protokoll entfernen?</string>
     <string name="entry_edit_title">Eintrag bearbeiten</string>
@@ -1309,6 +1336,7 @@
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Erneut anmelden</string>
+    <string name="settings_sign_in_choose_provider">Anmeldemethode wählen</string>
 
     <!-- Settings: biological sex (nutrient-gap reference intakes) -->
     <string name="settings_biological_sex">Biologisches Geschlecht</string>
@@ -1317,6 +1345,16 @@
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
     <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+    <string name="settings_goals_updated">Ziele aktualisiert</string>
+    <string name="settings_goals_update_failed">Ziele konnten nicht aktualisiert werden</string>
+    <string name="settings_calorie_goal_invalid">Ganze Zahl über 0 eingeben, z. B. 1800</string>
+    <string name="settings_meal_assignment_updated">Mahlzeitenzuordnung aktualisiert</string>
+    <string name="settings_nutrients_updated">Sichtbare Nährstoffe aktualisiert</string>
+    <string name="settings_nutrients_update_failed">Nährstoffe konnten nicht aktualisiert werden</string>
+    <string name="settings_meal_type_added">Mahlzeitentyp hinzugefügt</string>
+    <string name="settings_meal_type_add_failed">Mahlzeitentyp konnte nicht hinzugefügt werden</string>
+    <string name="settings_export_failed">Export fehlgeschlagen</string>
+    <string name="settings_delete_account_failed">Konto konnte nicht gelöscht werden</string>
     <!-- Settings: workout goal adjustment -->
     <string name="settings_activity_goal_adjustment_title">Workout-Kalorien</string>
     <string name="settings_activity_goal_adjustment">Ziele durch Workout-Kalorien erhöhen</string>
@@ -1405,6 +1443,7 @@
     <string name="food_package_ingredients_added">+%1$d Zutaten, die von den Rezepten benötigt werden</string>
     <string name="food_package_too_large">Zu gross für einmal — schränke die Auswahl ein.</string>
     <string name="food_package_nothing_selected">Noch nichts ausgewählt.</string>
+    <string name="food_package_summary_failed">Paketgröße konnte nicht berechnet werden.</string>
     <string name="food_package_export_button">Exportieren und teilen</string>
     <string name="food_package_export_failed">Export fehlgeschlagen. Bitte versuche es erneut.</string>
     <string name="food_package_import_title">Lebensmittelpaket importieren</string>
@@ -1437,6 +1476,7 @@
     <string name="food_package_ingredients">%1$d Zutaten</string>
     <string name="food_package_import_button">Importieren</string>
     <string name="food_package_import_failed">Import fehlgeschlagen. Bitte versuche es erneut.</string>
+    <string name="food_package_preview_failed">Paket konnte nicht geprüft werden. Bitte versuche es erneut.</string>
     <string name="food_package_stale">Deine Daten haben sich inzwischen geändert — bitte erneut prüfen.</string>
     <string name="food_package_result_title">Import abgeschlossen</string>
     <string name="food_package_result_foods">Lebensmittel: %1$d neu · %2$d ersetzt · %3$d beide behalten · %4$d übersprungen</string>
@@ -1474,6 +1514,7 @@
     <string name="bulk_import_button">%1$s Lebensmittel importieren</string>
     <string name="bulk_import_running_title">Lebensmittel werden importiert…</string>
     <string name="bulk_import_running_hint">Du kannst diesen Bildschirm verlassen. Der Import läuft im Hintergrund weiter.</string>
+    <string name="bulk_import_cancel">Import abbrechen</string>
     <string name="bulk_import_result_title">Import abgeschlossen</string>
     <string name="bulk_import_result_foods">%1$s neu · %2$s schon vorhanden · %3$s ungültig</string>
     <string name="bulk_import_result_images">%1$s Fotos hinzugefügt</string>

@@ -22,10 +22,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +36,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
@@ -42,9 +49,14 @@ import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.android.util.toUploadBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
+import java.util.UUID
 
 /**
  * The server thumbnails to 512×512, so 800 px leaves headroom for a future
@@ -55,10 +67,80 @@ private const val MAX_UPLOAD_DIMENSION = 800
 private const val UPLOAD_QUALITY = 85
 
 /**
+ * Runs [FoodImageField] and [RecipeStepPhotoField] uploads outside composition, so
+ * rotating the screen (or any other recreation of the form) neither cancels one nor loses
+ * the URL it produces. One instance per screen holds every field's upload by the field's
+ * saved key, and drops it once the URL has reached the form, so opening a form again and
+ * again does not pile up state.
+ */
+internal class FoodImageUploadViewModel(
+    private val uploader: FoodImageUploader,
+    private val errorReporter: ErrorReporter,
+) : ViewModel() {
+    data class Upload(
+        val inFlight: Boolean = false,
+        /** The finished upload's URL, until the field has handed it to the form. */
+        val url: String? = null,
+        val failed: Boolean = false,
+    ) {
+        /** Still "uploading" until the URL has reached the form, so Save never runs without it. */
+        val isUploading: Boolean get() = inFlight || url != null
+    }
+
+    private val _uploads = MutableStateFlow<Map<String, Upload>>(emptyMap())
+    val uploads: StateFlow<Map<String, Upload>> = _uploads.asStateFlow()
+
+    fun upload(
+        key: String,
+        cropped: Bitmap,
+        transparent: Boolean,
+        maxDimension: Int = MAX_UPLOAD_DIMENSION,
+        quality: Int = UPLOAD_QUALITY,
+        purpose: String? = null,
+    ) {
+        if (_uploads.value[key]?.inFlight == true) return
+        _uploads.update { it + (key to Upload(inFlight = true)) }
+        viewModelScope.launch {
+            val result =
+                try {
+                    val encoded =
+                        withContext(Dispatchers.IO) {
+                            cropped.toUploadBytes(maxDimension, quality, transparent)
+                        }
+                    Upload(url = uploader.store(encoded.bytes, purpose = purpose, format = encoded.format))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    errorReporter.captureException(e)
+                    Upload(failed = true)
+                }
+            _uploads.update { it + (key to result) }
+        }
+    }
+
+    fun consumeUploadedUrl(key: String) {
+        _uploads.update { it - key }
+    }
+}
+
+/** The view model behind every image field of the current screen, and this field's upload in it. */
+@Composable
+internal fun rememberImageUpload(): Pair<FoodImageUploadViewModel, String> {
+    val uploader: FoodImageUploader = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
+    // Saved, so the field finds its upload again after recreation.
+    val key = rememberSaveable { UUID.randomUUID().toString() }
+    val uploads = viewModel { FoodImageUploadViewModel(uploader, errorReporter) }
+    return uploads to key
+}
+
+/**
  * The image row of a food or recipe form: shows the current photo, and offers
  * camera, library and removal. Everything from capture through square crop,
  * downscale and upload happens here; [onImageUrlChange] receives the URL to store
- * on the row (null when the user removes the image).
+ * on the row (null when the user removes the image). [onUploadingChange] reports an
+ * upload in flight, so the form can hold Save (and its own dismissal) until the URL
+ * has arrived.
  */
 @Composable
 fun FoodImageField(
@@ -66,22 +148,43 @@ fun FoodImageField(
     onImageUrlChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
     label: String = stringResource(R.string.food_image_label),
+    onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val uploader: FoodImageUploader = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
-    var cropCandidate by remember { mutableStateOf<Bitmap?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val (uploads, uploadKey) = rememberImageUpload()
+    val allUploads by uploads.uploads.collectAsStateWithLifecycle()
+    val upload = allUploads[uploadKey] ?: FoodImageUploadViewModel.Upload()
+    val uploadedUrl = upload.url
+    val isUploading = upload.isUploading
 
-    val uploadFailed = stringResource(R.string.food_image_upload_failed)
-    val readFailed = stringResource(R.string.photo_read_failed)
+    // Saveable: the camera app can outlive this process, and the result must still
+    // know where the photo went.
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var cropCandidate by remember { mutableStateOf<Bitmap?>(null) }
+    var readFailedFlag by remember { mutableStateOf(false) }
+    val currentOnUploadingChange by rememberUpdatedState(onUploadingChange)
+    val currentOnImageUrlChange by rememberUpdatedState(onImageUrlChange)
+
+    LaunchedEffect(isUploading) { currentOnUploadingChange(isUploading) }
+    LaunchedEffect(uploadedUrl) {
+        uploadedUrl?.let {
+            currentOnImageUrlChange(it)
+            uploads.consumeUploadedUrl(uploadKey)
+        }
+    }
+
+    val errorMessage =
+        when {
+            readFailedFlag -> stringResource(R.string.photo_read_failed)
+            upload.failed -> stringResource(R.string.food_image_upload_failed)
+            else -> null
+        }
 
     fun load(uri: Uri) {
-        errorMessage = null
+        readFailedFlag = false
         scope.launch {
             try {
                 cropCandidate = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
@@ -89,7 +192,7 @@ fun FoodImageField(
                 throw e
             } catch (e: Exception) {
                 errorReporter.captureException(e)
-                errorMessage = readFailed
+                readFailedFlag = true
             }
         }
     }
@@ -108,23 +211,8 @@ fun FoodImageField(
         transparent: Boolean,
     ) {
         cropCandidate = null
-        isUploading = true
-        errorMessage = null
-        scope.launch {
-            try {
-                val encoded =
-                    withContext(Dispatchers.IO) {
-                        cropped.toUploadBytes(MAX_UPLOAD_DIMENSION, UPLOAD_QUALITY, transparent)
-                    }
-                onImageUrlChange(uploader.store(encoded.bytes, format = encoded.format))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                errorReporter.captureException(e)
-                errorMessage = uploadFailed
-            }
-            isUploading = false
-        }
+        readFailedFlag = false
+        uploads.upload(uploadKey, cropped, transparent)
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -161,7 +249,7 @@ fun FoodImageField(
                         },
                         enabled = !isUploading,
                     ) {
-                        Icon(Icons.Outlined.PhotoCamera, contentDescription = null)
+                        Icon(Icons.Outlined.PhotoCamera, contentDescription = stringResource(R.string.food_image_take_photo))
                     }
                     OutlinedButton(
                         onClick = {
@@ -171,7 +259,7 @@ fun FoodImageField(
                         },
                         enabled = !isUploading,
                     ) {
-                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = stringResource(R.string.food_image_choose_photo))
                     }
                 }
                 if (imageUrl != null && !isUploading) {

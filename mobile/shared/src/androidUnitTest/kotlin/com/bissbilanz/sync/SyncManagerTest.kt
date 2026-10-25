@@ -7,6 +7,7 @@ import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.EntryCreate
+import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
@@ -21,11 +22,13 @@ import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
+import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.EntryField
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.headersOf
 import io.mockk.coEvery
@@ -33,6 +36,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.spyk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
@@ -618,6 +622,250 @@ class SyncManagerTest {
             val server = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull()
             assertNotNull(server)
             assertEquals("srv-entry-1", json.decodeFromString<Entry>(server.jsonData).id)
+        }
+
+    @Test
+    fun anEditMadeWhileTheCreateUploadsIsSentToTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp =
+                repo.createEntry(
+                    EntryCreate(
+                        mealType = "lunch",
+                        servings = 1.0,
+                        date = "2024-01-15",
+                        quickName = "Soup",
+                        quickCalories = 200.0,
+                        notes = "hot",
+                    ),
+                )
+            coEvery { api.createEntry(any(), any(), any()) } coAnswers {
+                // The user edits the entry while its create is on the wire: the edit is
+                // merged into the queued create, which the server never sees.
+                repo.updateEntry(temp.id, EntryUpdate(servings = 2.0), cleared = setOf(EntryField.NOTES))
+                serverEntry("srv-entry-1").copy(quickName = "Soup", quickCalories = 200.0, notes = "hot")
+            }
+            coEvery { api.updateEntry(any(), any(), any(), any(), any()) } answers { serverEntry("srv-entry-1") }
+
+            manager.syncPendingQueue()
+
+            val update = slot<EntryUpdate>()
+            coVerify { api.updateEntry("srv-entry-1", capture(update), any(), any(), match { "notes" in it }) }
+            assertEquals(2.0, update.captured.servings)
+            val row = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOne()
+            val local = json.decodeFromString<Entry>(row.jsonData)
+            assertEquals(2.0, local.servings)
+            assertNull(local.notes)
+        }
+
+    @Test
+    fun aDeleteMadeWhileTheCreateUploadsDeletesTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } coAnswers {
+                repo.deleteEntry(temp.id)
+                serverEntry("srv-entry-1", foodId = "f1")
+            }
+            coEvery { api.deleteEntry("srv-entry-1", any(), any()) } returns Unit
+
+            manager.syncPendingQueue()
+
+            coVerify { api.deleteEntry("srv-entry-1", any(), any()) }
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
+            assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun anEntryQueuedWithAnAlreadyUploadedTempFoodIdIsSentWithTheServerId() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            manager.syncPendingQueue()
+
+            // Queued after the food's create drained, by a screen still holding its temp id.
+            syncQueue.enqueue(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1")),
+                    localId = "temp_e1",
+                ),
+            )
+            val sent = slot<EntryCreate>()
+            coEvery { api.createEntry(capture(sent), any(), any()) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
+
+            manager.syncPendingQueue()
+
+            assertEquals("srv-food-1", sent.captured.foodId)
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(0, syncQueue.failedCount())
+        }
+
+    @Test
+    fun theTempIdMapSurvivesARestart() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            manager.syncPendingQueue()
+
+            val afterRestart = SyncQueue(db, json, appModeManager())
+
+            assertEquals("srv-food-1", afterRestart.resolveId("temp_f1"))
+            afterRestart.clear()
+            assertEquals("temp_f1", afterRestart.resolveId("temp_f1"))
+        }
+
+    @Test
+    fun loggingAFoodByItsUploadedTempIdQueuesTheServerId() =
+        runTest {
+            syncQueue.recordTempIdRemap("temp_f1", "srv-food-1")
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+
+            repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1"))
+
+            val create = syncQueue.drain().single().operation as SyncOperation.CreateEntry
+            assertEquals("srv-food-1", json.decodeFromString<EntryCreate>(create.body).foodId)
+        }
+
+    @Test
+    fun anEditRacingTheEndOfTheUploadReachesTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1", foodId = "f1")
+            manager.syncPendingQueue()
+            // The edit resolved the id while the create was still queued, then found the
+            // queued create gone: it must follow the entry to its server id.
+            val racing = spyk(syncQueue)
+            coEvery { racing.resolveId(temp.id) } returnsMany listOf(temp.id, "srv-entry-1")
+            EntryRepository(api, userDb, db, racing, json, NoopErrorReporter(), appModeManager())
+                .updateEntry(temp.id, EntryUpdate(servings = 4.0))
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateEntry
+            assertEquals("srv-entry-1", op.id)
+        }
+
+    @Test
+    fun aFavouriteSetWhileAFoodUploadsIsSentAsItsOwnToggle() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } coAnswers {
+                syncQueue.rewriteQueuedCreate("foods", "temp_f1") { op ->
+                    val create = op as SyncOperation.CreateFood
+                    create.copy(body = json.encodeToString(foodCreate().copy(isFavorite = true)))
+                }
+                TestFixtures.food(id = "srv-food-1")
+            }
+            coEvery { api.toggleFavorite(any(), any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1", isFavorite = true)
+
+            manager.syncPendingQueue()
+
+            coVerify { api.toggleFavorite("srv-food-1", true, any(), any()) }
+            coVerify(exactly = 0) { api.updateFood(any(), any(), any(), any()) }
+            assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun aWeightDeletedWhileItUploadsIsDeletedOnTheServer() =
+        runTest {
+            val temp = weightEntry("temp_w1")
+            userDb.userDataDatabaseQueries.insertWeightEntry(
+                id = temp.id,
+                entryDate = temp.entryDate,
+                weightKg = temp.weightKg,
+                loggedAt = temp.loggedAt,
+                jsonData = json.encodeToString(temp),
+            )
+            syncQueue.enqueue(
+                SyncOperation.CreateWeight(
+                    json.encodeToString(WeightCreate(weightKg = 80.5, entryDate = "2024-01-15")),
+                    localId = "temp_w1",
+                ),
+            )
+            coEvery { api.createWeightEntry(any(), any(), any()) } coAnswers {
+                syncQueue.removeByAffected("weight", "temp_w1")
+                weightEntry("srv-weight-1")
+            }
+            coEvery { api.deleteWeightEntry("srv-weight-1", any(), any()) } returns Unit
+
+            manager.syncPendingQueue()
+
+            coVerify { api.deleteWeightEntry("srv-weight-1", any(), any()) }
+            assertTrue(
+                userDb.userDataDatabaseQueries
+                    .selectAllWeightEntries()
+                    .executeAsList()
+                    .none { it.id == "srv-weight-1" },
+            )
+            assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun aLogoutDuringAnUploadQueuesNothingForTheNextAccount() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } coAnswers {
+                syncQueue.clear()
+                serverEntry("srv-entry-1", foodId = "f1")
+            }
+
+            manager.syncPendingQueue()
+
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(temp.id, syncQueue.resolveId(temp.id))
+        }
+
+    @Test
+    fun aDeleteRacingTheEndOfTheUploadDeletesTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1", foodId = "f1")
+            manager.syncPendingQueue()
+            val racing = spyk(syncQueue)
+            coEvery { racing.resolveId(temp.id) } returnsMany listOf(temp.id, "srv-entry-1")
+
+            EntryRepository(api, userDb, db, racing, json, NoopErrorReporter(), appModeManager()).deleteEntry(temp.id)
+
+            val op = syncQueue.drain().single().operation as SyncOperation.DeleteEntry
+            assertEquals("srv-entry-1", op.id)
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
+        }
+
+    private suspend fun uploadedTempEntry(): Pair<EntryRepository, String> {
+        val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+        val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+        coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1", foodId = "f1")
+        manager.syncPendingQueue()
+        return repo to temp.id
+    }
+
+    @Test
+    fun updateWithATempIdAfterUploadTargetsTheServerEntry() =
+        runTest {
+            // An edit sheet opened before the upload still holds the temp id.
+            val (repo, tempId) = uploadedTempEntry()
+
+            val updated = repo.updateEntry(tempId, EntryUpdate(servings = 3.0))
+
+            assertEquals("srv-entry-1", updated.id)
+            assertEquals(3.0, updated.servings)
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateEntry
+            assertEquals("srv-entry-1", op.id)
+            val row = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOne()
+            assertEquals(3.0, json.decodeFromString<Entry>(row.jsonData).servings)
+        }
+
+    @Test
+    fun deleteWithATempIdAfterUploadDeletesTheServerEntry() =
+        runTest {
+            val (repo, tempId) = uploadedTempEntry()
+
+            repo.deleteEntry(tempId)
+
+            val op = syncQueue.drain().single().operation as SyncOperation.DeleteEntry
+            assertEquals("srv-entry-1", op.id)
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
         }
 
     @Test

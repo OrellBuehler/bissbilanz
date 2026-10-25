@@ -3,14 +3,15 @@ package com.bissbilanz.android.ui.viewmodels
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
-import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.FoodsPage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +42,7 @@ class FoodSearchViewModelTest {
                 every { recentFoods } returns MutableStateFlow(emptyList())
                 every { favorites() } returns flowOf(emptyList())
             }
-        coEvery { foodRepo.fetchFoodsPaginated(any(), any()) } returns FoodsListResponse(foods = emptyList(), total = 0)
+        coEvery { foodRepo.fetchFoodsPage(any(), any(), any()) } returns FoodsPage(foods = emptyList(), total = 0)
         entryRepo = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
     }
@@ -130,7 +131,99 @@ class FoodSearchViewModelTest {
             vm.resetSearch()
             advanceUntilIdle()
 
-            coVerify(atLeast = 2) { foodRepo.fetchFoodsPaginated(any(), 0) }
+            coVerify(atLeast = 2) { foodRepo.fetchFoodsPage(any(), 0, any()) }
+        }
+
+    @Test
+    fun searchingStartsBeforeTheDebounceSoNoStaleEmptyStateFlashes() =
+        runTest {
+            coEvery { foodRepo.searchFoods("apple") } returns listOf(testFood())
+
+            val vm = viewModel()
+            vm.updateQuery("apple")
+
+            assertEquals(true, vm.isSearching.value)
+            advanceUntilIdle()
+            assertEquals(false, vm.isSearching.value)
+        }
+
+    @Test
+    fun aFoodRepeatedOnTheNextPageIsListedOnce() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 4)
+            coEvery { foodRepo.fetchFoodsPage(any(), 2, any()) } returns
+                FoodsPage(foods = listOf(testFood("b"), testFood("c")), total = 4)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.loadMoreFoods()
+            advanceUntilIdle()
+
+            assertEquals(listOf("a", "b", "c"), vm.allFoods.value.map { it.id })
+        }
+
+    @Test
+    fun togglingAFavoriteUpdatesTheListInPlaceWithoutReloading() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 2)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.toggleFavorite(vm.allFoods.value.first())
+            advanceUntilIdle()
+
+            assertEquals(listOf(true, false), vm.allFoods.value.map { it.isFavorite })
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", true) }
+            coVerify(exactly = 1) { foodRepo.fetchFoodsPage(any(), 0, any()) }
+
+            vm.toggleFavorite(vm.allFoods.value.first())
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", false) }
+            assertEquals(
+                false,
+                vm.allFoods.value
+                    .first()
+                    .isFavorite,
+            )
+        }
+
+    @Test
+    fun aCacheFallbackMidListRestartsTheListFromTheCache() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, false) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 4)
+            coEvery { foodRepo.fetchFoodsPage(any(), 2, false) } returns
+                FoodsPage(foods = listOf(testFood("x")), total = 3, fromCache = true)
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, true) } returns
+                FoodsPage(foods = listOf(testFood("c"), testFood("d")), total = 3, fromCache = true)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.loadMoreFoods()
+            advanceUntilIdle()
+
+            assertEquals(listOf("c", "d"), vm.allFoods.value.map { it.id })
+        }
+
+    @Test
+    fun aSecondFavoriteTapWhileTheFirstIsRunningIsIgnored() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            coEvery { foodRepo.toggleFavorite(any(), any()) } coAnswers {
+                gate.await()
+                null
+            }
+
+            val vm = viewModel()
+            vm.toggleFavorite(testFood("a"))
+            vm.toggleFavorite(testFood("a"))
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", true) }
         }
 
     private fun offProduct() =
@@ -162,11 +255,10 @@ class FoodSearchViewModelTest {
             vm.selectOffProduct(offProduct()) {}
             advanceUntilIdle()
 
-            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
-            assertNull(vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
 
-            vm.clearSnackbarRes()
-            assertNull(vm.snackbarMessageRes.value)
+            vm.clearSnackbar()
+            assertNull(vm.snackbarMessage.value)
         }
 
     @Test
@@ -178,7 +270,7 @@ class FoodSearchViewModelTest {
             vm.selectOffProduct(offProduct()) {}
             advanceUntilIdle()
 
-            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
             assertEquals(false, vm.isResolvingOff.value)
         }
 }

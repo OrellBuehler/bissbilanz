@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,15 +28,17 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.util.displayName
+import com.bissbilanz.android.util.formatMonthYear
 import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.model.Goals
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.StatsRepository
-import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.Clock
 
@@ -46,37 +49,35 @@ fun CalendarScreen(navController: NavController) {
     val goalsRepo: GoalsRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(true) }
     var calendarDays by remember { mutableStateOf<List<CalendarDay>>(emptyList()) }
     var goals by remember { mutableStateOf<Goals?>(null) }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    var currentMonth by remember { mutableStateOf(today.month) }
-    var currentYear by remember { mutableStateOf(today.year) }
+    // Months since year 0, so the shown month survives rotation and steps across years.
+    var monthIndex by rememberSaveable { mutableIntStateOf(today.year * 12 + today.month.number - 1) }
+    val currentYear = monthIndex / 12
+    val currentMonth = Month(monthIndex % 12 + 1)
 
-    suspend fun fetchMonth() {
-        val monthStr = "%04d-%02d".format(currentYear, currentMonth.number)
-        try {
-            calendarDays = statsRepo.getCalendarStats(monthStr)
-            goals = goalsRepo.goalsOnce()
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            calendarDays = emptyList()
-        }
+    // Results are applied only while their month is still the one shown, so a slow
+    // response for a month the user already left can't overwrite the newer one.
+    suspend fun fetchMonth(index: Int) {
+        val monthStr = "%04d-%02d".format(index / 12, index % 12 + 1)
+        val days =
+            try {
+                statsRepo.getCalendarStats(monthStr).also { goals = goalsRepo.goalsOnce() }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                emptyList()
+            }
+        if (index == monthIndex) calendarDays = days
     }
 
-    fun loadMonth() {
-        scope.launch {
-            isLoading = true
-            fetchMonth()
-            isLoading = false
-        }
-    }
-
-    LaunchedEffect(currentYear, currentMonth) {
-        loadMonth()
+    LaunchedEffect(monthIndex) {
+        isLoading = true
+        fetchMonth(monthIndex)
+        isLoading = false
     }
 
     Scaffold(
@@ -94,7 +95,7 @@ fun CalendarScreen(navController: NavController) {
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                fetchMonth()
+                fetchMonth(monthIndex)
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
@@ -111,29 +112,15 @@ fun CalendarScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = {
-                        if (currentMonth == Month.JANUARY) {
-                            currentMonth = Month.DECEMBER
-                            currentYear--
-                        } else {
-                            currentMonth = Month(currentMonth.number - 1)
-                        }
-                    }) {
+                    IconButton(onClick = { monthIndex-- }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.calendar_previous_month))
                     }
                     Text(
-                        "${currentMonth.displayName()} $currentYear",
+                        formatMonthYear(currentYear, currentMonth),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
-                    IconButton(onClick = {
-                        if (currentMonth == Month.DECEMBER) {
-                            currentMonth = Month.JANUARY
-                            currentYear++
-                        } else {
-                            currentMonth = Month(currentMonth.number + 1)
-                        }
-                    }) {
+                    IconButton(onClick = { monthIndex++ }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.calendar_next_month))
                     }
                 }
@@ -220,21 +207,22 @@ fun CalendarScreen(navController: NavController) {
                                         val calDay = dayMap[dateStr]
                                         val isToday = dateStr == today.toString()
 
-                                        val calorieGoal = goals?.calorieGoal
                                         val bgColor =
                                             when {
-                                                calDay != null && calorieGoal != null && calDay.calories >= calorieGoal -> {
-                                                    FiberGreen.copy(
-                                                        alpha = 0.3f,
-                                                    )
+                                                calDay == null || !calDay.hasEntries -> {
+                                                    MaterialTheme.colorScheme.surface
                                                 }
 
-                                                calDay?.hasEntries == true -> {
-                                                    CaloriesBlue.copy(alpha = 0.2f)
+                                                isOnTarget(calDay.calories, goals?.calorieGoal) -> {
+                                                    FiberGreen.copy(alpha = 0.3f)
+                                                }
+
+                                                isOverTarget(calDay.calories, goals?.calorieGoal) -> {
+                                                    ProteinRed.copy(alpha = 0.3f)
                                                 }
 
                                                 else -> {
-                                                    MaterialTheme.colorScheme.surface
+                                                    CaloriesBlue.copy(alpha = 0.2f)
                                                 }
                                             }
 
@@ -316,6 +304,20 @@ fun CalendarScreen(navController: NavController) {
                                         Modifier
                                             .size(16.dp)
                                             .clip(CircleShape)
+                                            .background(ProteinRed.copy(alpha = 0.3f)),
+                                )
+                                Text(stringResource(R.string.calendar_heatmap_over))
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
                                             .background(CaloriesBlue.copy(alpha = 0.2f)),
                                 )
                                 Text(stringResource(R.string.calendar_has_entries))
@@ -324,7 +326,7 @@ fun CalendarScreen(navController: NavController) {
                             // Summary stats
                             val daysWithEntries = calendarDays.count { it.hasEntries }
                             val goalCal = goals?.calorieGoal
-                            val daysGoalMet = calendarDays.count { goalCal != null && it.calories >= goalCal }
+                            val daysGoalMet = calendarDays.count { it.hasEntries && isOnTarget(it.calories, goalCal) }
                             val avgCalories =
                                 if (daysWithEntries > 0) {
                                     calendarDays.filter { it.hasEntries }.map { it.calories }.average()
@@ -374,3 +376,16 @@ fun CalendarScreen(navController: NavController) {
         }
     }
 }
+
+/** Within 10 % of the goal either way — the band the Insights heatmap shows as on target. */
+private fun isOnTarget(
+    calories: Double,
+    goal: Double?,
+): Boolean = goal != null && goal > 0 && abs(1.0 - calories / goal) <= ON_TARGET_TOLERANCE
+
+private fun isOverTarget(
+    calories: Double,
+    goal: Double?,
+): Boolean = goal != null && goal > 0 && calories / goal > 1.0 + ON_TARGET_TOLERANCE
+
+private const val ON_TARGET_TOLERANCE = 0.10

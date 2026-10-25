@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.FoodListItem
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -89,7 +90,6 @@ fun FoodPickerSheet(
     val isSearchingOff by viewModel.isSearchingOff.collectAsStateWithLifecycle()
     val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.openFoodFactsFallback = allowOpenFoodFacts
@@ -97,20 +97,7 @@ fun FoodPickerSheet(
         if (initialQuery.isNotBlank()) viewModel.updateQuery(initialQuery)
     }
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
-
-    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
-    LaunchedEffect(snackbarMessageText) {
-        snackbarMessageText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbarRes()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val searching = isSearchQuery(query)

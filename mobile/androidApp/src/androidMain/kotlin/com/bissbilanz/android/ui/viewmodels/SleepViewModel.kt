@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthExporter
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
@@ -41,8 +42,8 @@ class SleepViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     init {
         refresh()
@@ -72,20 +73,16 @@ class SleepViewModel(
         }
     }
 
-    fun createEntry(
-        entry: SleepCreate,
-        successMessage: String,
-        failureMessage: String,
-    ) {
+    fun createEntry(entry: SleepCreate) {
         viewModelScope.launch {
             try {
                 sleepRepo.createEntry(entry)
                 healthExporter.exportLatestSleep()
-                _snackbarMessage.value = successMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_logged)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failureMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_log_failed)
             }
         }
     }
@@ -93,35 +90,29 @@ class SleepViewModel(
     fun updateEntry(
         id: String,
         entry: SleepUpdate,
-        successMessage: String,
-        failureMessage: String,
     ) {
         viewModelScope.launch {
             try {
                 sleepRepo.updateEntry(id, entry)
                 healthExporter.exportLatestSleep()
-                _snackbarMessage.value = successMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_updated)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failureMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_update_failed)
             }
         }
     }
 
-    fun deleteEntry(
-        id: String,
-        successMessage: String,
-        failureMessage: String,
-    ) {
+    fun deleteEntry(id: String) {
         viewModelScope.launch {
             try {
                 sleepRepo.deleteEntry(id)
-                _snackbarMessage.value = successMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_deleted)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failureMessage
+                _snackbarMessage.value = UiMessage(R.string.sleep_delete_failed)
             }
         }
     }

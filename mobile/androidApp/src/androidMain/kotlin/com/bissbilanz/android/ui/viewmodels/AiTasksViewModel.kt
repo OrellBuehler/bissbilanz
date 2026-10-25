@@ -73,6 +73,7 @@ class AiTasksViewModel(
 
     fun selectFilter(value: Filter) {
         savedStateHandle[KEY_FILTER] = value.name
+        savedStateHandle[KEY_FILTER_CHOSEN] = true
     }
 
     private val _loadFailed = MutableStateFlow(false)
@@ -83,20 +84,22 @@ class AiTasksViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _loadFailed.value = false
-            runCatching {
+            try {
                 aiTaskRepo.refresh()
                 // Show the tab holding what the user came here for. Opening from a
                 // dismissal notification would otherwise land on Open, which by
-                // definition cannot contain the task they just tapped.
-                if (savedStateHandle.get<String>(KEY_FILTER) == null &&
+                // definition cannot contain the task they just tapped. A separate key,
+                // because getStateFlow already stored the default under KEY_FILTER.
+                if (savedStateHandle.get<Boolean>(KEY_FILTER_CHOSEN) != true &&
                     aiTaskRepo.unreadCount() > 0
                 ) {
                     savedStateHandle[KEY_FILTER] = Filter.DISMISSED.name
                 }
                 aiTaskRepo.acknowledgeAll()
-            }.onFailure {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 _loadFailed.value = true
-                errorReporter.captureException(it as? Exception ?: Exception(it))
+                errorReporter.captureException(e)
             }
             _isLoading.value = false
         }
@@ -104,12 +107,14 @@ class AiTasksViewModel(
 
     /** Suspends so pull-to-refresh keeps its spinner up until the pull actually ends. */
     suspend fun refresh() {
-        runCatching {
+        _loadFailed.value = false
+        try {
             aiTaskRepo.refresh()
             aiTaskRepo.acknowledgeAll()
-        }.onFailure {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             _loadFailed.value = true
-            errorReporter.captureException(it as? Exception ?: Exception(it))
+            errorReporter.captureException(e)
         }
     }
 
@@ -231,6 +236,7 @@ class AiTasksViewModel(
 
     companion object {
         private const val KEY_FILTER = "ai_tasks_filter"
+        private const val KEY_FILTER_CHOSEN = "ai_tasks_filter_chosen"
         const val POLL_INTERVAL_MS = 10_000L
         private val ACTIVE_STATES = setOf(ClaudeTaskState.QUEUED, ClaudeTaskState.RUNNING, ClaudeTaskState.RETRYING)
     }

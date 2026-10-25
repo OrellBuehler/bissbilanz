@@ -15,10 +15,8 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
@@ -34,12 +32,12 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import java.util.Locale
 import kotlin.time.Clock
 
 class QuickWeightWidget : GlanceAppWidget() {
@@ -49,39 +47,39 @@ class QuickWeightWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
-        val koin =
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-        val weightRepo = koin.get<WeightRepository>()
-        val errorReporter = koin.get<ErrorReporter>()
-
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
-        val entries =
-            try {
-                weightRepo.entries().first()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                emptyList()
-            }
-
-        val todayEntry = entries.find { it.entryDate == today }
-        val latestEntry = entries.maxByOrNull { it.entryDate }
-
-        provideContent {
+        provideWidgetData(context, id, { loadWeights() }) { data ->
             GlanceTheme {
-                QuickWeightContent(todayEntry, latestEntry)
+                if (data == null) SignedOutWidgetContent() else QuickWeightContent(data.today, data.latest)
             }
         }
     }
 
     companion object {
-        suspend fun updateAllWidgets(context: Context) {
-            val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(QuickWeightWidget::class.java)
-            ids.forEach { id -> QuickWeightWidget().update(context, id) }
-        }
+        suspend fun updateAllWidgets(context: Context) = refreshWidgets(context, QuickWeightWidget())
     }
+}
+
+private data class WeightData(
+    val today: WeightEntry?,
+    val latest: WeightEntry?,
+)
+
+/** Null when signed out. */
+private suspend fun loadWeights(): WeightData? {
+    if (!widgetsSignedIn()) return null
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+    val entries =
+        try {
+            koin.get<WeightRepository>().entries().first()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            koin.get<ErrorReporter>().captureException(e)
+            emptyList()
+        }
+    return WeightData(entries.find { it.entryDate == today }, entries.maxByOrNull { it.entryDate })
 }
 
 internal val QUICK_WEIGHT_COMPACT_SIZE = DpSize(57.dp, 57.dp)
@@ -94,7 +92,8 @@ private fun QuickWeightContent(
 ) {
     val context = LocalContext.current
     val shown = todayEntry ?: latestEntry
-    val value = shown?.let { formatWeight(it.weightKg) }
+    // In the widget's own language: "72,5" in German, not "72.5".
+    val value = shown?.let { formatLocalizedNumber(it.weightKg, 1, context.resources.configuration.locales[0], minDecimals = 1) }
     val caption =
         context.getString(
             if (todayEntry != null) R.string.weight_widget_today else R.string.weight_widget_tap_to_log,
@@ -103,7 +102,10 @@ private fun QuickWeightContent(
     if (LocalSize.current.width < QUICK_WEIGHT_WIDE_SIZE.width) {
         QuickWeightCompact(value)
     } else {
-        QuickWeightWide(value?.let { "$it $WEIGHT_UNIT" } ?: context.getString(R.string.weight_widget_title), caption)
+        QuickWeightWide(
+            value?.let { context.getString(R.string.weight_kg_value, it) } ?: context.getString(R.string.weight_widget_title),
+            caption,
+        )
     }
 }
 
@@ -185,7 +187,3 @@ private fun QuickWeightWide(
         }
     }
 }
-
-private const val WEIGHT_UNIT = "kg"
-
-private fun formatWeight(kg: Double): String = String.format(Locale.US, "%.1f", kg)

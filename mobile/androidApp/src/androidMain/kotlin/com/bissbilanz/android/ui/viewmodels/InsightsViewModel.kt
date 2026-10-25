@@ -13,6 +13,7 @@ import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -76,8 +77,8 @@ class InsightsViewModel(
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _snackbarMessage = MutableStateFlow<Int?>(null)
-    val snackbarMessage: StateFlow<Int?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     // Range, tab and calendar position are backed by SavedStateHandle so they
     // survive process death.
@@ -168,17 +169,35 @@ class InsightsViewModel(
     private val _caffeineSleepResult = MutableStateFlow<CaffeineSleepResult?>(null)
     val caffeineSleepResult: StateFlow<CaffeineSleepResult?> = _caffeineSleepResult.asStateFlow()
 
+    // A tab only counts as loaded once its bundle arrived, so a failed load retries the
+    // next time the tab is opened. Each tab's job is cancelled when the range changes so a
+    // slower load for the old range never publishes over the new one.
     private val loadedTabs = mutableSetOf<Int>()
+    private val tabJobs = mutableMapOf<Int, Job>()
+    private val tabLoadIds = mutableMapOf<Int, Int>()
+    private var nextTabLoadId = 0
+    private var dataJob: Job? = null
 
-    private var cachedInsights: InsightsBundle? = null
+    private var cachedInsights: Pair<Pair<String, String>, InsightsBundle>? = null
+    private var inFlightInsights: Pair<Pair<String, String>, Deferred<InsightsBundle?>>? = null
 
-    /** All three analytics tabs read the same bundle; compute it once per range. */
+    /**
+     * All three analytics tabs read the same bundle; compute it once per range. Tabs
+     * opened while it is still computing wait for the same computation.
+     */
     private suspend fun getInsights(): InsightsBundle? {
-        cachedInsights?.let { return it }
-        val (start, end) = dateRange()
-        return analyticsRepo
-            .getInsights(start, end, TimeZone.currentSystemDefault().id)
-            .also { cachedInsights = it }
+        val range = dateRange()
+        cachedInsights?.let { (cachedRange, bundle) -> if (cachedRange == range) return bundle }
+        val deferred =
+            inFlightInsights?.takeIf { it.first == range }?.second
+                ?: viewModelScope
+                    .async { analyticsRepo.getInsights(range.first, range.second, TimeZone.currentSystemDefault().id) }
+                    .also { inFlightInsights = range to it }
+        return try {
+            deferred.await()?.also { cachedInsights = range to it }
+        } finally {
+            if (inFlightInsights?.second === deferred && deferred.isCompleted) inFlightInsights = null
+        }
     }
 
     init {
@@ -187,32 +206,46 @@ class InsightsViewModel(
         loadSleepData()
         // After process death the restored tab's analytics have not been loaded
         // in this instance yet — re-trigger its load.
-        if (selectedTab.value != 0) {
-            selectTab(selectedTab.value)
-        }
+        loadTabIfNeeded(selectedTab.value)
     }
 
     fun selectTab(index: Int) {
         savedStateHandle[KEY_SELECTED_TAB] = index
-        if (index !in loadedTabs) {
-            loadedTabs.add(index)
-            when (index) {
-                1 -> loadNutritionAnalytics()
-                2 -> loadWeightAnalytics()
-                3 -> loadSleepAnalytics()
-            }
+        loadTabIfNeeded(index)
+    }
+
+    private fun loadTabIfNeeded(index: Int) {
+        if (index in loadedTabs || tabJobs[index]?.isActive == true) return
+        when (index) {
+            1 -> loadNutritionAnalytics()
+            2 -> loadWeightAnalytics()
+            3 -> loadSleepAnalytics()
         }
     }
 
     fun selectRange(index: Int) {
         savedStateHandle[KEY_SELECTED_RANGE] = index
-        loadedTabs.clear()
-        loadedTabs.add(0)
-        cachedInsights = null
+        invalidateAnalytics()
         loadData()
-        if (selectedTab.value != 0) {
-            selectTab(selectedTab.value)
-        }
+        loadTabIfNeeded(selectedTab.value)
+    }
+
+    /** Pull-to-refresh: drops the cached analytics and reloads everything on screen. */
+    fun refresh() {
+        invalidateAnalytics()
+        loadData()
+        loadCalendarStats()
+        loadSleepData()
+        loadTabIfNeeded(selectedTab.value)
+    }
+
+    private fun invalidateAnalytics() {
+        tabJobs.values.forEach { it.cancel() }
+        tabJobs.clear()
+        loadedTabs.clear()
+        cachedInsights = null
+        inFlightInsights?.second?.cancel()
+        inFlightInsights = null
     }
 
     private fun dateRange(): Pair<String, String> {
@@ -288,11 +321,11 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.createEntry(entry)
-                _snackbarMessage.value = R.string.sleep_logged
+                _snackbarMessage.value = UiMessage(R.string.sleep_logged)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = R.string.sleep_log_failed
+                _snackbarMessage.value = UiMessage(R.string.sleep_log_failed)
             }
         }
     }
@@ -301,126 +334,128 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.deleteEntry(id)
-                _snackbarMessage.value = R.string.sleep_deleted
+                _snackbarMessage.value = UiMessage(R.string.sleep_deleted)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = R.string.sleep_delete_failed
+                _snackbarMessage.value = UiMessage(R.string.sleep_delete_failed)
             }
         }
     }
 
     fun loadData() {
-        viewModelScope.launch {
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            val days =
-                when (selectedRange.value) {
-                    0 -> 7
-                    1 -> 30
-                    else -> 90
-                }
-            val startDate = today.minus(days, DateTimeUnit.DAY).toString()
-            val endDate = today.toString()
+        dataJob?.cancel()
+        dataJob =
+            viewModelScope.launch {
+                val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                val days =
+                    when (selectedRange.value) {
+                        0 -> 7
+                        1 -> 30
+                        else -> 90
+                    }
+                val startDate = today.minus(days, DateTimeUnit.DAY).toString()
+                val endDate = today.toString()
 
-            try {
-                coroutineScope {
-                    // Weekly/monthly stats, streaks, top foods and meal breakdown are
-                    // server-only; in Local mode they stay empty and their cards are hidden.
-                    val weeklyDeferred =
-                        async {
-                            if (isLocalMode) return@async null
-                            try {
-                                statsRepo.getWeeklyStats().stats
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                null
+                try {
+                    coroutineScope {
+                        // Weekly/monthly stats, streaks, top foods and meal breakdown are
+                        // server-only; in Local mode they stay empty and their cards are hidden.
+                        val weeklyDeferred =
+                            async {
+                                if (isLocalMode) return@async null
+                                try {
+                                    statsRepo.getWeeklyStats().stats
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    null
+                                }
                             }
-                        }
-                    val monthlyDeferred =
-                        async {
-                            if (isLocalMode) return@async null
-                            try {
-                                statsRepo.getMonthlyStats().stats
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                null
+                        val monthlyDeferred =
+                            async {
+                                if (isLocalMode) return@async null
+                                try {
+                                    statsRepo.getMonthlyStats().stats
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    null
+                                }
                             }
-                        }
-                    val streaksDeferred =
-                        async {
-                            if (isLocalMode) return@async null
-                            try {
-                                statsRepo.getStreaks()
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                null
+                        val streaksDeferred =
+                            async {
+                                if (isLocalMode) return@async null
+                                try {
+                                    statsRepo.getStreaks()
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    null
+                                }
                             }
-                        }
-                    val topFoodsDeferred =
-                        async {
-                            if (isLocalMode) return@async emptyList()
-                            try {
-                                statsRepo.getTopFoods(days).data
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                emptyList()
+                        val topFoodsDeferred =
+                            async {
+                                if (isLocalMode) return@async emptyList()
+                                try {
+                                    statsRepo.getTopFoods(days).data
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    emptyList()
+                                }
                             }
-                        }
-                    val dailyStatsDeferred =
-                        async {
-                            try {
-                                statsRepo.getDailyStats(startDate, endDate).data
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                emptyList()
+                        val dailyStatsDeferred =
+                            async {
+                                try {
+                                    statsRepo.getDailyStats(startDate, endDate).data
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    emptyList()
+                                }
                             }
-                        }
-                    val mealBreakdownDeferred =
-                        async {
-                            if (isLocalMode) return@async emptyList()
-                            try {
-                                statsRepo.getMealBreakdown(startDate, endDate).data
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
-                                emptyList()
+                        val mealBreakdownDeferred =
+                            async {
+                                if (isLocalMode) return@async emptyList()
+                                try {
+                                    statsRepo.getMealBreakdown(startDate, endDate).data
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                    emptyList()
+                                }
                             }
-                        }
-                    val goalsDeferred =
-                        async {
-                            try {
-                                goalsRepo.refresh()
-                            } catch (e: Exception) {
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                errorReporter.captureException(e)
+                        val goalsDeferred =
+                            async {
+                                try {
+                                    goalsRepo.refresh()
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                    errorReporter.captureException(e)
+                                }
                             }
-                        }
 
-                    // A failed request keeps the value already on screen instead
-                    // of blanking its card.
-                    _weeklyStats.value = weeklyDeferred.await() ?: _weeklyStats.value
-                    _monthlyStats.value = monthlyDeferred.await() ?: _monthlyStats.value
-                    _streaks.value = streaksDeferred.await() ?: _streaks.value
-                    _topFoods.value = topFoodsDeferred.await()
-                    _dailyStats.value = dailyStatsDeferred.await()
-                    _mealBreakdown.value = mealBreakdownDeferred.await()
-                    goalsDeferred.await()
+                        // A failed request keeps the value already on screen instead
+                        // of blanking its card.
+                        _weeklyStats.value = weeklyDeferred.await() ?: _weeklyStats.value
+                        _monthlyStats.value = monthlyDeferred.await() ?: _monthlyStats.value
+                        _streaks.value = streaksDeferred.await() ?: _streaks.value
+                        _topFoods.value = topFoodsDeferred.await()
+                        _dailyStats.value = dailyStatsDeferred.await()
+                        _mealBreakdown.value = mealBreakdownDeferred.await()
+                        goalsDeferred.await()
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
                 }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _snackbarMessage.value = R.string.insights_load_failed
             }
-        }
     }
 
     fun loadNutritionAnalytics() {
-        loadTab(_nutritionLoading) { b ->
+        loadTab(1, _nutritionLoading) { b ->
             _novaResult.value = b.nova
             _omegaResult.value = b.omega
             _diiResult.value = b.dii
@@ -435,7 +470,7 @@ class InsightsViewModel(
     }
 
     fun loadWeightAnalytics() {
-        loadTab(_weightLoading) { b ->
+        loadTab(2, _weightLoading) { b ->
             _tdeeResult.value = b.tdee
             _plateauResult.value = b.plateau
             _weightForecastResult.value = b.weightForecast
@@ -448,7 +483,7 @@ class InsightsViewModel(
     }
 
     fun loadSleepAnalytics() {
-        loadTab(_sleepLoading) { b ->
+        loadTab(3, _sleepLoading) { b ->
             _foodSleepResult.value = b.foodSleep
             _nutrientSleepCorrelations.value = b.nutrientSleep
             _preSleepTimingSummary.value = b.preSleepTiming
@@ -462,20 +497,33 @@ class InsightsViewModel(
      * within a range costs nothing.
      */
     private fun loadTab(
+        tab: Int,
         loading: MutableStateFlow<Boolean>,
         publish: (InsightsBundle) -> Unit,
     ) {
-        viewModelScope.launch {
-            loading.value = true
-            try {
-                getInsights()?.let(publish)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            } finally {
-                loading.value = false
+        tabJobs[tab]?.cancel()
+        val loadId = ++nextTabLoadId
+        tabLoadIds[tab] = loadId
+        tabJobs[tab] =
+            viewModelScope.launch {
+                loading.value = true
+                try {
+                    val bundle = getInsights()
+                    if (bundle != null) {
+                        publish(bundle)
+                        loadedTabs.add(tab)
+                    } else {
+                        _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
+                } finally {
+                    // A cancelled load must not clear the spinner of the load that replaced it.
+                    if (tabLoadIds[tab] == loadId) loading.value = false
+                }
             }
-        }
     }
 
     fun clearSnackbar() {

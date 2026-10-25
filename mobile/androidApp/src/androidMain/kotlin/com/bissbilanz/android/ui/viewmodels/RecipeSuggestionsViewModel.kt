@@ -9,6 +9,7 @@ import com.bissbilanz.analytics.SuggestionCandidate
 import com.bissbilanz.analytics.SuggestionMacros
 import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.analytics.suggestRecipes
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Goals
@@ -49,8 +50,8 @@ class RecipeSuggestionsViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     val goals: StateFlow<Goals?> =
         goalsRepo
@@ -131,8 +132,6 @@ class RecipeSuggestionsViewModel(
     fun logRecipe(
         recipe: Recipe,
         details: MealLogDetails,
-        loggedMessage: (String) -> String,
-        failedMessage: String,
     ) {
         viewModelScope.launch {
             try {
@@ -147,11 +146,11 @@ class RecipeSuggestionsViewModel(
                     ),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = loggedMessage(recipe.name)
+                _snackbarMessage.value = UiMessage(R.string.recipe_suggestions_logged, listOf(recipe.name))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failedMessage
+                _snackbarMessage.value = UiMessage(R.string.recipe_suggestions_log_failed)
             }
         }
     }

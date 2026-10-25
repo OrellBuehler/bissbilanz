@@ -74,6 +74,7 @@ import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -90,7 +91,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(navController: NavController) {
+fun InsightsScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: InsightsViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
@@ -109,6 +113,10 @@ fun InsightsScreen(navController: NavController) {
     val nutritionLoading by viewModel.nutritionLoading.collectAsStateWithLifecycle()
     val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val isLocalMode = viewModel.isLocalMode
     val macroSourcesState by viewModel.macroSources.collectAsStateWithLifecycle()
@@ -151,15 +159,20 @@ fun InsightsScreen(navController: NavController) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.settings_nav_insights), scrollBehavior) },
+        topBar = {
+            AppTopBar(
+                stringResource(R.string.settings_nav_insights),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            )
+        },
     ) { padding ->
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                viewModel.loadData()
-                viewModel.loadCalendarStats()
-                viewModel.loadSleepData()
+                viewModel.refresh()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
@@ -612,6 +625,7 @@ fun InsightsScreen(navController: NavController) {
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "h",
+                                        decimals = 1,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }

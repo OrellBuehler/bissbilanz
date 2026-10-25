@@ -25,6 +25,7 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -78,6 +79,9 @@ class SupplementRepository(
         return temp
     }
 
+    /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
     /**
      * [cleared] names the schedule fields that should be nulled server-side (e.g.
      * `scheduleDays` when the user switches a weekly supplement back to daily). The
@@ -89,10 +93,20 @@ class SupplementRepository(
         supplement: SupplementCreate,
         cleared: Set<SupplementField> = emptySet(),
     ): Supplement {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val temp = supplementCreateToSupplement(supplement, id)
         withContext(Dispatchers.IO) { cacheSupplement(temp) }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, supplement)
+            // The create finished uploading meanwhile: the edit belongs to the server record,
+            // and the temp row written above must not linger next to it.
+            if (!coalesceQueuedCreate(id, supplement)) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSupplement(id) }
+                    return updateSupplement(uploadedId, supplement, cleared)
+                }
+            }
         } else {
             syncQueue.enqueue(
                 SyncOperation.UpdateSupplement(id, json.encodeToString(supplement), cleared.jsonKeys()),
@@ -102,10 +116,15 @@ class SupplementRepository(
     }
 
     suspend fun deleteSupplement(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSupplement(id) }
-        onSupplementsChanged?.invoke()
+        errorReporter.runHook { onSupplementsChanged?.invoke() }
         if (id.isTempId()) {
-            syncQueue.removeByAffected("supplements", id)
+            if (syncQueue.removeByAffected("supplements", id) == 0) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) return deleteSupplement(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteSupplement(id))
         }
@@ -121,12 +140,11 @@ class SupplementRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         supplement: SupplementCreate,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("supplements", tempId) { op ->
             val create = op as? SyncOperation.CreateSupplement ?: return@rewriteQueuedCreate null
             create.copy(body = json.encodeToString(supplement))
         }
-    }
 
     suspend fun getChecklist(date: String): List<SupplementLog> {
         if (appModeManager.isLocal) return checklistFromCache(date)
@@ -302,7 +320,7 @@ class SupplementRepository(
             sortOrder = supplement.sortOrder.toLong(),
             jsonData = json.encodeToString(supplement),
         )
-        onSupplementsChanged?.invoke()
+        errorReporter.runHook { onSupplementsChanged?.invoke() }
     }
 
     private fun cacheSupplements(

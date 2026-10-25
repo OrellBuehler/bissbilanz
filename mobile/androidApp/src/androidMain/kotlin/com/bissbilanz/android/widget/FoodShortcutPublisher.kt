@@ -38,6 +38,7 @@ object FoodShortcutPublisher {
     private const val STATIC_SHORTCUT_COUNT = 4
     private const val MAX_DYNAMIC_SHORTCUTS = 4
     private const val SHORT_LABEL_MAX_CHARS = 20
+    private const val SHORTCUT_ID_PREFIX = "food_"
 
     suspend fun publish(context: Context) {
         val koin =
@@ -65,6 +66,14 @@ object FoodShortcutPublisher {
                             .filter { it.name.isNotBlank() }
                             .mapIndexed { index, food -> shortcutFor(context, food, index) }
                     }
+                // A pinned shortcut disabled by a logout comes back when the same food
+                // is published again, e.g. after signing back in to the same account.
+                val ids = shortcuts.map { it.id }.toSet()
+                val disabled =
+                    foodShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+                        .filter { !it.isEnabled && it.id in ids }
+                        .map { it.id }
+                if (disabled.isNotEmpty()) ShortcutManagerCompat.enableShortcuts(context, shortcuts.filter { it.id in disabled })
                 ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
             }
         } catch (e: Exception) {
@@ -73,7 +82,48 @@ object FoodShortcutPublisher {
         }
     }
 
-    internal fun shortcutId(foodId: String): String = "food_$foodId"
+    /**
+     * Removes every food shortcut, including the long-lived copies the Assistant keeps
+     * after a shortcut leaves the dynamic list. Called after a logout wiped the data
+     * they point at, so the next account never sees the previous one's foods.
+     */
+    suspend fun clear(context: Context) {
+        try {
+            withContext(Dispatchers.IO) {
+                val ids =
+                    foodShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED)
+                        .map { it.id }
+                ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+                if (ids.isNotEmpty()) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+                // A shortcut pinned to the home screen cannot be removed by the app, only
+                // greyed out, so a tap explains itself instead of doing nothing.
+                val pinned = foodShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED).map { it.id }
+                if (pinned.isNotEmpty()) {
+                    ShortcutManagerCompat.disableShortcuts(
+                        context,
+                        pinned,
+                        context.getString(R.string.food_shortcut_signed_out),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            org.koin.java.KoinJavaComponent
+                .getKoin()
+                .get<ErrorReporter>()
+                .captureException(e)
+        }
+    }
+
+    private fun foodShortcuts(
+        context: Context,
+        flags: Int,
+    ): List<ShortcutInfoCompat> =
+        ShortcutManagerCompat
+            .getShortcuts(context, flags)
+            .filter { it.id.startsWith(SHORTCUT_ID_PREFIX) }
+
+    internal fun shortcutId(foodId: String): String = "$SHORTCUT_ID_PREFIX$foodId"
 
     private fun shortcutFor(
         context: Context,

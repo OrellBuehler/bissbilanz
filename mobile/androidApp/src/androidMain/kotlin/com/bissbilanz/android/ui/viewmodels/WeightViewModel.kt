@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.WeightRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,7 +54,7 @@ class WeightViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update target"
+                _snackbarMessage.value = UiMessage(R.string.weight_target_update_failed)
             }
         }
     }
@@ -65,35 +67,33 @@ class WeightViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
+
+    private var loadJob: Job? = null
+    private var hasLoaded = false
 
     init {
-        loadTrend()
+        loadTrend(fromServer = true)
     }
 
     fun selectRange(index: Int) {
         savedStateHandle[KEY_SELECTED_RANGE] = index
-        loadTrend()
+        loadTrend(fromServer = false)
     }
 
     fun setProjectionDays(days: Int) {
         savedStateHandle[KEY_PROJECTION_DAYS] = days
     }
 
-    fun refresh() {
-        loadTrend()
+    /** Pull-to-refresh: pulls weight and goals from the server, then redraws the trend. */
+    suspend fun refresh() {
+        loadTrend(fromServer = true).join()
     }
 
+    /** After a local log, edit or delete — the local cache already holds the change. */
     fun refreshTrend() {
-        viewModelScope.launch {
-            try {
-                applyTrend()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            }
-        }
+        loadTrend(fromServer = false)
     }
 
     private fun rangeStartDate(): kotlinx.datetime.LocalDate {
@@ -111,22 +111,43 @@ class WeightViewModel(
         _trendData.value = weightRepo.getTrend(rangeStartDate().toString(), today.toString())
     }
 
-    private fun loadTrend() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-            _trendData.value = weightRepo.localTrend(rangeStartDate().toString(), today.toString())
-            try {
-                weightRepo.refresh()
-                applyTrend()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load weight data"
-            } finally {
+    // A newer load cancels the previous one so an older, slower response cannot overwrite
+    // the newer range. The full-screen spinner only covers the very first load; afterwards
+    // the current chart stays up. Only a server refresh (first load, pull-to-refresh)
+    // reports a network failure — a range switch falls back to the cache quietly.
+    private fun loadTrend(fromServer: Boolean): Job {
+        loadJob?.cancel()
+        return viewModelScope
+            .launch {
+                if (!hasLoaded) {
+                    _isLoading.value = true
+                    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                    _trendData.value = weightRepo.localTrend(rangeStartDate().toString(), today.toString())
+                }
+                if (fromServer) {
+                    try {
+                        weightRepo.refresh()
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                        _snackbarMessage.value = UiMessage(R.string.weight_load_failed)
+                    }
+                    try {
+                        goalsRepo.refresh()
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        errorReporter.captureException(e)
+                    }
+                }
+                try {
+                    applyTrend()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                }
+                hasLoaded = true
                 _isLoading.value = false
-            }
-        }
+            }.also { loadJob = it }
     }
 
     fun clearSnackbar() {

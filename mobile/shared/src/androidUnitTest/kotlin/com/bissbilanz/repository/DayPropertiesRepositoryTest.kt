@@ -82,6 +82,36 @@ class DayPropertiesRepositoryTest {
         }
 
     @Test
+    fun onlyActivityCalorieChangesAreAnnounced() =
+        runTest {
+            val localMode = appModeManager(AppMode.LOCAL)
+            val repo = repository(AppMode.LOCAL, SyncQueue(cacheDb, json, localMode))
+            val changed = mutableListOf<String>()
+            repo.onDayPropertiesChanged = { changed += it }
+
+            repo.setDayProperties("2024-01-15", activityCalories = 300)
+            repo.setDayProperties("2024-01-15", waterMl = 500)
+            repo.setDayProperties("2024-01-16", notes = "rest day")
+            repo.deleteDayProperties("2024-01-16")
+            repo.deleteDayProperties("2024-01-15")
+
+            assertEquals(listOf("2024-01-15", "2024-01-15"), changed)
+        }
+
+    @Test
+    fun aFailingListenerDoesNotFailTheSave() =
+        runTest {
+            val localMode = appModeManager(AppMode.LOCAL)
+            val repo = repository(AppMode.LOCAL, SyncQueue(cacheDb, json, localMode))
+            repo.onDayPropertiesChanged = { throw IllegalStateException("widget down") }
+
+            val saved = repo.setDayProperties("2024-01-15", activityCalories = 300)
+
+            assertEquals(300, saved.activityCalories)
+            assertEquals(saved, repo.getDayProperties("2024-01-15"))
+        }
+
+    @Test
     fun syncedSetEnqueuesSetDayProperties() =
         runTest {
             val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
@@ -144,6 +174,28 @@ class DayPropertiesRepositoryTest {
             val queued = syncQueue.findByAffected("day_properties", "2024-01-15")
             val op = queued.single().operation as SyncOperation.DeleteDayProperties
             assertEquals("2024-01-15", op.date)
+        }
+
+    @Test
+    fun aChangeWaitingToUploadIsNotRevertedByTheServerCopy() =
+        runTest {
+            val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
+            val repo = repository(AppMode.SYNCED, syncQueue)
+            coEvery { api.getDayProperties("2024-01-15") } returns
+                DayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = false,
+                    notes = null,
+                    waterMl = 250,
+                    activityCalories = null,
+                    activityNote = null,
+                    activityCaloriesSource = null,
+                )
+
+            repo.setDayProperties("2024-01-15", waterMl = 1000)
+
+            assertEquals(1000, repo.getDayProperties("2024-01-15")?.waterMl)
+            assertEquals(1000, repo.localDayProperties("2024-01-15")?.waterMl)
         }
 
     @Test

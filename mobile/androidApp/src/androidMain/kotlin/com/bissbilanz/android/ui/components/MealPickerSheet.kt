@@ -86,11 +86,12 @@ fun MealPickerSheet(
     var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
     var notes by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var confirmed by remember { mutableStateOf(false) }
     val servings =
         if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
             (gramsText.toLocalizedDoubleOrNull() ?: 0.0) / gramsPerServing
         } else {
-            servingsText.toLocalizedDoubleOrNull() ?: 1.0
+            servingsText.toLocalizedDoubleOrNull() ?: 0.0
         }
 
     if (showDatePicker) {
@@ -156,21 +157,12 @@ fun MealPickerSheet(
             }
 
             if (showMealPicker) {
-                Text(stringResource(R.string.meal_picker_meal_label), style = MaterialTheme.typography.labelLarge)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    mealTypes.forEachIndexed { index, meal ->
-                        SegmentedButton(
-                            selected = selectedMeal == meal,
-                            onClick = { selectedMeal = meal },
-                            shape = SegmentedButtonDefaults.itemShape(index, mealTypes.size),
-                        ) {
-                            Text(
-                                mealTypeDisplayName(meal),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    label = stringResource(R.string.meal_picker_meal_label),
+                    selectedLabel = mealTypeDisplayName(selectedMeal),
+                    options = mealTypes.map { mealTypeDisplayName(it) to it },
+                    onSelect = { selectedMeal = it },
+                )
             }
 
             if (gramsPerServing != null && gramsPerServing > 0.0) {
@@ -275,11 +267,14 @@ fun MealPickerSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(stringResource(R.string.dialog_cancel))
+                    Text(stringResource(R.string.dialog_cancel), maxLines = 1)
                 }
                 Button(
                     onClick = {
-                        if (servings > 0) {
+                        if (!confirmed && servings > 0) {
+                            // invokeOnCompletion also fires when the hide animation is
+                            // cancelled by a second tap, so guard against logging twice.
+                            confirmed = true
                             scope.launch { sheetState.hide() }.invokeOnCompletion {
                                 onConfirm(
                                     MealLogDetails(
@@ -294,8 +289,9 @@ fun MealPickerSheet(
                         }
                     },
                     modifier = Modifier.weight(1f),
+                    enabled = !confirmed && servings > 0,
                 ) {
-                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm))
+                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm), maxLines = 1)
                 }
             }
         }

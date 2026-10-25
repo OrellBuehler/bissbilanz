@@ -23,7 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +37,7 @@ import com.bissbilanz.android.ui.viewmodels.MigrationUiState
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.migration.LocalDataMigrator
 import org.koin.androidx.compose.koinViewModel
+import java.util.UUID
 
 /**
  * Shown when a user signs in while in Local mode: uploads the local data to the account
@@ -45,9 +46,13 @@ import org.koin.androidx.compose.koinViewModel
  */
 @Composable
 fun MigrationScreen() {
-    val viewModel: MigrationViewModel = koinViewModel()
+    // The screen sits outside the nav host, so a plain koinViewModel() is Activity-scoped and
+    // a later sign-in would get the finished (or failed) attempt back. One key per visit:
+    // kept across rotation, new once the screen has left the composition.
+    val attemptKey = rememberSaveable { UUID.randomUUID().toString() }
+    val viewModel: MigrationViewModel = koinViewModel(key = attemptKey)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showDiscardDialog) {
         AlertDialog(

@@ -17,12 +17,10 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -49,6 +47,14 @@ private data class FavoriteTile(
     val id: String,
     val name: String,
     val imageProvider: ImageProvider,
+    val logged: Boolean,
+)
+
+private data class FavoritesData(
+    val tiles: List<FavoriteTile>,
+    val plusProvider: ImageProvider,
+    val checkProvider: ImageProvider,
+    val askForMeal: Boolean,
 )
 
 private val tileSize = 52.dp
@@ -68,53 +74,59 @@ class FavoritesWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
-        val koin =
-            org.koin.java.KoinJavaComponent
-                .getKoin()
-        val db = koin.get<UserDataDatabase>()
-        val json = koin.get<Json>()
-
-        val rows = db.userDataDatabaseQueries.selectFavorites().executeAsList()
-        val favorites = rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
-
-        val density = context.resources.displayMetrics.density
-        val tilePx = (48 * density).toInt()
-        val isDark =
-            (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
-
-        val tiles =
-            favorites.map { food ->
-                val bitmap =
-                    WidgetFoodImages
-                        .cached(context, food.id)
-                        ?.let { BitmapFactory.decodeFile(it.absolutePath) }
-                        ?: FavoritePlaceholderRenderer.render(food.name, tilePx, isDark)
-                FavoriteTile(food.id, food.name, ImageProvider(bitmap))
-            }
-
-        val askForMeal = tilesAlwaysAskForMeal(db, json)
-
-        val plusBitmap = PlusPlaceholderRenderer.render(tilePx, isDark)
-        val plusProvider = ImageProvider(plusBitmap)
-
-        val checkBitmap = CheckmarkRenderer.render(tilePx)
-        val checkProvider = ImageProvider(checkBitmap)
-
-        provideContent {
+        provideWidgetData(context, id, { loadFavorites(context) }) { data ->
             GlanceTheme {
-                FavoritesContent(tiles, plusProvider, checkProvider, askForMeal)
+                if (data == null) {
+                    SignedOutWidgetContent()
+                } else {
+                    FavoritesContent(data.tiles, data.plusProvider, data.checkProvider, data.askForMeal)
+                }
             }
         }
     }
 
     companion object {
-        suspend fun updateAllWidgets(context: Context) {
-            val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(FavoritesWidget::class.java)
-            ids.forEach { id -> FavoritesWidget().update(context, id) }
-        }
+        suspend fun updateAllWidgets(context: Context) = refreshWidgets(context, FavoritesWidget())
     }
+}
+
+/** Null when signed out. Bitmaps are decoded here: a widget cannot load anything while it draws. */
+private suspend fun loadFavorites(context: Context): FavoritesData? {
+    if (!widgetsSignedIn()) return null
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    val db = koin.get<UserDataDatabase>()
+    val json = koin.get<Json>()
+
+    val rows = db.userDataDatabaseQueries.selectFavorites().executeAsList()
+    val favorites = rows.mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
+
+    val density = context.resources.displayMetrics.density
+    val tilePx = (48 * density).toInt()
+    val isDark =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
+    val tiles =
+        favorites.map { food ->
+            val bitmap =
+                WidgetFoodImages
+                    .cached(context, food.id)
+                    ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                    ?: FavoritePlaceholderRenderer.render(food.name, tilePx, isDark)
+            FavoriteTile(food.id, food.name, ImageProvider(bitmap), LogFavoriteFoodAction.isRecentlyLogged(food.id))
+        }
+
+    val askForMeal = tilesAlwaysAskForMeal(db, json)
+
+    val plusBitmap = PlusPlaceholderRenderer.render(tilePx, isDark)
+    val plusProvider = ImageProvider(plusBitmap)
+
+    val checkBitmap = CheckmarkRenderer.render(tilePx)
+    val checkProvider = ImageProvider(checkBitmap)
+
+    return FavoritesData(tiles, plusProvider, checkProvider, askForMeal)
 }
 
 @Composable
@@ -177,10 +189,15 @@ private fun FavoritesContent(
                     val index = row * columns + col
                     if (index < tiles.size) {
                         val tile = tiles[index]
-                        val isLogged = LogFavoriteFoodAction.isRecentlyLogged(tile.id)
+                        val isLogged = tile.logged
                         Image(
                             provider = if (isLogged) checkProvider else tile.imageProvider,
-                            contentDescription = if (isLogged) "Logged" else tile.name,
+                            contentDescription =
+                                if (isLogged) {
+                                    context.getString(R.string.favorites_widget_logged, tile.name)
+                                } else {
+                                    tile.name
+                                },
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
@@ -202,13 +219,13 @@ private fun FavoritesContent(
                     } else if (index < totalSlots) {
                         Image(
                             provider = plusProvider,
-                            contentDescription = "Add favorite",
+                            contentDescription = context.getString(R.string.favorites_widget_add),
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
                                     .size(tileSize)
                                     .cornerRadius(12.dp)
-                                    .clickable(actionStartActivity<MainActivity>()),
+                                    .clickable(actionStartActivity(openAppIntent(context, WidgetRoutes.FAVORITES))),
                         )
                     }
                 }

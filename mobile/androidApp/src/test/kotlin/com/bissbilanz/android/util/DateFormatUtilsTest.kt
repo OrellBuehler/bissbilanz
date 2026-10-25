@@ -1,6 +1,7 @@
 package com.bissbilanz.android.util
 
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Month
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,6 +35,12 @@ class DateFormatUtilsTest {
         } finally {
             Locale.setDefault(previous)
         }
+    }
+
+    @Test
+    fun monthHeaderUsesTheShortMonthName() {
+        assertEquals("Okt. 2026", formatMonthYear(2026, Month.OCTOBER, Locale.GERMANY))
+        assertEquals("Oct 2026", formatMonthYear(2026, Month.OCTOBER, Locale.US))
     }
 
     @Test

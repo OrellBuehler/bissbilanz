@@ -42,7 +42,9 @@ import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
@@ -73,6 +75,7 @@ fun SupplementsScreen(navController: NavController) {
     val haptic = rememberHaptic()
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
+    var pendingIds by remember { mutableStateOf(setOf<String>()) }
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingSupplementId by remember { mutableStateOf<String?>(null) }
     val loadFailedMessage = stringResource(R.string.supplements_load_failed)
@@ -89,15 +92,31 @@ fun SupplementsScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         isLoading = true
+        val refreshFailed =
+            try {
+                supplementRepo.refresh()
+                false
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                true
+            }
+        // The checklist must still come from the local logs when offline, otherwise every
+        // supplement shows as untaken and ticking it logs a duplicate.
         try {
-            supplementRepo.refresh()
-            takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
+            val logs =
+                if (refreshFailed) {
+                    withContext(Dispatchers.IO) { supplementRepo.cachedChecklist(today) }
+                } else {
+                    supplementRepo.getChecklist(today)
+                }
+            takenIds = logs.map { it.supplementId }.toSet()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
+        if (refreshFailed) snackbarHostState.showSnackbar(loadFailedMessage)
     }
 
     Scaffold(
@@ -130,10 +149,7 @@ fun SupplementsScreen(navController: NavController) {
             SupplementEditSheet(
                 supplementId = null,
                 onDismiss = { showCreateSheet = false },
-                onSaved = {
-                    showCreateSheet = false
-                    scope.launch { supplementRepo.refresh() }
-                },
+                onSaved = { showCreateSheet = false },
             )
         }
 
@@ -141,10 +157,7 @@ fun SupplementsScreen(navController: NavController) {
             SupplementEditSheet(
                 supplementId = editingSupplementId,
                 onDismiss = { editingSupplementId = null },
-                onSaved = {
-                    editingSupplementId = null
-                    scope.launch { supplementRepo.refresh() }
-                },
+                onSaved = { editingSupplementId = null },
             )
         }
 
@@ -207,7 +220,9 @@ fun SupplementsScreen(navController: NavController) {
                                 isTaken = isTaken,
                                 onEdit = { editingSupplementId = supplement.id },
                                 modifier = Modifier.animateItem(),
-                                onToggle = {
+                                onToggle = toggle@{
+                                    if (supplement.id in pendingIds) return@toggle
+                                    pendingIds = pendingIds + supplement.id
                                     haptic(HapticFeedbackType.LongPress)
                                     takenIds =
                                         if (isTaken) takenIds - supplement.id else takenIds + supplement.id
@@ -223,8 +238,10 @@ fun SupplementsScreen(navController: NavController) {
                                             takenIds =
                                                 if (isTaken) takenIds + supplement.id else takenIds - supplement.id
                                             errorReporter.captureException(e)
+                                            pendingIds = pendingIds - supplement.id
                                             snackbarHostState.showSnackbar(updateFailedMessage)
                                         }
+                                        pendingIds = pendingIds - supplement.id
                                     }
                                 },
                             )

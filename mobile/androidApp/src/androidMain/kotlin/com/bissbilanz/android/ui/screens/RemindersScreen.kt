@@ -17,11 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
@@ -30,10 +31,12 @@ import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.ui.components.ExactAlarmPrompt
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ReminderEditSheet
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderUpdate
 import com.bissbilanz.model.Supplement
@@ -48,15 +51,19 @@ fun RemindersScreen(navController: NavController) {
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val supplementReminders by viewModel.supplementReminders.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     val reminderPrefs: SupplementReminderPreferences = koinInject()
     var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
     var snoozeMenuExpanded by remember { mutableStateOf(false) }
-    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    var notificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
     val exactAlarmsAllowed = rememberExactAlarmsAllowed()
 
     var showForm by remember { mutableStateOf(false) }
@@ -66,12 +73,7 @@ fun RemindersScreen(navController: NavController) {
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     @Composable
     fun snoozeLabel(minutes: Int) =
@@ -328,7 +330,7 @@ private fun reminderSummary(
 ): String {
     val parts = mutableListOf<String>()
     if (reminder.kind == Reminder.Kind.meal) {
-        reminder.mealType?.let { parts.add(it) }
+        reminder.mealType?.let { parts.add(mealTypeDisplayName(it)) }
     }
     parts.add(reminder.time)
     parts.add(

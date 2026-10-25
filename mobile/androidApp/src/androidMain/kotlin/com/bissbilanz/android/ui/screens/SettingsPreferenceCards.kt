@@ -312,7 +312,7 @@ internal fun VisibleNutrientsCard(
 @Composable
 internal fun LanguageCard() {
     val context = LocalContext.current
-    var selected by remember { mutableStateOf(AppLanguage.stored(context)) }
+    var selected by remember { mutableStateOf(AppLanguage.current(context)) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {

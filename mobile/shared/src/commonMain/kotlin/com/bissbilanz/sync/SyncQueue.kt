@@ -33,6 +33,9 @@ class SyncQueue(
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
+    /** Bumped by [clear], so work that drained before a logout can tell its queue is gone. */
+    private var generation = 0L
+
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
@@ -42,19 +45,68 @@ class SyncQueue(
         // upload. The login migrator uploads the cache state when switching to Synced;
         // queued ops would double-apply.
         if (appModeManager.isLocal) return
-        val now = Clock.System.now()
         mutex.withLock {
-            db.bissbilanzDatabaseQueries.insertSyncQueueItem(
-                operation = json.encodeToString(SyncOperation.serializer(), operation),
-                createdAt = now.toEpochMilliseconds(),
-                affectedTable = operation.affectedTable,
-                affectedId = operation.affectedId,
-                idempotencyKey = Uuid.random().toString(),
-                clientEditedAt = now.toString(),
-            )
+            insertLocked(operation)
             _enqueueSignal.tryEmit(Unit)
         }
     }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun insertLocked(operation: SyncOperation) {
+        // Same rule as [enqueue]: nothing is ever queued in Local mode.
+        if (appModeManager.isLocal) return
+        val now = Clock.System.now()
+        db.bissbilanzDatabaseQueries.insertSyncQueueItem(
+            operation = json.encodeToString(SyncOperation.serializer(), operation),
+            createdAt = now.toEpochMilliseconds(),
+            affectedTable = operation.affectedTable,
+            affectedId = operation.affectedId,
+            idempotencyKey = Uuid.random().toString(),
+            clientEditedAt = now.toString(),
+        )
+    }
+
+    /**
+     * Records that [tempId]'s create uploaded as [serverId]. A screen or sheet opened before
+     * the upload (or restored after a restart) still holds the temp id, and so can a queued
+     * change; without this their update/delete would target a row that no longer exists.
+     * Temp ids are random UUIDs, so one flat map cannot collide across entity types.
+     */
+    suspend fun recordTempIdRemap(
+        tempId: String,
+        serverId: String,
+        generation: Long? = null,
+    ) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        mutex.withLock {
+            // A remap from a drain that started before a clear belongs to the wiped account.
+            if (generation != null && generation != this.generation) return
+            db.bissbilanzDatabaseQueries.transaction {
+                db.bissbilanzDatabaseQueries.deleteTempIdRemapsBefore(now - TEMP_ID_REMAP_RETENTION_MS)
+                db.bissbilanzDatabaseQueries.upsertTempIdRemap(tempId, serverId, now)
+            }
+        }
+    }
+
+    /** The current [clear] generation; pass it back to calls that must not outlive a clear. */
+    suspend fun currentGeneration(): Long = mutex.withLock { generation }
+
+    /** The server id a drained create gave [id], or [id] itself when it was never remapped. */
+    suspend fun resolveId(id: String): String =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectTempIdRemap(id)
+                .executeAsOneOrNull() ?: id
+        }
+
+    /** Every recorded temp id → server id mapping (see [recordTempIdRemap]). */
+    suspend fun tempIdRemaps(): Map<String, String> =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectAllTempIdRemaps()
+                .executeAsList()
+                .associate { it.tempId to it.serverId }
+        }
 
     suspend fun drain(): List<QueuedRequest> =
         mutex.withLock {
@@ -86,6 +138,84 @@ class SyncQueue(
         mutex.withLock {
             inProgress.remove(id)
             db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
+        }
+
+    /**
+     * Removes [id] like [remove], handing [followUp] the row as it stood at that moment
+     * (null when it was already gone). An edit or delete made while the item was in flight
+     * rewrites or removes its row; the operations [followUp] returns for it are queued in
+     * the same transaction, so no change can slip in between and nothing is lost on a
+     * crash. When the queue was cleared since [generation] (a logout), nothing is queued
+     * and [followUp] is not called: the missing row is the wipe, not a user's delete.
+     */
+    suspend fun removeWithFollowUp(
+        id: Long,
+        generation: Long,
+        followUp: (QueuedRequest?) -> List<SyncOperation>,
+    ): List<SyncOperation> =
+        mutex.withLock {
+            inProgress.remove(id)
+            if (generation != this.generation) return@withLock emptyList()
+            val queries = db.bissbilanzDatabaseQueries
+            val queued =
+                queries.transactionWithResult {
+                    val row = queries.selectSyncQueueItem(id).executeAsOneOrNull()?.toQueuedRequest()
+                    val next = if (appModeManager.isLocal) emptyList() else followUp(row)
+                    next.forEach { insertLocked(it) }
+                    queries.deleteSyncQueueItem(id)
+                    next
+                }
+            if (queued.isNotEmpty()) _enqueueSignal.tryEmit(Unit)
+            queued
+        }
+
+    /**
+     * Rewrites every queued operation with [transform] in one locked transaction, so an edit
+     * coalesced into a row at the same time can't be overwritten by a stale copy of it.
+     */
+    suspend fun rewriteAll(transform: (SyncOperation) -> SyncOperation) {
+        mutex.withLock {
+            val queries = db.bissbilanzDatabaseQueries
+            queries.transaction {
+                for (row in queries.selectAllSyncQueue().executeAsList()) {
+                    val req = row.toQueuedRequest()
+                    val rewritten = transform(req.operation)
+                    if (rewritten != req.operation) {
+                        queries.updateSyncQueueOperationAndAffected(
+                            operation = json.encodeToString(SyncOperation.serializer(), rewritten),
+                            affectedTable = rewritten.affectedTable,
+                            affectedId = rewritten.affectedId,
+                            id = req.id,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Rewrites the queued operations for [table]/[id] with [transform] (null leaves one
+     * untouched) in one locked transaction. Returns whether any row was rewritten.
+     */
+    suspend fun rewriteByAffected(
+        table: String,
+        id: String,
+        transform: (SyncOperation) -> SyncOperation?,
+    ): Boolean =
+        mutex.withLock {
+            val queries = db.bissbilanzDatabaseQueries
+            queries.transactionWithResult {
+                var rewroteAny = false
+                for (row in queries.selectSyncQueueByAffected(table, id).executeAsList()) {
+                    val rewritten = transform(row.toQueuedRequest().operation) ?: continue
+                    queries.updateSyncQueueOperation(
+                        operation = json.encodeToString(SyncOperation.serializer(), rewritten),
+                        id = row.id,
+                    )
+                    rewroteAny = true
+                }
+                rewroteAny
+            }
         }
 
     /** Snapshot of every queued operation, including drained/in-flight ones. */
@@ -148,14 +278,19 @@ class SyncQueue(
         }
     }
 
+    /** Removes the queued operations for [table]/[id]; returns how many there were. */
     suspend fun removeByAffected(
         table: String,
         id: String,
-    ) {
+    ): Int =
         mutex.withLock {
-            db.bissbilanzDatabaseQueries.deleteSyncQueueByAffected(table, id)
+            val queries = db.bissbilanzDatabaseQueries
+            queries.transactionWithResult {
+                val count = queries.selectSyncQueueByAffected(table, id).executeAsList().size
+                queries.deleteSyncQueueByAffected(table, id)
+                count
+            }
         }
-    }
 
     suspend fun releaseForRetry(id: Long) =
         mutex.withLock {
@@ -249,8 +384,15 @@ class SyncQueue(
     suspend fun clear() =
         mutex.withLock {
             inProgress.clear()
+            generation++
             db.bissbilanzDatabaseQueries.clearSyncQueue()
+            db.bissbilanzDatabaseQueries.clearTempIdRemaps()
         }
+
+    private companion object {
+        /** A temp id outlives its upload only in open screens and the queue; a month is ample. */
+        const val TEMP_ID_REMAP_RETENTION_MS = 30L * 24 * 60 * 60 * 1000
+    }
 }
 
 /**
@@ -267,9 +409,4 @@ suspend fun SyncQueue.rewriteQueuedCreate(
     table: String,
     tempId: String,
     transform: (SyncOperation) -> SyncOperation?,
-) {
-    for (req in findByAffected(table, tempId)) {
-        val rewritten = transform(req.operation) ?: continue
-        replaceOperation(req.id, rewritten)
-    }
-}
+): Boolean = rewriteByAffected(table, tempId, transform)

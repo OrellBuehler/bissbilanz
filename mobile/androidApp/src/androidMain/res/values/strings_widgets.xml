@@ -7,6 +7,11 @@
 -->
 <resources>
 
+    <!-- Shown by every data widget after a logout -->
+    <string name="widget_signed_out">Sign in to Bissbilanz</string>
+    <string name="favorites_widget_add">Add favorite</string>
+    <string name="food_shortcut_signed_out">Sign in to Bissbilanz to use this shortcut</string>
+
     <!-- Day overview widget -->
     <string name="day_overview_widget_title">Day Overview</string>
     <string name="day_overview_widget_description">Today\'s meals, macro totals and a shortcut to log food</string>
@@ -28,6 +33,7 @@
     <string name="quick_add_widget_empty">Nothing logged yet</string>
     <string name="quick_add_widget_log">Log %1$s</string>
     <string name="quick_add_widget_logged">Logged</string>
+    <string name="quick_add_widget_log_failed">Couldn\'t log %1$s</string>
 
     <!-- Macro widget configuration -->
     <string name="macro_widget_config_title">Configure widget</string>

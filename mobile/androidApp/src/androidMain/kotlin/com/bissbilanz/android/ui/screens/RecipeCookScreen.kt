@@ -70,6 +70,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.api.generated.model.RecipeStep
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.FoodRepository
@@ -344,7 +345,7 @@ private fun IngredientsPage(
     ) {
         recipe?.let {
             Text(
-                stringResource(R.string.recipe_cook_servings, it.totalServings.toInt()),
+                stringResource(R.string.recipe_cook_servings, formatLocalizedNumber(it.totalServings, 2)),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

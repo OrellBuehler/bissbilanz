@@ -20,6 +20,7 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +58,13 @@ class EntryRepository(
      */
     var onEntryCreated: (suspend () -> Unit)? = null
 
+    /**
+     * Fired after [setDayProperties] or [deleteDayProperties] changed a day's activity
+     * calories locally. They move the day's goal when activity goal adjustment is on,
+     * so Android redraws the widgets that show it. Water or notes edits don't fire it.
+     */
+    var onDayPropertiesChanged: (suspend (date: String) -> Unit)? = null
+
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.userDataDatabaseQueries
             .selectEntriesByDate(date)
@@ -65,10 +73,12 @@ class EntryRepository(
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) } }
 
     suspend fun entriesByDateOnce(date: String): List<Entry> =
-        db.userDataDatabaseQueries
-            .selectEntriesByDate(date)
-            .executeAsList()
-            .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+        withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries
+                .selectEntriesByDate(date)
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+        }
 
     /** Every meal type used on or after [date], as stored — custom types included. */
     suspend fun mealTypesSince(date: String): List<String> =
@@ -80,11 +90,16 @@ class EntryRepository(
 
     suspend fun refresh(date: String) {
         currentDate = date
+        fetchDay(date)
+    }
+
+    /** [refresh] without making [date] the viewed day. */
+    private suspend fun fetchDay(date: String) {
         // In Local mode the cache is the primary store; there is nothing to refresh.
         if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
         cacheEntries(date, entries)
-        onEntriesRefreshed?.invoke(date)
+        errorReporter.runHook { onEntriesRefreshed?.invoke(date) }
     }
 
     suspend fun createEntry(
@@ -92,11 +107,18 @@ class EntryRepository(
         food: Food? = null,
         recipe: Recipe? = null,
     ): Entry {
-        val tempEntry = entryCreateToEntry(entry, food, recipe)
+        // A food or recipe picked from a screen opened before its own create uploaded
+        // still carries the temp id.
+        val resolved =
+            entry.copy(
+                foodId = entry.foodId?.let { resolveId(it) },
+                recipeId = entry.recipeId?.let { resolveId(it) },
+            )
+        val tempEntry = entryCreateToEntry(resolved, food, recipe)
         withContext(Dispatchers.IO) { cacheEntry(tempEntry) }
-        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
-        onEntryChanged?.invoke()
-        onEntryCreated?.invoke()
+        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(resolved), localId = tempEntry.id))
+        errorReporter.runHook { onEntryChanged?.invoke() }
+        errorReporter.runHook { onEntryCreated?.invoke() }
         return tempEntry
     }
 
@@ -111,13 +133,14 @@ class EntryRepository(
         entry: EntryUpdate,
         cleared: Set<EntryField> = emptySet(),
     ): Entry {
+        val currentId = resolveId(id)
         // Look the row up by id rather than by the viewed date: the shared
         // `currentDate` is reset to today by the post-sync refresh, so a date-based
         // lookup misses entries edited on any other day and silently drops the
         // optimistic write (the edit then only appears after a manual refresh).
         val existing =
             db.userDataDatabaseQueries
-                .selectEntryById(id)
+                .selectEntryById(currentId)
                 .executeAsOneOrNull()
                 ?.let { json.decodeOrNull<Entry>(it.jsonData) }
         val result =
@@ -127,42 +150,62 @@ class EntryRepository(
                 updated
             } else {
                 Entry(
-                    id = id,
+                    id = currentId,
                     userId = "",
                     date = entry.date ?: currentDate ?: "",
                     mealType = entry.mealType ?: "",
                     servings = entry.servings ?: 1.0,
                 )
             }
-        if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry, cleared)
+        if (currentId.isTempId()) {
+            // The create finished uploading between the lookup and the rewrite: the edit
+            // now belongs to the server record, and the temp row written above must not
+            // linger next to it.
+            if (!coalesceQueuedCreate(currentId, entry, cleared)) {
+                val uploadedId = resolveId(currentId)
+                if (uploadedId != currentId) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(currentId) }
+                    return updateEntry(uploadedId, entry, cleared)
+                }
+            }
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateEntry(id, json.encodeToString(entry), cleared.jsonKeys()))
+            syncQueue.enqueue(SyncOperation.UpdateEntry(currentId, json.encodeToString(entry), cleared.jsonKeys()))
         }
-        onEntryChanged?.invoke()
+        errorReporter.runHook { onEntryChanged?.invoke() }
         return result
     }
 
     suspend fun deleteEntry(id: String) {
-        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(id) }
-        if (id.isTempId()) {
-            syncQueue.removeByAffected("entries", id)
+        val currentId = resolveId(id)
+        withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(currentId) }
+        if (currentId.isTempId()) {
+            // Same race as in [updateEntry]: no queued create left means it just uploaded.
+            if (syncQueue.removeByAffected("entries", currentId) == 0) {
+                val uploadedId = resolveId(currentId)
+                if (uploadedId != currentId) return deleteEntry(uploadedId)
+            }
         } else {
-            syncQueue.enqueue(SyncOperation.DeleteEntry(id))
+            syncQueue.enqueue(SyncOperation.DeleteEntry(currentId))
         }
-        onEntryChanged?.invoke()
+        errorReporter.runHook { onEntryChanged?.invoke() }
     }
 
     /**
+     * The id [id] is stored under now: a temp id whose create has uploaded maps to the
+     * server id that replaced it. Callers holding an id from before the upload resolve
+     * it here; [updateEntry] and [deleteEntry] already do.
+     */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
+    /**
      * Rewrites the still-queued Create operation for a temp-id entry so the eventual
-     * upload carries the edited values. If the create has already been drained (no
-     * queued op found), the update is skipped, matching the previous behavior.
+     * upload carries the edited values. Returns false when no queued create was found.
      */
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: EntryUpdate,
         cleared: Set<EntryField>,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("entries", tempId) { op ->
             val create = op as? SyncOperation.CreateEntry ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<EntryCreate>(create.body) ?: return@rewriteQueuedCreate null
@@ -171,7 +214,6 @@ class EntryRepository(
             val merged = applyUpdate(body, update, cleared)
             create.copy(body = json.encodeToString(merged))
         }
-    }
 
     /**
      * Cache-first day properties. In Local mode the cache is authoritative; in Synced
@@ -179,6 +221,11 @@ class EntryRepository(
      */
     suspend fun getDayProperties(date: String): DayProperties? {
         if (appModeManager.isLocal) return cachedDayProperties(date)
+        // A change still waiting to upload is newer than what the server holds; caching
+        // the server copy would revert it on screen until the upload lands.
+        if (syncQueue.findByAffected("day_properties", date).any { it.failedAt == null }) {
+            return localDayProperties(date)
+        }
         return try {
             val props = api.getDayProperties(date)
             withContext(Dispatchers.IO) {
@@ -254,14 +301,22 @@ class EntryRepository(
                 )
             syncQueue.enqueue(SyncOperation.SetDayProperties(date, json.encodeToString(body), cleared.jsonKeys()))
         }
+        if (updated.activityCalories != current?.activityCalories) notifyDayPropertiesChanged(date)
         return updated
     }
 
     suspend fun deleteDayProperties(date: String) {
+        val hadActivity = cachedDayProperties(date)?.activityCalories != null
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteDayProperties(date) }
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
         }
+        if (hadActivity) notifyDayPropertiesChanged(date)
+    }
+
+    /** The save already happened; a failing listener must not turn it into an error. */
+    private suspend fun notifyDayPropertiesChanged(date: String) {
+        errorReporter.runHook { onDayPropertiesChanged?.invoke(date) }
     }
 
     private fun emptyDayProperties(date: String): DayProperties =
@@ -325,31 +380,58 @@ class EntryRepository(
         toDate: String,
         timeZone: TimeZone = TimeZone.currentSystemDefault(),
     ): Int {
+        // The source day may have been logged on the web or another device and never
+        // opened here, so its cache can be empty or partial. Offline, copy what is cached;
+        // with nothing cached either, the failure is the answer, not "nothing to copy".
+        val refreshFailure =
+            try {
+                fetchDay(fromDate)
+                null
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                e
+            }
         val source = entriesByDateOnce(fromDate)
+        if (refreshFailure != null) {
+            if (source.isEmpty()) throw refreshFailure
+            errorReporter.captureException(refreshFailure)
+        }
         var count = 0
         for (entry in source) {
-            val create =
-                EntryCreate(
-                    mealType = entry.mealType,
-                    servings = entry.servings,
-                    date = toDate,
-                    foodId = entry.foodId,
-                    recipeId = entry.recipeId,
-                    notes = entry.notes,
-                    quickName = entry.quickName,
-                    quickCalories = entry.quickCalories,
-                    quickProtein = entry.quickProtein,
-                    quickCarbs = entry.quickCarbs,
-                    quickFat = entry.quickFat,
-                    quickFiber = entry.quickFiber,
-                    quickNutrients = entry.quickNutrients,
-                    eatenAt = eatenAtOnDate(entry.eatenAt, toDate, timeZone),
-                )
-            createEntry(create, food = entry.food, recipe = entry.recipe)
+            createEntry(
+                entry.toCreate(date = toDate, eatenAt = eatenAtOnDate(entry.eatenAt, toDate, timeZone)),
+                food = entry.food,
+                recipe = entry.recipe,
+            )
             count++
         }
         return count
     }
+
+    /** Logs a deleted [entry] again (undo after the delete already ran); it gets a new id. */
+    suspend fun restoreEntry(entry: Entry): Entry =
+        createEntry(entry.toCreate(date = entry.date, eatenAt = entry.eatenAt), food = entry.food, recipe = entry.recipe)
+
+    private fun Entry.toCreate(
+        date: String,
+        eatenAt: String?,
+    ): EntryCreate =
+        EntryCreate(
+            mealType = mealType,
+            servings = servings,
+            date = date,
+            foodId = foodId,
+            recipeId = recipeId,
+            notes = notes,
+            quickName = quickName,
+            quickCalories = quickCalories,
+            quickProtein = quickProtein,
+            quickCarbs = quickCarbs,
+            quickFat = quickFat,
+            quickFiber = quickFiber,
+            quickNutrients = quickNutrients,
+            eatenAt = eatenAt,
+        )
 
     private fun cacheEntry(entry: Entry) {
         db.userDataDatabaseQueries.cacheEntryRow(entry, json)

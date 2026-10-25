@@ -1,7 +1,6 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -11,27 +10,11 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun DashboardSkeleton() {
+    // Only the sections below the rings: the dashboard draws the real rings above it.
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Macro rings row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            repeat(4) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .shimmer(),
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        // Meal card placeholders
         repeat(3) {
             Box(
                 modifier =
@@ -47,9 +30,9 @@ fun DashboardSkeleton() {
 }
 
 @Composable
-fun DayLogSkeleton() {
+fun DayLogSkeleton(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = modifier.fillMaxWidth().padding(16.dp),
     ) {
         // Meal header
         Box(

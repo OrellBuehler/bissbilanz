@@ -27,6 +27,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +46,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.util.shareFile
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel.ExportMode
+import com.bissbilanz.android.util.formatLocalizedNumber
 
 /**
  * Export foods and recipes as a shareable package, mirroring the web's
@@ -71,7 +73,13 @@ fun FoodPackageExportSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = {
+            viewModel.cancelExport()
+            onDismiss()
+        },
+        sheetState = sheetState,
+    ) {
         Column(
             modifier =
                 Modifier
@@ -163,6 +171,17 @@ fun FoodPackageExportSheet(
                 when {
                     state.loadingSummary && summary == null ->
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    state.summaryFailed ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.food_package_summary_failed),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = viewModel::retrySummary) {
+                                Text(stringResource(R.string.action_retry), maxLines = 1)
+                            }
+                        }
                     summary == null || summary.foods + summary.recipes == 0 ->
                         Text(
                             stringResource(R.string.food_package_nothing_selected),
@@ -264,9 +283,12 @@ private fun FacetChips(
     }
 }
 
-internal fun formatBytes(bytes: Long): String =
+internal fun formatBytes(
+    bytes: Long,
+    locale: java.util.Locale = java.util.Locale.getDefault(),
+): String =
     if (bytes < 1024 * 1024) {
         "${maxOf(1, bytes / 1024)} KB"
     } else {
-        String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1024.0 / 1024.0)
+        "${formatLocalizedNumber(bytes / 1024.0 / 1024.0, 1, locale)} MB"
     }

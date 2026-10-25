@@ -170,7 +170,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_logged, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_logged), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -182,7 +182,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_log_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_log_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -193,7 +193,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -204,7 +204,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_delete_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_delete_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -226,7 +226,7 @@ class InsightsViewModelTest {
 
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
 
             viewModel.clearSnackbar()
 
@@ -307,6 +307,34 @@ class InsightsViewModelTest {
             viewModel.selectTab(2)
 
             coVerify(exactly = 1) { analyticsRepo.getInsights(any(), any(), any()) }
+        }
+
+    @Test
+    fun emptyTabLoadShowsAnErrorAndIsRetriedOnNextSelect() =
+        runTest {
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns null
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(1)
+            assertEquals(UiMessage(R.string.insights_load_failed), viewModel.snackbarMessage.value)
+
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns emptyRangeBundle()
+            viewModel.selectTab(0)
+            viewModel.selectTab(1)
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.foodDiversityResult.value)
+        }
+
+    @Test
+    fun refreshRecomputesTheCurrentTab() =
+        runTest {
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(2)
+            viewModel.refresh()
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
         }
 
     @Test

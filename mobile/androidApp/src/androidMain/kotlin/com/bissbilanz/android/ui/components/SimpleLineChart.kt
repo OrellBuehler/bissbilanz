@@ -4,7 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +26,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.roundToInt
+import com.bissbilanz.android.util.formatLocalizedNumber
 
 @Composable
 fun SimpleLineChart(
@@ -34,6 +34,8 @@ fun SimpleLineChart(
     color: Color,
     modifier: Modifier = Modifier,
     unit: String = "",
+    // Tooltip decimals: whole for kcal and grams, one for hours ("7.4 h").
+    decimals: Int = 0,
 ) {
     if (data.isEmpty()) return
     val maxVal = data.max().coerceAtLeast(1f)
@@ -55,14 +57,15 @@ fun SimpleLineChart(
                 Modifier
                     .matchParentSize()
                     .pointerInput(data) {
-                        detectDragGestures(
+                        // Horizontal only, so a vertical swipe over the chart still scrolls the page.
+                        detectHorizontalDragGestures(
                             onDragStart = { offset ->
                                 val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
                                 val idx = (offset.x / stepX).toInt().coerceIn(0, data.lastIndex)
                                 selectedIndex = idx
                                 touchOffset = offset
                             },
-                            onDrag = { change, _ ->
+                            onHorizontalDrag = { change, _ ->
                                 change.consume()
                                 val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
                                 val idx = (change.position.x / stepX).toInt().coerceIn(0, data.lastIndex)
@@ -122,7 +125,7 @@ fun SimpleLineChart(
         ) {
             if (selIdx != null && selIdx in data.indices) {
                 Text(
-                    "${data[selIdx].roundToInt()}${if (unit.isNotEmpty()) " $unit" else ""}",
+                    "${formatLocalizedNumber(data[selIdx].toDouble(), decimals)}${if (unit.isNotEmpty()) " $unit" else ""}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.inverseOnSurface,

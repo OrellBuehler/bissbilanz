@@ -63,6 +63,32 @@ fun launchLoginFlow(
  */
 fun showContinueWithoutAccount(mode: AppMode?): Boolean = mode != AppMode.SYNCED
 
+/** One full-width button per enabled provider, the first one filled. */
+@Composable
+fun LoginProviderButtons(
+    enabledProviders: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    visibleLoginProviders(enabledProviders).forEachIndexed { index, (provider, labelRes) ->
+        if (index == 0) {
+            Button(
+                onClick = { onSelect(provider) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(labelRes))
+            }
+        } else {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { onSelect(provider) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(labelRes))
+            }
+        }
+    }
+}
+
 @Composable
 fun LoginScreen(
     authManager: AuthManager,
@@ -96,24 +122,7 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(48.dp))
-            visibleLoginProviders(enabledProviders).forEachIndexed { index, (provider, labelRes) ->
-                if (index == 0) {
-                    Button(
-                        onClick = { launchLoginFlow(context, authManager, provider) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(labelRes))
-                    }
-                } else {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { launchLoginFlow(context, authManager, provider) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(labelRes))
-                    }
-                }
-            }
+            LoginProviderButtons(enabledProviders) { provider -> launchLoginFlow(context, authManager, provider) }
             if (showContinueWithoutAccount(mode)) {
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedButton(

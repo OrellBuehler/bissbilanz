@@ -87,6 +87,42 @@ class AiTasksViewModelTest {
     }
 
     @Test
+    fun unreadOutcomesOpenTheDismissedTab() =
+        runTest {
+            backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
+            every { aiTaskRepo.unreadCount() } returns 1
+
+            viewModel.load()
+
+            assertEquals(AiTasksViewModel.Filter.DISMISSED, viewModel.filter.value)
+        }
+
+    @Test
+    fun aTabTheUserChoseIsKeptOverUnreadOutcomes() =
+        runTest {
+            backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
+            every { aiTaskRepo.unreadCount() } returns 1
+
+            viewModel.selectFilter(AiTasksViewModel.Filter.COMPLETED)
+            viewModel.load()
+
+            assertEquals(AiTasksViewModel.Filter.COMPLETED, viewModel.filter.value)
+        }
+
+    @Test
+    fun aSuccessfulRefreshClearsTheLoadFailure() =
+        runTest {
+            coEvery { aiTaskRepo.refresh() } throws RuntimeException("offline")
+            viewModel.load()
+            assertEquals(true, viewModel.loadFailed.value)
+
+            coEvery { aiTaskRepo.refresh() } returns Unit
+            viewModel.refresh()
+
+            assertEquals(false, viewModel.loadFailed.value)
+        }
+
+    @Test
     fun acceptingLogsAndRefreshesTheEntriesOfTheTaskDate() =
         runTest {
             val messages = collectMessages()

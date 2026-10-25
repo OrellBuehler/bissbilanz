@@ -39,13 +39,15 @@ import com.bissbilanz.util.newTempId
 /**
  * The "Steps" section of the recipe form: a numbered card per step with multi-line
  * text, up/down reordering, removal and an optional photo. The list itself is owned
- * by the caller so the form can send it along with the rest of the recipe.
+ * by the caller so the form can send it along with the rest of the recipe;
+ * [onStepUploadingChange] reports a step photo upload in flight by step key.
  */
 @Composable
 fun RecipeStepsEditor(
     steps: List<RecipeStepDraft>,
     onStepsChange: (List<RecipeStepDraft>) -> Unit,
     modifier: Modifier = Modifier,
+    onStepUploadingChange: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -127,6 +129,7 @@ fun RecipeStepsEditor(
                             onImageUrlChange = { url ->
                                 onStepsChange(steps.map { if (it.key == step.key) it.copy(imageUrl = url) else it })
                             },
+                            onUploadingChange = { onStepUploadingChange(step.key, it) },
                         )
                     }
                 }

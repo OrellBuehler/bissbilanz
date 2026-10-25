@@ -67,6 +67,9 @@ const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
 const val NAV_KEY_EDIT_SUPPLEMENT_ID = "edit_supplement_id"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
+/** Optional tabs that are also opened from Settings; there they are pushed screens with a back arrow. */
+private val pushableTabRoutes = setOf("weight", "supplements", "recipe-suggestions", "insights")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
@@ -126,10 +129,9 @@ fun AppNavigation() {
                         "reminders",
                         "food-duplicates",
                         "food-package-import",
+                        "dashboard-layout",
                     ) ||
-                    (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
-                    (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
-                    (currentRoute == "recipe-suggestions" && "recipe-suggestions" !in selectedTabRoutes) ||
+                    (currentRoute in pushableTabRoutes && currentRoute !in selectedTabRoutes) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -214,7 +216,7 @@ fun AppNavigation() {
                         ) { it / 5 }
                 },
             ) {
-                bissbilanzDestinations(navController)
+                bissbilanzDestinations(navController) { selectedTabRoutes }
             }
         }
     }
@@ -225,7 +227,10 @@ fun AppNavigation() {
  * be built without the Compose shell — the launcher shortcuts name routes as plain
  * strings, and a test has to be able to check they still resolve to something.
  */
-internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostController) {
+internal fun NavGraphBuilder.bissbilanzDestinations(
+    navController: NavHostController,
+    tabRoutes: () -> Set<String>,
+) {
     composable(Screen.Dashboard.route) {
         com.bissbilanz.android.ui.screens
             .DashboardScreen(navController)
@@ -240,7 +245,7 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     }
     composable(Screen.Insights.route) {
         com.bissbilanz.android.ui.screens
-            .InsightsScreen(navController)
+            .InsightsScreen(navController, showBack = Screen.Insights.route !in tabRoutes())
     }
     composable(Screen.Settings.route) {
         com.bissbilanz.android.ui.screens

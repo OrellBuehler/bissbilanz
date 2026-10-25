@@ -16,6 +16,7 @@
     <string name="weight_log_title">Log Weight</string>
     <string name="weight_edit_title">Edit Weight</string>
     <string name="weight_input_label">Weight (kg)</string>
+    <string name="weight_input_invalid">Enter a weight between 0 and 500 kg</string>
     <string name="weight_notes_label">Notes (optional)</string>
     <string name="weight_save">Save</string>
     <string name="weight_cancel">Cancel</string>
@@ -135,7 +136,12 @@
     <string name="dashboard_refresh_failed_body">Could not refresh your log.</string>
     <string name="dashboard_retry">Retry</string>
     <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
-    <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
+    <string name="dashboard_copy_nothing">No entries to copy from yesterday</string>
+    <string name="dashboard_copy_error">Couldn\'t copy yesterday\'s entries</string>
+    <string name="dashboard_fasting_update_failed">Couldn\'t update the fasting day</string>
+    <string name="dashboard_water_update_failed">Couldn\'t update water</string>
+    <string name="dashboard_activity_update_failed">Couldn\'t update activity</string>
+    <string name="dashboard_notes_update_failed">Couldn\'t update notes</string>
 
     <!-- Pending sync queue -->
     <string name="pending_sync_title">Pending changes</string>
@@ -362,6 +368,8 @@
     <string name="food_image_label">Food photo</string>
     <string name="recipe_image_label">Recipe photo</string>
     <string name="food_image_remove">Remove photo</string>
+    <string name="food_image_take_photo">Take photo</string>
+    <string name="food_image_choose_photo">Choose photo</string>
     <string name="food_image_upload_failed">Couldn\'t save the photo.</string>
     <string name="photo_read_failed">Couldn\'t read the photo. Please take it again.</string>
     <string name="food_image_save_failed">Saved, but the photo couldn\'t be updated.</string>
@@ -431,6 +439,7 @@
     <string name="login_continue_without_account">Continue without account</string>
     <string name="login_local_mode_description">Your data stays on this device. Sign in later anytime to sync.</string>
     <string name="session_expired_message">Session expired, please sign in again</string>
+    <string name="login_failed">Sign-in failed. Please try again.</string>
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Maintenance Calculator</string>
@@ -530,6 +539,9 @@
     <string name="daylog_copy_dialog_text">This will copy all entries from %1$s to %2$s. Existing entries will not be affected.</string>
     <string name="daylog_copied_entries">Copied %1$d entries</string>
     <string name="daylog_no_entries_to_copy">No entries to copy</string>
+    <string name="daylog_load_failed">Couldn\'t load entries</string>
+    <string name="daylog_delete_failed">Couldn\'t delete the entry</string>
+    <string name="daylog_restore_failed">Couldn\'t restore the entry</string>
     <string name="daylog_quick_add">Quick add</string>
     <string name="daylog_no_entries_for_day">No entries for this day</string>
     <string name="daylog_delete_entry">Delete entry</string>
@@ -543,6 +555,7 @@
     <string name="favorites_select_servings">Select Servings</string>
     <string name="favorites_no_foods">No favorite foods yet.\nMark foods as favorite to see them here.</string>
     <string name="favorites_no_recipes">No favorite recipes yet.\nMark recipes as favorite to see them here.</string>
+    <string name="favorites_load_failed">Failed to load favorites</string>
 
     <!-- Recipe suggestions -->
     <string name="recipe_suggestions_title">Recipe suggestions</string>
@@ -645,6 +658,7 @@
     <string name="food_form_remove_nutrient">Remove nutrient</string>
     <string name="food_form_hide_advanced">Hide advanced nutrients</string>
     <string name="food_form_load_failed">Failed to load food</string>
+    <string name="food_form_deleted">This food no longer exists.</string>
     <string name="food_form_name_required_error">Name is required</string>
     <string name="food_form_required_fields_error">Calories, protein, carbs, fat, and serving size are required</string>
     <string name="food_form_save_failed">Failed to save food</string>
@@ -726,6 +740,11 @@
     <string name="food_search_no_foods">No foods yet</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>
     <string name="food_search_quick_log">Quick log</string>
+    <string name="food_search_load_failed">Failed to load foods</string>
+    <string name="food_search_load_recent_failed">Failed to load recent foods</string>
+    <string name="food_search_failed">Search failed</string>
+    <string name="food_search_refresh_failed">Failed to refresh</string>
+    <string name="food_search_favorite_failed">Couldn\'t update the favorite</string>
 
     <!-- Recipe list screen -->
     <string name="recipe_list_title">Recipes</string>
@@ -733,9 +752,10 @@
     <string name="recipe_list_load_failed">Failed to load recipes</string>
     <string name="recipe_list_log_failed">Failed to log recipe</string>
     <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
-    <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
+    <string name="recipe_list_item_summary">%1$s servings  ·  %2$d ingredients</string>
     <string name="recipe_list_log_content_desc">Log recipe</string>
     <string name="recipe_list_search_placeholder">Search recipes</string>
+    <string name="recipe_list_sort_label">Sort by</string>
     <string name="recipe_list_no_results">No recipes match your search.</string>
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Recently updated</string>
@@ -751,7 +771,7 @@
     <string name="recipe_detail_delete_text">Are you sure you want to delete \"%1$s\"?</string>
     <string name="recipe_detail_default_title">Recipe</string>
     <string name="recipe_detail_log_recipe">Log recipe</string>
-    <string name="recipe_detail_servings">%1$d servings</string>
+    <string name="recipe_detail_servings">%1$s servings</string>
     <string name="recipe_detail_duplicate">Duplicate recipe</string>
     <string name="recipe_detail_duplicate_failed">Failed to duplicate recipe</string>
     <string name="recipe_detail_cooked_weight">%1$d g cooked · ~%2$d kcal/100g</string>
@@ -784,6 +804,7 @@
     <string name="recipe_edit_amount">Amount</string>
     <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
+    <string name="recipe_edit_too_many_ingredients">A recipe can have at most %1$d ingredients.</string>
     <string name="recipe_edit_steps_count">Steps (%1$d)</string>
     <string name="recipe_edit_no_steps">No steps yet.\nAdd steps to cook this recipe one step at a time.</string>
     <string name="recipe_edit_steps_unavailable">Steps can\'t be edited until this recipe has been opened online once.</string>
@@ -812,7 +833,7 @@
     <string name="recipe_cook_finished_title">All done</string>
     <string name="recipe_cook_finished_text">Enjoy your meal. Log it to keep your diary up to date.</string>
     <string name="recipe_cook_no_steps">This recipe has no steps yet. Add some by editing the recipe.</string>
-    <string name="recipe_cook_servings">Makes %1$d servings</string>
+    <string name="recipe_cook_servings">Makes %1$s servings</string>
     <string name="recipe_cook_step_photo">Photo for step %1$d</string>
 
     <!-- Supplements screen -->
@@ -872,6 +893,7 @@
     <string name="reminders_delete_title">Delete reminder</string>
     <string name="reminders_delete_text">This reminder will be permanently deleted.</string>
     <string name="reminders_load_failed">Couldn\'t load the reminder.</string>
+    <string name="reminders_list_load_failed">Couldn\'t load reminders.</string>
     <string name="reminders_save_failed">Couldn\'t save the reminder. Please try again.</string>
     <string name="reminders_delete_failed">Couldn\'t delete the reminder. Please try again.</string>
     <string name="reminders_days_required">Pick at least one day.</string>
@@ -925,6 +947,7 @@
     <string name="weight_log_failed">Failed to log weight</string>
     <string name="weight_update_success">Weight updated</string>
     <string name="weight_update_failed">Failed to update weight</string>
+    <string name="weight_load_failed">Failed to load weight data</string>
     <string name="weight_screen_title">Weight Log</string>
     <string name="weight_add_content_desc">Add weight</string>
     <string name="weight_empty">No weight entries yet.\nTap + to log your weight.</string>
@@ -949,6 +972,8 @@
     <string name="weight_target_kg_label">Target weight (kg)</string>
     <string name="weight_target_date_label">Target date (optional)</string>
     <string name="weight_target_clear">Clear target</string>
+    <string name="weight_target_update_failed">Failed to update target</string>
+    <string name="weight_target_invalid">Enter a valid weight</string>
 
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Monounsaturated Fat</string>
@@ -1036,6 +1061,7 @@
     <string name="add_food_quick_protein">Protein (g)</string>
     <string name="add_food_quick_carbs">Carbs (g)</string>
     <string name="add_food_quick_fat">Fat (g)</string>
+    <string name="add_food_quick_log_failed">Failed to log entry</string>
     <string name="quick_add_more_nutrients">More nutrients</string>
 
     <!-- Entry edit sheet -->
@@ -1043,6 +1069,7 @@
     <string name="entry_edit_delete_failed">Failed to delete entry</string>
     <string name="entry_edit_save_failed">Failed to save entry</string>
     <string name="entry_edit_calories_required">A quick entry needs calories.</string>
+    <string name="entry_edit_servings_invalid">Enter servings greater than 0.</string>
     <string name="entry_edit_delete_title">Delete Entry</string>
     <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
     <string name="entry_edit_title">Edit Entry</string>
@@ -1311,6 +1338,7 @@
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Sign in again</string>
+    <string name="settings_sign_in_choose_provider">Choose sign-in method</string>
 
     <!-- Settings: biological sex (nutrient-gap reference intakes) -->
     <string name="settings_biological_sex">Biological sex</string>
@@ -1319,6 +1347,16 @@
     <string name="settings_biological_sex_male">Male</string>
     <string name="settings_biological_sex_female">Female</string>
     <string name="settings_preference_update_failed">Failed to update preference</string>
+    <string name="settings_goals_updated">Goals updated</string>
+    <string name="settings_goals_update_failed">Failed to update goals</string>
+    <string name="settings_calorie_goal_invalid">Enter a whole number above 0, e.g. 1800</string>
+    <string name="settings_meal_assignment_updated">Meal assignment updated</string>
+    <string name="settings_nutrients_updated">Visible nutrients updated</string>
+    <string name="settings_nutrients_update_failed">Failed to update nutrients</string>
+    <string name="settings_meal_type_added">Meal type added</string>
+    <string name="settings_meal_type_add_failed">Failed to add meal type</string>
+    <string name="settings_export_failed">Export failed</string>
+    <string name="settings_delete_account_failed">Failed to delete account</string>
     <!-- Settings: workout goal adjustment -->
     <string name="settings_activity_goal_adjustment_title">Workout calories</string>
     <string name="settings_activity_goal_adjustment">Increase goals by workout calories</string>
@@ -1407,6 +1445,7 @@
     <string name="food_package_ingredients_added">+%1$d ingredient foods needed by the recipes</string>
     <string name="food_package_too_large">Too large to share at once — narrow the selection.</string>
     <string name="food_package_nothing_selected">Nothing selected yet.</string>
+    <string name="food_package_summary_failed">Couldn\'t calculate the package size.</string>
     <string name="food_package_export_button">Export and share</string>
     <string name="food_package_export_failed">Export failed. Please try again.</string>
     <string name="food_package_import_title">Import food package</string>
@@ -1439,6 +1478,7 @@
     <string name="food_package_ingredients">%1$d ingredients</string>
     <string name="food_package_import_button">Import</string>
     <string name="food_package_import_failed">Import failed. Please try again.</string>
+    <string name="food_package_preview_failed">Couldn\'t check the package. Please try again.</string>
     <string name="food_package_stale">Your data changed meanwhile — please review again.</string>
     <string name="food_package_result_title">Import complete</string>
     <string name="food_package_result_foods">Foods: %1$d new · %2$d replaced · %3$d kept both · %4$d skipped</string>
@@ -1476,6 +1516,7 @@
     <string name="bulk_import_button">Import %1$s foods</string>
     <string name="bulk_import_running_title">Importing foods…</string>
     <string name="bulk_import_running_hint">You can leave this screen. The import continues in the background.</string>
+    <string name="bulk_import_cancel">Stop import</string>
     <string name="bulk_import_result_title">Import complete</string>
     <string name="bulk_import_result_foods">%1$s new · %2$s already there · %3$s invalid</string>
     <string name="bulk_import_result_images">%1$s photos added</string>

@@ -2,8 +2,28 @@ package com.bissbilanz.android.widget
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
+import androidx.glance.action.actionStartActivity
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.cornerRadius
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.padding
+import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
+import androidx.glance.text.TextStyle
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Preferences
+import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import kotlinx.serialization.json.Json
@@ -39,8 +59,53 @@ fun openAppIntent(
 internal fun tilesAlwaysAskForMeal(
     db: UserDataDatabase,
     json: Json,
-): Boolean {
+): Boolean = tilesAlwaysAskForMeal(cachedWidgetPreferences(db, json))
+
+internal fun tilesAlwaysAskForMeal(prefs: Preferences?): Boolean = prefs == null || prefs.favoriteMealAssignmentMode == "ask_meal"
+
+internal fun cachedWidgetPreferences(
+    db: UserDataDatabase,
+    json: Json,
+): Preferences? {
     val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
-    val prefs = cached?.let { json.decodeOrNull<Preferences>(it.jsonData) }
-    return prefs == null || prefs.favoriteMealAssignmentMode == "ask_meal"
+    return cached?.let { json.decodeOrNull<Preferences>(it.jsonData) }
+}
+
+/**
+ * Whether the widgets may show and log data: an account is signed in, or the user
+ * chose the anonymous Local mode. Read from storage rather than [AuthManager.authState],
+ * which stays `Loading` in a process the launcher started for a widget alone.
+ */
+internal suspend fun widgetsSignedIn(): Boolean {
+    val koin =
+        org.koin.java.KoinJavaComponent
+            .getKoin()
+    return koin.get<AppModeManager>().isLocal || koin.get<AuthManager>().getAccessToken() != null
+}
+
+/** What every data widget shows after a logout: no numbers, one tap into the app. */
+@Composable
+internal fun SignedOutWidgetContent() {
+    val context = LocalContext.current
+    Box(
+        modifier =
+            GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(16.dp)
+                .background(GlanceTheme.colors.background)
+                .clickable(actionStartActivity<MainActivity>())
+                .padding(8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = context.getString(R.string.widget_signed_out),
+            style =
+                TextStyle(
+                    color = GlanceTheme.colors.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                ),
+            maxLines = 3,
+        )
+    }
 }

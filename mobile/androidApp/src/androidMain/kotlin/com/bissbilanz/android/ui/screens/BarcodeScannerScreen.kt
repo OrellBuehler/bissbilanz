@@ -1,15 +1,10 @@
 package com.bissbilanz.android.ui.screens
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Size
 import android.view.MotionEvent
-import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -53,10 +48,10 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.ui.components.rememberCameraPermission
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.rememberHaptic
-import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
 import com.bissbilanz.repository.FoodRepository
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -79,17 +74,11 @@ enum class ScanState { SCANNING, SEARCHING, NOT_FOUND, LOOKUP_FAILED }
 @Composable
 fun BarcodeScannerScreen(navController: NavController) {
     val context = LocalContext.current
-    val activity = LocalActivity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val foodRepo: FoodRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
-        )
-    }
-    var permanentlyDenied by remember { mutableStateOf(false) }
+    val cameraPermission = rememberCameraPermission()
     var scanState by remember { mutableStateOf(ScanState.SCANNING) }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
@@ -105,16 +94,6 @@ fun BarcodeScannerScreen(navController: NavController) {
     LaunchedEffect(camera, torchOn) {
         camera?.cameraControl?.enableTorch(torchOn)
     }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission(),
-        ) { granted ->
-            hasPermission = granted
-            // Once the system stops showing the dialog, re-requesting is a silent
-            // no-op; the only way back in is the app's settings page.
-            if (!granted) permanentlyDenied = activity.isPermanentlyDenied(Manifest.permission.CAMERA)
-        }
 
     fun lookup(barcode: String) {
         scannedBarcode = barcode
@@ -136,12 +115,6 @@ fun BarcodeScannerScreen(navController: NavController) {
                 // offering "Create food" here would duplicate a known barcode.
                 scanState = ScanState.LOOKUP_FAILED
             }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -185,7 +158,7 @@ fun BarcodeScannerScreen(navController: NavController) {
         // The preview deliberately runs full-bleed behind the top bar, which is
         // why the bar carries its own scrim rather than a solid background.
         Box(modifier = Modifier.fillMaxSize()) {
-            if (hasPermission && !cameraError) {
+            if (cameraPermission.granted && !cameraError) {
                 CameraPreview(
                     lifecycleOwner = lifecycleOwner,
                     isScanning = { scanState == ScanState.SCANNING },
@@ -371,12 +344,12 @@ fun BarcodeScannerScreen(navController: NavController) {
                         )
                         if (!cameraError) {
                             Spacer(modifier = Modifier.height(16.dp))
-                            if (permanentlyDenied) {
+                            if (cameraPermission.permanentlyDenied) {
                                 Button(onClick = { context.openAppSettings() }) {
                                     Text(stringResource(R.string.scan_barcode_open_settings))
                                 }
                             } else {
-                                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                                Button(onClick = cameraPermission::request) {
                                     Text(stringResource(R.string.scan_barcode_grant_permission))
                                 }
                             }

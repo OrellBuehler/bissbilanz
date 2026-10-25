@@ -1,5 +1,6 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
 import com.bissbilanz.api.generated.model.Food
@@ -19,7 +20,9 @@ import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -45,6 +48,7 @@ class FoodRepositoryTest {
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
+        coEvery { syncQueue.resolveId(any()) } answers { firstArg() }
         repository =
             FoodRepository(
                 api,
@@ -55,7 +59,7 @@ class FoodRepositoryTest {
                 NoopErrorReporter(),
                 appModeManager(),
                 mockk<OpenFoodFactsClient>(relaxed = true),
-                mockk<ConnectivityProvider>(relaxed = true),
+                mockk<ConnectivityProvider>(relaxed = true) { every { isOnline } returns MutableStateFlow(true) },
                 kotlinx.coroutines.Dispatchers.Unconfined,
             )
     }
@@ -190,7 +194,7 @@ class FoodRepositoryTest {
                     reporter,
                     appModeManager(),
                     mockk<OpenFoodFactsClient>(relaxed = true),
-                    mockk<ConnectivityProvider>(relaxed = true),
+                    mockk<ConnectivityProvider>(relaxed = true) { every { isOnline } returns MutableStateFlow(true) },
                     kotlinx.coroutines.Dispatchers.Unconfined,
                 )
             coEvery { api.getFoodsDelta(any(), any(), any()) } returns
@@ -266,6 +270,109 @@ class FoodRepositoryTest {
             repository.refreshFavorites()
 
             coVerify { api.getFavorites() }
+        }
+
+    @Test
+    fun refreshFavoritesKeepsAFavoriteToggleThatIsStillQueued() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Chicken", isFavorite = false))
+            coEvery { api.getFavorites() } returns listOf(TestFixtures.food(id = "1", name = "Chicken", isFavorite = true))
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1"))
+
+            repository.refreshFavorites()
+
+            assertEquals(false, repository.getFoodCached("1")?.isFavorite)
+        }
+
+    @Test
+    fun fetchFoodsPageFallsBackToTheCacheWhenTheServerIsUnreachable() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "apple"))
+            seedFoodInCache(TestFixtures.food(id = "2", name = "Banana"))
+            coEvery { api.getFoodsPaginated(any(), any()) } throws kotlinx.io.IOException("offline")
+
+            val page = repository.fetchFoodsPage(20, 0)
+
+            assertEquals(listOf("1", "2"), page.foods.map { it.id })
+            assertEquals(2, page.total)
+            assertTrue(page.fromCache)
+        }
+
+    @Test
+    fun fetchFoodsPageThrowsAServerErrorInsteadOfServingTheCache() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple"))
+            coEvery { api.getFoodsPaginated(any(), any()) } throws ApiException("boom", 500)
+
+            assertFailsWith<ApiException> { repository.fetchFoodsPage(20, 0) }
+        }
+
+    @Test
+    fun fetchFoodsPageReadsOnlyTheCacheWhenAsked() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple"))
+
+            val page = repository.fetchFoodsPage(20, 0, cacheOnly = true)
+
+            assertEquals(listOf("1"), page.foods.map { it.id })
+            assertTrue(page.fromCache)
+            coVerify(exactly = 0) { api.getFoodsPaginated(any(), any()) }
+        }
+
+    @Test
+    fun aFoodWithAQueuedDeleteDoesNotComeBackFromTheServer() =
+        runTest {
+            coEvery { api.getFoodsPaginated(any(), any()) } returns
+                FoodsListResponse(
+                    foods = listOf(TestFixtures.food(id = "1", name = "Gone"), TestFixtures.food(id = "2", name = "Kept")),
+                    total = 2,
+                )
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1").copy(operation = SyncOperation.DeleteFood("1")))
+
+            val page = repository.fetchFoodsPaginated(20, 0)
+
+            assertEquals(listOf("2"), page.foods.map { it.id })
+            assertNull(repository.getFoodCached("1"))
+        }
+
+    @Test
+    fun refreshFoodsKeepsTheLocalCopyOfAFoodWithAQueuedEdit() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Edited Offline"))
+            coEvery { api.getFoodsDelta(any(), any(), any()) } returns deltaPage(listOf(TestFixtures.food(id = "1", name = "Server Copy")))
+            coEvery { api.getFoodIds() } returns listOf("1")
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1"))
+
+            repository.refreshFoods()
+
+            assertEquals("Edited Offline", repository.getFoodCached("1")?.name)
+        }
+
+    @Test
+    fun searchKeepsAFavoriteToggleThatIsStillQueued() =
+        runTest {
+            coEvery { syncQueue.all() } returns
+                listOf(pendingUpdate("1").copy(operation = SyncOperation.ToggleFavorite("1", true)))
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple", isFavorite = false))
+
+            val stale = TestFixtures.food(id = "1", name = "Apple", isFavorite = false)
+            coEvery { api.searchFoods(any()) } returns listOf(stale)
+
+            assertEquals(true, repository.searchFoods("app").single().isFavorite)
+        }
+
+    @Test
+    fun fetchFoodsPaginatedKeepsTheLocalVersionOfAFoodWithAQueuedEdit() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple", isFavorite = true))
+            coEvery { api.getFoodsPaginated(any(), any()) } returns
+                FoodsListResponse(foods = listOf(TestFixtures.food(id = "1", name = "Apple", isFavorite = false)), total = 1)
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1"))
+
+            val page = repository.fetchFoodsPaginated(20, 0)
+
+            assertEquals(true, page.foods.single().isFavorite)
+            assertEquals(true, repository.getFoodCached("1")?.isFavorite)
         }
 
     @Test

@@ -36,7 +36,7 @@ internal fun SettingsNavigationCard(
                         restoreState = true
                     }
                 } else {
-                    navController.navigate("weight")
+                    navController.navigate("weight") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
@@ -48,26 +48,26 @@ internal fun SettingsNavigationCard(
                         restoreState = true
                     }
                 } else {
-                    navController.navigate("supplements")
+                    navController.navigate("supplements") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) {
-                navController.navigate("sleep")
+                navController.navigate("sleep") { launchSingleTop = true }
             }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
-                navController.navigate("fasting")
+                navController.navigate("fasting") { launchSingleTop = true }
             }
             if (healthAvailable) {
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.health_connect_title), Icons.Default.Favorite) {
-                    navController.navigate("health")
+                    navController.navigate("health") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.AutoMirrored.Filled.MenuBook) {
-                navController.navigate("recipes")
+                navController.navigate("recipes") { launchSingleTop = true }
             }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.recipe_suggestions_title), Icons.Default.Lightbulb) {
@@ -78,27 +78,27 @@ internal fun SettingsNavigationCard(
                         restoreState = true
                     }
                 } else {
-                    navController.navigate("recipe-suggestions")
+                    navController.navigate("recipe-suggestions") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) {
-                navController.navigate("calendar")
+                navController.navigate("calendar") { launchSingleTop = true }
             }
             if (!isLocalMode) {
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
-                    navController.navigate("maintenance")
+                    navController.navigate("maintenance") { launchSingleTop = true }
                 }
                 // The queue only exists server-side — the assistant reaches it
                 // over MCP — so it has no meaning in Local mode.
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) {
-                    navController.navigate("ai-tasks")
+                    navController.navigate("ai-tasks") { launchSingleTop = true }
                 }
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.connect_assistant_title), Icons.Default.SmartToy) {
-                    navController.navigate("connect-claude")
+                    navController.navigate("connect-claude") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
@@ -110,7 +110,7 @@ internal fun SettingsNavigationCard(
                         restoreState = true
                     }
                 } else {
-                    navController.navigate("insights")
+                    navController.navigate("insights") { launchSingleTop = true }
                 }
             }
         }
