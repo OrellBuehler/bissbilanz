@@ -53,11 +53,9 @@ import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.wear.WearStatePublisher
 import com.bissbilanz.android.widget.AssistantFoodLogger
-import com.bissbilanz.android.widget.DayOverviewWidget
 import com.bissbilanz.android.widget.FavoritesWidget
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.FoodShortcutPublisher
-import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickAddWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
 import com.bissbilanz.android.widget.WidgetFoodImages
@@ -467,20 +465,14 @@ class BissbilanzApplication :
         WidgetRolloverWorker.runNow(this)
     }
 
-    /** The widgets that measure today's totals against the (activity-adjusted) goal. */
-    private suspend fun refreshGoalWidgets() {
-        MacroWidget.updateAllWidgets(this)
-        DayOverviewWidget.updateAllWidgets(this)
-    }
+    private suspend fun refreshGoalWidgets() = WidgetRefresher.refreshGoalWidgets(this)
 
     /**
      * Every home-screen surface that renders today's log, plus the Assistant shortcuts
      * that rank foods by how often they were logged.
      */
     private suspend fun refreshDayWidgets() {
-        MacroWidget.updateAllWidgets(this)
-        DayOverviewWidget.updateAllWidgets(this)
-        QuickAddWidget.updateAllWidgets(this)
+        WidgetRefresher.refreshDayWidgets(this)
         FoodShortcutPublisher.publish(this)
     }
 

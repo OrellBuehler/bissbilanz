@@ -64,14 +64,17 @@ fun formatMonthYear(
     locale: Locale = Locale.getDefault(),
 ): String = "${java.time.Month.of(month.number).getDisplayName(TextStyle.SHORT, locale)} $year"
 
-/** Time until just after the next local midnight, for re-checking which day is "today". */
-fun millisUntilNextDay(timeZone: TimeZone = TimeZone.currentSystemDefault()): Long {
+/** Time until [slackMs] after the next local midnight, for re-checking which day is "today". */
+fun millisUntilNextDay(
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    slackMs: Long = 1_000,
+): Long {
     val nextMidnight =
         Clock.System
             .todayIn(timeZone)
             .plus(1, DateTimeUnit.DAY)
             .atStartOfDayIn(timeZone)
-    return (nextMidnight - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0) + 1_000
+    return (nextMidnight - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0) + slackMs
 }
 
 /**

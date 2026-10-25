@@ -9,26 +9,41 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.util.millisUntilNextDay
 import kotlinx.coroutines.CancellationException
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.plus
-import kotlinx.datetime.todayIn
 import java.util.concurrent.TimeUnit
-import kotlin.time.Clock
 
 object WidgetRefresher {
-    /** Every home-screen widget that draws user data or depends on the day. */
-    suspend fun refreshAll(context: Context) {
-        // One at a time, so a widget that fails to load does not leave the rest stale.
+    /** The widgets that measure today's totals against the (activity-adjusted) goal. */
+    private val goalWidgets =
         listOf<suspend (Context) -> Unit>(
             MacroWidget::updateAllWidgets,
             DayOverviewWidget::updateAllWidgets,
-            QuickAddWidget::updateAllWidgets,
-            FavoritesWidget::updateAllWidgets,
-            QuickWeightWidget::updateAllWidgets,
-        ).forEach { update ->
+        )
+
+    /** Every widget that renders today's log. */
+    private val dayWidgets = goalWidgets + QuickAddWidget::updateAllWidgets
+
+    /** Every home-screen widget that draws user data or depends on the day. */
+    private val allWidgets =
+        dayWidgets +
+            listOf<suspend (Context) -> Unit>(
+                FavoritesWidget::updateAllWidgets,
+                QuickWeightWidget::updateAllWidgets,
+            )
+
+    suspend fun refreshGoalWidgets(context: Context) = refresh(context, goalWidgets)
+
+    suspend fun refreshDayWidgets(context: Context) = refresh(context, dayWidgets)
+
+    suspend fun refreshAll(context: Context) = refresh(context, allWidgets)
+
+    private suspend fun refresh(
+        context: Context,
+        widgets: List<suspend (Context) -> Unit>,
+    ) {
+        // One at a time, so a widget that fails to load does not leave the rest stale.
+        widgets.forEach { update ->
             try {
                 update(context)
             } catch (e: Exception) {
@@ -88,16 +103,7 @@ class WidgetRolloverWorker(
             )
         }
 
-        private fun nextMidnightDelayMs(): Long {
-            val zone = TimeZone.currentSystemDefault()
-            val now = Clock.System.now()
-            val midnight =
-                Clock.System
-                    .todayIn(zone)
-                    .plus(1, DateTimeUnit.DAY)
-                    .atStartOfDayIn(zone)
-            return (midnight - now).inWholeMilliseconds.coerceAtLeast(0L) + SLACK_MS
-        }
+        private fun nextMidnightDelayMs(): Long = millisUntilNextDay(slackMs = SLACK_MS)
     }
 }
 
