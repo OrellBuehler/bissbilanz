@@ -27,8 +27,11 @@ fun PullToRefreshWrapper(
         onRefresh = {
             scope.launch {
                 isRefreshing = true
-                onRefresh()
-                isRefreshing = false
+                try {
+                    onRefresh()
+                } finally {
+                    isRefreshing = false
+                }
             }
         },
         modifier = modifier,
