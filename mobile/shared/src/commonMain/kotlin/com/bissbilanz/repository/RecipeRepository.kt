@@ -128,17 +128,24 @@ class RecipeRepository(
             .executeAsOneOrNull()
             ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
 
-    suspend fun getRecipe(id: String): RecipeDetail {
+    /** The server id a temp-id recipe got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
+    suspend fun getRecipe(recipeId: String): RecipeDetail {
         if (appModeManager.isLocal) {
-            val cached = db.userDataDatabaseQueries.selectRecipeById(id).executeAsOneOrNull()
+            val cached = db.userDataDatabaseQueries.selectRecipeById(recipeId).executeAsOneOrNull()
             return cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
-                ?: throw IllegalStateException("Recipe $id not found in local database")
+                ?: throw IllegalStateException("Recipe $recipeId not found in local database")
         }
+        // A screen opened on a just-created recipe still holds its temp id.
+        val id = resolveId(recipeId)
         // Same as refresh(): a recipe with a queued edit is newer locally than on the
         // server, so the server copy must neither be shown nor overwrite the cache.
         if (id.isTempId() || id in pendingRecipeIds()) {
             getRecipeCached(id)?.let { return it }
         }
+        // The server has never heard of a temp id.
+        if (id.isTempId()) throw IllegalStateException("Recipe $id not found")
         return try {
             val recipe = api.getRecipe(id).serverTotalsToPerServing()
             withContext(Dispatchers.IO) { cacheRecipe(recipe) }

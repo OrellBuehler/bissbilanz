@@ -20,6 +20,7 @@ import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -27,6 +28,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -667,6 +669,27 @@ class RecipeRepositoryTest {
 
             assertEquals("Renamed", fetched.name)
             assertEquals("Renamed", cachedRecipe("srv_r1").name)
+        }
+
+    @Test
+    fun getRecipeFollowsATempIdToTheServerIdItsCreateGot() =
+        runTest {
+            val (synced, queue) = syncedRepository()
+            cacheServerRecipe(listOf("Chop"))
+            queue.recordTempIdRemap("temp_r1", "srv_r1")
+            coEvery { api.getRecipe("srv_r1") } returns cachedRecipe("srv_r1")
+
+            assertEquals("srv_r1", synced.getRecipe("temp_r1").id)
+            coVerify(exactly = 0) { api.getRecipe("temp_r1") }
+        }
+
+    @Test
+    fun getRecipeNeverAsksTheServerForATempId() =
+        runTest {
+            val (synced, _) = syncedRepository()
+
+            assertFailsWith<IllegalStateException> { synced.getRecipe("temp_r9") }
+            coVerify(exactly = 0) { api.getRecipe(any()) }
         }
 
     private suspend fun createLabelled(

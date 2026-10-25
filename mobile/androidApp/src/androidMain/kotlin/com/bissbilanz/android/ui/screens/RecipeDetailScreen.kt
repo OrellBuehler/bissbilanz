@@ -77,6 +77,9 @@ fun RecipeDetailScreen(
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
     var showUsage by rememberSaveable { mutableStateOf(false) }
     var showEditSheet by rememberSaveable { mutableStateOf(false) }
+    // A recipe opened right after it was created (e.g. a duplicate) still has its temp id;
+    // once loaded, its row carries the server id the create got.
+    val currentId = recipe?.id ?: recipeId
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -144,13 +147,13 @@ fun RecipeDetailScreen(
 
     if (showEditSheet) {
         RecipeEditSheet(
-            recipeId = recipeId,
+            recipeId = currentId,
             onDismiss = { showEditSheet = false },
             onSaved = {
                 showEditSheet = false
                 scope.launch {
                     try {
-                        recipe = recipeRepo.getRecipe(recipeId)
+                        recipe = recipeRepo.getRecipe(currentId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
@@ -204,7 +207,7 @@ fun RecipeDetailScreen(
                         showDeleteDialog = false
                         scope.launch {
                             try {
-                                when (val outcome = recipeRepo.deleteRecipeChecked(recipeId)) {
+                                when (val outcome = recipeRepo.deleteRecipeChecked(currentId)) {
                                     DeleteOutcome.Deleted -> navController.popBackStack()
                                     is DeleteOutcome.Blocked -> deleteConflict = outcome
                                 }
@@ -239,7 +242,7 @@ fun RecipeDetailScreen(
         WhereUsedSheet(
             title = stringResource(R.string.where_used_title_logged),
             name = recipe?.name ?: "",
-            load = { recipeRepo.whereUsed(recipeId) },
+            load = { recipeRepo.whereUsed(currentId) },
             onDismiss = { showUsage = false },
             onOpenEntry = { entry ->
                 showUsage = false
@@ -252,8 +255,8 @@ fun RecipeDetailScreen(
         // After process death the view model starts empty: set the export up again.
         LaunchedEffect(Unit) {
             val export = packageViewModel.exportState.value
-            if (!export.recipesOnly || export.recipeIds != listOf(recipeId)) {
-                packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
+            if (!export.recipesOnly || export.recipeIds != listOf(currentId)) {
+                packageViewModel.startExport(recipeIds = listOf(currentId), recipesOnly = true)
             }
         }
         FoodPackageExportSheet(viewModel = packageViewModel, onDismiss = { showShareSheet = false })
@@ -287,7 +290,7 @@ fun RecipeDetailScreen(
                                     try {
                                         val copy =
                                             recipeRepo.duplicateRecipe(
-                                                recipeId,
+                                                currentId,
                                                 String.format(copyNameTemplate, recipe!!.name),
                                             )
                                         navController.navigate("recipe/${copy.id}")
@@ -303,7 +306,7 @@ fun RecipeDetailScreen(
                             Icon(Icons.Default.ContentCopy, stringResource(R.string.recipe_detail_duplicate))
                         }
                         IconButton(onClick = {
-                            packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
+                            packageViewModel.startExport(recipeIds = listOf(currentId), recipesOnly = true)
                             showShareSheet = true
                         }) {
                             Icon(Icons.Default.Share, stringResource(R.string.food_package_share_recipe))
@@ -337,7 +340,7 @@ fun RecipeDetailScreen(
                 onRefresh = {
                     refreshManager.refreshAll()
                     try {
-                        recipe = recipeRepo.getRecipe(recipeId)
+                        recipe = recipeRepo.getRecipe(currentId)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
@@ -395,7 +398,7 @@ fun RecipeDetailScreen(
                         if (steps.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = { navController.navigate("recipe/$recipeId/cook") },
+                                onClick = { navController.navigate("recipe/$currentId/cook") },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                             ) {
                                 Icon(Icons.Default.Restaurant, contentDescription = null)
