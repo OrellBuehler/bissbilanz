@@ -4,6 +4,8 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.test.appModeManager
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.BeforeTest
@@ -29,18 +31,79 @@ class SyncQueueTest {
     }
 
     @Test
+    fun removeWithFollowUpSignalsTheQueuedFollowUp() =
+        runTest {
+            queue.enqueue(SyncOperation.CreateEntry("{}", localId = "temp_e1"))
+            val drained = queue.drain().single()
+            val signals = mutableListOf<Unit>()
+            val collector =
+                backgroundScope.launch(
+                    UnconfinedTestDispatcher(testScheduler),
+                ) { queue.enqueueSignal.collect { signals += it } }
+
+            queue.removeWithFollowUp(drained.id, queue.currentGeneration()) { listOf(SyncOperation.DeleteEntry("srv-1")) }
+
+            assertEquals(1, signals.size)
+            collector.cancel()
+        }
+
+    @Test
+    fun removeWithFollowUpQueuesNothingOnceTheQueueWasCleared() =
+        runTest {
+            queue.enqueue(SyncOperation.CreateEntry("{}", localId = "temp_e1"))
+            val drained = queue.drain().single()
+            val generation = queue.currentGeneration()
+            queue.clear()
+
+            var called = false
+            val queued =
+                queue.removeWithFollowUp(drained.id, generation) {
+                    called = true
+                    listOf(SyncOperation.DeleteEntry("srv-1"))
+                }
+
+            assertTrue(queued.isEmpty())
+            assertEquals(false, called)
+            assertEquals(0, queue.pendingCount())
+        }
+
+    @Test
+    fun removeWithFollowUpQueuesNothingInLocalMode() =
+        runTest {
+            db.bissbilanzDatabaseQueries.insertSyncQueueItem("""{"type":"delete_entry","id":"e1"}""", 0, "entries", "e1", "k", "t")
+            val localQueue = SyncQueue(db, json, appModeManager(AppMode.LOCAL))
+            val id = localQueue.all().single().id
+
+            localQueue.removeWithFollowUp(id, localQueue.currentGeneration()) { listOf(SyncOperation.DeleteEntry("srv-1")) }
+
+            assertTrue(localQueue.all().isEmpty())
+        }
+
+    @Test
+    fun remapsOlderThanTheRetentionArePruned() =
+        runTest {
+            val old = Clock.System.now().toEpochMilliseconds() - 31L * 24 * 60 * 60 * 1000
+            db.bissbilanzDatabaseQueries.upsertTempIdRemap("temp_old", "srv-old", old)
+
+            queue.recordTempIdRemap("temp_new", "srv-new")
+
+            assertEquals("temp_old", queue.resolveId("temp_old"))
+            assertEquals("srv-new", queue.resolveId("temp_new"))
+        }
+
+    @Test
     fun removeWithFollowUpQueuesTheFollowUpAndDropsTheRow() =
         runTest {
             queue.enqueue(SyncOperation.CreateEntry("{}", localId = "temp_e1"))
             val drained = queue.drain().single()
 
             val queued =
-                queue.removeWithFollowUp(drained.id) { row ->
+                queue.removeWithFollowUp(drained.id, queue.currentGeneration()) { row ->
                     assertEquals(drained.id, row?.id)
-                    SyncOperation.DeleteEntry("srv-1")
+                    listOf(SyncOperation.DeleteEntry("srv-1"))
                 }
 
-            assertEquals(SyncOperation.DeleteEntry("srv-1"), queued)
+            assertEquals(listOf(SyncOperation.DeleteEntry("srv-1")), queued)
             val remaining = queue.all().single()
             assertEquals(SyncOperation.DeleteEntry("srv-1"), remaining.operation)
         }
@@ -53,9 +116,9 @@ class SyncQueueTest {
             queue.removeByAffected("entries", "temp_e1")
 
             var seen: QueuedRequest? = drained
-            queue.removeWithFollowUp(drained.id) { row ->
+            queue.removeWithFollowUp(drained.id, queue.currentGeneration()) { row ->
                 seen = row
-                null
+                emptyList()
             }
 
             assertNull(seen)

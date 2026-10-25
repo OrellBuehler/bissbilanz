@@ -95,7 +95,27 @@ internal fun remapTempIds(
         }
 
         is SyncOperation.UpdateEntry -> {
-            op.copy(body = remapEntryUpdateBody(op.body, remaps, json))
+            op.copy(id = remap(op.id), body = remapEntryUpdateBody(op.body, remaps, json))
+        }
+
+        is SyncOperation.DeleteEntry -> {
+            op.copy(id = remap(op.id))
+        }
+
+        is SyncOperation.UpdateWeight -> {
+            op.copy(id = remap(op.id))
+        }
+
+        is SyncOperation.DeleteWeight -> {
+            op.copy(id = remap(op.id))
+        }
+
+        is SyncOperation.UpdateSleep -> {
+            op.copy(id = remap(op.id))
+        }
+
+        is SyncOperation.DeleteSleep -> {
+            op.copy(id = remap(op.id))
         }
 
         is SyncOperation.CreateRecipe -> {

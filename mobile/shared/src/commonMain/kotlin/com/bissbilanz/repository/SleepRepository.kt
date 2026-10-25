@@ -63,10 +63,15 @@ class SleepRepository(
         return temp
     }
 
+    /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
     suspend fun updateEntry(
         id: String,
         entry: SleepUpdate,
     ): SleepEntry {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val cached = db.userDataDatabaseQueries.selectAllSleepEntries().executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<SleepEntry>(it.jsonData) }.find { it.id == id }
         val result =
@@ -102,7 +107,15 @@ class SleepRepository(
                 )
             }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry)
+            // The create finished uploading meanwhile: the edit belongs to the server record,
+            // and the temp row written above must not linger next to it.
+            if (!coalesceQueuedCreate(id, entry)) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSleepEntry(id) }
+                    return updateEntry(uploadedId, entry)
+                }
+            }
         } else {
             syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry)))
         }
@@ -110,9 +123,14 @@ class SleepRepository(
     }
 
     suspend fun deleteEntry(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSleepEntry(id) }
         if (id.isTempId()) {
-            syncQueue.removeByAffected("sleep", id)
+            if (syncQueue.removeByAffected("sleep", id) == 0) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) return deleteEntry(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteSleep(id))
         }
@@ -126,7 +144,7 @@ class SleepRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: SleepUpdate,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("sleep", tempId) { op ->
             val create = op as? SyncOperation.CreateSleep ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<SleepCreate>(create.body) ?: return@rewriteQueuedCreate null
@@ -142,7 +160,6 @@ class SleepRepository(
                 )
             create.copy(body = json.encodeToString(merged))
         }
-    }
 
     /**
      * Returns a single sleep entry by [id]. Checks the local cache first; if not

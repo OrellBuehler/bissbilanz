@@ -7,6 +7,7 @@ import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeUpdate
+import com.bissbilanz.api.generated.model.ReminderUpdate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepUpdate
@@ -17,6 +18,7 @@ import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.repository.ReminderRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.repository.WeightRepository
@@ -80,6 +82,51 @@ class TempIdCoalescingTest {
     private fun sleepRepository() = SleepRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
 
     private fun supplementRepository() = SupplementRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
+
+    // Ids that uploaded meanwhile
+
+    @Test
+    fun weightSleepSupplementAndReminderEditsByAnUploadedTempIdTargetTheServerId() =
+        runTest {
+            syncQueue.recordTempIdRemap("temp_w", "srv-w")
+            syncQueue.recordTempIdRemap("temp_s", "srv-s")
+            syncQueue.recordTempIdRemap("temp_p", "srv-p")
+            syncQueue.recordTempIdRemap("temp_r", "srv-r")
+            val reminders = ReminderRepository(api, db, cacheDb, syncQueue, json, NoopErrorReporter(), appModeManager())
+
+            weightRepository().updateEntry("temp_w", WeightUpdate(weightKg = 81.0))
+            weightRepository().deleteEntry("temp_w")
+            sleepRepository().updateEntry("temp_s", SleepUpdate(quality = 8.0))
+            sleepRepository().deleteEntry("temp_s")
+            supplementRepository().updateSupplement("temp_p", supplementCreate())
+            supplementRepository().deleteSupplement("temp_p")
+            reminders.updateReminder("temp_r", ReminderUpdate(time = "08:00"))
+            reminders.deleteReminder("temp_r")
+
+            val ops = syncQueue.drain().map { it.operation }
+            assertEquals(
+                listOf(
+                    SyncOperation.UpdateWeight::class to "srv-w",
+                    SyncOperation.DeleteWeight::class to "srv-w",
+                    SyncOperation.UpdateSleep::class to "srv-s",
+                    SyncOperation.DeleteSleep::class to "srv-s",
+                    SyncOperation.UpdateSupplement::class to "srv-p",
+                    SyncOperation.DeleteSupplement::class to "srv-p",
+                    SyncOperation.UpdateReminder::class to "srv-r",
+                    SyncOperation.DeleteReminder::class to "srv-r",
+                ),
+                ops.map { it::class to it.affectedId },
+            )
+        }
+
+    @Test
+    fun queuedWeightAndSleepChangesNamingATempIdAreRemapped() {
+        val remaps = mapOf("temp_w" to "srv-w", "temp_s" to "srv-s", "temp_e" to "srv-e")
+        assertEquals(SyncOperation.UpdateWeight("srv-w", "{}"), remapTempIds(SyncOperation.UpdateWeight("temp_w", "{}"), remaps, json))
+        assertEquals(SyncOperation.DeleteWeight("srv-w"), remapTempIds(SyncOperation.DeleteWeight("temp_w"), remaps, json))
+        assertEquals(SyncOperation.DeleteSleep("srv-s"), remapTempIds(SyncOperation.DeleteSleep("temp_s"), remaps, json))
+        assertEquals(SyncOperation.DeleteEntry("srv-e"), remapTempIds(SyncOperation.DeleteEntry("temp_e"), remaps, json))
+    }
 
     // Entries
 

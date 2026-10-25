@@ -201,16 +201,20 @@ class SyncManager(
         var stoppedEarly = false
         var drained: List<QueuedRequest> = emptyList()
         try {
+            val generation = syncQueue.currentGeneration()
+            // Temp ids whose creates already uploaded: an operation can still name one, e.g.
+            // a food logged from a screen opened before the upload. Writing the remapped
+            // operations back keeps them correct even after the map entry is pruned.
+            val knownRemaps = syncQueue.tempIdRemaps()
+            if (knownRemaps.isNotEmpty()) syncQueue.rewriteAll { remapTempIds(it, knownRemaps, json) }
             drained = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
-            // Temp ids whose creates already uploaded: earlier ones (an operation queued
-            // with a stale temp id after its create drained, e.g. a food logged from a
-            // screen opened before the upload) and those of THIS batch. The drained
-            // snapshot still carries the original payloads, so operations in the batch
-            // are remapped in memory; operations still sitting in the queue (including
-            // ones beyond the drain limit) are rewritten in place after each create.
-            val remaps = syncQueue.tempIdRemaps().toMutableMap()
+            // Plus the temp ids whose creates drain in THIS batch. The drained snapshot still
+            // carries the original payloads, so operations in the batch are remapped in
+            // memory; operations still sitting in the queue (including ones beyond the
+            // drain limit) are rewritten in place after each create succeeds.
+            val remaps = knownRemaps.toMutableMap()
 
             for (req in drained) {
                 try {
@@ -280,11 +284,11 @@ class SyncManager(
                     val remap = execute(op, req.idempotencyKey, req.clientEditedAt)
                     if (remap != null) {
                         remaps[remap.tempId] = remap.serverId
-                        syncQueue.recordTempIdRemap(remap.tempId, remap.serverId)
+                        syncQueue.recordTempIdRemap(remap.tempId, remap.serverId, generation)
                         rewriteQueuedReferences(remap.tempId, remap.serverId)
                     }
-                    if (remap != null && op is SyncOperation.CreateEntry) {
-                        replayInFlightEntryChange(req.id, op, remap, remaps)
+                    if (remap != null && isCreateOperation(op)) {
+                        replayInFlightChange(req.id, generation, op, remap, remaps)
                     } else {
                         syncQueue.remove(req.id)
                     }
@@ -663,7 +667,11 @@ class SyncManager(
             }
 
             is SyncOperation.CreateSleep -> {
-                api.createSleepEntry(json.decodeFromString<SleepCreate>(op.body), idempotencyKey, clientEditedAt)
+                val server = api.createSleepEntry(json.decodeFromString<SleepCreate>(op.body), idempotencyKey, clientEditedAt)
+                return op.localId?.takeIf { it.isTempId() }?.let { tempId ->
+                    replaceLocalSleep(tempId, server)
+                    TempIdRemap(tempId, server.id)
+                }
             }
 
             is SyncOperation.UpdateSleep -> {
@@ -715,37 +723,215 @@ class SyncManager(
      * the new server id, queued in the same transaction that removes the row. Later
      * changes already resolve the temp id to the server id (see [SyncQueue.resolveId]).
      */
-    private suspend fun replayInFlightEntryChange(
+    private suspend fun replayInFlightChange(
         queueId: Long,
-        uploaded: SyncOperation.CreateEntry,
+        generation: Long,
+        uploaded: SyncOperation,
         remap: TempIdRemap,
         remaps: Map<String, String>,
     ) {
-        var edited: EntryCreate? = null
-        val followUp =
-            syncQueue.removeWithFollowUp(queueId) { remaining ->
-                if (remaining == null) return@removeWithFollowUp SyncOperation.DeleteEntry(remap.serverId)
-                val current =
-                    remapTempIds(remaining.operation, remaps, json) as? SyncOperation.CreateEntry
-                        ?: return@removeWithFollowUp null
-                val sent = json.decodeOrNull<EntryCreate>(uploaded.body) ?: return@removeWithFollowUp null
-                val merged = json.decodeOrNull<EntryCreate>(current.body) ?: return@removeWithFollowUp null
-                if (merged == sent) return@removeWithFollowUp null
-                edited = merged
-                SyncOperation.UpdateEntry(remap.serverId, json.encodeToString(merged.toUpdate()), clearedEntryKeys(sent, merged))
+        var deletedMeanwhile = false
+        var editedEntry: EntryCreate? = null
+        val followUps =
+            syncQueue.removeWithFollowUp(queueId, generation) { remaining ->
+                if (remaining == null) {
+                    deletedMeanwhile = true
+                    return@removeWithFollowUp listOfNotNull(deleteOperation(uploaded, remap.serverId))
+                }
+                val current = remapTempIds(remaining.operation, remaps, json)
+                if (uploaded is SyncOperation.CreateEntry && current is SyncOperation.CreateEntry) {
+                    editedEntry = json.decodeOrNull<EntryCreate>(current.body)
+                }
+                updateOperations(uploaded, current, remap.serverId)
             }
+        if (followUps.isEmpty()) return
+        if (deletedMeanwhile) {
+            deleteLocalRow(uploaded, remap.serverId)
+            return
+        }
+        // Only entries carry the edit into the local row here; for the other types the
+        // server row shows until the queued update lands and the next refresh.
+        val change = editedEntry ?: return
         val queries = db.userDataDatabaseQueries
-        when (followUp) {
-            is SyncOperation.DeleteEntry -> queries.deleteEntry(remap.serverId)
-            is SyncOperation.UpdateEntry -> {
-                val change = edited ?: return
-                queries
-                    .selectEntryById(remap.serverId)
-                    .executeAsOneOrNull()
-                    ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
-                    ?.let { server -> queries.cacheEntryRow(server.withValuesOf(change), json) }
+        queries
+            .selectEntryById(remap.serverId)
+            .executeAsOneOrNull()
+            ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
+            ?.let { server -> queries.cacheEntryRow(server.withValuesOf(change), json) }
+    }
+
+    private fun deleteOperation(
+        uploaded: SyncOperation,
+        serverId: String,
+    ): SyncOperation? =
+        when (uploaded) {
+            is SyncOperation.CreateEntry -> SyncOperation.DeleteEntry(serverId)
+            is SyncOperation.CreateFood -> SyncOperation.DeleteFood(serverId)
+            is SyncOperation.CreateRecipe -> SyncOperation.DeleteRecipe(serverId)
+            is SyncOperation.CreateWeight -> SyncOperation.DeleteWeight(serverId)
+            is SyncOperation.CreateSleep -> SyncOperation.DeleteSleep(serverId)
+            is SyncOperation.CreateSupplement -> SyncOperation.DeleteSupplement(serverId)
+            is SyncOperation.CreateReminder -> SyncOperation.DeleteReminder(serverId)
+            else -> null
+        }
+
+    /** The edits merged into the queued create while it uploaded, as operations on [serverId]. */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    private fun updateOperations(
+        uploaded: SyncOperation,
+        current: SyncOperation,
+        serverId: String,
+    ): List<SyncOperation> {
+        fun bodyOf(op: SyncOperation): String? =
+            when (op) {
+                is SyncOperation.CreateEntry -> op.body
+                is SyncOperation.CreateFood -> op.body
+                is SyncOperation.CreateRecipe -> op.body
+                is SyncOperation.CreateWeight -> op.body
+                is SyncOperation.CreateSleep -> op.body
+                is SyncOperation.CreateSupplement -> op.body
+                is SyncOperation.CreateReminder -> op.body
+                else -> null
             }
-            else -> Unit
+        if (uploaded::class != current::class) return emptyList()
+        val sentBody = bodyOf(uploaded) ?: return emptyList()
+        val currentBody = bodyOf(current) ?: return emptyList()
+        return when (uploaded) {
+            is SyncOperation.CreateEntry -> {
+                val sent = json.decodeOrNull<EntryCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<EntryCreate>(currentBody) ?: return emptyList()
+                if (edited == sent) return emptyList()
+                listOf(SyncOperation.UpdateEntry(serverId, json.encodeToString(edited.toUpdate()), clearedEntryKeys(sent, edited)))
+            }
+
+            is SyncOperation.CreateFood -> {
+                val sent = json.decodeOrNull<FoodCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<FoodCreate>(currentBody) ?: return emptyList()
+                buildList {
+                    // The favourite flag and the photo have their own partial operations.
+                    if (edited.copy(isFavorite = sent.isFavorite, imageUrl = sent.imageUrl) != sent) {
+                        add(SyncOperation.UpdateFood(serverId, json.encodeToString(edited)))
+                    }
+                    if (edited.isFavorite != sent.isFavorite) add(SyncOperation.ToggleFavorite(serverId, edited.isFavorite == true))
+                    if (edited.imageUrl != sent.imageUrl) add(SyncOperation.SetFoodImage(serverId, edited.imageUrl))
+                }
+            }
+
+            is SyncOperation.CreateRecipe -> {
+                val sent = json.decodeOrNull<RecipeCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<RecipeCreate>(currentBody) ?: return emptyList()
+                buildList {
+                    if (edited.copy(imageUrl = sent.imageUrl) != sent) {
+                        val update =
+                            RecipeUpdate(
+                                name = edited.name,
+                                totalServings = edited.totalServings,
+                                ingredients = edited.ingredients,
+                                isFavorite = edited.isFavorite,
+                                cookedWeight = edited.cookedWeight,
+                                steps = edited.steps,
+                            )
+                        val cleared = if (sent.cookedWeight != null && edited.cookedWeight == null) listOf("cookedWeight") else emptyList()
+                        add(SyncOperation.UpdateRecipe(serverId, json.encodeToString(update), cleared))
+                    }
+                    if (edited.imageUrl != sent.imageUrl) add(SyncOperation.SetRecipeImage(serverId, edited.imageUrl))
+                }
+            }
+
+            is SyncOperation.CreateWeight -> {
+                val sent = json.decodeOrNull<WeightCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<WeightCreate>(currentBody) ?: return emptyList()
+                if (edited == sent) return emptyList()
+                val update = WeightUpdate(weightKg = edited.weightKg, entryDate = edited.entryDate, notes = edited.notes)
+                listOf(SyncOperation.UpdateWeight(serverId, json.encodeToString(update)))
+            }
+
+            is SyncOperation.CreateSleep -> {
+                val sent = json.decodeOrNull<SleepCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<SleepCreate>(currentBody) ?: return emptyList()
+                if (edited == sent) return emptyList()
+                val update =
+                    SleepUpdate(
+                        durationMinutes = edited.durationMinutes,
+                        quality = edited.quality,
+                        entryDate = edited.entryDate,
+                        bedtime = edited.bedtime,
+                        wakeTime = edited.wakeTime,
+                        wakeUps = edited.wakeUps,
+                        notes = edited.notes,
+                    )
+                listOf(SyncOperation.UpdateSleep(serverId, json.encodeToString(update)))
+            }
+
+            is SyncOperation.CreateSupplement -> {
+                val sent = json.decodeOrNull<SupplementCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<SupplementCreate>(currentBody) ?: return emptyList()
+                if (edited == sent) return emptyList()
+                val cleared = if (sent.scheduleDays != null && edited.scheduleDays == null) listOf("scheduleDays") else emptyList()
+                listOf(SyncOperation.UpdateSupplement(serverId, json.encodeToString(edited), cleared))
+            }
+
+            is SyncOperation.CreateReminder -> {
+                val sent = json.decodeOrNull<ReminderCreate>(sentBody) ?: return emptyList()
+                val edited = json.decodeOrNull<ReminderCreate>(currentBody) ?: return emptyList()
+                if (edited == sent) return emptyList()
+                val update =
+                    ReminderUpdate(
+                        kind = ReminderUpdate.Kind.entries.firstOrNull { it.value == edited.kind.value },
+                        mealType = edited.mealType,
+                        time = edited.time,
+                        weekdays = edited.weekdays,
+                        enabled = edited.enabled,
+                    )
+                listOf(SyncOperation.UpdateReminder(serverId, json.encodeToString(update)))
+            }
+
+            else -> emptyList()
+        }
+    }
+
+    /** The server row the upload just cached, for a record the user deleted meanwhile. */
+    private fun deleteLocalRow(
+        uploaded: SyncOperation,
+        serverId: String,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            when (uploaded) {
+                is SyncOperation.CreateEntry -> {
+                    queries.deleteEntry(serverId)
+                }
+
+                is SyncOperation.CreateFood -> {
+                    queries.deleteFoodLabels(serverId)
+                    queries.deleteFood(serverId)
+                }
+
+                is SyncOperation.CreateRecipe -> {
+                    queries.deleteRecipeLabels(serverId)
+                    queries.deleteRecipe(serverId)
+                }
+
+                is SyncOperation.CreateWeight -> {
+                    queries.deleteWeightEntry(serverId)
+                }
+
+                is SyncOperation.CreateSleep -> {
+                    queries.deleteSleepEntry(serverId)
+                }
+
+                is SyncOperation.CreateSupplement -> {
+                    queries.deleteSupplement(serverId)
+                }
+
+                is SyncOperation.CreateReminder -> {
+                    queries.deleteReminder(serverId)
+                }
+
+                else -> {
+                    Unit
+                }
+            }
         }
     }
 
@@ -1033,6 +1219,24 @@ class SyncManager(
                     takenAt = log.takenAt,
                 )
             }
+        }
+    }
+
+    private fun replaceLocalSleep(
+        tempId: String,
+        server: SleepEntry,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        queries.transaction {
+            queries.deleteSleepEntry(tempId)
+            queries.insertSleepEntry(
+                id = server.id,
+                entryDate = server.entryDate,
+                durationMinutes = server.durationMinutes.toLong(),
+                quality = server.quality.toLong(),
+                loggedAt = server.loggedAt,
+                jsonData = json.encodeToString(server),
+            )
         }
     }
 

@@ -71,10 +71,15 @@ class WeightRepository(
         return temp
     }
 
+    /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
     suspend fun updateEntry(
         id: String,
         entry: WeightUpdate,
     ): WeightEntry {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val cached = db.userDataDatabaseQueries.selectAllWeightEntries().executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }.find { it.id == id }
         val result =
@@ -97,7 +102,15 @@ class WeightRepository(
                 )
             }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry)
+            // The create finished uploading meanwhile: the edit belongs to the server record,
+            // and the temp row written above must not linger next to it.
+            if (!coalesceQueuedCreate(id, entry)) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
+                    return updateEntry(uploadedId, entry)
+                }
+            }
         } else {
             syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
         }
@@ -113,7 +126,7 @@ class WeightRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: WeightUpdate,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("weight", tempId) { op ->
             val create = op as? SyncOperation.CreateWeight ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<WeightCreate>(create.body) ?: return@rewriteQueuedCreate null
@@ -125,7 +138,6 @@ class WeightRepository(
                 )
             create.copy(body = json.encodeToString(merged))
         }
-    }
 
     suspend fun getTrend(
         from: String,
@@ -155,9 +167,14 @@ class WeightRepository(
             .map { WeightTrendEntry(entryDate = it.date, weightKg = it.weightKg, movingAvg = it.movingAvg) }
 
     suspend fun deleteEntry(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
         if (id.isTempId()) {
-            syncQueue.removeByAffected("weight", id)
+            if (syncQueue.removeByAffected("weight", id) == 0) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) return deleteEntry(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteWeight(id))
         }

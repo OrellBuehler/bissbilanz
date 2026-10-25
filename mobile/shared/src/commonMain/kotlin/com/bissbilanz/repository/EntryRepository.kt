@@ -159,10 +159,14 @@ class EntryRepository(
             }
         if (currentId.isTempId()) {
             // The create finished uploading between the lookup and the rewrite: the edit
-            // now belongs to the server record.
+            // now belongs to the server record, and the temp row written above must not
+            // linger next to it.
             if (!coalesceQueuedCreate(currentId, entry, cleared)) {
                 val uploadedId = resolveId(currentId)
-                if (uploadedId != currentId) return updateEntry(uploadedId, entry, cleared)
+                if (uploadedId != currentId) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(currentId) }
+                    return updateEntry(uploadedId, entry, cleared)
+                }
             }
         } else {
             syncQueue.enqueue(SyncOperation.UpdateEntry(currentId, json.encodeToString(entry), cleared.jsonKeys()))
@@ -306,12 +310,7 @@ class EntryRepository(
 
     /** The save already happened; a failing listener must not turn it into an error. */
     private suspend fun notifyDayPropertiesChanged(date: String) {
-        try {
-            onDayPropertiesChanged?.invoke(date)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
+        errorReporter.runHook { onDayPropertiesChanged?.invoke(date) }
     }
 
     private fun emptyDayProperties(date: String): DayProperties =

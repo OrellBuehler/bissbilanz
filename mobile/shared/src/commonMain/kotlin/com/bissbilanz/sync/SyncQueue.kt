@@ -33,6 +33,9 @@ class SyncQueue(
     private val mutex = Mutex()
     private val inProgress = mutableSetOf<Long>()
 
+    /** Bumped by [clear], so work that drained before a logout can tell its queue is gone. */
+    private var generation = 0L
+
     private val _enqueueSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val enqueueSignal: SharedFlow<Unit> = _enqueueSignal.asSharedFlow()
 
@@ -50,6 +53,8 @@ class SyncQueue(
 
     @OptIn(ExperimentalUuidApi::class)
     private fun insertLocked(operation: SyncOperation) {
+        // Same rule as [enqueue]: nothing is ever queued in Local mode.
+        if (appModeManager.isLocal) return
         val now = Clock.System.now()
         db.bissbilanzDatabaseQueries.insertSyncQueueItem(
             operation = json.encodeToString(SyncOperation.serializer(), operation),
@@ -70,15 +75,21 @@ class SyncQueue(
     suspend fun recordTempIdRemap(
         tempId: String,
         serverId: String,
+        generation: Long? = null,
     ) {
         val now = Clock.System.now().toEpochMilliseconds()
         mutex.withLock {
+            // A remap from a drain that started before a clear belongs to the wiped account.
+            if (generation != null && generation != this.generation) return
             db.bissbilanzDatabaseQueries.transaction {
                 db.bissbilanzDatabaseQueries.deleteTempIdRemapsBefore(now - TEMP_ID_REMAP_RETENTION_MS)
                 db.bissbilanzDatabaseQueries.upsertTempIdRemap(tempId, serverId, now)
             }
         }
     }
+
+    /** The current [clear] generation; pass it back to calls that must not outlive a clear. */
+    suspend fun currentGeneration(): Long = mutex.withLock { generation }
 
     /** The server id a drained create gave [id], or [id] itself when it was never remapped. */
     suspend fun resolveId(id: String): String =
@@ -132,25 +143,29 @@ class SyncQueue(
     /**
      * Removes [id] like [remove], handing [followUp] the row as it stood at that moment
      * (null when it was already gone). An edit or delete made while the item was in flight
-     * rewrites or removes its row; the operation [followUp] returns for it is queued in the
-     * same transaction, so no change can slip in between and nothing is lost on a crash.
+     * rewrites or removes its row; the operations [followUp] returns for it are queued in
+     * the same transaction, so no change can slip in between and nothing is lost on a
+     * crash. When the queue was cleared since [generation] (a logout), nothing is queued
+     * and [followUp] is not called: the missing row is the wipe, not a user's delete.
      */
     suspend fun removeWithFollowUp(
         id: Long,
-        followUp: (QueuedRequest?) -> SyncOperation?,
-    ): SyncOperation? =
+        generation: Long,
+        followUp: (QueuedRequest?) -> List<SyncOperation>,
+    ): List<SyncOperation> =
         mutex.withLock {
             inProgress.remove(id)
+            if (generation != this.generation) return@withLock emptyList()
             val queries = db.bissbilanzDatabaseQueries
             val queued =
                 queries.transactionWithResult {
                     val row = queries.selectSyncQueueItem(id).executeAsOneOrNull()?.toQueuedRequest()
-                    val next = followUp(row)
-                    next?.let { insertLocked(it) }
+                    val next = if (appModeManager.isLocal) emptyList() else followUp(row)
+                    next.forEach { insertLocked(it) }
                     queries.deleteSyncQueueItem(id)
                     next
                 }
-            if (queued != null) _enqueueSignal.tryEmit(Unit)
+            if (queued.isNotEmpty()) _enqueueSignal.tryEmit(Unit)
             queued
         }
 
@@ -369,6 +384,7 @@ class SyncQueue(
     suspend fun clear() =
         mutex.withLock {
             inProgress.clear()
+            generation++
             db.bissbilanzDatabaseQueries.clearSyncQueue()
             db.bissbilanzDatabaseQueries.clearTempIdRemaps()
         }
