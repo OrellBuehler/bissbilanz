@@ -540,6 +540,7 @@
     <string name="daylog_no_entries_to_copy">No entries to copy</string>
     <string name="daylog_load_failed">Couldn\'t load entries</string>
     <string name="daylog_delete_failed">Couldn\'t delete the entry</string>
+    <string name="daylog_restore_failed">Couldn\'t restore the entry</string>
     <string name="daylog_quick_add">Quick add</string>
     <string name="daylog_no_entries_for_day">No entries for this day</string>
     <string name="daylog_delete_entry">Delete entry</string>
@@ -1060,6 +1061,7 @@
     <string name="entry_edit_delete_failed">Failed to delete entry</string>
     <string name="entry_edit_save_failed">Failed to save entry</string>
     <string name="entry_edit_calories_required">A quick entry needs calories.</string>
+    <string name="entry_edit_servings_invalid">Enter servings greater than 0.</string>
     <string name="entry_edit_delete_title">Delete Entry</string>
     <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
     <string name="entry_edit_title">Edit Entry</string>

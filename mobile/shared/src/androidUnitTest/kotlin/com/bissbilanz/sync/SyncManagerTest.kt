@@ -28,6 +28,7 @@ import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.EntryField
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.headersOf
 import io.mockk.coEvery
@@ -620,6 +621,58 @@ class SyncManagerTest {
             val server = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull()
             assertNotNull(server)
             assertEquals("srv-entry-1", json.decodeFromString<Entry>(server.jsonData).id)
+        }
+
+    @Test
+    fun anEditMadeWhileTheCreateUploadsIsSentToTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp =
+                repo.createEntry(
+                    EntryCreate(
+                        mealType = "lunch",
+                        servings = 1.0,
+                        date = "2024-01-15",
+                        quickName = "Soup",
+                        quickCalories = 200.0,
+                        notes = "hot",
+                    ),
+                )
+            coEvery { api.createEntry(any(), any(), any()) } coAnswers {
+                // The user edits the entry while its create is on the wire: the edit is
+                // merged into the queued create, which the server never sees.
+                repo.updateEntry(temp.id, EntryUpdate(servings = 2.0), cleared = setOf(EntryField.NOTES))
+                serverEntry("srv-entry-1").copy(quickName = "Soup", quickCalories = 200.0, notes = "hot")
+            }
+            coEvery { api.updateEntry(any(), any(), any(), any(), any()) } answers { serverEntry("srv-entry-1") }
+
+            manager.syncPendingQueue()
+
+            val update = slot<EntryUpdate>()
+            coVerify { api.updateEntry("srv-entry-1", capture(update), any(), any(), match { "notes" in it }) }
+            assertEquals(2.0, update.captured.servings)
+            val row = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOne()
+            val local = json.decodeFromString<Entry>(row.jsonData)
+            assertEquals(2.0, local.servings)
+            assertNull(local.notes)
+        }
+
+    @Test
+    fun aDeleteMadeWhileTheCreateUploadsDeletesTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } coAnswers {
+                repo.deleteEntry(temp.id)
+                serverEntry("srv-entry-1", foodId = "f1")
+            }
+            coEvery { api.deleteEntry("srv-entry-1", any(), any()) } returns Unit
+
+            manager.syncPendingQueue()
+
+            coVerify { api.deleteEntry("srv-entry-1", any(), any()) }
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
+            assertEquals(0, syncQueue.pendingCount())
         }
 
     private suspend fun uploadedTempEntry(): Pair<EntryRepository, String> {

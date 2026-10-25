@@ -70,6 +70,9 @@ UPDATE SyncQueue SET nextAttemptAt = ? WHERE id = ?;
 deleteSyncQueueItem:
 DELETE FROM SyncQueue WHERE id = ?;
 
+selectSyncQueueItem:
+SELECT * FROM SyncQueue WHERE id = ?;
+
 selectSyncQueueByAffected:
 SELECT * FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;
 

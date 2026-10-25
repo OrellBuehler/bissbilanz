@@ -65,10 +65,12 @@ class EntryRepository(
             .map { rows -> rows.mapNotNull { json.decodeOrNull<Entry>(it.jsonData) } }
 
     suspend fun entriesByDateOnce(date: String): List<Entry> =
-        db.userDataDatabaseQueries
-            .selectEntriesByDate(date)
-            .executeAsList()
-            .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+        withContext(Dispatchers.IO) {
+            db.userDataDatabaseQueries
+                .selectEntriesByDate(date)
+                .executeAsList()
+                .mapNotNull { json.decodeOrNull<Entry>(it.jsonData) }
+        }
 
     /** Every meal type used on or after [date], as stored — custom types included. */
     suspend fun mealTypesSince(date: String): List<String> =
@@ -80,6 +82,11 @@ class EntryRepository(
 
     suspend fun refresh(date: String) {
         currentDate = date
+        fetchDay(date)
+    }
+
+    /** [refresh] without making [date] the viewed day. */
+    private suspend fun fetchDay(date: String) {
         // In Local mode the cache is the primary store; there is nothing to refresh.
         if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
@@ -188,6 +195,11 @@ class EntryRepository(
      */
     suspend fun getDayProperties(date: String): DayProperties? {
         if (appModeManager.isLocal) return cachedDayProperties(date)
+        // A change still waiting to upload is newer than what the server holds; caching
+        // the server copy would revert it on screen until the upload lands.
+        if (syncQueue.findByAffected("day_properties", date).any { it.failedAt == null }) {
+            return cachedDayPropertiesOnce(date)
+        }
         return try {
             val props = api.getDayProperties(date)
             withContext(Dispatchers.IO) {
@@ -278,6 +290,9 @@ class EntryRepository(
             activityCaloriesSource = null,
         )
 
+    /** The cached day properties only, without asking the server — instant, and offline-safe. */
+    suspend fun cachedDayPropertiesOnce(date: String): DayProperties? = withContext(Dispatchers.IO) { cachedDayProperties(date) }
+
     private fun cachedDayProperties(date: String): DayProperties? =
         db.userDataDatabaseQueries
             .selectDayProperties(date)
@@ -329,38 +344,57 @@ class EntryRepository(
         timeZone: TimeZone = TimeZone.currentSystemDefault(),
     ): Int {
         // The source day may have been logged on the web or another device and never
-        // opened here, so its cache can be empty or partial. Offline, copy what is cached.
-        try {
-            refresh(fromDate)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-        }
+        // opened here, so its cache can be empty or partial. Offline, copy what is cached;
+        // with nothing cached either, the failure is the answer, not "nothing to copy".
+        val refreshFailure =
+            try {
+                fetchDay(fromDate)
+                null
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                e
+            }
         val source = entriesByDateOnce(fromDate)
+        if (refreshFailure != null) {
+            if (source.isEmpty()) throw refreshFailure
+            errorReporter.captureException(refreshFailure)
+        }
         var count = 0
         for (entry in source) {
-            val create =
-                EntryCreate(
-                    mealType = entry.mealType,
-                    servings = entry.servings,
-                    date = toDate,
-                    foodId = entry.foodId,
-                    recipeId = entry.recipeId,
-                    notes = entry.notes,
-                    quickName = entry.quickName,
-                    quickCalories = entry.quickCalories,
-                    quickProtein = entry.quickProtein,
-                    quickCarbs = entry.quickCarbs,
-                    quickFat = entry.quickFat,
-                    quickFiber = entry.quickFiber,
-                    quickNutrients = entry.quickNutrients,
-                    eatenAt = eatenAtOnDate(entry.eatenAt, toDate, timeZone),
-                )
-            createEntry(create, food = entry.food, recipe = entry.recipe)
+            createEntry(
+                entry.toCreate(date = toDate, eatenAt = eatenAtOnDate(entry.eatenAt, toDate, timeZone)),
+                food = entry.food,
+                recipe = entry.recipe,
+            )
             count++
         }
         return count
     }
+
+    /** Logs a deleted [entry] again (undo after the delete already ran); it gets a new id. */
+    suspend fun restoreEntry(entry: Entry): Entry =
+        createEntry(entry.toCreate(date = entry.date, eatenAt = entry.eatenAt), food = entry.food, recipe = entry.recipe)
+
+    private fun Entry.toCreate(
+        date: String,
+        eatenAt: String?,
+    ): EntryCreate =
+        EntryCreate(
+            mealType = mealType,
+            servings = servings,
+            date = date,
+            foodId = foodId,
+            recipeId = recipeId,
+            notes = notes,
+            quickName = quickName,
+            quickCalories = quickCalories,
+            quickProtein = quickProtein,
+            quickCarbs = quickCarbs,
+            quickFat = quickFat,
+            quickFiber = quickFiber,
+            quickNutrients = quickNutrients,
+            eatenAt = eatenAt,
+        )
 
     private fun cacheEntry(entry: Entry) {
         db.userDataDatabaseQueries.cacheEntryRow(entry, json)

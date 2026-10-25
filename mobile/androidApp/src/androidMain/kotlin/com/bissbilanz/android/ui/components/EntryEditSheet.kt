@@ -302,6 +302,13 @@ fun EntryEditSheet(
                     value = servings,
                     onValueChange = { servings = it },
                     label = { Text(stringResource(R.string.meal_picker_servings_label)) },
+                    isError = !servingsValid,
+                    supportingText =
+                        if (servingsValid) {
+                            null
+                        } else {
+                            { Text(stringResource(R.string.entry_edit_servings_invalid)) }
+                        },
                     keyboardOptions =
                         KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
