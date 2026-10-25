@@ -31,11 +31,18 @@ class RefreshManager(
     suspend fun refreshAll(date: String = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()) {
         coroutineScope {
             launch { safeRefresh { entryRepo.refresh(date) } }
+            launch { safeRefresh { goalsRepo.refresh() } }
+            launch { refreshAllButDay() }
+        }
+    }
+
+    /** Everything [refreshAll] covers but a day's entries and the goals, for a screen that loads those itself. */
+    suspend fun refreshAllButDay() {
+        coroutineScope {
             launch { safeRefresh { foodRepo.refreshFoods() } }
             launch { safeRefresh { foodRepo.refreshFavorites() } }
             launch { safeRefresh { foodRepo.refreshRecentFoods() } }
             launch { safeRefresh { recipeRepo.refresh() } }
-            launch { safeRefresh { goalsRepo.refresh() } }
             launch { safeRefresh { weightRepo.refresh() } }
             launch { safeRefresh { supplementRepo.refresh() } }
             launch { safeRefresh { reminderRepo.refresh() } }

@@ -143,8 +143,11 @@ class DashboardViewModel(
     /** A pull-to-refresh in flight; a plain [loadData] for the same day leaves it running. */
     private var refreshJob: Job? = null
 
-    /** Bumped by every local day-property edit, so a slower server answer can't revert it. */
-    private var dayPropertiesEdits = 0
+    /**
+     * Local day-property edits per day, so a slower server answer can't revert one. Per
+     * day: a draft saved for the day just left must not discard the new day's answer.
+     */
+    private val dayPropertiesEdits = mutableMapOf<String, Int>()
 
     /**
      * The day the day-property flows currently hold, or null while the selected day's
@@ -220,9 +223,10 @@ class DashboardViewModel(
         val job =
             viewModelScope.launch {
                 coroutineScope {
+                    // loadDay refreshes the day's entries and the goals itself.
                     launch {
                         try {
-                            refreshManager.refreshAll(dateStr)
+                            refreshManager.refreshAllButDay()
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
                             errorReporter.captureException(e)
@@ -283,7 +287,7 @@ class DashboardViewModel(
             applyDayProperties(cached)
             dayPropertiesDate = date
         }
-        val editsBefore = dayPropertiesEdits
+        val editsBefore = dayPropertiesEdits[date]
         val props =
             try {
                 entryRepo.getDayProperties(date)
@@ -292,8 +296,12 @@ class DashboardViewModel(
                 errorReporter.captureException(e)
                 return
             }
-        if (date != selectedDateString.value || dayPropertiesEdits != editsBefore) return
+        if (date != selectedDateString.value || dayPropertiesEdits[date] != editsBefore) return
         applyDayProperties(props)
+    }
+
+    private fun countEdit(date: String) {
+        dayPropertiesEdits[date] = (dayPropertiesEdits[date] ?: 0) + 1
     }
 
     private fun applyDayProperties(props: DayProperties?) {
@@ -309,7 +317,7 @@ class DashboardViewModel(
         val date = selectedDateString.value
         if (dayPropertiesDate != date) return
         val newValue = !_isFastingDay.value
-        dayPropertiesEdits++
+        countEdit(date)
         _isFastingDay.value = newValue
         viewModelScope.launch {
             try {
@@ -340,7 +348,7 @@ class DashboardViewModel(
         date: String = selectedDateString.value,
     ) {
         val clamped = valueMl?.coerceIn(0, MAX_WATER_ML)
-        dayPropertiesEdits++
+        countEdit(date)
         if (date == selectedDateString.value) _waterMl.value = clamped
         viewModelScope.launch {
             try {
@@ -366,7 +374,7 @@ class DashboardViewModel(
     ) {
         val clampedCalories = calories?.coerceIn(0, MAX_ACTIVITY_CALORIES)
         val trimmedNote = note?.trim()?.takeIf { it.isNotEmpty() }
-        dayPropertiesEdits++
+        countEdit(date)
         if (date == selectedDateString.value) {
             _activityCalories.value = clampedCalories
             // Mirrors EntryRepository's default: a manual edit that sets a value takes
@@ -402,7 +410,7 @@ class DashboardViewModel(
         text: String,
         date: String = selectedDateString.value,
     ) {
-        dayPropertiesEdits++
+        countEdit(date)
         if (date == selectedDateString.value) _notes.value = text
         viewModelScope.launch {
             try {

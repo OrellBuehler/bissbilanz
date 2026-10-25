@@ -329,6 +329,37 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun aDraftSavedForTheDayJustLeftKeepsTheNewDaysServerAnswer() =
+        runTest {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
+            val yesterdayProps = CompletableDeferred<DayProperties?>()
+            coEvery { entryRepo.getDayProperties(today.toString()) } returns dayProperties(today.toString())
+            coEvery { entryRepo.getDayProperties(yesterday) } coAnswers { yesterdayProps.await() }
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+
+            viewModel.previousDay()
+            // The notes card saves its draft for the day it was showing as it leaves.
+            viewModel.setNotes("draft", date = today.toString())
+            yesterdayProps.complete(dayProperties(yesterday, waterMl = 600))
+
+            assertEquals(600, viewModel.waterMl.value)
+        }
+
+    @Test
+    fun pullToRefreshFetchesTheDayOnlyOnce() =
+        runTest {
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            val date = viewModel.selectedDate.value.toString()
+
+            viewModel.refreshAll()
+
+            coVerify(exactly = 2) { entryRepo.refresh(date) }
+            coVerify { refreshManager.refreshAllButDay() }
+            coVerify(exactly = 0) { refreshManager.refreshAll(any()) }
+        }
+
+    @Test
     fun aDashboardLeftOnTodayMovesToTheNewToday() =
         runTest {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
