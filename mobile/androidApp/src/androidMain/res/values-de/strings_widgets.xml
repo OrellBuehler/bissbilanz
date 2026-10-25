@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Shown by every data widget after a logout -->
+    <string name="widget_signed_out">In Bissbilanz anmelden</string>
+    <string name="favorites_widget_add">Favorit hinzufügen</string>
+
     <!-- Day overview widget -->
     <string name="day_overview_widget_title">Tagesübersicht</string>
     <string name="day_overview_widget_description">Heutige Mahlzeiten, Makro-Summen und eine Verknüpfung zum Erfassen</string>

@@ -206,7 +206,6 @@ private fun QuickAddRowItem(
                             actionParametersOf(
                                 FoodIdKey to row.id,
                                 FoodNameKey to row.name,
-                                FallbackRouteKey to "food/${row.id}",
                             ),
                         )
                     },

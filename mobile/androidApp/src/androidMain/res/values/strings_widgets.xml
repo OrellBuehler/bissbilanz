@@ -7,6 +7,10 @@
 -->
 <resources>
 
+    <!-- Shown by every data widget after a logout -->
+    <string name="widget_signed_out">Sign in to Bissbilanz</string>
+    <string name="favorites_widget_add">Add favorite</string>
+
     <!-- Day overview widget -->
     <string name="day_overview_widget_title">Day Overview</string>
     <string name="day_overview_widget_description">Today\'s meals, macro totals and a shortcut to log food</string>
