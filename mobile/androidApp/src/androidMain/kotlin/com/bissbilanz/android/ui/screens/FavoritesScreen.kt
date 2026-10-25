@@ -30,6 +30,7 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
+import com.bissbilanz.android.ui.viewmodels.text
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.cookedWeightServingSize
@@ -56,12 +57,15 @@ fun FavoritesScreen(navController: NavController) {
     var recipeToLog by remember { mutableStateOf<Recipe?>(null) }
     var pendingServingsFood by remember { mutableStateOf<Food?>(null) }
     var pendingServingsRecipe by remember { mutableStateOf<Recipe?>(null) }
-    val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()).toString() }
+
+    // Read at log time: the screen can stay open past midnight.
+    fun today() = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
 
     val favoriteRecipes = recipes.filter { it.isFavorite }
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
+    val snackbarText = snackbarMessage?.text()
+    LaunchedEffect(snackbarText) {
+        snackbarText?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
@@ -192,7 +196,7 @@ fun FavoritesScreen(navController: NavController) {
                                                         MealLogDetails(
                                                             mealType = meal,
                                                             servings = 1.0,
-                                                            date = today,
+                                                            date = today(),
                                                             eatenAt = null,
                                                             notes = null,
                                                         )
@@ -229,7 +233,7 @@ fun FavoritesScreen(navController: NavController) {
                                                         MealLogDetails(
                                                             mealType = meal,
                                                             servings = 1.0,
-                                                            date = today,
+                                                            date = today(),
                                                             eatenAt = null,
                                                             notes = null,
                                                         )

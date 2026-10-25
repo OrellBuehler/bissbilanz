@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPickerSheet
@@ -82,11 +84,12 @@ fun FoodDetailScreen(
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var loadAttempt by remember { mutableIntStateOf(0) }
     var showLogDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
     var showUsage by remember { mutableStateOf(false) }
-    var showEditSheet by remember { mutableStateOf(false) }
+    var showEditSheet by rememberSaveable { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
     var showMergeTargetPicker by remember { mutableStateOf(false) }
     var mergeTarget by remember { mutableStateOf<Food?>(null) }
@@ -104,7 +107,7 @@ fun FoodDetailScreen(
     val mergeFailedMessage = stringResource(R.string.food_merge_failed)
     val mergeOfflineMessage = stringResource(R.string.food_merge_unavailable_offline)
 
-    LaunchedEffect(foodId) {
+    LaunchedEffect(foodId, loadAttempt) {
         isLoading = true
         try {
             food = foodRepo.getFood(foodId)
@@ -112,7 +115,8 @@ fun FoodDetailScreen(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
+            // No snackbar: without a food the error state below says so, and with
+            // one only the preferences refresh failed, which the cached ones cover.
         }
         isLoading = false
     }
@@ -363,6 +367,10 @@ fun FoodDetailScreen(
     ) { padding ->
         if (isLoading) {
             LoadingScreen()
+        } else if (food == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                ErrorState(message = loadFailedMessage, onRetry = { loadAttempt++ })
+            }
         } else {
             PullToRefreshWrapper(
                 onRefresh = {

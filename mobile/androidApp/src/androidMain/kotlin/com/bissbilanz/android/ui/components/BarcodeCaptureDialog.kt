@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
@@ -91,6 +93,13 @@ fun BarcodeCaptureDialog(
             hasPermission = granted
             if (!granted) permanentlyDenied = activity.isPermanentlyDenied(Manifest.permission.CAMERA)
         }
+
+    // The permission can be granted (or revoked) in the system settings while this
+    // screen is in the background; the "Open settings" path depends on it.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) permanentlyDenied = false
+    }
 
     LaunchedEffect(Unit) {
         if (!hasPermission) permissionLauncher.launch(Manifest.permission.CAMERA)

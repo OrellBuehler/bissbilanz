@@ -156,7 +156,8 @@ fun DashboardScreen(navController: NavController) {
     var showAiMealSheet by remember { mutableStateOf(false) }
     var fabMenuExpanded by remember { mutableStateOf(false) }
     var createFoodBarcode by remember { mutableStateOf<String?>(null) }
-    var addFoodForMeal by remember { mutableStateOf<String?>(null) }
+    var addFoodForMeal by androidx.compose.runtime.saveable
+        .rememberSaveable { mutableStateOf<String?>(null) }
 
     val tipStore: TipStore = koinInject()
     val tipFoodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()

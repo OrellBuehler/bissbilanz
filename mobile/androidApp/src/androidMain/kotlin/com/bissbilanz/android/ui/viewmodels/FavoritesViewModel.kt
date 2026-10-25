@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
@@ -43,13 +44,15 @@ class FavoritesViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
+    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
 
+    // Eagerly: only read through .value at tap time, never collected by the screen,
+    // so WhileSubscribed would leave it null and ignore the default-meal prefs.
     val preferences: StateFlow<Preferences?> =
         prefsRepo
             .preferences()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
         viewModelScope.launch {
@@ -61,7 +64,7 @@ class FavoritesViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load favorites"
+                _snackbarMessage.value = FoodSnackbar(R.string.favorites_load_failed)
             }
             _isLoading.value = false
         }
@@ -93,11 +96,11 @@ class FavoritesViewModel(
                     ),
                     food = food,
                 )
-                _snackbarMessage.value = "Logged ${food.name}"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log food"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
             }
         }
     }
@@ -119,11 +122,11 @@ class FavoritesViewModel(
                     ),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = "Logged ${recipe.name}"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, recipe.name)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log recipe"
+                _snackbarMessage.value = FoodSnackbar(R.string.recipe_list_log_failed)
             }
         }
     }

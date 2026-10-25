@@ -47,7 +47,9 @@ import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.util.ClaudeTaskState
 import com.bissbilanz.util.TaskResolver
@@ -350,11 +352,12 @@ private fun AiTaskListItem(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
+                    val mealLabel = task.mealType?.let { mealTypeDisplayName(it) }
                     Text(
                         buildString {
-                            append(task.date)
+                            append(formatIsoDate(task.date))
                             task.eatenAt?.let { append(" · ").append(formatEatenTime(it)) }
-                            task.mealType?.let { append(" · ").append(it) }
+                            mealLabel?.let { append(" · ").append(it) }
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -269,6 +269,45 @@ class FoodRepositoryTest {
         }
 
     @Test
+    fun refreshFavoritesKeepsAFavoriteToggleThatIsStillQueued() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Chicken", isFavorite = false))
+            coEvery { api.getFavorites() } returns listOf(TestFixtures.food(id = "1", name = "Chicken", isFavorite = true))
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1"))
+
+            repository.refreshFavorites()
+
+            assertEquals(false, repository.getFoodCached("1")?.isFavorite)
+        }
+
+    @Test
+    fun fetchFoodsPaginatedFallsBackToTheCacheWhenTheServerFails() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple"))
+            seedFoodInCache(TestFixtures.food(id = "2", name = "Banana"))
+            coEvery { api.getFoodsPaginated(any(), any()) } throws RuntimeException("offline")
+
+            val page = repository.fetchFoodsPaginated(20, 0)
+
+            assertEquals(listOf("1", "2"), page.foods.map { it.id })
+            assertEquals(2, page.total)
+        }
+
+    @Test
+    fun fetchFoodsPaginatedKeepsTheLocalVersionOfAFoodWithAQueuedEdit() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "1", name = "Apple", isFavorite = true))
+            coEvery { api.getFoodsPaginated(any(), any()) } returns
+                FoodsListResponse(foods = listOf(TestFixtures.food(id = "1", name = "Apple", isFavorite = false)), total = 1)
+            coEvery { syncQueue.all() } returns listOf(pendingUpdate("1"))
+
+            val page = repository.fetchFoodsPaginated(20, 0)
+
+            assertEquals(true, page.foods.single().isFavorite)
+            assertEquals(true, repository.getFoodCached("1")?.isFavorite)
+        }
+
+    @Test
     fun searchOpenFoodFactsUsesServerProxyWhenSynced() =
         runTest {
             val hits = listOf(TestFixtures.offProduct())
