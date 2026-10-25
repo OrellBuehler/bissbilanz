@@ -53,8 +53,14 @@ class RemindersViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            reminderRepo.refresh()
-            supplementRepo.refresh()
+            try {
+                reminderRepo.refresh()
+                supplementRepo.refresh()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                _snackbarMessageRes.value = R.string.reminders_list_load_failed
+            }
             // Custom meal types are server-only; Local mode only offers the four defaults.
             if (!appModeManager.isLocal) {
                 try {

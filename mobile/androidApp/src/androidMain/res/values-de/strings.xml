@@ -870,6 +870,7 @@
     <string name="reminders_delete_title">Erinnerung löschen</string>
     <string name="reminders_delete_text">Diese Erinnerung wird dauerhaft gelöscht.</string>
     <string name="reminders_load_failed">Erinnerung konnte nicht geladen werden.</string>
+    <string name="reminders_list_load_failed">Erinnerungen konnten nicht geladen werden.</string>
     <string name="reminders_save_failed">Erinnerung konnte nicht gespeichert werden. Bitte versuche es erneut.</string>
     <string name="reminders_delete_failed">Erinnerung konnte nicht gelöscht werden. Bitte versuche es erneut.</string>
     <string name="reminders_days_required">Mindestens einen Tag auswählen.</string>

@@ -213,7 +213,7 @@ fun ReminderEditSheet(
                         onExpandedChange = { mealTypeMenuExpanded = it },
                     ) {
                         OutlinedTextField(
-                            value = mealType,
+                            value = mealTypeDisplayName(mealType),
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = {
@@ -230,7 +230,7 @@ fun ReminderEditSheet(
                         ) {
                             mealTypeOptions.forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option) },
+                                    text = { Text(mealTypeDisplayName(option)) },
                                     onClick = {
                                         mealType = option
                                         mealTypeMenuExpanded = false

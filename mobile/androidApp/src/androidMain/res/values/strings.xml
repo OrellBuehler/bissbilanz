@@ -872,6 +872,7 @@
     <string name="reminders_delete_title">Delete reminder</string>
     <string name="reminders_delete_text">This reminder will be permanently deleted.</string>
     <string name="reminders_load_failed">Couldn\'t load the reminder.</string>
+    <string name="reminders_list_load_failed">Couldn\'t load reminders.</string>
     <string name="reminders_save_failed">Couldn\'t save the reminder. Please try again.</string>
     <string name="reminders_delete_failed">Couldn\'t delete the reminder. Please try again.</string>
     <string name="reminders_days_required">Pick at least one day.</string>
