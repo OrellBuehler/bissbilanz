@@ -11,7 +11,6 @@ import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.userdata.UserDataDatabase
-import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.resolveDefaultMeal
 import kotlinx.coroutines.Dispatchers
@@ -43,9 +42,8 @@ class LogFavoriteFoodAction : ActionCallback {
         // A tile drawn before a sign-out or a switch to "ask for meal" still carries
         // this callback. Neither may log, and a callback cannot open the app, so the
         // redraw is what turns the tile into the signed-out state or an app launch.
-        val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
-        val prefs = cached?.let { json.decodeOrNull<com.bissbilanz.api.generated.model.Preferences>(it.jsonData) }
-        if (!widgetsSignedIn() || prefs == null || prefs.favoriteMealAssignmentMode == "ask_meal") {
+        val prefs = cachedWidgetPreferences(db, json)
+        if (!widgetsSignedIn() || prefs == null || tilesAlwaysAskForMeal(prefs)) {
             showConfirmation(context)
             return
         }

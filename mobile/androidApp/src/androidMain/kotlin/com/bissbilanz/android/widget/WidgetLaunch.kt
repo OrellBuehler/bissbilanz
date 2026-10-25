@@ -59,10 +59,16 @@ fun openAppIntent(
 internal fun tilesAlwaysAskForMeal(
     db: UserDataDatabase,
     json: Json,
-): Boolean {
+): Boolean = tilesAlwaysAskForMeal(cachedWidgetPreferences(db, json))
+
+internal fun tilesAlwaysAskForMeal(prefs: Preferences?): Boolean = prefs == null || prefs.favoriteMealAssignmentMode == "ask_meal"
+
+internal fun cachedWidgetPreferences(
+    db: UserDataDatabase,
+    json: Json,
+): Preferences? {
     val cached = db.userDataDatabaseQueries.selectPreferences().executeAsOneOrNull()
-    val prefs = cached?.let { json.decodeOrNull<Preferences>(it.jsonData) }
-    return prefs == null || prefs.favoriteMealAssignmentMode == "ask_meal"
+    return cached?.let { json.decodeOrNull<Preferences>(it.jsonData) }
 }
 
 /**
