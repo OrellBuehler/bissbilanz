@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +74,7 @@ import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -115,14 +115,8 @@ fun InsightsScreen(
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val isLocalMode = viewModel.isLocalMode
     val macroSourcesState by viewModel.macroSources.collectAsStateWithLifecycle()

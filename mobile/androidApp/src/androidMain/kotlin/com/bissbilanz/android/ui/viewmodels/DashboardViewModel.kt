@@ -79,11 +79,8 @@ class DashboardViewModel(
             first == null || (first.isEmpty() && !done)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
-
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     /**
      * True when the last entries refresh failed. The dashboard uses it to tell a
@@ -334,7 +331,7 @@ class DashboardViewModel(
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
                 if (date == selectedDateString.value) _isFastingDay.value = !newValue
-                _snackbarMessageRes.value = R.string.dashboard_fasting_update_failed
+                _snackbarMessage.value = UiMessage(R.string.dashboard_fasting_update_failed)
             }
         }
     }
@@ -368,7 +365,7 @@ class DashboardViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.dashboard_water_update_failed
+                _snackbarMessage.value = UiMessage(R.string.dashboard_water_update_failed)
             }
         }
     }
@@ -407,7 +404,7 @@ class DashboardViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.dashboard_activity_update_failed
+                _snackbarMessage.value = UiMessage(R.string.dashboard_activity_update_failed)
             }
         }
     }
@@ -431,37 +428,33 @@ class DashboardViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.dashboard_notes_update_failed
+                _snackbarMessage.value = UiMessage(R.string.dashboard_notes_update_failed)
             }
         }
     }
 
-    fun copyEntriesFromYesterday(copiedMessage: (Int) -> String) {
+    fun copyEntriesFromYesterday() {
         val today = LocalDate.parse(selectedDateString.value)
         viewModelScope.launch {
             try {
                 val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
                 val count = entryRepo.copyEntries(yesterday, today.toString())
                 if (count == 0) {
-                    _snackbarMessageRes.value = R.string.dashboard_copy_failed
+                    _snackbarMessage.value = UiMessage(R.string.dashboard_copy_failed)
                 } else {
-                    _snackbarMessage.value = copiedMessage(count)
+                    _snackbarMessage.value = UiMessage(R.string.dashboard_copied_count, listOf(count))
                 }
                 if (today.toString() == selectedDateString.value) loadData()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.dashboard_copy_error
+                _snackbarMessage.value = UiMessage(R.string.dashboard_copy_error)
             }
         }
     }
 
     fun clearSnackbar() {
         _snackbarMessage.value = null
-    }
-
-    fun clearSnackbarRes() {
-        _snackbarMessageRes.value = null
     }
 
     companion object {

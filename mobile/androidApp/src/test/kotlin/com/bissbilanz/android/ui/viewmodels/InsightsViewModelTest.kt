@@ -170,7 +170,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_logged, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_logged), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -182,7 +182,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_log_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_log_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -193,7 +193,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -204,7 +204,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_delete_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_delete_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -226,7 +226,7 @@ class InsightsViewModelTest {
 
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
 
             viewModel.clearSnackbar()
 
@@ -316,7 +316,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
 
             viewModel.selectTab(1)
-            assertEquals(R.string.insights_load_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.insights_load_failed), viewModel.snackbarMessage.value)
 
             coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns emptyRangeBundle()
             viewModel.selectTab(0)

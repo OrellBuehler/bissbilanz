@@ -75,11 +75,8 @@ class FoodSearchViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
-    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
-
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     init {
         loadAllFoods()
@@ -92,7 +89,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_search_load_recent_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_search_load_recent_failed)
             }
         }
     }
@@ -134,7 +131,7 @@ class FoodSearchViewModel(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            _snackbarMessage.value = FoodSnackbar(R.string.food_search_load_failed)
+            _snackbarMessage.value = UiMessage(R.string.food_search_load_failed)
         }
         _isLoadingMore.value = false
     }
@@ -156,7 +153,7 @@ class FoodSearchViewModel(
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             errorReporter.captureException(e)
-                            _snackbarMessage.value = FoodSnackbar(R.string.food_search_failed)
+                            _snackbarMessage.value = UiMessage(R.string.food_search_failed)
                             emptyList()
                         }
                     _searchResults.value = results
@@ -213,11 +210,11 @@ class FoodSearchViewModel(
                     ),
                     food = food,
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(food.name))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_log_failed)
             }
         }
     }
@@ -237,7 +234,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_search_favorite_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_search_favorite_failed)
             } finally {
                 togglingFavoriteIds.remove(food.id)
             }
@@ -266,12 +263,12 @@ class FoodSearchViewModel(
                 if (food != null) {
                     onResolved(food)
                 } else {
-                    _snackbarMessageRes.value = R.string.food_search_off_add_failed
+                    _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.food_search_off_add_failed
+                _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
             } finally {
                 _isResolvingOff.value = false
             }
@@ -282,10 +279,6 @@ class FoodSearchViewModel(
         _snackbarMessage.value = null
     }
 
-    fun clearSnackbarRes() {
-        _snackbarMessageRes.value = null
-    }
-
     fun refresh() {
         viewModelScope.launch {
             try {
@@ -294,7 +287,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_search_refresh_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_search_refresh_failed)
             }
         }
         if (_selectedTab.value == TAB_ALL) loadAllFoods()

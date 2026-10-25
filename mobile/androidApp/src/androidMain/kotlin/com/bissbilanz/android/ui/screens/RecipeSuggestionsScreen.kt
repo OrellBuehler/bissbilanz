@@ -36,6 +36,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.RecipeSuggestionsViewModel
 import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.toDisplayString
@@ -57,22 +58,14 @@ fun RecipeSuggestionsScreen(navController: NavController) {
 
     var recipeToLog by remember { mutableStateOf<SuggestedRecipe?>(null) }
 
-    val loggedFormat = stringResource(R.string.recipe_suggestions_logged)
-    val logFailedMessage = stringResource(R.string.recipe_suggestions_log_failed)
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     recipeToLog?.let { suggested ->
         val recipe = suggested.recipe
         MealPickerSheet(
             onDismiss = { recipeToLog = null },
             onConfirm = { details ->
-                viewModel.logRecipe(recipe, details, { name -> loggedFormat.format(name) }, logFailedMessage)
+                viewModel.logRecipe(recipe, details)
                 recipeToLog = null
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),

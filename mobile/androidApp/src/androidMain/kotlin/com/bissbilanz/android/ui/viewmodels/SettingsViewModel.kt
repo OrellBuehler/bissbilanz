@@ -59,12 +59,12 @@ class SettingsViewModel(
     val customMealTypes: StateFlow<List<MealType>> = _customMealTypes.asStateFlow()
 
     /**
-     * Localized snackbar messages, as string resource ids the screen resolves — a
+     * Localized snackbar messages, as string resources the screen resolves — a
      * ViewModel has no Context, and the app-language override only reaches an activity
      * context below API 33, so resolving here would leak the system locale.
      */
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     init {
         loadData()
@@ -105,11 +105,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 goalsRepo.setGoals(goals)
-                _snackbarMessageRes.value = R.string.settings_goals_updated
+                _snackbarMessage.value = UiMessage(R.string.settings_goals_updated)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_goals_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_goals_update_failed)
             }
         }
     }
@@ -121,7 +121,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -130,11 +130,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 prefsRepo.updatePreferences(PreferencesUpdate(favoriteMealAssignmentMode = mode))
-                _snackbarMessageRes.value = R.string.settings_meal_assignment_updated
+                _snackbarMessage.value = UiMessage(R.string.settings_meal_assignment_updated)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -154,7 +154,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -166,7 +166,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -178,7 +178,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -190,7 +190,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -202,7 +202,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -214,7 +214,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_preference_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_preference_update_failed)
             }
         }
     }
@@ -223,11 +223,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 prefsRepo.updatePreferences(PreferencesUpdate(visibleNutrients = nutrients))
-                _snackbarMessageRes.value = R.string.settings_nutrients_updated
+                _snackbarMessage.value = UiMessage(R.string.settings_nutrients_updated)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_nutrients_update_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_nutrients_update_failed)
             }
         }
     }
@@ -238,11 +238,11 @@ class SettingsViewModel(
                 api.createMealType(MealTypeCreate(name = name, sortOrder = _customMealTypes.value.size))
                 val response = api.getMealTypes()
                 _customMealTypes.value = response.mealTypes
-                _snackbarMessageRes.value = R.string.settings_meal_type_added
+                _snackbarMessage.value = UiMessage(R.string.settings_meal_type_added)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_meal_type_add_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_meal_type_add_failed)
             }
         }
     }
@@ -291,7 +291,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_export_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_export_failed)
             } finally {
                 _exportingData.value = false
             }
@@ -317,7 +317,7 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.settings_delete_account_failed
+                _snackbarMessage.value = UiMessage(R.string.settings_delete_account_failed)
                 return@launch
             }
             // Same teardown as logout: wipe local data before flipping auth state.
@@ -334,7 +334,7 @@ class SettingsViewModel(
         }
     }
 
-    fun clearSnackbarRes() {
-        _snackbarMessageRes.value = null
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 }

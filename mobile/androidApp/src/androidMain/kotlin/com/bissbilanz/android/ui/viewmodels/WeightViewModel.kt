@@ -54,7 +54,7 @@ class WeightViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.weight_target_update_failed
+                _snackbarMessage.value = UiMessage(R.string.weight_target_update_failed)
             }
         }
     }
@@ -67,8 +67,8 @@ class WeightViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     private var loadJob: Job? = null
     private var hasLoaded = false
@@ -126,7 +126,7 @@ class WeightViewModel(
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         errorReporter.captureException(e)
-                        _snackbarMessageRes.value = R.string.weight_load_failed
+                        _snackbarMessage.value = UiMessage(R.string.weight_load_failed)
                     }
                     try {
                         goalsRepo.refresh()
@@ -147,7 +147,7 @@ class WeightViewModel(
     }
 
     fun clearSnackbar() {
-        _snackbarMessageRes.value = null
+        _snackbarMessage.value = null
     }
 
     companion object {

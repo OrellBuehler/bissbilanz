@@ -185,7 +185,7 @@ class AddFoodViewModelTest {
             advanceUntilIdle()
 
             assertNull(resolved)
-            assertEquals(FoodSnackbar(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
         }
 
     @Test
@@ -198,7 +198,7 @@ class AddFoodViewModelTest {
             advanceUntilIdle()
 
             assertEquals(emptyList(), vm.searchResults.value)
-            assertEquals(FoodSnackbar(R.string.food_search_failed), vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_failed), vm.snackbarMessage.value)
         }
 
     @Test
@@ -274,7 +274,7 @@ class AddFoodViewModelTest {
             vm.logFood(food, "breakfast", 1.0, "2024-01-15") {}
             advanceUntilIdle()
 
-            assertEquals(FoodSnackbar(R.string.food_detail_log_failed), vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_detail_log_failed), vm.snackbarMessage.value)
             assertEquals(false, vm.isSaving.value)
         }
 
@@ -437,7 +437,7 @@ class AddFoodViewModelTest {
             val vm = viewModel()
             vm.updateQuery("ap")
             advanceUntilIdle()
-            assertEquals(FoodSnackbar(R.string.food_search_failed), vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_failed), vm.snackbarMessage.value)
 
             vm.clearSnackbar()
 

@@ -76,8 +76,8 @@ class AddFoodViewModel(
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
-    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     private var searchJob: Job? = null
 
@@ -121,7 +121,7 @@ class AddFoodViewModel(
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             errorReporter.captureException(e)
-                            _snackbarMessage.value = FoodSnackbar(R.string.food_search_failed)
+                            _snackbarMessage.value = UiMessage(R.string.food_search_failed)
                             emptyList()
                         }
                     _searchResults.value = results
@@ -168,12 +168,12 @@ class AddFoodViewModel(
                     EntryCreate(foodId = food.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     food = food,
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(food.name))
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -195,12 +195,12 @@ class AddFoodViewModel(
                     EntryCreate(recipeId = recipe.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, recipe.name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(recipe.name))
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.recipe_list_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.recipe_list_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -238,12 +238,12 @@ class AddFoodViewModel(
                         notes = notes?.ifBlank { null },
                     ),
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(name))
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.add_food_quick_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.add_food_quick_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -267,12 +267,12 @@ class AddFoodViewModel(
                 if (food != null) {
                     onResolved(food)
                 } else {
-                    _snackbarMessage.value = FoodSnackbar(R.string.food_search_off_add_failed)
+                    _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_search_off_add_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_search_off_add_failed)
             } finally {
                 _isResolvingOff.value = false
             }

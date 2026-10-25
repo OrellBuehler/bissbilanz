@@ -68,6 +68,7 @@ import com.bissbilanz.android.ui.components.WaterCard
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.DashboardSection
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.millisUntilNextDay
@@ -114,30 +115,13 @@ fun DashboardScreen(navController: NavController) {
     val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
     val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = rememberHaptic()
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
-    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
-    LaunchedEffect(snackbarMessageText) {
-        snackbarMessageText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbarRes()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
-    val copiedFormat = stringResource(R.string.dashboard_copied_count)
     val loggedFormat = stringResource(R.string.dashboard_favorite_logged)
-    val copyEntries = {
-        viewModel.copyEntriesFromYesterday { count -> copiedFormat.format(count) }
-    }
 
     // Re-checked on every resume and again at each midnight while the dashboard stays
     // on screen, so "today" follows the calendar instead of turning into yesterday.
@@ -641,7 +625,7 @@ fun DashboardScreen(navController: NavController) {
                                                         RefreshErrorState(onRetry = { viewModel.loadData() })
                                                     } else {
                                                         OutlinedButton(
-                                                            onClick = { copyEntries() },
+                                                            onClick = { viewModel.copyEntriesFromYesterday() },
                                                             modifier = Modifier.align(Alignment.CenterHorizontally),
                                                         ) {
                                                             Icon(

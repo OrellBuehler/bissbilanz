@@ -44,8 +44,8 @@ class FavoritesViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
-    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     // Eagerly: only read through .value at tap time, never collected by the screen,
     // so WhileSubscribed would leave it null and ignore the default-meal prefs.
@@ -64,7 +64,7 @@ class FavoritesViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.favorites_load_failed)
+                _snackbarMessage.value = UiMessage(R.string.favorites_load_failed)
             }
             _isLoading.value = false
         }
@@ -96,11 +96,11 @@ class FavoritesViewModel(
                     ),
                     food = food,
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(food.name))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_log_failed)
             }
         }
     }
@@ -122,11 +122,11 @@ class FavoritesViewModel(
                     ),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, recipe.name)
+                _snackbarMessage.value = UiMessage(R.string.food_detail_logged, listOf(recipe.name))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = FoodSnackbar(R.string.recipe_list_log_failed)
+                _snackbarMessage.value = UiMessage(R.string.recipe_list_log_failed)
             }
         }
     }

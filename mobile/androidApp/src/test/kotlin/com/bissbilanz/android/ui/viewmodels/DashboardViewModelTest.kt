@@ -287,7 +287,7 @@ class DashboardViewModelTest {
             viewModel.toggleFastingDay()
 
             assertEquals(false, viewModel.isFastingDay.value)
-            assertEquals(R.string.dashboard_fasting_update_failed, viewModel.snackbarMessageRes.value)
+            assertEquals(UiMessage(R.string.dashboard_fasting_update_failed), viewModel.snackbarMessage.value)
         }
 
     @Test

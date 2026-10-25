@@ -44,6 +44,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SimpleLineChart
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.SleepTimes
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.android.util.resolveSleepTimes
@@ -93,19 +94,7 @@ fun SleepScreen(navController: NavController) {
 
     val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
 
-    val loggedMessage = stringResource(R.string.sleep_logged)
-    val logFailedMessage = stringResource(R.string.sleep_log_failed)
-    val updatedMessage = stringResource(R.string.sleep_updated)
-    val updateFailedMessage = stringResource(R.string.sleep_update_failed)
-    val deletedMessage = stringResource(R.string.sleep_deleted)
-    val deleteFailedMessage = stringResource(R.string.sleep_delete_failed)
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     if (showAddSheet) {
         SleepEditSheet(
@@ -113,7 +102,7 @@ fun SleepScreen(navController: NavController) {
             onDismiss = { showAddSheet = false },
             onSave = { create ->
                 haptic(HapticFeedbackType.LongPress)
-                viewModel.createEntry(create, loggedMessage, logFailedMessage)
+                viewModel.createEntry(create)
                 showAddSheet = false
             },
         )
@@ -135,8 +124,6 @@ fun SleepScreen(navController: NavController) {
                         wakeUps = create.wakeUps,
                         notes = create.notes,
                     ),
-                    updatedMessage,
-                    updateFailedMessage,
                 )
                 entryToEdit = null
             },
@@ -151,7 +138,7 @@ fun SleepScreen(navController: NavController) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteEntry(entry.id, deletedMessage, deleteFailedMessage)
+                        viewModel.deleteEntry(entry.id)
                         entryToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),

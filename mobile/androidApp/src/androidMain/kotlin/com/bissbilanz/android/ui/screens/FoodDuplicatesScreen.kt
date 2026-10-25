@@ -14,7 +14,6 @@ import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +26,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MergeConfirmDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.FoodDuplicateFood
 import com.bissbilanz.model.FoodDuplicateGroup
 import com.bissbilanz.model.FoodDuplicateReason
@@ -45,19 +45,13 @@ fun FoodDuplicatesScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isMerging by viewModel.isMerging.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
 
     var resolvingGroup by remember { mutableStateOf<FoodDuplicateGroup?>(null) }
     var pendingMerge by remember { mutableStateOf<Pair<FoodDuplicateGroup, FoodDuplicateFood>?>(null) }
 
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     resolvingGroup?.let { group ->
         GroupKeeperPickerDialog(

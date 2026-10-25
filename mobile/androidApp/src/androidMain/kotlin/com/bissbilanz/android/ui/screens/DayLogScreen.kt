@@ -42,6 +42,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.formatShortDate
 import com.bissbilanz.mode.AppMode
@@ -79,7 +80,7 @@ fun DayLogScreen(
     val context = LocalContext.current
     val visibleEntries by viewModel.visibleEntries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
     val isLocalMode = appMode == AppMode.LOCAL
     val pendingLogConfirmation by PendingLogConfirmation.confirmation.collectAsStateWithLifecycle()
@@ -102,12 +103,7 @@ fun DayLogScreen(
         viewModel.loadEntries(date)
     }
 
-    LaunchedEffect(error) {
-        error?.let {
-            snackbarHostState.showSnackbar(context.getString(it))
-            viewModel.clearError()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     // An Assistant / shortcut log always lands here through a fresh navigation, so
     // this is the first SnackbarHostState around to show its confirmation on.

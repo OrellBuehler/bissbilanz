@@ -128,8 +128,8 @@ class FoodPackageViewModel(
     private val _exportedFile = MutableStateFlow<File?>(null)
     val exportedFile: StateFlow<File?> = _exportedFile.asStateFlow()
 
-    private val _messageRes = MutableStateFlow<Int?>(null)
-    val messageRes: StateFlow<Int?> = _messageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     private var summaryJob: Job? = null
     private var exportJob: Job? = null
@@ -249,11 +249,11 @@ class FoodPackageViewModel(
                             File(dir, fileName).apply { writeBytes(bytes) }
                         }
                 } catch (e: FoodPackageException) {
-                    _messageRes.value = exportMessage(e)
+                    _snackbarMessage.value = UiMessage(exportMessage(e))
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
-                    _messageRes.value = R.string.food_package_export_failed
+                    _snackbarMessage.value = UiMessage(R.string.food_package_export_failed)
                 }
                 _exportState.update { it.copy(exporting = false) }
             }
@@ -395,7 +395,7 @@ class FoodPackageViewModel(
 
     /** Report a file that could not even be copied (too large, unreadable). */
     fun fileRejected(messageRes: Int) {
-        _messageRes.value = messageRes
+        _snackbarMessage.value = UiMessage(messageRes)
     }
 
     private var previewJob: Job? = null
@@ -540,25 +540,25 @@ class FoodPackageViewModel(
             } catch (e: FoodPackageException) {
                 if (e.kind == FoodPackageException.Kind.STALE_PREVIEW) {
                     // The data changed since the preview: review again.
-                    _messageRes.value = R.string.food_package_stale
+                    _snackbarMessage.value = UiMessage(R.string.food_package_stale)
                     if (_importState.value.path == path) runPreview()
                 } else {
                     errorReporter.captureException(e)
-                    _messageRes.value = R.string.food_package_import_failed
+                    _snackbarMessage.value = UiMessage(R.string.food_package_import_failed)
                 }
             } catch (e: ApiException) {
                 errorReporter.captureException(e)
                 if (e.statusCode == 409) {
                     // The account changed since the preview: review again.
-                    _messageRes.value = R.string.food_package_stale
+                    _snackbarMessage.value = UiMessage(R.string.food_package_stale)
                     if (_importState.value.path == path) runPreview()
                 } else {
-                    _messageRes.value = R.string.food_package_import_failed
+                    _snackbarMessage.value = UiMessage(R.string.food_package_import_failed)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _messageRes.value = R.string.food_package_import_failed
+                _snackbarMessage.value = UiMessage(R.string.food_package_import_failed)
             }
             _importState.update { if (it.path == path) it.copy(importing = false) else it }
         }
@@ -572,8 +572,8 @@ class FoodPackageViewModel(
         FoodPackageEvents.imported.tryEmit(Unit)
     }
 
-    fun clearMessage() {
-        _messageRes.value = null
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 
     override fun onCleared() {

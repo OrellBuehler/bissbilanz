@@ -53,7 +53,7 @@ import com.bissbilanz.android.ui.components.rememberJsonStateSaver
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
-import com.bissbilanz.android.ui.viewmodels.text
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -82,7 +82,6 @@ fun FoodSearchScreen(navController: NavController) {
     val isResolvingOff by viewModel.isResolvingOff.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     var foodToLog by rememberSaveable(stateSaver = rememberJsonStateSaver<Food>()) { mutableStateOf<Food?>(null) }
@@ -97,21 +96,7 @@ fun FoodSearchScreen(navController: NavController) {
         }
     }
 
-    val snackbarText = snackbarMessage?.text()
-    LaunchedEffect(snackbarText) {
-        snackbarText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
-
-    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
-    LaunchedEffect(snackbarMessageText) {
-        snackbarMessageText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbarRes()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     foodToLog?.let { food ->
         MealPickerSheet(

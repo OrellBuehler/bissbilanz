@@ -64,7 +64,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -84,6 +83,7 @@ import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPickerSheet
 import com.bissbilanz.android.ui.theme.MacroColors
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.api.generated.model.FoodPackageAction
 import com.bissbilanz.api.generated.model.FoodPackageConflictNote
 import com.bissbilanz.api.generated.model.FoodPackageConflictReason
@@ -113,18 +113,12 @@ fun FoodPackageImportScreen(navController: NavController) {
     val state by viewModel.importState.collectAsStateWithLifecycle()
     val bulkStatus by viewModel.bulkStatus.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
-    val messageRes by viewModel.messageRes.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(messageRes) {
-        messageRes?.let {
-            snackbarHostState.showSnackbar(resources.getString(it))
-            viewModel.clearMessage()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->

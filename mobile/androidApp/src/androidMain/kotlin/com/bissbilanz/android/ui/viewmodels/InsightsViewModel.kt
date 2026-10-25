@@ -77,8 +77,8 @@ class InsightsViewModel(
             .preferences()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    private val _snackbarMessage = MutableStateFlow<Int?>(null)
-    val snackbarMessage: StateFlow<Int?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     // Range, tab and calendar position are backed by SavedStateHandle so they
     // survive process death.
@@ -321,11 +321,11 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.createEntry(entry)
-                _snackbarMessage.value = R.string.sleep_logged
+                _snackbarMessage.value = UiMessage(R.string.sleep_logged)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = R.string.sleep_log_failed
+                _snackbarMessage.value = UiMessage(R.string.sleep_log_failed)
             }
         }
     }
@@ -334,11 +334,11 @@ class InsightsViewModel(
         viewModelScope.launch {
             try {
                 sleepRepo.deleteEntry(id)
-                _snackbarMessage.value = R.string.sleep_deleted
+                _snackbarMessage.value = UiMessage(R.string.sleep_deleted)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = R.string.sleep_delete_failed
+                _snackbarMessage.value = UiMessage(R.string.sleep_delete_failed)
             }
         }
     }
@@ -449,7 +449,7 @@ class InsightsViewModel(
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
-                    _snackbarMessage.value = R.string.insights_load_failed
+                    _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
                 }
             }
     }
@@ -513,12 +513,12 @@ class InsightsViewModel(
                         publish(bundle)
                         loadedTabs.add(tab)
                     } else {
-                        _snackbarMessage.value = R.string.insights_load_failed
+                        _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     errorReporter.captureException(e)
-                    _snackbarMessage.value = R.string.insights_load_failed
+                    _snackbarMessage.value = UiMessage(R.string.insights_load_failed)
                 } finally {
                     // A cancelled load must not clear the spinner of the load that replaced it.
                     if (tabLoadIds[tab] == loadId) loading.value = false

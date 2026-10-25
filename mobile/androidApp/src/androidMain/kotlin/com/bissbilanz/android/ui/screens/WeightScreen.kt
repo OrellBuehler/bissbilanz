@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,6 +43,7 @@ import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.WeightCreate
@@ -83,8 +83,7 @@ fun WeightScreen(navController: NavController) {
     val projectionDays by viewModel.projectionDays.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
-    val resources = LocalResources.current
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showTargetDialog by remember { mutableStateOf(false) }
@@ -94,12 +93,7 @@ fun WeightScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
 
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
     val projectionOptions = listOf(0, 14, 30, 60)

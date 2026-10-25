@@ -68,7 +68,7 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
-import com.bissbilanz.android.ui.viewmodels.text
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.Food
@@ -165,13 +165,7 @@ fun AddFoodSheet(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val snackbarText = snackbarMessage?.text()
-    LaunchedEffect(snackbarText) {
-        snackbarText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 

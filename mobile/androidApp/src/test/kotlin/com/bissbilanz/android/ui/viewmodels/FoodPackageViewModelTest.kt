@@ -252,7 +252,7 @@ class FoodPackageViewModelTest {
             // The data changed since the preview, so the user reviews a fresh one.
             awaitState(vm.importState) { it.preview == second && !it.analyzing && !it.importing }
 
-            assertEquals(R.string.food_package_stale, vm.messageRes.value)
+            assertEquals(UiMessage(R.string.food_package_stale), vm.snackbarMessage.value)
             assertNull(vm.importState.value.result)
             coVerify(exactly = 2) { local.preview(pkg.path) }
             // The old mapping went with the old preview.

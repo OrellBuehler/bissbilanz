@@ -255,11 +255,10 @@ class FoodSearchViewModelTest {
             vm.selectOffProduct(offProduct()) {}
             advanceUntilIdle()
 
-            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
-            assertNull(vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
 
-            vm.clearSnackbarRes()
-            assertNull(vm.snackbarMessageRes.value)
+            vm.clearSnackbar()
+            assertNull(vm.snackbarMessage.value)
         }
 
     @Test
@@ -271,7 +270,7 @@ class FoodSearchViewModelTest {
             vm.selectOffProduct(offProduct()) {}
             advanceUntilIdle()
 
-            assertEquals(R.string.food_search_off_add_failed, vm.snackbarMessageRes.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
             assertEquals(false, vm.isResolvingOff.value)
         }
 }

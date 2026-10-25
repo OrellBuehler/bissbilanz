@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +36,7 @@ import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
 import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderUpdate
 import com.bissbilanz.model.Supplement
@@ -51,9 +51,8 @@ fun RemindersScreen(navController: NavController) {
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val supplementReminders by viewModel.supplementReminders.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     val reminderPrefs: SupplementReminderPreferences = koinInject()
@@ -74,12 +73,7 @@ fun RemindersScreen(navController: NavController) {
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     @Composable
     fun snoozeLabel(minutes: Int) =

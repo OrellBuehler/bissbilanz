@@ -40,8 +40,8 @@ class FoodDuplicatesViewModel(
     private val _loadFailed = MutableStateFlow(false)
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
 
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     init {
         load()
@@ -65,7 +65,7 @@ class FoodDuplicatesViewModel(
                 if (_groups.value.isEmpty()) {
                     _loadFailed.value = true
                 } else {
-                    _snackbarMessageRes.value = R.string.food_duplicates_load_failed
+                    _snackbarMessage.value = UiMessage(R.string.food_duplicates_load_failed)
                 }
             }
             _isLoading.value = false
@@ -89,21 +89,21 @@ class FoodDuplicatesViewModel(
             try {
                 foodRepo.mergeFoods(keeperId = keeperId, sourceIds = sourceIds)
                 refreshManager.refreshAll()
-                _snackbarMessageRes.value = R.string.food_merge_success
+                _snackbarMessage.value = UiMessage(R.string.food_merge_success)
                 load()
             } catch (e: FoodMergeUnavailableException) {
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.food_merge_unavailable_offline
+                _snackbarMessage.value = UiMessage(R.string.food_merge_unavailable_offline)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.food_merge_failed
+                _snackbarMessage.value = UiMessage(R.string.food_merge_failed)
             }
             _isMerging.value = false
         }
     }
 
     fun clearSnackbar() {
-        _snackbarMessageRes.value = null
+        _snackbarMessage.value = null
     }
 }

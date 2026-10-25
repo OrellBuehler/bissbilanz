@@ -46,8 +46,8 @@ class DayLogViewModel(
             first == null || (first.isEmpty() && !done)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
-    private val _error = MutableStateFlow<Int?>(null)
-    val error: StateFlow<Int?> = _error.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     /** Entries swiped away whose delete still waits out the undo snackbar. */
     private val _pendingDeleteIds = MutableStateFlow<Set<String>>(emptySet())
@@ -96,13 +96,13 @@ class DayLogViewModel(
         currentDate = date
         currentDateFlow.value = date
         viewModelScope.launch {
-            _error.value = null
+            _snackbarMessage.value = null
             try {
                 entryRepo.refresh(date)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _error.value = R.string.daylog_load_failed
+                _snackbarMessage.value = UiMessage(R.string.daylog_load_failed)
             } finally {
                 firstLoadDone.value = true
             }
@@ -116,7 +116,7 @@ class DayLogViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _error.value = R.string.daylog_delete_failed
+                _snackbarMessage.value = UiMessage(R.string.daylog_delete_failed)
             }
         }
     }
@@ -156,7 +156,7 @@ class DayLogViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _error.value = R.string.daylog_restore_failed
+                _snackbarMessage.value = UiMessage(R.string.daylog_restore_failed)
             }
         }
     }
@@ -177,7 +177,7 @@ class DayLogViewModel(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _error.value = R.string.daylog_delete_failed
+                _snackbarMessage.value = UiMessage(R.string.daylog_delete_failed)
             } finally {
                 _pendingDeleteIds.update { it - id }
                 committingIds.remove(id)
@@ -213,8 +213,8 @@ class DayLogViewModel(
             null
         }
 
-    fun clearError() {
-        _error.value = null
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 
     companion object {

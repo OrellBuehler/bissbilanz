@@ -30,7 +30,7 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
-import com.bissbilanz.android.ui.viewmodels.text
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.util.cookedWeightServingSize
@@ -63,13 +63,7 @@ fun FavoritesScreen(navController: NavController) {
 
     val favoriteRecipes = recipes.filter { it.isFavorite }
 
-    val snackbarText = snackbarMessage?.text()
-    LaunchedEffect(snackbarText) {
-        snackbarText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     foodToLog?.let { food ->
         MealPickerSheet(

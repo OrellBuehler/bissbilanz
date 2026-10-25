@@ -74,7 +74,7 @@ class DayLogViewModelTest {
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.visibleEntries.collect {} }
             viewModel.loadEntries("2024-01-15")
 
-            assertEquals(R.string.daylog_load_failed, viewModel.error.value)
+            assertEquals(UiMessage(R.string.daylog_load_failed), viewModel.snackbarMessage.value)
             assertEquals(false, viewModel.isLoading.value)
         }
 
@@ -145,7 +145,7 @@ class DayLogViewModelTest {
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             viewModel.deleteEntry("entry-1")
 
-            assertEquals(R.string.daylog_delete_failed, viewModel.error.value)
+            assertEquals(UiMessage(R.string.daylog_delete_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -206,16 +206,16 @@ class DayLogViewModelTest {
         }
 
     @Test
-    fun clearErrorResetsErrorState() =
+    fun clearSnackbarResetsMessage() =
         runTest {
             coEvery { entryRepo.refresh("2024-01-15") } throws RuntimeException("Error")
 
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             viewModel.loadEntries("2024-01-15")
-            assertEquals(R.string.daylog_load_failed, viewModel.error.value)
+            assertEquals(UiMessage(R.string.daylog_load_failed), viewModel.snackbarMessage.value)
 
-            viewModel.clearError()
-            assertNull(viewModel.error.value)
+            viewModel.clearSnackbar()
+            assertNull(viewModel.snackbarMessage.value)
         }
 
     companion object {

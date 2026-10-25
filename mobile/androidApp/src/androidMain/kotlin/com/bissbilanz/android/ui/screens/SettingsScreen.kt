@@ -26,6 +26,7 @@ import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
 import com.bissbilanz.foodpackage.BulkUploadCounts
@@ -56,7 +57,7 @@ fun SettingsScreen(navController: NavController) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val claudeCapability by viewModel.claudeCapability.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
@@ -84,16 +85,7 @@ fun SettingsScreen(navController: NavController) {
                 ?: com.bissbilanz.android.navigation.defaultTabRoutes,
         )
     }
-    // Resolved in composition rather than with context.getString inside the effect:
-    // a Context read is not configuration-aware, so an app-language change would show
-    // the previous locale's text.
-    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
-    LaunchedEffect(snackbarMessageText) {
-        snackbarMessageText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbarRes()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val exportingData by viewModel.exportingData.collectAsStateWithLifecycle()
     val exportedFile by viewModel.exportedFile.collectAsStateWithLifecycle()
