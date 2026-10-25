@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,12 +25,7 @@ class FoodSearchViewModel(
     private val entryRepo: EntryRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    // The server's recents lag a favorite toggled here until its sync op uploads.
-    private val favoriteOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-
-    val recentFoods: StateFlow<List<Food>> =
-        combine(foodRepo.recentFoods, favoriteOverrides) { foods, overrides -> foods.withFavorites(overrides) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), foodRepo.recentFoods.value)
+    val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
 
     val favoriteFoods: StateFlow<List<Food>> =
         foodRepo
@@ -48,6 +42,8 @@ class FoodSearchViewModel(
     val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
 
     private var allFoodsOffset = 0
+    private var allFoodsFromCache = false
+    private val togglingFavoriteIds = mutableSetOf<String>()
     private var paginationJob: Job? = null
     private var searchJob: Job? = null
     private val pageSize = 20
@@ -103,6 +99,7 @@ class FoodSearchViewModel(
 
     fun loadAllFoods() {
         paginationJob?.cancel()
+        allFoodsFromCache = false
         allFoodsOffset = 0
         _allFoods.value = emptyList()
         _canLoadMore.value = true
@@ -118,12 +115,22 @@ class FoodSearchViewModel(
 
     private suspend fun fetchNextPage() {
         try {
-            val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
+            var page = foodRepo.fetchFoodsPage(pageSize, allFoodsOffset, cacheOnly = allFoodsFromCache)
+            if (page.fromCache && !allFoodsFromCache) {
+                // The server became unreachable mid-list: start over from the device's
+                // copy rather than append its pages to the server's (they need not line up).
+                allFoodsFromCache = true
+                if (allFoodsOffset > 0) {
+                    allFoodsOffset = 0
+                    _allFoods.value = emptyList()
+                    page = foodRepo.fetchFoodsPage(pageSize, 0, cacheOnly = true)
+                }
+            }
             // Offset paging over a name-sorted list repeats a food when one is added or
             // renamed between pages; the list is keyed by id, so drop the repeat.
-            _allFoods.value = (_allFoods.value + response.foods).distinctBy { it.id }
-            allFoodsOffset += response.foods.size
-            _canLoadMore.value = allFoodsOffset < response.total
+            _allFoods.value = (_allFoods.value + page.foods).distinctBy { it.id }
+            allFoodsOffset += page.foods.size
+            _canLoadMore.value = allFoodsOffset < page.total
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -216,30 +223,31 @@ class FoodSearchViewModel(
     }
 
     fun toggleFavorite(food: Food) {
+        // A second tap before the first lands would toggle from the same stale row.
+        if (!togglingFavoriteIds.add(food.id)) return
         val isFavorite = !food.isFavorite
         viewModelScope.launch {
             try {
                 foodRepo.toggleFavorite(food.id, isFavorite)
                 // In place rather than reloading: a reload would scroll the All tab
                 // back to the top, and a stale row would make the next toggle a no-op.
-                val overrides = mapOf(food.id to isFavorite)
-                favoriteOverrides.value += overrides
-                _allFoods.value = _allFoods.value.withFavorites(overrides)
-                _searchResults.value = _searchResults.value.withFavorites(overrides)
+                // The repository updates its recents itself.
+                _allFoods.value = _allFoods.value.withFavorite(food.id, isFavorite)
+                _searchResults.value = _searchResults.value.withFavorite(food.id, isFavorite)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = FoodSnackbar(R.string.food_search_favorite_failed)
+            } finally {
+                togglingFavoriteIds.remove(food.id)
             }
         }
     }
 
-    private fun List<Food>.withFavorites(overrides: Map<String, Boolean>): List<Food> =
-        if (overrides.isEmpty()) {
-            this
-        } else {
-            map { food -> overrides[food.id]?.let { food.copy(isFavorite = it) } ?: food }
-        }
+    private fun List<Food>.withFavorite(
+        id: String,
+        isFavorite: Boolean,
+    ): List<Food> = map { if (it.id == id) it.copy(isFavorite = isFavorite) else it }
 
     /**
      * Copy-on-use: an Open Food Facts hit becomes a food in the user's database
