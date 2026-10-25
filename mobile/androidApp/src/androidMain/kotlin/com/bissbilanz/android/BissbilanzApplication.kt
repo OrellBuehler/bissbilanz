@@ -172,7 +172,7 @@ class BissbilanzApplication :
                         currentUserId = { jwtSubject(authManager.getAccessToken()) },
                     )
                 }
-                single { BulkImportScheduler(androidContext()) }
+                single { BulkImportScheduler(androidContext(), get()) }
                 single<BulkImportCheckpoints> { PreferencesBulkImportCheckpoints(androidContext()) }
                 single { BulkUploadController(androidContext(), get(), get(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }

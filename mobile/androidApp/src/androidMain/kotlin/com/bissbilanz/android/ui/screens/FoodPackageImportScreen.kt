@@ -199,6 +199,9 @@ fun FoodPackageImportScreen(navController: NavController) {
             }
             val bulk = bulkStatus
             // An earlier run's outcome gives way to a package opened since.
+            val bulkSuperseded =
+                (bulk is BulkImportStatus.Finished || bulk is BulkImportStatus.Failed) && !state.showsBulkOutcome
+            LaunchedEffect(bulkSuperseded) { if (bulkSuperseded) viewModel.bulkOutcomeSuperseded() }
             when {
                 bulk is BulkImportStatus.Running -> BulkRunningView(bulk, onCancel = viewModel::cancelBulkImport)
                 bulk is BulkImportStatus.Finished && state.showsBulkOutcome -> {

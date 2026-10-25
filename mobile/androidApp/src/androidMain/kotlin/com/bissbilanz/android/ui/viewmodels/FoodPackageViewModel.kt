@@ -326,16 +326,15 @@ class FoodPackageViewModel(
     }
 
     fun cancelBulkImport() {
-        bulkImports.cancel()
-        _importState.value = ImportState()
+        viewModelScope.launch { bulkImports.cancel() }
+        // Only the package handed to the job goes; one opened while it ran stays.
+        if (_importState.value.showsBulkOutcome) _importState.value = ImportState()
     }
 
-    /** A newly opened package takes over the screen from an earlier run's outcome. */
-    private fun dropFinishedBulkImport() {
-        if (bulkStatus.value is BulkImportStatus.Finished || bulkStatus.value is BulkImportStatus.Failed) {
-            bulkImports.acknowledge()
-            bulkOutcomeSeen = false
-        }
+    /** A newer package hides a finished or failed run's outcome: forget that run. */
+    fun bulkOutcomeSuperseded() {
+        bulkImports.acknowledge()
+        bulkOutcomeSeen = false
     }
 
     /**
@@ -366,7 +365,6 @@ class FoodPackageViewModel(
     fun openIncoming(request: PendingPackageImport.Request) {
         val path = request.path
         if (path == null) {
-            dropFinishedBulkImport()
             IncomingPackageFiles.delete(_importState.value.path)
             _importState.value =
                 ImportState(
@@ -389,7 +387,6 @@ class FoodPackageViewModel(
     ) {
         val previous = _importState.value.path
         if (previous != null && previous != path) IncomingPackageFiles.delete(previous)
-        dropFinishedBulkImport()
         _importState.value = ImportState(fileName = fileName, path = path, analyzing = true)
         runPreview()
     }

@@ -6,9 +6,13 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.await
 import androidx.work.workDataOf
+import com.bissbilanz.android.navigation.IncomingPackageFiles
+import com.bissbilanz.foodpackage.BulkImportCheckpoints
 import com.bissbilanz.foodpackage.BulkImportSummary
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /** Where a bulk package import is, as the import screen shows it. */
@@ -34,6 +38,7 @@ sealed interface BulkImportStatus {
 /** Starts the [BulkImportWorker] and reports on it from WorkManager's own records. */
 class BulkImportScheduler(
     private val context: Context,
+    private val checkpoints: BulkImportCheckpoints,
 ) {
     fun start(
         path: String,
@@ -42,6 +47,8 @@ class BulkImportScheduler(
         val request =
             OneTimeWorkRequestBuilder<BulkImportWorker>()
                 .setInputData(workDataOf(BulkImportWorker.KEY_PATH to path, BulkImportWorker.KEY_FILE_NAME to fileName))
+                // WorkInfo has no input data; the tag lets [cancel] find the package again.
+                .addTag(pathTag(path))
                 .build()
         WorkManager.getInstance(context).enqueueUniqueWork(BulkImportWorker.UNIQUE_NAME, ExistingWorkPolicy.KEEP, request)
     }
@@ -53,9 +60,18 @@ class BulkImportScheduler(
                 .getWorkInfosForUniqueWorkFlow(BulkImportWorker.UNIQUE_NAME)
                 .map { infos -> statusOf(infos.lastOrNull()) }
 
-    /** The user stopped the import; the worker drops the package and its checkpoint. */
-    fun cancel() {
-        WorkManager.getInstance(context).cancelUniqueWork(BulkImportWorker.UNIQUE_NAME)
+    /**
+     * The user stopped the import: the job ends for good, so its package and checkpoint go
+     * too, also when it never got to run.
+     */
+    suspend fun cancel() {
+        val workManager = WorkManager.getInstance(context)
+        val paths = packagePaths(workManager.getWorkInfosForUniqueWorkFlow(BulkImportWorker.UNIQUE_NAME).first())
+        workManager.cancelUniqueWork(BulkImportWorker.UNIQUE_NAME).await()
+        paths.forEach { path ->
+            checkpoints.clear(path)
+            IncomingPackageFiles.delete(path)
+        }
     }
 
     /** The user has seen how it ended: forget the finished run. */
@@ -64,6 +80,18 @@ class BulkImportScheduler(
     }
 
     companion object {
+        private const val PATH_TAG_PREFIX = "bulk-import-path:"
+
+        /** The packages of the runs that have not ended yet. */
+        internal fun packagePaths(infos: List<WorkInfo>): List<String> =
+            infos
+                .filterNot { it.state.isFinished }
+                .flatMap { it.tags }
+                .filter { it.startsWith(PATH_TAG_PREFIX) }
+                .map { it.removePrefix(PATH_TAG_PREFIX) }
+
+        internal fun pathTag(path: String) = PATH_TAG_PREFIX + path
+
         internal fun statusOf(info: WorkInfo?): BulkImportStatus =
             when (info?.state) {
                 null, WorkInfo.State.CANCELLED -> BulkImportStatus.Idle

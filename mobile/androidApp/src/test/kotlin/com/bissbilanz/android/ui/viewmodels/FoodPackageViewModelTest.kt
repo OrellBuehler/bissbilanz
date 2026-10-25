@@ -526,7 +526,21 @@ class FoodPackageViewModelTest {
 
             vm.cancelBulkImport()
 
-            verify { bulkImports.cancel() }
+            coVerify { bulkImports.cancel() }
             assertEquals(FoodPackageViewModel.ImportState(), vm.importState.value)
+        }
+
+    @Test
+    fun cancellingABulkImportKeepsAPackageOpenedWhileItRan() =
+        runBlocking<Unit> {
+            coEvery { local.preview(pkg.path) } returns preview()
+            val vm = viewModel(AppMode.LOCAL)
+            vm.analyzed()
+
+            vm.cancelBulkImport()
+
+            coVerify { bulkImports.cancel() }
+            assertEquals(pkg.path, vm.importState.value.path)
+            assertNotNull(vm.importState.value.preview)
         }
 }
