@@ -52,6 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
@@ -66,55 +67,71 @@ private const val MAX_UPLOAD_DIMENSION = 800
 private const val UPLOAD_QUALITY = 85
 
 /**
- * Runs a [FoodImageField] (or [RecipeStepPhotoField]) upload outside composition, so
- * rotating the screen (or any other recreation of the form) neither cancels it nor loses
- * the URL it produces.
+ * Runs [FoodImageField] and [RecipeStepPhotoField] uploads outside composition, so
+ * rotating the screen (or any other recreation of the form) neither cancels one nor loses
+ * the URL it produces. One instance per screen holds every field's upload by the field's
+ * saved key, and drops it once the URL has reached the form, so opening a form again and
+ * again does not pile up state.
  */
 internal class FoodImageUploadViewModel(
     private val uploader: FoodImageUploader,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    private val _isUploading = MutableStateFlow(false)
-    val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
+    data class Upload(
+        val inFlight: Boolean = false,
+        /** The finished upload's URL, until the field has handed it to the form. */
+        val url: String? = null,
+        val failed: Boolean = false,
+    ) {
+        /** Still "uploading" until the URL has reached the form, so Save never runs without it. */
+        val isUploading: Boolean get() = inFlight || url != null
+    }
 
-    /** The finished upload's URL, until the field has handed it to the form. */
-    private val _uploadedUrl = MutableStateFlow<String?>(null)
-    val uploadedUrl: StateFlow<String?> = _uploadedUrl.asStateFlow()
-
-    private val _failed = MutableStateFlow(false)
-    val failed: StateFlow<Boolean> = _failed.asStateFlow()
+    private val _uploads = MutableStateFlow<Map<String, Upload>>(emptyMap())
+    val uploads: StateFlow<Map<String, Upload>> = _uploads.asStateFlow()
 
     fun upload(
+        key: String,
         cropped: Bitmap,
         transparent: Boolean,
         maxDimension: Int = MAX_UPLOAD_DIMENSION,
         quality: Int = UPLOAD_QUALITY,
         purpose: String? = null,
     ) {
-        if (_isUploading.value) return
-        _isUploading.value = true
-        _failed.value = false
+        if (_uploads.value[key]?.inFlight == true) return
+        _uploads.update { it + (key to Upload(inFlight = true)) }
         viewModelScope.launch {
-            try {
-                val encoded =
-                    withContext(Dispatchers.IO) {
-                        cropped.toUploadBytes(maxDimension, quality, transparent)
-                    }
-                _uploadedUrl.value = uploader.store(encoded.bytes, purpose = purpose, format = encoded.format)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                errorReporter.captureException(e)
-                _failed.value = true
-            } finally {
-                _isUploading.value = false
-            }
+            val result =
+                try {
+                    val encoded =
+                        withContext(Dispatchers.IO) {
+                            cropped.toUploadBytes(maxDimension, quality, transparent)
+                        }
+                    Upload(url = uploader.store(encoded.bytes, purpose = purpose, format = encoded.format))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    errorReporter.captureException(e)
+                    Upload(failed = true)
+                }
+            _uploads.update { it + (key to result) }
         }
     }
 
-    fun consumeUploadedUrl() {
-        _uploadedUrl.value = null
+    fun consumeUploadedUrl(key: String) {
+        _uploads.update { it - key }
     }
+}
+
+/** The view model behind every image field of the current screen, and this field's upload in it. */
+@Composable
+internal fun rememberImageUpload(): Pair<FoodImageUploadViewModel, String> {
+    val uploader: FoodImageUploader = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
+    // Saved, so the field finds its upload again after recreation.
+    val key = rememberSaveable { UUID.randomUUID().toString() }
+    val uploads = viewModel { FoodImageUploadViewModel(uploader, errorReporter) }
+    return uploads to key
 }
 
 /**
@@ -134,18 +151,14 @@ fun FoodImageField(
     onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val uploader: FoodImageUploader = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
-    // One upload holder per field, found again after recreation by its saved key.
-    val uploadKey = rememberSaveable { UUID.randomUUID().toString() }
-    val uploads = viewModel(key = "food-image-$uploadKey") { FoodImageUploadViewModel(uploader, errorReporter) }
-    val uploadInFlight by uploads.isUploading.collectAsStateWithLifecycle()
-    val uploadedUrl by uploads.uploadedUrl.collectAsStateWithLifecycle()
-    val uploadFailedFlag by uploads.failed.collectAsStateWithLifecycle()
-    // Still "uploading" until the URL has reached the form, so Save never runs without it.
-    val isUploading = uploadInFlight || uploadedUrl != null
+    val (uploads, uploadKey) = rememberImageUpload()
+    val allUploads by uploads.uploads.collectAsStateWithLifecycle()
+    val upload = allUploads[uploadKey] ?: FoodImageUploadViewModel.Upload()
+    val uploadedUrl = upload.url
+    val isUploading = upload.isUploading
 
     // Saveable: the camera app can outlive this process, and the result must still
     // know where the photo went.
@@ -159,14 +172,14 @@ fun FoodImageField(
     LaunchedEffect(uploadedUrl) {
         uploadedUrl?.let {
             currentOnImageUrlChange(it)
-            uploads.consumeUploadedUrl()
+            uploads.consumeUploadedUrl(uploadKey)
         }
     }
 
     val errorMessage =
         when {
             readFailedFlag -> stringResource(R.string.photo_read_failed)
-            uploadFailedFlag -> stringResource(R.string.food_image_upload_failed)
+            upload.failed -> stringResource(R.string.food_image_upload_failed)
             else -> null
         }
 
@@ -199,7 +212,7 @@ fun FoodImageField(
     ) {
         cropCandidate = null
         readFailedFlag = false
-        uploads.upload(cropped, transparent)
+        uploads.upload(uploadKey, cropped, transparent)
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {

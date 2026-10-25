@@ -37,10 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
-import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.requireUprightBitmap
@@ -49,7 +47,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
-import java.util.UUID
 
 /** The server keeps a step photo's aspect ratio up to this size (`RECIPE_STEP_MAX_DIM`). */
 private const val STEP_MAX_DIMENSION = 1280
@@ -72,7 +69,6 @@ fun RecipeStepPhotoField(
     onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val uploader: FoodImageUploader = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
@@ -86,27 +82,26 @@ fun RecipeStepPhotoField(
     var reviewCandidate by remember { mutableStateOf<Bitmap?>(null) }
     var readFailedFlag by remember { mutableStateOf(false) }
 
-    // Same as FoodImageField: the upload runs in a view model found again by its saved
-    // key, so rotating mid-upload neither cancels it nor drops the URL.
-    val uploadKey = rememberSaveable { UUID.randomUUID().toString() }
-    val uploads = viewModel(key = "step-photo-$uploadKey") { FoodImageUploadViewModel(uploader, errorReporter) }
-    val uploadInFlight by uploads.isUploading.collectAsStateWithLifecycle()
-    val uploadedUrl by uploads.uploadedUrl.collectAsStateWithLifecycle()
-    val uploadFailedFlag by uploads.failed.collectAsStateWithLifecycle()
-    val isUploading = uploadInFlight || uploadedUrl != null
+    // Same as FoodImageField: the upload runs in a view model, so rotating mid-upload
+    // neither cancels it nor drops the URL.
+    val (uploads, uploadKey) = rememberImageUpload()
+    val allUploads by uploads.uploads.collectAsStateWithLifecycle()
+    val upload = allUploads[uploadKey] ?: FoodImageUploadViewModel.Upload()
+    val uploadedUrl = upload.url
+    val isUploading = upload.isUploading
 
     LaunchedEffect(isUploading) { currentOnUploadingChange(isUploading) }
     LaunchedEffect(uploadedUrl) {
         uploadedUrl?.let {
             currentOnImageUrlChange(it)
-            uploads.consumeUploadedUrl()
+            uploads.consumeUploadedUrl(uploadKey)
         }
     }
 
     val errorMessage =
         when {
             readFailedFlag -> stringResource(R.string.photo_read_failed)
-            uploadFailedFlag -> stringResource(R.string.recipe_edit_step_photo_failed)
+            upload.failed -> stringResource(R.string.recipe_edit_step_photo_failed)
             else -> null
         }
 
@@ -130,7 +125,7 @@ fun RecipeStepPhotoField(
     ) {
         reviewCandidate = null
         readFailedFlag = false
-        uploads.upload(photo, transparent, STEP_MAX_DIMENSION, STEP_UPLOAD_QUALITY, RECIPE_STEP_PURPOSE)
+        uploads.upload(uploadKey, photo, transparent, STEP_MAX_DIMENSION, STEP_UPLOAD_QUALITY, RECIPE_STEP_PURPOSE)
     }
 
     val pickMedia =
