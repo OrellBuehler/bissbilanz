@@ -67,6 +67,13 @@ const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
 const val NAV_KEY_EDIT_SUPPLEMENT_ID = "edit_supplement_id"
 val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
+fun storedTabRoutes(context: Context): Set<String> =
+    context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE).getStringSet("selected_tabs", defaultTabRoutes)
+        ?: defaultTabRoutes
+
+/** Optional tabs that are also opened from Settings; there they are pushed screens with a back arrow. */
+private val pushableTabRoutes = setOf("weight", "supplements", "recipe-suggestions", "insights")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
@@ -126,10 +133,9 @@ fun AppNavigation() {
                         "reminders",
                         "food-duplicates",
                         "food-package-import",
+                        "dashboard-layout",
                     ) ||
-                    (currentRoute == "weight" && "weight" !in selectedTabRoutes) ||
-                    (currentRoute == "supplements" && "supplements" !in selectedTabRoutes) ||
-                    (currentRoute == "recipe-suggestions" && "recipe-suggestions" !in selectedTabRoutes) ||
+                    (currentRoute in pushableTabRoutes && currentRoute !in selectedTabRoutes) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -240,7 +246,7 @@ internal fun NavGraphBuilder.bissbilanzDestinations(navController: NavHostContro
     }
     composable(Screen.Insights.route) {
         com.bissbilanz.android.ui.screens
-            .InsightsScreen(navController)
+            .InsightsScreen(navController, showBack = Screen.Insights.route !in storedTabRoutes(LocalContext.current))
     }
     composable(Screen.Settings.route) {
         com.bissbilanz.android.ui.screens

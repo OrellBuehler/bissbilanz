@@ -90,7 +90,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(navController: NavController) {
+fun InsightsScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: InsightsViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
@@ -152,7 +155,13 @@ fun InsightsScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.settings_nav_insights), scrollBehavior) },
+        topBar = {
+            AppTopBar(
+                stringResource(R.string.settings_nav_insights),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            )
+        },
     ) { padding ->
         PullToRefreshWrapper(
             onRefresh = {
