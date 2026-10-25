@@ -145,6 +145,7 @@ fun SupplementHistoryScreen(navController: NavController) {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
+            isLoading = false
             snackbarHostState.showSnackbar(loadFailedMessage)
         }
     }
