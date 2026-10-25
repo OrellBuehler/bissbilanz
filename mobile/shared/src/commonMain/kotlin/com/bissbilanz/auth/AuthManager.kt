@@ -90,6 +90,11 @@ class AuthManager(
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
+
+        // The login runs in a browser tab; the app process can die before the callback
+        // comes back, so the attempt's state and PKCE verifier are kept on disk too.
+        private const val KEY_PENDING_STATE = "oauth_pending_state"
+        private const val KEY_PENDING_CODE_VERIFIER = "oauth_pending_code_verifier"
         private const val REFRESH_BACKOFF_BASE_MS = 2_000L
         private const val REFRESH_BACKOFF_CAP_MS = 60_000L
         private const val DEFAULT_RETRY_AFTER_MS = 60_000L
@@ -114,6 +119,8 @@ class AuthManager(
         val verifier = Pkce.generateVerifier()
         pendingState = state
         pendingCodeVerifier = verifier
+        secureStorage.save(KEY_PENDING_STATE, state)
+        secureStorage.save(KEY_PENDING_CODE_VERIFIER, verifier)
         val challenge = Pkce.challengeFor(verifier)
         return "$baseUrl/api/auth/mobile/login?state=$state&provider=$provider" +
             "&code_challenge=$challenge&code_challenge_method=S256"
@@ -131,17 +138,21 @@ class AuthManager(
         }
 
     fun validateState(state: String?): Boolean {
-        val expected = pendingState
+        val expected = pendingState ?: secureStorage.load(KEY_PENDING_STATE)
         // Only a matching callback consumes the login attempt: a stray or forged
         // callback URL must not cancel the login the user is in the middle of.
         val valid = state != null && expected != null && state == expected
-        if (valid) pendingState = null
+        if (valid) {
+            pendingState = null
+            secureStorage.delete(KEY_PENDING_STATE)
+        }
         return valid
     }
 
     suspend fun handleCallback(code: String): Boolean {
-        val codeVerifier = pendingCodeVerifier
+        val codeVerifier = pendingCodeVerifier ?: secureStorage.load(KEY_PENDING_CODE_VERIFIER)
         pendingCodeVerifier = null
+        secureStorage.delete(KEY_PENDING_CODE_VERIFIER)
         return try {
             val httpResponse =
                 client.post("$baseUrl/api/auth/mobile/token") {
