@@ -107,19 +107,36 @@ class FoodRepository(
         limit: Int = 20,
         offset: Int = 0,
     ): FoodsListResponse {
-        if (appModeManager.isLocal) {
+        if (appModeManager.isLocal) return cachedFoodsPage(limit, offset)
+        val response =
+            try {
+                api.getFoodsPaginated(limit, offset)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                return cachedFoodsPage(limit, offset)
+            }
+        // A food with a queued edit (e.g. a favorite toggled a moment ago) keeps its
+        // local version: the server's copy predates the change.
+        val pendingIds = pendingFoodIds()
+        val foods = response.foods.map { food -> if (food.id in pendingIds) getFoodCached(food.id) ?: food else food }
+        withContext(ioDispatcher) { cacheFoods(foods.filter { it.id !in pendingIds }) }
+        return response.copy(foods = foods)
+    }
+
+    private suspend fun cachedFoodsPage(
+        limit: Int,
+        offset: Int,
+    ): FoodsListResponse =
+        withContext(ioDispatcher) {
             val queries = db.userDataDatabaseQueries
             val page =
                 queries
                     .selectFoodsPage(limit.toLong(), offset.toLong())
                     .executeAsList()
                     .mapNotNull { json.decodeOrNull<Food>(it.jsonData) }
-            return FoodsListResponse(foods = page, total = queries.countFoods().executeAsOne().toInt())
+            FoodsListResponse(foods = page, total = queries.countFoods().executeAsOne().toInt())
         }
-        val response = api.getFoodsPaginated(limit, offset)
-        withContext(ioDispatcher) { cacheFoods(response.foods) }
-        return response
-    }
 
     /**
      * Brings the local mirror up to date from the server's write-ordered change feed
@@ -232,7 +249,10 @@ class FoodRepository(
     suspend fun refreshFavorites() {
         if (appModeManager.isLocal) return
         val favs = api.getFavorites()
-        withContext(ioDispatcher) { favs.forEach { cacheFood(it) } }
+        // Same as RecipeRepository.refresh: a favorite toggle still in the sync queue
+        // is newer than the server's list, which would otherwise undo it locally.
+        val pendingIds = pendingFoodIds()
+        withContext(ioDispatcher) { favs.filter { it.id !in pendingIds }.forEach { cacheFood(it) } }
     }
 
     /**
