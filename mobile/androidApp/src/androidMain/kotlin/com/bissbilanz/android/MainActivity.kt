@@ -91,7 +91,9 @@ class MainActivity : ComponentActivity() {
         if (foodId != null || foodName != null) {
             intent.removeExtra(EXTRA_FOOD_ID)
             intent.removeExtra(EXTRA_FOOD_NAME)
-            logFoodFromAssistant(foodId, foodName)
+            // A restored activity gets the original intent back, extras and all: the food
+            // was logged when it first arrived.
+            if (isFreshLaunch) logFoodFromAssistant(foodId, foodName)
             return
         }
 
