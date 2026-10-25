@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -84,6 +85,8 @@ fun WeightScreen(navController: NavController) {
     val projectionDays by viewModel.projectionDays.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
+    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showTargetDialog by remember { mutableStateOf(false) }
@@ -92,6 +95,13 @@ fun WeightScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
+
+    LaunchedEffect(snackbarMessageRes) {
+        snackbarMessageRes?.let { res ->
+            snackbarHostState.showSnackbar(resources.getString(res))
+            viewModel.clearSnackbar()
+        }
+    }
 
     val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
     val projectionOptions = listOf(0, 14, 30, 60)
@@ -420,6 +430,8 @@ private fun WeightTargetDialog(
     onSave: (Double?, String?) -> Unit,
 ) {
     var kgDraft by remember { mutableStateOf(initialTargetKg?.formatDecimal1() ?: "") }
+    val parsedKg = kgDraft.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
+    val kgInvalid = kgDraft.isNotBlank() && parsedKg == null
     var dateDraft by remember { mutableStateOf(initialTargetDate) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -457,6 +469,13 @@ private fun WeightTargetDialog(
                     value = kgDraft,
                     onValueChange = { kgDraft = it },
                     label = { Text(stringResource(R.string.weight_target_kg_label)) },
+                    isError = kgInvalid,
+                    supportingText =
+                        if (kgInvalid) {
+                            { Text(stringResource(R.string.weight_target_invalid)) }
+                        } else {
+                            null
+                        },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -469,10 +488,12 @@ private fun WeightTargetDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val kg = kgDraft.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
-                onSave(kg, if (kg != null) dateDraft else null)
-            }) { Text(stringResource(R.string.weight_save)) }
+            // A blank field clears the target; anything else must be a valid weight
+            // instead of silently clearing it.
+            TextButton(
+                onClick = { onSave(parsedKg, if (parsedKg != null) dateDraft else null) },
+                enabled = !kgInvalid,
+            ) { Text(stringResource(R.string.weight_save)) }
         },
         dismissButton = {
             Row {

@@ -926,6 +926,7 @@
     <string name="weight_log_failed">Failed to log weight</string>
     <string name="weight_update_success">Weight updated</string>
     <string name="weight_update_failed">Failed to update weight</string>
+    <string name="weight_load_failed">Failed to load weight data</string>
     <string name="weight_screen_title">Weight Log</string>
     <string name="weight_add_content_desc">Add weight</string>
     <string name="weight_empty">No weight entries yet.\nTap + to log your weight.</string>
@@ -950,6 +951,8 @@
     <string name="weight_target_kg_label">Target weight (kg)</string>
     <string name="weight_target_date_label">Target date (optional)</string>
     <string name="weight_target_clear">Clear target</string>
+    <string name="weight_target_update_failed">Failed to update target</string>
+    <string name="weight_target_invalid">Enter a valid weight</string>
 
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Monounsaturated Fat</string>

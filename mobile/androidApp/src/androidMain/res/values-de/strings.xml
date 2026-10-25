@@ -924,6 +924,7 @@
     <string name="weight_log_failed">Gewicht konnte nicht erfasst werden</string>
     <string name="weight_update_success">Gewicht aktualisiert</string>
     <string name="weight_update_failed">Gewicht konnte nicht aktualisiert werden</string>
+    <string name="weight_load_failed">Gewichtsdaten konnten nicht geladen werden</string>
     <string name="weight_screen_title">Gewichtsverlauf</string>
     <string name="weight_add_content_desc">Gewicht hinzufügen</string>
     <string name="weight_empty">Noch keine Gewichtseinträge.\nTippe auf +, um dein Gewicht zu erfassen.</string>
@@ -948,6 +949,8 @@
     <string name="weight_target_kg_label">Zielgewicht (kg)</string>
     <string name="weight_target_date_label">Zieldatum (optional)</string>
     <string name="weight_target_clear">Ziel löschen</string>
+    <string name="weight_target_update_failed">Ziel konnte nicht aktualisiert werden</string>
+    <string name="weight_target_invalid">Gültiges Gewicht eingeben</string>
 
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Einfach ungesättigte Fettsäuren</string>
