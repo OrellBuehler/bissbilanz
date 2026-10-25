@@ -641,6 +641,34 @@ class RecipeRepositoryTest {
             assertEquals(emptyList(), cachedRecipe("srv_r1").steps)
         }
 
+    @Test
+    fun getRecipeKeepsTheCachedEditWhileItsUpdateIsQueued() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            cacheServerRecipe(listOf("Chop"))
+            val stale = cachedRecipe("srv_r1")
+            coEvery { api.getRecipe("srv_r1") } returns stale
+            synced.updateRecipe("srv_r1", RecipeUpdate(name = "Edited"))
+
+            val fetched = synced.getRecipe("srv_r1")
+
+            assertEquals("Edited", fetched.name)
+            assertEquals("Edited", cachedRecipe("srv_r1").name)
+        }
+
+    @Test
+    fun getRecipeCachesTheServerCopyWithoutAQueuedEdit() =
+        runTest {
+            val (synced, _) = syncedRepository()
+            cacheServerRecipe(listOf("Chop"))
+            coEvery { api.getRecipe("srv_r1") } returns cachedRecipe("srv_r1").copy(name = "Renamed")
+
+            val fetched = synced.getRecipe("srv_r1")
+
+            assertEquals("Renamed", fetched.name)
+            assertEquals("Renamed", cachedRecipe("srv_r1").name)
+        }
+
     private suspend fun createLabelled(
         name: String,
         labels: List<String>,

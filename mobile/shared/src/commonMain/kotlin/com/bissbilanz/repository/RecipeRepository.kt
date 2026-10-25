@@ -134,6 +134,11 @@ class RecipeRepository(
             return cached?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
                 ?: throw IllegalStateException("Recipe $id not found in local database")
         }
+        // Same as refresh(): a recipe with a queued edit is newer locally than on the
+        // server, so the server copy must neither be shown nor overwrite the cache.
+        if (id.isTempId() || id in pendingRecipeIds()) {
+            getRecipeCached(id)?.let { return it }
+        }
         return try {
             val recipe = api.getRecipe(id).serverTotalsToPerServing()
             withContext(Dispatchers.IO) { cacheRecipe(recipe) }
