@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -62,9 +63,21 @@ class DashboardViewModel(
                 LocalDate.parse(selectedDateString.value),
             )
 
-    /** True only until the first load finishes; later refreshes keep the content on screen. */
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val firstLoadDone = MutableStateFlow(false)
+
+    /** The first list the entries query emitted, or null before it has. */
+    private val firstEntries = MutableStateFlow<List<Entry>?>(null)
+
+    /**
+     * The skeleton is only for the very first load: it ends as soon as cached entries are
+     * on screen, or once the first refresh finished for a day that is really empty (so
+     * "no entries yet" never flashes before the network answered). Later refreshes and
+     * day switches keep the content on screen.
+     */
+    val isLoading: StateFlow<Boolean> =
+        combine(firstLoadDone, firstEntries) { done, first ->
+            first == null || (first.isEmpty() && !done)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
@@ -110,7 +123,7 @@ class DashboardViewModel(
         currentDateString
             .flatMapLatest { date ->
                 if (date.isNotEmpty()) {
-                    entryRepo.entriesByDate(date)
+                    entryRepo.entriesByDate(date).onEach { if (firstEntries.value == null) firstEntries.value = it }
                 } else {
                     flowOf(emptyList())
                 }
@@ -142,6 +155,12 @@ class DashboardViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private var loadJob: Job? = null
+
+    /** A pull-to-refresh in flight; a plain [loadData] for the same day leaves it running. */
+    private var refreshJob: Job? = null
+
+    /** Bumped by every local day-property edit, so a slower server answer can't revert it. */
+    private var dayPropertiesEdits = 0
 
     /**
      * The day the day-property flows currently hold, or null while the selected day's
@@ -194,6 +213,7 @@ class DashboardViewModel(
         if (dateStr == selectedDateString.value) return
         savedStateHandle[KEY_SELECTED_DATE] = dateStr
         loadJob?.cancel()
+        refreshJob?.cancel()
         dayPropertiesDate = null
         applyDayProperties(null)
     }
@@ -201,6 +221,8 @@ class DashboardViewModel(
     fun loadData() {
         val dateStr = selectedDateString.value
         currentDateString.value = dateStr
+        // The refresh reloads this day anyway; cancelling it would end the pull indicator early.
+        if (refreshJob?.isActive == true) return
         loadJob?.cancel()
         loadJob = viewModelScope.launch { loadDay(dateStr) }
     }
@@ -210,6 +232,7 @@ class DashboardViewModel(
         val dateStr = selectedDateString.value
         currentDateString.value = dateStr
         loadJob?.cancel()
+        refreshJob?.cancel()
         val job =
             viewModelScope.launch {
                 coroutineScope {
@@ -224,16 +247,11 @@ class DashboardViewModel(
                     loadDay(dateStr)
                 }
             }
-        loadJob = job
+        refreshJob = job
         job.join()
     }
 
     private suspend fun loadDay(date: String) {
-        if (_isLoading.value && entryRepo.entriesByDateOnce(date).isNotEmpty()) {
-            // Cached entries are already on disk; show them instead of a skeleton
-            // while the network catches up (or times out offline).
-            _isLoading.value = false
-        }
         coroutineScope {
             // Independent of the entries refresh: the repository falls back to the
             // cached day when the network is down.
@@ -257,23 +275,41 @@ class DashboardViewModel(
                 }
             if (date == selectedDateString.value) {
                 _refreshFailed.value = failed
-                _isLoading.value = false
+                firstLoadDone.value = true
             }
         }
     }
 
+    /**
+     * The cached values go on screen at once, so taps and drafts work offline and never
+     * start from an empty card; the server copy replaces them only if nothing was edited
+     * in the meantime.
+     */
     private suspend fun loadDayProperties(date: String) {
+        if (dayPropertiesDate != date) {
+            val cached =
+                try {
+                    entryRepo.cachedDayPropertiesOnce(date)
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    errorReporter.captureException(e)
+                    null
+                }
+            if (date != selectedDateString.value) return
+            applyDayProperties(cached)
+            dayPropertiesDate = date
+        }
+        val editsBefore = dayPropertiesEdits
         val props =
             try {
                 entryRepo.getDayProperties(date)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                null
+                return
             }
-        if (date != selectedDateString.value) return
+        if (date != selectedDateString.value || dayPropertiesEdits != editsBefore) return
         applyDayProperties(props)
-        dayPropertiesDate = date
     }
 
     private fun applyDayProperties(props: DayProperties?) {
@@ -289,6 +325,7 @@ class DashboardViewModel(
         val date = selectedDateString.value
         if (dayPropertiesDate != date) return
         val newValue = !_isFastingDay.value
+        dayPropertiesEdits++
         _isFastingDay.value = newValue
         viewModelScope.launch {
             try {
@@ -319,6 +356,7 @@ class DashboardViewModel(
         date: String = selectedDateString.value,
     ) {
         val clamped = valueMl?.coerceIn(0, MAX_WATER_ML)
+        dayPropertiesEdits++
         if (date == selectedDateString.value) _waterMl.value = clamped
         viewModelScope.launch {
             try {
@@ -344,6 +382,7 @@ class DashboardViewModel(
     ) {
         val clampedCalories = calories?.coerceIn(0, MAX_ACTIVITY_CALORIES)
         val trimmedNote = note?.trim()?.takeIf { it.isNotEmpty() }
+        dayPropertiesEdits++
         if (date == selectedDateString.value) {
             _activityCalories.value = clampedCalories
             // Mirrors EntryRepository's default: a manual edit that sets a value takes
@@ -379,6 +418,7 @@ class DashboardViewModel(
         text: String,
         date: String = selectedDateString.value,
     ) {
+        dayPropertiesEdits++
         if (date == selectedDateString.value) _notes.value = text
         viewModelScope.launch {
             try {

@@ -20,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -33,7 +34,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlin.test.assertNull
 import kotlin.time.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -55,6 +55,7 @@ class DashboardViewModelTest {
         entryRepo =
             mockk(relaxed = true) {
                 every { entriesByDate(any()) } returns entriesFlow
+                coEvery { cachedDayPropertiesOnce(any()) } returns null
             }
         goalsRepo =
             mockk(relaxed = true) {
@@ -142,6 +143,31 @@ class DashboardViewModelTest {
     fun loadDataSetsLoadingFalseAfterCompletion() =
         runTest {
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.entries.collect {} }
+
+            assertEquals(false, viewModel.isLoading.value)
+        }
+
+    @Test
+    fun anEmptyDayKeepsTheSkeletonUntilTheRefreshAnswers() =
+        runTest {
+            val refreshed = CompletableDeferred<Unit>()
+            coEvery { entryRepo.refresh(any()) } coAnswers { refreshed.await() }
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.entries.collect {} }
+
+            assertEquals(true, viewModel.isLoading.value)
+            refreshed.complete(Unit)
+            assertEquals(false, viewModel.isLoading.value)
+        }
+
+    @Test
+    fun cachedEntriesEndTheSkeletonBeforeTheRefreshAnswers() =
+        runTest {
+            coEvery { entryRepo.refresh(any()) } coAnswers { CompletableDeferred<Unit>().await() }
+            entriesFlow.value = listOf(Entry(id = "1", userId = "u1", date = "2024-01-15", mealType = "lunch", servings = 1.0))
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.entries.collect {} }
 
             assertEquals(false, viewModel.isLoading.value)
         }
@@ -152,6 +178,7 @@ class DashboardViewModelTest {
             coEvery { entryRepo.refresh(any()) } throws RuntimeException("Network error")
 
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.entries.collect {} }
 
             assertEquals(false, viewModel.isLoading.value)
         }
@@ -278,23 +305,27 @@ class DashboardViewModelTest {
         }
 
     @Test
-    fun switchingDaysNeverAddsWaterOntoTheOtherDaysValue() =
+    fun switchingDaysAddsWaterOntoTheNewDaysCachedValue() =
         runTest {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
             val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
             val yesterdayProps = CompletableDeferred<DayProperties?>()
             coEvery { entryRepo.getDayProperties(today.toString()) } returns dayProperties(today.toString(), waterMl = 1500)
+            coEvery { entryRepo.cachedDayPropertiesOnce(yesterday) } returns dayProperties(yesterday, waterMl = 500)
             coEvery { entryRepo.getDayProperties(yesterday) } coAnswers { yesterdayProps.await() }
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             assertEquals(1500, viewModel.waterMl.value)
 
+            // The cached value is on screen while the server is still being asked.
             viewModel.previousDay()
-            assertNull(viewModel.waterMl.value)
-            viewModel.addWater(250)
-            coVerify(exactly = 0) { entryRepo.setDayProperties(yesterday, waterMl = any()) }
-
-            yesterdayProps.complete(dayProperties(yesterday, waterMl = 500))
             assertEquals(500, viewModel.waterMl.value)
+            viewModel.addWater(250)
+            coVerify { entryRepo.setDayProperties(yesterday, waterMl = 750) }
+            coVerify(exactly = 0) { entryRepo.setDayProperties(yesterday, waterMl = 1750) }
+
+            // A slower server answer must not revert the edit.
+            yesterdayProps.complete(dayProperties(yesterday, waterMl = 600))
+            assertEquals(750, viewModel.waterMl.value)
         }
 
     @Test

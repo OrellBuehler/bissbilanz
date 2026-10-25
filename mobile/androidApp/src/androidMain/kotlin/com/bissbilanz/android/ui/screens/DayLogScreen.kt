@@ -406,7 +406,7 @@ fun DayLogScreen(
                                         onDelete = {
                                             haptic(HapticFeedbackType.LongPress)
                                             val deletedEntry = entry
-                                            viewModel.scheduleDelete(deletedEntry.id)
+                                            viewModel.scheduleDelete(deletedEntry)
                                             scope.launch {
                                                 val result =
                                                     snackbarHostState.showSnackbar(

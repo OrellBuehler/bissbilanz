@@ -536,6 +536,7 @@
     <string name="daylog_no_entries_to_copy">Keine Einträge zum Kopieren</string>
     <string name="daylog_load_failed">Einträge konnten nicht geladen werden</string>
     <string name="daylog_delete_failed">Eintrag konnte nicht gelöscht werden</string>
+    <string name="daylog_restore_failed">Eintrag konnte nicht wiederhergestellt werden</string>
     <string name="daylog_quick_add">Schnell hinzufügen</string>
     <string name="daylog_no_entries_for_day">Keine Einträge für diesen Tag</string>
     <string name="daylog_delete_entry">Eintrag löschen</string>
@@ -1049,6 +1050,7 @@
     <string name="entry_edit_delete_failed">Eintrag konnte nicht gelöscht werden</string>
     <string name="entry_edit_save_failed">Eintrag konnte nicht gespeichert werden</string>
     <string name="entry_edit_calories_required">Ein Schnelleintrag braucht Kalorien.</string>
+    <string name="entry_edit_servings_invalid">Portionen müssen größer als 0 sein.</string>
     <string name="entry_edit_delete_title">Eintrag löschen</string>
     <string name="entry_edit_delete_text">\"%1$s\" aus deinem Protokoll entfernen?</string>
     <string name="entry_edit_title">Eintrag bearbeiten</string>

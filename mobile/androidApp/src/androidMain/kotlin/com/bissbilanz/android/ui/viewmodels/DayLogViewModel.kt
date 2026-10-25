@@ -20,18 +20,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DayLogViewModel(
     private val entryRepo: EntryRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    /** True only until the first load finishes; later refreshes keep the list on screen. */
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val firstLoadDone = MutableStateFlow(false)
+
+    /** The first list the entries query emitted, or null before it has. */
+    private val firstEntries = MutableStateFlow<List<Entry>?>(null)
+
+    /**
+     * Only the first load shows the skeleton: until cached entries are on screen, or until
+     * the first refresh finished for a day that is really empty, so "no entries" never
+     * flashes before the network answered.
+     */
+    val isLoading: StateFlow<Boolean> =
+        combine(firstLoadDone, firstEntries) { done, first ->
+            first == null || (first.isEmpty() && !done)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     private val _error = MutableStateFlow<Int?>(null)
     val error: StateFlow<Int?> = _error.asStateFlow()
@@ -41,13 +54,19 @@ class DayLogViewModel(
     val pendingDeleteIds: StateFlow<Set<String>> = _pendingDeleteIds.asStateFlow()
     private val pendingDeleteJobs = mutableMapOf<String, Job>()
 
+    /** Swiped entries by id, kept until their snackbar has decided, so a late undo can restore one. */
+    private val swipedEntries = mutableMapOf<String, Entry>()
+
+    /** Pending ids whose delete has already started; onCleared must not run them again. */
+    private val committingIds = mutableSetOf<String>()
+
     private val currentDateFlow = MutableStateFlow("")
 
     val entries: StateFlow<List<Entry>> =
         currentDateFlow
             .flatMapLatest { date ->
                 if (date.isNotEmpty()) {
-                    entryRepo.entriesByDate(date)
+                    entryRepo.entriesByDate(date).onEach { if (firstEntries.value == null) firstEntries.value = it }
                 } else {
                     flowOf(emptyList())
                 }
@@ -78,7 +97,6 @@ class DayLogViewModel(
         currentDateFlow.value = date
         viewModelScope.launch {
             _error.value = null
-            if (_isLoading.value && entryRepo.entriesByDateOnce(date).isNotEmpty()) _isLoading.value = false
             try {
                 entryRepo.refresh(date)
             } catch (e: Exception) {
@@ -86,7 +104,7 @@ class DayLogViewModel(
                 errorReporter.captureException(e)
                 _error.value = R.string.daylog_load_failed
             } finally {
-                _isLoading.value = false
+                firstLoadDone.value = true
             }
         }
     }
@@ -104,37 +122,65 @@ class DayLogViewModel(
     }
 
     /**
-     * Hides [id] now and deletes it once the undo snackbar is dismissed ([commitDelete]).
+     * Hides [entry] now and deletes it once the undo snackbar is dismissed ([commitDelete]).
      * Held here rather than in the screen so rotating or leaving during the snackbar
      * still deletes: the timer is a fallback for a snackbar that never reports back.
      */
-    fun scheduleDelete(id: String) {
+    fun scheduleDelete(entry: Entry) {
+        val id = entry.id
         if (id in _pendingDeleteIds.value) return
+        swipedEntries[id] = entry
         _pendingDeleteIds.update { it + id }
         pendingDeleteJobs[id] =
             viewModelScope.launch {
                 delay(UNDO_FALLBACK_MS)
-                commitDelete(id)
+                deleteNow(id)
             }
     }
 
+    /**
+     * A queued snackbar can still offer Undo after the fallback timer already deleted the
+     * entry; it is then logged again rather than leaving a button that does nothing.
+     */
     fun undoDelete(id: String) {
-        pendingDeleteJobs.remove(id)?.cancel()
-        _pendingDeleteIds.update { it - id }
+        val entry = swipedEntries.remove(id)
+        if (id in _pendingDeleteIds.value) {
+            pendingDeleteJobs.remove(id)?.cancel()
+            _pendingDeleteIds.update { it - id }
+            return
+        }
+        entry ?: return
+        viewModelScope.launch {
+            try {
+                entryRepo.restoreEntry(entry)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                errorReporter.captureException(e)
+                _error.value = R.string.daylog_restore_failed
+            }
+        }
     }
 
     fun commitDelete(id: String) {
+        swipedEntries.remove(id)
+        deleteNow(id)
+    }
+
+    private fun deleteNow(id: String) {
         if (id !in _pendingDeleteIds.value) return
+        if (!committingIds.add(id)) return
         pendingDeleteJobs.remove(id)?.cancel()
         viewModelScope.launch {
             try {
-                entryRepo.deleteEntry(id)
+                // Leaving the screen mid-delete must not cut it in half.
+                withContext(NonCancellable) { entryRepo.deleteEntry(id) }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 errorReporter.captureException(e)
                 _error.value = R.string.daylog_delete_failed
             } finally {
                 _pendingDeleteIds.update { it - id }
+                committingIds.remove(id)
             }
         }
     }
@@ -142,7 +188,7 @@ class DayLogViewModel(
     override fun onCleared() {
         // viewModelScope is already cancelled here; the deletes the user confirmed by
         // leaving must not be dropped with it.
-        val ids = _pendingDeleteIds.value
+        val ids = _pendingDeleteIds.value - committingIds
         if (ids.isEmpty()) return
         CoroutineScope(Dispatchers.IO + NonCancellable).launch {
             for (id in ids) {
