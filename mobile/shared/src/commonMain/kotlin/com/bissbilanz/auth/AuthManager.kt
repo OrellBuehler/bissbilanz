@@ -270,9 +270,18 @@ class AuthManager(
         }
     }
 
+    /** Forgets the login attempt [buildLoginUrl] started, e.g. after the user cancelled it. */
+    fun clearPendingLogin() {
+        pendingState = null
+        pendingCodeVerifier = null
+        secureStorage.delete(KEY_PENDING_STATE)
+        secureStorage.delete(KEY_PENDING_CODE_VERIFIER)
+    }
+
     fun logout() {
         secureStorage.delete(KEY_ACCESS_TOKEN)
         secureStorage.delete(KEY_REFRESH_TOKEN)
+        clearPendingLogin()
         clearRefreshBlock()
         _authState.value = AuthState.Unauthenticated
     }
