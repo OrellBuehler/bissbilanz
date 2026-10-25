@@ -136,7 +136,7 @@
     <string name="dashboard_refresh_failed_body">Could not refresh your log.</string>
     <string name="dashboard_retry">Retry</string>
     <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
-    <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
+    <string name="dashboard_copy_nothing">No entries to copy from yesterday</string>
     <string name="dashboard_copy_error">Couldn\'t copy yesterday\'s entries</string>
     <string name="dashboard_fasting_update_failed">Couldn\'t update the fasting day</string>
     <string name="dashboard_water_update_failed">Couldn\'t update water</string>

@@ -435,7 +435,7 @@ class DashboardViewModel(
                 val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
                 val count = entryRepo.copyEntries(yesterday, today.toString())
                 if (count == 0) {
-                    _snackbarMessage.value = UiMessage(R.string.dashboard_copy_failed)
+                    _snackbarMessage.value = UiMessage(R.string.dashboard_copy_nothing)
                 } else {
                     _snackbarMessage.value = UiMessage(R.string.dashboard_copied_count, listOf(count))
                 }

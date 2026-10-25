@@ -134,7 +134,7 @@
     <string name="dashboard_refresh_failed_body">Dein Log konnte nicht aktualisiert werden.</string>
     <string name="dashboard_retry">Erneut versuchen</string>
     <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
-    <string name="dashboard_copy_failed">Keine Einträge von gestern zum Kopieren</string>
+    <string name="dashboard_copy_nothing">Keine Einträge von gestern zum Kopieren</string>
     <string name="dashboard_copy_error">Einträge von gestern konnten nicht kopiert werden</string>
     <string name="dashboard_fasting_update_failed">Fastentag konnte nicht gespeichert werden</string>
     <string name="dashboard_water_update_failed">Wasser konnte nicht gespeichert werden</string>
