@@ -23,3 +23,15 @@ inline fun <reified T : Any> rememberJsonStateSaver(): Saver<T?, String> {
         )
     }
 }
+
+/** [rememberJsonStateSaver] for a value that is never null, such as a list of form rows. */
+@Composable
+inline fun <reified T : Any> rememberJsonValueSaver(): Saver<T, String> {
+    val json: Json = koinInject()
+    return remember(json) {
+        Saver(
+            save = { value -> json.encodeToString(value) },
+            restore = { raw -> runCatching { json.decodeFromString<T>(raw) }.getOrNull() },
+        )
+    }
+}

@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +66,7 @@ fun RecipeStepPhotoField(
     imageUrl: String?,
     onImageUrlChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
+    onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val uploader: FoodImageUploader = koinInject()
@@ -74,7 +76,10 @@ fun RecipeStepPhotoField(
     // The upload outlives the composition that started it; the newest callback sees the
     // steps as they are now, so text typed meanwhile is not overwritten.
     val currentOnImageUrlChange by rememberUpdatedState(onImageUrlChange)
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val currentOnUploadingChange by rememberUpdatedState(onUploadingChange)
+    // Saveable: the camera app can outlive this process, and the result must still
+    // know where the photo went.
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var reviewCandidate by remember { mutableStateOf<Bitmap?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -102,6 +107,7 @@ fun RecipeStepPhotoField(
     ) {
         reviewCandidate = null
         isUploading = true
+        currentOnUploadingChange(true)
         errorMessage = null
         scope.launch {
             try {
@@ -119,6 +125,7 @@ fun RecipeStepPhotoField(
                 errorMessage = uploadFailed
             }
             isUploading = false
+            currentOnUploadingChange(false)
         }
     }
 

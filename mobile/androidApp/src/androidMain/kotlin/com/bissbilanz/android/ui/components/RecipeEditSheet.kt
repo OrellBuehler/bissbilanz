@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
@@ -28,13 +30,15 @@ import com.bissbilanz.util.caloriesPerHundredGrams
 import com.bissbilanz.util.isSameUnitDimension
 import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.normalizeLabel
-import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toStepInputs
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
+@Serializable
 private data class RecipeIngredientRow(
+    val key: String = newTempId(),
     val food: Food? = null,
     val foodId: String = "",
     val quantity: String = "100",
@@ -52,35 +56,55 @@ fun RecipeEditSheet(
     val foodRepo: FoodRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isLoading by remember { mutableStateOf(recipeId != null) }
+    // Saveable form state below survives rotation and process death; the recipe is
+    // only fetched once, so a restored draft is not overwritten by the stored row.
+    var loaded by rememberSaveable { mutableStateOf(recipeId == null) }
+    var isLoading by remember { mutableStateOf(!loaded) }
     var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isCoverUploading by remember { mutableStateOf(false) }
+    var uploadingStepKeys by remember { mutableStateOf(emptySet<String>()) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     // The recipe itself saved but its image didn't: the sheet stays open with the photo
     // error, so leaving it still has to report the save the caller's list must reflect.
-    var bodySaved by remember { mutableStateOf(false) }
+    var bodySaved by rememberSaveable { mutableStateOf(false) }
     val isEditing = recipeId != null
 
-    var name by remember { mutableStateOf("") }
-    var totalServings by remember { mutableStateOf("1") }
-    var isFavorite by remember { mutableStateOf(false) }
-    var imageUrl by remember { mutableStateOf<String?>(null) }
-    var originalImageUrl by remember { mutableStateOf<String?>(null) }
-    var cookedWeightText by remember { mutableStateOf("") }
-    var loadedCalories by remember { mutableStateOf<Double?>(null) }
-    var labels by remember { mutableStateOf<List<String>>(emptyList()) }
-    var originalLabels by remember { mutableStateOf<List<String>>(emptyList()) }
-    var labelInput by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var totalServings by rememberSaveable { mutableStateOf("1") }
+    var isFavorite by rememberSaveable { mutableStateOf(false) }
+    var imageUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var originalImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var cookedWeightText by rememberSaveable { mutableStateOf("") }
+    var loadedCalories by rememberSaveable { mutableStateOf<Double?>(null) }
+    var labels by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var originalLabels by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var labelInput by rememberSaveable { mutableStateOf("") }
 
-    var ingredients by remember { mutableStateOf(listOf<RecipeIngredientRow>()) }
-    var steps by remember { mutableStateOf(listOf<RecipeStepDraft>()) }
+    var ingredients by rememberSaveable(stateSaver = rememberJsonValueSaver<List<RecipeIngredientRow>>()) {
+        mutableStateOf(emptyList())
+    }
+    var steps by rememberSaveable(stateSaver = rememberJsonValueSaver<List<RecipeStepDraft>>()) {
+        mutableStateOf(emptyList())
+    }
     // False when the recipe came from a cache that never downloaded its steps (offline
     // after a list-only refresh): the editor is hidden and a save leaves them untouched
     // rather than sending an empty list that would clear them on the server.
-    var stepsAvailable by remember { mutableStateOf(true) }
-    var openUnitDropdownIndex by remember { mutableStateOf<Int?>(null) }
-    var showFoodPicker by remember { mutableStateOf(false) }
-    var showRecipeSource by remember { mutableStateOf(false) }
+    var stepsAvailable by rememberSaveable { mutableStateOf(true) }
+    var openUnitDropdownKey by remember { mutableStateOf<String?>(null) }
+    var showFoodPicker by rememberSaveable { mutableStateOf(false) }
+    var showRecipeSource by rememberSaveable { mutableStateOf(false) }
+
+    // A removed step's upload is cancelled with its field, so only live steps count.
+    val isPhotoUploading = isCoverUploading || steps.any { it.key in uploadingStepKeys }
+    // Leaving mid-save or mid-upload would cancel it with this sheet's scope.
+    val isBusy by rememberUpdatedState(isSaving || isPhotoUploading)
+    val sheetState =
+        rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { it != SheetValue.Hidden || !isBusy },
+        )
+    val ingredientQuantities = ingredients.map { it.quantity.toLocalizedDoubleOrNull() }
+    val servingsValue = totalServings.toLocalizedDoubleOrNull()
 
     val loadFailedMessage = stringResource(R.string.recipe_edit_load_failed)
     val saveFailedMessage = stringResource(R.string.recipe_edit_save_failed)
@@ -104,15 +128,15 @@ fun RecipeEditSheet(
         }
 
     LaunchedEffect(recipeId) {
-        if (recipeId != null) {
+        if (recipeId != null && !loaded) {
             try {
                 val recipe = recipeRepo.getRecipe(recipeId)
                 name = recipe.name
-                totalServings = recipe.totalServings.toDisplayString()
+                totalServings = recipe.totalServings.toEditableString()
                 isFavorite = recipe.isFavorite
                 imageUrl = recipe.imageUrl
                 originalImageUrl = recipe.imageUrl
-                cookedWeightText = recipe.cookedWeight?.toDisplayString() ?: ""
+                cookedWeightText = recipe.cookedWeight?.toEditableString() ?: ""
                 loadedCalories = recipe.calories
                 labels = recipe.labels ?: emptyList()
                 originalLabels = labels
@@ -126,10 +150,11 @@ fun RecipeEditSheet(
                         RecipeIngredientRow(
                             food = resolveFood(ing.foodId),
                             foodId = ing.foodId,
-                            quantity = ing.quantity.toDisplayString(),
+                            quantity = ing.quantity.toEditableString(),
                             unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
                         )
                     }
+                loaded = true
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
@@ -149,7 +174,7 @@ fun RecipeEditSheet(
                     RecipeIngredientRow(
                         food = food,
                         foodId = food.id,
-                        quantity = food.servingSize.toDisplayString(),
+                        quantity = food.servingSize.toEditableString(),
                         unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
                     )
                 showFoodPicker = false
@@ -170,7 +195,7 @@ fun RecipeEditSheet(
                             RecipeIngredientRow(
                                 food = resolveFood(ing.foodId),
                                 foodId = ing.foodId,
-                                quantity = ing.quantity.toDisplayString(),
+                                quantity = ing.quantity.toEditableString(),
                                 unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
                             )
                         }
@@ -181,8 +206,10 @@ fun RecipeEditSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = { close() },
+        onDismissRequest = { if (!isBusy) close() },
         sheetState = sheetState,
+        // Back bypasses confirmValueChange.
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !isBusy),
     ) {
         if (isLoading) {
             Box(
@@ -212,6 +239,7 @@ fun RecipeEditSheet(
                     onImageUrlChange = { imageUrl = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(R.string.recipe_image_label),
+                    onUploadingChange = { isCoverUploading = it },
                 )
 
                 OutlinedTextField(
@@ -228,6 +256,7 @@ fun RecipeEditSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                    isError = servingsValue == null || servingsValue <= 0.0,
                 )
                 OutlinedTextField(
                     value = cookedWeightText,
@@ -243,7 +272,7 @@ fun RecipeEditSheet(
                                 caloriesPerHundredGrams(
                                     cals,
                                     cookedWeightVal,
-                                    totalServings.toLocalizedDoubleOrNull() ?: 1.0,
+                                    servingsValue?.takeIf { it > 0.0 } ?: 1.0,
                                 )
                             }
                         Text(
@@ -303,90 +332,90 @@ fun RecipeEditSheet(
                 }
 
                 ingredients.forEachIndexed { index, ingredient ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    ingredient.food?.name ?: stringResource(R.string.food_detail_default_title),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                IconButton(
-                                    onClick = {
-                                        ingredients =
-                                            ingredients.toMutableList().apply {
-                                                removeAt(index)
-                                            }
-                                    },
+                    key(ingredient.key) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        stringResource(R.string.recipe_edit_remove),
-                                        tint = MaterialTheme.colorScheme.error,
+                                    Text(
+                                        ingredient.food?.name ?: stringResource(R.string.food_detail_default_title),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1f),
                                     )
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = ingredient.quantity,
-                                    onValueChange = { newQty ->
-                                        ingredients =
-                                            ingredients.toMutableList().apply {
-                                                set(index, ingredient.copy(quantity = newQty))
-                                            }
-                                    },
-                                    label = { Text(stringResource(R.string.recipe_edit_amount)) },
-                                    keyboardOptions =
-                                        KeyboardOptions(
-                                            keyboardType = KeyboardType.Decimal,
-                                        ),
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                )
-                                val compatibleUnits =
-                                    ingredient.food?.servingUnit?.let { foodUnit ->
-                                        ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit.value) }
-                                    } ?: ServingUnit.entries.toList()
-                                ExposedDropdownMenuBox(
-                                    expanded = openUnitDropdownIndex == index,
-                                    onExpandedChange = {
-                                        openUnitDropdownIndex = if (it) index else null
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    OutlinedTextField(
-                                        value = ingredient.unit.name.lowercase(),
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.recipe_edit_unit)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(
-                                                expanded = openUnitDropdownIndex == index,
-                                            )
+                                    IconButton(
+                                        onClick = {
+                                            ingredients = ingredients.filter { it.key != ingredient.key }
                                         },
-                                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                        singleLine = true,
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = openUnitDropdownIndex == index,
-                                        onDismissRequest = { openUnitDropdownIndex = null },
                                     ) {
-                                        compatibleUnits.forEach { unit ->
-                                            DropdownMenuItem(
-                                                text = { Text(unit.name.lowercase()) },
-                                                onClick = {
-                                                    ingredients =
-                                                        ingredients.toMutableList().apply {
-                                                            set(index, ingredient.copy(unit = unit))
-                                                        }
-                                                    openUnitDropdownIndex = null
-                                                },
-                                            )
+                                        Icon(
+                                            Icons.Default.Close,
+                                            stringResource(R.string.recipe_edit_remove),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = ingredient.quantity,
+                                        onValueChange = { newQty ->
+                                            ingredients =
+                                                ingredients.map {
+                                                    if (it.key == ingredient.key) it.copy(quantity = newQty) else it
+                                                }
+                                        },
+                                        label = { Text(stringResource(R.string.recipe_edit_amount)) },
+                                        keyboardOptions =
+                                            KeyboardOptions(
+                                                keyboardType = KeyboardType.Decimal,
+                                            ),
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        isError = ingredientQuantities[index].let { it == null || it <= 0.0 },
+                                    )
+                                    val compatibleUnits =
+                                        ingredient.food?.servingUnit?.let { foodUnit ->
+                                            ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit.value) }
+                                        } ?: ServingUnit.entries.toList()
+                                    ExposedDropdownMenuBox(
+                                        expanded = openUnitDropdownKey == ingredient.key,
+                                        onExpandedChange = {
+                                            openUnitDropdownKey = if (it) ingredient.key else null
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        OutlinedTextField(
+                                            value = ingredient.unit.name.lowercase(),
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text(stringResource(R.string.recipe_edit_unit)) },
+                                            trailingIcon = {
+                                                ExposedDropdownMenuDefaults.TrailingIcon(
+                                                    expanded = openUnitDropdownKey == ingredient.key,
+                                                )
+                                            },
+                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                            singleLine = true,
+                                        )
+                                        ExposedDropdownMenu(
+                                            expanded = openUnitDropdownKey == ingredient.key,
+                                            onDismissRequest = { openUnitDropdownKey = null },
+                                        ) {
+                                            compatibleUnits.forEach { unit ->
+                                                DropdownMenuItem(
+                                                    text = { Text(unit.name.lowercase()) },
+                                                    onClick = {
+                                                        ingredients =
+                                                            ingredients.map {
+                                                                if (it.key == ingredient.key) it.copy(unit = unit) else it
+                                                            }
+                                                        openUnitDropdownKey = null
+                                                    },
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -406,7 +435,13 @@ fun RecipeEditSheet(
                 HorizontalDivider()
 
                 if (stepsAvailable) {
-                    RecipeStepsEditor(steps = steps, onStepsChange = { steps = it })
+                    RecipeStepsEditor(
+                        steps = steps,
+                        onStepsChange = { steps = it },
+                        onStepUploadingChange = { key, uploading ->
+                            uploadingStepKeys = if (uploading) uploadingStepKeys + key else uploadingStepKeys - key
+                        },
+                    )
                 } else {
                     Text(
                         stringResource(R.string.recipe_edit_steps_unavailable),
@@ -432,21 +467,24 @@ fun RecipeEditSheet(
                             scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
                         modifier = Modifier.weight(1f),
+                        enabled = !isBusy,
                     ) {
                         Text(stringResource(R.string.dialog_cancel))
                     }
                     Button(
                         onClick = {
                             val nameVal = name.trim()
+                            val servingsVal = servingsValue?.takeIf { it > 0.0 } ?: return@Button
+                            val quantities = ingredientQuantities.map { it?.takeIf { q -> q > 0.0 } ?: return@Button }
                             if (nameVal.isBlank() || ingredients.isEmpty()) return@Button
                             isSaving = true
                             scope.launch {
                                 try {
                                     val ingredientInputs =
-                                        ingredients.map { ing ->
+                                        ingredients.zip(quantities) { ing, quantity ->
                                             RecipeIngredientInput(
                                                 foodId = ing.foodId,
-                                                quantity = ing.quantity.toLocalizedDoubleOrNull() ?: 100.0,
+                                                quantity = quantity,
                                                 servingUnit = ing.unit,
                                             )
                                         }
@@ -458,9 +496,7 @@ fun RecipeEditSheet(
                                             id,
                                             RecipeUpdate(
                                                 name = nameVal,
-                                                totalServings =
-                                                    (totalServings.toLocalizedDoubleOrNull() ?: 1.0)
-                                                        .coerceAtLeast(1.0),
+                                                totalServings = servingsVal,
                                                 ingredients = ingredientInputs,
                                                 isFavorite = isFavorite,
                                                 cookedWeight = cookedWeightVal,
@@ -500,9 +536,7 @@ fun RecipeEditSheet(
                                             recipeRepo.createRecipe(
                                                 RecipeCreate(
                                                     name = nameVal,
-                                                    totalServings =
-                                                        (totalServings.toLocalizedDoubleOrNull() ?: 1.0)
-                                                            .coerceAtLeast(1.0),
+                                                    totalServings = servingsVal,
                                                     ingredients = ingredientInputs,
                                                     isFavorite = isFavorite,
                                                     imageUrl = imageUrl,
@@ -512,6 +546,7 @@ fun RecipeEditSheet(
                                             )
                                         if (labels.isNotEmpty()) recipeRepo.setLabels(created.id, labels)
                                     }
+                                    isSaving = false
                                     sheetState.hide()
                                     onSaved()
                                 } catch (e: Exception) {
@@ -525,10 +560,11 @@ fun RecipeEditSheet(
                         },
                         modifier = Modifier.weight(1f),
                         enabled =
-                            !isSaving &&
+                            !isBusy &&
                                 name.isNotBlank() &&
                                 ingredients.isNotEmpty() &&
-                                (totalServings.toLocalizedDoubleOrNull() ?: 0.0) > 0.0,
+                                ingredientQuantities.all { it != null && it > 0.0 } &&
+                                (servingsValue ?: 0.0) > 0.0,
                     ) {
                         Text(stringResource(R.string.weight_save))
                     }
