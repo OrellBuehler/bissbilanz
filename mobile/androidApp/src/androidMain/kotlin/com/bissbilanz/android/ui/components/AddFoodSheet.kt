@@ -34,10 +34,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -139,7 +137,21 @@ fun AddFoodSheet(
     var eatenMinute by rememberSaveable { mutableIntStateOf(nowLocal.minute) }
 
     var selectedFood by rememberSaveable(stateSaver = rememberJsonStateSaver<Food>()) { mutableStateOf<Food?>(null) }
-    var selectedRecipe by rememberSaveable(stateSaver = rememberJsonStateSaver<Recipe>()) { mutableStateOf<Recipe?>(null) }
+    // Only the id is saved (a recipe with its ingredients and steps can be large);
+    // after recreation the recipe is read back from the local cache.
+    var selectedRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickedRecipe by remember { mutableStateOf<Recipe?>(null) }
+    val restoredRecipe = remember(selectedRecipeId) { selectedRecipeId?.let(viewModel::cachedRecipe) }
+    val selectedRecipe = pickedRecipe?.takeIf { it.id == selectedRecipeId } ?: restoredRecipe
+
+    fun selectRecipe(recipe: Recipe?) {
+        pickedRecipe = recipe
+        selectedRecipeId = recipe?.id
+    }
+
+    // The caller's meal is only the default: the day log's "+" passes the meal for
+    // the current time, and the user may be logging something else.
+    var selectedMeal by rememberSaveable(mealType) { mutableStateOf(mealType) }
     var servingsText by rememberSaveable { mutableStateOf("1") }
 
     var quickName by rememberSaveable { mutableStateOf("") }
@@ -209,7 +221,7 @@ fun AddFoodSheet(
                 ) {
                     IconButton(onClick = {
                         selectedFood = null
-                        selectedRecipe = null
+                        selectRecipe(null)
                         servingsText = "1"
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
@@ -283,7 +295,7 @@ fun AddFoodSheet(
                     OutlinedButton(
                         onClick = {
                             selectedFood = null
-                            selectedRecipe = null
+                            selectRecipe(null)
                             servingsText = "1"
                         },
                         modifier = Modifier.weight(1f),
@@ -295,9 +307,9 @@ fun AddFoodSheet(
                             if (servings == null) return@Button
                             val eatenAt = buildEatenAt(logDate, eatenHour, eatenMinute)
                             if (selectedFood != null) {
-                                viewModel.logFood(selectedFood!!, mealType, servings, logDate, eatenAt) { onLogged() }
+                                viewModel.logFood(selectedFood!!, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             } else if (selectedRecipe != null) {
-                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, logDate, eatenAt) { onLogged() }
+                                viewModel.logRecipe(selectedRecipe, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -311,7 +323,7 @@ fun AddFoodSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        stringResource(R.string.add_food_title, mealTypeDisplayName(mealType)),
+                        stringResource(R.string.add_food_title, mealTypeDisplayName(selectedMeal)),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
@@ -328,19 +340,24 @@ fun AddFoodSheet(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Scrollable tabs: five German labels do not fit side by side on a phone.
-                PrimaryScrollableTabRow(
-                    selectedTabIndex = selectedTab,
+                // Dropdowns rather than tabs: five translated sources (and a custom
+                // meal name) do not fit side by side on a phone in German.
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    edgePadding = 0.dp,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    tabLabels.forEachIndexed { index, label ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(label, maxLines = 1) },
-                        )
-                    }
+                    ChoiceDropdown(
+                        selectedLabel = tabLabels[selectedTab],
+                        options = tabLabels.mapIndexed { index, label -> label to index },
+                        onSelect = { selectedTab = it },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ChoiceDropdown(
+                        selectedLabel = mealTypeDisplayName(selectedMeal),
+                        options = (mealTypes + mealType).distinctBy { it.lowercase() }.map { mealTypeDisplayName(it) to it },
+                        onSelect = { selectedMeal = it },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -358,7 +375,7 @@ fun AddFoodSheet(
                                 isSearchingOff,
                                 isResolvingOff,
                                 onSelect = { selectedFood = it },
-                                onSelectRecipe = { selectedRecipe = it },
+                                onSelectRecipe = { selectRecipe(it) },
                             )
                         }
 
@@ -367,7 +384,7 @@ fun AddFoodSheet(
                                 favoriteFoods,
                                 favoriteRecipes,
                                 onSelectFood = { selectedFood = it },
-                                onSelectRecipe = { selectedRecipe = it },
+                                onSelectRecipe = { selectRecipe(it) },
                             )
                         }
 
@@ -376,7 +393,7 @@ fun AddFoodSheet(
                         }
 
                         3 -> {
-                            RecipesTab(recipes, onSearch = viewModel::searchRecipes, onSelect = { selectedRecipe = it })
+                            RecipesTab(recipes, onSearch = viewModel::searchRecipes, onSelect = { selectRecipe(it) })
                         }
 
                         4 -> {
@@ -401,7 +418,7 @@ fun AddFoodSheet(
                                 onNotesChange = { quickNotes = it },
                                 onSave = {
                                     viewModel.logQuickEntry(
-                                        mealType,
+                                        selectedMeal,
                                         logDate,
                                         quickName,
                                         quickCalories.toLocalizedDoubleOrNull(),
