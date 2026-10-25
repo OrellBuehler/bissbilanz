@@ -269,7 +269,7 @@ class WearStatePublisher(
      * on the phone too.
      */
     private fun appLocaleCode(): String {
-        val chosen = AppLanguage.stored(context).takeIf { it != AppLanguage.SYSTEM }
+        val chosen = AppLanguage.current(context).takeIf { it != AppLanguage.SYSTEM }
         val language =
             chosen ?: run {
                 val locales = context.resources.configuration.locales
