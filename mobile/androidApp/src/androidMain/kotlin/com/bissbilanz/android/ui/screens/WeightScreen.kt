@@ -29,7 +29,6 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthSyncPreferences
-import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.tips.HelpSlugs
 import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
@@ -67,7 +66,6 @@ import kotlin.time.Clock
 fun WeightScreen(navController: NavController) {
     val viewModel: WeightViewModel = koinViewModel()
     val weightRepo: WeightRepository = koinInject()
-    val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val tipStore: TipStore = koinInject()
     val healthConnect: HealthConnectService = koinInject()
@@ -134,7 +132,7 @@ fun WeightScreen(navController: NavController) {
                     try {
                         val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
                         weightRepo.createEntry(WeightCreate(weightKg = weight, entryDate = today, notes = notes.ifBlank { null }))
-                        viewModel.refresh()
+                        viewModel.refreshTrend()
                         snackbarHostState.showSnackbar(loggedMessage)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
@@ -158,7 +156,7 @@ fun WeightScreen(navController: NavController) {
                             entry.id,
                             WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
                         )
-                        viewModel.refresh()
+                        viewModel.refreshTrend()
                         snackbarHostState.showSnackbar(updatedMessage)
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
@@ -182,7 +180,7 @@ fun WeightScreen(navController: NavController) {
                         scope.launch {
                             try {
                                 weightRepo.deleteEntry(entry.id)
-                                viewModel.refresh()
+                                viewModel.refreshTrend()
                             } catch (e: Exception) {
                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                 errorReporter.captureException(e)
@@ -224,10 +222,7 @@ fun WeightScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(
-            onRefresh = {
-                refreshManager.refreshAll()
-                viewModel.refreshTrend()
-            },
+            onRefresh = { viewModel.refresh() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             Crossfade(targetState = isLoading, label = "weight") { loading ->
