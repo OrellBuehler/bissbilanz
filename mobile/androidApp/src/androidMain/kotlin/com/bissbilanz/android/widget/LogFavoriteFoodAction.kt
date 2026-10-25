@@ -1,10 +1,12 @@
 package com.bissbilanz.android.widget
 
 import android.content.Context
+import android.widget.Toast
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
@@ -12,7 +14,9 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.resolveDefaultMeal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
@@ -66,6 +70,11 @@ class LogFavoriteFoodAction : ActionCallback {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
+            // The tile reverts without a checkmark either way; only this says the tap failed.
+            val name = parameters[FoodNameKey].orEmpty()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, context.getString(R.string.quick_add_widget_log_failed, name), Toast.LENGTH_SHORT).show()
+            }
         } finally {
             clearLogged(foodId)
             showConfirmation(context)
