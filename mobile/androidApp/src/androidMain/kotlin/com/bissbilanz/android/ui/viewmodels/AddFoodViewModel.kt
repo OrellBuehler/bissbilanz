@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
@@ -73,8 +74,8 @@ class AddFoodViewModel(
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
+    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
 
     private var searchJob: Job? = null
 
@@ -95,7 +96,9 @@ class AddFoodViewModel(
         _query.value = ""
         _searchResults.value = emptyList()
         _recipeResults.value = emptyList()
+        _offResults.value = emptyList()
         _isSearching.value = false
+        _isSearchingOff.value = false
         searchJob?.cancel()
     }
 
@@ -105,16 +108,18 @@ class AddFoodViewModel(
         searchJob =
             viewModelScope.launch {
                 if (newQuery.length >= 2) {
-                    delay(300)
+                    // Searching from the first keystroke, so the debounce never shows
+                    // the previous query's "no results".
                     _isSearching.value = true
                     _offResults.value = emptyList()
+                    delay(300)
                     val results =
                         try {
                             foodRepo.searchFoods(newQuery)
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             errorReporter.captureException(e)
-                            _snackbarMessage.value = "Search failed"
+                            _snackbarMessage.value = FoodSnackbar(R.string.food_search_failed)
                             emptyList()
                         }
                     _searchResults.value = results
@@ -138,6 +143,7 @@ class AddFoodViewModel(
                         }
                     }
                 } else {
+                    _isSearching.value = false
                     _searchResults.value = emptyList()
                     _recipeResults.value = emptyList()
                     _offResults.value = emptyList()
@@ -160,12 +166,12 @@ class AddFoodViewModel(
                     EntryCreate(foodId = food.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     food = food,
                 )
-                _snackbarMessage.value = "Logged ${food.name}"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log food"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -187,12 +193,12 @@ class AddFoodViewModel(
                     EntryCreate(recipeId = recipe.id, mealType = mealType, servings = servings, date = date, eatenAt = eatenAt),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = "Logged ${recipe.name}"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, recipe.name)
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log recipe"
+                _snackbarMessage.value = FoodSnackbar(R.string.recipe_list_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -230,12 +236,12 @@ class AddFoodViewModel(
                         notes = notes?.ifBlank { null },
                     ),
                 )
-                _snackbarMessage.value = "Logged $name"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, name)
                 onComplete()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log entry"
+                _snackbarMessage.value = FoodSnackbar(R.string.add_food_quick_log_failed)
             } finally {
                 _isSaving.value = false
             }
@@ -259,12 +265,12 @@ class AddFoodViewModel(
                 if (food != null) {
                     onResolved(food)
                 } else {
-                    _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                    _snackbarMessage.value = FoodSnackbar(R.string.food_search_off_add_failed)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Couldn't add from Open Food Facts"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_search_off_add_failed)
             } finally {
                 _isResolvingOff.value = false
             }

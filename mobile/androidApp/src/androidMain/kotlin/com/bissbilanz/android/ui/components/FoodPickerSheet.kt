@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.FoodListItem
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
+import com.bissbilanz.android.ui.viewmodels.text
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -97,8 +98,9 @@ fun FoodPickerSheet(
         if (initialQuery.isNotBlank()) viewModel.updateQuery(initialQuery)
     }
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
+    val snackbarText = snackbarMessage?.text()
+    LaunchedEffect(snackbarText) {
+        snackbarText?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }

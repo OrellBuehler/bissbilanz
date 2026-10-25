@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -25,7 +26,12 @@ class FoodSearchViewModel(
     private val entryRepo: EntryRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    val recentFoods: StateFlow<List<Food>> = foodRepo.recentFoods
+    // The server's recents lag a favorite toggled here until its sync op uploads.
+    private val favoriteOverrides = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
+    val recentFoods: StateFlow<List<Food>> =
+        combine(foodRepo.recentFoods, favoriteOverrides) { foods, overrides -> foods.withFavorites(overrides) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), foodRepo.recentFoods.value)
 
     val favoriteFoods: StateFlow<List<Food>> =
         foodRepo
@@ -73,8 +79,8 @@ class FoodSearchViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<FoodSnackbar?>(null)
+    val snackbarMessage: StateFlow<FoodSnackbar?> = _snackbarMessage.asStateFlow()
 
     private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
     val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
@@ -90,7 +96,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load recent foods"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_search_load_recent_failed)
             }
         }
     }
@@ -113,13 +119,15 @@ class FoodSearchViewModel(
     private suspend fun fetchNextPage() {
         try {
             val response = foodRepo.fetchFoodsPaginated(pageSize, allFoodsOffset)
-            _allFoods.value = _allFoods.value + response.foods
+            // Offset paging over a name-sorted list repeats a food when one is added or
+            // renamed between pages; the list is keyed by id, so drop the repeat.
+            _allFoods.value = (_allFoods.value + response.foods).distinctBy { it.id }
             allFoodsOffset += response.foods.size
             _canLoadMore.value = allFoodsOffset < response.total
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            _snackbarMessage.value = "Failed to load foods"
+            _snackbarMessage.value = FoodSnackbar(R.string.food_search_load_failed)
         }
         _isLoadingMore.value = false
     }
@@ -130,16 +138,18 @@ class FoodSearchViewModel(
         searchJob =
             viewModelScope.launch {
                 if (newQuery.length >= 2) {
-                    delay(300)
+                    // Searching from the first keystroke, so the debounce never shows
+                    // the previous query's "no results".
                     _isSearching.value = true
                     _offResults.value = emptyList()
+                    delay(300)
                     val results =
                         try {
                             foodRepo.searchFoods(newQuery)
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             errorReporter.captureException(e)
-                            _snackbarMessage.value = "Search failed"
+                            _snackbarMessage.value = FoodSnackbar(R.string.food_search_failed)
                             emptyList()
                         }
                     _searchResults.value = results
@@ -155,6 +165,7 @@ class FoodSearchViewModel(
                         }
                     }
                 } else {
+                    _isSearching.value = false
                     _searchResults.value = emptyList()
                     _offResults.value = emptyList()
                 }
@@ -195,26 +206,40 @@ class FoodSearchViewModel(
                     ),
                     food = food,
                 )
-                _snackbarMessage.value = "Logged ${food.name}"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_logged, food.name)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to log food"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_detail_log_failed)
             }
         }
     }
 
     fun toggleFavorite(food: Food) {
+        val isFavorite = !food.isFavorite
         viewModelScope.launch {
             try {
-                foodRepo.toggleFavorite(food.id, !food.isFavorite)
-                refresh()
+                foodRepo.toggleFavorite(food.id, isFavorite)
+                // In place rather than reloading: a reload would scroll the All tab
+                // back to the top, and a stale row would make the next toggle a no-op.
+                val overrides = mapOf(food.id to isFavorite)
+                favoriteOverrides.value += overrides
+                _allFoods.value = _allFoods.value.withFavorites(overrides)
+                _searchResults.value = _searchResults.value.withFavorites(overrides)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
+                _snackbarMessage.value = FoodSnackbar(R.string.food_search_favorite_failed)
             }
         }
     }
+
+    private fun List<Food>.withFavorites(overrides: Map<String, Boolean>): List<Food> =
+        if (overrides.isEmpty()) {
+            this
+        } else {
+            map { food -> overrides[food.id]?.let { food.copy(isFavorite = it) } ?: food }
+        }
 
     /**
      * Copy-on-use: an Open Food Facts hit becomes a food in the user's database
@@ -261,7 +286,7 @@ class FoodSearchViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to refresh"
+                _snackbarMessage.value = FoodSnackbar(R.string.food_search_refresh_failed)
             }
         }
         if (_selectedTab.value == TAB_ALL) loadAllFoods()

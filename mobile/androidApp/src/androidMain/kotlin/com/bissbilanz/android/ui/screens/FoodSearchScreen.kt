@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,9 +49,11 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.openFoodFactsSection
+import com.bissbilanz.android.ui.components.rememberJsonStateSaver
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
+import com.bissbilanz.android.ui.viewmodels.text
 import com.bissbilanz.model.Food
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -81,18 +84,19 @@ fun FoodSearchScreen(navController: NavController) {
     val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
-    var foodToLog by remember { mutableStateOf<Food?>(null) }
-    var showCreateFoodSheet by remember { mutableStateOf(false) }
-    var showCreateRecipeSheet by remember { mutableStateOf(false) }
+    var foodToLog by rememberSaveable(stateSaver = rememberJsonStateSaver<Food>()) { mutableStateOf<Food?>(null) }
+    var showCreateFoodSheet by rememberSaveable { mutableStateOf(false) }
+    var showCreateRecipeSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateMenu by remember { mutableStateOf(false) }
-    var foodToEdit by remember { mutableStateOf<Food?>(null) }
+    var foodToEditId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         PendingNavigation.consumeFoodQuery()?.let { viewModel.updateQuery(it) }
     }
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
+    val snackbarText = snackbarMessage?.text()
+    LaunchedEffect(snackbarText) {
+        snackbarText?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
@@ -129,12 +133,12 @@ fun FoodSearchScreen(navController: NavController) {
         )
     }
 
-    foodToEdit?.let { food ->
+    foodToEditId?.let { id ->
         FoodEditSheet(
-            foodId = food.id,
-            onDismiss = { foodToEdit = null },
+            foodId = id,
+            onDismiss = { foodToEditId = null },
             onSaved = {
-                foodToEdit = null
+                foodToEditId = null
                 viewModel.refresh()
             },
         )
@@ -257,7 +261,7 @@ fun FoodSearchScreen(navController: NavController) {
                         if (searching) {
                             FoodSearchSkeleton()
                         } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
-                            EmptyState(stringResource(R.string.food_search_no_results, query))
+                            PullableEmptyState(stringResource(R.string.food_search_no_results, query))
                         } else {
                             LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                 items(searchResults, key = { it.id }) { food ->
@@ -268,7 +272,7 @@ fun FoodSearchScreen(navController: NavController) {
                                             haptic(HapticFeedbackType.LongPress)
                                             foodToLog = food
                                         },
-                                        onEdit = { foodToEdit = food },
+                                        onEdit = { foodToEditId = food.id },
                                         onToggleFavorite = { viewModel.toggleFavorite(food) },
                                         modifier = Modifier.animateItem(),
                                     )
@@ -332,7 +336,7 @@ fun FoodSearchScreen(navController: NavController) {
                                     haptic(HapticFeedbackType.LongPress)
                                     foodToLog = food
                                 },
-                                onEdit = { foodToEdit = food },
+                                onEdit = { foodToEditId = food.id },
                                 onToggleFavorite = { viewModel.toggleFavorite(food) },
                                 modifier = Modifier.animateItem(),
                             )
@@ -342,7 +346,7 @@ fun FoodSearchScreen(navController: NavController) {
                     when (selectedTab) {
                         FoodSearchViewModel.TAB_RECENT -> {
                             if (recentFoods.isEmpty()) {
-                                EmptyState(stringResource(R.string.food_search_no_recent))
+                                PullableEmptyState(stringResource(R.string.food_search_no_recent))
                             } else {
                                 LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                     foodItems(recentFoods)
@@ -351,7 +355,7 @@ fun FoodSearchScreen(navController: NavController) {
                         }
                         FoodSearchViewModel.TAB_FAVORITES -> {
                             if (favoriteFoods.isEmpty()) {
-                                EmptyState(stringResource(R.string.favorites_no_foods))
+                                PullableEmptyState(stringResource(R.string.favorites_no_foods))
                             } else {
                                 LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                     foodItems(favoriteFoods)
@@ -360,7 +364,7 @@ fun FoodSearchScreen(navController: NavController) {
                         }
                         else -> {
                             if (allFoods.isEmpty() && !isLoadingMore) {
-                                EmptyState(stringResource(R.string.food_search_no_foods))
+                                PullableEmptyState(stringResource(R.string.food_search_no_foods))
                             } else {
                                 LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                                     foodItems(allFoods)
@@ -381,6 +385,14 @@ fun FoodSearchScreen(navController: NavController) {
                 }
             }
         }
+    }
+}
+
+/** An empty state inside a scrollable, so pull-to-refresh still reaches it. */
+@Composable
+private fun PullableEmptyState(message: String) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item { Box(modifier = Modifier.fillParentMaxSize()) { EmptyState(message) } }
     }
 }
 

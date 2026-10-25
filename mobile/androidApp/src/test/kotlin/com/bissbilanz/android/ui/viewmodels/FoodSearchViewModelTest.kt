@@ -133,6 +133,62 @@ class FoodSearchViewModelTest {
             coVerify(atLeast = 2) { foodRepo.fetchFoodsPaginated(any(), 0) }
         }
 
+    @Test
+    fun searchingStartsBeforeTheDebounceSoNoStaleEmptyStateFlashes() =
+        runTest {
+            coEvery { foodRepo.searchFoods("apple") } returns listOf(testFood())
+
+            val vm = viewModel()
+            vm.updateQuery("apple")
+
+            assertEquals(true, vm.isSearching.value)
+            advanceUntilIdle()
+            assertEquals(false, vm.isSearching.value)
+        }
+
+    @Test
+    fun aFoodRepeatedOnTheNextPageIsListedOnce() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPaginated(any(), 0) } returns
+                FoodsListResponse(foods = listOf(testFood("a"), testFood("b")), total = 4)
+            coEvery { foodRepo.fetchFoodsPaginated(any(), 2) } returns
+                FoodsListResponse(foods = listOf(testFood("b"), testFood("c")), total = 4)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.loadMoreFoods()
+            advanceUntilIdle()
+
+            assertEquals(listOf("a", "b", "c"), vm.allFoods.value.map { it.id })
+        }
+
+    @Test
+    fun togglingAFavoriteUpdatesTheListInPlaceWithoutReloading() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPaginated(any(), 0) } returns
+                FoodsListResponse(foods = listOf(testFood("a"), testFood("b")), total = 2)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.toggleFavorite(vm.allFoods.value.first())
+            advanceUntilIdle()
+
+            assertEquals(listOf(true, false), vm.allFoods.value.map { it.isFavorite })
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", true) }
+            coVerify(exactly = 1) { foodRepo.fetchFoodsPaginated(any(), 0) }
+
+            vm.toggleFavorite(vm.allFoods.value.first())
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", false) }
+            assertEquals(
+                false,
+                vm.allFoods.value
+                    .first()
+                    .isFavorite,
+            )
+        }
+
     private fun offProduct() =
         OpenFoodFactsProduct(
             id = "4000000000001",
