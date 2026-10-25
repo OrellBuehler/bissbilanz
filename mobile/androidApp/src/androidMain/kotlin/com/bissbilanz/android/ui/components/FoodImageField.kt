@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.images.FoodImageUploader
@@ -44,9 +49,13 @@ import com.bissbilanz.android.util.requireUprightBitmap
 import com.bissbilanz.android.util.toUploadBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
+import java.util.UUID
 
 /**
  * The server thumbnails to 512×512, so 800 px leaves headroom for a future
@@ -55,6 +64,54 @@ import org.koin.compose.koinInject
  */
 private const val MAX_UPLOAD_DIMENSION = 800
 private const val UPLOAD_QUALITY = 85
+
+/**
+ * Runs a [FoodImageField] upload outside composition, so rotating the screen (or any
+ * other recreation of the form) neither cancels it nor loses the URL it produces.
+ */
+internal class FoodImageUploadViewModel(
+    private val uploader: FoodImageUploader,
+    private val errorReporter: ErrorReporter,
+) : ViewModel() {
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
+
+    /** The finished upload's URL, until the field has handed it to the form. */
+    private val _uploadedUrl = MutableStateFlow<String?>(null)
+    val uploadedUrl: StateFlow<String?> = _uploadedUrl.asStateFlow()
+
+    private val _failed = MutableStateFlow(false)
+    val failed: StateFlow<Boolean> = _failed.asStateFlow()
+
+    fun upload(
+        cropped: Bitmap,
+        transparent: Boolean,
+    ) {
+        if (_isUploading.value) return
+        _isUploading.value = true
+        _failed.value = false
+        viewModelScope.launch {
+            try {
+                val encoded =
+                    withContext(Dispatchers.IO) {
+                        cropped.toUploadBytes(MAX_UPLOAD_DIMENSION, UPLOAD_QUALITY, transparent)
+                    }
+                _uploadedUrl.value = uploader.store(encoded.bytes, format = encoded.format)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorReporter.captureException(e)
+                _failed.value = true
+            } finally {
+                _isUploading.value = false
+            }
+        }
+    }
+
+    fun consumeUploadedUrl() {
+        _uploadedUrl.value = null
+    }
+}
 
 /**
  * The image row of a food or recipe form: shows the current photo, and offers
@@ -77,24 +134,40 @@ fun FoodImageField(
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
+    // One upload holder per field, found again after recreation by its saved key.
+    val uploadKey = rememberSaveable { UUID.randomUUID().toString() }
+    val uploads = viewModel(key = "food-image-$uploadKey") { FoodImageUploadViewModel(uploader, errorReporter) }
+    val uploadInFlight by uploads.isUploading.collectAsStateWithLifecycle()
+    val uploadedUrl by uploads.uploadedUrl.collectAsStateWithLifecycle()
+    val uploadFailedFlag by uploads.failed.collectAsStateWithLifecycle()
+    // Still "uploading" until the URL has reached the form, so Save never runs without it.
+    val isUploading = uploadInFlight || uploadedUrl != null
+
     // Saveable: the camera app can outlive this process, and the result must still
     // know where the photo went.
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var cropCandidate by remember { mutableStateOf<Bitmap?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var readFailedFlag by remember { mutableStateOf(false) }
     val currentOnUploadingChange by rememberUpdatedState(onUploadingChange)
+    val currentOnImageUrlChange by rememberUpdatedState(onImageUrlChange)
 
-    fun setUploading(value: Boolean) {
-        isUploading = value
-        currentOnUploadingChange(value)
+    LaunchedEffect(isUploading) { currentOnUploadingChange(isUploading) }
+    LaunchedEffect(uploadedUrl) {
+        uploadedUrl?.let {
+            currentOnImageUrlChange(it)
+            uploads.consumeUploadedUrl()
+        }
     }
 
-    val uploadFailed = stringResource(R.string.food_image_upload_failed)
-    val readFailed = stringResource(R.string.photo_read_failed)
+    val errorMessage =
+        when {
+            readFailedFlag -> stringResource(R.string.photo_read_failed)
+            uploadFailedFlag -> stringResource(R.string.food_image_upload_failed)
+            else -> null
+        }
 
     fun load(uri: Uri) {
-        errorMessage = null
+        readFailedFlag = false
         scope.launch {
             try {
                 cropCandidate = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
@@ -102,7 +175,7 @@ fun FoodImageField(
                 throw e
             } catch (e: Exception) {
                 errorReporter.captureException(e)
-                errorMessage = readFailed
+                readFailedFlag = true
             }
         }
     }
@@ -121,23 +194,8 @@ fun FoodImageField(
         transparent: Boolean,
     ) {
         cropCandidate = null
-        setUploading(true)
-        errorMessage = null
-        scope.launch {
-            try {
-                val encoded =
-                    withContext(Dispatchers.IO) {
-                        cropped.toUploadBytes(MAX_UPLOAD_DIMENSION, UPLOAD_QUALITY, transparent)
-                    }
-                onImageUrlChange(uploader.store(encoded.bytes, format = encoded.format))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                errorReporter.captureException(e)
-                errorMessage = uploadFailed
-            }
-            setUploading(false)
-        }
+        readFailedFlag = false
+        uploads.upload(cropped, transparent)
     }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {

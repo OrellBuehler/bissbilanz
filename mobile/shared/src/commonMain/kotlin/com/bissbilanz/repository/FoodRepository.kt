@@ -59,6 +59,17 @@ class FoodMergeUnavailableException(
     message: String,
 ) : Exception(message)
 
+/**
+ * A page of the all-foods list. [fromCache] is set when the server could not be reached
+ * and the page came from the local mirror instead, so a pager knows to restart against
+ * the mirror rather than append a cached page to server pages.
+ */
+data class FoodsPage(
+    val foods: List<Food>,
+    val total: Int,
+    val fromCache: Boolean = false,
+)
+
 class FoodRepository(
     private val api: BissbilanzApi,
     private val db: UserDataDatabase,
@@ -108,20 +119,46 @@ class FoodRepository(
         offset: Int = 0,
     ): FoodsListResponse {
         if (appModeManager.isLocal) return cachedFoodsPage(limit, offset)
-        val response =
-            try {
-                api.getFoodsPaginated(limit, offset)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                return cachedFoodsPage(limit, offset)
-            }
-        // A food with a queued edit (e.g. a favorite toggled a moment ago) keeps its
-        // local version: the server's copy predates the change.
+        val response = api.getFoodsPaginated(limit, offset)
         val pendingIds = pendingFoodIds()
-        val foods = response.foods.map { food -> if (food.id in pendingIds) getFoodCached(food.id) ?: food else food }
-        withContext(ioDispatcher) { cacheFoods(foods.filter { it.id !in pendingIds }) }
-        return response.copy(foods = foods)
+        withContext(ioDispatcher) { cacheFoods(response.foods.filter { it.id !in pendingIds }) }
+        return response.copy(foods = withPendingChanges(response.foods))
+    }
+
+    /**
+     * [fetchFoodsPaginated] for the all-foods list: when the server is unreachable (offline,
+     * a timeout, a gateway error) the page comes from the local mirror, marked [FoodsPage.fromCache].
+     * Any other failure (401, 500, a decoding error) is thrown, so the caller can say so.
+     * [cacheOnly] reads the mirror without trying the server, for the pages after a fallback.
+     */
+    suspend fun fetchFoodsPage(
+        limit: Int = 20,
+        offset: Int = 0,
+        cacheOnly: Boolean = false,
+    ): FoodsPage {
+        if (appModeManager.isLocal) return cachedFoodsPage(limit, offset).toPage(fromCache = false)
+        if (cacheOnly) return cachedFoodsPage(limit, offset).toPage(fromCache = true)
+        return try {
+            fetchFoodsPaginated(limit, offset).toPage(fromCache = false)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            if (!e.isConnectivityFailure()) throw e
+            errorReporter.captureException(e)
+            cachedFoodsPage(limit, offset).toPage(fromCache = true)
+        }
+    }
+
+    private fun FoodsListResponse.toPage(fromCache: Boolean) = FoodsPage(foods, total, fromCache)
+
+    private fun Throwable.isConnectivityFailure(): Boolean {
+        if (!connectivityProvider.isOnline.value) return true
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is ApiException) return current.statusCode in UNREACHABLE_STATUSES
+            if (current is kotlinx.io.IOException) return true
+            current = current.cause
+        }
+        return false
     }
 
     private suspend fun cachedFoodsPage(
@@ -159,11 +196,13 @@ class FoodRepository(
         var cursor: String? = null
         var pages = 0
         var exhausted = false
+        // A queued edit or delete is newer than anything the feed returns for that food.
+        val pendingIds = pendingFoodIds()
         while (pages < maxPages) {
             pages++
             val page = api.getFoodsDelta(modifiedSince = if (cursor == null) since else null, after = cursor, limit = pageSize)
             val pageNewest = page.foods.mapNotNull { food -> food.serverModifiedAt?.let { Instant.parse(it) } }.maxOrNull()
-            withContext(ioDispatcher) { cacheFoods(page.foods) }
+            withContext(ioDispatcher) { cacheFoods(page.foods.filter { it.id !in pendingIds }) }
             if (pageNewest != null && (newest == null || pageNewest > newest)) {
                 newest = pageNewest
                 cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(FOODS_CHECKPOINT_KEY, pageNewest.toString())
@@ -237,14 +276,38 @@ class FoodRepository(
                     ?.state == "pending"
             }
 
-    /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
-    private suspend fun pendingFoodIds(): Set<String> =
+    /** Un-uploaded (queued or in-flight) sync operations on foods, oldest first. */
+    private suspend fun pendingFoodOps(): List<SyncOperation> =
         syncQueue
             .all()
-            .asSequence()
-            .filter { it.operation.affectedTable == "foods" }
-            .mapNotNull { it.operation.affectedId }
-            .toSet()
+            .map { it.operation }
+            .filter { it.affectedTable == "foods" }
+
+    /** Food ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingFoodIds(): Set<String> = pendingFoodOps().mapNotNull { it.affectedId }.toSet()
+
+    /**
+     * Server foods with this device's not-yet-uploaded changes applied: a queued delete
+     * drops the food, a queued edit shows the local copy, and a queued favorite toggle
+     * wins over the server's flag (it is newer, even for a food that is not cached).
+     */
+    private suspend fun withPendingChanges(foods: List<Food>): List<Food> {
+        val ops = pendingFoodOps()
+        if (ops.isEmpty()) return foods
+        val deleted = ops.filterIsInstance<SyncOperation.DeleteFood>().map { it.id }.toSet()
+        val favorites = ops.filterIsInstance<SyncOperation.ToggleFavorite>().associate { it.id to it.isFavorite }
+        val pending = ops.mapNotNull { it.affectedId }.toSet()
+        return foods.mapNotNull { food ->
+            when (food.id) {
+                in deleted -> null
+                in pending -> {
+                    val local = getFoodCached(food.id) ?: food
+                    favorites[food.id]?.let { local.copy(isFavorite = it) } ?: local
+                }
+                else -> food
+            }
+        }
+    }
 
     suspend fun refreshFavorites() {
         if (appModeManager.isLocal) return
@@ -275,7 +338,7 @@ class FoodRepository(
             _recentFoods.value = localRecentFoods(limit)
             return
         }
-        _recentFoods.value =
+        val recents =
             api.getRecentFoods(limit).map { recent ->
                 Food(
                     id = recent.id,
@@ -298,6 +361,7 @@ class FoodRepository(
                     imageUrl = recent.imageUrl,
                 )
             }
+        _recentFoods.value = withPendingChanges(recents)
     }
 
     suspend fun getFood(id: String): Food {
@@ -385,6 +449,7 @@ class FoodRepository(
         } else if (!isLocalOnly(id)) {
             syncQueue.enqueue(SyncOperation.ToggleFavorite(id, isFavorite))
         }
+        _recentFoods.value = _recentFoods.value.map { if (it.id == id) it.copy(isFavorite = isFavorite) else it }
         onFoodChanged?.invoke()
         return updated
     }
@@ -711,7 +776,7 @@ class FoodRepository(
     suspend fun searchFoods(query: String): List<Food> {
         if (appModeManager.isLocal) return searchFoodsCached(query)
         return try {
-            withUnsyncedBulkFoods(api.searchFoods(query), query)
+            withUnsyncedBulkFoods(withPendingChanges(api.searchFoods(query)), query)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -965,5 +1030,8 @@ class FoodRepository(
         private val PRUNE_INTERVAL = 24.hours
         private const val FOODS_CHECKPOINT_KEY = "foods_delta_checkpoint"
         private const val FOODS_PRUNE_KEY = "foods_last_prune"
+
+        /** A proxy's "server unreachable" answers (a deploy restart, an upstream outage). */
+        private val UNREACHABLE_STATUSES = setOf(502, 503, 504)
     }
 }

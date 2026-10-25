@@ -657,6 +657,7 @@
     <string name="food_form_remove_nutrient">Remove nutrient</string>
     <string name="food_form_hide_advanced">Hide advanced nutrients</string>
     <string name="food_form_load_failed">Failed to load food</string>
+    <string name="food_form_deleted">This food no longer exists.</string>
     <string name="food_form_name_required_error">Name is required</string>
     <string name="food_form_required_fields_error">Calories, protein, carbs, fat, and serving size are required</string>
     <string name="food_form_save_failed">Failed to save food</string>

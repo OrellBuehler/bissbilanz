@@ -212,7 +212,7 @@ selectAllFoods:
 SELECT * FROM CachedFood ORDER BY name;
 
 selectFoodsPage:
-SELECT * FROM CachedFood ORDER BY name, id LIMIT :limit OFFSET :offset;
+SELECT * FROM CachedFood ORDER BY name COLLATE NOCASE, id LIMIT :limit OFFSET :offset;
 
 selectFoodsAfterId:
 SELECT * FROM CachedFood WHERE id > :afterId ORDER BY id LIMIT :limit;

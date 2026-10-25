@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.components
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,7 +34,6 @@ import com.bissbilanz.model.FoodCreate
 import com.bissbilanz.model.ServingUnit
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.util.MAX_LABELS_PER_FOOD
-import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.withNutrients
@@ -115,6 +116,8 @@ fun FoodEditSheet(
     var showLabelScanner by remember { mutableStateOf(false) }
 
     val loadFailedMessage = stringResource(R.string.food_form_load_failed)
+    val foodDeletedMessage = stringResource(R.string.food_form_deleted)
+    val context = LocalContext.current
     val nameRequiredMessage = stringResource(R.string.food_form_name_required_error)
     val requiredFieldsMessage = stringResource(R.string.food_form_required_fields_error)
     val saveFailedMessage = stringResource(R.string.food_form_save_failed)
@@ -180,6 +183,14 @@ fun FoodEditSheet(
             return
         }
         val fiberVal = fiber.toLocalizedDoubleOrNull() ?: 0.0
+
+        // A draft restored after process death can outlive its food (deleted on
+        // another screen or device meanwhile); saving would recreate nothing useful.
+        if (foodId != null && foodRepo.getFoodCached(foodId) == null) {
+            Toast.makeText(context, foodDeletedMessage, Toast.LENGTH_LONG).show()
+            close()
+            return
+        }
 
         // Per-100 input is normalized to the serving in grams/millilitres first (33 cl
         // is 330 ml), then scaled by servingInBase/100. Per-serving input keeps factor 1.
@@ -267,26 +278,26 @@ fun FoodEditSheet(
         servingSize = "100"
         servingUnit = if (parsed.isVolume) ServingUnit.ml else ServingUnit.g
         perHundredBasis = true
-        parsed.calories?.let { calories = it.formatNutrient() }
-        parsed.protein?.let { protein = it.formatNutrient() }
-        parsed.carbs?.let { carbs = it.formatNutrient() }
-        parsed.fat?.let { fat = it.formatNutrient() }
-        parsed.fiber?.let { fiber = it.formatNutrient() }
+        parsed.calories?.let { calories = it.toEditableString() }
+        parsed.protein?.let { protein = it.toEditableString() }
+        parsed.carbs?.let { carbs = it.toEditableString() }
+        parsed.fat?.let { fat = it.toEditableString() }
+        parsed.fiber?.let { fiber = it.toEditableString() }
         var hasAdvanced = false
         parsed.sugar?.let {
-            sugar = it.formatNutrient()
+            sugar = it.toEditableString()
             hasAdvanced = true
         }
         parsed.saturatedFat?.let {
-            saturatedFat = it.formatNutrient()
+            saturatedFat = it.toEditableString()
             hasAdvanced = true
         }
         parsed.sodium?.let {
-            sodium = it.formatNutrient()
+            sodium = it.toEditableString()
             hasAdvanced = true
         }
         parsed.salt?.let {
-            salt = it.formatNutrient()
+            salt = it.toEditableString()
             hasAdvanced = true
         }
         if (hasAdvanced) showAdvanced = true
@@ -295,6 +306,8 @@ fun FoodEditSheet(
     ModalBottomSheet(
         onDismissRequest = { close() },
         sheetState = sheetState,
+        // confirmValueChange covers swipe and scrim; Back goes straight to the dialog.
+        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !isBusy),
     ) {
         if (isLoading) {
             Box(

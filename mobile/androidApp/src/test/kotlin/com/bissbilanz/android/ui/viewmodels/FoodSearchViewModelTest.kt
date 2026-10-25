@@ -3,14 +3,15 @@ package com.bissbilanz.android.ui.viewmodels
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
-import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.FoodsPage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +42,7 @@ class FoodSearchViewModelTest {
                 every { recentFoods } returns MutableStateFlow(emptyList())
                 every { favorites() } returns flowOf(emptyList())
             }
-        coEvery { foodRepo.fetchFoodsPaginated(any(), any()) } returns FoodsListResponse(foods = emptyList(), total = 0)
+        coEvery { foodRepo.fetchFoodsPage(any(), any(), any()) } returns FoodsPage(foods = emptyList(), total = 0)
         entryRepo = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
     }
@@ -130,7 +131,7 @@ class FoodSearchViewModelTest {
             vm.resetSearch()
             advanceUntilIdle()
 
-            coVerify(atLeast = 2) { foodRepo.fetchFoodsPaginated(any(), 0) }
+            coVerify(atLeast = 2) { foodRepo.fetchFoodsPage(any(), 0, any()) }
         }
 
     @Test
@@ -149,10 +150,10 @@ class FoodSearchViewModelTest {
     @Test
     fun aFoodRepeatedOnTheNextPageIsListedOnce() =
         runTest {
-            coEvery { foodRepo.fetchFoodsPaginated(any(), 0) } returns
-                FoodsListResponse(foods = listOf(testFood("a"), testFood("b")), total = 4)
-            coEvery { foodRepo.fetchFoodsPaginated(any(), 2) } returns
-                FoodsListResponse(foods = listOf(testFood("b"), testFood("c")), total = 4)
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 4)
+            coEvery { foodRepo.fetchFoodsPage(any(), 2, any()) } returns
+                FoodsPage(foods = listOf(testFood("b"), testFood("c")), total = 4)
 
             val vm = viewModel()
             advanceUntilIdle()
@@ -165,8 +166,8 @@ class FoodSearchViewModelTest {
     @Test
     fun togglingAFavoriteUpdatesTheListInPlaceWithoutReloading() =
         runTest {
-            coEvery { foodRepo.fetchFoodsPaginated(any(), 0) } returns
-                FoodsListResponse(foods = listOf(testFood("a"), testFood("b")), total = 2)
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 2)
 
             val vm = viewModel()
             advanceUntilIdle()
@@ -175,7 +176,7 @@ class FoodSearchViewModelTest {
 
             assertEquals(listOf(true, false), vm.allFoods.value.map { it.isFavorite })
             coVerify(exactly = 1) { foodRepo.toggleFavorite("a", true) }
-            coVerify(exactly = 1) { foodRepo.fetchFoodsPaginated(any(), 0) }
+            coVerify(exactly = 1) { foodRepo.fetchFoodsPage(any(), 0, any()) }
 
             vm.toggleFavorite(vm.allFoods.value.first())
             advanceUntilIdle()
@@ -187,6 +188,42 @@ class FoodSearchViewModelTest {
                     .first()
                     .isFavorite,
             )
+        }
+
+    @Test
+    fun aCacheFallbackMidListRestartsTheListFromTheCache() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, false) } returns
+                FoodsPage(foods = listOf(testFood("a"), testFood("b")), total = 4)
+            coEvery { foodRepo.fetchFoodsPage(any(), 2, false) } returns
+                FoodsPage(foods = listOf(testFood("x")), total = 3, fromCache = true)
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, true) } returns
+                FoodsPage(foods = listOf(testFood("c"), testFood("d")), total = 3, fromCache = true)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.loadMoreFoods()
+            advanceUntilIdle()
+
+            assertEquals(listOf("c", "d"), vm.allFoods.value.map { it.id })
+        }
+
+    @Test
+    fun aSecondFavoriteTapWhileTheFirstIsRunningIsIgnored() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            coEvery { foodRepo.toggleFavorite(any(), any()) } coAnswers {
+                gate.await()
+                null
+            }
+
+            val vm = viewModel()
+            vm.toggleFavorite(testFood("a"))
+            vm.toggleFavorite(testFood("a"))
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { foodRepo.toggleFavorite("a", true) }
         }
 
     private fun offProduct() =

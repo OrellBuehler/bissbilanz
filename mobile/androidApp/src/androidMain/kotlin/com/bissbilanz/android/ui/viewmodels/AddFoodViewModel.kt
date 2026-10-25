@@ -50,6 +50,8 @@ class AddFoodViewModel(
 
     suspend fun searchRecipes(query: String): List<Recipe> = recipeRepo.searchRecipes(query)
 
+    fun cachedRecipe(id: String): Recipe? = recipeRepo.getRecipeCached(id)
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 

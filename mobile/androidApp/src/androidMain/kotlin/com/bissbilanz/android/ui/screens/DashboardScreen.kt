@@ -155,7 +155,8 @@ fun DashboardScreen(navController: NavController) {
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showAiMealSheet by remember { mutableStateOf(false) }
     var fabMenuExpanded by remember { mutableStateOf(false) }
-    var createFoodBarcode by remember { mutableStateOf<String?>(null) }
+    var createFoodBarcode by androidx.compose.runtime.saveable
+        .rememberSaveable { mutableStateOf<String?>(null) }
     var addFoodForMeal by androidx.compose.runtime.saveable
         .rememberSaveable { mutableStateOf<String?>(null) }
 
