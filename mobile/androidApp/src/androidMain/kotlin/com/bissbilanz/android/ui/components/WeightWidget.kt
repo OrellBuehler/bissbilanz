@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.toLocalizedDoubleOrNull
@@ -81,7 +82,7 @@ fun WeightWidget(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    latestEntry.entryDate,
+                    formatIsoDate(latestEntry.entryDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
