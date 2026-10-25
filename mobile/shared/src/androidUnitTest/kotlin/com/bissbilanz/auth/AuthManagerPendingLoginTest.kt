@@ -64,6 +64,37 @@ class AuthManagerPendingLoginTest {
         }
 
     @Test
+    fun aWrongStateAfterRestartIsRejectedAndKeepsTheAttempt() {
+        manager().buildLoginUrl("state-3")
+        val restarted = manager()
+
+        assertFalse(restarted.validateState("forged"))
+        assertEquals("state-3", stored["oauth_pending_state"])
+        assertTrue(restarted.validateState("state-3"))
+    }
+
+    @Test
+    fun clearingThePendingLoginForgetsIt() {
+        val auth = manager()
+        auth.buildLoginUrl("state-4")
+
+        auth.clearPendingLogin()
+
+        assertFalse(auth.validateState("state-4"))
+        assertFalse(stored.containsKey("oauth_pending_code_verifier"))
+    }
+
+    @Test
+    fun logoutDropsAPendingLogin() {
+        val auth = manager()
+        auth.buildLoginUrl("state-5")
+
+        auth.logout()
+
+        assertFalse(manager().validateState("state-5"))
+    }
+
+    @Test
     fun aCompletedLoginLeavesNoPendingAttemptBehind() =
         runBlocking {
             val auth = manager()

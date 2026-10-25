@@ -51,8 +51,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // A restored activity (rotation, process death) gets its launch intent again; a shared file
-        // it carried has been handled once already and its read grant may be gone.
-        handleIntent(intent, isFreshLaunch = savedInstanceState == null)
+        // it carried has been handled once already and its read grant may be gone. Reopening from
+        // Recents after back finished the task (API 26-30) replays the same intent without saved
+        // state, so it is flagged as launched from history instead.
+        val fromHistory = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        handleIntent(intent, isFreshLaunch = savedInstanceState == null && !fromHistory)
         setContent {
             BissbilanzApp()
         }
@@ -118,7 +121,12 @@ class MainActivity : ComponentActivity() {
                 Log.w("MainActivity", "OAuth state validation failed, ignoring callback")
                 return
             }
-            val code = uri.getQueryParameter("code") ?: return
+            // No code (e.g. error=access_denied): the attempt is over, drop its verifier.
+            val code =
+                uri.getQueryParameter("code") ?: run {
+                    authManager.clearPendingLogin()
+                    return
+                }
             // Resolved here: this activity's context carries the in-app language below API 33.
             val failedMessage = getString(R.string.login_failed)
             // App-scoped so a rotation or a finished activity does not cancel the code exchange.

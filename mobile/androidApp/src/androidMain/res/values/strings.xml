@@ -1328,7 +1328,7 @@
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Sign in again</string>
-    <string name="settings_sign_in_choose_provider">Sign in with</string>
+    <string name="settings_sign_in_choose_provider">Choose sign-in method</string>
 
     <!-- Settings: biological sex (nutrient-gap reference intakes) -->
     <string name="settings_biological_sex">Biological sex</string>
@@ -1339,7 +1339,7 @@
     <string name="settings_preference_update_failed">Failed to update preference</string>
     <string name="settings_goals_updated">Goals updated</string>
     <string name="settings_goals_update_failed">Failed to update goals</string>
-    <string name="settings_calorie_goal_invalid">Enter a calorie goal above 0</string>
+    <string name="settings_calorie_goal_invalid">Enter a whole number above 0, e.g. 1800</string>
     <string name="settings_meal_assignment_updated">Meal assignment updated</string>
     <string name="settings_nutrients_updated">Visible nutrients updated</string>
     <string name="settings_nutrients_update_failed">Failed to update nutrients</string>

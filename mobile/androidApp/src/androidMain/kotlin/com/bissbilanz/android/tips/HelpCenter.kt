@@ -29,7 +29,7 @@ private const val HELP_BASE_URL = "https://bissbilanz.orellbuehler.ch"
  * the device locale when it follows the system.
  */
 private fun effectiveLanguage(context: Context): String {
-    val tag = AppLanguage.stored(context)
+    val tag = AppLanguage.current(context)
     return if (tag == AppLanguage.SYSTEM) Locale.getDefault().language else tag
 }
 
