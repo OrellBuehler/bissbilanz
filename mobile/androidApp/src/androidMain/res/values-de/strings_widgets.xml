@@ -4,6 +4,7 @@
     <!-- Shown by every data widget after a logout -->
     <string name="widget_signed_out">In Bissbilanz anmelden</string>
     <string name="favorites_widget_add">Favorit hinzufügen</string>
+    <string name="food_shortcut_signed_out">In Bissbilanz anmelden, um diese Verknüpfung zu nutzen</string>
 
     <!-- Day overview widget -->
     <string name="day_overview_widget_title">Tagesübersicht</string>
@@ -25,6 +26,7 @@
     <string name="quick_add_widget_empty">Noch nichts erfasst</string>
     <string name="quick_add_widget_log">%1$s erfassen</string>
     <string name="quick_add_widget_logged">Erfasst</string>
+    <string name="quick_add_widget_log_failed">%1$s konnte nicht erfasst werden</string>
 
     <!-- Macro widget configuration -->
     <string name="macro_widget_config_title">Widget konfigurieren</string>
