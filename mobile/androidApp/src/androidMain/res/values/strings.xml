@@ -752,9 +752,10 @@
     <string name="recipe_list_load_failed">Failed to load recipes</string>
     <string name="recipe_list_log_failed">Failed to log recipe</string>
     <string name="recipe_list_empty">No recipes yet.\nTap + to create one.</string>
-    <string name="recipe_list_item_summary">%1$d servings  ·  %2$d ingredients</string>
+    <string name="recipe_list_item_summary">%1$s servings  ·  %2$d ingredients</string>
     <string name="recipe_list_log_content_desc">Log recipe</string>
     <string name="recipe_list_search_placeholder">Search recipes</string>
+    <string name="recipe_list_sort_label">Sort by</string>
     <string name="recipe_list_no_results">No recipes match your search.</string>
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Recently updated</string>
@@ -770,7 +771,7 @@
     <string name="recipe_detail_delete_text">Are you sure you want to delete \"%1$s\"?</string>
     <string name="recipe_detail_default_title">Recipe</string>
     <string name="recipe_detail_log_recipe">Log recipe</string>
-    <string name="recipe_detail_servings">%1$d servings</string>
+    <string name="recipe_detail_servings">%1$s servings</string>
     <string name="recipe_detail_duplicate">Duplicate recipe</string>
     <string name="recipe_detail_duplicate_failed">Failed to duplicate recipe</string>
     <string name="recipe_detail_cooked_weight">%1$d g cooked · ~%2$d kcal/100g</string>
@@ -831,7 +832,7 @@
     <string name="recipe_cook_finished_title">All done</string>
     <string name="recipe_cook_finished_text">Enjoy your meal. Log it to keep your diary up to date.</string>
     <string name="recipe_cook_no_steps">This recipe has no steps yet. Add some by editing the recipe.</string>
-    <string name="recipe_cook_servings">Makes %1$d servings</string>
+    <string name="recipe_cook_servings">Makes %1$s servings</string>
     <string name="recipe_cook_step_photo">Photo for step %1$d</string>
 
     <!-- Supplements screen -->

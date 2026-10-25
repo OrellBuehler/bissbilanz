@@ -750,9 +750,10 @@
     <string name="recipe_list_load_failed">Rezepte konnten nicht geladen werden</string>
     <string name="recipe_list_log_failed">Rezept konnte nicht erfasst werden</string>
     <string name="recipe_list_empty">Noch keine Rezepte.\nTippe auf +, um eines zu erstellen.</string>
-    <string name="recipe_list_item_summary">%1$d Portionen  ·  %2$d Zutaten</string>
+    <string name="recipe_list_item_summary">%1$s Portionen  ·  %2$d Zutaten</string>
     <string name="recipe_list_log_content_desc">Rezept erfassen</string>
     <string name="recipe_list_search_placeholder">Rezepte suchen</string>
+    <string name="recipe_list_sort_label">Sortieren nach</string>
     <string name="recipe_list_no_results">Keine Rezepte gefunden.</string>
     <string name="recipe_list_sort_name">Name</string>
     <string name="recipe_list_sort_recent">Zuletzt aktualisiert</string>
@@ -768,7 +769,7 @@
     <string name="recipe_detail_delete_text">Möchtest du \"%1$s\" wirklich löschen?</string>
     <string name="recipe_detail_default_title">Rezept</string>
     <string name="recipe_detail_log_recipe">Rezept erfassen</string>
-    <string name="recipe_detail_servings">%1$d Portionen</string>
+    <string name="recipe_detail_servings">%1$s Portionen</string>
     <string name="recipe_detail_duplicate">Rezept duplizieren</string>
     <string name="recipe_detail_duplicate_failed">Rezept konnte nicht dupliziert werden</string>
     <string name="recipe_detail_cooked_weight">%1$d g gegart · ~%2$d kcal/100g</string>
@@ -829,7 +830,7 @@
     <string name="recipe_cook_finished_title">Fertig gekocht</string>
     <string name="recipe_cook_finished_text">Guten Appetit. Erfasse das Gericht, damit dein Tagebuch aktuell bleibt.</string>
     <string name="recipe_cook_no_steps">Dieses Rezept hat noch keine Schritte. Ergänze sie im Bearbeiten-Dialog.</string>
-    <string name="recipe_cook_servings">Ergibt %1$d Portionen</string>
+    <string name="recipe_cook_servings">Ergibt %1$s Portionen</string>
     <string name="recipe_cook_step_photo">Foto zu Schritt %1$d</string>
 
     <!-- Supplements screen -->

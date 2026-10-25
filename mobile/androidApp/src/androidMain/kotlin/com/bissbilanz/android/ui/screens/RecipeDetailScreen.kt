@@ -15,17 +15,20 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPackageExportSheet
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -36,6 +39,7 @@ import com.bissbilanz.android.ui.components.RecipeDeleteBlockedDialog
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
+import com.bissbilanz.android.util.formatDecimal
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.DeleteOutcome
@@ -63,15 +67,16 @@ fun RecipeDetailScreen(
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val packageViewModel: FoodPackageViewModel = koinViewModel()
-    var showShareSheet by remember { mutableStateOf(false) }
+    var showShareSheet by rememberSaveable { mutableStateOf(false) }
     var recipe by remember { mutableStateOf<Recipe?>(null) }
     var foodNames by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
-    var showLogDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var loadAttempt by remember { mutableIntStateOf(0) }
+    var showLogDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
-    var showUsage by remember { mutableStateOf(false) }
-    var showEditSheet by remember { mutableStateOf(false) }
+    var showUsage by rememberSaveable { mutableStateOf(false) }
+    var showEditSheet by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -98,14 +103,15 @@ fun RecipeDetailScreen(
         }
     }
 
-    LaunchedEffect(recipeId) {
+    // getRecipe already falls back to the cache, so a failure here leaves nothing to show:
+    // the error state with a retry replaces the content.
+    LaunchedEffect(recipeId, loadAttempt) {
         isLoading = true
         try {
             recipe = recipeRepo.getRecipe(recipeId)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
         }
         isLoading = false
     }
@@ -243,13 +249,26 @@ fun RecipeDetailScreen(
     }
 
     if (showShareSheet) {
+        // After process death the view model starts empty: set the export up again.
+        LaunchedEffect(Unit) {
+            val export = packageViewModel.exportState.value
+            if (!export.recipesOnly || export.recipeIds != listOf(recipeId)) {
+                packageViewModel.startExport(recipeIds = listOf(recipeId), recipesOnly = true)
+            }
+        }
         FoodPackageExportSheet(viewModel = packageViewModel, onDismiss = { showShareSheet = false })
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(recipe?.name ?: stringResource(R.string.recipe_detail_default_title)) },
+                title = {
+                    Text(
+                        recipe?.name ?: stringResource(R.string.recipe_detail_default_title),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
@@ -307,8 +326,12 @@ fun RecipeDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        if (isLoading) {
+        if (isLoading && recipe == null) {
             LoadingScreen()
+        } else if (recipe == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                ErrorState(loadFailedMessage, onRetry = { loadAttempt++ })
+            }
         } else {
             PullToRefreshWrapper(
                 onRefresh = {
@@ -346,7 +369,7 @@ fun RecipeDetailScreen(
                         }
 
                         Text(
-                            stringResource(R.string.recipe_detail_servings, r.totalServings.toInt()),
+                            stringResource(R.string.recipe_detail_servings, formatDecimal(r.totalServings)),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
