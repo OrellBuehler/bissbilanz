@@ -24,11 +24,13 @@ import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
+import androidx.glance.layout.RowScope
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.android.MainActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
@@ -114,13 +116,27 @@ private fun MacroWidgetContent(
     val isDark =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
-    val ringPx = (44 * density).toInt()
-
     val showCalories = prefs[MacroWidget.ShowCaloriesKey] ?: true
     val showProtein = prefs[MacroWidget.ShowProteinKey] ?: true
     val showCarbs = prefs[MacroWidget.ShowCarbsKey] ?: true
     val showFat = prefs[MacroWidget.ShowFatKey] ?: true
     val showFiber = prefs[MacroWidget.ShowFiberKey] ?: true
+
+    val ringPx = (44 * density).toInt()
+
+    val rings =
+        listOfNotNull(
+            MacroRing(totals.calories, goals?.calorieGoal, MacroWidget.CaloriesColor, R.string.widget_macro_calories)
+                .takeIf { showCalories },
+            MacroRing(totals.protein, goals?.proteinGoal, MacroWidget.ProteinColor, R.string.widget_macro_protein)
+                .takeIf { showProtein },
+            MacroRing(totals.carbs, goals?.carbGoal, MacroWidget.CarbsColor, R.string.widget_macro_carbs)
+                .takeIf { showCarbs },
+            MacroRing(totals.fat, goals?.fatGoal, MacroWidget.FatColor, R.string.widget_macro_fat)
+                .takeIf { showFat },
+            MacroRing(totals.fiber, goals?.fiberGoal, MacroWidget.FiberColor, R.string.widget_macro_fiber)
+                .takeIf { showFiber },
+        )
 
     Row(
         modifier =
@@ -133,26 +149,14 @@ private fun MacroWidgetContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showCalories) {
-            RingImage(totals.calories, goals?.calorieGoal ?: 0.0, MacroWidget.CaloriesColor, "Cal", ringPx, density, isDark)
-        }
-        if (showProtein) {
-            RingImage(totals.protein, goals?.proteinGoal ?: 0.0, MacroWidget.ProteinColor, "Prot", ringPx, density, isDark)
-        }
-        if (showCarbs) {
-            RingImage(totals.carbs, goals?.carbGoal ?: 0.0, MacroWidget.CarbsColor, "Carbs", ringPx, density, isDark)
-        }
-        if (showFat) {
-            RingImage(totals.fat, goals?.fatGoal ?: 0.0, MacroWidget.FatColor, "Fat", ringPx, density, isDark)
-        }
-        if (showFiber) {
-            RingImage(totals.fiber, goals?.fiberGoal ?: 0.0, MacroWidget.FiberColor, "Fiber", ringPx, density, isDark)
+        rings.forEach { ring ->
+            RingImage(ring.current, ring.goal ?: 0.0, ring.color, context.getString(ring.label), ringPx, density, isDark)
         }
     }
 }
 
 @Composable
-private fun RingImage(
+private fun RowScope.RingImage(
     current: Double,
     goal: Double,
     color: Int,
@@ -163,10 +167,19 @@ private fun RingImage(
 ) {
     val bitmap = MacroRingRenderer.render(current, goal, color, label, ringPx, density, isDark)
     val provider = ImageProvider(bitmap)
+    // Weighted, so on a narrow widget Fit scales the rings down to share the width
+    // instead of the last ones being cut off; on a wide one they keep their size.
     Image(
         provider = provider,
         contentDescription = label,
         contentScale = ContentScale.Fit,
-        modifier = GlanceModifier.padding(horizontal = 2.dp),
+        modifier = GlanceModifier.defaultWeight().padding(horizontal = 2.dp),
     )
 }
+
+private data class MacroRing(
+    val current: Double,
+    val goal: Double?,
+    val color: Int,
+    val label: Int,
+)
