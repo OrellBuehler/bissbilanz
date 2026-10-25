@@ -61,6 +61,25 @@ class SleepTimesTest {
     }
 
     @Test
+    fun pickerTimeWithoutSecondsStillKeepsTheOriginalInstants() {
+        val original =
+            SleepTimes(
+                bedtime = Instant.parse("2026-10-19T22:31:17Z"),
+                wakeTime = Instant.parse("2026-10-20T05:02:45Z"),
+            )
+        val times =
+            resolveSleepTimes(
+                date,
+                LocalTime(0, 31),
+                LocalTime(7, 2),
+                zone,
+                original = original,
+                originalEntryDate = date,
+            )
+        assertSame(original, times)
+    }
+
+    @Test
     fun changedTimeRebuildsBothInstants() {
         val original =
             SleepTimes(

@@ -47,6 +47,7 @@ import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.util.SleepTimes
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.android.util.resolveSleepTimes
+import com.bissbilanz.android.util.sameMinute
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
@@ -249,6 +250,7 @@ fun SleepScreen(navController: NavController) {
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxWidth().height(120.dp),
                                             unit = "h",
+                                            decimals = 1,
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
@@ -451,9 +453,11 @@ private fun SleepEditSheet(
         )
 
     // Picking a bed or wake time rewrites the duration so the two never disagree; the
-    // fields stay editable for nights with time awake in bed.
+    // fields stay editable for nights with time awake in bed. Back on the stored times,
+    // the stored (asleep) duration comes back rather than the time in bed.
     fun syncDurationFromTimes() {
-        val slept = currentTimes().durationMinutes
+        val times = currentTimes()
+        val slept = if (existing != null && times == originalTimes) existing.durationMinutes else times.durationMinutes
         hours = (slept / 60).toString()
         minutes = (slept % 60).toString()
     }
@@ -494,10 +498,12 @@ private fun SleepEditSheet(
             initial = bedtime,
             title = stringResource(R.string.sleep_bedtime_label),
             onDismiss = { showBedtimePicker = false },
-            onConfirm = {
-                bedtime = it
+            onConfirm = { picked ->
                 showBedtimePicker = false
-                syncDurationFromTimes()
+                if (!sameMinute(picked, bedtime)) {
+                    bedtime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }
@@ -507,10 +513,12 @@ private fun SleepEditSheet(
             initial = wakeTime,
             title = stringResource(R.string.sleep_wake_time_label),
             onDismiss = { showWakePicker = false },
-            onConfirm = {
-                wakeTime = it
+            onConfirm = { picked ->
                 showWakePicker = false
-                syncDurationFromTimes()
+                if (!sameMinute(picked, wakeTime)) {
+                    wakeTime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }

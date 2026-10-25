@@ -23,7 +23,8 @@ data class SleepTimes(
  * the day than the wake time — a 00:30 bedtime is already on the entry date.
  *
  * When [original] is given and neither the date nor either time of day was changed, it
- * is returned as-is, so editing only the notes never moves a Health Connect night.
+ * is returned as-is, so editing only the notes never moves a Health Connect night. Times
+ * compare to the minute: the picker has no seconds, Health Connect does.
  */
 fun resolveSleepTimes(
     entryDate: LocalDate,
@@ -35,8 +36,8 @@ fun resolveSleepTimes(
 ): SleepTimes {
     if (original != null &&
         originalEntryDate == entryDate &&
-        original.bedtime.toLocalDateTime(zone).time == bedtime &&
-        original.wakeTime.toLocalDateTime(zone).time == wakeTime
+        sameMinute(original.bedtime.toLocalDateTime(zone).time, bedtime) &&
+        sameMinute(original.wakeTime.toLocalDateTime(zone).time, wakeTime)
     ) {
         return original
     }
@@ -46,3 +47,8 @@ fun resolveSleepTimes(
         wakeTime = LocalDateTime(entryDate, wakeTime).toInstant(zone),
     )
 }
+
+fun sameMinute(
+    a: LocalTime,
+    b: LocalTime,
+): Boolean = a.hour == b.hour && a.minute == b.minute
