@@ -360,6 +360,8 @@
     <string name="food_image_label">Lebensmittelfoto</string>
     <string name="recipe_image_label">Rezeptfoto</string>
     <string name="food_image_remove">Foto entfernen</string>
+    <string name="food_image_take_photo">Foto aufnehmen</string>
+    <string name="food_image_choose_photo">Foto auswählen</string>
     <string name="food_image_upload_failed">Foto konnte nicht gespeichert werden.</string>
     <string name="photo_read_failed">Foto konnte nicht gelesen werden. Bitte erneut aufnehmen.</string>
     <string name="food_image_save_failed">Gespeichert, aber das Foto konnte nicht aktualisiert werden.</string>
@@ -541,6 +543,7 @@
     <string name="favorites_select_servings">Portionen wählen</string>
     <string name="favorites_no_foods">Noch keine favorisierten Lebensmittel.\nMarkiere Lebensmittel als Favorit, um sie hier zu sehen.</string>
     <string name="favorites_no_recipes">Noch keine favorisierten Rezepte.\nMarkiere Rezepte als Favorit, um sie hier zu sehen.</string>
+    <string name="favorites_load_failed">Favoriten konnten nicht geladen werden</string>
 
     <!-- Recipe suggestions -->
     <string name="recipe_suggestions_title">Rezeptvorschläge</string>
@@ -724,6 +727,11 @@
     <string name="food_search_no_foods">Noch keine Lebensmittel</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>
     <string name="food_search_quick_log">Schnell erfassen</string>
+    <string name="food_search_load_failed">Lebensmittel konnten nicht geladen werden</string>
+    <string name="food_search_load_recent_failed">Zuletzt verwendete Lebensmittel konnten nicht geladen werden</string>
+    <string name="food_search_failed">Suche fehlgeschlagen</string>
+    <string name="food_search_refresh_failed">Aktualisieren fehlgeschlagen</string>
+    <string name="food_search_favorite_failed">Favorit konnte nicht geändert werden</string>
 
     <!-- Recipe list screen -->
     <string name="recipe_list_title">Rezepte</string>
@@ -1034,6 +1042,7 @@
     <string name="add_food_quick_protein">Protein (g)</string>
     <string name="add_food_quick_carbs">Kohlenhydrate (g)</string>
     <string name="add_food_quick_fat">Fett (g)</string>
+    <string name="add_food_quick_log_failed">Eintrag konnte nicht erfasst werden</string>
     <string name="quick_add_more_nutrients">Weitere Nährstoffe</string>
 
     <!-- Entry edit sheet -->

@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +60,9 @@ private const val UPLOAD_QUALITY = 85
  * The image row of a food or recipe form: shows the current photo, and offers
  * camera, library and removal. Everything from capture through square crop,
  * downscale and upload happens here; [onImageUrlChange] receives the URL to store
- * on the row (null when the user removes the image).
+ * on the row (null when the user removes the image). [onUploadingChange] reports an
+ * upload in flight, so the form can hold Save (and its own dismissal) until the URL
+ * has arrived.
  */
 @Composable
 fun FoodImageField(
@@ -66,16 +70,25 @@ fun FoodImageField(
     onImageUrlChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
     label: String = stringResource(R.string.food_image_label),
+    onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val uploader: FoodImageUploader = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    // Saveable: the camera app can outlive this process, and the result must still
+    // know where the photo went.
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var cropCandidate by remember { mutableStateOf<Bitmap?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val currentOnUploadingChange by rememberUpdatedState(onUploadingChange)
+
+    fun setUploading(value: Boolean) {
+        isUploading = value
+        currentOnUploadingChange(value)
+    }
 
     val uploadFailed = stringResource(R.string.food_image_upload_failed)
     val readFailed = stringResource(R.string.photo_read_failed)
@@ -108,7 +121,7 @@ fun FoodImageField(
         transparent: Boolean,
     ) {
         cropCandidate = null
-        isUploading = true
+        setUploading(true)
         errorMessage = null
         scope.launch {
             try {
@@ -123,7 +136,7 @@ fun FoodImageField(
                 errorReporter.captureException(e)
                 errorMessage = uploadFailed
             }
-            isUploading = false
+            setUploading(false)
         }
     }
 
@@ -161,7 +174,7 @@ fun FoodImageField(
                         },
                         enabled = !isUploading,
                     ) {
-                        Icon(Icons.Outlined.PhotoCamera, contentDescription = null)
+                        Icon(Icons.Outlined.PhotoCamera, contentDescription = stringResource(R.string.food_image_take_photo))
                     }
                     OutlinedButton(
                         onClick = {
@@ -171,7 +184,7 @@ fun FoodImageField(
                         },
                         enabled = !isUploading,
                     ) {
-                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = stringResource(R.string.food_image_choose_photo))
                     }
                 }
                 if (imageUrl != null && !isUploading) {

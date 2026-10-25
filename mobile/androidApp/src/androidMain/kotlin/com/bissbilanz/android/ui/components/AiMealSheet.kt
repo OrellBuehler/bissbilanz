@@ -22,6 +22,8 @@ import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,11 +126,13 @@ fun AiMealSheet(
     }
     val canProcess = processorIsDevice || claudeEnabled || mcpConnected
 
-    var description by remember(task?.id) { mutableStateOf(task?.description ?: "") }
-    var mealType by remember(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
+    // Saveable so rotation or process death keeps the draft; picked photos are
+    // bitmaps and too large for saved state, so only those have to be re-attached.
+    var description by rememberSaveable(task?.id) { mutableStateOf(task?.description ?: "") }
+    var mealType by rememberSaveable(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
     var mealMenuOpen by remember { mutableStateOf(false) }
-    var selectedDate by remember(task?.id) { mutableStateOf(task?.date ?: date) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDate by rememberSaveable(task?.id) { mutableStateOf(task?.date ?: date) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val initialEatenLocal =
         remember(task?.id) {
             task?.eatenAt?.let {
@@ -138,13 +142,15 @@ fun AiMealSheet(
     // Unset means "when I sent it" on creation, or "no specific time" on an edit: the
     // server stamps its own clock on a task for today and leaves a back-dated one to
     // the assistant.
-    var eatenHour by remember(task?.id) { mutableStateOf(initialEatenLocal?.hour) }
-    var eatenMinute by remember(task?.id) { mutableStateOf(initialEatenLocal?.minute) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var eatenHour by rememberSaveable(task?.id) { mutableStateOf(initialEatenLocal?.hour) }
+    var eatenMinute by rememberSaveable(task?.id) { mutableStateOf(initialEatenLocal?.minute) }
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
     val existingPhotoUrls =
-        remember(task?.id) { mutableStateListOf<String>().apply { task?.photoUrls?.let(::addAll) } }
+        rememberSaveable(task?.id, saver = listSaver(save = { it.toList() }, restore = { it.toMutableStateList() })) {
+            mutableStateListOf<String>().apply { task?.photoUrls?.let(::addAll) }
+        }
     val attached = remember(task?.id) { mutableStateListOf<Bitmap>() }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cameraPermanentlyDenied by remember { mutableStateOf(false) }

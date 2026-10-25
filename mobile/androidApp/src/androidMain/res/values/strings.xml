@@ -362,6 +362,8 @@
     <string name="food_image_label">Food photo</string>
     <string name="recipe_image_label">Recipe photo</string>
     <string name="food_image_remove">Remove photo</string>
+    <string name="food_image_take_photo">Take photo</string>
+    <string name="food_image_choose_photo">Choose photo</string>
     <string name="food_image_upload_failed">Couldn\'t save the photo.</string>
     <string name="photo_read_failed">Couldn\'t read the photo. Please take it again.</string>
     <string name="food_image_save_failed">Saved, but the photo couldn\'t be updated.</string>
@@ -543,6 +545,7 @@
     <string name="favorites_select_servings">Select Servings</string>
     <string name="favorites_no_foods">No favorite foods yet.\nMark foods as favorite to see them here.</string>
     <string name="favorites_no_recipes">No favorite recipes yet.\nMark recipes as favorite to see them here.</string>
+    <string name="favorites_load_failed">Failed to load favorites</string>
 
     <!-- Recipe suggestions -->
     <string name="recipe_suggestions_title">Recipe suggestions</string>
@@ -726,6 +729,11 @@
     <string name="food_search_no_foods">No foods yet</string>
     <string name="food_search_item_summary">%1$d kcal  ·  %2$s%3$d %4$s%5$d %6$s%7$d</string>
     <string name="food_search_quick_log">Quick log</string>
+    <string name="food_search_load_failed">Failed to load foods</string>
+    <string name="food_search_load_recent_failed">Failed to load recent foods</string>
+    <string name="food_search_failed">Search failed</string>
+    <string name="food_search_refresh_failed">Failed to refresh</string>
+    <string name="food_search_favorite_failed">Couldn\'t update the favorite</string>
 
     <!-- Recipe list screen -->
     <string name="recipe_list_title">Recipes</string>
@@ -1036,6 +1044,7 @@
     <string name="add_food_quick_protein">Protein (g)</string>
     <string name="add_food_quick_carbs">Carbs (g)</string>
     <string name="add_food_quick_fat">Fat (g)</string>
+    <string name="add_food_quick_log_failed">Failed to log entry</string>
     <string name="quick_add_more_nutrients">More nutrients</string>
 
     <!-- Entry edit sheet -->
