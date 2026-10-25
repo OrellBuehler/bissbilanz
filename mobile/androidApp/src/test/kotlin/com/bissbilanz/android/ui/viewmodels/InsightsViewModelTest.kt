@@ -310,9 +310,9 @@ class InsightsViewModelTest {
         }
 
     @Test
-    fun failedTabLoadIsRetriedOnNextSelect() =
+    fun emptyTabLoadShowsAnErrorAndIsRetriedOnNextSelect() =
         runTest {
-            coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns null
             val viewModel = createViewModel()
 
             viewModel.selectTab(1)

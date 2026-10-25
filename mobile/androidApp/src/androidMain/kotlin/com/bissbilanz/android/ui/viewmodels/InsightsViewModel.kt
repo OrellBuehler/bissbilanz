@@ -13,6 +13,7 @@ import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.StatsRepository
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -178,15 +179,25 @@ class InsightsViewModel(
     private var dataJob: Job? = null
 
     private var cachedInsights: Pair<Pair<String, String>, InsightsBundle>? = null
+    private var inFlightInsights: Pair<Pair<String, String>, Deferred<InsightsBundle?>>? = null
 
-    /** All three analytics tabs read the same bundle; compute it once per range. */
+    /**
+     * All three analytics tabs read the same bundle; compute it once per range. Tabs
+     * opened while it is still computing wait for the same computation.
+     */
     private suspend fun getInsights(): InsightsBundle? {
         val range = dateRange()
         cachedInsights?.let { (cachedRange, bundle) -> if (cachedRange == range) return bundle }
-        val (start, end) = range
-        return analyticsRepo
-            .getInsights(start, end, TimeZone.currentSystemDefault().id)
-            ?.also { cachedInsights = range to it }
+        val deferred =
+            inFlightInsights?.takeIf { it.first == range }?.second
+                ?: viewModelScope
+                    .async { analyticsRepo.getInsights(range.first, range.second, TimeZone.currentSystemDefault().id) }
+                    .also { inFlightInsights = range to it }
+        return try {
+            deferred.await()?.also { cachedInsights = range to it }
+        } finally {
+            if (inFlightInsights?.second === deferred && deferred.isCompleted) inFlightInsights = null
+        }
     }
 
     init {
@@ -233,6 +244,8 @@ class InsightsViewModel(
         tabJobs.clear()
         loadedTabs.clear()
         cachedInsights = null
+        inFlightInsights?.second?.cancel()
+        inFlightInsights = null
     }
 
     private fun dateRange(): Pair<String, String> {
@@ -495,9 +508,12 @@ class InsightsViewModel(
             viewModelScope.launch {
                 loading.value = true
                 try {
-                    getInsights()?.let { bundle ->
+                    val bundle = getInsights()
+                    if (bundle != null) {
                         publish(bundle)
                         loadedTabs.add(tab)
+                    } else {
+                        _snackbarMessage.value = R.string.insights_load_failed
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
