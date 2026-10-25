@@ -148,7 +148,7 @@ private fun WeightDialog(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     var weightText by rememberSaveable {
-        mutableStateOf(existingEntry?.let { formatLocalizedNumber(it.weightKg, 1, locale) } ?: "")
+        mutableStateOf(existingEntry?.let { formatLocalizedNumber(it.weightKg, 1, locale, minDecimals = 1) } ?: "")
     }
     var notes by rememberSaveable { mutableStateOf(existingEntry?.notes ?: "") }
     var invalid by rememberSaveable { mutableStateOf(false) }

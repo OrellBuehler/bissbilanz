@@ -18,6 +18,12 @@ class LocalizedNumberTest {
     }
 
     @Test
+    fun keepsFixedDecimalsAndRoundsHalfUp() {
+        assertEquals("72,0", formatLocalizedNumber(72.0, 1, Locale.GERMANY, minDecimals = 1))
+        assertEquals("72.3", formatLocalizedNumber(72.25, 1, Locale.US, minDecimals = 1))
+    }
+
+    @Test
     fun wholeNumbersAreRoundedWithoutGrouping() {
         assertEquals("2346", formatLocalizedNumber(2345.6, 0, Locale.GERMANY))
     }

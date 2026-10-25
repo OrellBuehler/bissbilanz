@@ -93,7 +93,7 @@ private fun QuickWeightContent(
     val context = LocalContext.current
     val shown = todayEntry ?: latestEntry
     // In the widget's own language: "72,5" in German, not "72.5".
-    val value = shown?.let { formatLocalizedNumber(it.weightKg, 1, context.resources.configuration.locales[0]) }
+    val value = shown?.let { formatLocalizedNumber(it.weightKg, 1, context.resources.configuration.locales[0], minDecimals = 1) }
     val caption =
         context.getString(
             if (todayEntry != null) R.string.weight_widget_today else R.string.weight_widget_tap_to_log,
