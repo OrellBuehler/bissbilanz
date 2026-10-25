@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.model.Entry
 import com.bissbilanz.repository.EntryRepository
@@ -11,7 +12,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -66,7 +70,7 @@ class DayLogViewModelTest {
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             viewModel.loadEntries("2024-01-15")
 
-            assertEquals("Failed to load entries", viewModel.error.value)
+            assertEquals(R.string.daylog_load_failed, viewModel.error.value)
             assertEquals(false, viewModel.isLoading.value)
         }
 
@@ -123,7 +127,47 @@ class DayLogViewModelTest {
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             viewModel.deleteEntry("entry-1")
 
-            assertEquals("Failed to delete entry", viewModel.error.value)
+            assertEquals(R.string.daylog_delete_failed, viewModel.error.value)
+        }
+
+    @Test
+    fun scheduledDeleteHidesTheEntryUntilTheSnackbarIsDismissed() =
+        runTest {
+            val viewModel = DayLogViewModel(entryRepo, errorReporter)
+
+            viewModel.scheduleDelete("entry-1")
+            assertEquals(setOf("entry-1"), viewModel.pendingDeleteIds.value)
+            coVerify(exactly = 0) { entryRepo.deleteEntry(any()) }
+
+            viewModel.commitDelete("entry-1")
+            coVerify(exactly = 1) { entryRepo.deleteEntry("entry-1") }
+            assertEquals(emptySet(), viewModel.pendingDeleteIds.value)
+        }
+
+    @Test
+    fun undoKeepsTheEntry() =
+        runTest {
+            val viewModel = DayLogViewModel(entryRepo, errorReporter)
+
+            viewModel.scheduleDelete("entry-1")
+            viewModel.undoDelete("entry-1")
+            viewModel.commitDelete("entry-1")
+
+            assertEquals(emptySet(), viewModel.pendingDeleteIds.value)
+            coVerify(exactly = 0) { entryRepo.deleteEntry(any()) }
+        }
+
+    @Test
+    fun scheduledDeleteCommitsOnItsOwnWhenNoSnackbarReportsBack() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val viewModel = DayLogViewModel(entryRepo, errorReporter)
+
+            viewModel.scheduleDelete("entry-1")
+            advanceTimeBy(DayLogViewModel.UNDO_FALLBACK_MS + 1)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { entryRepo.deleteEntry("entry-1") }
         }
 
     @Test
@@ -133,7 +177,7 @@ class DayLogViewModelTest {
 
             val viewModel = DayLogViewModel(entryRepo, errorReporter)
             viewModel.loadEntries("2024-01-15")
-            assertEquals("Failed to load entries", viewModel.error.value)
+            assertEquals(R.string.daylog_load_failed, viewModel.error.value)
 
             viewModel.clearError()
             assertNull(viewModel.error.value)
