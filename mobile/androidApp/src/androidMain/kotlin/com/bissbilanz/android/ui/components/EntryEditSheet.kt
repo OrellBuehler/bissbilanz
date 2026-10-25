@@ -22,6 +22,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
@@ -32,7 +33,6 @@ import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedName
-import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toNutrientDoubles
 import kotlinx.coroutines.flow.first
@@ -116,7 +116,7 @@ fun EntryEditSheet(
             val found = entries.find { it.id == currentId }
             if (found != null) {
                 entry = found
-                servings = found.servings.toDisplayString()
+                servings = found.servings.toEditableString()
                 mealType = normalizeMealType(found.mealType)
                 notes = found.notes ?: ""
                 eatenDate = found.date

@@ -32,6 +32,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.flow.first
@@ -91,7 +92,8 @@ private fun QuickWeightContent(
 ) {
     val context = LocalContext.current
     val shown = todayEntry ?: latestEntry
-    val value = shown?.let { formatWeight(context, it.weightKg) }
+    // In the widget's own language: "72,5" in German, not "72.5".
+    val value = shown?.let { formatLocalizedNumber(it.weightKg, 1, context.resources.configuration.locales[0]) }
     val caption =
         context.getString(
             if (todayEntry != null) R.string.weight_widget_today else R.string.weight_widget_tap_to_log,
@@ -185,9 +187,3 @@ private fun QuickWeightWide(
         }
     }
 }
-
-/** One decimal in the widget's own language: "72,5" in German, not "72.5". */
-private fun formatWeight(
-    context: Context,
-    kg: Double,
-): String = String.format(context.resources.configuration.locales[0], "%.1f", kg)
