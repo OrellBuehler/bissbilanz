@@ -195,7 +195,7 @@ class DayPropertiesRepositoryTest {
             repo.setDayProperties("2024-01-15", waterMl = 1000)
 
             assertEquals(1000, repo.getDayProperties("2024-01-15")?.waterMl)
-            assertEquals(1000, repo.cachedDayPropertiesOnce("2024-01-15")?.waterMl)
+            assertEquals(1000, repo.localDayProperties("2024-01-15")?.waterMl)
         }
 
     @Test

@@ -119,7 +119,11 @@ class WeightViewModel(
         loadJob?.cancel()
         return viewModelScope
             .launch {
-                if (!hasLoaded) _isLoading.value = true
+                if (!hasLoaded) {
+                    _isLoading.value = true
+                    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+                    _trendData.value = weightRepo.localTrend(rangeStartDate().toString(), today.toString())
+                }
                 if (fromServer) {
                     try {
                         weightRepo.refresh()

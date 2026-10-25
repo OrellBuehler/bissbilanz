@@ -224,7 +224,7 @@ class EntryRepository(
         // A change still waiting to upload is newer than what the server holds; caching
         // the server copy would revert it on screen until the upload lands.
         if (syncQueue.findByAffected("day_properties", date).any { it.failedAt == null }) {
-            return cachedDayPropertiesOnce(date)
+            return localDayProperties(date)
         }
         return try {
             val props = api.getDayProperties(date)
@@ -242,6 +242,12 @@ class EntryRepository(
             cachedDayProperties(date)
         }
     }
+
+    /**
+     * The cached day properties only, never the network. For widgets, the watch and
+     * first paint: a slow connection must not hold them up for the HTTP timeout.
+     */
+    suspend fun localDayProperties(date: String): DayProperties? = withContext(Dispatchers.IO) { cachedDayProperties(date) }
 
     /**
      * PATCH-style: a parameter left `null` and not named in [cleared] keeps its
@@ -323,9 +329,6 @@ class EntryRepository(
             activityNote = null,
             activityCaloriesSource = null,
         )
-
-    /** The cached day properties only, without asking the server — instant, and offline-safe. */
-    suspend fun cachedDayPropertiesOnce(date: String): DayProperties? = withContext(Dispatchers.IO) { cachedDayProperties(date) }
 
     private fun cachedDayProperties(date: String): DayProperties? =
         db.userDataDatabaseQueries

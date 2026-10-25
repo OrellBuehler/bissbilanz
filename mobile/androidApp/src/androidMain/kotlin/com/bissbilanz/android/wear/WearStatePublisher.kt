@@ -182,7 +182,7 @@ class WearStatePublisher(
         val todayString = today.toString()
         val entries = entryRepository.entriesByDate(todayString).first()
         val rawGoals = goalsRepository.goals().first()
-        val dayProperties = entryRepository.getDayProperties(todayString)
+        val dayProperties = entryRepository.localDayProperties(todayString)
         val prefs = preferencesRepository.preferences().first()
         val goals =
             adjustGoalsForActivity(

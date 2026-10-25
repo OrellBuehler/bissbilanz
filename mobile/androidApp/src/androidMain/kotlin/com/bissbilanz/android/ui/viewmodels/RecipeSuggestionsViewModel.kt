@@ -107,6 +107,7 @@ class RecipeSuggestionsViewModel(
     init {
         viewModelScope.launch {
             _isLoading.value = true
+            activityCalories.value = entryRepo.localDayProperties(today)?.activityCalories
             try {
                 entryRepo.refresh(today)
                 recipeRepo.refresh()

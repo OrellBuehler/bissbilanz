@@ -91,6 +91,7 @@ import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.util.Failures
 import io.sentry.android.core.SentryAndroid
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -255,11 +256,30 @@ class BissbilanzApplication :
 
         val wearPublisher = koin.get<WearStatePublisher>()
 
-        koin.get<EntryRepository>().onEntryChanged = {
-            refreshDayWidgets()
-            healthExporter.exportNutrition(today())
-            wearPublisher.publish()
+        // The repositories await their change hooks, and the user's delete or save
+        // waits with them. Widgets, Health Connect and the watch follow the local
+        // write in the background instead.
+        val hookScope = koin.get<CoroutineScope>()
+        val hookErrors = koin.get<ErrorReporter>()
+        val inBackground: (suspend () -> Unit) -> (suspend () -> Unit) = { block ->
+            {
+                hookScope.launch {
+                    try {
+                        block()
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        hookErrors.captureException(e)
+                    }
+                }
+            }
         }
+
+        koin.get<EntryRepository>().onEntryChanged =
+            inBackground {
+                refreshDayWidgets()
+                healthExporter.exportNutrition(today())
+                wearPublisher.publish()
+            }
         // Counts real food logs (not edits or deletes) toward the usage-gated tips —
         // e.g. nudging a frequent logger toward favorites once they have earned it.
         val tipStore = koin.get<TipStore>()
@@ -301,20 +321,22 @@ class BissbilanzApplication :
         // A diary entry that points at a food still waiting for its bulk upload sends that food first.
         koin.get<SyncManager>().bulkFoodGate = koin.get<BulkFoodUploader>()
 
-        koin.get<FoodRepository>().onFoodChanged = {
-            FavoritesWidgetWorker.enqueue(this@BissbilanzApplication)
-            // A renamed or deleted food changes what the quick-add rows and the
-            // Assistant's food shortcuts say, so both are republished from here too.
-            QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
-            FoodShortcutPublisher.publish(this@BissbilanzApplication)
-            // Favourites drive the watch's quick-log list.
-            wearPublisher.publish()
-        }
-        val publishWeight: suspend () -> Unit = {
-            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
-            healthExporter.exportLatestWeight()
-            wearPublisher.publish()
-        }
+        koin.get<FoodRepository>().onFoodChanged =
+            inBackground {
+                FavoritesWidgetWorker.enqueue(this@BissbilanzApplication)
+                // A renamed or deleted food changes what the quick-add rows and the
+                // Assistant's food shortcuts say, so both are republished from here too.
+                QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
+                FoodShortcutPublisher.publish(this@BissbilanzApplication)
+                // Favourites drive the watch's quick-log list.
+                wearPublisher.publish()
+            }
+        val publishWeight =
+            inBackground {
+                QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+                healthExporter.exportLatestWeight()
+                wearPublisher.publish()
+            }
         koin.get<WeightRepository>().onWeightChanged = publishWeight
         // Weights logged elsewhere (web, MCP, iOS) arrive via refresh, not
         // onWeightChanged — same three consumers, or Health Connect, the widget and

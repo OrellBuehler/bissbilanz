@@ -153,6 +153,12 @@ class WeightRepository(
         }
     }
 
+    /** The trend from cached entries only, shown while [getTrend] waits on the network. */
+    suspend fun localTrend(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> = withContext(Dispatchers.IO) { trendFromCache(from, to) }
+
     private fun trendFromCache(
         from: String,
         to: String,

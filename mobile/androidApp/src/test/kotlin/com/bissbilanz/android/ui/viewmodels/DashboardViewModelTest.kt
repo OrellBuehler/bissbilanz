@@ -19,6 +19,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -55,7 +56,7 @@ class DashboardViewModelTest {
         entryRepo =
             mockk(relaxed = true) {
                 every { entriesByDate(any()) } returns entriesFlow
-                coEvery { cachedDayPropertiesOnce(any()) } returns null
+                coEvery { localDayProperties(any()) } returns null
             }
         goalsRepo =
             mockk(relaxed = true) {
@@ -73,6 +74,29 @@ class DashboardViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun cachedDayPropertiesShowWhileNetworkHangs() =
+        runTest {
+            coEvery { entryRepo.refresh(any()) } coAnswers { awaitCancellation() }
+            coEvery { entryRepo.getDayProperties(any()) } coAnswers { awaitCancellation() }
+            coEvery { entryRepo.localDayProperties(any()) } answers {
+                DayProperties(
+                    date = firstArg(),
+                    isFastingDay = true,
+                    notes = null,
+                    waterMl = 750,
+                    activityCalories = null,
+                    activityCaloriesSource = null,
+                    activityNote = null,
+                )
+            }
+
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+
+            assertEquals(true, viewModel.isFastingDay.value)
+            assertEquals(750, viewModel.waterMl.value)
+        }
 
     @Test
     fun initialDateIsToday() =
@@ -311,7 +335,7 @@ class DashboardViewModelTest {
             val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
             val yesterdayProps = CompletableDeferred<DayProperties?>()
             coEvery { entryRepo.getDayProperties(today.toString()) } returns dayProperties(today.toString(), waterMl = 1500)
-            coEvery { entryRepo.cachedDayPropertiesOnce(yesterday) } returns dayProperties(yesterday, waterMl = 500)
+            coEvery { entryRepo.localDayProperties(yesterday) } returns dayProperties(yesterday, waterMl = 500)
             coEvery { entryRepo.getDayProperties(yesterday) } coAnswers { yesterdayProps.await() }
             val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
             assertEquals(1500, viewModel.waterMl.value)

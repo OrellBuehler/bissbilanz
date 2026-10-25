@@ -277,7 +277,7 @@ class DashboardViewModel(
         if (dayPropertiesDate != date) {
             val cached =
                 try {
-                    entryRepo.cachedDayPropertiesOnce(date)
+                    entryRepo.localDayProperties(date)
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     errorReporter.captureException(e)
