@@ -82,6 +82,20 @@ class DayPropertiesRepositoryTest {
         }
 
     @Test
+    fun setAndDeleteAnnounceTheChangedDay() =
+        runTest {
+            val localMode = appModeManager(AppMode.LOCAL)
+            val repo = repository(AppMode.LOCAL, SyncQueue(cacheDb, json, localMode))
+            val changed = mutableListOf<String>()
+            repo.onDayPropertiesChanged = { changed += it }
+
+            repo.setDayProperties("2024-01-15", activityCalories = 300)
+            repo.deleteDayProperties("2024-01-16")
+
+            assertEquals(listOf("2024-01-15", "2024-01-16"), changed)
+        }
+
+    @Test
     fun syncedSetEnqueuesSetDayProperties() =
         runTest {
             val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))

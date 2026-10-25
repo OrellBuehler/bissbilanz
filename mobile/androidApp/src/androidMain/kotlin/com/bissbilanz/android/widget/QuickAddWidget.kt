@@ -81,6 +81,8 @@ class QuickAddWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
+        if (!widgetsSignedIn()) provideContent { GlanceTheme { SignedOutWidgetContent() } }
+
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()

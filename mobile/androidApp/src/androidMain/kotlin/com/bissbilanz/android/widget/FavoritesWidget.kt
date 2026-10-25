@@ -68,6 +68,8 @@ class FavoritesWidget : GlanceAppWidget() {
         context: Context,
         id: GlanceId,
     ) {
+        if (!widgetsSignedIn()) provideContent { GlanceTheme { SignedOutWidgetContent() } }
+
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
@@ -180,7 +182,12 @@ private fun FavoritesContent(
                         val isLogged = LogFavoriteFoodAction.isRecentlyLogged(tile.id)
                         Image(
                             provider = if (isLogged) checkProvider else tile.imageProvider,
-                            contentDescription = if (isLogged) "Logged" else tile.name,
+                            contentDescription =
+                                if (isLogged) {
+                                    context.getString(R.string.favorites_widget_logged, tile.name)
+                                } else {
+                                    tile.name
+                                },
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
@@ -202,13 +209,13 @@ private fun FavoritesContent(
                     } else if (index < totalSlots) {
                         Image(
                             provider = plusProvider,
-                            contentDescription = "Add favorite",
+                            contentDescription = context.getString(R.string.favorites_widget_add),
                             contentScale = ContentScale.Crop,
                             modifier =
                                 GlanceModifier
                                     .size(tileSize)
                                     .cornerRadius(12.dp)
-                                    .clickable(actionStartActivity<MainActivity>()),
+                                    .clickable(actionStartActivity(openAppIntent(context, WidgetRoutes.FAVORITES))),
                         )
                     }
                 }

@@ -165,7 +165,9 @@
         <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name=".widget.MacroWidgetConfigActivity"
-            android:exported="true">
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
@@ -195,9 +197,13 @@
                 android:resource="@xml/quick_weight_widget_info" />
         </receiver>
 
+        <!-- Own empty task affinity: started from the home screen, the dialog must not
+             bring the app's task (and whatever screen it was on) forward with it. -->
         <activity
             android:name=".widget.QuickWeightActivity"
+            android:excludeFromRecents="true"
             android:exported="false"
+            android:taskAffinity=""
             android:theme="@style/Theme.Bissbilanz.Dialog" />
 
         <receiver
@@ -234,6 +240,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/quick_add_widget_info" />
+        </receiver>
+
+        <!-- Redraws the widgets when the clock, the time zone or the system language
+             changes; see WidgetClockReceiver. -->
+        <receiver
+            android:name=".widget.WidgetClockReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
         </receiver>
 
         <!-- Exported by requirement, but guarded by START_VIEW_PERMISSION_USAGE,

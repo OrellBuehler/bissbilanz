@@ -38,6 +38,7 @@ object FoodShortcutPublisher {
     private const val STATIC_SHORTCUT_COUNT = 4
     private const val MAX_DYNAMIC_SHORTCUTS = 4
     private const val SHORT_LABEL_MAX_CHARS = 20
+    private const val SHORTCUT_ID_PREFIX = "food_"
 
     suspend fun publish(context: Context) {
         val koin =
@@ -73,7 +74,34 @@ object FoodShortcutPublisher {
         }
     }
 
-    internal fun shortcutId(foodId: String): String = "food_$foodId"
+    /**
+     * Removes every food shortcut, including the long-lived copies the Assistant keeps
+     * after a shortcut leaves the dynamic list. Called after a logout wiped the data
+     * they point at, so the next account never sees the previous one's foods.
+     */
+    suspend fun clear(context: Context) {
+        try {
+            withContext(Dispatchers.IO) {
+                val ids =
+                    ShortcutManagerCompat
+                        .getShortcuts(
+                            context,
+                            ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED,
+                        ).map { it.id }
+                        .filter { it.startsWith(SHORTCUT_ID_PREFIX) }
+                ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+                if (ids.isNotEmpty()) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            org.koin.java.KoinJavaComponent
+                .getKoin()
+                .get<ErrorReporter>()
+                .captureException(e)
+        }
+    }
+
+    internal fun shortcutId(foodId: String): String = "$SHORTCUT_ID_PREFIX$foodId"
 
     private fun shortcutFor(
         context: Context,

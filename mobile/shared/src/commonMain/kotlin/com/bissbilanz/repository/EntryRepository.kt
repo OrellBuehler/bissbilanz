@@ -57,6 +57,13 @@ class EntryRepository(
      */
     var onEntryCreated: (suspend () -> Unit)? = null
 
+    /**
+     * Fired after [setDayProperties] or [deleteDayProperties] changed a day locally.
+     * The activity calories stored there move the day's goal when activity goal
+     * adjustment is on, so Android redraws the widgets that show it.
+     */
+    var onDayPropertiesChanged: (suspend (date: String) -> Unit)? = null
+
     fun entriesByDate(date: String): Flow<List<Entry>> =
         db.userDataDatabaseQueries
             .selectEntriesByDate(date)
@@ -269,6 +276,7 @@ class EntryRepository(
                 )
             syncQueue.enqueue(SyncOperation.SetDayProperties(date, json.encodeToString(body), cleared.jsonKeys()))
         }
+        onDayPropertiesChanged?.invoke(date)
         return updated
     }
 
@@ -277,6 +285,7 @@ class EntryRepository(
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
         }
+        onDayPropertiesChanged?.invoke(date)
     }
 
     private fun emptyDayProperties(date: String): DayProperties =

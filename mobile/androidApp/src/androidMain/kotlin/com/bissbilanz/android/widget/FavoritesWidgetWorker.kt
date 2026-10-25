@@ -2,6 +2,9 @@ package com.bissbilanz.android.widget
 
 import android.content.Context
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.BissbilanzApi
@@ -33,5 +36,21 @@ class FavoritesWidgetWorker(
 
         FavoritesWidget.updateAllWidgets(applicationContext)
         return Result.success()
+    }
+
+    companion object {
+        private const val UNIQUE_NAME = "favorites_widget_refresh_once"
+
+        /**
+         * Unique with REPLACE: a burst of food changes (a sync refresh, a merge) collapses
+         * into one refresh that reads the latest state, instead of one run per change.
+         */
+        fun enqueue(context: Context) {
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                UNIQUE_NAME,
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<FavoritesWidgetWorker>().build(),
+            )
+        }
     }
 }

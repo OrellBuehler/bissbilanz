@@ -43,6 +43,11 @@ internal object WidgetFoodImages {
         foodId: String,
     ): File? = File(directory(context), "$foodId.png").takeIf { it.isFile }
 
+    /** Drops every thumbnail; the next account must not see the previous one's photos. */
+    fun clear(context: Context) {
+        File(context.cacheDir, DIR_NAME).deleteRecursively()
+    }
+
     /**
      * Refreshes the thumbnails of every food either widget can show, and drops the
      * ones nothing references any more.
@@ -85,11 +90,17 @@ internal object WidgetFoodImages {
         images.forEach { (foodId, imageUrl) ->
             if (imageUrl == null) return@forEach
             val file = File(dir, "$foodId.png")
-            if (file.isFile && System.currentTimeMillis() - file.lastModified() < MAX_AGE_MS) return@forEach
+            // The source URL sits next to the thumbnail: a food whose photo was replaced
+            // keeps its id, so only the URL tells the old thumbnail apart from the new.
+            val urlFile = File(dir, "$foodId.url")
+            val sameUrl = urlFile.isFile && urlFile.readText() == imageUrl
+            if (!sameUrl) file.delete()
+            if (sameUrl && file.isFile && System.currentTimeMillis() - file.lastModified() < MAX_AGE_MS) return@forEach
             val bytes = bytesFor(context, api, imageUrl) ?: return@forEach
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@forEach
             val scaled = Bitmap.createScaledBitmap(bitmap, tilePx, tilePx, true)
             FileOutputStream(file).use { scaled.compress(Bitmap.CompressFormat.PNG, 90, it) }
+            urlFile.writeText(imageUrl)
             if (scaled !== bitmap) bitmap.recycle()
             scaled.recycle()
         }
