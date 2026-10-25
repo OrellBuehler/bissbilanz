@@ -282,7 +282,7 @@ fun DayLogScreen(
             )
         }
 
-        if (isLoading) {
+        if (isLoading && entries.isEmpty()) {
             DayLogSkeleton()
         } else {
             PullToRefreshWrapper(

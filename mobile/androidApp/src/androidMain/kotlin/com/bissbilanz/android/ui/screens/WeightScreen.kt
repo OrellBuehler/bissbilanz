@@ -220,7 +220,7 @@ fun WeightScreen(navController: NavController) {
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "weight") { loading ->
+            Crossfade(targetState = isLoading && entries.isEmpty(), label = "weight") { loading ->
                 if (loading) {
                     LoadingScreen()
                 } else if (entries.isEmpty() && trendData.isEmpty()) {
@@ -354,12 +354,12 @@ fun WeightScreen(navController: NavController) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 /**
  * A simple "Target X kg by DATE" line plus the remaining delta from the latest
  * weight — no forecast maths, matching what the task asked for (the web page's
  * fuller goal-projection card is not mirrored here).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WeightTargetCard(
     targetWeightKg: Double?,

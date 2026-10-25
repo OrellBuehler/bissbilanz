@@ -482,7 +482,7 @@ fun DashboardScreen(navController: NavController) {
                 val sections =
                     remember(prefs) { resolveDashboardSections(prefs?.widgetOrder, prefs) }
 
-                Crossfade(targetState = isLoading, label = "dashboard") { loading ->
+                Crossfade(targetState = isLoading && entries.isEmpty(), label = "dashboard") { loading ->
                     if (loading) {
                         DashboardSkeleton()
                     } else {
