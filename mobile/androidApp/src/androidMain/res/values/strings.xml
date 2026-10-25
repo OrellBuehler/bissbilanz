@@ -431,6 +431,7 @@
     <string name="login_continue_without_account">Continue without account</string>
     <string name="login_local_mode_description">Your data stays on this device. Sign in later anytime to sync.</string>
     <string name="session_expired_message">Session expired, please sign in again</string>
+    <string name="login_failed">Sign-in failed. Please try again.</string>
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Maintenance Calculator</string>
@@ -1311,6 +1312,7 @@
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Sign in again</string>
+    <string name="settings_sign_in_choose_provider">Sign in with</string>
 
     <!-- Settings: biological sex (nutrient-gap reference intakes) -->
     <string name="settings_biological_sex">Biological sex</string>
@@ -1319,6 +1321,16 @@
     <string name="settings_biological_sex_male">Male</string>
     <string name="settings_biological_sex_female">Female</string>
     <string name="settings_preference_update_failed">Failed to update preference</string>
+    <string name="settings_goals_updated">Goals updated</string>
+    <string name="settings_goals_update_failed">Failed to update goals</string>
+    <string name="settings_calorie_goal_invalid">Enter a calorie goal above 0</string>
+    <string name="settings_meal_assignment_updated">Meal assignment updated</string>
+    <string name="settings_nutrients_updated">Visible nutrients updated</string>
+    <string name="settings_nutrients_update_failed">Failed to update nutrients</string>
+    <string name="settings_meal_type_added">Meal type added</string>
+    <string name="settings_meal_type_add_failed">Failed to add meal type</string>
+    <string name="settings_export_failed">Export failed</string>
+    <string name="settings_delete_account_failed">Failed to delete account</string>
     <!-- Settings: workout goal adjustment -->
     <string name="settings_activity_goal_adjustment_title">Workout calories</string>
     <string name="settings_activity_goal_adjustment">Increase goals by workout calories</string>

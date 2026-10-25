@@ -429,6 +429,7 @@
     <string name="login_continue_without_account">Ohne Konto fortfahren</string>
     <string name="login_local_mode_description">Deine Daten bleiben auf diesem Gerät. Melde dich später jederzeit an, um zu synchronisieren.</string>
     <string name="session_expired_message">Sitzung abgelaufen, bitte melde dich erneut an</string>
+    <string name="login_failed">Anmeldung fehlgeschlagen. Bitte erneut versuchen.</string>
 
     <!-- Maintenance calculator -->
     <string name="maintenance_title">Erhaltungsrechner</string>
@@ -1309,6 +1310,7 @@
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Erneut anmelden</string>
+    <string name="settings_sign_in_choose_provider">Anmelden mit</string>
 
     <!-- Settings: biological sex (nutrient-gap reference intakes) -->
     <string name="settings_biological_sex">Biologisches Geschlecht</string>
@@ -1317,6 +1319,16 @@
     <string name="settings_biological_sex_male">Männlich</string>
     <string name="settings_biological_sex_female">Weiblich</string>
     <string name="settings_preference_update_failed">Einstellung konnte nicht aktualisiert werden</string>
+    <string name="settings_goals_updated">Ziele aktualisiert</string>
+    <string name="settings_goals_update_failed">Ziele konnten nicht aktualisiert werden</string>
+    <string name="settings_calorie_goal_invalid">Kalorienziel über 0 eingeben</string>
+    <string name="settings_meal_assignment_updated">Mahlzeitenzuordnung aktualisiert</string>
+    <string name="settings_nutrients_updated">Sichtbare Nährstoffe aktualisiert</string>
+    <string name="settings_nutrients_update_failed">Nährstoffe konnten nicht aktualisiert werden</string>
+    <string name="settings_meal_type_added">Mahlzeitentyp hinzugefügt</string>
+    <string name="settings_meal_type_add_failed">Mahlzeitentyp konnte nicht hinzugefügt werden</string>
+    <string name="settings_export_failed">Export fehlgeschlagen</string>
+    <string name="settings_delete_account_failed">Konto konnte nicht gelöscht werden</string>
     <!-- Settings: workout goal adjustment -->
     <string name="settings_activity_goal_adjustment_title">Workout-Kalorien</string>
     <string name="settings_activity_goal_adjustment">Ziele durch Workout-Kalorien erhöhen</string>
