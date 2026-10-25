@@ -31,20 +31,8 @@ class DayLogViewModel(
     private val entryRepo: EntryRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    private val firstLoadDone = MutableStateFlow(false)
-
-    /** The first list the entries query emitted, or null before it has. */
-    private val firstEntries = MutableStateFlow<List<Entry>?>(null)
-
-    /**
-     * Only the first load shows the skeleton: until cached entries are on screen, or until
-     * the first refresh finished for a day that is really empty, so "no entries" never
-     * flashes before the network answered.
-     */
-    val isLoading: StateFlow<Boolean> =
-        combine(firstLoadDone, firstEntries) { done, first ->
-            first == null || (first.isEmpty() && !done)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    private val skeleton = FirstLoadSkeleton(viewModelScope)
+    val isLoading: StateFlow<Boolean> = skeleton.isLoading
 
     private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
     val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
@@ -66,7 +54,7 @@ class DayLogViewModel(
         currentDateFlow
             .flatMapLatest { date ->
                 if (date.isNotEmpty()) {
-                    entryRepo.entriesByDate(date).onEach { if (firstEntries.value == null) firstEntries.value = it }
+                    entryRepo.entriesByDate(date).onEach(skeleton::onEntries)
                 } else {
                     flowOf(emptyList())
                 }
@@ -104,7 +92,7 @@ class DayLogViewModel(
                 errorReporter.captureException(e)
                 _snackbarMessage.value = UiMessage(R.string.daylog_load_failed)
             } finally {
-                firstLoadDone.value = true
+                skeleton.onLoadFinished()
             }
         }
     }

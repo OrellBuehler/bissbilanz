@@ -63,21 +63,8 @@ class DashboardViewModel(
                 LocalDate.parse(selectedDateString.value),
             )
 
-    private val firstLoadDone = MutableStateFlow(false)
-
-    /** The first list the entries query emitted, or null before it has. */
-    private val firstEntries = MutableStateFlow<List<Entry>?>(null)
-
-    /**
-     * The skeleton is only for the very first load: it ends as soon as cached entries are
-     * on screen, or once the first refresh finished for a day that is really empty (so
-     * "no entries yet" never flashes before the network answered). Later refreshes and
-     * day switches keep the content on screen.
-     */
-    val isLoading: StateFlow<Boolean> =
-        combine(firstLoadDone, firstEntries) { done, first ->
-            first == null || (first.isEmpty() && !done)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    private val skeleton = FirstLoadSkeleton(viewModelScope)
+    val isLoading: StateFlow<Boolean> = skeleton.isLoading
 
     private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
     val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
@@ -120,7 +107,7 @@ class DashboardViewModel(
         currentDateString
             .flatMapLatest { date ->
                 if (date.isNotEmpty()) {
-                    entryRepo.entriesByDate(date).onEach { if (firstEntries.value == null) firstEntries.value = it }
+                    entryRepo.entriesByDate(date).onEach(skeleton::onEntries)
                 } else {
                     flowOf(emptyList())
                 }
@@ -272,7 +259,7 @@ class DashboardViewModel(
                 }
             if (date == selectedDateString.value) {
                 _refreshFailed.value = failed
-                firstLoadDone.value = true
+                skeleton.onLoadFinished()
             }
         }
     }
