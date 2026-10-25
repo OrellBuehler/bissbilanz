@@ -804,6 +804,7 @@
     <string name="recipe_edit_amount">Amount</string>
     <string name="recipe_edit_unit">Unit</string>
     <string name="recipe_edit_no_ingredients">No ingredients added yet.\nTap Add to search for foods.</string>
+    <string name="recipe_edit_too_many_ingredients">A recipe can have at most %1$d ingredients.</string>
     <string name="recipe_edit_steps_count">Steps (%1$d)</string>
     <string name="recipe_edit_no_steps">No steps yet.\nAdd steps to cook this recipe one step at a time.</string>
     <string name="recipe_edit_steps_unavailable">Steps can\'t be edited until this recipe has been opened online once.</string>

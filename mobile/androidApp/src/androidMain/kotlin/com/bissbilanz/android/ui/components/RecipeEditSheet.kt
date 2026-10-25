@@ -20,10 +20,12 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.util.toEditableString
+import com.bissbilanz.foodpackage.MAX_RECIPE_INGREDIENTS
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.MAX_LABELS_PER_FOOD
+import com.bissbilanz.util.MAX_RECIPE_NAME
 import com.bissbilanz.util.RecipeField
 import com.bissbilanz.util.RecipeStepDraft
 import com.bissbilanz.util.caloriesPerHundredGrams
@@ -36,13 +38,30 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
+// Saved with the form, so only what the row shows: a whole Food per row would bloat the
+// saved state. [foodName] is null when the food could not be resolved; the row still saves.
 @Serializable
 private data class RecipeIngredientRow(
     val key: String = newTempId(),
-    val food: Food? = null,
     val foodId: String = "",
+    val foodName: String? = null,
+    /** The food's own unit, which limits the units offered. */
+    val foodUnit: String? = null,
     val quantity: String = "100",
     val unit: ServingUnit = ServingUnit.g,
+)
+
+private fun ingredientRow(
+    food: Food?,
+    foodId: String,
+    quantity: Double,
+    unitValue: String,
+) = RecipeIngredientRow(
+    foodId = foodId,
+    foodName = food?.name,
+    foodUnit = food?.servingUnit?.value,
+    quantity = quantity.toEditableString(),
+    unit = ServingUnit.entries.first { it.value == unitValue },
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +86,9 @@ fun RecipeEditSheet(
     // The recipe itself saved but its image didn't: the sheet stays open with the photo
     // error, so leaving it still has to report the save the caller's list must reflect.
     var bodySaved by rememberSaveable { mutableStateOf(false) }
+    // A new recipe once its create went through: saving again updates it instead of
+    // creating a second one.
+    var createdId by rememberSaveable { mutableStateOf<String?>(null) }
     val isEditing = recipeId != null
 
     var name by rememberSaveable { mutableStateOf("") }
@@ -147,14 +169,10 @@ fun RecipeEditSheet(
                     }
                 ingredients =
                     recipe.ingredients.map { ing ->
-                        RecipeIngredientRow(
-                            food = resolveFood(ing.foodId),
-                            foodId = ing.foodId,
-                            quantity = ing.quantity.toEditableString(),
-                            unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
-                        )
+                        ingredientRow(resolveFood(ing.foodId), ing.foodId, ing.quantity, ing.servingUnit.value)
                     }
                 loaded = true
+                errorMessage = null
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("RecipeEditSheet", "Failed to load recipe", e)
@@ -170,13 +188,7 @@ fun RecipeEditSheet(
             title = stringResource(R.string.recipe_edit_add_ingredient),
             onDismiss = { showFoodPicker = false },
             onFoodSelected = { food ->
-                ingredients = ingredients +
-                    RecipeIngredientRow(
-                        food = food,
-                        foodId = food.id,
-                        quantity = food.servingSize.toEditableString(),
-                        unit = ServingUnit.entries.first { it.value == food.servingUnit.value },
-                    )
+                ingredients = ingredients + ingredientRow(food, food.id, food.servingSize, food.servingUnit.value)
                 showFoodPicker = false
             },
         )
@@ -192,12 +204,7 @@ fun RecipeEditSheet(
                 scope.launch {
                     val rows =
                         scaled.map { ing ->
-                            RecipeIngredientRow(
-                                food = resolveFood(ing.foodId),
-                                foodId = ing.foodId,
-                                quantity = ing.quantity.toEditableString(),
-                                unit = ServingUnit.entries.first { it.value == ing.servingUnit.value },
-                            )
+                            ingredientRow(resolveFood(ing.foodId), ing.foodId, ing.quantity, ing.servingUnit.value)
                         }
                     ingredients = ingredients + rows
                 }
@@ -244,7 +251,7 @@ fun RecipeEditSheet(
 
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { if (it.length <= MAX_RECIPE_NAME) name = it },
                     label = { Text(stringResource(R.string.recipe_edit_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -317,16 +324,28 @@ fun RecipeEditSheet(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    FilledTonalButton(onClick = { showFoodPicker = true }) {
+                    FilledTonalButton(
+                        onClick = { showFoodPicker = true },
+                        enabled = ingredients.size < MAX_RECIPE_INGREDIENTS,
+                    ) {
                         Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(stringResource(R.string.action_add))
                     }
                 }
 
+                if (ingredients.size > MAX_RECIPE_INGREDIENTS) {
+                    Text(
+                        stringResource(R.string.recipe_edit_too_many_ingredients, MAX_RECIPE_INGREDIENTS),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
                 OutlinedButton(
                     onClick = { showRecipeSource = true },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = ingredients.size < MAX_RECIPE_INGREDIENTS,
                 ) {
                     Text(stringResource(R.string.recipe_edit_add_from_recipe), maxLines = 1)
                 }
@@ -341,7 +360,7 @@ fun RecipeEditSheet(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        ingredient.food?.name ?: stringResource(R.string.food_detail_default_title),
+                                        ingredient.foodName ?: stringResource(R.string.food_detail_default_title),
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier.weight(1f),
@@ -377,8 +396,8 @@ fun RecipeEditSheet(
                                         isError = ingredientQuantities[index].let { it == null || it <= 0.0 },
                                     )
                                     val compatibleUnits =
-                                        ingredient.food?.servingUnit?.let { foodUnit ->
-                                            ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit.value) }
+                                        ingredient.foodUnit?.let { foodUnit ->
+                                            ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit) }
                                         } ?: ServingUnit.entries.toList()
                                     ExposedDropdownMenuBox(
                                         expanded = openUnitDropdownKey == ingredient.key,
@@ -476,8 +495,9 @@ fun RecipeEditSheet(
                             val nameVal = name.trim()
                             val servingsVal = servingsValue?.takeIf { it > 0.0 } ?: return@Button
                             val quantities = ingredientQuantities.map { it?.takeIf { q -> q > 0.0 } ?: return@Button }
-                            if (nameVal.isBlank() || ingredients.isEmpty()) return@Button
+                            if (nameVal.isBlank() || ingredients.isEmpty() || ingredients.size > MAX_RECIPE_INGREDIENTS) return@Button
                             isSaving = true
+                            errorMessage = null
                             scope.launch {
                                 try {
                                     val ingredientInputs =
@@ -490,8 +510,9 @@ fun RecipeEditSheet(
                                         }
                                     val cookedWeightVal =
                                         cookedWeightText.toLocalizedDoubleOrNull()?.takeIf { it > 0.0 }
-                                    if (isEditing) {
-                                        val id = recipeId ?: return@launch
+                                    val existingId = (recipeId ?: createdId)?.let { recipeRepo.resolveId(it) }
+                                    if (existingId != null) {
+                                        val id = existingId
                                         recipeRepo.updateRecipe(
                                             id,
                                             RecipeUpdate(
@@ -509,7 +530,10 @@ fun RecipeEditSheet(
                                         // Labels live in their own table; only an actual edit is
                                         // sent, because a user write replaces whatever a labeller
                                         // seeded.
-                                        if (labels != originalLabels) recipeRepo.setLabels(id, labels)
+                                        if (labels != originalLabels) {
+                                            recipeRepo.setLabels(id, labels)
+                                            originalLabels = labels
+                                        }
                                         // Separate from the body: `imageUrl` defaults to
                                         // null on RecipeUpdate and the client omits
                                         // defaults, so a removal sent that way would be
@@ -517,6 +541,7 @@ fun RecipeEditSheet(
                                         if (imageUrl != originalImageUrl) {
                                             try {
                                                 recipeRepo.setImage(id, imageUrl)
+                                                originalImageUrl = imageUrl
                                             } catch (e: Exception) {
                                                 if (e is kotlinx.coroutines.CancellationException) throw e
                                                 // The recipe is already saved, so this is
@@ -544,7 +569,11 @@ fun RecipeEditSheet(
                                                     steps = steps.toStepInputs(),
                                                 ),
                                             )
+                                        createdId = created.id
+                                        originalImageUrl = imageUrl
+                                        bodySaved = true
                                         if (labels.isNotEmpty()) recipeRepo.setLabels(created.id, labels)
+                                        originalLabels = labels
                                     }
                                     isSaving = false
                                     sheetState.hide()
@@ -563,6 +592,7 @@ fun RecipeEditSheet(
                             !isBusy &&
                                 name.isNotBlank() &&
                                 ingredients.isNotEmpty() &&
+                                ingredients.size <= MAX_RECIPE_INGREDIENTS &&
                                 ingredientQuantities.all { it != null && it > 0.0 } &&
                                 (servingsValue ?: 0.0) > 0.0,
                     ) {

@@ -66,8 +66,9 @@ private const val MAX_UPLOAD_DIMENSION = 800
 private const val UPLOAD_QUALITY = 85
 
 /**
- * Runs a [FoodImageField] upload outside composition, so rotating the screen (or any
- * other recreation of the form) neither cancels it nor loses the URL it produces.
+ * Runs a [FoodImageField] (or [RecipeStepPhotoField]) upload outside composition, so
+ * rotating the screen (or any other recreation of the form) neither cancels it nor loses
+ * the URL it produces.
  */
 internal class FoodImageUploadViewModel(
     private val uploader: FoodImageUploader,
@@ -86,6 +87,9 @@ internal class FoodImageUploadViewModel(
     fun upload(
         cropped: Bitmap,
         transparent: Boolean,
+        maxDimension: Int = MAX_UPLOAD_DIMENSION,
+        quality: Int = UPLOAD_QUALITY,
+        purpose: String? = null,
     ) {
         if (_isUploading.value) return
         _isUploading.value = true
@@ -94,9 +98,9 @@ internal class FoodImageUploadViewModel(
             try {
                 val encoded =
                     withContext(Dispatchers.IO) {
-                        cropped.toUploadBytes(MAX_UPLOAD_DIMENSION, UPLOAD_QUALITY, transparent)
+                        cropped.toUploadBytes(maxDimension, quality, transparent)
                     }
-                _uploadedUrl.value = uploader.store(encoded.bytes, format = encoded.format)
+                _uploadedUrl.value = uploader.store(encoded.bytes, purpose = purpose, format = encoded.format)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

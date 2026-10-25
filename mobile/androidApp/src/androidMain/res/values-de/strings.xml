@@ -802,6 +802,7 @@
     <string name="recipe_edit_amount">Menge</string>
     <string name="recipe_edit_unit">Einheit</string>
     <string name="recipe_edit_no_ingredients">Noch keine Zutaten hinzugefügt.\nTippe auf Hinzufügen, um Lebensmittel zu suchen.</string>
+    <string name="recipe_edit_too_many_ingredients">Ein Rezept kann höchstens %1$d Zutaten haben.</string>
     <string name="recipe_edit_steps_count">Schritte (%1$d)</string>
     <string name="recipe_edit_no_steps">Noch keine Schritte.\nFüge Schritte hinzu, um das Rezept Schritt für Schritt zu kochen.</string>
     <string name="recipe_edit_steps_unavailable">Die Schritte können erst bearbeitet werden, wenn dieses Rezept einmal online geöffnet wurde.</string>
